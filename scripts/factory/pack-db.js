@@ -29,7 +29,7 @@ async function packDatabase() {
     const metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
     const db = new Database(DB_PATH);
-    db.pragma('page_size = 4096');
+    db.pragma('page_size = 8192');
     db.pragma('auto_vacuum = 0');
     db.pragma('journal_mode = DELETE');
     db.pragma('synchronous = OFF');
@@ -112,11 +112,12 @@ async function packDatabase() {
                 stats.heavy++; stats.bytes += size;
             }
 
+            const summary = e.summary || e.description || '';
             const category = getV6Category(e);
 
             const res = insertEntity.run(
                 e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-                e.author || '', e.summary || '', category, e.fni_score || 0, e.fni_percentile || '',
+                e.author || '', summary, category, e.fni_score || 0, e.fni_percentile || '',
                 e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
                 e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
                 pBillions,
@@ -127,7 +128,7 @@ async function packDatabase() {
                 '', // shard_hash (filled in final pass)
                 e._trend_7d
             );
-            insertFts.run(res.lastInsertRowid, e.name || '', e.summary || '', e.author || '');
+            insertFts.run(res.lastInsertRowid, e.name || '', summary, e.author || '');
             stats.packed++;
         }
     })();

@@ -3,6 +3,7 @@
 // Offloads heavy indexing to R2 via sql.js-httpvfs for Zero-UI-Lag performance.
 
 import { createDbWorker } from "sql.js-httpvfs";
+import { VFS_CONFIG } from "../lib/db.js";
 
 // Worker Instance (VFS SQLite)
 let dbWorker = null;
@@ -29,19 +30,20 @@ export async function initSearch() {
                     config: {
                         serverMode: "full",
                         url: "/api/vfs-proxy/content.db",
-                        requestChunkSize: 8192
+                        requestChunkSize: VFS_CONFIG.requestChunkSize
                     }
                 }
             ],
-            "/assets/sqlite/sqlite.worker.js",
-            "/assets/sqlite/sql-wasm.wasm"
+            VFS_CONFIG.workerUrl,
+            VFS_CONFIG.wasmUrl
         );
         isLoaded = true;
         isLoading = false;
 
-        // Try getting count to verify
+        // Verify database integrity via lightweight probe
         const res = await dbWorker.db.query(`SELECT COUNT(*) as c FROM entities;`);
         itemCount = res[0].c;
+        console.log(`[HomeSearch] VFS Ready. Peer count: ${itemCount}`);
         return true;
     } catch (e) {
         console.error('[HomeSearch] VFS Mount Error:', e);

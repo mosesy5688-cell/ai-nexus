@@ -132,6 +132,7 @@ const displayArch = cleanArchitecture(architecture);
           .replace(/ForCausalLM\s*$/i, '')
           .replace(/_?ForCausalLM/gi, '')
           .replace(/_?Model\s*$/i, '')
+          .replace(/LM$/i, '')
           .replace(/^_+/, '')
           .replace(/_/g, ' ')
           .replace(/([a-z])([A-Z])/g, '$1 $2')
