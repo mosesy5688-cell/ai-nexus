@@ -20,12 +20,18 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
 
     // 1. Filename Whitelisting (V19.4: Allow Shards)
     if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.vfs') && !filename.endsWith('.bin'))) {
-        return new Response('Access Denied', { status: 403 });
+        return new Response('Access Denied', {
+            status: 403,
+            headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+        });
     }
 
     const rangeHeader = request.headers.get('Range');
     if (!rangeHeader) {
-        return new Response('Range Required', { status: 416 });
+        return new Response('Range Required', {
+            status: 416,
+            headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+        });
     }
 
     let start: number;
@@ -36,7 +42,10 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
     try {
         const rangeValue = rangeHeader.trim().toLowerCase();
         if (!rangeValue.startsWith('bytes=')) {
-            return new Response('Invalid Range Prefix', { status: 416 });
+            return new Response('Invalid Range Prefix', {
+                status: 416,
+                headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+            });
         }
 
         const rawRanges = rangeValue.replace('bytes=', '').trim();
@@ -50,14 +59,21 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         if (parts[0] === '') {
             // Suffix range (last N bytes) - R2 supports suffix: N
             const suffix = parseInt(parts[1], 10);
-            if (isNaN(suffix)) return new Response('Invalid Suffix', { status: 416 });
+            if (isNaN(suffix)) return new Response('Invalid Suffix', {
+                status: 416,
+                headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+            });
 
             const object = await env.R2_ASSETS.get(`data/${filename}`, {
                 range: { suffix }
             });
-            if (!object) return new Response('Not Found', { status: 404 });
+            if (!object) return new Response('Not Found', {
+                status: 404,
+                headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+            });
             const headers = new Headers() as any;
             object.writeHttpMetadata(headers);
+            headers.set('x-vfs-proxy-ver', 'v19.4.3');
             headers.set('Access-Control-Allow-Origin', '*');
             return new Response(object.body as any, { status: 206, headers });
         }
@@ -66,11 +82,17 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         end = parts[1] ? parseInt(parts[1], 10) : undefined;
 
         if (isNaN(start)) {
-            return new Response('Invalid Range Start', { status: 416 });
+            return new Response('Invalid Range Start', {
+                status: 416,
+                headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+            });
         }
     } catch (e) {
         console.warn(`[VFS-SEC] Range Processing Error: ${rangeHeader} - ${e}`);
-        return new Response('Invalid Range Format', { status: 416 });
+        return new Response('Invalid Range Format', {
+            status: 416,
+            headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+        });
     }
 
     // 2. Alignment & Verification (8KB Page boundary)
@@ -88,24 +110,39 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         const length = end ? (end - start + 1) : 8192;
         if (length > 8192) {
             console.warn(`[VFS-SEC] Misaligned Range Attempt: ${start}`);
-            return new Response('Misaligned Range', { status: 403 });
+            return new Response('Misaligned Range', {
+                status: 403,
+                headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+            });
         }
     }
 
-    // 3. Fetch from R2 (V19.4: Target /data prefix)
-    const object = await env.R2_ASSETS.get(`data/${filename}`, {
-        range: { offset: start, length: end ? (end - start + 1) : undefined }
-    });
+    try {
+        // 3. Fetch from R2 (V19.4: Target /data prefix)
+        const object = await env.R2_ASSETS.get(`data/${filename}`, {
+            range: { offset: start, length: end ? (end - start + 1) : undefined }
+        });
 
-    if (!object) return new Response('Not Found', { status: 404 });
+        if (!object) return new Response('Not Found', {
+            status: 404,
+            headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+        });
 
-    const headers = new Headers() as any;
-    object.writeHttpMetadata(headers);
-    headers.set('ETag', object.httpEtag);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
+        const headers = new Headers() as any;
+        object.writeHttpMetadata(headers);
+        headers.set('ETag', object.httpEtag);
+        headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+        headers.set('Access-Control-Allow-Origin', '*');
+        headers.set('x-vfs-proxy-ver', 'v19.4.3');
 
-    return new Response(object.body as any, { status: 206, headers });
+        return new Response(object.body as any, { status: 206, headers });
+    } catch (e) {
+        console.warn(`[VFS-SEC] R2 Fetch Error: ${filename} - ${e}`);
+        return new Response('Internal Proxy Error', {
+            status: 500,
+            headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
+        });
+    }
 }
 
 /**
