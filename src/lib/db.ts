@@ -147,7 +147,9 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
     const responseSize = end - start + 1;
 
     // Alignment & Integrity Guard (SPEC-V19.2)
-    // Small probes < 1KB are permitted for metadata discovery
+    // V21.9: Flexible Alignment Support. 
+    // Allowing 4096 alignment ensures compatibility with BOTH legacy (4K) 
+    // and production-optimized (8K) databases simultaneously.
     if (responseSize > 1024 && (start % 4096 !== 0)) {
         console.warn(`[VFS-PROXY] Invalid Offset Alignment: ${start} for ${filename}`);
         return new Response('Alignment Error', { status: 416 });
