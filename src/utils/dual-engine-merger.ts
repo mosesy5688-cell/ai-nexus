@@ -7,7 +7,9 @@ export function promoteEngine2Fields(entityPack: any, innerEntity: any, fusedPac
     const promotedFields = [
         'fni_score', 'fni_percentile', 'fni_commentary', 'fni_metrics',
         'html_readme', 'readme', 'description', 'body_content',
-        'mesh_profile', 'relations'
+        'mesh_profile', 'relations',
+        // V19.5 High-Density Component UI Metrics
+        'params_billions', 'context_length', 'downloads', 'stars', 'likes', 'size', 'primary_category', 'pipeline_tag', 'tags'
     ];
 
     for (const field of promotedFields) {

@@ -1,0 +1,156 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import EntityLayout from '../../layouts/EntityLayout.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
+import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import CiteEntity from '../../components/common/CiteEntity.astro';
+import PromptDeepDive from '../../components/prompt-detail/PromptDeepDive.astro';
+import FNITrustPanel from '../../components/common/FNITrustPanel.astro';
+import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { cleanDescription } from '../../utils/model-page-helpers.ts';
+
+const { slug } = Astro.params;
+const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+
+let promptData = null;
+let error = null;
+let pageTitle = "AI System Prompt - Free2AITools";
+let pageDescription = "Explore evaluated system instructions and templates.";
+let meshRelations = [];
+let cleanedDesc = "";
+
+try {
+  if (!slug) throw new Error("No slug/ID provided");
+  const type = 'prompt';
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
+  
+  if (!entity || !_meta.available) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=prompt-not-found&id=' + encodeURIComponent(slugStr));
+  }
+
+  promptData = hydrateEntity(entity, type);
+  meshRelations = mesh || [];
+  
+  const displayPromptName = promptData?.name || promptData?.title || 'Unknown Prompt';
+  pageTitle = `${displayPromptName} - AI Prompt Insights`;
+  cleanedDesc = cleanDescription(promptData?.description || '');
+  pageDescription = promptData?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayPromptName}.`;
+  
+  promptData.html_readme = html || promptData.html_readme || null;
+
+} catch (e) {
+  console.error("[PromptPage] Error loading:", e);
+  error = e;
+}
+
+if (!promptData && !error) {
+  Astro.response.status = 404;
+  return Astro.redirect('/404?source=prompt-not-found');
+}
+
+const promptName = promptData?.name || 'Unknown Prompt';
+const entityId = promptData?.id || slugStr;
+const displayAuthor = promptData?.author || 'Community';
+
+// Pure architecture: Zero hero images for prompt
+const placeholderImage = '/images/models/default-model.jpg';
+const canonicalPath = promptData ? getRouteFromId(promptData.id || entityId, 'prompt') : undefined;
+---
+
+<EntityLayout 
+  entity={promptData} 
+  type="prompt" 
+  title={pageTitle} 
+  description={pageDescription}
+  image={placeholderImage}
+  jsonld={null}
+  canonical={canonicalPath}
+>
+    {promptData && (
+      <EntityHeader 
+        slot="hero"
+        name={promptName}
+        entityType="prompt"
+        entityIcon="✨"
+        entityLabel="Template"
+        verified={false} 
+        author={displayAuthor}
+        lastUpdated={promptData.last_updated}
+        description={promptData.seo_summary?.description || cleanedDesc}
+        sourceUrl={promptData.source_url}
+        entityId={entityId}
+        hasImage={false}
+      />
+    )}
+
+    {promptData && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable 
+              type="prompt"
+              model={{
+                ...promptData,
+                displayName: promptName
+              }} 
+            />
+         </div>
+      </div>
+    )}
+
+    {promptData && (
+      <div slot="core-desktop" class="space-y-16">
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity 
+              id={entityId} 
+              name={promptName} 
+              author={displayAuthor} 
+              url={promptData.source_url} 
+              type="prompt" 
+            />
+         </div>
+      </div>
+    )}
+  
+    {promptData && (
+      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+         <UniversalCore entity={promptData} type="prompt" meshRelations={meshRelations} />
+      </div>
+    )}
+
+    {promptData && (
+      <div slot="deep-dive" class="space-y-12">
+         <div class="space-y-8">
+            {promptData.fni_score !== undefined && (
+              <FNITrustPanel 
+                fniScore={promptData.fni_score}
+                fniPercentile={promptData.fni_percentile}
+                fniP={promptData.fni_p}
+                fniV={promptData.fni_v}
+                fniC={promptData.fni_c}
+                fniU={promptData.fni_u}
+                fniCommentary={promptData.fni_commentary}
+                modelName={promptName}
+                modelId={entityId}
+              />
+            )}
+         </div>
+
+         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
+            <PromptDeepDive promptData={promptData} />
+         </div>
+      </div>
+    )}
+
+    {promptData && (
+      <div slot="community">
+          <AiDisclaimer source={promptData.source} lastUpdated={promptData.last_updated} />
+      </div>
+    )}
+</EntityLayout>

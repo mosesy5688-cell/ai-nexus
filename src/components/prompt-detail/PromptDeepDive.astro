@@ -1,0 +1,60 @@
+---
+interface Props {
+  promptData: any;
+}
+
+const { promptData } = Astro.props;
+
+const displayAuthor = promptData?.author || 'Community';
+const likes = promptData?.likes || promptData?.stars ? Number(promptData?.likes || promptData?.stars) : null;
+
+import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
+---
+
+<div class="space-y-12">
+  {likes && (
+    <section class="flex flex-wrap gap-4">
+      <div class="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/30">
+        <span class="text-lg">❤️</span>
+        <div>
+          <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Likes</div>
+          <div class="text-sm font-black text-gray-900 dark:text-white">{likes >= 1e6 ? `${(likes/1e6).toFixed(1)}M` : likes.toLocaleString()}</div>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- Section: Prompt Spec Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+       <section class="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+         <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+            <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">📋</span> Specs
+         </h2>
+         <dl class="space-y-4 text-sm font-medium">
+           <div class="flex justify-between items-center pb-4 border-b border-gray-50 dark:border-gray-700">
+             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">Author</dt>
+             <dd class="text-gray-900 dark:text-white">{displayAuthor}</dd>
+           </div>
+           {promptData.source_url && (
+             <div class="mt-6">
+               <a href={promptData.source_url} target="_blank" rel="noopener noreferrer"
+                  class="flex items-center justify-center w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all font-bold text-xs uppercase tracking-tight shadow-sm">
+                 Explore Source Node
+               </a>
+             </div>
+           )}
+         </dl>
+       </section>
+   </div>
+
+  <!-- Section: Prompt Instruction / Markdown Priority -->
+  <div class="relative">
+     <div class="absolute -left-6 top-10 w-1 bg-indigo-500/20 h-24 rounded-full blur-sm"></div>
+     <FullReadmeSection 
+       bodyContent={promptData.html_readme || promptData.body_content || promptData.description || 'No prompt instructions available.'}
+       type="prompt"
+       initialCollapsed={false}
+       maxPreviewLength={8000}
+     />
+  </div>
+</div>

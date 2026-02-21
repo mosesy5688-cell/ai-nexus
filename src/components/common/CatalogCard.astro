@@ -48,6 +48,8 @@ const formatCompact = (num) => new Intl.NumberFormat('en-US', { notation: "compa
 
 const metrics = [];
 if (type === 'model' || type === 'dataset' || type === 'space') {
+    if (type === 'model' && item.params_billions > 0) metrics.push({ icon: '🧠', value: `${item.params_billions}B`, label: 'Params' });
+    if (type === 'model' && item.context_length > 0) metrics.push({ icon: '📏', value: formatCompact(item.context_length), label: 'Context' });
     if (item.downloads > 0) metrics.push({ icon: '📥', value: formatCompact(item.downloads), label: 'Downloads' });
     if (item.likes > 0) metrics.push({ icon: '❤️', value: formatCompact(item.likes), label: 'Likes' });
     if (type === 'dataset' && item.size) metrics.push({ icon: '💾', value: item.size, label: 'Size' });
@@ -166,6 +168,8 @@ if (item.fni_score > 0) {
                         const metricsContainer = card.querySelector('.pt-2.border-t');
                         if (metricsContainer && metricsContainer.children.length === 0) {
                             const metrics = [];
+                            if (data.params_billions) metrics.push(`<span>${data.params_billions}B 🧠</span>`);
+                            if (data.context_length) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.context_length)} 📏</span>`);
                             if (data.downloads) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.downloads)} 📥</span>`);
                             if (data.stars) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.stars)} ⭐</span>`);
                             if (data.citations) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.citations)} 📚</span>`);
