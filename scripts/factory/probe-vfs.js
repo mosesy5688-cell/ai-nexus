@@ -53,11 +53,11 @@ async function probe() {
             });
 
             if (res.status === 206) {
-                const body = await res.text();
-                if (body.length === s.bundle_size) {
-                    console.log(`  ✅ ${s.id}: OK (${body.length} bytes)`);
+                const buffer = await res.arrayBuffer();
+                if (buffer.byteLength === s.bundle_size) {
+                    console.log(`  ✅ ${s.id}: OK (${buffer.byteLength} bytes)`);
                 } else {
-                    console.error(`  ❌ ${s.id}: Size Mismatch! Got ${body.length}, expected ${s.bundle_size}`);
+                    console.error(`  ❌ ${s.id}: Size Mismatch! Got ${buffer.byteLength}, expected ${s.bundle_size}`);
                     failures++;
                 }
             } else {
