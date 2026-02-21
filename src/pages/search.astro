@@ -63,18 +63,6 @@ const entityTypes = [
             </form>
         </div>
 
-        <!-- Smart Trigger for Full Search -->
-        <div id="full-search-prompt" class="mb-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl hidden">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <h3 class="font-semibold text-indigo-900 dark:text-indigo-300">Limited results found in top models.</h3>
-                    <p class="text-sm text-indigo-700 dark:text-indigo-400">Would you like to search the full index of 150K+ models?</p>
-                </div>
-                <button id="load-full-index-btn" class="whitespace-nowrap px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-bold">
-                    Load Full Index (~30MB)
-                </button>
-            </div>
-        </div>
 
         <!-- Loading State -->
         <div id="search-loading" class="hidden py-12 text-center text-gray-500">
@@ -109,8 +97,6 @@ const entityTypes = [
             results: document.getElementById('search-results-container'),
             loading: document.getElementById('search-loading'),
             empty: document.getElementById('search-empty-state'),
-            prompt: document.getElementById('full-search-prompt'),
-            fullBtn: document.getElementById('load-full-index-btn')
         };
 
         if (!dom.form) return;
@@ -147,12 +133,5 @@ const entityTypes = [
             });
         });
 
-        dom.fullBtn.addEventListener('click', async () => {
-            dom.fullBtn.textContent = 'Loading...';
-            dom.fullBtn.disabled = true;
-            await loadFullSearchIndex();
-            dom.fullBtn.classList.add('hidden');
-            handleSearch();
-        });
     });
 </script>

@@ -38,7 +38,7 @@ async function packDatabase() {
     db.exec(`
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
-            category TEXT, fni_score REAL, fni_percentile TEXT,
+            category TEXT, tags TEXT, fni_score REAL, fni_percentile TEXT,
             fni_p REAL DEFAULT 0, fni_v REAL DEFAULT 0, fni_c REAL DEFAULT 0, fni_u REAL DEFAULT 0,
             params_billions REAL DEFAULT 0,
             architecture TEXT,
@@ -48,12 +48,12 @@ async function packDatabase() {
         );
         CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
         CREATE INDEX idx_fni ON entities(fni_score DESC);
-        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, content='', tokenize='unicode61 remove_diacritics 2');
+        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='unicode61 remove_diacritics 2');
     `);
 
-    // V19.2: 26 columns in Stable 1.0 schema
-    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    const insertFts = db.prepare(`INSERT INTO search (rowid, name, summary, author) VALUES (?, ?, ?, ?)`);
+    // V19.2: 27 columns in Stable 1.1 schema (added tags)
+    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertFts = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
 
     let currentShardId = 0, currentShardSize = 0;
     const stats = { packed: 0, heavy: 0, bytes: 0 };
@@ -114,10 +114,11 @@ async function packDatabase() {
 
             const summary = e.summary || e.description || '';
             const category = getV6Category(e);
+            const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
             const res = insertEntity.run(
                 e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-                e.author || '', summary, category, e.fni_score || 0, e.fni_percentile || '',
+                e.author || '', summary, category, tags, e.fni_score || 0, e.fni_percentile || '',
                 e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
                 e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
                 pBillions,
@@ -128,7 +129,7 @@ async function packDatabase() {
                 '', // shard_hash (filled in final pass)
                 e._trend_7d
             );
-            insertFts.run(res.lastInsertRowid, e.name || '', summary, e.author || '');
+            insertFts.run(res.lastInsertRowid, e.name || '', summary, e.author || '', tags, category);
             stats.packed++;
         }
     })();

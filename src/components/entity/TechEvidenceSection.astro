@@ -74,7 +74,12 @@ const { entityId, entityName, entity, hasBench, enrichedTags } = Astro.props;
                entityId={entityId} 
                width={380} 
                height={140} 
-               initialData={entity?.trend_7d?.split(',').map(Number) || entity?.fni_trend_7d?.split(',').map(Number)}
+               initialData={
+                 Array.isArray(entity?.trend_7d) ? entity.trend_7d.map(Number) : 
+                 (typeof entity?.trend_7d === 'string' ? entity.trend_7d.split(',').map(Number) : 
+                 (Array.isArray(entity?.fni_trend_7d) ? entity.fni_trend_7d.map(Number) : 
+                 (typeof entity?.fni_trend_7d === 'string' ? entity.fni_trend_7d.split(',').map(Number) : [])))
+               }
             />
          </div>
          <div class="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 flex justify-between items-center">
