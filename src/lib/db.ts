@@ -4,6 +4,8 @@
  */
 
 import type { R2Bucket } from '@cloudflare/workers-types';
+import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * HARDENED RANGE PROXY (Security Pillar)
@@ -15,6 +17,7 @@ import type { R2Bucket } from '@cloudflare/workers-types';
  * - Max Concurrent Searches (Seat Guard)
  */
 export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
+    const isDev = process.env.NODE_ENV === 'development' || import.meta.env?.DEV;
     const url = new URL(request.url);
     let filename = url.pathname.split('/').pop();
 
@@ -34,22 +37,40 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
     }
 
     // V21.9: Anchor Metadata Discovery (Required for Range validation)
-    const objectHead = await env.R2_ASSETS.head(`data/${filename}`);
-    if (!objectHead) return new Response('Not Found', { status: 404 });
+    let totalSize = 0;
+    let etag = '';
+    let isLocal = false;
 
-    const totalSize = objectHead.size;
+    if (isDev) {
+        try {
+            const localPath = path.resolve(process.cwd(), 'data', filename);
+            const stats = await fs.stat(localPath);
+            totalSize = stats.size;
+            etag = `local-${stats.mtimeMs}`;
+            isLocal = true;
+        } catch (e) {
+            console.warn(`[VFS-PROXY] Local file not found: data/${filename}, falling back to R2.`);
+        }
+    }
+
+    if (!isLocal) {
+        const objectHead = await env.R2_ASSETS.head(`data/${filename}`);
+        if (!objectHead) return new Response('Not Found', { status: 404 });
+        totalSize = objectHead.size;
+        etag = objectHead.httpEtag;
+    }
+
     const commonHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Accept-Ranges': 'bytes',
         'x-vfs-proxy-ver': 'v19.4.5',
         'Cache-Control': 'public, max-age=31536000, immutable',
-        'ETag': objectHead.httpEtag
+        'ETag': etag
     };
 
     // 2. Handle HEAD Requests (Metadata Probe)
     if (request.method === 'HEAD') {
         const headers = new Headers(commonHeaders as any);
-        objectHead.writeHttpMetadata(headers as any);
         headers.set('Content-Length', totalSize.toString());
         return new Response(null, { headers });
     }
@@ -58,13 +79,18 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
 
     // 3. Handle Full Requests (Standard 200 OK)
     if (!rangeHeader) {
-        const object = await env.R2_ASSETS.get(`data/${filename}`);
-        if (!object) return new Response('Not Found', { status: 404 });
-
         const headers = new Headers(commonHeaders as any);
-        object.writeHttpMetadata(headers as any);
         headers.set('Content-Length', totalSize.toString());
-        return new Response(object.body as any, { status: 200, headers });
+
+        if (isLocal) {
+            const buffer = await fs.readFile(path.resolve(process.cwd(), 'data', filename));
+            return new Response(buffer, { status: 200, headers });
+        } else {
+            const object = await env.R2_ASSETS.get(`data/${filename}`);
+            if (!object) return new Response('Not Found', { status: 404 });
+            object.writeHttpMetadata(headers as any);
+            return new Response(object.body as any, { status: 200, headers });
+        }
     }
 
     // 4. Handle Range Requests (VFS Stream)
@@ -84,14 +110,23 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
             const suffix = parseInt(parts[1], 10);
             if (isNaN(suffix)) return new Response('Invalid Suffix', { status: 416 });
 
-            const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { suffix } });
-            if (!object) return new Response('Not Found', { status: 404 });
+            if (isLocal) {
+                const buffer = await fs.readFile(path.resolve(process.cwd(), 'data', filename));
+                const suffixBuffer = buffer.subarray(buffer.length - suffix);
+                const headers = new Headers(commonHeaders as any);
+                headers.set('Content-Length', suffix.toString());
+                headers.set('Content-Range', `bytes ${totalSize - suffix}-${totalSize - 1}/${totalSize}`);
+                return new Response(suffixBuffer, { status: 206, headers });
+            } else {
+                const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { suffix } });
+                if (!object) return new Response('Not Found', { status: 404 });
 
-            const headers = new Headers(commonHeaders as any);
-            object.writeHttpMetadata(headers as any);
-            headers.set('Content-Length', suffix.toString());
-            headers.set('Content-Range', `bytes ${totalSize - suffix}-${totalSize - 1}/${totalSize}`);
-            return new Response(object.body as any, { status: 206, headers });
+                const headers = new Headers(commonHeaders as any);
+                object.writeHttpMetadata(headers as any);
+                headers.set('Content-Length', suffix.toString());
+                headers.set('Content-Range', `bytes ${totalSize - suffix}-${totalSize - 1}/${totalSize}`);
+                return new Response(object.body as any, { status: 206, headers });
+            }
         }
 
         start = parseInt(parts[0], 10);
@@ -114,20 +149,27 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
     }
 
     try {
-        const object = await env.R2_ASSETS.get(`data/${filename}`, {
-            range: { offset: start, length: responseSize }
-        });
-
-        if (!object) return new Response('Not Found', { status: 404 });
-
         const headers = new Headers(commonHeaders as any);
-        object.writeHttpMetadata(headers as any);
         headers.set('Content-Length', responseSize.toString());
         headers.set('Content-Range', `bytes ${start}-${end}/${totalSize}`);
 
-        return new Response(object.body as any, { status: 206, headers });
+        if (isLocal) {
+            const handle = await fs.open(path.resolve(process.cwd(), 'data', filename), 'r');
+            const buffer = Buffer.alloc(responseSize);
+            await handle.read(buffer, 0, responseSize, start);
+            await handle.close();
+            return new Response(buffer, { status: 206, headers });
+        } else {
+            const object = await env.R2_ASSETS.get(`data/${filename}`, {
+                range: { offset: start, length: responseSize }
+            });
+
+            if (!object) return new Response('Not Found', { status: 404 });
+            object.writeHttpMetadata(headers as any);
+            return new Response(object.body as any, { status: 206, headers });
+        }
     } catch (e) {
-        console.warn(`[VFS-SEC] R2 Fetch Error: ${filename} - ${e}`);
+        console.warn(`[VFS-SEC] Proxy Fetch Error: ${filename} - ${e}`);
         return new Response('Internal Proxy Error', { status: 500 });
     }
 }

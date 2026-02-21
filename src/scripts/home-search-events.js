@@ -10,6 +10,7 @@ import {
     getSearchStatus
 } from './home-search.js';
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
+import { highlightTerms } from './search-ui-controller.js';
 
 export function renderHistory() {
     const dropdown = document.getElementById('search-results-dropdown');
@@ -72,14 +73,18 @@ export function renderResults(results) {
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2 overflow-hidden">
           <span class="text-[8px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded uppercase tracking-tighter">${typeLabel}</span>
-          <div class="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">${r.name}</div>
+          <div class="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">
+            ${highlightTerms(r.name, document.getElementById('search-box')?.value || '')}
+          </div>
         </div>
         <div class="text-[10px] text-zinc-400 font-black ml-2 tabular-nums">
           ${r.fni_score ?? r.fni ?? '-'}
         </div>
       </div>
       <div class="flex items-center justify-between mt-1">
-        <div class="text-[10px] text-zinc-500 truncate italic pr-4">${r.description || ''}</div>
+        <div class="text-[10px] text-zinc-500 truncate italic pr-4">
+            ${highlightTerms(r.description || '', document.getElementById('search-box')?.value || '')}
+        </div>
         <div class="text-[10px] text-zinc-400 flex-shrink-0">⭐ ${r.likes || 0}</div>
       </div>
     </a>
@@ -106,12 +111,6 @@ export function setupSearchEvents() {
 
     searchBox?.addEventListener('mouseenter', initSearch);
 
-    document.getElementById('fullSearchToggle')?.addEventListener('change', async (e) => {
-        setFullSearchActive(e.target.checked);
-        if (e.target.checked) await loadFullSearchIndex();
-        const query = searchBox?.value?.trim();
-        if (query?.length > 0) renderResults(performSearch(query));
-    });
 
     let searchDebounceTimer;
 
@@ -140,33 +139,13 @@ export function setupSearchEvents() {
             const results = await performSearch(query);
             renderResults(results);
 
-            const updatedStatus = getSearchStatus();
-            if (results.length === 0 && !updatedStatus.isFullSearchActive && !updatedStatus.isFullSearchLoading) {
-                fullSearchContainer?.classList.remove('hidden');
-            } else {
-                fullSearchContainer?.classList.add('hidden');
-                if (results.length > 0) {
-                    const resultsGrid = document.getElementById('models-grid');
-                    resultsGrid?.classList.remove('hidden');
-                }
+            if (results.length > 0) {
+                const resultsGrid = document.getElementById('models-grid');
+                resultsGrid?.classList.remove('hidden');
             }
         }, 300);
     });
 
-    document.getElementById('smartFullSearchBtn')?.addEventListener('click', async () => {
-        const btn = document.getElementById('smartFullSearchBtn');
-        const span = btn?.querySelector('span');
-        if (span) span.textContent = 'Downloading Index...';
-
-        const success = await loadFullSearchIndex();
-        if (success) {
-            document.getElementById('full-search-container')?.classList.add('hidden');
-            const query = searchBox?.value?.trim();
-            if (query) renderResults(performSearch(query));
-        } else {
-            if (span) span.textContent = 'Retry Download';
-        }
-    });
 
     document.addEventListener('click', (e) => {
         if (!document.getElementById('search-container')?.contains(e.target)) {
@@ -194,5 +173,30 @@ export function setupSearchEvents() {
                 searchBox.focus();
             }
         });
+    });
+
+    // V21.9: Expert Keyboard Interactions (A-Rating)
+    let selectedIndex = -1;
+    searchBox?.addEventListener('keydown', (e) => {
+        const items = dropdown?.querySelectorAll('a.flex');
+        if (!items || items.length === 0) return;
+
+        if (e.key === 'Escape') {
+            dropdown.classList.add('hidden');
+            searchBox.blur();
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            items.forEach((item, idx) => item.classList.toggle('bg-zinc-100', idx === selectedIndex));
+            items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            items.forEach((item, idx) => item.classList.toggle('bg-zinc-100', idx === selectedIndex));
+            if (selectedIndex >= 0) items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            items[selectedIndex].click();
+        }
     });
 }

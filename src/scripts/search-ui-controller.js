@@ -8,7 +8,7 @@ import { getRouteFromId } from '../utils/mesh-routing-core.js';
 export function setupSearchUI(dom) {
     if (!dom) return;
 
-    const { form, box, title, results, loading, empty, prompt } = dom;
+    const { form, box, title, results, loading, empty } = dom;
 
     async function handleSearch() {
         const query = box.value.trim();
@@ -19,7 +19,6 @@ export function setupSearchUI(dom) {
         loading.classList.remove('hidden');
         results.innerHTML = '';
         empty.classList.add('hidden');
-        prompt.classList.add('hidden');
 
         await initSearch();
         const searchResults = await performSearch(query, 40);
@@ -34,10 +33,8 @@ export function setupSearchUI(dom) {
 
         if (cleaned.length === 0) {
             empty.classList.remove('hidden');
-            const status = getSearchStatus();
-            if (!status.isFullSearchActive) prompt.classList.remove('hidden');
         } else {
-            renderResults(cleaned, results);
+            renderResults(cleaned, results, query);
         }
 
         // Update URL & Title
@@ -51,7 +48,19 @@ export function setupSearchUI(dom) {
     return { handleSearch };
 }
 
-export function renderResults(items, container) {
+export function highlightTerms(text, query) {
+    if (!query) return text;
+    const terms = query.split(/\s+/).filter(t => t.length > 2);
+    let highlighted = text;
+    terms.forEach(t => {
+        const escapedTerm = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedTerm})`, 'gi');
+        highlighted = highlighted.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800/40 text-current rounded-sm px-0.5">$1</mark>');
+    });
+    return highlighted;
+}
+
+export function renderResults(items, container, query = '') {
     if (!container) return;
 
     container.innerHTML = `
@@ -82,7 +91,7 @@ export function renderResults(items, container) {
                                     ${type}
                                 </span>
                                 <h3 class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">
-                                    ${item.name}
+                                    ${highlightTerms(item.name, query)}
                                 </h3>
                             </div>
                             
@@ -98,7 +107,7 @@ export function renderResults(items, container) {
                             
                             <div class="flex items-center gap-2 overflow-hidden">
                                 <p class="result-desc text-[10px] sm:text-[11px] line-clamp-1 italic sm:not-italic flex-1">
-                                    ${item.description || ''}
+                                    ${highlightTerms(item.description || '', query)}
                                 </p>
                                 
                                 <div class="flex items-center gap-2 flex-shrink-0 text-[10px] font-medium opacity-60">
