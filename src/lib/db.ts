@@ -147,8 +147,8 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
     const responseSize = end - start + 1;
 
     // Alignment & Integrity Guard (SPEC-V19.2)
-    // Small probes < 4KB are permitted for metadata discovery
-    if (responseSize > 4096 && (start % 8192 !== 0)) {
+    // Small probes < 1KB are permitted for metadata discovery
+    if (responseSize > 1024 && (start % 4096 !== 0)) {
         console.warn(`[VFS-PROXY] Invalid Offset Alignment: ${start} for ${filename}`);
         return new Response('Alignment Error', { status: 416 });
     }
@@ -206,7 +206,7 @@ export function buildHardenedQuery(userQuery: string): string {
  * BROWSER VFS CONFIGURATION
  */
 export const VFS_CONFIG = {
-    requestChunkSize: 8192,
+    requestChunkSize: 4096,
     cacheSize: 6 * 1024 * 1024, // 6MB WASM Cache (128MB RAM Constraint)
     workerUrl: '/assets/sqlite/sqlite.worker.js',
     wasmUrl: '/assets/sqlite/sql-wasm.wasm'
