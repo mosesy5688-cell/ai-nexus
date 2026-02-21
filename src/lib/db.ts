@@ -15,6 +15,23 @@ import type { R2Bucket } from '@cloudflare/workers-types';
  * - Max Concurrent Searches (Seat Guard)
  */
 export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
+    // V19.2: Concurrency Guard (Seat Limiter)
+    const hasSeat = await acquireSearchSeat();
+    if (!hasSeat) {
+        return new Response('Too Many Requests (Seat Limit)', { status: 429 });
+    }
+
+    try {
+        return await processVfsProxy(request, env);
+    } finally {
+        releaseSearchSeat();
+    }
+}
+
+/**
+ * INTERNAL PROXY LOGIC (Shielded by Seat Guard)
+ */
+async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     // V21.9: Cloudflare Worker Safety Guard
     const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
     const url = new URL(request.url);
@@ -63,10 +80,11 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
 
     const commonHeaders = {
         'Access-Control-Allow-Origin': '*',
-        'Accept-Ranges': 'bytes',
-        'x-vfs-proxy-ver': 'v19.4.5',
-        'Cache-Control': 'public, max-age=31536000, immutable',
-        'ETag': etag
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Range, Content-Type',
+        'Cache-Control': 'public, max-age=3600, s-maxage=31536000', // SPEC-V19: CDN Shielding
+        'x-vfs-proxy-ver': '1.2.0-stabilized',
+        'x-vfs-alignment': 'flexible'
     };
 
     // 2. Handle HEAD Requests (Metadata Probe)
