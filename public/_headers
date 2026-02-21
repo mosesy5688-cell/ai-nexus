@@ -8,6 +8,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  # V19.2: Enable SharedArrayBuffer for high-performance WASM VFS
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
 
 # Model detail pages - no cache to ensure fresh dynamic content
 /model/*

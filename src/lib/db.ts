@@ -82,9 +82,11 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Range, Content-Type',
-        'Cache-Control': 'public, max-age=3600, s-maxage=31536000', // SPEC-V19: CDN Shielding
-        'x-vfs-proxy-ver': '1.2.0-stabilized',
-        'x-vfs-alignment': 'flexible'
+        'Accept-Ranges': 'bytes', // SPEC-V19: Required for VFS discovery
+        'Cache-Control': 'public, max-age=0, must-revalidate, s-maxage=60', // V21.9: Defensive caching to prevent mismatches
+        'x-vfs-proxy-ver': '1.3.0-consistent',
+        'x-vfs-alignment': 'flexible',
+        'ETag': etag
     };
 
     // 2. Handle HEAD Requests (Metadata Probe)
