@@ -4,8 +4,6 @@
  */
 
 import type { R2Bucket } from '@cloudflare/workers-types';
-import fs from 'fs/promises';
-import path from 'path';
 
 /**
  * HARDENED RANGE PROXY (Security Pillar)
@@ -17,7 +15,8 @@ import path from 'path';
  * - Max Concurrent Searches (Seat Guard)
  */
 export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
-    const isDev = process.env.NODE_ENV === 'development' || import.meta.env?.DEV;
+    // V21.9: Cloudflare Worker Safety Guard
+    const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
     const url = new URL(request.url);
     let filename = url.pathname.split('/').pop();
 
@@ -43,8 +42,10 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
 
     if (isDev) {
         try {
-            const localPath = path.resolve(process.cwd(), 'data', filename);
-            const stats = await fs.stat(localPath);
+            const { resolve } = await import('path');
+            const { stat } = await import('fs/promises');
+            const localPath = resolve(process.cwd(), 'data', filename);
+            const stats = await stat(localPath);
             totalSize = stats.size;
             etag = `local-${stats.mtimeMs}`;
             isLocal = true;
@@ -83,7 +84,9 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         headers.set('Content-Length', totalSize.toString());
 
         if (isLocal) {
-            const buffer = await fs.readFile(path.resolve(process.cwd(), 'data', filename));
+            const { readFile } = await import('fs/promises');
+            const { resolve } = await import('path');
+            const buffer = await readFile(resolve(process.cwd(), 'data', filename));
             return new Response(buffer, { status: 200, headers });
         } else {
             const object = await env.R2_ASSETS.get(`data/${filename}`);
@@ -111,7 +114,9 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
             if (isNaN(suffix)) return new Response('Invalid Suffix', { status: 416 });
 
             if (isLocal) {
-                const buffer = await fs.readFile(path.resolve(process.cwd(), 'data', filename));
+                const { readFile } = await import('fs/promises');
+                const { resolve } = await import('path');
+                const buffer = await readFile(resolve(process.cwd(), 'data', filename));
                 const suffixBuffer = buffer.subarray(buffer.length - suffix);
                 const headers = new Headers(commonHeaders as any);
                 headers.set('Content-Length', suffix.toString());
@@ -154,11 +159,13 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         headers.set('Content-Range', `bytes ${start}-${end}/${totalSize}`);
 
         if (isLocal) {
-            const handle = await fs.open(path.resolve(process.cwd(), 'data', filename), 'r');
+            const { open } = await import('fs/promises');
+            const { resolve } = await import('path');
+            const handle = await open(resolve(process.cwd(), 'data', filename), 'r');
             const buffer = Buffer.alloc(responseSize);
-            await handle.read(buffer, 0, responseSize, start);
+            const { bytesRead } = await handle.read(buffer, 0, responseSize, start);
             await handle.close();
-            return new Response(buffer, { status: 206, headers });
+            return new Response(buffer.subarray(0, bytesRead), { status: 206, headers });
         } else {
             const object = await env.R2_ASSETS.get(`data/${filename}`, {
                 range: { offset: start, length: responseSize }
