@@ -90,7 +90,6 @@ const colors = typeColors[entityType] || typeColors.model;
 
 // V16.2: Hardened description cleaning
 const descriptionStr = typeof description === 'string' ? description : (description ? String(description) : '');
-const descriptionStr = typeof description === 'string' ? description : (description ? String(description) : '');
 const cleanDescription = (descriptionStr && descriptionStr !== 'null')
   ? descriptionStr.replace(/^---[\s\S]*?---\s*/m, '').replace(/<[^>]*>?/gm, '')
       .replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '')
