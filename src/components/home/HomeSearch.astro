@@ -11,7 +11,7 @@ const { initialQuery = '' } = Astro.props;
 ---
 <div class="mb-6 flex flex-col md:flex-row gap-4 items-center sticky top-[57px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-3 z-30 max-w-4xl mx-auto w-full">
     <div id="search-container" class="w-full relative">
-        <form id="search-form" class="w-full">
+        <form id="search-form" action="/search" method="get" class="w-full">
             <div class="relative">
                 <input
                     type="search"
