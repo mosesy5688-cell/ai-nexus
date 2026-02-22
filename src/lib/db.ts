@@ -3,8 +3,8 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 
 /** HARDENED RANGE PROXY: Seat Limit & Alignment Guard */
 export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
-    const hasSeat = await acquireSearchSeat();
-    if (!hasSeat) return new Response('Too Many Requests (Seat Limit)', { status: 429 });
+    // V21.11: Search Smoothing - Wait for seat instead of 429 rejection
+    await acquireSearchSeat();
     try {
         return await processVfsProxy(request, env);
     } finally {
@@ -150,18 +150,48 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 4096, // V21.10: Matched to 4K to eliminate "Chunk size does not match page size" warnings
+    requestChunkSize: 65536, // V21.11: Increased to 64KB to reduce request volume in empty-cache environments
     cacheSize: 8 * 1024 * 1024,
     // Add version query to force cache bypass on stale security headers
     workerUrl: '/assets/sqlite/sqlite.worker.js?v=21.10.3',
     wasmUrl: '/assets/sqlite/sql-wasm.wasm?v=21.10.3'
 };
 
-const MAX_SEARCH_SEATS = 512; // V21.10: Increased to 512 for high-concurrency safety
+const MAX_SEARCH_SEATS = 512; // V21.10: 512 concurrent range requests permitted
 let activeSeats = 0;
-export async function acquireSearchSeat(): Promise<boolean> {
-    if (activeSeats >= MAX_SEARCH_SEATS) return false;
-    activeSeats++;
-    return true;
+const seatQueue: (() => void)[] = [];
+
+/** 
+ * V21.11: Search Smoothing - Asynchronous Seat Acquisition
+ * Instead of 429 rejection, excessive requests are queued to wait for available slots.
+ * This prevents the massive request storms in Incognito/Empty-Cache from crashing the VFS.
+ */
+export async function acquireSearchSeat(): Promise<void> {
+    if (activeSeats < MAX_SEARCH_SEATS) {
+        activeSeats++;
+        return;
+    }
+
+    return new Promise((resolve) => {
+        // Enforce 15s timeout to prevent zombie connections
+        const timeout = setTimeout(() => {
+            const index = seatQueue.indexOf(resolve);
+            if (index > -1) seatQueue.splice(index, 1);
+            resolve(); // Force-start to prevent permanent hanging
+        }, 15000);
+
+        seatQueue.push(() => {
+            clearTimeout(timeout);
+            resolve();
+        });
+    });
 }
-export function releaseSearchSeat() { activeSeats = Math.max(0, activeSeats - 1); }
+
+export function releaseSearchSeat() {
+    activeSeats = Math.max(0, activeSeats - 1);
+    const next = seatQueue.shift();
+    if (next) {
+        activeSeats++;
+        next();
+    }
+}
