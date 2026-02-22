@@ -7,6 +7,8 @@
 export function cleanDescription(text) {
     if (!text) return '';
     return text
+        // V21.15.5: Remove YAML frontmatter (Resilient)
+        .replace(/^\s*---\s*[\s\S]*?---\s*/m, '')
         // Remove HTML tags
         .replace(/<[^>]*>?/gm, '')
         // Remove Markdown images ![alt](url)
