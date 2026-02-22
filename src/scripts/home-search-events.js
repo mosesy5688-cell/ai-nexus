@@ -194,9 +194,14 @@ export function setupSearchEvents() {
             selectedIndex = Math.max(selectedIndex - 1, -1);
             items.forEach((item, idx) => item.classList.toggle('bg-zinc-100', idx === selectedIndex));
             if (selectedIndex >= 0) items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-            e.preventDefault();
-            items[selectedIndex].click();
+        } else if (e.key === 'Enter') {
+            if (selectedIndex >= 0) {
+                e.preventDefault();
+                items[selectedIndex].click();
+            } else if (!searchBox.value.trim()) {
+                e.preventDefault();
+            }
+            // If selectedIndex < 0 and query exists, let it fall through to the form submit event
         }
     });
 }
