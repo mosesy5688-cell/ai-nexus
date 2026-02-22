@@ -21,8 +21,8 @@ export function getDisplayName(model) {
 
 export function cleanupDescription(text) {
     if (!text) return '';
-    // V21.15.5: Remove YAML frontmatter if present (Resilient Multiline)
-    let processedContent = text.replace(/^\s*---\s*[\s\S]*?---\s*\n?/m, '');
+    // V21.15.6: Robust YAML frontmatter stripping (handles leading whitespace/newlines)
+    let processedContent = text.replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n?/g, '');
     // Remove HTML tags
     const noHtml = processedContent.replace(/<[^>]*>?/gm, '');
     return noHtml.trim();

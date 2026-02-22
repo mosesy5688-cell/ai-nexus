@@ -24,8 +24,8 @@ const renderer = new marked.Renderer();
 
 // Clean and prepare content
 let processedContent = content || '';
-// Remove YAML frontmatter if present (V21.15.5: Resilient Multiline)
-processedContent = processedContent.replace(/^\s*---\s*[\s\S]*?---\s*\n?/m, '');
+// Remove YAML frontmatter if present (V21.15.6: Robust Regex)
+processedContent = processedContent.replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n?/g, '');
 
 renderer.heading = (args) => {
   // marked v13+: args is an object with { text, depth, raw, tokens }
