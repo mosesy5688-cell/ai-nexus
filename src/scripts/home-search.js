@@ -1,9 +1,16 @@
 // src/scripts/home-search.js
 // V19.2: Unified SQLite VFS Orchestrator
+// V21.14: Dual-Engine Fusion Search (VFS + Shard Fallback)
 // Offloads heavy indexing to R2 via sql.js-httpvfs for Zero-UI-Lag performance.
 
 import { createDbWorker } from "sql.js-httpvfs";
 import { VFS_CONFIG } from "../lib/db.js";
+import {
+    loadHotShard,
+    loadFullSearchIndex as loadShards,
+    searchShardPool,
+    getShardStatus
+} from "./search-shard-engine.js";
 
 // Worker Instance (VFS SQLite)
 let dbWorker = null;
@@ -11,8 +18,11 @@ let isLoaded = false;
 let isLoading = false;
 let itemCount = 0;
 
-// Initialize Search Engine (Mount VFS)
+// Initialize Search Engine (Mount VFS + Hot Shard)
 export async function initSearch() {
+    // Stage A: Trigger Hot Shard pre-loading (Instant Engine)
+    loadHotShard();
+
     if (isLoaded || dbWorker) return true;
     if (isLoading) return new Promise(resolve => {
         const interval = setInterval(() => {
@@ -22,8 +32,7 @@ export async function initSearch() {
 
     isLoading = true;
     try {
-        // SPEC-V19.3: Consistency Lock Logic 
-        // 1. Learn current version via HEAD (with retry)
+        // 1. Learn current version via HEAD
         let vHash = '';
         for (let i = 0; i < 3; i++) {
             try {
@@ -35,85 +44,77 @@ export async function initSearch() {
                 }
                 if (headRes.status === 429) await new Promise(r => setTimeout(r, 500 * (i + 1)));
             } catch (e) {
-                console.warn(`[HomeSearch] HEAD probe failed (attempt ${i + 1})`, e);
+                console.warn(`[HomeSearch] HEAD probe failed`, e);
             }
         }
 
-        // Fallback to a stable hash if HEAD fails (Industrial Stability)
-        // This ensures the CDN can still serve cached chunks even during worker throttling.
         if (!vHash) {
             vHash = 'v21.10.1-stable';
-            console.warn('[HomeSearch] ETag probe failed, falling back to stable build-lock.');
+            console.warn('[HomeSearch] ETag probe failed, falling back to stable.');
         }
 
         const vParam = `v=${vHash}`;
-        console.log(`[HomeSearch] Locking consistency to version: ${vHash}`);
 
-        // 2. Speculative warm-up with version lock
+        // 2. Speculative warm-up
         try {
             await fetch(`/api/vfs-proxy/content.db?${vParam}`, {
                 headers: { 'Range': 'bytes=0-131071' },
                 cache: 'default'
             });
-        } catch (warmupErr) {
-            console.warn('[HomeSearch] Prefetch failed, continuing mount...', warmupErr);
-        }
+        } catch (e) { }
 
         console.log(`[HomeSearch] Mounting SQLite VFS (${vParam})`);
         dbWorker = await createDbWorker(
-            [
-                {
-                    from: "inline",
-                    config: {
-                        serverMode: "full",
-                        url: `/api/vfs-proxy/content.db?${vParam}`,
-                        requestChunkSize: VFS_CONFIG.requestChunkSize
-                    }
-                }
-            ],
+            [{ from: "inline", config: { serverMode: "full", url: `/api/vfs-proxy/content.db?${vParam}`, requestChunkSize: VFS_CONFIG.requestChunkSize } }],
             VFS_CONFIG.workerUrl,
             VFS_CONFIG.wasmUrl
         );
         isLoaded = true;
         isLoading = false;
 
-        // Verify database integrity via lightweight probe
         const res = await dbWorker.db.query(`SELECT COUNT(*) as c FROM entities;`);
         itemCount = res[0].c;
         console.log(`[HomeSearch] VFS Ready. Peer count: ${itemCount}`);
         return true;
     } catch (e) {
         console.error('[HomeSearch] VFS Mount Error:', e);
-        if (e.message?.includes('429') || e.toString().includes('429')) {
-            console.warn('[HomeSearch] Rate limit detected. Search may be degraded.');
-        }
         isLoading = false;
         return false;
     }
 }
 
-// Full Search active state (Simulated for VFS, everything is full index)
-let isFullSearchActive = true;
-
+// V21.14: Shard-based Lazy Loading Fallback Wrapper
 export async function loadFullSearchIndex(onProgress) {
-    if (onProgress) onProgress({ progress: 100 });
-    return true; // VFS is 0-wait full search intrinsically
+    return loadShards(onProgress, () => isLoaded);
 }
 
-// Perform Search via VFS FTS5
+// Perform Search via Dual-Engine Fusion (Hot Shard -> VFS FTS5)
 export async function performSearch(query, limit = 20, filters = {}) {
-    if (!dbWorker) await initSearch();
-    if (!dbWorker) return [];
-
     const start = performance.now();
+    const shards = getShardStatus();
+
+    // TIER 1: Hot Shard / Shard Fallback Search (0ms UX)
+    if (!isLoaded && shards.isHotLoaded) {
+        const hits = searchShardPool(query, limit, filters);
+        if (hits.length > 0 && !isLoaded) {
+            console.log(`[HomeSearch] [Shard Engine] Found ${hits.length} results in ${(performance.now() - start).toFixed(1)}ms`);
+            return hits;
+        }
+    }
+
+    if (!dbWorker && !isLoaded) await initSearch();
+
+    // Final Shard Fallback if VFS is dead/mounting
+    if (!dbWorker) {
+        return searchShardPool(query, limit, filters);
+    }
+
     try {
         const columns = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.stars, e.downloads, e.last_modified`;
         let sql = `SELECT ${columns} FROM entities e`;
         const params = [];
 
-        // 1. Full Text Search
         if (query && query.length >= 2) {
-            // FTS5 MATCH escaping
             const safeQuery = query.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/).filter(t => t.length > 0).map(t => `"${t}"*`).join(' AND ');
             if (safeQuery) {
                 sql = `SELECT ${columns} FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ?`;
@@ -123,7 +124,6 @@ export async function performSearch(query, limit = 20, filters = {}) {
             sql += ` WHERE 1=1`;
         }
 
-        // 2. Filters
         if (filters.entityType && filters.entityType !== 'all') {
             sql += ` AND e.type = ?`;
             params.push(filters.entityType);
@@ -135,86 +135,60 @@ export async function performSearch(query, limit = 20, filters = {}) {
         }
 
         if (filters.sources && filters.sources.length > 0) {
-            const placeholders = filters.sources.map(() => '?').join(',');
-            // Mapping source filter to bundle_key or slug prefix if necessary, simplified here
             sql += ` AND (e.id LIKE ? OR e.bundle_key LIKE ?)`;
-            // simplistic source match
             params.push(`%${filters.sources[0]}%`, `%${filters.sources[0]}%`);
         }
 
-        // 3. Sorting
-        let ob = 'e.fni_score DESC';
-        if (filters.sort === 'likes') ob = 'e.stars DESC';
-        if (filters.sort === 'last_updated') ob = 'e.last_modified DESC';
+        const ob = filters.sort === 'likes' ? 'e.stars DESC' : (filters.sort === 'last_updated' ? 'e.last_modified DESC' : 'e.fni_score DESC');
         sql += ` ORDER BY ${ob} LIMIT ? OFFSET ?`;
-
         const page = parseInt(filters.page) || 1;
         const lim = parseInt(limit);
         params.push(lim, (page - 1) * lim);
 
         let results = await dbWorker.db.query(sql, params);
 
-        // V21.12: Cold Start Resilience - Retry once if first search returns empty
-        // This handles race conditions where the FTS5 index isn't fully ready at the millisecond of mount.
+        // Cold Start Resilience
         if (results.length === 0 && query.length >= 2) {
-            console.warn('[HomeSearch] Empty results on cold start, retrying in 500ms...');
             await new Promise(r => setTimeout(r, 500));
             results = await dbWorker.db.query(sql, params);
         }
 
-        // Map SQLite output names to Frontend expected names
         const mapped = results.map(r => ({
-            id: r.id,
-            name: r.name,
-            slug: r.slug,
-            type: r.type,
-            author: r.author,
-            description: r.summary,
-            fni_score: r.fni_score,
-            likes: r.stars,
-            downloads: r.downloads,
-            tags: [], // SQLite metadata-only schema lacks array fields natively
-            last_updated: r.last_modified
+            id: r.id, name: r.name, slug: r.slug, type: r.type, author: r.author, description: r.summary,
+            fni_score: r.fni_score, likes: r.stars, downloads: r.downloads, tags: [], last_updated: r.last_modified
         }));
 
-        const duration = performance.now() - start;
-        console.log(`[HomeSearch] Found ${mapped.length} results in ${duration.toFixed(1)}ms via VFS`);
-
+        console.log(`[HomeSearch] Found ${mapped.length} via VFS in ${(performance.now() - start).toFixed(1)}ms`);
         return mapped;
     } catch (e) {
         console.error('[HomeSearch] VFS Search Query Error:', e);
-        return [];
+        return searchShardPool(query, limit, filters);
     }
 }
 
-// History Utils (Main Thread Storage)
+// History Utils
 const HISTORY_KEY = 'f2ai_search_history';
-const MAX_HISTORY = 5;
-
 export function getSearchHistory() {
     try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
 }
-
 export function saveSearchHistory(query) {
     if (!query || query.length < 2) return;
     const history = getSearchHistory().filter(h => h !== query);
     history.unshift(query);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 5)));
 }
-
-export function clearSearchHistory() {
-    localStorage.removeItem(HISTORY_KEY);
-}
-
-export function setFullSearchActive(active) {
-    isFullSearchActive = true; // Always true in V19 VFS
-}
+export function clearSearchHistory() { localStorage.removeItem(HISTORY_KEY); }
+export function setFullSearchActive(active) { }
 
 export function getSearchStatus() {
+    const shards = getShardStatus();
     return {
         isLoaded,
+        isHotLoaded: shards.isHotLoaded,
+        isFallingBack: shards.isFallingBack,
+        shardsProgress: shards.shardsProgress,
         isFullSearchActive: true,
-        isFullSearchLoading: false,
-        itemCount
+        isFullSearchLoading: shards.isFallingBack && !isLoaded,
+        itemCount: isLoaded ? itemCount : shards.itemCount
     };
 }
