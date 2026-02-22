@@ -1,0 +1,71 @@
+---
+/**
+ * ConnectivityMatrix - V21.15
+ * Consolidates "Intelligence Hive" and "Associations" into a single discovery hub.
+ * Dual-Engine Ready: Processes relations from both VFS and Similarity streams.
+ */
+import MeshRelationMatrix from './MeshRelationMatrix.astro';
+import SimilarModels from '../model-detail/SimilarModels.astro';
+
+interface Props {
+  entityId: string;
+  relations: any[]; // From Engine 1/2 (VFS/Fused)
+  similarEntities: any[]; // From Engine 1 (Similarity stream)
+  entityType?: string;
+}
+
+const { entityId, relations = [], similarEntities = [], entityType = 'model' } = Astro.props;
+
+// V21.15: Logic to prevent duplication between Direct Relations and Similarity results
+const seenIds = new Set(relations.map(r => r.target_id));
+const uniqueSimilar = similarEntities.filter(s => !seenIds.has(s.id));
+
+const hasContent = relations.length > 0 || uniqueSimilar.length > 0;
+---
+
+{hasContent && (
+  <div class="connectivity-matrix-hub space-y-12">
+    {/* Header */}
+    <div class="flex items-center justify-between border-b-2 border-zinc-900 dark:border-white pb-4">
+       <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-zinc-900 dark:bg-white flex items-center justify-center rounded-sm">
+             <span class="text-2xl text-white dark:text-zinc-900">🕸️</span>
+          </div>
+          <div>
+             <h3 class="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Connectivity Matrix</h3>
+             <p class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Neural Hub & Association Feed</p>
+          </div>
+       </div>
+       <div class="hidden md:flex items-center gap-4">
+          <div class="flex items-center gap-2">
+             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+             <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">VFS Mainframe Active</span>
+          </div>
+       </div>
+    </div>
+
+    {/* Section 1: Semantic & Structural Relations (The Hive) */}
+    {relations.length > 0 && (
+      <div class="relation-matrix-zone animate-fade-in">
+        <MeshRelationMatrix relations={relations} entityId={entityId} />
+      </div>
+    )}
+
+    {/* Section 2: Neural Associations (Discovery) */}
+    {uniqueSimilar.length > 0 && (
+      <div class="associations-zone pt-12 border-t border-zinc-100 dark:border-zinc-800 animate-fade-in" style="animation-delay: 0.2s;">
+        <div class="flex items-center gap-3 mb-8">
+           <span class="text-xl">🔄</span>
+           <h3 class="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em]">Neural Associations</h3>
+        </div>
+        <SimilarModels models={uniqueSimilar} currentModelId={entityId} />
+      </div>
+    )}
+  </div>
+)}
+
+<style>
+  .connectivity-matrix-hub {
+    margin-top: 4rem;
+  }
+</style>
