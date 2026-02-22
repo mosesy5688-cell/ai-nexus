@@ -18,7 +18,13 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     let filename = url.pathname.split('/').pop();
 
     if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.vfs') && !filename.endsWith('.bin'))) {
-        return new Response('Access Denied', { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } });
+        return new Response('Access Denied', {
+            status: 403,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Cross-Origin-Resource-Policy': 'cross-origin'
+            }
+        });
     }
 
     if (filename === 'shard_0.bin') filename = 'fused-shard-000.bin';
@@ -48,10 +54,12 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Range, Content-Type',
+        'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length, ETag',
         'Cross-Origin-Resource-Policy': 'cross-origin',
+        'Accept-Ranges': 'bytes',
         // V21.9: Edge Caching with URL-based Version Busting (Prevents 429s)
         'Cache-Control': 'public, max-age=3600, s-maxage=31536000',
-        'x-vfs-proxy-ver': '1.4.1-stabilized',
+        'x-vfs-proxy-ver': '1.4.2-stabilized',
         'ETag': etag
     };
 
@@ -129,7 +137,10 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             return new Response(object.body as any, { status: 206, headers });
         }
     } catch (e) {
-        return new Response('Internal Proxy Error', { status: 500 });
+        return new Response('Internal Proxy Error', {
+            status: 500,
+            headers: { 'Cross-Origin-Resource-Policy': 'cross-origin' }
+        });
     }
 }
 

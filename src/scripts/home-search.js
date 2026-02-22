@@ -23,12 +23,30 @@ export async function initSearch() {
     isLoading = true;
     try {
         // SPEC-V19.3: Consistency Lock Logic 
-        // 1. Learn current version via HEAD
-        const headRes = await fetch('/api/vfs-proxy/content.db', { method: 'HEAD', cache: 'no-cache' });
-        const rawEtag = headRes.headers.get('ETag') || '';
-        const vHash = rawEtag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) || `v${Date.now()}`;
-        const vParam = `v=${vHash}`;
+        // 1. Learn current version via HEAD (with retry)
+        let vHash = '';
+        for (let i = 0; i < 3; i++) {
+            try {
+                const headRes = await fetch('/api/vfs-proxy/content.db', { method: 'HEAD', cache: 'no-cache' });
+                if (headRes.ok) {
+                    const rawEtag = headRes.headers.get('ETag') || '';
+                    vHash = rawEtag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
+                    if (vHash) break;
+                }
+                if (headRes.status === 429) await new Promise(r => setTimeout(r, 500 * (i + 1)));
+            } catch (e) {
+                console.warn(`[HomeSearch] HEAD probe failed (attempt ${i + 1})`, e);
+            }
+        }
 
+        // Fallback to a stable hash if HEAD fails (Industrial Stability)
+        // This ensures the CDN can still serve cached chunks even during worker throttling.
+        if (!vHash) {
+            vHash = 'v21.10.1-stable';
+            console.warn('[HomeSearch] ETag probe failed, falling back to stable build-lock.');
+        }
+
+        const vParam = `v=${vHash}`;
         console.log(`[HomeSearch] Locking consistency to version: ${vHash}`);
 
         // 2. Speculative warm-up with version lock
