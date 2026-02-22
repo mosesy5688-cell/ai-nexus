@@ -59,7 +59,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Accept-Ranges': 'bytes',
         // V21.9: Edge Caching with URL-based Version Busting (Prevents 429s)
         'Cache-Control': 'public, max-age=3600, s-maxage=31536000',
-        'x-vfs-proxy-ver': '1.4.5-industrial-64k',
+        'x-vfs-proxy-ver': '1.4.6-definitive',
         'ETag': etag
     };
 
@@ -156,11 +156,12 @@ export function buildHardenedQuery(userQuery: string): string {
 export const VFS_CONFIG = {
     requestChunkSize: 65536, // V21.10: Using 64KB to significantly reduce request volume and prevent 429s
     cacheSize: 6 * 1024 * 1024,
-    workerUrl: '/assets/sqlite/sqlite.worker.js',
-    wasmUrl: '/assets/sqlite/sql-wasm.wasm'
+    // Add version query to force cache bypass on stale security headers
+    workerUrl: '/assets/sqlite/sqlite.worker.js?v=21.10.1',
+    wasmUrl: '/assets/sqlite/sql-wasm.wasm?v=21.10.1'
 };
 
-const MAX_SEARCH_SEATS = 100; // V21.10: Industrial seat capacity to prevent self-induced 429s during parallel VFS indexing
+const MAX_SEARCH_SEATS = 256; // V21.10: Increased to 256 to accommodate high-entropy parallel search without 429s
 let activeSeats = 0;
 export async function acquireSearchSeat(): Promise<boolean> {
     if (activeSeats >= MAX_SEARCH_SEATS) return false;
