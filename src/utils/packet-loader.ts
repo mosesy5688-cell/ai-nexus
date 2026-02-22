@@ -2,80 +2,7 @@ import { R2_CACHE_URL } from '../config/constants.js';
 import { getR2PathCandidates, normalizeEntitySlug, fetchEntityFromR2 } from './entity-cache-reader-core.js';
 import { fetchBundleRange } from './vfs-fetcher.js';
 import { promoteEngine2Fields } from './dual-engine-merger.js';
-
-const CDN_SECONDARY = 'https://ai-nexus-assets.pages.dev/cache';
-
-/**
- * Resilient fetching with timeout and secondary fallback
- */
-async function fetchWithResilience(url: string, timeout = 5000) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
-
-    try {
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(id);
-        if (response.ok) return response;
-        throw new Error(`HTTP ${response.status}`);
-    } catch (e: any) {
-        clearTimeout(id);
-        // V19.4.6: Fix double /cache path regression. R2_CACHE_URL points to origin, CDN_SECONDARY includes /cache.
-        // If url is https://cdn.free2aitools.com/cache/..., replacement must avoid /cache/cache/
-        const secondaryUrl = url.replace('https://cdn.free2aitools.com/cache', CDN_SECONDARY);
-        console.warn(`[Resilience] Primary fetch failed for ${url}, trying secondary: ${secondaryUrl}`);
-        return fetch(secondaryUrl, { signal: AbortSignal.timeout(timeout) });
-    }
-}
-
-// V19.4: Clean Gzip-First Fetcher
-export async function fetchCompressedJSON(path: string): Promise<any | null> {
-    const baseUrl = path.startsWith('http') ? '' : R2_CACHE_URL;
-    const fullUrl = path.startsWith('http') ? path : `${baseUrl}/${path}`;
-
-    // V19.4 Optimization: In V19.3+, everything is Gzipped. 
-    // We only probe the .gz variant to reduce 404 count and latency.
-    const targetUrl = fullUrl.endsWith('.gz') ? fullUrl : `${fullUrl}.gz`;
-
-    try {
-        const res = await fetchWithResilience(targetUrl);
-        if (!res.ok) {
-            // Fallback to uncompressed ONLY for specific legacy paths if needed
-            if (fullUrl.includes('/fused/')) return null;
-            const legacyRes = await fetchWithResilience(fullUrl);
-            if (!legacyRes.ok) return null;
-            return legacyRes.json();
-        }
-
-        const buffer = await res.arrayBuffer();
-        const uint8 = new Uint8Array(buffer);
-
-        // V19.4.9: Robust Magic Byte Detection (0x1f 0x8b)
-        // Detects "Fake Gzip" (JSON content with .gz extension) and handles raw JSON safely
-        const isTrueGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
-
-        if (isTrueGzip) {
-            try {
-                const ds = new DecompressionStream('gzip');
-                const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
-                return decompressedRes.json();
-            } catch (decompError: any) {
-                console.warn(`[Loader] Gzip decompression failed for ${targetUrl}, attempting raw JSON parse:`, decompError.message);
-                return JSON.parse(new TextDecoder().decode(buffer));
-            }
-        } else {
-            // V19.4.9: Support for plain JSON in .gz container
-            try {
-                return JSON.parse(new TextDecoder().decode(buffer));
-            } catch (jsonError: any) {
-                console.error(`[Loader] Failed to parse target ${targetUrl} as JSON:`, jsonError.message);
-                return null;
-            }
-        }
-    } catch (e: any) {
-        console.error(`[Loader] Fetch error for ${targetUrl}:`, e.message);
-        return null;
-    }
-}
+import { fetchCompressedJSON } from './resilient-fetch.js';
 
 /**
  * V19.4: High-Density Parallel Loader
@@ -83,43 +10,49 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
  */
 export async function loadEntityStreams(type: string, slug: string, locals: any = null) {
     const normalized = normalizeEntitySlug(slug, type).toLowerCase();
-    const candidates = getR2PathCandidates(type, normalized);
-
-    // Step A: Parallel Candidate Racing (P0 Optimization)
-    // Instead of sequential probes, we blast all primary candidates and take the first success.
-    const primaryCandidates = candidates.filter(c => c.includes('/entities/') || c.includes('/fused/'));
-
-    // V19.4: Resilient Parallel Race
-    const raceCandidate = async (path: string) => {
-        const data = await fetchCompressedJSON(path);
-        if (!data) throw new Error('Miss');
-        return { data, path };
-    };
 
     let entityResult;
-    try {
-        // Rapid discovery of the anchor metadata
-        entityResult = await Promise.any(primaryCandidates.map(p => raceCandidate(p)));
-    } catch (e) {
-        // Fallback for non-standard types (Reports, etc)
-        const otherCandidates = candidates.filter(c => !primaryCandidates.includes(c));
-        try {
-            entityResult = await Promise.any(otherCandidates.map(p => raceCandidate(p)));
-        } catch (err) {
-            // V21.5: Final Sequential Recovery (The "Old Engine" Fallback)
-            // If parallel racing fails, we fall back to the sequential reader which is more robust
-            // in some edge cases and handles local filesystem shims in DEV.
-            console.warn(`[Loader] Parallel race failed for ${normalized}, trying sequential recovery...`);
-            const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
 
-            if (!sequentialResult) {
-                return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
-            }
-
+    // V21.13: Server-First Recovery Strategy (Internal R2 Priority)
+    if (locals?.runtime?.env?.R2_ASSETS && typeof window === 'undefined') {
+        const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
+        if (sequentialResult) {
             entityResult = {
                 data: sequentialResult.entity || sequentialResult,
-                path: sequentialResult._cache_path || 'sequential'
+                path: sequentialResult._cache_path || 'r2-binding'
             };
+        }
+    }
+
+    if (!entityResult) {
+        const candidates = getR2PathCandidates(type, normalized);
+        const primaryCandidates = candidates.filter(c => c.includes('/entities/') || c.includes('/fused/'));
+
+        const raceCandidate = async (path: string) => {
+            const data = await fetchCompressedJSON(path);
+            if (!data) throw new Error('Miss');
+            return { data, path };
+        };
+
+        try {
+            entityResult = await Promise.any(primaryCandidates.map(p => raceCandidate(p)));
+        } catch (e) {
+            const otherCandidates = candidates.filter(c => !primaryCandidates.includes(c));
+            try {
+                entityResult = await Promise.any(otherCandidates.map(p => raceCandidate(p)));
+            } catch (err) {
+                console.warn(`[Loader] Parallel race failed for ${normalized}, trying sequential recovery...`);
+                const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
+
+                if (!sequentialResult) {
+                    return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+                }
+
+                entityResult = {
+                    data: sequentialResult.entity || sequentialResult,
+                    path: sequentialResult._cache_path || 'sequential'
+                };
+            }
         }
     }
 
