@@ -59,7 +59,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Accept-Ranges': 'bytes',
         // V21.9: Edge Caching with URL-based Version Busting (Prevents 429s)
         'Cache-Control': 'public, max-age=3600, s-maxage=31536000',
-        'x-vfs-proxy-ver': '1.4.2-stabilized',
+        'x-vfs-proxy-ver': '1.4.3-industrial',
         'ETag': etag
     };
 
@@ -114,6 +114,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         const responseSize = end - start + 1;
 
         // Alignment Guard (SPEC-V19.2): Enforce 8K physical alignment
+        // This MUST match the page_size in pack-db.js
         if (responseSize > 1024 && (start % 8192 !== 0)) {
             console.warn(`[VFS-PROXY] Alignment Error: ${start} for ${filename}`);
             return new Response('Alignment Error', { status: 416 });
@@ -153,13 +154,13 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 65536, // V21.9: Increased to 64KB to minimize subrequests/429s
+    requestChunkSize: 8192, // V21.10: Aligned exactly to 1 SQLite page to eliminate 429 request storms
     cacheSize: 6 * 1024 * 1024,
     workerUrl: '/assets/sqlite/sqlite.worker.js',
     wasmUrl: '/assets/sqlite/sql-wasm.wasm'
 };
 
-const MAX_SEARCH_SEATS = 20; // V21.9: Increased from 5 to 20 to accommodate VFS parallel chunk fetching
+const MAX_SEARCH_SEATS = 10; // V21.10: Ratified 10-seat limit for R2 safety
 let activeSeats = 0;
 export async function acquireSearchSeat(): Promise<boolean> {
     if (activeSeats >= MAX_SEARCH_SEATS) return false;
