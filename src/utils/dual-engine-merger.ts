@@ -16,13 +16,23 @@ export function promoteEngine2Fields(entityPack: any, innerEntity: any, fusedPac
     for (const field of promotedFields) {
         const candidateVal = innerEntity[field] !== undefined ? innerEntity[field] : fusedPack[field];
         if (candidateVal !== undefined && candidateVal !== null && candidateVal !== '') {
-            const isE1Empty = !entityPack[field] ||
-                entityPack[field] === 0 ||
-                (Array.isArray(entityPack[field]) && entityPack[field].length === 0) ||
-                (typeof entityPack[field] === 'object' && Object.keys(entityPack[field] || {}).length === 0);
+            const currentVal = entityPack[field];
 
-            if (isE1Empty) {
+            const isE1Empty = !currentVal ||
+                currentVal === 0 ||
+                (Array.isArray(currentVal) && currentVal.length === 0) ||
+                (typeof currentVal === 'object' && Object.keys(currentVal || {}).length === 0);
+
+            // V21.15.3: "Longest Wins" Strategy for text descriptions
+            const isTextField = ['html_readme', 'readme', 'description', 'body_content'].includes(field);
+            const isSignificantlyBetter = isTextField &&
+                typeof candidateVal === 'string' &&
+                typeof currentVal === 'string' &&
+                candidateVal.length > currentVal.length * 1.5;
+
+            if (isE1Empty || isSignificantlyBetter) {
                 entityPack[field] = candidateVal;
+                if (isSignificantlyBetter) console.log(`[Merger] Promoted better content for ${field} (${currentVal.length} -> ${candidateVal.length})`);
             }
         }
     }

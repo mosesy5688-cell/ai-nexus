@@ -115,18 +115,21 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
                 fusedSuccessfullyFetched = true;
                 const innerEntity = fusedPack.entity || fusedPack;
 
-                // Recover HTML
+                // Recover HTML (V21.15.3: Longest Wins)
                 if (isHtmlTruncated) {
                     const recoveredHtml = innerEntity.html_readme || fusedPack.html_readme || innerEntity.body_content || innerEntity.readme || null;
-                    if (recoveredHtml && recoveredHtml.length > (html?.length || 0)) {
+                    const currentLen = html?.length || 0;
+                    const recoveredLen = recoveredHtml?.length || 0;
+
+                    if (recoveredHtml && recoveredLen > currentLen) {
                         html = recoveredHtml;
                     }
                 }
 
-                // Recover Mesh from Fused
-                if (mesh.length === 0) {
+                // Recover Mesh from Fused (Priority over VFS snippets)
+                if (mesh.length === 0 || (fusedPack.relations?.length > mesh.length)) {
                     const recoveredMesh = innerEntity.relations || fusedPack.relations || innerEntity.mesh_profile?.relations || [];
-                    if (recoveredMesh.length > 0) {
+                    if (recoveredMesh.length > mesh.length) {
                         mesh = recoveredMesh;
                         entityPack.relations = recoveredMesh;
                     }
