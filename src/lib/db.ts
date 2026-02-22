@@ -59,7 +59,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Accept-Ranges': 'bytes',
         // V21.9: Edge Caching with URL-based Version Busting (Prevents 429s)
         'Cache-Control': 'public, max-age=3600, s-maxage=31536000',
-        'x-vfs-proxy-ver': '1.4.6-definitive',
+        'x-vfs-proxy-ver': '1.4.7-recovery-v2',
         'ETag': etag
     };
 
@@ -113,12 +113,8 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (end >= totalSize) end = totalSize - 1;
         const responseSize = end - start + 1;
 
-        // Alignment Guard (SPEC-V19.2): Enforce 4K physical alignment
-        // Aligned to 4096 to match the current live R2 database (Page size confirmed)
-        if (responseSize > 1024 && (start % 4096 !== 0)) {
-            console.warn(`[VFS-PROXY] Alignment Error: ${start} for ${filename}`);
-            return new Response('Alignment Error', { status: 416 });
-        }
+        // Alignment Guard (RELAXED): Removed to allow library pre-fetching (0.8.x compatibility)
+        // Note: sql.js-httpvfs requests arbitrary ranges during index discovery
 
         const headers = new Headers(commonHeaders as any);
         headers.set('Content-Length', responseSize.toString());
@@ -154,14 +150,14 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 65536, // V21.10: Using 64KB to significantly reduce request volume and prevent 429s
-    cacheSize: 6 * 1024 * 1024,
+    requestChunkSize: 4096, // V21.10: Reverted to 4K to match SQLite page_size exactly and reduce malformed risk
+    cacheSize: 8 * 1024 * 1024,
     // Add version query to force cache bypass on stale security headers
-    workerUrl: '/assets/sqlite/sqlite.worker.js?v=21.10.1',
-    wasmUrl: '/assets/sqlite/sql-wasm.wasm?v=21.10.1'
+    workerUrl: '/assets/sqlite/sqlite.worker.js?v=21.10.2',
+    wasmUrl: '/assets/sqlite/sql-wasm.wasm?v=21.10.2'
 };
 
-const MAX_SEARCH_SEATS = 256; // V21.10: Increased to 256 to accommodate high-entropy parallel search without 429s
+const MAX_SEARCH_SEATS = 512; // V21.10: Increased to 512 to accommodate high-entropy parallel search without 429s (Guard-free)
 let activeSeats = 0;
 export async function acquireSearchSeat(): Promise<boolean> {
     if (activeSeats >= MAX_SEARCH_SEATS) return false;
