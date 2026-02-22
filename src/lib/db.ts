@@ -18,7 +18,13 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     let filename = url.pathname.split('/').pop();
 
     if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.vfs') && !filename.endsWith('.bin'))) {
-        return new Response('Access Denied', { status: 403, headers: { 'Access-Control-Allow-Origin': '*' } });
+        return new Response('Access Denied', {
+            status: 403,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Cross-Origin-Resource-Policy': 'cross-origin'
+            }
+        });
     }
 
     if (filename === 'shard_0.bin') filename = 'fused-shard-000.bin';
@@ -129,7 +135,10 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             return new Response(object.body as any, { status: 206, headers });
         }
     } catch (e) {
-        return new Response('Internal Proxy Error', { status: 500 });
+        return new Response('Internal Proxy Error', {
+            status: 500,
+            headers: { 'Cross-Origin-Resource-Policy': 'cross-origin' }
+        });
     }
 }
 
