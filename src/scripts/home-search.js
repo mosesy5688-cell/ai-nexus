@@ -152,7 +152,15 @@ export async function performSearch(query, limit = 20, filters = {}) {
         const lim = parseInt(limit);
         params.push(lim, (page - 1) * lim);
 
-        const results = await dbWorker.db.query(sql, params);
+        let results = await dbWorker.db.query(sql, params);
+
+        // V21.12: Cold Start Resilience - Retry once if first search returns empty
+        // This handles race conditions where the FTS5 index isn't fully ready at the millisecond of mount.
+        if (results.length === 0 && query.length >= 2) {
+            console.warn('[HomeSearch] Empty results on cold start, retrying in 500ms...');
+            await new Promise(r => setTimeout(r, 500));
+            results = await dbWorker.db.query(sql, params);
+        }
 
         // Map SQLite output names to Frontend expected names
         const mapped = results.map(r => ({

@@ -85,41 +85,56 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     const normalized = normalizeEntitySlug(slug, type).toLowerCase();
     const candidates = getR2PathCandidates(type, normalized);
 
-    // Step A: Parallel Candidate Racing (P0 Optimization)
-    // Instead of sequential probes, we blast all primary candidates and take the first success.
-    const primaryCandidates = candidates.filter(c => c.includes('/entities/') || c.includes('/fused/'));
-
-    // V19.4: Resilient Parallel Race
-    const raceCandidate = async (path: string) => {
-        const data = await fetchCompressedJSON(path);
-        if (!data) throw new Error('Miss');
-        return { data, path };
-    };
-
     let entityResult;
-    try {
-        // Rapid discovery of the anchor metadata
-        entityResult = await Promise.any(primaryCandidates.map(p => raceCandidate(p)));
-    } catch (e) {
-        // Fallback for non-standard types (Reports, etc)
-        const otherCandidates = candidates.filter(c => !primaryCandidates.includes(c));
-        try {
-            entityResult = await Promise.any(otherCandidates.map(p => raceCandidate(p)));
-        } catch (err) {
-            // V21.5: Final Sequential Recovery (The "Old Engine" Fallback)
-            // If parallel racing fails, we fall back to the sequential reader which is more robust
-            // in some edge cases and handles local filesystem shims in DEV.
-            console.warn(`[Loader] Parallel race failed for ${normalized}, trying sequential recovery...`);
-            const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
 
-            if (!sequentialResult) {
-                return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
-            }
-
+    // V21.13: Server-First Recovery Strategy
+    // On Cloudflare Workers (SSR), prioritize direct R2 bindings to bypass potential CDN/WAF blocks.
+    if (locals?.runtime?.env?.R2_ASSETS && typeof window === 'undefined') {
+        const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
+        if (sequentialResult) {
+            console.log(`[Loader] R2 Binding success for ${normalized}`);
             entityResult = {
                 data: sequentialResult.entity || sequentialResult,
-                path: sequentialResult._cache_path || 'sequential'
+                path: sequentialResult._cache_path || 'r2-binding'
             };
+        }
+    }
+
+    if (!entityResult) {
+        const candidates = getR2PathCandidates(type, normalized);
+        // Step A: Parallel Candidate Racing (P0 Optimization)
+        // Instead of sequential probes, we blast all primary candidates and take the first success.
+        const primaryCandidates = candidates.filter(c => c.includes('/entities/') || c.includes('/fused/'));
+
+        // V19.4: Resilient Parallel Race
+        const raceCandidate = async (path: string) => {
+            const data = await fetchCompressedJSON(path);
+            if (!data) throw new Error('Miss');
+            return { data, path };
+        };
+
+        try {
+            // Rapid discovery of the anchor metadata
+            entityResult = await Promise.any(primaryCandidates.map(p => raceCandidate(p)));
+        } catch (e) {
+            // Fallback for non-standard types (Reports, etc)
+            const otherCandidates = candidates.filter(c => !primaryCandidates.includes(c));
+            try {
+                entityResult = await Promise.any(otherCandidates.map(p => raceCandidate(p)));
+            } catch (err) {
+                // V21.5: Final Sequential Recovery (The "Old Engine" Fallback)
+                console.warn(`[Loader] Parallel race failed for ${normalized}, trying sequential recovery...`);
+                const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
+
+                if (!sequentialResult) {
+                    return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+                }
+
+                entityResult = {
+                    data: sequentialResult.entity || sequentialResult,
+                    path: sequentialResult._cache_path || 'sequential'
+                };
+            }
         }
     }
 
