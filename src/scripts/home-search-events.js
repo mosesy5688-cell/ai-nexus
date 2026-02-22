@@ -198,10 +198,8 @@ export function setupSearchEvents() {
             if (selectedIndex >= 0) {
                 e.preventDefault();
                 items[selectedIndex].click();
-            } else if (!searchBox.value.trim()) {
-                e.preventDefault();
             }
-            // If selectedIndex < 0 and query exists, let it fall through to the form submit event
+            // If selectedIndex < 0, let it fall through to the form submit handler for navigation
         }
     });
 }

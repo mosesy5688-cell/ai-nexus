@@ -113,8 +113,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (end >= totalSize) end = totalSize - 1;
         const responseSize = end - start + 1;
 
-        // Alignment Guard (SPEC-V19.2): Enforce 8K physical alignment
-        // This MUST match the page_size in pack-db.js
+        // Alignment Guard (SPEC-V19.2): Enforce 8K physical alignment (Synchronized with Factory)
         if (responseSize > 1024 && (start % 8192 !== 0)) {
             console.warn(`[VFS-PROXY] Alignment Error: ${start} for ${filename}`);
             return new Response('Alignment Error', { status: 416 });
@@ -154,7 +153,7 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 8192, // V21.10: Aligned exactly to 1 SQLite page to eliminate 429 request storms
+    requestChunkSize: 8192, // V21.10: Aligned to 1 SQLite page to eliminate 429 request storms
     cacheSize: 6 * 1024 * 1024,
     workerUrl: '/assets/sqlite/sqlite.worker.js',
     wasmUrl: '/assets/sqlite/sql-wasm.wasm'
