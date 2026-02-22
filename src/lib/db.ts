@@ -59,7 +59,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Accept-Ranges': 'bytes',
         // V21.9: Edge Caching with URL-based Version Busting (Prevents 429s)
         'Cache-Control': 'public, max-age=3600, s-maxage=31536000',
-        'x-vfs-proxy-ver': '1.4.3-industrial',
+        'x-vfs-proxy-ver': '1.4.4-emergency-4k',
         'ETag': etag
     };
 
@@ -113,8 +113,9 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (end >= totalSize) end = totalSize - 1;
         const responseSize = end - start + 1;
 
-        // Alignment Guard (SPEC-V19.2): Enforce 8K physical alignment (Synchronized with Factory)
-        if (responseSize > 1024 && (start % 8192 !== 0)) {
+        // Alignment Guard (SPEC-V19.2): Enforce 4K physical alignment
+        // EMERGENCY: Reverted to 4096 to match the current live R2 database
+        if (responseSize > 1024 && (start % 4096 !== 0)) {
             console.warn(`[VFS-PROXY] Alignment Error: ${start} for ${filename}`);
             return new Response('Alignment Error', { status: 416 });
         }
@@ -153,7 +154,7 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 8192, // V21.10: Aligned to 1 SQLite page to eliminate 429 request storms
+    requestChunkSize: 4096, // V21.10: EMERGENCY REVERT TO 4K to match current R2 state
     cacheSize: 6 * 1024 * 1024,
     workerUrl: '/assets/sqlite/sqlite.worker.js',
     wasmUrl: '/assets/sqlite/sql-wasm.wasm'
