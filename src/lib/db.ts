@@ -142,7 +142,7 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 32768, // Mitigates 429s
+    requestChunkSize: 65536, // V21.9: Increased to 64KB to minimize subrequests/429s
     cacheSize: 6 * 1024 * 1024,
     workerUrl: '/assets/sqlite/sqlite.worker.js',
     wasmUrl: '/assets/sqlite/sql-wasm.wasm'
