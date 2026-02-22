@@ -69,8 +69,11 @@ export function getTypeFromId(id) {
     if (low.startsWith('hf-space--') || low.startsWith('space--')) return 'space';
     if (low.startsWith('gh-agent--') || low.startsWith('github-agent--') || low.startsWith('hf-agent--') || low.startsWith('replicate-agent--') || low.startsWith('langchain-agent--') || low.startsWith('agent--')) return 'agent';
     if (low.startsWith('gh-tool--') || low.startsWith('hf-tool--') || low.startsWith('github-tool--') || low.startsWith('tool--')) return 'tool';
-    if (low.startsWith('langchain-prompt--') || low.startsWith('hf-prompt--') || low.startsWith('prompt--')) return 'prompt';
+    if (low.startsWith('hf-prompt--') || low.startsWith('prompt--')) return 'prompt';
     if (low.startsWith('gh-model--') || low.startsWith('hf-model--') || low.startsWith('replicate-model--') || low.startsWith('civitai-model--') || low.startsWith('ollama-model--') || low.startsWith('kaggle-model--')) return 'model';
+
+    // V21.15.2: Detect ArXiv Category Patterns (cs.AI, stat.ML, etc.)
+    if (low.match(/^(cs|stat|math|physics|q-bio|q-fin|econ|eess)\.[a-z]{2,8}$/)) return 'category';
 
     return 'model';
 }
@@ -136,7 +139,9 @@ export function getRouteFromId(id, type = null) {
         'model': `/model/${slug}`,
         'paper': `/paper/${slug}`,
         'report': `/reports/${slug}`,
-        'knowledge': `/knowledge/${slug}`
+        'knowledge': `/knowledge/${slug}`,
+        // V21.15.2: Route categories to ranking filter
+        'category': `/ranking/papers?category=${slug}`
     };
 
     const finalPath = routeMap[resolvedType] || `/model/${slug}`;
