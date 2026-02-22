@@ -48,10 +48,10 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Range, Content-Type',
-        // V18.10.2: Explicit Edge Caching with Revalidation Guard
+        'Cross-Origin-Resource-Policy': 'cross-origin',
         // V21.9: Edge Caching with URL-based Version Busting (Prevents 429s)
         'Cache-Control': 'public, max-age=3600, s-maxage=31536000',
-        'x-vfs-proxy-ver': '1.4.0-hardened',
+        'x-vfs-proxy-ver': '1.4.1-stabilized',
         'ETag': etag
     };
 
@@ -105,8 +105,8 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (end >= totalSize) end = totalSize - 1;
         const responseSize = end - start + 1;
 
-        // Alignment Guard (SPEC-V19.2): Compatible with 4K legacy and 8K optimized
-        if (responseSize > 1024 && (start % 4096 !== 0)) {
+        // Alignment Guard (SPEC-V19.2): Enforce 8K physical alignment
+        if (responseSize > 1024 && (start % 8192 !== 0)) {
             console.warn(`[VFS-PROXY] Alignment Error: ${start} for ${filename}`);
             return new Response('Alignment Error', { status: 416 });
         }
