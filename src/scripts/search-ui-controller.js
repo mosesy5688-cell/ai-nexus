@@ -73,7 +73,17 @@ export function renderResults(items, container, query = '') {
             <div id="results-list" class="flex flex-col border-t border-zinc-200 dark:border-zinc-800">
                 ${items.map(item => {
         const type = item.type || 'model';
-        const slug = item.slug || item.id;
+        let slug = item.slug || item.id;
+
+        // V21.10: Prefix Guard - Ensure search result IDs have source prefixes for routing
+        if (slug && !slug.includes('--')) {
+            if (type === 'model') slug = `hf-model--${slug}`;
+            else if (type === 'dataset') slug = `hf-dataset--${slug}`;
+            else if (type === 'space') slug = `hf-space--${slug}`;
+            else if (type === 'paper') slug = `arxiv-paper--${slug}`;
+            else if (type === 'agent') slug = `hf-agent--${slug}`;
+        }
+
         const path = getRouteFromId(slug, type);
         const fni = Math.round(item.fni_score || item.fni || 0);
         const hasDesc = (item.description && item.description.length > 5);
