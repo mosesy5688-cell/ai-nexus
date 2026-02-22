@@ -30,7 +30,7 @@ export function cleanupDescription(text) {
 
 export function getBestDescription(model) {
     if (model.seo_summary && model.seo_summary.description) {
-        return model.seo_summary.description;
+        return cleanupDescription(model.seo_summary.description);
     }
     if (model.description) {
         return cleanupDescription(model.description);
