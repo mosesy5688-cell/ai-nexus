@@ -95,18 +95,21 @@ export const KNOWLEDGE_ALIAS_MAP = {
  * SLUG = Full Canonical ID (except for Knowledge/Reports which use slugs)
  */
 export function getRouteFromId(id, type = null) {
-    if (!id) return '#';
+    if (!id || id === '#') return '#';
+
+    // V21.15: Handle already-routed absolute paths
+    if (id.startsWith('/') && !id.includes('--')) return id;
 
     const idDerivedType = getTypeFromId(id);
+    // Explicit type or ID prefix or presence of -- triggers derived type logic
     let resolvedType = (id.startsWith('knowledge--') || id.startsWith('report--') || id.includes('--')) ? idDerivedType : (type || idDerivedType);
-    const lowId = id.toLowerCase();
+
     let slug = '';
+    const norm = stripPrefix(id);
 
     if (resolvedType === 'knowledge' || resolvedType === 'concept' || resolvedType === 'report') {
-        // V2.1 Rule: Clean SEO URL. Hierarchical format /type/author/name
-        // Mapping concept to knowledge route as they are usually same destination
         const baseType = (resolvedType === 'report') ? 'report' : 'knowledge';
-        slug = stripPrefix(id).replace(/--/g, '/');
+        slug = norm.replace(/--/g, '/');
 
         if (baseType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[slug]) {
             slug = KNOWLEDGE_ALIAS_MAP[slug];
@@ -115,14 +118,14 @@ export function getRouteFromId(id, type = null) {
         const baseRoute = baseType === 'report' ? 'reports' : 'knowledge';
         return `/${baseRoute}/${slug}`;
     } else if (resolvedType === 'paper') {
-        // V16.8.31 Paper Spec: /paper/ID.version
-        // If it starts with arxiv-paper-- or arxiv--, strip it and keep the rest (R2 often keeps dots)
-        slug = stripPrefix(id).replace(/--/g, '.');
+        slug = norm.replace(/--/g, '.');
     } else {
-        // V16.8.31 SEO RESTORATION: Use hierarchical / separator for all primary types
-        // Example: hf-model--meta-llama--llama-3-8b -> meta-llama/llama-3-8b
-        slug = stripPrefix(id).replace(/--/g, '/');
+        // V16.8.31 SEO RESTORATION: Use hierarchical / separator
+        // Filter out empty segments to prevent // in URLs
+        slug = norm.split('--').filter(Boolean).join('/');
     }
+
+    if (!slug || slug === 'unknown') return '#';
 
     const routeMap = {
         'dataset': `/dataset/${slug}`,
@@ -137,10 +140,6 @@ export function getRouteFromId(id, type = null) {
     };
 
     const finalPath = routeMap[resolvedType] || `/model/${slug}`;
-
-    // V21.0: Prevent recursive/double-routing for already cleaned paths
-    if (id.startsWith('/') && !id.includes('--')) return id;
-
     return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath;
 }
 
