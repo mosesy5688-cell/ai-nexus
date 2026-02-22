@@ -1,4 +1,4 @@
-# V21.9: Defensive Cache-Busting & Security Enclave
+# V21.10.1: Definitive Security & Caching Enclave (Ratified)
 /*
   Cache-Control: public, max-age=0, must-revalidate
   X-Frame-Options: DENY
@@ -6,19 +6,17 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-  # V19.2: Enable SharedArrayBuffer for high-performance WASM VFS
   Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: cross-origin
 
-# Model detail pages - no cache to ensure fresh dynamic content
 /model/*
   Cache-Control: no-cache, no-store, must-revalidate
 
-# Keep static assets immutable for maximum performance
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
   Cross-Origin-Resource-Policy: cross-origin
+
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
   Cross-Origin-Resource-Policy: cross-origin
