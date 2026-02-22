@@ -18,5 +18,6 @@
 # Keep static assets immutable for maximum performance
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+  Cross-Origin-Resource-Policy: cross-origin
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
