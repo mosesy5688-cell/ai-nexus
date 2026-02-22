@@ -72,7 +72,7 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 relation-group" id={`mesh-grid-${key}`} data-max="8">
-                        {tier.nodes.slice(0, 8).map((node, index) => {
+                        {tier.nodes.map((node, index) => {
                             const path = getRouteFromId(node.id, node.type);
                             
                             return (
@@ -227,11 +227,11 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
   function initFolding() {
     const buttons = document.querySelectorAll('.show-more-nodes-btn');
     buttons.forEach(btn => {
-        // Remove existing listeners to prevent double-clicks
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
+        // V21.15.5: Use data-listener to avoid duplication
+        if ((btn as any).dataset.hasListener) return;
+        (btn as any).dataset.hasListener = 'true';
         
-        newBtn.addEventListener('click', () => {
+        btn.addEventListener('click', () => {
             const targetId = newBtn.dataset.target;
             const grid = document.getElementById(targetId);
             if (grid) {

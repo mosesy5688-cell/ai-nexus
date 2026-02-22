@@ -45,8 +45,8 @@ const getTitle = (t: string, provided?: string) => {
 const displayTitle = getTitle(type, title);
 const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Documentation' : 'README');
 
-// Clean content (V15.8: Resilient Regex)
-let content = (bodyContent || '').replace(/^\s*---\s*[\s\S]*?---\s*\n?/g, '');
+// Clean content (V21.15.5: Resilient Multiline)
+let content = (bodyContent || '').replace(/^\s*---\s*[\s\S]*?---\s*\n?/m, '');
 
 // SD 3.5 Large Fallback (Curated Content)
 const isSD35 = Astro.params.slug?.includes('stable-diffusion-3.5-large');
