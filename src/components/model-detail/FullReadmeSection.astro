@@ -5,7 +5,7 @@
  * Implements "High-Fidelity First" recovery strategy.
  */
 import MarkdownRenderer from './MarkdownRenderer.astro';
-import { runNeuralMining } from '../../scripts/neural-mining.js';
+import { runNeuralMining } from '../../scripts/neural-miner.js';
 
 interface Props {
   bodyContent: string;
@@ -93,7 +93,7 @@ const hasLongContent = content.length > maxPreviewLength;
 )}
 
 <script>
-  import { runNeuralMining } from '../../scripts/neural-mining.js';
+  import { runNeuralMining } from '../../scripts/neural-miner.js';
 
   function initReadmeToggle() {
     const toggleBtn = document.getElementById('toggle-readme');
