@@ -28,8 +28,6 @@ export async function loadCachedJSON(path, options = {}) {
 
     if (r2) {
         let r2Path = path.startsWith('/') ? path.slice(1) : path;
-        // Prevent double prefixing if path already includes 'cache/'
-        if (r2Path.startsWith('cache/')) r2Path = r2Path.slice(6);
 
         try {
             let file = await r2.get(r2Path);
