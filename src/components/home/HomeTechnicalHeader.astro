@@ -1,0 +1,92 @@
+---
+// src/components/home/HomeTechnicalHeader.astro
+// V21.16: Premium Technical Header (Copy of Knowledge page architecture)
+import MeshVisualizer from '../mesh/MeshVisualizer.astro';
+
+interface Props {
+  initialQuery?: string;
+  totalEntities?: number;
+}
+
+const { initialQuery = '', totalEntities = 125312 } = Astro.props;
+---
+
+<div class="technical-header-container mb-12">
+    <!-- Hero Section: Mirrored from /knowledge -->
+    <header class="text-center mb-10 py-10 bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-pink-500/10 rounded-2xl border border-indigo-500/20">
+      <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4 shadow-lg shadow-indigo-500/25">
+        <span class="text-3xl">🕸️</span>
+      </div>
+      <h1 class="text-3xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
+        The Definitive Open-Source AI Index
+      </h1>
+      <p class="text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-6 px-4">
+        High-trust technical rankings, structural lineage, and precision performance metrics for the entire AI ecosystem.
+      </p>
+      
+      <div class="flex items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest">
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full text-indigo-700 dark:text-indigo-300 border border-indigo-500/10">
+          <span>ACTIVE</span>
+          <span class="w-1 h-1 rounded-full bg-emerald-500"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Integrated Search: Knowledge Search Style but Homepage Power -->
+    <div class="max-w-3xl mx-auto mb-10">
+      <div id="search-container" class="relative">
+        <form id="search-form" action="/search" method="get" class="w-full">
+            <div class="relative">
+                <input 
+                  type="search" 
+                  id="search-box"
+                  name="q"
+                  placeholder="Search models, papers, and datasets..." 
+                  class="w-full px-6 py-4 pl-14 text-lg border-2 border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-xl transition-all"
+                  value={initialQuery}
+                />
+                <div class="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                  <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Dropdown for instant results -->
+        <div id="search-results-dropdown" class="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto hidden"></div>
+        
+        <!-- Search Hints (Concise) -->
+        <div class="mt-4 flex flex-wrap justify-center gap-3 text-xs text-gray-400 font-medium">
+            <span class="uppercase tracking-widest opacity-60">Trending:</span>
+            <button type="button" class="search-hint hover:text-indigo-500 transition-colors" data-query="llama 70b">llama 3.1</button>
+            <button type="button" class="search-hint hover:text-indigo-500 transition-colors" data-query="flux.1">FLUX.1</button>
+            <button type="button" class="search-hint hover:text-indigo-500 transition-colors" data-query="qwen">Qwen2.5</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Knowledge Mesh Integration (Upper Area) -->
+    <section class="mb-10">
+      <MeshVisualizer />
+    </section>
+</div>
+
+<script>
+  import { setupSearchEvents } from '../../scripts/home-search-events.js';
+  // V21.16: Ensure search logic attaches to the new structural IDs
+  document.addEventListener('astro:page-load', () => {
+    setupSearchEvents();
+  });
+</script>
+
+<style>
+  .technical-header-container {
+    animation: fade-in-up 0.6s ease-out;
+  }
+  
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
