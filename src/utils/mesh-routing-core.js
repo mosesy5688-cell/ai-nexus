@@ -9,7 +9,8 @@ export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
     let result = id.toLowerCase();
 
-    // V2.0 Standard Prefixes - Supporting both current -- and legacy : or / formats
+    // V2.1 SPEC-ALIGNMENT: Only strip authoritative system-level prefixes.
+    // Generic vendor names (huggingface, github, etc.) are NOT stripped unless followed by type.
     const prefixes = [
         // Source-Specific Prefixes (SPEC-ID-V2.1)
         'hf-model', 'hf-agent', 'hf-tool', 'hf-dataset', 'hf-space', 'hf-paper', 'hf-collection',
@@ -20,28 +21,20 @@ export function stripPrefix(id) {
         'kaggle-dataset', 'kaggle-model',
         'langchain-prompt', 'langchain-agent',
 
-        // Standardized Dual-Dash Legacy (SPEC-URL-V15.0/V16.2 Support)
-        'huggingface', 'github', 'arxiv', 'kaggle', 'civitai', 'ollama', 'replicate',
-
-        // Legacy/Direct Format Mapping
+        // Legacy/Direct Format Mapping (Internal only)
         'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt'
     ];
 
     for (const p of prefixes) {
-        // Match prefix followed by --, :, /, or ending exactly with prefix
         const pLow = p.toLowerCase();
         if (result.startsWith(`${pLow}--`) || result.startsWith(`${pLow}:`) || result.startsWith(`${pLow}/`)) {
             result = result.slice(pLow.length + (result[pLow.length] === '-' ? 2 : 1));
-            break;
-        } else if (result.startsWith(`${pLow}-`) && !result.startsWith(`${pLow}--`)) {
-            // Handle single dash edge case
-            result = result.slice(pLow.length + 1);
             break;
         }
     }
 
     // V16.8.31: Dual-separator normalization (Support both -- and /)
-    // V21.0: Aggressive normalization for all hf/gh/arxiv source patterns
+    // V2.1: ArXiv Preservation - Do NOT replace dots in this stage, only separators.
     return result
         .replace(/[:\/]/g, '--')
         .replace(/^--|--$/g, '')
@@ -57,6 +50,7 @@ export const isMatch = (a, b) => {
 
 /**
  * V16.95: Content Type Discovery based strictly on SSOT prefixes.
+ * V21.15.3: Enhanced ArXiv/Tool Pattern Detection
  */
 export function getTypeFromId(id) {
     if (!id || typeof id !== 'string') return 'model';
@@ -71,6 +65,12 @@ export function getTypeFromId(id) {
     if (low.startsWith('gh-tool--') || low.startsWith('hf-tool--') || low.startsWith('github-tool--') || low.startsWith('tool--')) return 'tool';
     if (low.startsWith('hf-prompt--') || low.startsWith('prompt--')) return 'prompt';
     if (low.startsWith('gh-model--') || low.startsWith('hf-model--') || low.startsWith('replicate-model--') || low.startsWith('civitai-model--') || low.startsWith('ollama-model--') || low.startsWith('kaggle-model--')) return 'model';
+
+    // V19.5: Pattern-based Inference Fallback (ArXiv IDs)
+    if (low.match(/(\d{4}\.\d{4,5})/)) return 'paper';
+
+    // V19.5: Tool indicator check (e.g. huggingface/transformers)
+    if (low.includes('tool') || low.includes('mcp') || low.includes('transformers') || low.includes('diffusers')) return 'tool';
 
     // V21.15.2: Detect ArXiv Category Patterns (cs.AI, stat.ML, etc.)
     if (low.match(/^(cs|stat|math|physics|q-bio|q-fin|econ|eess)\.[a-z]{2,8}$/)) return 'category';
