@@ -154,6 +154,7 @@ export function mineRelations(hydrated, meta) {
     // V15.21 Tag Mining (Updated for V2.0 prefixes)
     const tags = toArray(hydrated.tags || []);
     tags.forEach(tag => {
+        if (typeof tag !== 'string') return;
         if ((tag.startsWith('arxiv:') || tag.startsWith('arxiv--')) && !hydrated.arxiv_refs.includes(tag.split(/:|--/).pop())) {
             hydrated.arxiv_refs.push(tag.split(/:|--/).pop());
         }

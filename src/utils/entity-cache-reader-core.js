@@ -197,6 +197,7 @@ export async function fetchEntityFromR2(type, slug, locals) {
             const zlib = await import('node:zlib');
             const r2CandidatePaths = getR2PathCandidates(type, normalized);
             const pluralType = type.endsWith('s') ? type : `${type}s`;
+            const singular = type.endsWith('s') ? type.slice(0, -1) : type;
             const searchPaths = [
                 ...r2CandidatePaths.map(p => `g:/ai-nexus/data/${p}`),
                 ...r2CandidatePaths.map(p => `g:/ai-nexus/data/cache/entities/${singular}/${p.split('/').pop()}`),
