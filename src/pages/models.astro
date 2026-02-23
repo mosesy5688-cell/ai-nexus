@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allModels = [], error } = await fetchCatalogData('model', Astro.locals.runtime?.env);
+const { items: allModels = [], totalPages, totalEntities, error } = await fetchCatalogData('model', Astro.locals.runtime?.env);
 const models = (allModels || []).slice(0, 48).map(truncateListingItem).filter(Boolean);
 
 const pageTitle = "AI Models Catalog | Explore 70K+ Open-Source Models";
@@ -54,8 +54,12 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
         <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
     </main>
 
-    <script define:vars={{ initialData: models }}>
-        window.__CATALOG_DATA__ = initialData;
+    <script define:vars={{ initialData: models, totalPages, totalEntities }}>
+        window.__CATALOG_DATA__ = {
+            items: initialData,
+            totalPages,
+            totalEntities
+        };
     </script>
 
     <script>
@@ -63,7 +67,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
         
         const init = () => {
             new UniversalCatalog({
-                initialData: window.__CATALOG_DATA__ || [],
+                initialData: window.__CATALOG_DATA__?.items || [],
+                totalPages: window.__CATALOG_DATA__?.totalPages || 1,
+                totalEntities: window.__CATALOG_DATA__?.totalEntities || 0,
                 type: 'model',
                 gridId: 'models-catalog-grid',
                 searchId: 'models-search',

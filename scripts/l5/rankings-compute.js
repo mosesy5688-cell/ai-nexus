@@ -131,7 +131,7 @@ export async function computeAllRankings(computedDir, outputDir) {
     // Generate entity type rankings
     console.log('\n📁 Entity Type Rankings:');
     for (const [type, entities] of Object.entries(byEntityType)) {
-        generateCategoryRankings(entities, `_type_${type}`, rankingsDir);
+        generateCategoryRankings(entities, type, rankingsDir);
     }
 
     // Generate overall trending (top 1000 by FNI - models/agents only)

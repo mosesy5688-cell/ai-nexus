@@ -21,11 +21,15 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
 
     let items = [];
     let source = 'none';
+    let totalPages = 1;
+    let totalEntities = 0;
 
     // Tier 1: Primary Rankings (loadCachedJSON handles R2/CDN and .gz)
     const { data: rankData, source: rankSource } = await loadCachedJSON(paginatedPath, { locals });
     if (rankData) {
         items = extractItems(rankData);
+        totalPages = rankData.total_pages || rankData.totalPages || 1;
+        totalEntities = rankData.total_items || rankData.totalEntities || items.length;
         source = `rankings-p1-${rankSource}`;
     }
 
@@ -79,6 +83,8 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
 
     return {
         items: normalized,
+        totalPages,
+        totalEntities,
         error: normalized.length === 0 ? 'No entities found' : null,
         data_missing: normalized.length === 0,
         source

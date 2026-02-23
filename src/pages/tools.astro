@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allTools = [], error } = await fetchCatalogData('tool', Astro.locals.runtime?.env);
+const { items: allTools = [], totalPages, totalEntities, error } = await fetchCatalogData('tool', Astro.locals.runtime?.env);
 const tools = allTools.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Tools & Utilities Catalog | Free2AI";
@@ -43,8 +43,12 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
         <div id="pagination" class="mt-12 flex justify-center items-center gap-4"></div>
     </main>
 
-    <script define:vars={{ initialData: tools }}>
-        window.__CATALOG_DATA__ = initialData;
+    <script define:vars={{ initialData: tools, totalPages, totalEntities }}>
+        window.__CATALOG_DATA__ = {
+            items: initialData,
+            totalPages,
+            totalEntities
+        };
     </script>
 
     <script>
@@ -52,7 +56,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
         
         const init = () => {
             new UniversalCatalog({
-                initialData: window.__CATALOG_DATA__ || [],
+                initialData: window.__CATALOG_DATA__?.items || [],
+                totalPages: window.__CATALOG_DATA__?.totalPages || 1,
+                totalEntities: window.__CATALOG_DATA__?.totalEntities || 0,
                 type: 'tool',
                 gridId: 'tools-catalog-grid',
                 searchId: 'tools-search',
