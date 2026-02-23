@@ -7,8 +7,8 @@
 export function cleanDescription(text) {
     if (!text) return '';
     return text
-        // V21.15.6: Robust YAML frontmatter stripping (handles leading whitespace/newlines)
-        .replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n?/g, '')
+        // V21.15.8: Hardened YAML frontmatter stripping (handles multiple trailing newlines)
+        .replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n*/g, '')
         // Remove HTML tags
         .replace(/<[^>]*>?/gm, '')
         // Remove Markdown images ![alt](url)
