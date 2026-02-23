@@ -80,13 +80,27 @@ const siteMeta = {
     <script is:inline define:vars={{ siteMeta }}>
         window.__SITE_META__ = siteMeta;
     </script>
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-58C2CQ8G');</script>
-    <!-- End Google Tag Manager -->
+    <!-- V21.16: Extreme Performance Strategy - Delayed Third-Party Scripts -->
+    <script is:inline>
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                // Google Tag Manager
+                (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+                new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+                })(window,document,'script','dataLayer','GTM-58C2CQ8G');
+
+                // Google AdSense
+                const adsense = document.createElement('script');
+                adsense.async = true;
+                adsense.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214";
+                adsense.crossOrigin = "anonymous";
+                document.head.appendChild(adsense);
+            }, 3000);
+        });
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -126,10 +140,6 @@ const siteMeta = {
 
     <meta property="article:published_time" content={new Date().toISOString()} />
     <meta property="article:modified_time" content={new Date().toISOString()} />
-
-    <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214"
-     crossorigin="anonymous"></script>
 
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
