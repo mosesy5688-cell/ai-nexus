@@ -3,6 +3,7 @@ import { getR2PathCandidates, normalizeEntitySlug, fetchEntityFromR2 } from './e
 import { fetchBundleRange } from './vfs-fetcher.js';
 import { promoteEngine2Fields } from './dual-engine-merger.js';
 import { fetchCompressedJSON } from './resilient-fetch.js';
+import { fetchCatalogData } from './catalog-fetcher.js';
 
 /**
  * V19.4: High-Density Parallel Loader
@@ -56,7 +57,29 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
         }
     }
 
-    let entityPack = entityResult.data.entity || entityResult.data;
+    // V21.15.10: Catalog Fallback Discovery (Engine 1 Fallback)
+    // If the entity profile is missing from R2, try to find a stub in the ranking indices.
+    if (!entityResult) {
+        const { items: catalogItems } = await fetchCatalogData(type, locals);
+        const stub = catalogItems.find(item =>
+            normalizeEntitySlug(item.id || item.slug, type) === normalized ||
+            (item.id || '').toLowerCase() === normalized
+        );
+
+        if (stub) {
+            entityResult = {
+                data: stub,
+                path: 'catalog-index'
+            };
+            console.log(`[Loader] Resolved ${normalized} via Catalog Index Fallback`);
+        }
+    }
+
+    if (!entityResult) {
+        return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+    }
+
+    let entityPack = entityResult.data?.entity || entityResult.data;
     let entitySourcePath = entityResult.path;
 
     if (!entityPack) {

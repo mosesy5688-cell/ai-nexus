@@ -9,8 +9,7 @@
 export function cleanDescription(rawDesc: string | null | undefined): string {
     if (!rawDesc) return '';
     return rawDesc
-        .replace(/^---[\s\S]*?---\s*/m, '')
-        .replace(/^---\s*\n?[\s\S]*$/m, '')
+        .replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n*/g, '')
         .replace(/\blibrary_name:\s*\w+/gi, '')
         .replace(/\blicense:\s*[^\s]+/gi, '')
         .replace(/\bpipeline_tag:\s*\w+/gi, '')

@@ -23,9 +23,14 @@ export async function loadCachedJSON(path, options = {}) {
     const { fallbackData = null, locals = null } = options;
 
     // Strategy 1: R2 Direct (Primary for SSR)
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    // locals could be Astro.locals (with runtime) or the environment object itself
+    const r2 = locals?.runtime?.env?.R2_ASSETS || locals?.R2_ASSETS || locals?.env?.R2_ASSETS;
+
     if (r2) {
         let r2Path = path.startsWith('/') ? path.slice(1) : path;
+        // Prevent double prefixing if path already includes 'cache/'
+        if (r2Path.startsWith('cache/')) r2Path = r2Path.slice(6);
+
         try {
             let file = await r2.get(r2Path);
 
@@ -62,7 +67,12 @@ export async function loadCachedJSON(path, options = {}) {
     try {
         let fetchUrl = path;
         if (!path.startsWith('http')) {
-            const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+            let cleanPath = path.startsWith('/') ? path.slice(1) : path;
+            // Prevent double prefixing: R2_CACHE_URL usually doesn't include /cache,
+            // but we should ensure the path is canonical.
+            if (!cleanPath.startsWith('cache/')) {
+                cleanPath = `cache/${cleanPath}`;
+            }
             fetchUrl = `${R2_CACHE_URL}/${cleanPath}`;
         }
 

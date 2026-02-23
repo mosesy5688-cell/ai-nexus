@@ -75,12 +75,12 @@ try {
 
 } catch (e) {
   console.error("[DatasetPage] Error loading dataset:", e);
-  error = e;
+  return Astro.redirect('/404?reason=dataset-error&id=' + encodeURIComponent(slugStr));
 }
 
-if (!dataset && !error) {
+if (!dataset) {
   Astro.response.status = 404;
-  return Astro.redirect('/404?source=dataset-not-found');
+  return Astro.redirect('/404?source=dataset-not-found&id=' + encodeURIComponent(slugStr));
 }
 
 const datasetName = dataset?.name || 'Unknown Dataset';
