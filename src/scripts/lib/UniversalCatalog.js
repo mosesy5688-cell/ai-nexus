@@ -1,8 +1,7 @@
 // src/scripts/lib/UniversalCatalog.js
-// V16.9.10: Modularized with CatalogDataSource (Art 5.1 compliant)
-import { EntityCardRenderer } from './EntityCardRenderer.js';
-import { DataNormalizer } from './DataNormalizer.js';
+// V16.9.11: Modularized for CES Compliance (< 250 lines)
 import { CatalogDataSource } from './CatalogDataSource.js';
+import { CatalogUIControls } from './CatalogUIControls.js';
 
 export class UniversalCatalog {
     constructor(config) {
@@ -13,11 +12,14 @@ export class UniversalCatalog {
             initialData: config.initialData || []
         });
 
+        if (config.totalPages) this.source.totalPages = config.totalPages;
+        if (config.totalEntities) this.source.totalEntities = config.totalEntities;
+
         this.filtered = [...this.source.items];
         this.currentPage = 1;
         this.itemsPerPage = config.itemsPerPage || 24;
+        this.useInfiniteScroll = config.useInfiniteScroll !== false;
 
-        // DOM Elements
         this.grid = document.getElementById(config.gridId || 'models-catalog-grid');
         this.countLabel = document.getElementById(config.countId || 'results-count');
         this.paginationContainer = document.getElementById(config.paginationId || 'pagination');
@@ -46,7 +48,7 @@ export class UniversalCatalog {
             this.handleSearch(urlQuery);
         }
 
-        if (this.sortSelect) {
+        if (this.sortSelect && this.filtered.length > 0) {
             this.sortSelect.addEventListener('change', (e) => this.handleSort(e.target.value));
         }
 
@@ -57,14 +59,15 @@ export class UniversalCatalog {
             });
         }
 
-        this.setupInfiniteScroll();
+        if (this.useInfiniteScroll) CatalogUIControls.setupInfiniteScroll(this);
+        else if (this.paginationContainer) CatalogUIControls.renderPagination(this);
+
         this.updateStats();
 
-        // V18.7: Zero-Jump Hydration - Skip shard 1 if initial data is sufficient
         if (this.config.dataUrl && this.source.items.length < this.itemsPerPage) {
             this.loadFullData();
         } else {
-            this.source.currentShard = 1; // Align shard counter with SSR initial state
+            this.source.currentShard = 1;
         }
     }
 
@@ -75,71 +78,39 @@ export class UniversalCatalog {
         window.history.replaceState({}, '', url);
     }
 
-    setupInfiniteScroll() {
-        if (!this.grid) return;
-        this.sentinel = document.getElementById('catalog-sentinel') || document.createElement('div');
-        if (!this.sentinel.id) {
-            this.sentinel.id = 'catalog-sentinel';
-            this.sentinel.className = 'h-10 w-full flex items-center justify-center py-8';
-            this.grid.after(this.sentinel);
-        }
-
-        this.observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && !this.source.isLoadingShard && this.hasMore()) {
-                this.loadMore();
-            }
-        }, { rootMargin: '800px' });
-        this.observer.observe(this.sentinel);
-
-        if (this.paginationContainer) this.paginationContainer.style.display = 'none';
-    }
-
     hasMore() {
         return (this.currentPage * this.itemsPerPage) < this.filtered.length ||
             this.source.currentShard < this.source.totalPages;
     }
 
     async loadMore() {
-        // V18.7: Predictive Prefetching (Threshold-based)
         if ((this.currentPage * this.itemsPerPage) >= this.filtered.length - 12 && !this.source.fullDataLoaded) {
             await this.loadFullData();
         }
         this.currentPage++;
         this.renderGrid(true);
         this.updateStats();
+        if (!this.useInfiniteScroll) this.renderPagination();
     }
 
     async loadFullData() {
         const newItems = await this.source.loadNextShard();
-
         if (newItems === null && this.source.fullDataLoaded) {
-            this.reachedEnd = true;
-            if (this.grid) { // Changed gridEl to grid
-                const existingEmpty = this.grid.querySelector('.empty-state-msg');
-                if (!existingEmpty && this.source.items.length === 0) { // Changed this.items to this.source.items
-                    this.grid.innerHTML = '<div class="empty-state-msg col-span-full text-center py-20 bg-gray-900/50 rounded-xl border border-gray-800"><p class="text-xl text-gray-400 font-medium">Ecosystem Syncing...</p><p class="text-gray-500 mt-2">The AI leaderboard is rebuilding. Please check back in a moment.</p></div>';
-                }
+            if (this.grid && !this.grid.querySelector('.empty-state-msg') && this.source.items.length === 0) {
+                this.grid.innerHTML = '<div class="empty-state-msg col-span-full text-center py-20 bg-gray-900/50 rounded-xl border border-gray-800"><p class="text-xl text-gray-400 font-medium">Ecosystem Syncing...</p></div>';
             }
-            return; // Halt loading if data_missing
+            return;
         }
-
-        if (newItems) {
-            this.handleSearch(this.searchInput?.value || '', null, true);
-        }
+        if (newItems) this.handleSearch(this.searchInput?.value || '', null, true);
     }
 
     async augmentSearch() {
-        console.log('[UniversalCatalog] Augmenting search...');
         const newItems = await this.source.augmentSearch();
-        if (newItems && this.searchInput?.value) {
-            this.handleSearch(this.searchInput.value);
-        }
+        if (newItems && this.searchInput?.value) this.handleSearch(this.searchInput.value);
     }
 
     handleSearch(query = '', category = '', silent = false) {
-        const cat = category || this.categoryFilter?.value || '';
-        this.filtered = this.source.search(query, cat);
-
+        this.filtered = this.source.search(query, category || this.categoryFilter?.value || '');
         if (!silent) {
             this.currentPage = 1;
             this.handleSort(this.sortSelect?.value || 'fni');
@@ -149,37 +120,14 @@ export class UniversalCatalog {
     }
 
     handleSort(sortBy) {
-        DataNormalizer.sortCollection(this.filtered, sortBy);
-        this.renderGrid(false);
-        this.updateStats();
+        import('./DataNormalizer.js').then(m => {
+            m.DataNormalizer.sortCollection(this.filtered, sortBy);
+            this.renderGrid(false);
+            this.updateStats();
+        });
     }
 
-    renderGrid(append = false) {
-        if (!this.grid) return;
-        const start = append ? (this.currentPage - 1) * this.itemsPerPage : 0;
-        const pageItems = this.filtered.slice(start, this.currentPage * this.itemsPerPage);
-        const html = pageItems.map(item => EntityCardRenderer.createCardHTML(item, this.source.type)).join('');
-
-        if (append) this.grid.insertAdjacentHTML('beforeend', html);
-        else this.grid.innerHTML = html;
-
-        if (this.sentinel) {
-            this.sentinel.innerHTML = this.hasMore()
-                ? '<div class="flex items-center gap-2 text-gray-400 text-xs animate-pulse font-medium uppercase tracking-widest"><div class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div> Loading next shard...</div>'
-                : '<div class="text-gray-300 text-[10px] font-black uppercase tracking-[0.2em] opacity-40">End of Technical Index</div>';
-        }
-    }
-
-    updateStats() {
-        if (this.countLabel) {
-            const total = this.source.totalEntities || this.filtered.length;
-            if (this.source.isLoadingShard) {
-                this.countLabel.textContent = `Syncing Technical Index [Shard ${this.source.currentShard}/${this.source.totalPages}]...`;
-            } else {
-                // V16.5: Professional Intelligence Terminology
-                this.countLabel.textContent = `${total.toLocaleString()} ${this.source.type}s indexed in Professional Intelligence Database`;
-            }
-        }
-    }
+    renderGrid(append = false) { CatalogUIControls.renderGrid(this, append); }
+    renderPagination() { CatalogUIControls.renderPagination(this); }
+    updateStats() { CatalogUIControls.updateStats(this); }
 }
-

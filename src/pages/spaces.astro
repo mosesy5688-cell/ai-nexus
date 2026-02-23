@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allSpaces = [], error } = await fetchCatalogData('space', Astro.locals.runtime?.env);
+const { items: allSpaces = [], totalPages, totalEntities, error } = await fetchCatalogData('space', Astro.locals.runtime?.env);
 const spaces = allSpaces.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Spaces Catalog | Interactive AI Demos";
@@ -43,8 +43,12 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
         <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
     </main>
 
-    <script define:vars={{ initialData: spaces }}>
-        window.__CATALOG_DATA__ = initialData;
+    <script define:vars={{ initialData: spaces, totalPages, totalEntities }}>
+        window.__CATALOG_DATA__ = {
+            items: initialData,
+            totalPages,
+            totalEntities
+        };
     </script>
 
     <script>
@@ -52,7 +56,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
         
         const init = () => {
             new UniversalCatalog({
-                initialData: window.__CATALOG_DATA__ || [],
+                initialData: window.__CATALOG_DATA__?.items || [],
+                totalPages: window.__CATALOG_DATA__?.totalPages || 1,
+                totalEntities: window.__CATALOG_DATA__?.totalEntities || 0,
                 type: 'space',
                 gridId: 'spaces-catalog-grid',
                 searchId: 'spaces-search',

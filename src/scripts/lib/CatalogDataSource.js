@@ -41,7 +41,7 @@ export class CatalogDataSource {
     }
 
     async loadNextShard(direction = 1) {
-        if (this.isLoadingShard || this.currentShard >= this.totalPages) return null;
+        if (this.isLoadingShard || (this.currentShard >= this.totalPages && direction > 0)) return null;
         this.isLoadingShard = true;
 
         try {
@@ -52,14 +52,13 @@ export class CatalogDataSource {
                 url.searchParams.set('page', String(this.currentShard));
                 window.history.replaceState({ page: this.currentShard }, '', url);
             }
-            // V18.12.0: Optimized resilient fetch logic
+            // V18.12.0: Optimized resilient fetch logic - V21.17: Align with rankingsDir structure
             const paths = [
                 `https://cdn.free2aitools.com/cache/rankings/${this.type}/p${this.currentShard}.json`,
-                `https://cdn.free2aitools.com/cache/lists/${this.type}/page-${this.currentShard}.json`
+                `https://cdn.free2aitools.com/cache/rankings/_type_${this.type}/p${this.currentShard}.json`
             ];
 
             let data = null;
-            let successPath = null;
 
             for (const p of paths) {
                 try {
@@ -78,22 +77,20 @@ export class CatalogDataSource {
                         } else {
                             data = await response.json();
                         }
-                        successPath = response.url;
                         break;
                     }
                 } catch (e) { continue; }
             }
 
-            if (!data) throw new Error(`Fetch failed for all candidates`);
+            if (!data) throw new Error(`Fetch failed for ${this.type} shard ${this.currentShard}`);
 
-            if (this.currentShard === 1) {
-                this.totalPages = data.totalPages || 1;
-                this.totalEntities = data.totalEntities || data.total_items || 0;
-            }
+            // Update metadata if available in the shard
+            if (data.total_pages || data.totalPages) this.totalPages = data.total_pages || data.totalPages;
+            if (data.total_items || data.totalEntities) this.totalEntities = data.total_items || data.totalEntities;
 
             let allRaw = Array.isArray(data) ? data : (data.entities || data.models || data.items || []);
             const validItems = DataNormalizer.normalizeCollection(allRaw, this.type)
-                .filter(i => i.type === this.type || (this.type === 'model' && !i.type));
+                .filter(i => i.type === this.type || (this.type === 'model' && (!i.type || i.type === 'model')));
 
             const map = new Map();
             this.items.forEach(i => map.set(i.id, i));
