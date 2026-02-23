@@ -94,11 +94,12 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     // Engine 1 (Fast VFS) often truncates READMEs to snippets to save index space.
     // However, some entities legitimately have short READMEs (like datasets), so we MUST ALSO 
     // reliably trigger fallback if the relation mesh is empty, preserving the Knowledge Graph.
-    const isHtmlTruncated = !html || html.length < 1500;
+    // V21.15.8: High-Fidelity Priority - Models/Papers ALWAYS attempt recovery to ensure metadata completeness.
+    const isPriorityEntity = type === 'model' || type === 'paper';
+    const isHtmlTruncated = !html || html.length < 8000;
     const isMeshMissing = !mesh || mesh.length === 0;
 
-    // V21.7 Guard: Only skip Engine 2 fetch if we have BOTH a decent HTML size AND relation links.
-    if (isHtmlTruncated || isMeshMissing) {
+    if (isPriorityEntity || isHtmlTruncated || isMeshMissing) {
         const secondaryCandidates = getR2PathCandidates(type, normalized);
         const fusedCandidates = secondaryCandidates.filter(c => c.includes('/fused/'));
         const meshCandidates = secondaryCandidates.filter(c => c.includes('/mesh/profiles/'));

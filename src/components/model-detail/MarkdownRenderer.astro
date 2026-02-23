@@ -24,8 +24,8 @@ const renderer = new marked.Renderer();
 
 // Clean and prepare content
 let processedContent = content || '';
-// Remove YAML frontmatter if present (V21.15.6: Robust Regex)
-processedContent = processedContent.replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n?/g, '');
+// Remove YAML frontmatter if present (V21.15.8: Hardened Regex for Leading Whitespace/Newlines)
+processedContent = processedContent.replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n*/g, '');
 
 renderer.heading = (args) => {
   // marked v13+: args is an object with { text, depth, raw, tokens }
@@ -92,10 +92,12 @@ const renderedHtml = await marked.parse(processedContent, { renderer });
   </nav>
 )}
 
-<div class={`markdown-content prose prose-slate dark:prose-invert max-w-none 
-            prose-headings:font-bold prose-a:text-indigo-600 dark:prose-a:text-indigo-400
-            prose-pre:bg-[#0a0a0a] prose-pre:border prose-pre:border-gray-800
-            prose-img:rounded-xl prose-img:shadow-lg ${className}`}
+<div class={`markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none 
+            prose-headings:font-black prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-white
+            prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-a:font-bold prose-a:no-underline hover:prose-a:underline
+            prose-pre:bg-[#0a0a0a] prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-xl
+            prose-img:rounded-xl prose-img:shadow-lg prose-strong:text-zinc-900 dark:prose-strong:text-white
+            leading-relaxed tracking-tight ${className}`}
      set:html={renderedHtml}
 />
 
