@@ -27,10 +27,10 @@ describe('Mesh Orchestrator', () => {
         expect(profile.tiers).toBeDefined();
 
         // V16.96/V18.12: SSR Memory Protection removed. graph.json MUST be called during SSR to prevent Mesh UI collapse.
-        expect(mockR2.get).toHaveBeenCalledWith('cache/mesh/graph.json');
+        expect(mockR2.get).toHaveBeenCalledWith('mesh/graph.json');
 
         // Should fetch explicit relations instead of deprecated relations.json
-        expect(mockR2.get).toHaveBeenCalledWith('cache/relations/explicit.json');
+        expect(mockR2.get).toHaveBeenCalledWith('relations/explicit.json');
     });
 
     it('should resolve knowledge aliases correctly (typo fix verification)', async () => {
@@ -56,6 +56,6 @@ describe('Mesh Orchestrator', () => {
 
         const profile = await getMeshProfile(mockLocals, 'root', null, 'model');
         // V18.12: Due to deep QA, graph.json is strictly required for SSR hydration.
-        expect(mockR2.get).toHaveBeenCalledWith('cache/mesh/graph.json');
+        expect(mockR2.get).toHaveBeenCalledWith('mesh/graph.json');
     });
 });
