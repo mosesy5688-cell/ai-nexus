@@ -32,7 +32,14 @@ export class SemanticScholarAdapter extends BaseAdapter {
         const { arxivIds = [], limit = 3000 } = options;
 
         if (arxivIds.length === 0) {
-            console.log(`📥 [S2] No arXiv IDs provided, searching for AI/ML papers...`);
+            console.log(`📥 [S2] No arXiv IDs provided. Attempting to seed from recent local cache...`);
+            try {
+                const manifest = JSON.parse(await fs.readFile('data/manifest.json', 'utf8'));
+                if (manifest.source_stats && manifest.source_stats.arxiv > 0) {
+                    // Logic to pull random IDs from recent shards would go here
+                    // For now, falling back to search mode if manifest seeding fails
+                }
+            } catch (e) { }
             return await this.searchAIPapers(limit);
         }
 
@@ -56,7 +63,11 @@ export class SemanticScholarAdapter extends BaseAdapter {
      * Search papers by AI topics
      */
     async searchAIPapers(limit = 1000) {
-        const TOPICS = ['large language model', 'diffusion model', 'machine learning', 'transformer'];
+        const TOPICS = [
+            'large language model', 'diffusion model', 'machine learning', 'transformer',
+            'computer vision', 'natural language processing', 'ai benchmarks', 'autonomous agents',
+            'reinforcement learning', 'generative ai'
+        ];
         const papers = [];
 
         for (const topic of TOPICS) {

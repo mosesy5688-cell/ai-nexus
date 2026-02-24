@@ -1,78 +1,52 @@
-/** Aggregator Utilities V18.12.5.16 (Partitioned Edition) */
+/** Aggregator Utilities V18.12.5.21 (Split Module) */
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
+import { processShardsIteratively, preProcessDeltas } from './aggregator-shard-manager.js';
 
-/** Iterative Shard Processor (V18.12.5.12 OOM Guard) */
-export async function processShardsIteratively(defaultArtifactDir, totalShards, options = {}, callback, startShard = 0, endShard = null) {
-    const { slim = false } = options;
-    const searchPaths = [defaultArtifactDir, './artifacts', './output/cache/shards', './cache/registry', './output/registry'];
-    const limit = endShard === null ? totalShards : Math.min(endShard, totalShards);
+export { processShardsIteratively, preProcessDeltas };
 
-    for (let i = startShard; i < limit; i++) {
-        let shardData = null;
-        for (const p of searchPaths) {
-            try {
-                const gzPath = path.join(p, `shard-${i}.json.gz`);
-                const jsonPath = path.join(p, `shard-${i}.json`);
-                const mergedGzPath = path.join(p, `merged_shard_${i}.json.gz`);
 
-                let data;
-                if (await fs.access(mergedGzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(mergedGzPath)).toString('utf-8');
-                } else if (await fs.access(gzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(gzPath)).toString('utf-8');
-                } else if (await fs.access(jsonPath).then(() => true).catch(() => false)) {
-                    data = await fs.readFile(jsonPath, 'utf-8');
-                } else continue;
-
-                const parsed = JSON.parse(data);
-                if (slim && parsed.entities) {
-                    const slimFields = [
-                        'id', 'umid', 'slug', 'name', 'type', 'author', 'description',
-                        'tags', 'metrics', 'stars', 'forks', 'downloads', 'likes',
-                        'citations', 'size', 'runtime', 'fni_score', 'fni_percentile',
-                        'fni_trend_7d', 'is_rising_star', 'primary_category',
-                        'pipeline_tag', 'published_date', 'last_modified',
-                        'last_updated', 'lastModified', '_updated',
-                        'params_billions', 'context_length', 'architecture',
-                        'mmlu', 'gsm8k', 'avg_score', 'humaneval',
-                        'deploy_score', 'has_gguf', 'has_ollama', 'ollama_id',
-                        'benchmark_avg', 'license', 'source'
-                    ];
-                    for (let j = 0; j < parsed.entities.length; j++) {
-                        const ent = parsed.entities[j].enriched || parsed.entities[j];
-                        const projected = {};
-                        for (const f of slimFields) {
-                            if (ent[f] !== undefined) projected[f] = ent[f];
-                        }
-                        if (parsed.entities[j].enriched) parsed.entities[j].enriched = projected;
-                        else parsed.entities[j] = projected;
-                    }
-                }
-                shardData = parsed;
-                break;
-            } catch (e) { continue; }
-        }
-
-        if (shardData) {
-            await callback(shardData, i);
-        }
-        shardData = null;
-    }
-}
-
-/** Pass 1: Global Statistics and Registry Indexing (V18.12.5.16) */
+/** Pass 1: Global Statistics and Registry Indexing (V18.12.5.21) */
 export async function calculateGlobalStats(registryLoader, artifactDir, totalShards) {
-    console.log(`[AGGREGATOR] Pass 1/2: Global Indexing & Registry Mapping...`);
+    console.log(`[AGGREGATOR] Pass 1/2: Mesh Discovery & Global Indexing...`);
     const scoreMap = new Map();
     const registryMap = new Map(); // id -> registryShardIdx
+    const citationCounts = new Map(); // id -> score
 
+    // V18.12.5.21: Mesh Discovery Pass
+    // Scan all entities for relation targets to calculate Sm (Mesh Impact)
+    // Formula: Model Cite +1, Paper Cite +3, Collection +5. Cap 100.
+    await registryLoader(async (entities) => {
+        const { extractEntityRelations } = await import('./relation-extractors.js');
+        for (const e of entities) {
+            const relations = extractEntityRelations(e);
+            for (const rel of relations) {
+                const targetId = rel.target_id;
+                const sourceId = rel.source_id;
+                const weight = rel.target_type === 'paper' ? 3 : 1;
+                citationCounts.set(targetId, (citationCounts.get(targetId) || 0) + weight);
+            }
+        }
+    }, { slim: true });
+
+    console.log(`  [MESH] Discovered ${citationCounts.size} citation targets.`);
+
+    // Pass 1.2: Calculate weighted scores
     await registryLoader(async (entities, idx) => {
         for (const e of entities) {
-            scoreMap.set(e.id, e.fni_score || 0);
+            // S_m calculation
+            const Sm = Math.min(100, citationCounts.get(e.id) || 0);
+
+            // FNI_final = (Vitality * 0.75) + (Sm * 0.25)
+            // Note: Stage 2/4 results already include Pop, Fresh, Comp, Util in a 0-100 score.
+            // We treat that as the 75% baseline.
+            const baseScore = e.fni_score ?? 0;
+            const finalFni = Math.round((baseScore * 0.75) + (Sm * 0.25));
+
+            scoreMap.set(e.id, finalFni);
             registryMap.set(e.id, idx);
         }
     }, { slim: true });
@@ -88,13 +62,35 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
     }
 
     const rankingsMap = new Map();
+    const thresholds = []; // For exporting score-to-percentile map
+
     for (const [id, score] of scoreMap) {
         const rank = scoreToRank.get(score) ?? 0;
-        rankingsMap.set(id, Math.round((1 - rank / count) * 100));
+        const percentile = Math.round((1 - rank / count) * 100);
+        rankingsMap.set(id, percentile);
     }
 
+    // Build Thresholds for Late-Binding (Stage 4/4)
+    // We export a mapping of score -> percentile
+    const sortedUniqueScores = Array.from(scoreToRank.keys()).sort((a, b) => b - a);
+    const scorePercentiles = {};
+    for (const s of sortedUniqueScores) {
+        const r = scoreToRank.get(s);
+        scorePercentiles[s] = Math.round((1 - r / count) * 100);
+    }
+
+    // Export thresholds
+    await fs.mkdir('./output/cache', { recursive: true });
+    await fs.writeFile('./output/cache/fni-thresholds.json', JSON.stringify({
+        _ts: new Date().toISOString(),
+        _count: count,
+        scorePercentiles,
+        citationCounts: Object.fromEntries(citationCounts) // Optional: for debugging
+    }, null, 2));
+
     scoreMap.clear();
-    console.log(`  [STATS] Mapped ${registryMap.size} entities for O(1) merge.`);
+    citationCounts.clear();
+    console.log(`  [STATS] Mapped ${registryMap.size} entities with Mesh Impact applied.`);
     return { rankingsMap, registryMap };
 }
 

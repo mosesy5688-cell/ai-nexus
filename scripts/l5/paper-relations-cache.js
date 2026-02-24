@@ -21,8 +21,8 @@ export async function buildPaperRelationsCache(relations, entities, outputDir) {
     const paperModelMap = new Map();
 
     for (const rel of relations) {
-        if (rel.relation_type === 'paper_id' && rel.target_id.startsWith('arxiv:')) {
-            const arxivId = rel.target_id.replace('arxiv:', '');
+        if (rel.relation_type === 'paper_id' && (rel.target_id.startsWith('arxiv:') || rel.target_id.startsWith('arxiv-paper--'))) {
+            const arxivId = rel.target_id.replace('arxiv:', '').replace('arxiv-paper--', '');
             if (!paperModelMap.has(arxivId)) {
                 paperModelMap.set(arxivId, []);
             }

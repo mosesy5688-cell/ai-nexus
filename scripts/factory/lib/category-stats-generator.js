@@ -16,6 +16,7 @@ const CATEGORY_MAP = {
     'vision-multimedia': 'Vision & Multimedia',
     'automation-workflow': 'Automation & Workflow',
     'infrastructure-ops': 'Infrastructure & Ops',
+    'prompts': 'AI Prompts & Templates',
 };
 
 // V14.5.1: Map any category string to V6 categories
@@ -59,6 +60,7 @@ const CATEGORY_ALIASES = {
     'image': 'vision-multimedia',
     'diffusion': 'vision-multimedia',
     'other': 'text-generation',
+    'prompts': 'prompts',
 };
 
 /**

@@ -64,21 +64,33 @@ async function main() {
 
     // V18.12.5.21: Stability Hardening (Art 3.1)
     // ALWAYS use sharded loader for Pass 1 to prevent Buffer Too Large errors on indexing.
+    // Pass 1 now calculates Mesh Impact (Sm) and Exports FNI Thresholds.
     const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
 
     const { rankingsMap, registryMap } = rankingsAndIndices;
-    console.log(`✓ Global rankings and registry mapping aligned for ${rankingsMap.size} entities.`);
+    console.log(`✓ Global rankings and registry mapping aligned (including Mesh Impact).`);
 
     let successCount = 0;
     let fullSet = [];
 
+    // V18.12.5.21: Late-Binding Toggle
+    const lateBinding = process.env.FNI_LATE_BINDING !== 'false'; // Default to true
+
     if (needsSlimming) {
-        // V18.12.5.24: Satellite Fast Path — Skip Pass 1.5 & Pass 2
-        // Satellites don't have deltas (merge-core already merged). Loading full
-        // entities just to slim them wastes 5GB+ of heap. Instead, collect slim
-        // entities directly from the sequential loader (already projected by
-        // projectEntity). Only ~34MB for 168K slim entities.
-        console.log(`[AGGREGATOR] Satellite Fast Path: Collecting slim entities (skipping merge)...`);
+        // ... (Satellite Fast Path remains same)
+        console.log(`[AGGREGATOR] Satellite Fast Path: Collecting slim entities...`);
+        await loadRegistryShardsSequentially(async (slimEntities, shardIdx) => {
+            for (const e of slimEntities) {
+                e.fni_percentile = rankingsMap.get(e.id) || 0;
+                fullSet.push(e);
+            }
+            successCount++;
+        }, { slim: true });
+    } else if (lateBinding) {
+        // V18.12.5.21: Late-Binding Core Path
+        // Skip Pass 2 (Merge & Overwrite Registry Shards). 
+        // We've already exported the thresholds for Stage 4/4 to use.
+        console.log(`[AGGREGATOR] Late-Binding Mode: Skipping Pass 2 (Registry Overwrite preserved).`);
         await loadRegistryShardsSequentially(async (slimEntities, shardIdx) => {
             for (const e of slimEntities) {
                 e.fni_percentile = rankingsMap.get(e.id) || 0;
@@ -87,13 +99,13 @@ async function main() {
             successCount++;
         }, { slim: true });
     } else {
-        // Core path: Full merge + save
+        // Legacy path (Merge deltas and overwrite shards)
         // 1.5. Pre-process updates (O(1) Streaming)
         const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
         await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
 
         // 2. Pass 2: Shard-Centric Merge (Heavyweight)
-        console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge (Hash-Join)...`);
+        console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge...`);
         await loadRegistryShardsSequentially(async (baselineEntities, shardIdx) => {
             const mergedShard = await mergePartitionedShard(
                 baselineEntities, shardIdx, rankingsMap, { slim: false }

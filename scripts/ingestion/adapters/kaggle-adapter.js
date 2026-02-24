@@ -14,6 +14,7 @@
  */
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { execSync } from 'child_process';
 
 const KAGGLE_API_BASE = 'https://www.kaggle.com/api/v1';
 
@@ -50,8 +51,13 @@ export class KaggleAdapter extends BaseAdapter {
      * @param {Object} options
      * @param {number} options.limit - Number of entities to fetch (default: 10000)
      */
+    /**
+     * Fetch datasets and models from Kaggle
+     * @param {Object} options
+     * @param {number} options.limit - Number of entities to fetch (default: 10000)
+     */
     async fetch(options = {}) {
-        const { limit = 10000 } = options;
+        const { limit = 10000, onBatch } = options;
 
         if (!this.username || !this.apiKey) {
             console.warn('⚠️ [Kaggle] No credentials (KAGGLE_USERNAME + KAGGLE_KEY), skipping');
@@ -60,8 +66,13 @@ export class KaggleAdapter extends BaseAdapter {
 
         console.log(`📥 [Kaggle] Fetching up to ${limit} entities (datasets & models)...`);
 
-        const datasets = await this.fetchDatasets(Math.floor(limit / 2));
-        const models = await this.fetchModels(Math.floor(limit / 2));
+        const dLimit = Math.floor(limit / 2);
+        const mLimit = limit - dLimit;
+
+        const datasets = await this.fetchDatasets(dLimit, onBatch);
+        const models = await this.fetchModels(mLimit, onBatch);
+
+        if (onBatch) return [];
 
         const combined = [...datasets, ...models];
         console.log(`✅ [Kaggle] Total: ${datasets.length} datasets, ${models.length} models`);
@@ -71,12 +82,12 @@ export class KaggleAdapter extends BaseAdapter {
     /**
      * Fetch datasets from Kaggle
      */
-    async fetchDatasets(limit) {
+    async fetchDatasets(limit, onBatch) {
         console.log(`   📦 Fetching datasets (limit: ${limit})...`);
         const allDatasets = [];
         let page = 1;
 
-        while (allDatasets.length < limit) {
+        while ((onBatch ? true : allDatasets.length < limit)) {
             const url = `${KAGGLE_API_BASE}/datasets/list?sortBy=hottest&page=${page}&pageSize=20`;
 
             try {
@@ -88,28 +99,31 @@ export class KaggleAdapter extends BaseAdapter {
                         await this.delay(60000);
                         continue;
                     }
-                    if (response.status === 401) {
-                        console.error('   ❌ Auth failed - check KAGGLE_USERNAME/KAGGLE_KEY');
-                        break;
-                    }
-                    throw new Error(`Kaggle API error: ${response.status}`);
+                    console.error(`   ❌ Kaggle API error: ${response.status}`);
+                    break;
                 }
 
                 const datasets = await response.json();
 
-                if (!datasets || datasets.length === 0) {
-                    console.log('   No more datasets');
-                    break;
-                }
+                if (!datasets || datasets.length === 0) break;
 
                 // Filter safe datasets
                 const safe = datasets.filter(d => this.isSafeForWork(d));
-                allDatasets.push(...safe);
+                const marked = safe.map(d => ({ ...d, _entityType: 'dataset' }));
 
-                console.log(`   Page ${page}: ${safe.length}/${datasets.length} datasets (total: ${allDatasets.length})`);
+                if (onBatch) {
+                    await onBatch(marked);
+                } else {
+                    allDatasets.push(...marked);
+                }
+
+                console.log(`   Page ${page}: ${safe.length}/${datasets.length} datasets (total: ${onBatch ? 'Streaming' : allDatasets.length})`);
+
+                if (!onBatch && allDatasets.length >= limit) break;
 
                 page++;
                 await this.delay(2000); // Rate limiting
+                if (page > 100 && onBatch) break; // Safety cap for streaming unless limit specified
 
             } catch (error) {
                 console.error(`   ❌ Error: ${error.message}`);
@@ -117,61 +131,34 @@ export class KaggleAdapter extends BaseAdapter {
             }
         }
 
-        // Return raw entities with _entityType marker for normalize()
-        return allDatasets.slice(0, limit).map(d => ({ ...d, _entityType: 'dataset' }));
+        return onBatch ? [] : allDatasets.slice(0, limit);
     }
 
     /**
      * Fetch models from Kaggle
      */
-    async fetchModels(limit) {
-        console.log(`   🤖 Fetching models (limit: ${limit})...`);
-        const allModels = [];
-        let page = 1;
+    async fetchModels(limit, onBatch) {
+        console.log(`   🤖 Fetching models (limit: ${limit}) via Kaggle CLI Sidecar...`);
+        try {
+            // V14.5.2: REST API /models/list is deprecated (400). Using CLI --json
+            const command = `kaggle models list --page-size ${Math.min(limit, 100)} --json`;
+            const output = execSync(command, { encoding: 'utf-8', env: { ...process.env, KAGGLE_USERNAME: this.username, KAGGLE_KEY: this.apiKey } });
+            const models = JSON.parse(output);
 
-        while (allModels.length < limit) {
-            const url = `${KAGGLE_API_BASE}/models/list?sortBy=hottest&page=${page}&pageSize=20`;
+            if (!models || models.length === 0) return [];
 
-            try {
-                const response = await fetch(url, { headers: this.getHeaders() });
+            const safe = models.filter(m => this.isSafeForWork(m));
+            const marked = safe.map(m => ({ ...m, _entityType: 'model' }));
 
-                if (!response.ok) {
-                    if (response.status === 429) {
-                        console.warn('   ⚠️ Rate limited, waiting 60s...');
-                        await this.delay(60000);
-                        continue;
-                    }
-                    if (response.status === 401) {
-                        console.error('   ❌ Auth failed - check KAGGLE_USERNAME/KAGGLE_KEY');
-                        break;
-                    }
-                    throw new Error(`Kaggle API error: ${response.status}`);
-                }
-
-                const models = await response.json();
-
-                if (!models || models.length === 0) {
-                    console.log('   No more models');
-                    break;
-                }
-
-                // Filter safe models
-                const safe = models.filter(m => this.isSafeForWork(m));
-                allModels.push(...safe);
-
-                console.log(`   Page ${page}: ${safe.length}/${models.length} models (total: ${allModels.length})`);
-
-                page++;
-                await this.delay(2000); // Rate limiting
-
-            } catch (error) {
-                console.error(`   ❌ Error: ${error.message}`);
-                break;
+            if (onBatch) {
+                await onBatch(marked);
+                return [];
             }
+            return marked;
+        } catch (error) {
+            console.error(`   ❌ Kaggle CLI Error: ${error.message}`);
+            return [];
         }
-
-        // Return raw entities with _entityType marker for normalize()
-        return allModels.slice(0, limit).map(m => ({ ...m, _entityType: 'model' }));
     }
 
     /**

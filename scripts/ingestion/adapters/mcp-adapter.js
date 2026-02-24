@@ -98,7 +98,7 @@ export class MCPAdapter extends BaseAdapter {
 
         const entity = {
             // Identity
-            id: `mcp-server--${this.sanitizeName(serverId)}`,
+            id: this.generateId('mcp', serverId, 'agent'),
             type: 'agent',
             subtype: 'mcp-server',
             source: 'mcp_registry',

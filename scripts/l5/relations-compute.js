@@ -32,10 +32,10 @@ function discoverRelations(entities) {
 
         // 1. Extract ArXiv paper_id relations
         const arxivIds = extractArxivIds(textToSearch);
-        for (const arxivId of arxivIds) {
+        for (const fullId of arxivIds) {
             relations.push({
                 source_id: entity.id,
-                target_id: `arxiv:${arxivId}`,
+                target_id: fullId, // Now standardized by extractor
                 relation_type: 'paper_id',
                 confidence: 0.9,
                 source_url: entity.source_url || null
@@ -60,10 +60,10 @@ function discoverRelations(entities) {
 
         // 3. Extract dataset_id relations
         const datasetIds = extractDatasetIds(textToSearch, entity.tags);
-        for (const datasetId of datasetIds) {
+        for (const fullId of datasetIds) {
             relations.push({
                 source_id: entity.id,
-                target_id: `dataset:${datasetId}`,
+                target_id: fullId, // Now standardized by extractor
                 relation_type: 'dataset_id',
                 confidence: 0.6,
                 source_url: entity.source_url || null

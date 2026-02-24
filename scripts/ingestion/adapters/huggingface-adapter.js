@@ -175,7 +175,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
     }
 
     async fetchByPipelineTags(options = {}) {
-        const { limitPerTag = 5000, tags = PIPELINE_TAGS, existingIds = new Set(), full = false, offset = 0 } = options;
+        const { limitPerTag = 5000, tags = PIPELINE_TAGS, existingIds = new Set(), full = false, offset = 0, onBatch } = options;
         const collectedIds = new Set(existingIds);
         const allModels = [];
         const PAGE_SIZE = 1000; // HuggingFace API max per request
@@ -223,7 +223,13 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
                     // V2.1: Add NSFW filter
                     const safeModels = newModels.filter(m => this.isSafeForWork(m));
-                    allModels.push(...safeModels);
+
+                    if (onBatch) {
+                        await onBatch(safeModels);
+                    } else {
+                        allModels.push(...safeModels);
+                    }
+
                     tagModels += models.length;
                     skip += models.length;
 
@@ -241,7 +247,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
                     if (hasMore) await delay(500);
                 }
 
-                console.log(`   🆕 ${tagModels} fetched, ${allModels.length - (allModels.length - tagModels)} unique added`);
+                console.log(`   🆕 ${tagModels} fetched, ${onBatch ? 'Streamed' : allModels.length - (allModels.length - tagModels)} unique added`);
                 await delay(1000); // Delay between tags
 
             } catch (error) {
@@ -249,8 +255,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
             }
         }
 
-        console.log(`\n✅ [HuggingFace] Pipeline tag collection: ${allModels.length} unique models`);
-        return { models: allModels, collectedIds: Array.from(collectedIds) };
+        console.log(`\n✅ [HuggingFace] Pipeline tag collection: ${onBatch ? 'Streaming' : allModels.length} complete`);
+        return onBatch ? [] : allModels;
     }
 
     async fetchFullModel(modelId, retryCount = 0) {
@@ -275,7 +281,12 @@ export class HuggingFaceAdapter extends BaseAdapter {
             if (!modelRes.ok) return null;
 
             const modelData = await modelRes.json();
-            modelData.readme = readmeRes.ok ? await readmeRes.text() : '';
+            const rawReadme = readmeRes.ok ? await readmeRes.text() : '';
+
+            // V19.5 Hardening: Relaxed Truncation (250KB)
+            modelData.readme = rawReadme.length > 250000
+                ? rawReadme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]'
+                : rawReadme;
 
             // V6.4: Merge config.json data for params extraction
             if (configRes.ok) {

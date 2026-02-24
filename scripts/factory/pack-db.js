@@ -13,29 +13,42 @@ import { loadTrendingMap, loadTrendMap, collectAndSortMetadata } from './lib/pac
 import { getV6Category } from './lib/category-stats-generator.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
-const DB_PATH = './output/data/content.db';
+const META_DB_PATH = './output/data/meta.db';
+const SEARCH_DB_PATH = './output/data/search.db';
 const SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 50;
 const MAX_SHARD_SIZE = 256 * 1024 * 1024;
 
 async function packDatabase() {
-    console.log('[VFS] 💎 Commencing Stable 1.0 DB Packing (Modular)...');
+    console.log('[VFS] 💎 Commencing Constitutional Split-DB V22.0 Packing...');
 
-    await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
-    if (await fs.stat(DB_PATH).catch(() => null)) await fs.unlink(DB_PATH);
+    await fs.mkdir(SHARD_PATH_DIR, { recursive: true });
+
+    // Cleanup old DBs
+    if (await fs.stat(META_DB_PATH).catch(() => null)) await fs.unlink(META_DB_PATH);
+    if (await fs.stat(SEARCH_DB_PATH).catch(() => null)) await fs.unlink(SEARCH_DB_PATH);
 
     const trendingMap = await loadTrendingMap(CACHE_DIR);
     const trendMap = await loadTrendMap(CACHE_DIR);
     const metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
-    const db = new Database(DB_PATH);
-    db.pragma('page_size = 8192');
-    db.pragma('auto_vacuum = 0');
-    db.pragma('journal_mode = DELETE');
-    db.pragma('synchronous = OFF');
-    db.pragma('encoding = "UTF-8"');
+    // Initialize Databases
+    const metaDb = new Database(META_DB_PATH);
+    const searchDb = new Database(SEARCH_DB_PATH);
 
-    db.exec(`
+    const setupDb = (db) => {
+        db.pragma('page_size = 8192'); // V22.0 High-Density 8K Alignment
+        db.pragma('auto_vacuum = 0');
+        db.pragma('journal_mode = DELETE');
+        db.pragma('synchronous = OFF');
+        db.pragma('encoding = "UTF-8"');
+    };
+
+    setupDb(metaDb);
+    setupDb(searchDb);
+
+    // Schema A: meta.db (Full Registry for hydrate/detail)
+    const entitySchema = `
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
             category TEXT, tags TEXT, fni_score REAL, fni_percentile TEXT,
@@ -48,16 +61,23 @@ async function packDatabase() {
         );
         CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
         CREATE INDEX idx_fni ON entities(fni_score DESC);
+        CREATE INDEX idx_type ON entities(type);
+    `;
+
+    metaDb.exec(entitySchema);
+
+    // Schema B: search.db (Optimized for FTS5 joins)
+    searchDb.exec(entitySchema); // Data parity for JOIN s.rowid = e.rowid
+    searchDb.exec(`
         CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='unicode61 remove_diacritics 2');
     `);
 
-    // V19.2: 27 columns in Stable 1.1 schema (added tags)
-    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    const insertFts = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
+    const insertEntityMeta = metaDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertFts = searchDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
 
     let currentShardId = 0, currentShardSize = 0;
     const stats = { packed: 0, heavy: 0, bytes: 0 };
-    const shardHashes = new Map();
     const manifest = {};
 
     let currentFd = null;
@@ -73,82 +93,85 @@ async function packDatabase() {
 
     let currentShardName = openShard();
 
-    db.transaction(() => {
-        for (const e of metadataBatch) {
-            // V19.5: Data Parity Expansion
-            const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
-            const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
-            const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
-            const arch = e.architecture ?? e.technical?.architecture ?? '';
+    metaDb.transaction(() => {
+        searchDb.transaction(() => {
+            let rowId = 1;
+            for (const e of metadataBatch) {
+                const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
+                const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
+                const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
+                const arch = e.architecture ?? e.technical?.architecture ?? '';
 
-            const bundleJson = Buffer.from(JSON.stringify({
-                readme: e.readme || e.html_readme || '',
-                changelog: e.changelog || '',
-                benchmarks: e.benchmarks || [],
-                paper_abstract: e.paper_abstract || '',
-                mesh_profile: e.mesh_profile || { relations: [] },
-                // V19.5: Included for Engine 1 Detail Page completeness
-                fni_metrics: fniMetrics,
-                params_billions: pBillions,
-                context_length: ctxLen,
-                architecture: arch
-            }), 'utf8');
+                const bundleJson = Buffer.from(JSON.stringify({
+                    readme: e.readme || e.html_readme || '',
+                    changelog: e.changelog || '',
+                    benchmarks: e.benchmarks || [],
+                    paper_abstract: e.paper_abstract || '',
+                    mesh_profile: e.mesh_profile || { relations: [] },
+                    fni_metrics: fniMetrics,
+                    params_billions: pBillions,
+                    context_length: ctxLen,
+                    architecture: arch
+                }), 'utf8');
 
-            let bundleKey = null, offset = 0, size = 0;
-            if (bundleJson.length > THRESHOLD_KB * 1024) {
-                // Security Choice B: 8KB Alignment (SPEC-V19.2)
-                const padding = (8192 - (currentShardSize % 8192)) % 8192;
-                if (padding > 0) {
-                    fsSync.writeSync(currentFd, Buffer.alloc(padding, 0));
-                    currentShardSize += padding;
+                let bundleKey = null, offset = 0, size = 0;
+                if (bundleJson.length > THRESHOLD_KB * 1024) {
+                    const padding = (8192 - (currentShardSize % 8192)) % 8192;
+                    if (padding > 0) {
+                        fsSync.writeSync(currentFd, Buffer.alloc(padding, 0));
+                        currentShardSize += padding;
+                    }
+                    if (currentShardSize + bundleJson.length > MAX_SHARD_SIZE) {
+                        currentShardId++;
+                        currentShardName = openShard();
+                    }
+                    bundleKey = `data/${currentShardName}`; offset = currentShardSize; size = bundleJson.length;
+                    fsSync.writeSync(currentFd, bundleJson);
+                    currentShardSize += size;
+                    stats.heavy++; stats.bytes += size;
                 }
-                if (currentShardSize + bundleJson.length > MAX_SHARD_SIZE) {
-                    currentShardId++;
-                    currentShardName = openShard();
-                }
-                bundleKey = `data/${currentShardName}`; offset = currentShardSize; size = bundleJson.length;
-                fsSync.writeSync(currentFd, bundleJson);
-                currentShardSize += size;
-                stats.heavy++; stats.bytes += size;
+
+                const summary = e.summary || e.description || '';
+                const category = getV6Category(e);
+                const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
+
+                const values = [
+                    e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
+                    e.author || '', summary, category, tags, e.fni_score || 0, e.fni_percentile || '',
+                    e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
+                    e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
+                    pBillions,
+                    arch,
+                    ctxLen,
+                    e.is_trending ? 1 : 0,
+                    e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
+                    '', // shard_hash filled later
+                    e._trend_7d
+                ];
+
+                insertEntityMeta.run(...values);
+                insertEntitySearch.run(...values);
+                insertFts.run(rowId++, e.name || '', summary, e.author || '', tags, category);
+                stats.packed++;
             }
-
-            const summary = e.summary || e.description || '';
-            const category = getV6Category(e);
-            const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
-
-            const res = insertEntity.run(
-                e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-                e.author || '', summary, category, tags, e.fni_score || 0, e.fni_percentile || '',
-                e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
-                e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
-                pBillions,
-                arch,
-                ctxLen,
-                e.is_trending ? 1 : 0,
-                e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
-                '', // shard_hash (filled in final pass)
-                e._trend_7d
-            );
-            insertFts.run(res.lastInsertRowid, e.name || '', summary, e.author || '', tags, category);
-            stats.packed++;
-        }
+        })();
     })();
 
     if (currentFd) fsSync.closeSync(currentFd);
 
+    // Finalize Shard Hashes in meta.db
     for (let i = 0; i <= currentShardId; i++) {
         const name = `fused-shard-${String(i).padStart(3, '0')}.bin`;
         const file = path.join(SHARD_PATH_DIR, name);
         if (fsSync.existsSync(file)) {
             const hash = crypto.createHash('sha256').update(fsSync.readFileSync(file)).digest('hex');
             manifest[`data/${name}`] = hash;
-            db.prepare('UPDATE entities SET shard_hash = ? WHERE bundle_key = ?').run(hash, `data/${name}`);
+            metaDb.prepare('UPDATE entities SET shard_hash = ? WHERE bundle_key = ?').run(hash, `data/${name}`);
         }
     }
 
-    // V19.3: Inject Global Site Metadata (Stats/Rankings/Trending/Relations)
-    console.log('[VFS] 🌐 Injecting Global Site Metadata (V19.3)...');
-    const injectMeta = db.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)');
+    // Inject Metadata into BOTH databases
+    console.log('[VFS] 🌐 Injecting Global Metadata...');
     const metaFiles = [
         { key: 'category_stats', file: 'category_stats.json' },
         { key: 'trending', file: 'trending.json' },
@@ -158,39 +181,34 @@ async function packDatabase() {
 
     for (const meta of metaFiles) {
         try {
-            const possiblePaths = [
-                path.join(CACHE_DIR, meta.file),
-                path.join(CACHE_DIR, `${meta.file}.gz`),
-                path.join(path.dirname(CACHE_DIR), meta.file),
-                path.join(path.dirname(CACHE_DIR), `${meta.file}.gz`)
-            ];
-
+            const possiblePaths = [path.join(CACHE_DIR, meta.file), path.join(CACHE_DIR, `${meta.file}.gz`)];
             let content = null;
             for (const p of possiblePaths) {
                 try {
                     const raw = await fs.readFile(p);
-                    content = (p.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b))
-                        ? zlib.gunzipSync(raw).toString('utf-8')
-                        : raw.toString('utf-8');
+                    content = (p.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b)) ? zlib.gunzipSync(raw).toString('utf-8') : raw.toString('utf-8');
                     break;
                 } catch (err) { continue; }
             }
-
             if (content) {
-                injectMeta.run(meta.key, content);
-                console.log(`  - Injected: ${meta.key} (${Math.round(content.length / 1024)} KB)`);
-            } else {
-                console.warn(`  - Missing: ${meta.key}`);
+                metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
+                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
             }
-        } catch (e) {
-            console.warn(`  - Failed to inject ${meta.key}:`, e.message);
-        }
+        } catch (e) { }
     }
 
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
-    db.exec("INSERT INTO search(search) VALUES('optimize'); PRAGMA integrity_check; VACUUM;");
-    db.close();
-    console.log(`[VFS] ✅ Packing Complete! Total: ${stats.packed}, Heavy: ${stats.heavy}, Shards: ${currentShardId + 1}`);
+
+    // Finalization
+    searchDb.exec("INSERT INTO search(search) VALUES('optimize');");
+    metaDb.exec("PRAGMA integrity_check; VACUUM;");
+    searchDb.exec("PRAGMA integrity_check; VACUUM;");
+
+    metaDb.close();
+    searchDb.close();
+    console.log(`[VFS] ✅ Constitutional Split-DB Complete! Shards: ${currentShardId + 1}, Heavy: ${stats.heavy}`);
 }
+
+packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });
 
 packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });
