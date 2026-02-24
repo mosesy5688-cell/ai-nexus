@@ -147,6 +147,7 @@ export class GitHubAdapter extends BaseAdapter {
                 batch.map(r => this.fetchFullRepo(r.full_name))
             );
             const validResults = batchResults.filter(r => r !== null);
+
             if (options.onBatch) {
                 await options.onBatch(validResults);
             } else {
@@ -154,7 +155,9 @@ export class GitHubAdapter extends BaseAdapter {
             }
 
             if ((i + batchSize) % 50 === 0 || i + batchSize >= allRepos.length) {
-                console.log(`   Progress: ${Math.min(i + batchSize, allRepos.length)}/${allRepos.length}`);
+                const total = Math.min(i + batchSize, allRepos.length);
+                const successRate = ((validResults.length / batchSize) * 100).toFixed(0);
+                console.log(`   Progress: ${total}/${allRepos.length} (Batch success: ${validResults.length}/${batchSize})`);
             }
 
             await this.delay(1000);

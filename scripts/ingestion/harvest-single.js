@@ -1,30 +1,25 @@
-#!/usr/bin/env node
 /**
- * harvest-single.js
+ * Single-Source Harvester V22.2 (Industrial Stability Edition)
  * 
- * Phase A.3: Single-source harvester for parallel workflow execution
- * Called by parallel L1 jobs to harvest one source at a time.
- * 
- * Usage: node scripts/ingestion/harvest-single.js <source> [--limit N]
+ * V22.1: Reverted matrix sharding for stability. 4-job parallel core.
+ * V22.2: Added buffer water-level logging and Kaggle CLI stability fixes.
  */
 
-import { adapters } from './adapters/index.js';
-import { promises as fs } from 'fs';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import adapters from './adapters/index.js';
 
 const OUTPUT_DIR = 'data';
 
 /**
- * Harvest from a single source and save to a batch file
+ * Harvest from a single source and save chunks
  */
 async function harvestSingle(sourceName, options = {}) {
     const { limit = 10000 } = options;
-
     const adapter = adapters[sourceName];
+
     if (!adapter) {
-        console.error(`❌ Unknown source: ${sourceName}`);
-        console.log(`Available sources: ${Object.keys(adapters).join(', ')}`);
-        process.exit(1);
+        throw new Error(`Adapter for source "${sourceName}" not found`);
     }
 
     console.log(`\n📥 [Harvest] Source: ${sourceName}`);
@@ -39,23 +34,22 @@ async function harvestSingle(sourceName, options = {}) {
         // Fetch from source
         console.log(`   Fetching ${limit} entities...`);
         // Memory Hardening: Adjust chunk size based on source weight
-        // ArXiv is "Heavy" due to full-text HTML extraction (can be 2MB+ per paper)
-        // HuggingFace is "Medium" (READMEs can be long)
         const HEAVY_SOURCES = ['arxiv', 'semanticscholar'];
         const CHUNK_SIZE = HEAVY_SOURCES.includes(sourceName) ? 200 : 1500;
 
-        const results = { source: sourceName, total: 0, chunks: [] };
+        const results = { source: sourceName, total: 0, failed: 0, chunks: [] };
         let currentChunk = [];
         let chunkIndex = 0;
 
-        // V17.5 Memory Protection: Provide an `onBatch` callback to adapters that support streaming
-        // This prevents 100K Full-Text HTML entities from accumulating in RAM before chunking.
+        // V17.5 Memory Protection: Streaming processor
         const processBatch = async (rawBatch) => {
+            const batchAttempted = rawBatch.length;
+
             for (let i = 0; i < rawBatch.length; i++) {
                 try {
                     const norm = adapter.normalize(rawBatch[i]);
-                    // V22.2 Memory Hardening: Truncate full_html to prevent OOM errors
-                    const MAX_HTML_SIZE = 500000; // 0.5 MB
+                    // V22.2 Memory Hardening: Truncate full_html to prevent OOM
+                    const MAX_HTML_SIZE = 500000;
                     if (norm && norm.full_html) {
                         norm.full_html = (norm.full_html.length > MAX_HTML_SIZE)
                             ? norm.full_html.substring(0, MAX_HTML_SIZE) + '\n\n[Full-text truncated for memory safety...]'
@@ -65,22 +59,23 @@ async function harvestSingle(sourceName, options = {}) {
                     if (norm) {
                         currentChunk.push(norm);
                         results.total++;
+                    } else {
+                        results.failed++;
                     }
                 } catch (e) {
+                    results.failed++;
                     if (results.total < 5) console.warn(`   ⚠️ Normalize error [${results.total}]: ${e.message}`);
                 }
 
-                rawBatch[i] = null; // Free raw object
+                rawBatch[i] = null; // Free memory
 
                 // Write chunk to disk if it reaches the limit
                 if (currentChunk.length >= CHUNK_SIZE) {
                     const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_c${chunkIndex}.json`);
-                    // V22.1 Optimization: Disable pretty-printing to save 30% memory/disk
                     await fs.writeFile(batchFile, JSON.stringify(currentChunk));
                     results.chunks.push(batchFile);
                     console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile} (${currentChunk.length} entities)`);
 
-                    // V19.5 Hardening: Aggressive GC for high-volume jobs
                     currentChunk = [];
                     chunkIndex++;
 
@@ -88,6 +83,11 @@ async function harvestSingle(sourceName, options = {}) {
                         try { global.gc(); } catch (e) { }
                     }
                 }
+            }
+
+            // Periodic buffer report
+            if (results.total % 100 === 0 || batchAttempted > 50) {
+                console.log(`   📊 Buffer Status: ${currentChunk.length}/${CHUNK_SIZE} (Total valid: ${results.total}, Failed: ${results.failed})`);
             }
         };
 
@@ -101,19 +101,17 @@ async function harvestSingle(sourceName, options = {}) {
             rawEntities = await adapter.fetch(fetchOptions);
         } catch (fetchError) {
             console.error(`   ❌ Fetch error: ${fetchError.message}`);
-            console.error(fetchError.stack);
             rawEntities = [];
         }
 
-        // For backward compatibility: if adapter doesn't use `onBatch`, it returns the full array.
+        // Backward compatibility for non-streaming adapters
         if (rawEntities && rawEntities.length > 0) {
-            console.log(`   ✓ Adapter returned ${rawEntities.length} buffered entities. Normalizing synchronously...`);
+            console.log(`   ✓ Adapter returned ${rawEntities.length} buffered entities. Normalizing...`);
             await processBatch(rawEntities);
             rawEntities = [];
-            if (global.gc) global.gc();
         }
 
-        // Write any remaining items
+        // Write Final chunk
         if (currentChunk.length > 0) {
             const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_c${chunkIndex}.json`);
             await fs.writeFile(batchFile, JSON.stringify(currentChunk));
@@ -124,23 +122,13 @@ async function harvestSingle(sourceName, options = {}) {
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`\n✅ [Harvest] Complete`);
-        console.log(`   Source: ${sourceName}`);
-        console.log(`   Entities: ${results.total}`);
-        console.log(`   Chunks: ${results.chunks.length}`);
-        console.log(`   Time: ${duration}s`);
+        console.log(`   Source: ${sourceName} | Entities: ${results.total} | Chunks: ${results.chunks.length} | Time: ${duration}s`);
 
         return { source: sourceName, count: results.total, duration, chunks: results.chunks };
 
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
-        console.error(error.stack);
-
-        // Create empty batch file to avoid downstream errors
-        const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}.json`);
-        await fs.writeFile(batchFile, JSON.stringify([], null, 2));
-        console.log(`   Created empty batch file: ${batchFile}`);
-
-        return { source: sourceName, count: 0, duration: 0, file: batchFile, error: error.message };
+        return { source: sourceName, count: 0, error: error.message };
     }
 }
 
@@ -149,8 +137,6 @@ async function harvestSingle(sourceName, options = {}) {
  */
 async function main() {
     const args = process.argv.slice(2);
-
-    // Parse arguments
     let sourceName = null;
     let limit = 10000;
 
@@ -165,15 +151,10 @@ async function main() {
 
     if (!sourceName) {
         console.log('Usage: node harvest-single.js <source> [--limit N]');
-        console.log(`Available sources: ${Object.keys(adapters).join(', ')}`);
         process.exit(1);
     }
 
     await harvestSingle(sourceName, { limit });
 }
 
-// Export for programmatic use
-export { harvestSingle };
-
-// Run if called directly
 main().catch(console.error);
