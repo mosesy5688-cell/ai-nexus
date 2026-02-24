@@ -53,13 +53,21 @@ export class ArXivAdapter extends BaseAdapter {
                 limitsPerCategory: Math.floor(limit / AI_CATEGORIES.length),
                 sortBy,
                 sortOrder,
-                offset: options.offset || 0 // V18.2.4: Support rotation
+                offset: options.offset || 0,
+                onBatch: options.onBatch // V22.3: Fix missing propagation
             });
         }
 
         // Default: fetch from combined categories
         const category = 'cs.AI OR cs.LG OR cs.CL OR cs.CV';
-        return this.fetchFromCategory({ category, limit, sortBy, sortOrder, offset: options.offset || 0, onBatch: options.onBatch });
+        return this.fetchFromCategory({
+            category,
+            limit,
+            sortBy,
+            sortOrder,
+            offset: options.offset || 0,
+            onBatch: options.onBatch // V22.3: Fix missing propagation
+        });
     }
 
     /**
@@ -114,7 +122,7 @@ export class ArXivAdapter extends BaseAdapter {
         }
 
         console.log(`✅ [ArXiv] Fetched ${fetchedCount} unique papers total`);
-        return allPapers;
+        return onBatch ? [] : allPapers;
     }
 
     /**
@@ -236,7 +244,7 @@ export class ArXivAdapter extends BaseAdapter {
             }
         }
 
-        return papers;
+        return onBatch ? [] : papers;
     }
 
     delay(ms) {

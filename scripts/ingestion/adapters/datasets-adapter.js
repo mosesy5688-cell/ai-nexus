@@ -86,7 +86,7 @@ export class DatasetsAdapter extends BaseAdapter {
         }
 
         console.log(`✅ [HF Datasets] Fetched ${options.onBatch ? datasets.length : fullDatasets.length} complete datasets`);
-        return fullDatasets;
+        return options.onBatch ? [] : fullDatasets;
     }
 
     /**

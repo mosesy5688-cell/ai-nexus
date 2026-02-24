@@ -123,9 +123,9 @@ export class DeepSpecAdapter extends BaseAdapter {
      * @param {number} options.limit - Maximum models to process
      */
     async fetch(options = {}) {
-        const { modelIds = [], limit = 2000 } = options;
+        const { modelIds = [], limit = 2000, onBatch } = options;
 
-        console.log(`📥 [DeepSpec] Fetching model specifications...`);
+        console.log(`📥 [DeepSpec] Fetching model specifications (onBatch: ${!!onBatch})...`);
 
         try {
             let modelsToProcess = modelIds;
@@ -155,10 +155,21 @@ export class DeepSpecAdapter extends BaseAdapter {
 
             // Extract specs for each model
             const specs = [];
+            const batchSize = 20;
+            let currentBatch = [];
+
             for (const modelId of modelsToProcess.slice(0, limit)) {
                 const spec = await this.extractSpec(modelId);
                 if (spec) {
-                    specs.push(spec);
+                    if (onBatch) {
+                        currentBatch.push(spec);
+                        if (currentBatch.length >= batchSize) {
+                            await onBatch(currentBatch);
+                            currentBatch = [];
+                        }
+                    } else {
+                        specs.push(spec);
+                    }
                     console.log(`   ✅ ${modelId}: ${spec.params_billions}B, ctx=${spec.context_length}, arch=${spec.architecture_family}`);
                 }
 
@@ -166,9 +177,14 @@ export class DeepSpecAdapter extends BaseAdapter {
                 await this.delay(300);
             }
 
-            console.log(`   📊 Extracted ${specs.length}/${modelsToProcess.length} model specs`);
+            // Final batch
+            if (onBatch && currentBatch.length > 0) {
+                await onBatch(currentBatch);
+            }
 
-            return specs;
+            console.log(`   📊 Extracted ${onBatch ? 'Streaming' : specs.length}/${modelsToProcess.length} model specs`);
+
+            return onBatch ? [] : specs;
 
         } catch (error) {
             console.error(`   ❌ Fetch error: ${error.message}`);

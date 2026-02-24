@@ -101,8 +101,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
             if ((i + batchSize) % 50 === 0) console.log(`   Progress: ${Math.min(i + batchSize, models.length)}/${models.length}`);
             if (i + batchSize < models.length) await delay(delayMs);
         }
-        console.log(`✅ [HuggingFace] Fetched ${fullModels.length} complete models`);
-        return fullModels;
+        console.log(`✅ [HuggingFace] Fetched ${options.onBatch ? models.length : fullModels.length} models total`);
+        return options.onBatch ? [] : fullModels;
     }
 
     async fetchMultiStrategy(options = {}) {

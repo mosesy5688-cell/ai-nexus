@@ -102,13 +102,14 @@ if (process.argv[1] === import.meta.url || process.argv[1].endsWith('ndjson-shar
     const input = args[0];
     const output = args[1] || './data/chunks';
     const size = parseInt(args[2], 10) || 500;
+    const prefix = args[3] || 'raw_batch';
 
     if (!input) {
-        console.log('Usage: node ndjson-sharder.js <input.ndjson> [output_dir] [chunk_size]');
+        console.log('Usage: node ndjson-sharder.js <input.ndjson> [output_dir] [chunk_size] [prefix]');
         process.exit(1);
     }
 
-    shardNDJSON(input, output, { chunkSize: size })
+    shardNDJSON(input, output, { chunkSize: size, prefix })
         .catch(err => {
             console.error(`❌ [Bridge] Failed: ${err.message}`);
             process.exit(1);

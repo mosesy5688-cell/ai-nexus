@@ -40,9 +40,9 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
      * @param {number} options.limit - Maximum records to fetch
      */
     async fetch(options = {}) {
-        const { limit = 500 } = options;
+        const { limit = 500, onBatch } = options;
 
-        console.log(`📥 [OpenLLM] Fetching benchmark data (limit: ${limit})...`);
+        console.log(`📥 [OpenLLM] Fetching benchmark data (limit: ${limit}, onBatch: ${!!onBatch})...`);
 
         try {
             // V4.3.2: Primary strategy - HF Hub API for models with evaluations
@@ -70,6 +70,9 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
 
             // Extract evaluation metrics from official results dataset
             const benchmarks = [];
+            const batchSize = 20;
+            let currentBatch = [];
+
             for (const model of models.slice(0, limit)) {
                 // 1. Identification
                 const [author, modelId] = model.id.split('/');
@@ -78,21 +81,38 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
                 // 2. Authoritative Fetch (V4.3.3 Root-Cause Fix)
                 const benchmark = await this.fetchAuthoritativeBenchmark(author, modelId);
 
-                if (benchmark) {
-                    benchmarks.push(benchmark);
-                } else {
+                let targetBench = benchmark;
+                if (!targetBench) {
                     // Fallback to legacy card extraction if dataset entry missing
-                    const legacyBench = await this.extractBenchmarksFromModel(model);
-                    if (legacyBench) benchmarks.push(legacyBench);
+                    targetBench = await this.extractBenchmarksFromModel(model);
+                }
+
+                if (targetBench) {
+                    if (onBatch) {
+                        currentBatch.push(targetBench);
+                        if (currentBatch.length >= batchSize) {
+                            await onBatch(currentBatch);
+                            currentBatch = [];
+                        }
+                    } else {
+                        benchmarks.push(targetBench);
+                    }
                 }
 
                 // Rate limiting - V4.3.2 Constitution
-                if (benchmarks.length < limit) {
+                if ((onBatch ? 1 : benchmarks.length) < limit) {
                     await this.delay(300); // Respect HF Hub
                 }
             }
 
-            console.log(`   ✅ Extracted ${benchmarks.length} benchmark records`);
+            // Final batch
+            if (onBatch && currentBatch.length > 0) {
+                await onBatch(currentBatch);
+            }
+
+            console.log(`   ✅ Extracted ${onBatch ? 'Streaming' : benchmarks.length} benchmark records`);
+
+            if (onBatch) return [];
 
             // Apply quality gate
             const validBenchmarks = benchmarks.filter(b => b.quality_flag === 'ok');
