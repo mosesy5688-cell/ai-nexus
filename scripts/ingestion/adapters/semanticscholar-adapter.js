@@ -18,12 +18,6 @@ export class SemanticScholarAdapter extends BaseAdapter {
         this.entityTypes = ['paper'];
     }
 
-    /**
-     * Rate limiting delay helper
-     */
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
 
     /**
      * Main Fetch Entry Point
@@ -148,7 +142,13 @@ export class SemanticScholarAdapter extends BaseAdapter {
         const url = `${S2_API_BASE}/paper/arXiv:${cleanId}?fields=title,citationCount,influentialCitationCount,year,authors,abstract`;
 
         const response = await fetch(url, { headers: { 'User-Agent': 'Free2AITools/1.0' } });
-        if (!response.ok) return null;
+        if (!response.ok) {
+            // V22.3: Centralized handleRateLimit (handles 403/429)
+            if (await this.handleRateLimit(response)) {
+                return await this.fetchPaperByArxiv(arxivId); // Recursive retry
+            }
+            return null;
+        }
 
         const data = await response.json();
         return {
@@ -172,6 +172,10 @@ export class SemanticScholarAdapter extends BaseAdapter {
             console.log(`   [S2] Fetching: ${url}`);
             const response = await fetch(url, { headers: { 'User-Agent': 'Free2AITools/1.0' } });
             if (!response.ok) {
+                // V22.3: Centralized handleRateLimit (handles 403/429)
+                if (await this.handleRateLimit(response)) {
+                    return await this.searchPapers(query, limit); // Recursive retry
+                }
                 console.warn(`   [S2] API Error: ${response.status} ${response.statusText}`);
                 return [];
             }
