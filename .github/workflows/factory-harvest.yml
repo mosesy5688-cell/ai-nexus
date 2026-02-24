@@ -262,7 +262,7 @@ jobs:
         run: |
           echo "📋 Extracting Model Specifications..."
           node scripts/ingestion/harvest-single.js deepspec --limit 2000 || echo "DeepSpec adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/deespec_master.ndjson data/ 500 deepspec || true
+          node scripts/ingestion/ndjson-sharder.js data/deepspec_master.ndjson data/ 500 deepspec || true
 
       - name: Harvest HuggingFace Spaces
         if: github.event.inputs.skip_harvest != 'true'

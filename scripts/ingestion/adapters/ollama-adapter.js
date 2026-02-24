@@ -60,18 +60,21 @@ export class OllamaAdapter extends BaseAdapter {
      * Fetch Ollama library models
      */
     async fetch(options = {}) {
+        const { limit = 100, onBatch } = options;
         console.log('[Ollama] Fetching library...');
 
         try {
-            // Note: Ollama doesn't have a public API, so we'll use a structured approach
-            // In production, this might need to scrape the page or use an unofficial API
-
-            // For now, we'll use a static list of popular models from Ollama
-            // This can be enhanced with actual scraping later
             const ollamaModels = await this.fetchOllamaLibrary();
+            const slicedModels = ollamaModels.slice(0, limit);
 
-            console.log(`[Ollama] Found ${ollamaModels.length} models`);
-            return ollamaModels;
+            console.log(`[Ollama] Found ${slicedModels.length} models`);
+
+            if (onBatch) {
+                await onBatch(slicedModels);
+                return [];
+            }
+
+            return slicedModels;
 
         } catch (error) {
             console.error('[Ollama] Fetch error:', error.message);

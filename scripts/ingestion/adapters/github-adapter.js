@@ -164,7 +164,7 @@ export class GitHubAdapter extends BaseAdapter {
         }
 
         console.log(`✅ [GitHub] Fetched ${options.onBatch ? allRepos.length : fullRepos.length} complete repositories`);
-        return fullRepos;
+        return options.onBatch ? [] : fullRepos;
     }
     /**
      * Fetch complete repository details including README

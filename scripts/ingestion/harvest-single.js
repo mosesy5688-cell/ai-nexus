@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import adapters from './adapters/index.js';
+import { shardNDJSON } from './ndjson-sharder.js';
 
 const OUTPUT_DIR = 'data';
 
@@ -17,7 +18,7 @@ const OUTPUT_DIR = 'data';
  * V22.3: Streaming Ingestion (OOM Protection)
  */
 async function harvestSingle(sourceName, options = {}) {
-    const { limit = 10000 } = options;
+    const { limit = 10000, chunkSize = 500, skipBridge = false } = options;
     const adapter = adapters[sourceName];
 
     if (!adapter) {
@@ -48,8 +49,14 @@ async function harvestSingle(sourceName, options = {}) {
 
                     if (norm) {
                         // V22.3: LOSSLESS capture. Truncation is FORBIDDEN here.
-                        // Truncation only happens in Stage 4/4 for FTS5 (meta.db).
-                        writeStream.write(JSON.stringify(norm) + '\n');
+                        // V22.3: Implement Backpressure (OOM Protection for write buffer)
+                        const canWrite = writeStream.write(JSON.stringify(norm) + '\n');
+
+                        if (!canWrite) {
+                            // High water mark reached, wait for drain
+                            await new Promise(resolve => writeStream.once('drain', resolve));
+                        }
+
                         results.total++;
                     } else {
                         results.failed++;
@@ -63,7 +70,7 @@ async function harvestSingle(sourceName, options = {}) {
             }
 
             if (results.total % 100 === 0) {
-                console.log(`   📊 Ingested: ${results.total} | Failed: ${results.failed}`);
+                console.log(`   📊 Ingested: ${results.total} | Failed: ${results.failed} | Mem: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
             }
         };
 
@@ -95,6 +102,15 @@ async function harvestSingle(sourceName, options = {}) {
         console.log(`   Source: ${sourceName} | Total: ${results.total} | Time: ${duration}s`);
         console.log(`   Output: ${ndjsonPath}`);
 
+        // V22.3 Bridge: Automatic Conversion to JSON Shards
+        if (!skipBridge && results.total > 0) {
+            console.log(`\n🌉 [Bridge] Initiating format conversion...`);
+            await shardNDJSON(ndjsonPath, OUTPUT_DIR, {
+                chunkSize,
+                prefix: sourceName
+            });
+        }
+
         return { source: sourceName, count: results.total, duration, file: ndjsonPath };
 
     } catch (error) {
@@ -110,22 +126,29 @@ async function main() {
     const args = process.argv.slice(2);
     let sourceName = null;
     let limit = 10000;
+    let chunkSize = 500;
+    let skipBridge = false;
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--limit' && args[i + 1]) {
             limit = parseInt(args[i + 1], 10);
             i++;
+        } else if (args[i] === '--chunk-size' && args[i + 1]) {
+            chunkSize = parseInt(args[i + 1], 10);
+            i++;
+        } else if (args[i] === '--no-bridge') {
+            skipBridge = true;
         } else if (!args[i].startsWith('--')) {
             sourceName = args[i];
         }
     }
 
     if (!sourceName) {
-        console.log('Usage: node harvest-single.js <source> [--limit N]');
+        console.log('Usage: node harvest-single.js <source> [--limit N] [--chunk-size S] [--no-bridge]');
         process.exit(1);
     }
 
-    await harvestSingle(sourceName, { limit });
+    await harvestSingle(sourceName, { limit, chunkSize, skipBridge });
 }
 
 main().catch(console.error);

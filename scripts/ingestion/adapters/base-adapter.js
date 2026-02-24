@@ -110,31 +110,53 @@ export class BaseAdapter {
 
     /**
      * [Phase A.2] Streaming fetch for memory-efficient batch processing
-     * Yields batches of entities instead of loading all into memory.
-     * 
-     * Default implementation calls fetch() and yields in batches.
-     * Subclasses can override for true pagination support.
+     * V22.3: Truly O(1) implementation via internal queue
      * 
      * @param {Object} options - Fetch options
-     * @param {number} [options.batchSize=500] - Entities per batch
-     * @param {number} [options.limit=10000] - Max total entities
      * @yields {Object[]} Batch of raw entities
      */
     async *fetchStream(options = {}) {
-        const { batchSize = 500, limit = 10000 } = options;
+        const { limit = 10000 } = options;
+        const queue = [];
+        let done = false;
+        let error = null;
 
-        // Default: fetch all then yield in batches
-        // Subclasses should override for true pagination
-        const allEntities = await this.fetch({ ...options, limit });
+        // V22.3: True O(1) Memory Producer-Consumer Pattern
+        const fetchPromise = this.fetch({
+            ...options,
+            limit,
+            onBatch: async (batch) => {
+                if (batch && batch.length > 0) {
+                    queue.push(batch);
+                }
 
-        for (let i = 0; i < allEntities.length; i += batchSize) {
-            const batch = allEntities.slice(i, i + batchSize);
-            console.log(`  [Stream] Yielding batch ${Math.floor(i / batchSize) + 1}: ${batch.length} entities`);
-            yield batch;
+                // Backpressure: If queue is growing too fast, slow down producer
+                if (queue.length > 5) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+        }).then(() => {
+            done = true;
+        }).catch(err => {
+            console.error(`  [Stream] Fetch error: ${err.message}`);
+            error = err;
+            done = true;
+        });
 
-            // Allow GC between batches
-            await new Promise(resolve => setTimeout(resolve, 10));
+        // Consumer Loop
+        while (!done || queue.length > 0) {
+            if (queue.length > 0) {
+                const batch = queue.shift();
+                yield batch;
+                // Immediate GC hint
+                await new Promise(resolve => setImmediate(resolve));
+            } else {
+                if (error) throw error;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
         }
+
+        await fetchPromise; // Final safety await
     }
 
     /**
