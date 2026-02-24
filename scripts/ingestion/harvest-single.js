@@ -10,6 +10,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import adapters from './adapters/index.js';
 import { shardNDJSON } from './ndjson-sharder.js';
+import { RateLimitExceededError } from './adapters/base-adapter.js';
 
 const OUTPUT_DIR = 'data';
 
@@ -83,7 +84,12 @@ async function harvestSingle(sourceName, options = {}) {
         try {
             rawEntities = await adapter.fetch(fetchOptions);
         } catch (fetchError) {
-            console.error(`   ❌ Fetch error: ${fetchError.message}`);
+            if (fetchError instanceof RateLimitExceededError) {
+                console.warn(`\n🛑 [Harvest] ${fetchError.message}`);
+                console.warn(`   ⚠️ Finishing early with ${results.total} entities to preserve CI throughput.`);
+            } else {
+                console.error(`   ❌ Fetch error: ${fetchError.message}`);
+            }
             rawEntities = [];
         }
 
@@ -138,7 +144,7 @@ async function main() {
             i++;
         } else if (args[i] === '--no-bridge') {
             skipBridge = true;
-        } else if (!args[i].startsWith('--')) {
+        } else if (!args[i].startsWith('--') && !sourceName) {
             sourceName = args[i];
         }
     }

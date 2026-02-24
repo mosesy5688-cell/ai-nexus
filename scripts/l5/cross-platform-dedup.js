@@ -43,27 +43,42 @@ function normalizeName(name) {
 
 /**
  * Calculate similarity score between two models
+ * V22.4: Hardware-aware precision matching
  */
 function calculateSimilarity(model1, model2) {
     const name1 = normalizeName(model1.name);
     const name2 = normalizeName(model2.name);
 
+    // 1. Precise hardware match (parameters + architecture)
+    const p1 = model1.meta_json?.params_billions || model1.params_billions;
+    const p2 = model2.meta_json?.params_billions || model2.params_billions;
+    const a1 = (model1.meta_json?.architecture || model1.architecture || '').toLowerCase();
+    const a2 = (model2.meta_json?.architecture || model2.architecture || '').toLowerCase();
+
+    // If both have architecture/params and they mismatch, they are NOT the same (e.g., Llama-7B vs Llama-70B)
+    if (a1 && a2 && a1 !== a2) return 0;
+    if (p1 && p2 && Math.abs(p1 - p2) > 0.1) return 0;
+
+    // 2. Exact name match
     if (name1 === name2) return 1.0;
 
-    // Check if one contains the other
-    if (name1.includes(name2) || name2.includes(name1)) return 0.8;
+    // 3. High-confidence containment
+    if (name1.includes(name2) || name2.includes(name1)) {
+        // If they share the same author and have similar names, high confidence
+        if (model1.author && model1.author === model2.author) return 0.95;
+        return 0.8;
+    }
 
-    // Check author + partial name
+    // 4. Author-based matching
     const author1 = (model1.author || '').toLowerCase();
     const author2 = (model2.author || '').toLowerCase();
 
     if (author1 === author2 && author1 !== '') {
-        // Same author, check base name similarity
         const baseName1 = name1.split('/').pop() || name1;
         const baseName2 = name2.split('/').pop() || name2;
 
         if (baseName1.includes(baseName2) || baseName2.includes(baseName1)) {
-            return 0.7;
+            return 0.85;
         }
     }
 

@@ -14,8 +14,6 @@
  */
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
-import { execSync } from 'child_process';
-
 const KAGGLE_API_BASE = 'https://www.kaggle.com/api/v1';
 
 /**
@@ -139,43 +137,36 @@ export class KaggleAdapter extends BaseAdapter {
     /**
      * Fetch models from Kaggle
      */
+    /**
+     * Fetch models from Kaggle
+     * V22.4: Migrated from CLI to direct JSON API for industrial throughput
+     */
     async fetchModels(limit, onBatch) {
-        console.log(`   🤖 Fetching models (limit: ${limit}) via Kaggle CLI Sidecar...`);
+        console.log(`   🤖 Fetching models (limit: ${limit}) via Direct API...`);
         const allModels = [];
         let page = 1;
         const pageSize = 100;
 
         while (true) {
+            const url = `${KAGGLE_API_BASE}/models/list?sortBy=hottest&page=${page}&pageSize=${pageSize}`;
+
             try {
-                // V22.3: Multi-page CLI pagination
-                const command = `kaggle models list --page-size ${pageSize} --page ${page}`;
-                const output = execSync(command, { encoding: 'utf-8', env: { ...process.env, KAGGLE_USERNAME: this.username, KAGGLE_KEY: this.apiKey } });
+                const response = await fetch(url, { headers: this.getHeaders() });
 
-                if (!output || output.includes('No models found')) break;
-
-                // Parse Kaggle's table output
-                const lines = output.split('\n').filter(l => l.trim() && !l.includes('---'));
-                if (lines.length < 2) break;
-
-                const models = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i];
-                    const parts = line.split(/\s{2,}/);
-                    if (parts.length < 2) continue;
-
-                    const ref = parts[0].trim();
-                    const title = parts[1]?.trim() || '';
-
-                    models.push({
-                        ref,
-                        title,
-                        slug: ref.split('/')[1],
-                        owner: ref.split('/')[0]
-                    });
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        console.warn('   ⚠️ [Kaggle Models] Rate limited, waiting 30s...');
+                        await this.delay(30000);
+                        continue;
+                    }
+                    console.error(`   ❌ Kaggle Models API error: ${response.status}`);
+                    break;
                 }
 
-                if (models.length === 0) break;
+                const models = await response.json();
+                if (!models || models.length === 0) break;
 
+                // Filter safe models
                 const safe = models.filter(m => this.isSafeForWork(m));
                 const marked = safe.map(m => ({ ...m, _entityType: 'model' }));
 
@@ -188,13 +179,13 @@ export class KaggleAdapter extends BaseAdapter {
                 console.log(`   Page ${page}: +${safe.length} models (total: ${onBatch ? 'Streaming' : allModels.length})`);
 
                 if (!onBatch && allModels.length >= limit) break;
-                if (page > 50) break; // Safety cap
+                if (page > 100) break; // Consistency with datasets
 
                 page++;
-                await this.delay(1000);
+                await this.delay(500); // Shorter delay for API
 
             } catch (error) {
-                console.error(`   ❌ Kaggle CLI Error: ${error.message}`);
+                console.error(`   ❌ Kaggle Models API Error: ${error.message}`);
                 break;
             }
         }

@@ -75,12 +75,12 @@ export class CivitAIAdapter extends BaseAdapter {
                     url += `&cursor=${cursor}`;
                 }
 
-                console.log(`   Fetching batch: ${fetched + 1} - ${fetched + batchSize}`);
+                console.log(`   Fetching batch: ${fetched + 1} - ${fetched + batchSize} (Cursor: ${cursor || 'start'})`);
                 const response = await fetch(url);
 
                 if (!response.ok) {
                     if (response.status === 429) {
-                        console.warn('   ⚠️ Rate limited, waiting 60s...');
+                        console.warn('   ⚠️ [CivitAI] Rate limited, waiting 60s...');
                         await this.delay(60000);
                         continue;
                     }
@@ -92,11 +92,28 @@ export class CivitAIAdapter extends BaseAdapter {
 
                 if (models.length === 0) break;
 
-                const safeModels = models.filter(m => this.isSafeForWork(m));
+                // V22.4 Incremental: Check against register for skip/stop
+                let newOrUpdatedModels = models;
+                if (options.registryManager) {
+                    newOrUpdatedModels = models.filter(m => {
+                        const normId = this.generateId('civitai', String(m.id), 'model');
+                        const existing = options.registryManager.registry?.entities?.find(e => e.id === normId);
+
+                        // If we have it and it hasn't been updated since, we can skip it
+                        if (existing && new Date(existing.updated_at || 0) >= new Date(m.updatedAt || m.createdAt || 0)) {
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    // console.log(`   [CivitAI] Incremental check: ${newOrUpdatedModels.length}/${models.length} are new/updated`);
+                }
+
+                const safeModels = newOrUpdatedModels.filter(m => this.isSafeForWork(m));
 
                 if (onBatch) {
                     try {
-                        await onBatch(safeModels);
+                        if (safeModels.length > 0) await onBatch(safeModels);
                     } catch (batchError) {
                         console.error(`   ❌ [CivitAI] onBatch callback error: ${batchError.message}`);
                     }
@@ -107,10 +124,17 @@ export class CivitAIAdapter extends BaseAdapter {
                 fetched += models.length;
                 cursor = data.metadata?.nextCursor;
 
-                console.log(`   📦 Got ${safeModels.length}/${models.length} safe models (total: ${onBatch ? 'Streaming' : allModels.length})`);
+                console.log(`   📦 Batch result: ${safeModels.length} new/updated (total: ${onBatch ? 'Streaming' : allModels.length})`);
 
                 if (!cursor) break;
-                await this.delay(2500);
+
+                // If we are sorting by Newest and we hit models we already have, we can stop entirely
+                if (sort === 'Newest' && options.registryManager && newOrUpdatedModels.length === 0 && fetched > 0) {
+                    console.log(`   ⏭️  [CivitAI] Incremental Stop: Reached already ingested models.`);
+                    break;
+                }
+
+                await this.delay(2000); // Respectful batch delay
             }
         } catch (error) {
             console.error(`   ❌ [CivitAI] Fetch internal error: ${error.message}`);

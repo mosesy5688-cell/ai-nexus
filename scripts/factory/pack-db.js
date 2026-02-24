@@ -47,7 +47,7 @@ async function packDatabase() {
     setupDb(metaDb);
     setupDb(searchDb);
 
-    // Schema A: meta.db (Search Index - Truncated for Performance)
+    // Schema A: meta.db (Search Index - Contentless FTS5 per Const. 5.1)
     const metaSchema = `
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
@@ -59,7 +59,8 @@ async function packDatabase() {
             is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
             last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
         );
-        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='entities', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2');
+        -- V22.6: Strictly Contentless FTS5 (content='')
+        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='unicode61 remove_diacritics 2');
         CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
         CREATE INDEX idx_fni ON entities(fni_score DESC);
         CREATE INDEX idx_type ON entities(type);
@@ -86,7 +87,7 @@ async function packDatabase() {
 
     const insertEntityMeta = metaDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    // V22.3: FTS5 in metaDb uses 'content' option, so we need to update search table
+    // V22.6: FTS5 strictly contentless requires rowid mapping
     const updateFts = metaDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
 
     let currentShardId = 0, currentShardSize = 0;
@@ -167,7 +168,7 @@ async function packDatabase() {
 
                 insertEntityMeta.run(...metaValues);
                 insertEntitySearch.run(...searchValues);
-                // FTS5 index also uses the truncated version to keep B-Tree healthy
+                // V22.6: INSERT into contentless search table using rowid alignment
                 updateFts.run(rowId++, e.name || '', truncatedSummary, e.author || '', tags, category);
                 stats.packed++;
             }

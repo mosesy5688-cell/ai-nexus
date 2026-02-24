@@ -10,7 +10,7 @@
  * @module ingestion/adapters/datasets-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const HF_API_BASE = 'https://huggingface.co/api';
 const HF_RAW_BASE = 'https://huggingface.co';
@@ -41,8 +41,13 @@ export class DatasetsAdapter extends BaseAdapter {
 
         console.log(`📥 [HF Datasets] Fetching top ${limit} datasets by ${sort}...`);
 
-        // Fetch dataset list
-        const listUrl = `${HF_API_BASE}/datasets?sort=${sort}&direction=${direction}&limit=${limit}`;
+        // V22.4: Comprehensive metadata expansion for datasets
+        const expandParams = [
+            'author', 'cardData', 'createdAt', 'downloads',
+            'likes', 'lastModified', 'tags'
+        ].map(e => `expand[]=${e}`).join('&');
+
+        const listUrl = `${HF_API_BASE}/datasets?sort=${sort}&direction=${direction}&limit=${limit}&${expandParams}`;
         const response = await fetch(listUrl);
 
         if (!response.ok) {
@@ -64,8 +69,16 @@ export class DatasetsAdapter extends BaseAdapter {
 
         for (let i = 0; i < datasets.length; i += batchSize) {
             const batch = datasets.slice(i, i + batchSize);
+
+            // V22.7: Pre-fetch NSFW Check
+            const safeBatch = batch.filter(d => this.isSafeForWork(d));
+            if (safeBatch.length === 0) {
+                console.log(`   ⏭️ Skipping batch ${i / batchSize} (No safe datasets)`);
+                continue;
+            }
+
             const batchResults = await Promise.all(
-                batch.map(d => this.fetchFullDataset(d.id))
+                safeBatch.map(d => this.fetchFullDataset(d.id, 0, d, options.registryManager))
             );
             const validResults = batchResults.filter(d => d !== null);
             if (options.onBatch) {
@@ -93,12 +106,33 @@ export class DatasetsAdapter extends BaseAdapter {
  * Fetch complete dataset details including README
  * V14.5: Added 429 retry logic with exponential backoff
  */
-    async fetchFullDataset(datasetId, retryCount = 0) {
+    async fetchFullDataset(datasetId, retryCount = 0, expandedData = null, registryManager = null) {
         const MAX_RETRIES = 3;
 
         try {
+            // V22.4 Industrial Refit: Skip network if expandedData is fresh
+            if (registryManager && expandedData && expandedData.lastModified) {
+                const normId = this.generateId(null, datasetId, 'dataset');
+                const existing = registryManager.registry?.entities?.find(e => e.id === normId);
+
+                if (existing && new Date(existing.updated_at || 0) >= new Date(expandedData.lastModified)) {
+                    // console.log(`   ⏭️  [HF Datasets] Skipping detail fetch for ${datasetId} (No change)`);
+                    existing.popularity = expandedData.downloads || existing.popularity;
+                    existing.downloads = expandedData.downloads || existing.downloads;
+                    existing.likes = expandedData.likes || existing.likes;
+                    existing.updated_at = expandedData.lastModified;
+                    return existing;
+                }
+            }
+
             // Fetch API data
             const apiUrl = `${HF_API_BASE}/datasets/${datasetId}`;
+            // If we have expandedData, we can technically skip apiUrl similar to models, 
+            // but datasets API often has additional siblings/files list info we might want.
+            // However, for industrial throughput, if we don't need files_count to be ultra-accurate 
+            // (siblings is not in expand list), we could skip.
+            // For now, only skip if we have registry hit above.
+
             const apiResponse = await fetch(apiUrl);
 
             // V14.5: Handle rate limiting with exponential backoff
