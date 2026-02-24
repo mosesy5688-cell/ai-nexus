@@ -140,12 +140,36 @@ export class KaggleAdapter extends BaseAdapter {
     async fetchModels(limit, onBatch) {
         console.log(`   🤖 Fetching models (limit: ${limit}) via Kaggle CLI Sidecar...`);
         try {
-            // V14.5.2: REST API /models/list is deprecated (400). Using CLI --json
-            const command = `kaggle models list --page-size ${Math.min(limit, 100)} --json`;
+            // V14.5.3: Fallback from deprecated --json to raw table parsing
+            const command = `kaggle models list --page-size ${Math.min(limit, 100)}`;
             const output = execSync(command, { encoding: 'utf-8', env: { ...process.env, KAGGLE_USERNAME: this.username, KAGGLE_KEY: this.apiKey } });
-            const models = JSON.parse(output);
 
-            if (!models || models.length === 0) return [];
+            if (!output) return [];
+
+            // Parse Kaggle's table output (Ref, Title, Subtitle, ...)
+            const lines = output.split('\n').filter(l => l.trim() && !l.includes('---'));
+            if (lines.length < 2) return [];
+
+            const models = [];
+            // Skip header (ref title subtitle ...)
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                // Split by multiple spaces (Kaggle table format)
+                const parts = line.split(/\s{2,}/);
+                if (parts.length < 2) continue;
+
+                const ref = parts[0].trim();
+                const title = parts[1]?.trim() || '';
+
+                models.push({
+                    ref,
+                    title,
+                    slug: ref.split('/')[1],
+                    owner: ref.split('/')[0]
+                });
+            }
+
+            if (models.length === 0) return [];
 
             const safe = models.filter(m => this.isSafeForWork(m));
             const marked = safe.map(m => ({ ...m, _entityType: 'model' }));

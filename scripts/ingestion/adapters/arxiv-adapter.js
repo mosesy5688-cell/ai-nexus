@@ -132,10 +132,10 @@ export class ArXivAdapter extends BaseAdapter {
 
         const batchSize = 50;  // V14.5.2: Reduced batch size for gentler crawling
         const papers = [];
-        let backoffSeconds = 15;  // V14.5.2: Increased initial backoff
-        const MAX_BACKOFF = 120;   // V14.5.2: Increased max backoff to 2 minutes
+        let backoffSeconds = 20;  // V22.2: Increased initial backoff
+        const MAX_BACKOFF = 300;   // V22.2: Increased max backoff to 5 minutes
         let consecutiveErrors = 0;
-        const MAX_CONSECUTIVE_ERRORS = 8;  // V14.5.2: More patience
+        const MAX_CONSECUTIVE_ERRORS = 20;  // V22.2: Higher tolerance for flaky API
 
         for (let i = 0; i < limit; i += batchSize) {
             const currentLimit = Math.min(batchSize, limit - i);
@@ -223,13 +223,19 @@ export class ArXivAdapter extends BaseAdapter {
                     await this.delay(3500);
                 }
             } catch (error) {
-                console.warn(`   ⚠️ [ArXiv] Batch error: ${error.message}`);
+                console.warn(`   ⚠️ [ArXiv] Batch error: ${error.message} (Consecutive: ${consecutiveErrors + 1}/${MAX_CONSECUTIVE_ERRORS})`);
                 consecutiveErrors++;
+
                 if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                    console.error(`   ❌ [ArXiv] Too many errors, stopping category ${category}`);
+                    console.error(`   ❌ [ArXiv] Final: Too many errors, stopping category ${category}`);
                     break;
                 }
-                await this.delay(10000);  // V14.5.2: Longer pause before retry
+
+                // V22.2: If we are hitting errors, wait significantly longer
+                const sleepSeconds = consecutiveErrors > 5 ? 60 : 15;
+                console.log(`   ⏳ [ArXiv] Error backup: Sleeping ${sleepSeconds}s...`);
+                await this.delay(sleepSeconds * 1000);
+
                 start -= batchSize;
             }
         }

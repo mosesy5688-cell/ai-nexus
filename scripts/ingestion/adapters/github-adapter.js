@@ -147,6 +147,7 @@ export class GitHubAdapter extends BaseAdapter {
                 batch.map(r => this.fetchFullRepo(r.full_name))
             );
             const validResults = batchResults.filter(r => r !== null);
+
             if (options.onBatch) {
                 await options.onBatch(validResults);
             } else {
@@ -154,7 +155,9 @@ export class GitHubAdapter extends BaseAdapter {
             }
 
             if ((i + batchSize) % 50 === 0 || i + batchSize >= allRepos.length) {
-                console.log(`   Progress: ${Math.min(i + batchSize, allRepos.length)}/${allRepos.length}`);
+                const total = Math.min(i + batchSize, allRepos.length);
+                const successRate = ((validResults.length / batchSize) * 100).toFixed(0);
+                console.log(`   Progress: ${total}/${allRepos.length} (Batch success: ${validResults.length}/${batchSize})`);
             }
 
             await this.delay(1000);
@@ -167,52 +170,76 @@ export class GitHubAdapter extends BaseAdapter {
      * Fetch complete repository details including README
      */
     async fetchFullRepo(fullName) {
-        try {
-            // Fetch repo details
-            const repoUrl = `${GH_API_BASE}/repos/${fullName}`;
-            const repoResponse = await fetch(repoUrl, { headers: this.getHeaders() });
+        let retries = 0;
+        const MAX_RETRIES = 3; // For non-rate-limit errors
 
-            if (!repoResponse.ok) {
-                return null;
-            }
-
-            const repo = await repoResponse.json();
-
-            // Fetch README
-            const readmeUrl = `${GH_API_BASE}/repos/${fullName}/readme`;
-            let readme = '';
+        while (retries < MAX_RETRIES) {
             try {
-                const readmeResponse = await fetch(readmeUrl, {
-                    headers: { ...this.getHeaders(), 'Accept': 'application/vnd.github.v3.raw' }
-                });
-                if (readmeResponse.ok) {
-                    readme = await readmeResponse.text();
+                // Fetch repo details
+                const repoUrl = `${GH_API_BASE}/repos/${fullName}`;
+                const repoResponse = await fetch(repoUrl, { headers: this.getHeaders() });
 
-                    // V19.5 Mode B Phase 3: "Cache Diet"
-                    // Extract installation/Quick-Start commands *before* aggressive architectural truncation
-                    const quickStartBlock = this.extractQuickStartFromReadme(readme);
+                if (!repoResponse.ok) {
+                    if (await this.handleRateLimit(repoResponse)) continue; // Retry after wait
 
-                    // Truncate to 250KB (Relaxed for 100k entity scale)
-                    if (readme.length > 250000) {
-                        readme = readme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]';
-                    }
+                    if (repoResponse.status === 404) return null; // Repo deleted
 
-                    // Attach the extracted quickStart block dynamically
-                    repo.quick_start = quickStartBlock;
+                    retries++;
+                    await this.delay(2000 * retries);
+                    continue;
                 }
-            } catch (e) {
-                // README fetch failed
-            }
 
-            return {
-                ...repo,
-                readme,
-                _fetchedAt: new Date().toISOString()
-            };
-        } catch (error) {
-            console.warn(`   ⚠️ Error fetching ${fullName}: ${error.message}`);
-            return null;
+                const repo = await repoResponse.json();
+
+                // Fetch README
+                const readmeUrl = `${GH_API_BASE}/repos/${fullName}/readme`;
+                let readme = '';
+
+                let readmeSuccess = false;
+                while (!readmeSuccess) {
+                    try {
+                        const readmeResponse = await fetch(readmeUrl, {
+                            headers: { ...this.getHeaders(), 'Accept': 'application/vnd.github.v3.raw' }
+                        });
+
+                        if (!readmeResponse.ok) {
+                            if (await this.handleRateLimit(readmeResponse)) continue; // Retry after wait
+
+                            if (readmeResponse.status === 404) {
+                                readmeSuccess = true; // No README
+                                break;
+                            }
+                            throw new Error(`Status ${readmeResponse.status}`);
+                        }
+
+                        readme = await readmeResponse.text();
+                        readmeSuccess = true;
+
+                        // V19.5 Mode B Phase 3: "Cache Diet"
+                        const quickStartBlock = this.extractQuickStartFromReadme(readme);
+
+                        if (readme.length > 250000) {
+                            readme = readme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]';
+                        }
+                        repo.quick_start = quickStartBlock;
+                    } catch (e) {
+                        console.warn(`   ⚠️ [GitHub] README error for ${fullName}: ${e.message}. Retrying...`);
+                        await this.delay(3000);
+                    }
+                }
+
+                return {
+                    ...repo,
+                    readme,
+                    _fetchedAt: new Date().toISOString()
+                };
+            } catch (error) {
+                console.warn(`   ⚠️ [GitHub] Error fetching ${fullName}: ${error.message}. Retry ${retries}/${MAX_RETRIES}`);
+                retries++;
+                await this.delay(5000);
+            }
         }
+        return null; // Failed after retries
     }
 
     /**
