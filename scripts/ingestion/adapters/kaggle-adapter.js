@@ -86,9 +86,10 @@ export class KaggleAdapter extends BaseAdapter {
         console.log(`   📦 Fetching datasets (limit: ${limit})...`);
         const allDatasets = [];
         let page = 1;
+        const pageSize = 100; // V22.3: Increased from 20 to 100 for efficiency
 
-        while ((onBatch ? true : allDatasets.length < limit)) {
-            const url = `${KAGGLE_API_BASE}/datasets/list?sortBy=hottest&page=${page}&pageSize=20`;
+        while (true) {
+            const url = `${KAGGLE_API_BASE}/datasets/list?sortBy=hottest&page=${page}&pageSize=${pageSize}`;
 
             try {
                 const response = await fetch(url, { headers: this.getHeaders() });
@@ -104,7 +105,6 @@ export class KaggleAdapter extends BaseAdapter {
                 }
 
                 const datasets = await response.json();
-
                 if (!datasets || datasets.length === 0) break;
 
                 // Filter safe datasets
@@ -117,13 +117,15 @@ export class KaggleAdapter extends BaseAdapter {
                     allDatasets.push(...marked);
                 }
 
-                console.log(`   Page ${page}: ${safe.length}/${datasets.length} datasets (total: ${onBatch ? 'Streaming' : allDatasets.length})`);
+                console.log(`   Page ${page}: +${safe.length} datasets (total: ${onBatch ? 'Streaming' : allDatasets.length})`);
 
                 if (!onBatch && allDatasets.length >= limit) break;
 
+                // Safety: Stop if we are making too many requests
+                if (page > 100) break;
+
                 page++;
-                await this.delay(2000); // Rate limiting
-                if (page > 100 && onBatch) break; // Safety cap for streaming unless limit specified
+                await this.delay(1000); // Respectful delay
 
             } catch (error) {
                 console.error(`   ❌ Error: ${error.message}`);
@@ -139,50 +141,65 @@ export class KaggleAdapter extends BaseAdapter {
      */
     async fetchModels(limit, onBatch) {
         console.log(`   🤖 Fetching models (limit: ${limit}) via Kaggle CLI Sidecar...`);
-        try {
-            // V14.5.3: Fallback from deprecated --json to raw table parsing
-            const command = `kaggle models list --page-size ${Math.min(limit, 100)}`;
-            const output = execSync(command, { encoding: 'utf-8', env: { ...process.env, KAGGLE_USERNAME: this.username, KAGGLE_KEY: this.apiKey } });
+        const allModels = [];
+        let page = 1;
+        const pageSize = 100;
 
-            if (!output) return [];
+        while (true) {
+            try {
+                // V22.3: Multi-page CLI pagination
+                const command = `kaggle models list --page-size ${pageSize} --page ${page}`;
+                const output = execSync(command, { encoding: 'utf-8', env: { ...process.env, KAGGLE_USERNAME: this.username, KAGGLE_KEY: this.apiKey } });
 
-            // Parse Kaggle's table output (Ref, Title, Subtitle, ...)
-            const lines = output.split('\n').filter(l => l.trim() && !l.includes('---'));
-            if (lines.length < 2) return [];
+                if (!output || output.includes('No models found')) break;
 
-            const models = [];
-            // Skip header (ref title subtitle ...)
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i];
-                // Split by multiple spaces (Kaggle table format)
-                const parts = line.split(/\s{2,}/);
-                if (parts.length < 2) continue;
+                // Parse Kaggle's table output
+                const lines = output.split('\n').filter(l => l.trim() && !l.includes('---'));
+                if (lines.length < 2) break;
 
-                const ref = parts[0].trim();
-                const title = parts[1]?.trim() || '';
+                const models = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i];
+                    const parts = line.split(/\s{2,}/);
+                    if (parts.length < 2) continue;
 
-                models.push({
-                    ref,
-                    title,
-                    slug: ref.split('/')[1],
-                    owner: ref.split('/')[0]
-                });
+                    const ref = parts[0].trim();
+                    const title = parts[1]?.trim() || '';
+
+                    models.push({
+                        ref,
+                        title,
+                        slug: ref.split('/')[1],
+                        owner: ref.split('/')[0]
+                    });
+                }
+
+                if (models.length === 0) break;
+
+                const safe = models.filter(m => this.isSafeForWork(m));
+                const marked = safe.map(m => ({ ...m, _entityType: 'model' }));
+
+                if (onBatch) {
+                    await onBatch(marked);
+                } else {
+                    allModels.push(...marked);
+                }
+
+                console.log(`   Page ${page}: +${safe.length} models (total: ${onBatch ? 'Streaming' : allModels.length})`);
+
+                if (!onBatch && allModels.length >= limit) break;
+                if (page > 50) break; // Safety cap
+
+                page++;
+                await this.delay(1000);
+
+            } catch (error) {
+                console.error(`   ❌ Kaggle CLI Error: ${error.message}`);
+                break;
             }
-
-            if (models.length === 0) return [];
-
-            const safe = models.filter(m => this.isSafeForWork(m));
-            const marked = safe.map(m => ({ ...m, _entityType: 'model' }));
-
-            if (onBatch) {
-                await onBatch(marked);
-                return [];
-            }
-            return marked;
-        } catch (error) {
-            console.error(`   ❌ Kaggle CLI Error: ${error.message}`);
-            return [];
         }
+
+        return onBatch ? [] : allModels.slice(0, limit);
     }
 
     /**
