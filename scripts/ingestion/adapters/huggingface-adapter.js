@@ -178,12 +178,12 @@ export class HuggingFaceAdapter extends BaseAdapter {
     }
 
     async fetchByPipelineTags(options = {}) {
-        const { limitPerTag = 5000, existingIds = new Set(), full = false, offset = 0, onBatch, shard = 0, totalShards = 1 } = options;
+        const { limitPerTag = 5000, existingIds = new Set(), full = false, offset = 0, onBatch } = options;
 
         // V22.1 Sharding: Filter tags belonging to this shard
-        const tags = PIPELINE_TAGS.filter((_, idx) => idx % totalShards === shard);
+        const tags = PIPELINE_TAGS;
 
-        console.log(`📥 [HuggingFace] Shard ${shard}/${totalShards} processing ${tags.length} tags...`);
+        console.log(`📥 [HuggingFace] Processing ${tags.length} tags...`);
         const collectedIds = new Set(existingIds);
         const allModels = [];
         const PAGE_SIZE = 1000; // HuggingFace API max per request

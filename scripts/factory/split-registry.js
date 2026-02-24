@@ -1,12 +1,10 @@
 /**
- * Registry Splitter Utility V18.12.5.9 (True Streaming Edition)
+ * Registry Splitter Utility V22.2 (Deterministic Hashing Edition)
  * 
  * Responsibilities:
  * 1. Load the monolithic merged.json.gz (Standard JSON Array).
  * 2. Split it into 20 shards using a streaming parser (Zero-Heap Accumulation).
- * 3. Each entity is immediately written to its destination Gzip stream.
- * 
- * V18.12.5.9: Fixed OOM (Ineffective mark-compacts) by eliminating the 'shards' in-memory array.
+ * 3. Each entity is deterministically assigned to a shard based on its ID.
  */
 
 import fs from 'node:fs';
@@ -16,10 +14,23 @@ import { pipeline } from 'node:stream/promises';
 import { Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 
-const TOTAL_SHARDS = 100;
+const TOTAL_SHARDS = 20;
 const DATA_DIR = 'data';
 const INPUT_FILE = path.join(DATA_DIR, 'merged.json.gz');
 const INPUT_FILE_PLAIN = path.join(DATA_DIR, 'merged.json');
+
+/**
+ * Utility: Stable Hash function for ID-based sharding
+ */
+function getShardFromId(id, total) {
+    if (!id) return 0;
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+        hash = ((hash << 5) - hash) + id.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash) % total;
+}
 
 /**
  * Custom Simple JSON Array Stream Splitter
@@ -84,7 +95,7 @@ class JsonArraySplitter extends Writable {
 }
 
 async function splitRegistry() {
-    console.log(`\n🔪 [Splitter] Starting monolithic registry decomposition (Zero-Heap Streaming)...`);
+    console.log(`\n🔪 [Splitter] Starting monolithic registry decomposition (Deterministic ID Hashing)...`);
 
     const targetFile = fs.existsSync(INPUT_FILE) ? INPUT_FILE : INPUT_FILE_PLAIN;
 
@@ -108,7 +119,7 @@ async function splitRegistry() {
     });
 
     const splitter = new JsonArraySplitter((entity) => {
-        const shardIdx = totalCount % TOTAL_SHARDS;
+        const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
         const countInShard = shardCounts[shardIdx];
 
         // Write to respective shard stream immediately

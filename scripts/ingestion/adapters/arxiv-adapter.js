@@ -71,15 +71,12 @@ export class ArXivAdapter extends BaseAdapter {
             sortBy = 'submittedDate',
             sortOrder = 'descending',
             offset = 0,
-            onBatch, // V17.5: Stream support
-            shard = 0,
-            totalShards = 1
+            onBatch // V17.5: Stream support
         } = options;
 
-        // V22.1 Sharding: Filter categories belonging to this shard
-        const categories = AI_CATEGORIES.filter((_, idx) => idx % totalShards === shard);
+        const categories = AI_CATEGORIES;
 
-        console.log(`📥 [ArXiv] Shard ${shard}/${totalShards} processing ${categories.length} categories...`);
+        console.log(`📥 [ArXiv] Processing ${categories.length} categories...`);
 
         const allPapers = [];
         const seenIds = new Set();
@@ -205,9 +202,9 @@ export class ArXivAdapter extends BaseAdapter {
                             // V22.1 Hardening: Absolute truncation for massive papers (500KB limit)
                             // Some papers have huge SVG/Table data that can crash JSON stringifiers.
                             const MAX_HTML_SIZE = 500000;
-                            paper.full_html = extracted.length > MAX_HTML_SIZE
+                            paper.full_html = (extracted && extracted.length > MAX_HTML_SIZE)
                                 ? extracted.substring(0, MAX_HTML_SIZE) + '\n\n[Full-text truncated for memory safety...]'
-                                : extracted;
+                                : (extracted || '');
                         }
                     } catch (e) {
                         // Suppress timeout/network errors to keep pipeline moving
