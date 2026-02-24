@@ -1,5 +1,5 @@
 /**
- * V19.2 content.db Health Check (Stable 1.0 Ratified)
+ * V22.3 Constitutional Health Check (Split-DB Edition)
  * Exits with code 1 on any critical failure to block deployment.
  * Checks: Stable page size, schema integrity, sharded bundle consistency.
  */
@@ -23,7 +23,7 @@ if (!fs.existsSync(DB_PATH)) {
 }
 
 const db = new Database(DB_PATH, { readonly: true });
-console.log('=== V19.2 content.db Health Check (Frozen Stable 1.0) ===\n');
+console.log('=== V22.3 Constitutional Health Check (Split-DB Standard) ===\n');
 
 // 1. Integrity check
 const integrity = db.pragma('integrity_check')[0].integrity_check;
@@ -31,7 +31,7 @@ check('Integrity', integrity === 'ok', integrity);
 
 // 2. Page Alignment (Stable 1.0 Specs)
 const pageSize = db.pragma('page_size')[0].page_size;
-check('Page Size', pageSize === 4096, `${pageSize} (expected: 4096)`);
+check('Page Size', pageSize === 8192, `${pageSize} (expected: 8192)`);
 
 // 3. File size guard (Art 2.2 Scale Guard)
 const fileSizeMB = Math.round(fs.statSync(DB_PATH).size / 1024 / 1024);
@@ -49,7 +49,8 @@ check('Schema Completeness', hasAllCols, hasAllCols ? 'All V19.2 columns present
 
 // 6. Entity Count
 const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
-check('Entity Count', count > 80000, `${count} (expected: >80000)`);
+const THRESHOLD = 125000;
+check('Entity Count', count >= THRESHOLD, `${count} (expected: >=${THRESHOLD})`);
 
 // 5. Shard Consistency
 const heavySample = db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get();

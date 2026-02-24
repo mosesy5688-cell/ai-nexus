@@ -5,14 +5,16 @@
  * V22.2: Added buffer water-level logging and Kaggle CLI stability fixes.
  */
 
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import adapters from './adapters/index.js';
 
 const OUTPUT_DIR = 'data';
 
 /**
- * Harvest from a single source and save chunks
+ * Harvest from a single source and save as lossless NDJSON stream
+ * V22.3: Streaming Ingestion (OOM Protection)
  */
 async function harvestSingle(sourceName, options = {}) {
     const { limit = 10000 } = options;
@@ -22,42 +24,32 @@ async function harvestSingle(sourceName, options = {}) {
         throw new Error(`Adapter for source "${sourceName}" not found`);
     }
 
-    console.log(`\n📥 [Harvest] Source: ${sourceName}`);
+    console.log(`\n📥 [Harvest] Source: ${sourceName} (Streaming Mode)`);
     console.log(`   Limit: ${limit}`);
 
     const startTime = Date.now();
+    const ndjsonPath = path.join(OUTPUT_DIR, `${sourceName}_master.ndjson`);
 
     try {
         // Ensure output directory exists
-        await fs.mkdir(OUTPUT_DIR, { recursive: true });
+        await mkdir(OUTPUT_DIR, { recursive: true });
 
-        // Fetch from source
-        console.log(`   Fetching ${limit} entities...`);
-        // Memory Hardening: Adjust chunk size based on source weight
-        const HEAVY_SOURCES = ['arxiv', 'semanticscholar'];
-        const CHUNK_SIZE = HEAVY_SOURCES.includes(sourceName) ? 200 : 1500;
+        // Open Writable Stream
+        const writeStream = fs.createWriteStream(ndjsonPath, { flags: 'a' });
+        console.log(`   Writing to: ${ndjsonPath}`);
 
-        const results = { source: sourceName, total: 0, failed: 0, chunks: [] };
-        let currentChunk = [];
-        let chunkIndex = 0;
+        const results = { source: sourceName, total: 0, failed: 0 };
 
-        // V17.5 Memory Protection: Streaming processor
+        // V22.3 NDJSON Streaming Processor
         const processBatch = async (rawBatch) => {
-            const batchAttempted = rawBatch.length;
-
             for (let i = 0; i < rawBatch.length; i++) {
                 try {
                     const norm = adapter.normalize(rawBatch[i]);
-                    // V22.2 Memory Hardening: Truncate full_html to prevent OOM
-                    const MAX_HTML_SIZE = 500000;
-                    if (norm && norm.full_html) {
-                        norm.full_html = (norm.full_html.length > MAX_HTML_SIZE)
-                            ? norm.full_html.substring(0, MAX_HTML_SIZE) + '\n\n[Full-text truncated for memory safety...]'
-                            : norm.full_html;
-                    }
 
                     if (norm) {
-                        currentChunk.push(norm);
+                        // V22.3: LOSSLESS capture. Truncation is FORBIDDEN here.
+                        // Truncation only happens in Stage 4/4 for FTS5 (meta.db).
+                        writeStream.write(JSON.stringify(norm) + '\n');
                         results.total++;
                     } else {
                         results.failed++;
@@ -67,27 +59,11 @@ async function harvestSingle(sourceName, options = {}) {
                     if (results.total < 5) console.warn(`   ⚠️ Normalize error [${results.total}]: ${e.message}`);
                 }
 
-                rawBatch[i] = null; // Free memory
-
-                // Write chunk to disk if it reaches the limit
-                if (currentChunk.length >= CHUNK_SIZE) {
-                    const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_c${chunkIndex}.json`);
-                    await fs.writeFile(batchFile, JSON.stringify(currentChunk));
-                    results.chunks.push(batchFile);
-                    console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile} (${currentChunk.length} entities)`);
-
-                    currentChunk = [];
-                    chunkIndex++;
-
-                    if (global.gc) {
-                        try { global.gc(); } catch (e) { }
-                    }
-                }
+                rawBatch[i] = null; // Memory Hint
             }
 
-            // Periodic buffer report
-            if (results.total % 100 === 0 || batchAttempted > 50) {
-                console.log(`   📊 Buffer Status: ${currentChunk.length}/${CHUNK_SIZE} (Total valid: ${results.total}, Failed: ${results.failed})`);
+            if (results.total % 100 === 0) {
+                console.log(`   📊 Ingested: ${results.total} | Failed: ${results.failed}`);
             }
         };
 
@@ -106,30 +82,37 @@ async function harvestSingle(sourceName, options = {}) {
 
         // Backward compatibility for non-streaming adapters
         if (rawEntities && rawEntities.length > 0) {
-            console.log(`   ✓ Adapter returned ${rawEntities.length} buffered entities. Normalizing...`);
+            console.log(`   ✓ Adapter returned ${rawEntities.length} buffered entities. Streaming to disk...`);
             await processBatch(rawEntities);
             rawEntities = [];
         }
 
-        // Write Final chunk
-        if (currentChunk.length > 0) {
-            const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_c${chunkIndex}.json`);
-            await fs.writeFile(batchFile, JSON.stringify(currentChunk));
-            results.chunks.push(batchFile);
-            console.log(`   ✓ Final chunk saved to: ${batchFile}`);
-            currentChunk = [];
-        }
+        // Finalize stream
+        await new Promise((resolve) => writeStream.end(resolve));
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`\n✅ [Harvest] Complete`);
-        console.log(`   Source: ${sourceName} | Entities: ${results.total} | Chunks: ${results.chunks.length} | Time: ${duration}s`);
+        console.log(`   Source: ${sourceName} | Total: ${results.total} | Time: ${duration}s`);
+        console.log(`   Output: ${ndjsonPath}`);
 
-        return { source: sourceName, count: results.total, duration, chunks: results.chunks };
+        return { source: sourceName, count: results.total, duration, file: ndjsonPath };
 
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
         return { source: sourceName, count: 0, error: error.message };
     }
+}
+
+const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+console.log(`\n✅ [Harvest] Complete`);
+console.log(`   Source: ${sourceName} | Entities: ${results.total} | Chunks: ${results.chunks.length} | Time: ${duration}s`);
+
+return { source: sourceName, count: results.total, duration, chunks: results.chunks };
+
+    } catch (error) {
+    console.error(`\n❌ [Harvest] Failed: ${error.message}`);
+    return { source: sourceName, count: 0, error: error.message };
+}
 }
 
 /**

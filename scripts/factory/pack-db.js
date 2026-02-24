@@ -47,8 +47,26 @@ async function packDatabase() {
     setupDb(metaDb);
     setupDb(searchDb);
 
-    // Schema A: meta.db (Full Registry for hydrate/detail)
-    const entitySchema = `
+    // Schema A: meta.db (Search Index - Truncated for Performance)
+    const metaSchema = `
+        CREATE TABLE entities (
+            id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
+            category TEXT, tags TEXT, fni_score REAL, fni_percentile TEXT,
+            fni_p REAL DEFAULT 0, fni_v REAL DEFAULT 0, fni_c REAL DEFAULT 0, fni_u REAL DEFAULT 0,
+            params_billions REAL DEFAULT 0,
+            architecture TEXT,
+            context_length INTEGER DEFAULT 0,
+            is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
+            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
+        );
+        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='entities', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2');
+        CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
+        CREATE INDEX idx_fni ON entities(fni_score DESC);
+        CREATE INDEX idx_type ON entities(type);
+    `;
+
+    // Schema B: search.db (Full Registry - Lossless)
+    const searchSchema = `
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
             category TEXT, tags TEXT, fni_score REAL, fni_percentile TEXT,
@@ -60,21 +78,16 @@ async function packDatabase() {
             last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
         );
         CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
-        CREATE INDEX idx_fni ON entities(fni_score DESC);
-        CREATE INDEX idx_type ON entities(type);
+        CREATE INDEX idx_fni_full ON entities(fni_score DESC);
     `;
 
-    metaDb.exec(entitySchema);
-
-    // Schema B: search.db (Optimized for FTS5 joins)
-    searchDb.exec(entitySchema); // Data parity for JOIN s.rowid = e.rowid
-    searchDb.exec(`
-        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='unicode61 remove_diacritics 2');
-    `);
+    metaDb.exec(metaSchema);
+    searchDb.exec(searchSchema);
 
     const insertEntityMeta = metaDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    const insertFts = searchDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
+    // V22.3: FTS5 in metaDb uses 'content' option, so we need to update search table
+    const updateFts = metaDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
 
     let currentShardId = 0, currentShardSize = 0;
     const stats = { packed: 0, heavy: 0, bytes: 0 };
@@ -131,31 +144,35 @@ async function packDatabase() {
                     stats.heavy++; stats.bytes += size;
                 }
 
-                const summary = e.summary || e.description || '';
+                const rawSummary = e.summary || e.description || '';
+                // V22.3: Split-DB Truncation Rule (CES Art 5.3)
+                const truncatedSummary = rawSummary.length > 500 ? rawSummary.substring(0, 500) + '...' : rawSummary;
+
                 const category = getV6Category(e);
                 const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
-                const values = [
+                const metaValues = [
                     e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-                    e.author || '', summary, category, tags, e.fni_score || 0, e.fni_percentile || '',
+                    e.author || '', truncatedSummary, category, tags, e.fni_score || 0, e.fni_percentile || '',
                     e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
                     e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
-                    pBillions,
-                    arch,
-                    ctxLen,
-                    e.is_trending ? 1 : 0,
+                    pBillions, arch, ctxLen, e.is_trending ? 1 : 0,
                     e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
                     '', // shard_hash filled later
                     e._trend_7d
                 ];
 
-                insertEntityMeta.run(...values);
-                insertEntitySearch.run(...values);
-                insertFts.run(rowId++, e.name || '', summary, e.author || '', tags, category);
+                const searchValues = [...metaValues];
+                searchValues[6] = rawSummary; // Restoration of lossless summary for search.db
+
+                insertEntityMeta.run(...metaValues);
+                insertEntitySearch.run(...searchValues);
+                // FTS5 index also uses the truncated version to keep B-Tree healthy
+                updateFts.run(rowId++, e.name || '', truncatedSummary, e.author || '', tags, category);
                 stats.packed++;
             }
         })();
-    })();
+    });
 
     if (currentFd) fsSync.closeSync(currentFd);
 
@@ -208,7 +225,5 @@ async function packDatabase() {
     searchDb.close();
     console.log(`[VFS] ✅ Constitutional Split-DB Complete! Shards: ${currentShardId + 1}, Heavy: ${stats.heavy}`);
 }
-
-packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });
 
 packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });

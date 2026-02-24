@@ -8,6 +8,7 @@
  */
 
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { processEntity } from './lib/processor-core.js';
@@ -141,7 +142,7 @@ async function main() {
     return new Promise((resolve) => {
         fileStream.on('finish', () => {
             const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-            const stats = (require('fs').statSync(outPath).size / 1024 / 1024).toFixed(2);
+            const stats = (fsSync.statSync(outPath).size / 1024 / 1024).toFixed(2);
             console.log(`[SHARD ${shardId}] ✅ Complete. Written to ${outPath} (${stats} MB) in ${duration}s`);
             resolve();
         });

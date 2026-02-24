@@ -70,11 +70,11 @@ export class GitHubAdapter extends BaseAdapter {
                 // Computer Vision
                 'computer-vision', 'image-generation', 'stable-diffusion', 'diffusion-models',
                 // Frameworks
-                'pytorch', 'tensorflow', 'huggingface', 'langchain', 'llamaindex',
+                'pytorch', 'tensorflow', 'huggingface', 'langchain', 'llamaindex', 'autogen', 'crewai',
                 // Agents & Tools
-                'ai-agent', 'autonomous-agents', 'ai-tools', 'rag'
+                'ai-agent', 'autonomous-agents', 'ai-tools', 'rag', 'agentic', 'chatbot', 'data-science'
             ],
-            pagesPerTopic = 5  // V4.2: Increased from 2 to 5 for better coverage
+            pagesPerTopic = 10  // V22.2: Maximize pages for comprehensive coverage
         } = options;
 
         console.log(`📥 [GitHub] Fetching top ${limit} ML/AI repositories across ${topics.length} topics...`);
@@ -91,16 +91,16 @@ export class GitHubAdapter extends BaseAdapter {
             for (let page = 1; page <= pagesPerTopic; page++) {
                 if (allRepos.length >= limit) break;
 
-                const query = `topic:${topic} stars:>50`;  // Lowered from 100 for more results
+                const query = `topic:${topic}`; // V22.2: Removed stars:>50 filter for maximum entities
                 const searchUrl = `${GH_API_BASE}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=${perPage}&page=${page}`;
 
                 try {
                     const response = await fetch(searchUrl, { headers: this.getHeaders() });
 
                     if (!response.ok) {
-                        if (response.status === 403) {
-                            console.warn(`   ⚠️ Rate limited, waiting...`);
-                            await this.delay(5000);
+                        // V22.2: Robust rate limit handling
+                        if (await this.handleRateLimit(response)) {
+                            page--; // Retry same page after wait
                             continue;
                         }
                         console.warn(`   ⚠️ GitHub search failed for ${topic} p${page}: ${response.status}`);
