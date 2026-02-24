@@ -61,11 +61,15 @@ export class HuggingFaceAdapter extends BaseAdapter {
             return result.models;
         }
 
-        console.log(`📥 [HuggingFace] Fetching top ${limit} models (offset: ${options.offset || 0}) by ${sort}...`);
-        // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
-        // V18.2.4: Respect rotation offset
+        // V22.4: Comprehensive metadata expansion for industrial throughput
+        const expandParams = [
+            'author', 'cardData', 'config', 'createdAt', 'downloads',
+            'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
+        ].map(e => `expand[]=${e}`).join('&');
+
         const skip = options.offset || 0;
-        const response = await fetch(`${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}&skip=${skip}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
+        const url = `${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}&skip=${skip}&${expandParams}`;
+        const response = await fetch(url, { headers: this.getHeaders() });
         if (!response.ok) throw new Error(`HuggingFace API error: ${response.status}`);
 
         const models = await response.json();
@@ -81,16 +85,9 @@ export class HuggingFaceAdapter extends BaseAdapter {
             const batch = models.slice(i, i + batchSize);
             const batchResults = await Promise.all(batch.map(m => {
                 const modelId = m.modelId || m.id;
-                // V18.2.4: Pre-comparison optimization
-                if (options.registryManager) {
-                    const normId = this.generateId(null, modelId, 'model');
-                    const existing = options.registryManager.registry.entities.find(e => e.id === normId);
-                    if (existing && m.lastModified && new Date(existing._last_seen || 0) > new Date(m.lastModified)) {
-                        console.log(`   ⏭️ Skipping detail fetch for ${modelId} (No change)`);
-                        return existing;
-                    }
-                }
-                return this.fetchFullModel(modelId);
+
+                // V22.4: Leverage expanded metadata and skip detail fetch if possible
+                return this.fetchFullModel(modelId, 0, m, options.registryManager);
             }));
             const validResults = batchResults.filter(m => m !== null && this.isSafeForWork(m));
             if (options.onBatch) {
@@ -123,7 +120,13 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 const maxRetries = 3;
 
                 for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
-                    response = await fetch(`${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
+                    const expandParams = [
+                        'author', 'cardData', 'config', 'createdAt', 'downloads',
+                        'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
+                    ].map(e => `expand[]=${e}`).join('&');
+
+                    const url = `${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&${expandParams}`;
+                    response = await fetch(url, { headers: this.getHeaders() });
 
                     if (response.status === 429) {
                         const backoff = calculateBackoff(retryCount + 1);
@@ -145,15 +148,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
                         const batch = newModels.slice(i, i + batchSize);
                         const batchResults = await Promise.all(batch.map(m => {
                             const modelId = m.modelId || m.id;
-                            // V18.2.4: Pre-comparison optimization
-                            if (options.registryManager) {
-                                const normId = this.generateId(null, modelId, 'model');
-                                const existing = options.registryManager.registry.entities.find(e => e.id === normId);
-                                if (existing && m.lastModified && new Date(existing._last_seen || 0) > new Date(m.lastModified)) {
-                                    return existing;
-                                }
-                            }
-                            return this.fetchFullModel(modelId);
+                            // V22.4: Leverage expanded metadata
+                            return this.fetchFullModel(modelId, 0, m, options.registryManager);
                         }));
                         const validResults = batchResults.filter(m => m !== null && this.isSafeForWork(m));
                         if (options.onBatch) {
@@ -198,8 +194,12 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 // Paginate through all results for this tag
                 while (hasMore && tagModels < limitPerTag) {
                     const batchLimit = Math.min(PAGE_SIZE, limitPerTag - tagModels);
-                    // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
-                    const url = `${HF_API_BASE}/models?filter=${tag}&sort=likes&direction=-1&limit=${batchLimit}&skip=${skip}&expand[]=safetensors&expand[]=config`;
+                    const expandParams = [
+                        'author', 'cardData', 'config', 'createdAt', 'downloads',
+                        'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
+                    ].map(e => `expand[]=${e}`).join('&');
+
+                    const url = `${HF_API_BASE}/models?filter=${tag}&sort=likes&direction=-1&limit=${batchLimit}&skip=${skip}&${expandParams}`;
 
                     const response = await fetch(url, { headers: this.getHeaders() });
 
@@ -267,11 +267,30 @@ export class HuggingFaceAdapter extends BaseAdapter {
         return onBatch ? { models: [], stats: { total: collectedIds.size } } : { models: allModels, stats: { total: allModels.length } };
     }
 
-    async fetchFullModel(modelId, retryCount = 0) {
+    async fetchFullModel(modelId, retryCount = 0, expandedData = null, registryManager = null) {
         try {
-            // V6.4: Fetch config.json for params_billions, context_length, architecture
+            // V22.4 Industrial Refit: Skip network if expandedData is fresh
+            if (registryManager && expandedData && expandedData.lastModified) {
+                const normId = this.generateId(null, modelId, 'model');
+                const existing = registryManager.registry?.entities?.find(e => e.id === normId);
+
+                // If the model hasn't changed since last seen, and we have it in registry, reuse it
+                if (existing && new Date(existing.updated_at || 0) >= new Date(expandedData.lastModified)) {
+                    // console.log(`   ⏭️  [HF] Skipping README fetch for ${modelId} (No change)`);
+
+                    // Merge expanded metrics into existing entity for freshness
+                    existing.popularity = expandedData.likes || existing.popularity;
+                    existing.downloads = expandedData.downloads || existing.downloads;
+                    existing.updated_at = expandedData.lastModified;
+                    return existing;
+                }
+            }
+
+            // If we have expandedData but it's newer (or no registry), we still need the README
             const [modelRes, readmeRes, configRes] = await Promise.all([
-                fetch(`${HF_API_BASE}/models/${modelId}?expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() }),
+                // If we already have full expandedData, we can skip modelRes
+                expandedData ? Promise.resolve({ ok: true, json: () => Promise.resolve(expandedData) }) :
+                    fetch(`${HF_API_BASE}/models/${modelId}?expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() }),
                 fetch(`${HF_RAW_BASE}/${modelId}/raw/main/README.md`, { headers: this.getHeaders() }),
                 fetch(`${HF_RAW_BASE}/${modelId}/raw/main/config.json`, { headers: this.getHeaders() })
             ]);
@@ -281,7 +300,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
                     const backoff = calculateBackoff(retryCount);
                     console.log(`   ⚠️ Rate limited for ${modelId}, backing off ${backoff}ms...`);
                     await delay(backoff);
-                    return this.fetchFullModel(modelId, retryCount + 1);
+                    return this.fetchFullModel(modelId, retryCount + 1, expandedData, registryManager);
                 }
                 console.warn(`   ❌ Max retries exceeded for ${modelId}`);
                 return null;

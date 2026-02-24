@@ -12,6 +12,18 @@ import crypto from 'crypto';
 import { normalizeId } from '../../utils/id-normalizer.js';
 
 /**
+ * Custom error for non-recoverable rate limits (V22.3)
+ */
+export class RateLimitExceededError extends Error {
+    constructor(source, waitSec) {
+        super(`Rate limit for ${source} exceeded threshold: ${waitSec}s wait required.`);
+        this.name = 'RateLimitExceededError';
+        this.source = source;
+        this.waitSec = waitSec;
+    }
+}
+
+/**
  * Unified Entity Schema - All adapters must output this format
  * @typedef {Object} UnifiedEntity
  * @property {string} id - Unique ID: {source}:{author}:{name}
@@ -196,6 +208,17 @@ export class BaseAdapter {
     }
 
     /**
+     * Get default headers for API requests
+     * V22.4: Standardized for all adapters
+     */
+    getHeaders() {
+        return {
+            'Accept': 'application/json',
+            'User-Agent': `Free2AITools-Ingestion/${this.sourceName}`
+        };
+    }
+
+    /**
      * Sanitize name for ID generation
      */
     sanitizeName(name) {
@@ -204,6 +227,15 @@ export class BaseAdapter {
             .replace(/[\/\\]/g, '-')
             .replace(/[^a-z0-9-_.]/g, '')
             .substring(0, 100);
+    }
+
+    /**
+     * V2.1: Check if content is safe for work (NSFW filter)
+     * Constitutional: Uses NSFW_KEYWORDS whitelist, no inference
+     */
+    isSafeForWork(item) {
+        const text = `${item.name || item.title || ''} ${item.description || ''}`.toLowerCase();
+        return !NSFW_KEYWORDS.some(kw => text.includes(kw));
     }
 
     /**
@@ -240,6 +272,14 @@ export class BaseAdapter {
             }
 
             const waitSec = (waitMs / 1000).toFixed(1);
+
+            // V22.3: Threshold Enforcement - Don't wait if it's longer than 5 minutes
+            const MAX_WAIT_MS = 5 * 60 * 1000;
+            if (waitMs > MAX_WAIT_MS) {
+                console.error(`\n🔥 [Rate Limit] ${this.sourceName.toUpperCase()} wait too long (${waitSec}s). Aborting fetch.`);
+                throw new RateLimitExceededError(this.sourceName, waitSec);
+            }
+
             console.warn(`\n🛑 [Rate Limit] ${this.sourceName.toUpperCase()} throttling (Status ${response.status}). Waiting ${waitSec}s...`);
 
             await this.delay(waitMs);

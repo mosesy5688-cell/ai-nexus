@@ -57,9 +57,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=6144'
         run: |
           echo "📥 Harvesting HuggingFace Models..."
-          node scripts/ingestion/harvest-single.js huggingface --limit 30000
-          echo "🌉 [Bridge] Sharding NDJSON for downstream compatibility..."
-          node scripts/ingestion/ndjson-sharder.js data/huggingface_master.ndjson data/ 1000 huggingface
+          node scripts/ingestion/harvest-single.js huggingface --limit 30000 --no-bridge
           
       - name: Solidify HuggingFace Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -97,9 +95,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "📥 [Parallel] Harvesting GitHub (V19: 10K)..."
-          node scripts/ingestion/harvest-single.js github --limit 10000
-          echo "🌉 [Bridge] Sharding NDJSON..."
-          node scripts/ingestion/ndjson-sharder.js data/github_master.ndjson data/ 1000 github
+          node scripts/ingestion/harvest-single.js github --limit 10000 --no-bridge
           
       - name: Solidify GitHub Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -136,8 +132,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
           echo "📥 Harvesting ArXiv..."
-          node scripts/ingestion/harvest-single.js arxiv --limit 100000 || echo "ArXiv adapter skipped"
-          [ -f data/arxiv_master.ndjson ] && node scripts/ingestion/ndjson-sharder.js data/arxiv_master.ndjson data/ 500 arxiv
+          node scripts/ingestion/harvest-single.js arxiv --limit 100000 --no-bridge || echo "ArXiv adapter skipped"
           
       - name: Harvest HuggingFace Papers
         if: github.event.inputs.skip_harvest != 'true'
@@ -145,8 +140,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 Harvesting HF Papers..."
-          node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 || echo "HF Papers adapter skipped"
-          [ -f data/huggingface-papers_master.ndjson ] && node scripts/ingestion/ndjson-sharder.js data/huggingface-papers_master.ndjson data/ 1000 hf_papers
+          node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 --no-bridge || echo "HF Papers adapter skipped"
 
       - name: Harvest HuggingFace Datasets
         if: github.event.inputs.skip_harvest != 'true'
@@ -155,8 +149,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           echo "📥 Harvesting HF Datasets..."
-          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 20000 || echo "HF Datasets adapter skipped"
-          [ -f data/huggingface-datasets_master.ndjson ] && node scripts/ingestion/ndjson-sharder.js data/huggingface-datasets_master.ndjson data/ 1000 hf_datasets
+          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 20000 --no-bridge || echo "HF Datasets adapter skipped"
 
       - name: Solidify Academic Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -192,15 +185,13 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting Ollama..."
-          node scripts/ingestion/harvest-single.js ollama --limit 1000 || echo "Ollama adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/ollama_master.ndjson data/ 500 ollama || true
+          node scripts/ingestion/harvest-single.js ollama --limit 1000 --no-bridge || echo "Ollama adapter skipped"
           
       - name: Harvest MCP Servers
         if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting MCP..."
-          node scripts/ingestion/harvest-single.js mcp --limit 500 || echo "MCP adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/mcp_master.ndjson data/ 500 mcp || true
+          node scripts/ingestion/harvest-single.js mcp --limit 500 --no-bridge || echo "MCP adapter skipped"
 
       - name: Harvest Replicate
         if: github.event.inputs.skip_harvest != 'true'
@@ -208,8 +199,7 @@ jobs:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: |
           echo "📥 Harvesting Replicate..."
-          node scripts/ingestion/harvest-single.js replicate --limit 5000 || echo "Replicate adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/replicate_master.ndjson data/ 500 replicate || true
+          node scripts/ingestion/harvest-single.js replicate --limit 5000 --no-bridge || echo "Replicate adapter skipped"
 
       # V14.5.2: Setup Python for Kaggle models sidecar (REST API deprecated)
       - name: Setup Python for Kaggle
@@ -229,22 +219,19 @@ jobs:
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
           echo "📥 Harvesting Kaggle..."
-          node scripts/ingestion/harvest-single.js kaggle --limit 10000 || echo "Kaggle adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/kaggle_master.ndjson data/ 500 kaggle || true
+          node scripts/ingestion/harvest-single.js kaggle --limit 10000 --no-bridge || echo "Kaggle adapter skipped"
 
       - name: Harvest CivitAI
         if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting CivitAI..."
-          node scripts/ingestion/harvest-single.js civitai --limit 5000 || echo "CivitAI adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/civitai_master.ndjson data/ 500 civitai || true
+          node scripts/ingestion/harvest-single.js civitai --limit 5000 --no-bridge || echo "CivitAI adapter skipped"
 
       - name: Harvest Semantic Scholar
         if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting Semantic Scholar..."
-          node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 || echo "Semantic Scholar adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/semanticscholar_master.ndjson data/ 500 semanticscholar || true
+          node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 --no-bridge || echo "Semantic Scholar adapter skipped"
 
       - name: Harvest OpenLLM Benchmarks
         if: github.event.inputs.skip_harvest != 'true'
@@ -252,8 +239,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📊 Harvesting OpenLLM Leaderboard..."
-          node scripts/ingestion/harvest-single.js openllm --limit 1000 || echo "OpenLLM adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/openllm_master.ndjson data/ 500 openllm || true
+          node scripts/ingestion/harvest-single.js openllm --limit 1000 --no-bridge || echo "OpenLLM adapter skipped"
 
       - name: Harvest DeepSpec Specifications
         if: github.event.inputs.skip_harvest != 'true'
@@ -261,8 +247,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📋 Extracting Model Specifications..."
-          node scripts/ingestion/harvest-single.js deepspec --limit 2000 || echo "DeepSpec adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/deepspec_master.ndjson data/ 500 deepspec || true
+          node scripts/ingestion/harvest-single.js deepspec --limit 2000 --no-bridge || echo "DeepSpec adapter skipped"
 
       - name: Harvest HuggingFace Spaces
         if: github.event.inputs.skip_harvest != 'true'
@@ -270,8 +255,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 Harvesting HuggingFace Spaces..."
-          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 2000 || echo "Spaces adapter skipped"
-          node scripts/ingestion/ndjson-sharder.js data/huggingface-spaces_master.ndjson data/ 500 hf-spaces || true
+          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 2000 --no-bridge || echo "Spaces adapter skipped"
 
       - name: Harvest AI Agents
         if: github.event.inputs.skip_harvest != 'true'
@@ -279,13 +263,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "📥 Harvesting AI Agents..."
-          node scripts/ingestion/harvest-single.js agents --limit 200 || echo "Agents adapter skipped"
+          node scripts/ingestion/harvest-single.js agents --limit 200 --no-bridge || echo "Agents adapter skipped"
 
       - name: Harvest LangChain Hub
         if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "✨ Harvesting LangChain Prompts..."
-          node scripts/ingestion/harvest-single.js langchain --limit 5000 || echo "LangChain adapter skipped"
+          node scripts/ingestion/harvest-single.js langchain --limit 5000 --no-bridge || echo "LangChain adapter skipped"
 
       - name: Solidify Ecosystem Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -373,6 +357,12 @@ jobs:
         run: |
           echo "📦 Entity batches ready for merge:"
           ls -la data/
+          
+          # V22.4: Centralized Sharding (Eliminate Double Sharding)
+          echo "🌉 [Bridge] Consolidating NDJSON streams..."
+          cat data/*.ndjson > data/master.ndjson
+          node scripts/ingestion/ndjson-sharder.js data/master.ndjson data/ 1000 raw_batch
+          
           ls -la data/raw_batch_*.json 2>/dev/null || echo "⚠️ No batch files found in data/"
           
       - name: Restore FNI History

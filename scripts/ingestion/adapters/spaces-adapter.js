@@ -3,7 +3,7 @@
  * Fetches interactive demos from HuggingFace Spaces API
  * @module ingestion/adapters/spaces-adapter
  */
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const HF_API = 'https://huggingface.co/api';
 const HF_RAW = 'https://huggingface.co';
@@ -31,7 +31,12 @@ export class SpacesAdapter extends BaseAdapter {
         const BATCH_DELAY = 1000; // Increased from 100ms
         for (let i = 0; i < spaces.length; i += BATCH_SIZE) {
             const batch = spaces.slice(i, i + BATCH_SIZE);
-            const results = await Promise.all(batch.map(s => this.fetchFullSpace(s.id)));
+
+            // V22.7: Pre-fetch NSFW Check
+            const safeBatch = batch.filter(s => this.isSafeForWork(s));
+            if (safeBatch.length === 0) continue;
+
+            const results = await Promise.all(safeBatch.map(s => this.fetchFullSpace(s.id)));
             const validResults = results.filter(Boolean);
 
             if (onBatch) {

@@ -53,193 +53,174 @@ export class GitHubAdapter extends BaseAdapter {
     }
 
     /**
- * Fetch ML/AI repositories from GitHub
- * @param {Object} options
- * @param {number} options.limit - Number of repos to fetch (default: 200)
- * @param {string[]} options.topics - Topics to search for
- */
+     * Fetch ML/AI repositories from GitHub using GraphQL
+     * V22.4: 66% request reduction via single-query metadata + README block
+     */
     async fetch(options = {}) {
         const {
             limit = 10000,
-            // V6.2: Expanded topic list for broader coverage
             topics = [
-                // Core AI/ML
                 'machine-learning', 'deep-learning', 'artificial-intelligence', 'neural-network',
-                // LLM & NLP
                 'llm', 'large-language-model', 'transformers', 'nlp', 'chatgpt', 'gpt',
-                // Computer Vision
                 'computer-vision', 'image-generation', 'stable-diffusion', 'diffusion-models',
-                // Frameworks
                 'pytorch', 'tensorflow', 'huggingface', 'langchain', 'llamaindex', 'autogen', 'crewai',
-                // Agents & Tools
                 'ai-agent', 'autonomous-agents', 'ai-tools', 'rag', 'agentic', 'chatbot', 'data-science'
             ],
-            pagesPerTopic = 10  // V22.2: Maximize pages for comprehensive coverage
+            pagesPerTopic = 10
         } = options;
 
-        console.log(`📥 [GitHub] Fetching top ${limit} ML/AI repositories across ${topics.length} topics...`);
+        if (!this.token) {
+            console.error('❌ [GitHub] GITHUB_TOKEN is required for GraphQL API');
+            return [];
+        }
+
+        console.log(`📥 [GitHub] GraphQL Ingestion: Fetching top ${limit} repos across ${topics.length} topics...`);
 
         const allRepos = [];
-        const perPage = 100;  // Max per page
         const seenIds = new Set();
+        const perPage = 50; // GraphQL recommendation for stable performance
 
-        // Search by multiple topics with pagination
+        const GQL_QUERY = `
+            query($queryString: String!, $after: String, $first: Int!) {
+              search(query: $queryString, type: REPOSITORY, first: $first, after: $after) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  ... on Repository {
+                    databaseId
+                    name
+                    nameWithOwner
+                    description
+                    url: homepageUrl
+                    htmlUrl: url
+                    stargazerCount
+                    forkCount
+                    watchers { totalCount }
+                    issues(states: OPEN) { totalCount }
+                    primaryLanguage { name }
+                    repositoryTopics(first: 20) {
+                      nodes { topic { name } }
+                    }
+                    licenseInfo { spdxId }
+                    createdAt
+                    pushedAt
+                    defaultBranchRef { name }
+                    owner { login avatarUrl }
+                    readme: object(expression: "HEAD:README.md") {
+                      ... on Blob { text }
+                    }
+                    readmeLower: object(expression: "HEAD:readme.md") {
+                      ... on Blob { text }
+                    }
+                  }
+                }
+              }
+            }
+        `;
+
         for (const topic of topics) {
             if (allRepos.length >= limit) break;
+            let after = null;
 
-            // V6.2: Paginate within each topic
             for (let page = 1; page <= pagesPerTopic; page++) {
                 if (allRepos.length >= limit) break;
 
-                const query = `topic:${topic}`; // V22.2: Removed stars:>50 filter for maximum entities
-                const searchUrl = `${GH_API_BASE}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=${perPage}&page=${page}`;
+                const queryVariables = {
+                    queryString: `topic:${topic} sort:stars-desc`,
+                    first: perPage,
+                    after: after
+                };
 
                 try {
-                    const response = await fetch(searchUrl, { headers: this.getHeaders() });
+                    const response = await fetch(`${GH_API_BASE}/graphql`, {
+                        method: 'POST',
+                        headers: {
+                            ...this.getHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ query: GQL_QUERY, variables: queryVariables })
+                    });
 
                     if (!response.ok) {
-                        // V22.2: Robust rate limit handling
                         if (await this.handleRateLimit(response)) {
-                            page--; // Retry same page after wait
-                            continue;
+                            page--; continue;
                         }
-                        console.warn(`   ⚠️ GitHub search failed for ${topic} p${page}: ${response.status}`);
-                        break;  // Move to next topic
+                        console.warn(`   ⚠️ GitHub GQL failed: ${response.status}`);
+                        break;
                     }
 
-                    const data = await response.json();
-                    const repos = data.items || [];
+                    const result = await response.json();
+                    if (result.errors) {
+                        console.warn(`   ⚠️ GraphQL Errors: ${result.errors[0].message}`);
+                        break;
+                    }
 
-                    if (repos.length === 0) break;  // No more results for this topic
+                    const searchData = result.data.search;
+                    const nodes = searchData.nodes || [];
+                    if (nodes.length === 0) break;
 
-                    let addedCount = 0;
-                    for (const repo of repos) {
-                        // V2.1: NSFW filter at fetch level
-                        if (!this.isSafeForWork(repo)) {
-                            continue;
-                        }
-                        if (!seenIds.has(repo.id) && allRepos.length < limit) {
-                            seenIds.add(repo.id);
-                            allRepos.push(repo);
-                            addedCount++;
+                    const batch = [];
+                    for (const node of nodes) {
+                        if (!node || !node.databaseId) continue;
+
+                        // NSFW Filter
+                        if (!this.isSafeForWork({ name: node.name, description: node.description })) continue;
+
+                        if (!seenIds.has(node.databaseId) && allRepos.length < limit) {
+                            seenIds.add(node.databaseId);
+
+                            // Map GraphQL structure to legacy REST structure for normalize() compatibility
+                            const mappedRepo = {
+                                id: node.databaseId,
+                                name: node.name,
+                                full_name: node.nameWithOwner,
+                                description: node.description,
+                                html_url: node.htmlUrl,
+                                stargazers_count: node.stargazerCount,
+                                forks_count: node.forkCount,
+                                watchers_count: node.watchers?.totalCount || 0,
+                                open_issues_count: node.issues?.totalCount || 0,
+                                language: node.primaryLanguage?.name || null,
+                                topics: node.repositoryTopics?.nodes?.map(n => n.topic.name) || [],
+                                license: node.licenseInfo ? { spdx_id: node.licenseInfo.spdxId } : null,
+                                created_at: node.createdAt,
+                                pushed_at: node.pushedAt,
+                                default_branch: node.defaultBranchRef?.name || 'main',
+                                owner: {
+                                    login: node.owner?.login,
+                                    avatar_url: node.owner?.avatarUrl
+                                },
+                                readme: node.readme?.text || node.readmeLower?.text || '',
+                                quick_start: this.extractQuickStartFromReadme(node.readme?.text || node.readmeLower?.text || '')
+                            };
+
+                            batch.push(mappedRepo);
+                            allRepos.push(mappedRepo);
                         }
                     }
 
-                    console.log(`   ${topic} p${page}: +${addedCount} repos (total: ${allRepos.length})`);
-                    await this.delay(1500);  // Rate limit protection
+                    if (options.onBatch && batch.length > 0) {
+                        await options.onBatch(batch);
+                    }
+
+                    console.log(`   ${topic} p${page}: +${batch.length} repos (total: ${allRepos.length})`);
+
+                    if (!searchData.pageInfo.hasNextPage) break;
+                    after = searchData.pageInfo.endCursor;
+
+                    await this.delay(1000); // Respect GQL complexity limits
+
                 } catch (error) {
-                    console.warn(`   ⚠️ Error searching ${topic}: ${error.message}`);
+                    console.warn(`   ⚠️ GQL error searching ${topic}: ${error.message}`);
                     break;
                 }
             }
         }
 
-        console.log(`📦 [GitHub] Got ${allRepos.length} unique repositories`);
-
-        // Fetch full details including README
-        console.log(`🔄 [GitHub] Fetching full details...`);
-        const fullRepos = [];
-        const batchSize = 5;
-
-        for (let i = 0; i < allRepos.length; i += batchSize) {
-            const batch = allRepos.slice(i, i + batchSize);
-            const batchResults = await Promise.all(
-                batch.map(r => this.fetchFullRepo(r.full_name))
-            );
-            const validResults = batchResults.filter(r => r !== null);
-
-            if (options.onBatch) {
-                await options.onBatch(validResults);
-            } else {
-                fullRepos.push(...validResults);
-            }
-
-            if ((i + batchSize) % 50 === 0 || i + batchSize >= allRepos.length) {
-                const total = Math.min(i + batchSize, allRepos.length);
-                const successRate = ((validResults.length / batchSize) * 100).toFixed(0);
-                console.log(`   Progress: ${total}/${allRepos.length} (Batch success: ${validResults.length}/${batchSize})`);
-            }
-
-            await this.delay(1000);
-        }
-
-        console.log(`✅ [GitHub] Fetched ${options.onBatch ? allRepos.length : fullRepos.length} complete repositories`);
-        return options.onBatch ? [] : fullRepos;
-    }
-    /**
-     * Fetch complete repository details including README
-     */
-    async fetchFullRepo(fullName) {
-        let retries = 0;
-        const MAX_RETRIES = 3; // For non-rate-limit errors
-
-        while (retries < MAX_RETRIES) {
-            try {
-                // Fetch repo details
-                const repoUrl = `${GH_API_BASE}/repos/${fullName}`;
-                const repoResponse = await fetch(repoUrl, { headers: this.getHeaders() });
-
-                if (!repoResponse.ok) {
-                    if (await this.handleRateLimit(repoResponse)) continue; // Retry after wait
-
-                    if (repoResponse.status === 404) return null; // Repo deleted
-
-                    retries++;
-                    await this.delay(2000 * retries);
-                    continue;
-                }
-
-                const repo = await repoResponse.json();
-
-                // Fetch README
-                const readmeUrl = `${GH_API_BASE}/repos/${fullName}/readme`;
-                let readme = '';
-
-                let readmeSuccess = false;
-                while (!readmeSuccess) {
-                    try {
-                        const readmeResponse = await fetch(readmeUrl, {
-                            headers: { ...this.getHeaders(), 'Accept': 'application/vnd.github.v3.raw' }
-                        });
-
-                        if (!readmeResponse.ok) {
-                            if (await this.handleRateLimit(readmeResponse)) continue; // Retry after wait
-
-                            if (readmeResponse.status === 404) {
-                                readmeSuccess = true; // No README
-                                break;
-                            }
-                            throw new Error(`Status ${readmeResponse.status}`);
-                        }
-
-                        readme = await readmeResponse.text();
-                        readmeSuccess = true;
-
-                        // V19.5 Mode B Phase 3: "Cache Diet"
-                        const quickStartBlock = this.extractQuickStartFromReadme(readme);
-
-                        if (readme.length > 250000) {
-                            readme = readme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]';
-                        }
-                        repo.quick_start = quickStartBlock;
-                    } catch (e) {
-                        console.warn(`   ⚠️ [GitHub] README error for ${fullName}: ${e.message}. Retrying...`);
-                        await this.delay(3000);
-                    }
-                }
-
-                return {
-                    ...repo,
-                    readme,
-                    _fetchedAt: new Date().toISOString()
-                };
-            } catch (error) {
-                console.warn(`   ⚠️ [GitHub] Error fetching ${fullName}: ${error.message}. Retry ${retries}/${MAX_RETRIES}`);
-                retries++;
-                await this.delay(5000);
-            }
-        }
-        return null; // Failed after retries
+        console.log(`✅ [GitHub] GraphQL Fetch Complete: ${allRepos.length} repositories`);
+        return options.onBatch ? [] : allRepos;
     }
 
     /**
@@ -476,15 +457,6 @@ export class GitHubAdapter extends BaseAdapter {
             has_wiki: raw.has_wiki || false,
             has_pages: raw.has_pages || false
         };
-    }
-
-    /**
-     * V2.1: Check if repo is safe for work (NSFW filter)
-     * Constitutional: Uses NSFW_KEYWORDS whitelist, no inference
-     */
-    isSafeForWork(repo) {
-        const text = `${repo.name || ''} ${repo.description || ''}`.toLowerCase();
-        return !NSFW_KEYWORDS.some(kw => text.includes(kw));
     }
 
     delay(ms) {

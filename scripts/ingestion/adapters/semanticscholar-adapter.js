@@ -23,77 +23,91 @@ export class SemanticScholarAdapter extends BaseAdapter {
      * Main Fetch Entry Point
      */
     async fetch(options = {}) {
-        const { arxivIds = [], limit = 3000, onBatch } = options;
+        const {
+            limit = 1000,
+            topics = ['machine learning', 'artificial intelligence', 'nlp', 'computer vision'],
+            onBatch
+        } = options;
 
-        if (arxivIds.length === 0) {
-            console.log(`📥 [S2] No arXiv IDs provided. Attempting to seed from recent local cache...`);
-            try {
-                const manifest = JSON.parse(await fs.readFile('data/manifest.json', 'utf8'));
-                if (manifest.source_stats && manifest.source_stats.arxiv > 0) {
-                    // Logic to pull random IDs from recent shards would go here
-                    // For now, falling back to search mode if manifest seeding fails
-                }
-            } catch (e) { }
-            return await this.searchAIPapers(limit, onBatch);
-        }
+        console.log(`📥 [Semantic Scholar] Bulk Search Ingestion: target ${limit} papers...`);
 
-        console.log(`📥 [S2] Fetching citations for ${arxivIds.length} papers...`);
-        const results = [];
-
-        for (const arxivId of arxivIds.slice(0, limit)) {
-            try {
-                const paper = await this.fetchPaperByArxiv(arxivId);
-                if (paper) {
-                    if (onBatch) {
-                        await onBatch([paper]);
-                    } else {
-                        results.push(paper);
-                    }
-                }
-                await this.delay(3000); // Respect API limit
-            } catch (error) {
-                console.warn(`   ⚠️ ${arxivId}: ${error.message}`);
-            }
-        }
-
-        console.log(`✅ [S2] ${onBatch ? 'Streaming' : 'Fetched ' + results.length + ' papers'} complete`);
-        return onBatch ? [] : results;
-    }
-
-    /**
-     * Search papers by AI topics
-     */
-    async searchAIPapers(limit = 1000, onBatch) {
-        const TOPICS = [
-            'large language model', 'diffusion model', 'machine learning', 'transformer',
-            'computer vision', 'natural language processing', 'ai benchmarks', 'autonomous agents',
-            'reinforcement learning', 'generative ai'
-        ];
-        const papers = [];
+        const allPapers = [];
         const seenIds = new Set();
+        const batchSize = 1000;
 
-        for (const topic of TOPICS) {
-            if (papers.length >= limit) break;
+        for (const topic of topics) {
+            if (seenIds.size >= limit) break;
+
+            let token = null;
+            let topicFetched = 0;
+
             console.log(`   🔍 Searching: ${topic}...`);
-            const results = await this.searchPapers(topic, Math.min(100, limit - (onBatch ? 0 : papers.length)));
 
-            const uniqueNewResults = [];
-            for (const p of results) {
-                if (!seenIds.has(p.paper_id)) {
-                    seenIds.add(p.paper_id);
-                    uniqueNewResults.push(p);
+            while (topicFetched < limit / topics.length) {
+                const fields = 'paperId,externalIds,title,abstract,authors,venue,year,referenceCount,citationCount,openAccessPdf,fieldsOfStudy,s2FieldsOfStudy';
+                let url = `${S2_API_BASE}/paper/search/bulk?query=${encodeURIComponent(topic)}&limit=${batchSize}&fields=${fields}`;
+                if (token) url += `&token=${token}`;
+
+                try {
+                    const response = await fetch(url, { headers: this.getHeaders() });
+
+                    if (!response.ok) {
+                        if (await this.handleRateLimit(response)) continue;
+                        console.warn(`   ⚠️ S2 Bulk failed: ${response.status}`);
+                        break;
+                    }
+
+                    const data = await response.json();
+                    const papers = data.data || [];
+                    if (papers.length === 0) break;
+
+                    const batch = [];
+                    for (const paper of papers) {
+                        if (paper.paperId && !seenIds.has(paper.paperId)) {
+                            // NSFW Filter
+                            if (!this.isSafeForWork({ title: paper.title, description: paper.abstract })) continue;
+
+                            // V22.4 Incremental: Check if we already have this paper and if it needs update
+                            if (options.registryManager) {
+                                const normId = this.generateId('unknown', paper.paperId, 'paper');
+                                const existing = options.registryManager.registry?.entities?.find(e => e.id === normId);
+                                if (existing) {
+                                    // If paper exists and has same citation count, skip
+                                    if (existing.meta_json?.citation_count === paper.citationCount) {
+                                        seenIds.add(paper.paperId); // Mark as seen to avoid duplicate processing
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            seenIds.add(paper.paperId);
+                            batch.push(paper);
+                        }
+                    }
+
+                    topicFetched += batch.length;
+                    if (onBatch && batch.length > 0) {
+                        await onBatch(batch);
+                    } else {
+                        allPapers.push(...batch);
+                    }
+
+                    console.log(`   [S2] ${topic} Bulk Batch: +${batch.length} papers (total unique: ${seenIds.size})`);
+
+                    token = data.token;
+                    if (!token || seenIds.size >= limit) break;
+
+                    await this.delay(5000);
+
+                } catch (error) {
+                    console.error(`   ❌ S2 Bulk error for ${topic}: ${error.message}`);
+                    break;
                 }
             }
-
-            if (onBatch) {
-                await onBatch(uniqueNewResults);
-            } else {
-                papers.push(...uniqueNewResults);
-            }
-            await this.delay(3000);
         }
-        console.log(`✅ [S2 Search] ${onBatch ? 'Streaming' : 'Fetched ' + papers.length + ' papers'} complete`);
-        return onBatch ? [] : papers;
+
+        console.log(`✅ [Semantic Scholar] Ingestion Complete: ${seenIds.size} unique papers`);
+        return onBatch ? [] : allPapers;
     }
 
     /**
