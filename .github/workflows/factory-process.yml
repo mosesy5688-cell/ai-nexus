@@ -194,9 +194,9 @@ jobs:
           ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
           echo "✅ Found $ENTITY_COUNT entities in manifest"
           
-          # V14.5: Fail if entity count is too low (prevents processing test data)
-          if [ "$ENTITY_COUNT" -lt 80000 ]; then
-            echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 80000+."
+          # V22.3: Fail if entity count is too low (prevents processing test data)
+          if [ "$ENTITY_COUNT" -lt 125000 ]; then
+            echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 125000+."
             echo "This indicates corrupted data or test files in artifact."
             exit 1
           fi

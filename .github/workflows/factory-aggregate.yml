@@ -488,7 +488,8 @@ jobs:
           
           # V19.2: content.db and bundles preservation
           [ -d "output/data" ] && echo "✅ data/ directory found" || mkdir -p output/data
-          [ -f "output/content.db" ] && mv output/content.db output/data/ || true
+          [ -f "output/meta.db" ] && mv output/meta.db output/data/ || true
+          [ -f "output/search.db" ] && mv output/search.db output/data/ || true
           [ -d "output/bundles" ] && mv output/bundles output/data/ || true
           
           # V17.8: Shard Bridge - Shards from agg-shards download will be in output/*.json.gz

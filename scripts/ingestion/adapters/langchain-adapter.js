@@ -12,7 +12,7 @@
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
-const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com/api/v1/hub';
+const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com';
 
 /**
  * LangChain Hub Adapter Implementation
@@ -38,16 +38,6 @@ export class LangChainAdapter extends BaseAdapter {
      * @param {Object} options
      * @param {number} options.limit - Number of items to fetch (default: 2000)
      */
-    /**
-     * Fetch prompts/agents from LangChain Hub API
-     * @param {Object} options
-     * @param {number} options.limit - Number of items to fetch (default: 2000)
-     */
-    /**
-     * Fetch prompts/agents from LangChain Hub API
-     * @param {Object} options
-     * @param {number} options.limit - Number of items to fetch (default: 2000)
-     */
     async fetch(options = {}) {
         const { limit = 2000, onBatch } = options;
 
@@ -56,9 +46,11 @@ export class LangChainAdapter extends BaseAdapter {
         const allItems = [];
         let offset = 0;
         const pageSize = 100;
+        let processedCount = 0;
 
-        while (allItems.length < limit) {
-            const url = `${LANGCHAIN_API_BASE}/prompts?offset=${offset}&limit=${pageSize}`;
+        while (processedCount < limit) {
+            // V21.1 Corrected Endpoint: /repos/ is the public listing
+            const url = `${LANGCHAIN_API_BASE}/repos/?offset=${offset}&limit=${pageSize}&is_public=true&has_commits=true`;
 
             try {
                 console.log(`   Fetching offset ${offset}...`);
@@ -90,6 +82,7 @@ export class LangChainAdapter extends BaseAdapter {
                     allItems.push(...safeItems);
                 }
 
+                processedCount += items.length;
                 console.log(`   📦 Got ${safeItems.length}/${items.length} items (total: ${onBatch ? 'Streaming' : allItems.length})`);
 
                 offset += pageSize;

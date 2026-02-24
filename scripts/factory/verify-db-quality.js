@@ -3,7 +3,9 @@
  */
 import Database from 'better-sqlite3';
 
-const db = new Database('./data/content.db', { readonly: true });
+const ARGS = process.argv.slice(2);
+const dbPath = ARGS.find(a => a.startsWith('--db='))?.split('=')[1] || './data/meta.db';
+const db = new Database(dbPath, { readonly: true });
 
 // 1. Check blank names
 const blanks = db.prepare("SELECT count(*) as c FROM entities WHERE name IS NULL OR name = ''").get();
