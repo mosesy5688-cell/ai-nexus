@@ -42,9 +42,12 @@ export class HuggingFaceAdapter extends BaseAdapter {
             const result = await this.fetchByPipelineTags({
                 limitPerTag: Math.ceil(limit / 21),  // Distribute across 21 tags
                 full: false,  // Skip full details for speed
-                offset: options.offset || 0 // V18.2.4: Support rotational offset
+                offset: options.offset || 0, // V18.2.4: Support rotational offset
+                onBatch: options.onBatch // V22.1: Pass streaming callback
             });
-            return result.models;
+            // fetchByPipelineTags returns an object if onBatch is NOT used, 
+            // but we've standardized it to return an array or empty array when streaming.
+            return result.models || result;
         }
 
         // Use multi-strategy for medium limits (1000-10000)
@@ -256,7 +259,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
         }
 
         console.log(`\n✅ [HuggingFace] Pipeline tag collection: ${onBatch ? 'Streaming' : allModels.length} complete`);
-        return onBatch ? [] : allModels;
+        return onBatch ? { models: [], stats: { total: collectedIds.size } } : { models: allModels, stats: { total: allModels.length } };
     }
 
     async fetchFullModel(modelId, retryCount = 0) {

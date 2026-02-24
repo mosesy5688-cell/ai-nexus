@@ -60,33 +60,71 @@ export class AgentsAdapter extends BaseAdapter {
     }
 
     async fetch(options = {}) {
-        const { includeCurated = true, limit = 50 } = options;
-        console.log(`📥 [Agents] Fetching AI agent data...`);
+        const { includeCurated = true, limit = 50, onBatch = null } = options;
+        console.log(`📥 [Agents] Fetching AI agent data (onBatch: ${!!onBatch}, limit: ${limit})...`);
         const agents = [];
         const existing = new Set();
 
-        if (includeCurated) {
-            console.log(`🔄 [Agents] Fetching ${CURATED_AGENTS.length} curated agents...`);
-            for (const { repo, cat } of CURATED_AGENTS) {
-                const data = await this.fetchGitHubRepo(repo);
-                if (data) { data._category = cat; agents.push(data); existing.add(repo); }
-                await this.delay(100);
+        try {
+            if (includeCurated) {
+                console.log(`🔄 [Agents] Fetching ${CURATED_AGENTS.length} curated agents...`);
+                for (const { repo, cat } of CURATED_AGENTS) {
+                    try {
+                        const data = await this.fetchGitHubRepo(repo);
+                        if (data) {
+                            data._category = cat;
+                            if (onBatch) {
+                                try {
+                                    await onBatch([data]);
+                                } catch (be) {
+                                    console.error(`   ❌ [Agents] Curated onBatch error: ${be.message}`);
+                                }
+                            } else {
+                                agents.push(data);
+                            }
+                            existing.add(repo);
+                        }
+                    } catch (e) {
+                        console.warn(`   ⚠️ [Agents] Curated fetch error for ${repo}: ${e.message}`);
+                    }
+                    await this.delay(100);
+                }
             }
+
+            // V12: Multi-query search for broader coverage
+            if (limit > 0) {
+                for (const query of SEARCH_QUERIES) {
+                    try {
+                        const perQuery = Math.ceil(limit / SEARCH_QUERIES.length);
+                        const results = await this.searchGitHubRepos(query, perQuery);
+                        const newResults = results.filter(r => !existing.has(r.full_name));
+
+                        if (onBatch) {
+                            try {
+                                await onBatch(newResults);
+                            } catch (be) {
+                                console.error(`   ❌ [Agents] Search onBatch error: ${be.message}`);
+                            }
+                        } else {
+                            agents.push(...newResults);
+                        }
+
+                        newResults.forEach(r => {
+                            r._category = 'discovered';
+                            existing.add(r.full_name);
+                        });
+                    } catch (e) {
+                        console.warn(`   ⚠️ [Agents] Search error for "${query}": ${e.message}`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`   ❌ [Agents] Fetch internal error: ${error.message}`);
+            console.error(error.stack);
         }
 
-        // V12: Multi-query search for broader coverage
-        if (limit > 0) {
-            for (const query of SEARCH_QUERIES) {
-                const perQuery = Math.ceil(limit / SEARCH_QUERIES.length);
-                const results = await this.searchGitHubRepos(query, perQuery);
-                results.filter(r => !existing.has(r.full_name)).forEach(r => {
-                    r._category = 'discovered'; agents.push(r); existing.add(r.full_name);
-                });
-            }
-        }
-
-        console.log(`📦 [Agents] Total: ${agents.length}`);
-        return agents;
+        console.log(`✅ [Agents] ${onBatch ? 'Streaming' : 'Fetched ' + agents.length + ' agents'} complete`);
+        return onBatch ? [] : agents;
     }
 
     async fetchGitHubRepo(repoPath) {
