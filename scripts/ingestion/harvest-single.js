@@ -103,18 +103,6 @@ async function harvestSingle(sourceName, options = {}) {
     }
 }
 
-const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-console.log(`\n✅ [Harvest] Complete`);
-console.log(`   Source: ${sourceName} | Entities: ${results.total} | Chunks: ${results.chunks.length} | Time: ${duration}s`);
-
-return { source: sourceName, count: results.total, duration, chunks: results.chunks };
-
-    } catch (error) {
-    console.error(`\n❌ [Harvest] Failed: ${error.message}`);
-    return { source: sourceName, count: 0, error: error.message };
-}
-}
-
 /**
  * CLI Entry Point
  */
