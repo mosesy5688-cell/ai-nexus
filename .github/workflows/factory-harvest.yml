@@ -63,14 +63,14 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/huggingface_master.ndjson
           key: harvest-raw-huggingface-${{ github.run_id }}
 
       - name: Upload Batch Artifact
         uses: actions/upload-artifact@v4
         with:
           name: batch-huggingface
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           retention-days: 1
 
   # ============================================================
@@ -101,14 +101,14 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/github_master.ndjson
           key: harvest-raw-github-${{ github.run_id }}
 
       - name: Upload Batch Artifact
         uses: actions/upload-artifact@v4
         with:
           name: batch-github
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           retention-days: 1
 
   # ============================================================
@@ -155,14 +155,14 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           key: harvest-raw-academic-${{ github.run_id }}
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: batch-academic
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           retention-days: 1
 
   # ============================================================
@@ -275,14 +275,14 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           key: harvest-raw-ecosystem-${{ github.run_id }}
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: batch-ecosystem
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           retention-days: 1
 
   # ============================================================
@@ -319,28 +319,28 @@ jobs:
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/huggingface_master.ndjson
           key: harvest-raw-huggingface-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-huggingface-
       - name: Recover Solidified Batches (GitHub)
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/github_master.ndjson
           key: harvest-raw-github-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-github-
       - name: Recover Solidified Batches (Academic)
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           key: harvest-raw-academic-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-academic-
       - name: Recover Solidified Batches (Ecosystem)
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/raw_batch_*.json
+          path: data/*_master.ndjson
           key: harvest-raw-ecosystem-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-ecosystem-
 
@@ -358,10 +358,14 @@ jobs:
           echo "📦 Entity batches ready for merge:"
           ls -la data/
           
-          # V22.4: Centralized Sharding (Eliminate Double Sharding)
-          echo "🌉 [Bridge] Consolidating NDJSON streams..."
-          cat data/*.ndjson > data/master.ndjson
-          node scripts/ingestion/ndjson-sharder.js data/master.ndjson data/ 1000 raw_batch
+          # V22.8: Resilient NDJSON Bridge
+          if ls data/*_master.ndjson 1>/dev/null 2>&1; then
+            echo "🌉 [Bridge] Consolidating NDJSON streams..."
+            cat data/*_master.ndjson > data/master.ndjson
+            node scripts/ingestion/ndjson-sharder.js data/master.ndjson data/ 1000 raw_batch
+          else
+            echo "⏭️ [Bridge] No NDJSON files found, using pre-existing batch files"
+          fi
           
           ls -la data/raw_batch_*.json 2>/dev/null || echo "⚠️ No batch files found in data/"
           
