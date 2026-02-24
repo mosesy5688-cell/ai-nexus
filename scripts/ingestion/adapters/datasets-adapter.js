@@ -47,15 +47,25 @@ export class DatasetsAdapter extends BaseAdapter {
             'likes', 'lastModified', 'tags'
         ].map(e => `expand[]=${e}`).join('&');
 
-        const listUrl = `${HF_API_BASE}/datasets?sort=${sort}&direction=${direction}&limit=${limit}&${expandParams}`;
-        const response = await fetch(listUrl);
-
-        if (!response.ok) {
-            throw new Error(`HuggingFace Datasets API error: ${response.status}`);
+        // V22.8: Paginated fetch for full coverage (HF caps single calls at ~1000)
+        const pageSize = 1000;
+        const datasets = [];
+        for (let offset = 0; offset < limit; offset += pageSize) {
+            const fetchLimit = Math.min(pageSize, limit - offset);
+            const listUrl = `${HF_API_BASE}/datasets?sort=${sort}&direction=${direction}&limit=${fetchLimit}&offset=${offset}&${expandParams}`;
+            const response = await fetch(listUrl);
+            if (!response.ok) {
+                console.warn(`   ⚠️ HF Datasets API error at offset ${offset}: ${response.status}`);
+                break;
+            }
+            const batch = await response.json();
+            if (!batch.length) break;
+            datasets.push(...batch);
+            console.log(`   📦 Fetched ${datasets.length} dataset listings (offset: ${offset})...`);
+            if (batch.length < fetchLimit) break; // No more results
+            await this.delay(500);
         }
-
-        const datasets = await response.json();
-        console.log(`📦 [HF Datasets] Got ${datasets.length} datasets from list`);
+        console.log(`📦 [HF Datasets] Got ${datasets.length} datasets from paginated list`);
 
         if (!full) {
             return datasets;

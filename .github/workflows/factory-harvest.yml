@@ -40,7 +40,7 @@ jobs:
   harvest-huggingface:
     name: Harvest HuggingFace
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     
     steps:
       - uses: actions/checkout@v4
@@ -54,10 +54,10 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          NODE_OPTIONS: '--max-old-space-size=6144'
+          NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
-          echo "📥 Harvesting HuggingFace Models..."
-          node scripts/ingestion/harvest-single.js huggingface --limit 30000 --no-bridge
+          echo "📥 Harvesting HuggingFace Models (V22.8: 100K target)..."
+          node scripts/ingestion/harvest-single.js huggingface --limit 100000 --no-bridge
           
       - name: Solidify HuggingFace Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -79,7 +79,7 @@ jobs:
   harvest-github:
     name: Harvest GitHub
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     
     steps:
       - uses: actions/checkout@v4
@@ -140,7 +140,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 Harvesting HF Papers..."
-          node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 --no-bridge || echo "HF Papers adapter skipped"
+          node scripts/ingestion/harvest-single.js huggingface-papers --limit 5000 --no-bridge || echo "HF Papers adapter skipped"
 
       - name: Harvest HuggingFace Datasets
         if: github.event.inputs.skip_harvest != 'true'
@@ -149,7 +149,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           echo "📥 Harvesting HF Datasets..."
-          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 20000 --no-bridge || echo "HF Datasets adapter skipped"
+          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 --no-bridge || echo "HF Datasets adapter skipped"
 
       - name: Solidify Academic Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -255,7 +255,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 Harvesting HuggingFace Spaces..."
-          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 2000 --no-bridge || echo "Spaces adapter skipped"
+          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 5000 --no-bridge || echo "Spaces adapter skipped"
 
       - name: Harvest AI Agents
         if: github.event.inputs.skip_harvest != 'true'
