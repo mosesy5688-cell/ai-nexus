@@ -149,27 +149,23 @@ export class ArXivAdapter extends BaseAdapter {
                 });
 
                 if (!response.ok) {
-                    if (response.status === 429) {
-                        console.warn(`   ⚠️ [ArXiv] Rate limited (429) on ${category}. Backing off ${backoffSeconds}s...`);
-                        await this.delay(backoffSeconds * 1000);
-                        backoffSeconds = Math.min(backoffSeconds * 2, MAX_BACKOFF);
+                    // V22.3: Centralized handleRateLimit (handles 403/429)
+                    if (await this.handleRateLimit(response)) {
                         start -= batchSize;
                         consecutiveErrors++;
-                        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                            console.error(`   ❌ [ArXiv] CRITICAL: Rate limit depth exceeded for ${category}. Abandoning.`);
-                            break;
-                        }
                         continue;
                     }
-                    // V14.5: Handle 503 Service Unavailable with retry
-                    if (response.status === 503) {
-                        console.warn(`   ⚠️ [ArXiv] Service unavailable (503), retrying in ${backoffSeconds}s...`);
+
+                    // V14.5: Handle 503/500 with backoff retry
+                    if (response.status === 503 || response.status === 500) {
+                        const statusType = response.status === 503 ? 'Service Unavailable' : 'Internal Error';
+                        console.warn(`   ⚠️ [ArXiv] ${statusType} (${response.status}) on ${category}. Backing off ${backoffSeconds}s...`);
                         await this.delay(backoffSeconds * 1000);
                         backoffSeconds = Math.min(backoffSeconds * 2, MAX_BACKOFF);
                         start -= batchSize;
                         consecutiveErrors++;
                         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                            console.error(`   ❌ [ArXiv] Service unavailable too long, stopping category ${category}`);
+                            console.error(`   ❌ [ArXiv] API unhealthy for too long, stopping category ${category}`);
                             break;
                         }
                         continue;

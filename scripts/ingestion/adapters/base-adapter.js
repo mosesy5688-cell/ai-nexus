@@ -193,6 +193,40 @@ export class BaseAdapter {
     }
 
     /**
+     * Handle rate limits (403/429) across sources
+     * V22.3: Centralized Industrial Throttling
+     * @param {Response} response - Fetch Response object
+     * @returns {Promise<boolean>} True if waited and should retry, false otherwise
+     */
+    async handleRateLimit(response) {
+        if (response.status === 403 || response.status === 429) {
+            // Check for GitHub secondary rate limit (403 with specific message)
+            // or standard 429.
+            let waitMs = 60000; // Default: 1 minute
+
+            const resetHeader = response.headers.get('x-ratelimit-reset');
+            const retryAfter = response.headers.get('retry-after');
+
+            if (resetHeader) {
+                // Unix timestamp (seconds)
+                const resetTime = parseInt(resetHeader, 10) * 1000;
+                waitMs = Math.max(0, resetTime - Date.now()) + 5000; // Add 5s buffer
+            } else if (retryAfter) {
+                // Seconds or Date string
+                const seconds = parseInt(retryAfter, 10);
+                waitMs = (!isNaN(seconds) ? seconds * 1000 : (new Date(retryAfter).getTime() - Date.now())) + 2000;
+            }
+
+            const waitSec = (waitMs / 1000).toFixed(1);
+            console.warn(`\n🛑 [Rate Limit] ${this.sourceName.toUpperCase()} throttling (Status ${response.status}). Waiting ${waitSec}s...`);
+
+            await this.delay(waitMs);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Normalize license to SPDX ID
      * V4.1: Handle object-type licenses (e.g., {name: 'apache-2.0'})
      */
