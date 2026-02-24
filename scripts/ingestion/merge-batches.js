@@ -9,7 +9,7 @@
  * Usage: node scripts/ingestion/merge-batches.js
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, createWriteStream } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
@@ -18,6 +18,7 @@ import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-m
 import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { scrubIdentities } from './lib/identity-scrubber.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
+import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 const DATA_DIR = 'data';
 const OUTPUT_FILE = 'data/merged.json.gz';
@@ -32,173 +33,175 @@ function calculateHash(content) {
     return crypto.createHash('sha256').update(content).digest('hex');
 }
 
-const files = await fs.readdir(DATA_DIR);
-const batchFiles = files.filter(f => f.startsWith('raw_batch_') && f.endsWith('.json'));
+async function mergeBatches() {
+    const files = await fs.readdir(DATA_DIR);
+    const batchFiles = files.filter(f => f.startsWith('raw_batch_') && f.endsWith('.json'));
 
-// V22.7: Load Deduplication Map EARLY for persistent canonical ID mapping
-let dedupMap = {};
-const fsSync = await import('fs');
-try {
-    const dedupPath = path.join(process.cwd(), 'public/api/cache/deduplication-map.json');
-    if (fsSync.existsSync(dedupPath)) {
-        const dedupData = JSON.parse(fsSync.readFileSync(dedupPath, 'utf8'));
-        dedupMap = dedupData.canonical_map || {};
-        console.log(`   🔗 [Merge] Loaded deduplication map with ${Object.keys(dedupMap).length} entries.`);
-    }
-} catch (e) {
-    console.warn(`   ⚠️ [Merge] Failed to load deduplication map: ${e.message}`);
-}
-
-if (batchFiles.length === 0) {
-    console.log('⚠️ No batch files found in data/');
-    return { total: 0, sources: [] };
-}
-
-const allEntities = [];
-const sourceStats = [];
-const seenIds = new Map();
-const batchManifests = [];
-
-for (const file of batchFiles) {
-    const filePath = path.join(DATA_DIR, file);
+    // V22.7: Load Deduplication Map EARLY for persistent canonical ID mapping
+    let dedupMap = {};
+    const fsSync = await import('fs');
     try {
-        const content = await fs.readFile(filePath, 'utf-8');
-        const stats = await fs.stat(filePath);
-        const entities = JSON.parse(content);
-
-        batchManifests.push({
-            name: file,
-            size: stats.size,
-            count: entities.length,
-            hash: `sha256:${calculateHash(content)}`
-        });
-
-        let added = 0;
-        let mergedCount = 0;
-
-        for (const entity of entities) {
-            if (!entity.id) continue;
-
-            // V22.7: Apply Deduplication Mapping BEFORE merging to ensure persistence
-            const dedupEntry = dedupMap[entity.id] || dedupMap[entity.canonical_id];
-            if (dedupEntry) {
-                entity.canonical_id = dedupEntry.canonical_id;
-            }
-
-            if (seenIds.has(entity.id)) {
-                seenIds.set(entity.id, mergeEntities(seenIds.get(entity.id), entity));
-                mergedCount++;
-            } else {
-                if (entity.source_trail && typeof entity.source_trail !== 'string') {
-                    entity.source_trail = JSON.stringify(entity.source_trail);
-                }
-                seenIds.set(entity.id, entity);
-                allEntities.push(entity);
-                added++;
-            }
+        const dedupPath = path.join(process.cwd(), 'public/api/cache/deduplication-map.json');
+        if (fsSync.existsSync(dedupPath)) {
+            const dedupData = JSON.parse(fsSync.readFileSync(dedupPath, 'utf8'));
+            dedupMap = dedupData.canonical_map || {};
+            console.log(`   🔗 [Merge] Loaded deduplication map with ${Object.keys(dedupMap).length} entries.`);
         }
-
-        const sourceName = file.replace('raw_batch_', '').replace('.json', '');
-        sourceStats.push({ source: sourceName, count: added, file });
-        console.log(`   ✓ ${sourceName}: ${added} new | ${mergedCount} augmented`);
-    } catch (error) {
-        console.error(`   ❌ Error reading ${file}: ${error.message}`);
+    } catch (e) {
+        console.warn(`   ⚠️ [Merge] Failed to load deduplication map: ${e.message}`);
     }
-}
 
-const registryManager = new RegistryManager();
-await registryManager.load();
-const registryState = await registryManager.mergeCurrentBatch(allEntities);
+    if (batchFiles.length === 0) {
+        console.log('⚠️ No batch files found in data/');
+        return { total: 0, sources: [] };
+    }
 
-const checksums = await loadEntityChecksums();
-await saveEntityChecksums(checksums);
+    const allEntities = [];
+    const sourceStats = [];
+    const seenIds = new Map();
+    const batchManifests = [];
 
-// V18.12.5.1: Memory Relief - Clear batch entities from heap
-console.log(`   💡 [Merge] Disposing batch intermediate objects...`);
-seenIds.clear();
+    for (const file of batchFiles) {
+        const filePath = path.join(DATA_DIR, file);
+        try {
+            const content = await fs.readFile(filePath, 'utf-8');
+            const stats = await fs.stat(filePath);
+            const entities = JSON.parse(content);
 
-if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
-    throw new Error(`Registry Load Failure - Emergency Abort to Protect 85k Baseline`);
-}
+            batchManifests.push({
+                name: file,
+                size: stats.size,
+                count: entities.length,
+                hash: `sha256:${calculateHash(content)}`
+            });
 
-if (registryState.count < 85000) {
-    throw new Error(`CRITICAL: Entity count dropped to ${registryState.count} (Expected >85k).`);
-}
+            let added = 0;
+            let mergedCount = 0;
 
-await new Promise((resolve, reject) => {
-    const output = createWriteStream(OUTPUT_FILE);
-    const gzip = zlib.createGzip();
-    gzip.pipe(output);
+            for (const entity of entities) {
+                if (!entity.id) continue;
 
-    output.on('error', reject);
-    gzip.on('error', reject);
-    output.on('finish', resolve);
+                // V22.7: Apply Deduplication Mapping BEFORE merging to ensure persistence
+                const dedupEntry = dedupMap[entity.id] || dedupMap[entity.canonical_id];
+                if (dedupEntry) {
+                    entity.canonical_id = dedupEntry.canonical_id;
+                }
 
-    let compressedSize = 0;
-    gzip.on('data', chunk => {
-        compressedSize += chunk.length; // Local tracking
-        hash.update(chunk);
-    });
+                if (seenIds.has(entity.id)) {
+                    seenIds.set(entity.id, mergeEntities(seenIds.get(entity.id), entity));
+                    mergedCount++;
+                } else {
+                    if (entity.source_trail && typeof entity.source_trail !== 'string') {
+                        entity.source_trail = JSON.stringify(entity.source_trail);
+                    }
+                    seenIds.set(entity.id, entity);
+                    allEntities.push(entity);
+                    added++;
+                }
+            }
 
-    gzip.write('[');
+            const sourceName = file.replace('raw_batch_', '').replace('.json', '');
+            sourceStats.push({ source: sourceName, count: added, file });
+            console.log(`   ✓ ${sourceName}: ${added} new | ${mergedCount} augmented`);
+        } catch (error) {
+            console.error(`   ❌ Error reading ${file}: ${error.message}`);
+        }
+    }
+
+    const registryManager = new RegistryManager();
+    await registryManager.load();
+    const registryState = await registryManager.mergeCurrentBatch(allEntities);
+
+    const checksums = await loadEntityChecksums();
+    await saveEntityChecksums(checksums);
+
+    // V18.12.5.1: Memory Relief - Clear batch entities from heap
+    console.log(`   💡 [Merge] Disposing batch intermediate objects...`);
+    seenIds.clear();
+
+    if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
+        throw new Error(`Registry Load Failure - Emergency Abort to Protect 85k Baseline`);
+    }
+
+    if (registryState.count < 85000) {
+        throw new Error(`CRITICAL: Entity count dropped to ${registryState.count} (Expected >85k).`);
+    }
+
     let exportedCount = 0;
     let totalVelocity = 0;
+    let compressedSize = 0;
     const hash = crypto.createHash('sha256');
 
-    // V19.0: Stream from SQLite sorted by ID (O(1) Memory Use)
-    const iterator = registryManager.getStreamingIterator('id ASC');
-    for (const entity of iterator) {
-        // Scrub on the fly (V2.1 Alignment)
-        const oldId = entity.id;
-        const source = getNodeSource(oldId, entity.type);
-        const newId = normalizeId(oldId, source, entity.type);
+    await new Promise((resolve, reject) => {
+        const output = createWriteStream(OUTPUT_FILE);
+        const gzip = zlib.createGzip();
+        gzip.pipe(output);
 
-        // V22.7: Clean pass-through (already prepared in Phase 1)
-        const scrubbed = {
-            ...entity,
-            id: newId
-        };
+        output.on('error', reject);
+        gzip.on('error', reject);
+        output.on('finish', resolve);
 
-        if (exportedCount > 0) gzip.write(',');
-        gzip.write(JSON.stringify(scrubbed));
+        gzip.on('data', chunk => {
+            compressedSize += chunk.length; // Local tracking
+            hash.update(chunk);
+        });
 
-        totalVelocity += (scrubbed.velocity || 0);
-        exportedCount++;
+        gzip.write('[');
 
-        if (exportedCount % 10000 === 0) {
-            console.log(`   - Streamed ${exportedCount} entities...`);
+        // V19.0: Stream from SQLite sorted by ID (O(1) Memory Use)
+        const iterator = registryManager.getStreamingIterator('id ASC');
+        for (const entity of iterator) {
+            // Scrub on the fly (V2.1 Alignment)
+            const oldId = entity.id;
+            const source = getNodeSource(oldId, entity.type);
+            const newId = normalizeId(oldId, source, entity.type);
+
+            // V22.7: Clean pass-through (already prepared in Phase 1)
+            const scrubbed = {
+                ...entity,
+                id: newId
+            };
+
+            if (exportedCount > 0) gzip.write(',');
+            gzip.write(JSON.stringify(scrubbed));
+
+            totalVelocity += (scrubbed.velocity || 0);
+            exportedCount++;
+
+            if (exportedCount % 10000 === 0) {
+                console.log(`   - Streamed ${exportedCount} entities...`);
+            }
         }
-    }
 
-    gzip.write(']');
-    gzip.end();
-});
+        gzip.write(']');
+        gzip.end();
+    });
 
-const mergedHash = hash.digest('hex');
+    const mergedHash = hash.digest('hex');
 
-console.log(`\n✅ [Merge] Complete\n   Total: ${exportedCount} unique entities`);
+    console.log(`\n✅ [Merge] Complete\n   Total: ${exportedCount} unique entities`);
 
-await finalizeMerge({
-    manifestFile: MANIFEST_FILE,
-    outputFile: OUTPUT_FILE,
-    mergedContent: null,
-    mergedHash,
-    allEntitiesCount: exportedCount,
-    batchManifests,
-    sourceStats,
-    batchFilesCount: batchFiles.length,
-    fullSet: [], // Memory Safety: Pass empty array, velocity handled by aggregate
-    avgVelocityOverride: totalVelocity / (exportedCount || 1),
-    MAX_BATCH_SIZE_MB,
-    MAX_ENTITIES_PER_BATCH,
-    byteLength: compressedSize
-});
+    await finalizeMerge({
+        manifestFile: MANIFEST_FILE,
+        outputFile: OUTPUT_FILE,
+        mergedContent: null,
+        mergedHash,
+        allEntitiesCount: exportedCount,
+        batchManifests,
+        sourceStats,
+        batchFilesCount: batchFiles.length,
+        fullSet: [], // Memory Safety: Pass empty array, velocity handled by aggregate
+        avgVelocityOverride: totalVelocity / (exportedCount || 1),
+        MAX_BATCH_SIZE_MB,
+        MAX_ENTITIES_PER_BATCH,
+        byteLength: compressedSize
+    });
 
-// V18.2.3: Explicitly persist to sharded registry cache
-console.log(`\n💾 [Merge] Updating sharded baseline...`);
-await registryManager.save();
+    // V18.2.3: Explicitly persist to sharded registry cache
+    console.log(`\n💾 [Merge] Updating sharded baseline...`);
+    await registryManager.save();
 
-return { total: exportedCount, sources: sourceStats };
+    return { total: exportedCount, sources: sourceStats };
 }
 
 mergeBatches().catch(err => {

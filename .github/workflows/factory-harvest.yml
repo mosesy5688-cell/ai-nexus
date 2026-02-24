@@ -121,11 +121,11 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - name: Restore node_modules
-        uses: actions/cache/restore@v4
+      - uses: actions/setup-node@v4
         with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('package-lock.json') }}
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
       - name: Harvest ArXiv Papers
         if: github.event.inputs.skip_harvest != 'true'
         env:
