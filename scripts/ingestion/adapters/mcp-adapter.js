@@ -30,7 +30,7 @@ export class MCPAdapter extends BaseAdapter {
      * @param {number} options.limit - Max servers to fetch (default: 500)
      */
     async fetch(options = {}) {
-        const { limit = 500 } = options;
+        const { limit = 500, onBatch } = options;
 
         console.log(`📥 [MCP] Fetching up to ${limit} MCP servers from registry...`);
 
@@ -40,7 +40,7 @@ export class MCPAdapter extends BaseAdapter {
 
         try {
             // Paginated fetch
-            while (allServers.length < limit) {
+            while ((onBatch ? true : allServers.length < limit)) {
                 page++;
                 const url = cursor
                     ? `${MCP_REGISTRY_API}/v0/servers?cursor=${cursor}&limit=100`
@@ -63,12 +63,17 @@ export class MCPAdapter extends BaseAdapter {
 
                 if (servers.length === 0) break;
 
-                allServers.push(...servers);
-                console.log(`   Page ${page}: +${servers.length} servers (total: ${allServers.length})`);
+                if (onBatch) {
+                    await onBatch(servers);
+                } else {
+                    allServers.push(...servers);
+                }
+
+                console.log(`   Page ${page}: +${servers.length} servers (total: ${onBatch ? 'Streaming' : allServers.length})`);
 
                 // Check for pagination cursor
                 cursor = data.next_cursor || data.cursor;
-                if (!cursor) break;
+                if (!cursor || (!onBatch && allServers.length >= limit)) break;
 
                 // Rate limit protection
                 await this.delay(500);
@@ -77,9 +82,8 @@ export class MCPAdapter extends BaseAdapter {
             console.error(`   ❌ MCP Registry fetch error: ${error.message}`);
         }
 
-        const results = allServers.slice(0, limit);
-        console.log(`✅ [MCP] Fetched ${results.length} MCP servers`);
-        return results;
+        console.log(`✅ [MCP] ${onBatch ? 'Streaming' : 'Fetched ' + allServers.length + ' MCP servers'} complete`);
+        return onBatch ? [] : allServers.slice(0, limit);
     }
 
     /**

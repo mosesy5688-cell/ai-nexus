@@ -57,7 +57,7 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
      * @param {number} options.limit - Maximum papers to fetch (default: 100)
      */
     async fetch(options = {}) {
-        const { limit = 100 } = options;
+        const { limit = 100, onBatch } = options;
 
         console.log(`📥 [HuggingFace Papers] Fetching daily papers (limit: ${limit})...`);
 
@@ -85,14 +85,18 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
                 try {
                     const enrichedPaper = await this.enrichPaper(paper);
                     if (enrichedPaper) {
-                        allPapers.push(enrichedPaper);
+                        if (onBatch) {
+                            await onBatch([enrichedPaper]);
+                        } else {
+                            allPapers.push(enrichedPaper);
+                        }
                     }
                 } catch (error) {
                     console.warn(`   ⚠️ Error enriching paper ${paper.id}: ${error.message}`);
                 }
 
                 // Rate limiting - Constitution compliant
-                if (allPapers.length % 10 === 0) {
+                if ((onBatch ? 1 : allPapers.length) % 10 === 0) {
                     await this.delay(1000);
                 }
             }
@@ -101,8 +105,8 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
             console.error(`   ❌ Fetch error: ${error.message}`);
         }
 
-        console.log(`✅ [HuggingFace Papers] Fetched ${allPapers.length} papers`);
-        return allPapers;
+        console.log(`✅ [HuggingFace Papers] ${onBatch ? 'Streaming' : 'Fetched ' + allPapers.length + ' papers'} complete`);
+        return onBatch ? [] : allPapers;
     }
 
     /**

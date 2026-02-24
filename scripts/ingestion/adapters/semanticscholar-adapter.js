@@ -29,7 +29,7 @@ export class SemanticScholarAdapter extends BaseAdapter {
      * Main Fetch Entry Point
      */
     async fetch(options = {}) {
-        const { arxivIds = [], limit = 3000 } = options;
+        const { arxivIds = [], limit = 3000, onBatch } = options;
 
         if (arxivIds.length === 0) {
             console.log(`📥 [S2] No arXiv IDs provided. Attempting to seed from recent local cache...`);
@@ -40,7 +40,7 @@ export class SemanticScholarAdapter extends BaseAdapter {
                     // For now, falling back to search mode if manifest seeding fails
                 }
             } catch (e) { }
-            return await this.searchAIPapers(limit);
+            return await this.searchAIPapers(limit, onBatch);
         }
 
         console.log(`📥 [S2] Fetching citations for ${arxivIds.length} papers...`);
@@ -49,40 +49,57 @@ export class SemanticScholarAdapter extends BaseAdapter {
         for (const arxivId of arxivIds.slice(0, limit)) {
             try {
                 const paper = await this.fetchPaperByArxiv(arxivId);
-                if (paper) results.push(paper);
+                if (paper) {
+                    if (onBatch) {
+                        await onBatch([paper]);
+                    } else {
+                        results.push(paper);
+                    }
+                }
                 await this.delay(3000); // Respect API limit
             } catch (error) {
                 console.warn(`   ⚠️ ${arxivId}: ${error.message}`);
             }
         }
 
-        return results;
+        console.log(`✅ [S2] ${onBatch ? 'Streaming' : 'Fetched ' + results.length + ' papers'} complete`);
+        return onBatch ? [] : results;
     }
 
     /**
      * Search papers by AI topics
      */
-    async searchAIPapers(limit = 1000) {
+    async searchAIPapers(limit = 1000, onBatch) {
         const TOPICS = [
             'large language model', 'diffusion model', 'machine learning', 'transformer',
             'computer vision', 'natural language processing', 'ai benchmarks', 'autonomous agents',
             'reinforcement learning', 'generative ai'
         ];
         const papers = [];
+        const seenIds = new Set();
 
         for (const topic of TOPICS) {
             if (papers.length >= limit) break;
             console.log(`   🔍 Searching: ${topic}...`);
-            const results = await this.searchPapers(topic, Math.min(100, limit - papers.length));
+            const results = await this.searchPapers(topic, Math.min(100, limit - (onBatch ? 0 : papers.length)));
 
+            const uniqueNewResults = [];
             for (const p of results) {
-                if (!papers.find(existing => existing.paper_id === p.paper_id)) {
-                    papers.push(p);
+                if (!seenIds.has(p.paper_id)) {
+                    seenIds.add(p.paper_id);
+                    uniqueNewResults.push(p);
                 }
+            }
+
+            if (onBatch) {
+                await onBatch(uniqueNewResults);
+            } else {
+                papers.push(...uniqueNewResults);
             }
             await this.delay(3000);
         }
-        return papers;
+        console.log(`✅ [S2 Search] ${onBatch ? 'Streaming' : 'Fetched ' + papers.length + ' papers'} complete`);
+        return onBatch ? [] : papers;
     }
 
     /**

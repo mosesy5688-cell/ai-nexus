@@ -15,7 +15,7 @@ export class SpacesAdapter extends BaseAdapter {
     }
 
     async fetch(options = {}) {
-        const { limit = 500, sort = 'likes', direction = -1, full = true } = options;
+        const { limit = 500, sort = 'likes', direction = -1, full = true, onBatch } = options;
         console.log(`📥 [HF Spaces] Fetching top ${limit} spaces...`);
 
         const response = await fetch(`${HF_API}/spaces?sort=${sort}&direction=${direction}&limit=${limit}`);
@@ -32,12 +32,19 @@ export class SpacesAdapter extends BaseAdapter {
         for (let i = 0; i < spaces.length; i += BATCH_SIZE) {
             const batch = spaces.slice(i, i + BATCH_SIZE);
             const results = await Promise.all(batch.map(s => this.fetchFullSpace(s.id)));
-            fullSpaces.push(...results.filter(Boolean));
+            const validResults = results.filter(Boolean);
+
+            if (onBatch) {
+                await onBatch(validResults);
+            } else {
+                fullSpaces.push(...validResults);
+            }
+
             if ((i + BATCH_SIZE) % 50 === 0) console.log(`   Progress: ${Math.min(i + BATCH_SIZE, spaces.length)}/${spaces.length}`);
             if (i + BATCH_SIZE < spaces.length) await this.delay(BATCH_DELAY);
         }
-        console.log(`✅ [HF Spaces] Fetched ${fullSpaces.length} complete spaces`);
-        return fullSpaces;
+        console.log(`✅ [HF Spaces] ${onBatch ? 'Streaming' : 'Fetched ' + fullSpaces.length + ' complete spaces'} complete`);
+        return onBatch ? [] : fullSpaces;
     }
 
     // V14.5: Added 429 retry logic with exponential backoff

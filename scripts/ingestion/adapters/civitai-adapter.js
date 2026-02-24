@@ -53,30 +53,28 @@ export class CivitAIAdapter extends BaseAdapter {
         const {
             limit = 100,
             sort = 'Highest Rated',
-            types = ['Checkpoint', 'LORA', 'TextualInversion']
+            types = ['Checkpoint', 'LORA', 'TextualInversion'],
+            onBatch = null // Ensure explicit declaration
         } = options;
 
-        console.log(`📥 [CivitAI] Fetching top ${limit} SFW models...`);
+        console.log(`📥 [CivitAI] Fetching top ${limit} SFW models (onBatch: ${!!onBatch})...`);
 
         const allModels = [];
         let cursor = null;
         let fetched = 0;
 
-        while (fetched < limit) {
-            const batchSize = Math.min(100, limit - fetched);
-            // CivitAI API defaults to SFW content
-            // Note: API only accepts single type, not comma-separated list
-            let url = `${CIVITAI_API_BASE}/models?limit=${batchSize}&sort=${encodeURIComponent(sort)}`;
+        try {
+            while (fetched < limit) {
+                const batchSize = Math.min(100, limit - fetched);
+                let url = `${CIVITAI_API_BASE}/models?limit=${batchSize}&sort=${encodeURIComponent(sort)}`;
 
-            // Use first type only (API doesn't accept comma-separated types)
-            if (types.length > 0) {
-                url += `&types=${types[0]}`;
-            }
-            if (cursor) {
-                url += `&cursor=${cursor}`;
-            }
+                if (types.length > 0) {
+                    url += `&types=${types[0]}`;
+                }
+                if (cursor) {
+                    url += `&cursor=${cursor}`;
+                }
 
-            try {
                 console.log(`   Fetching batch: ${fetched + 1} - ${fetched + batchSize}`);
                 const response = await fetch(url);
 
@@ -94,29 +92,33 @@ export class CivitAIAdapter extends BaseAdapter {
 
                 if (models.length === 0) break;
 
-                // Additional NSFW check at fetch level
                 const safeModels = models.filter(m => this.isSafeForWork(m));
-                allModels.push(...safeModels);
+
+                if (onBatch) {
+                    try {
+                        await onBatch(safeModels);
+                    } catch (batchError) {
+                        console.error(`   ❌ [CivitAI] onBatch callback error: ${batchError.message}`);
+                    }
+                } else {
+                    allModels.push(...safeModels);
+                }
 
                 fetched += models.length;
                 cursor = data.metadata?.nextCursor;
 
-                console.log(`   📦 Got ${safeModels.length}/${models.length} safe models`);
+                console.log(`   📦 Got ${safeModels.length}/${models.length} safe models (total: ${onBatch ? 'Streaming' : allModels.length})`);
 
                 if (!cursor) break;
-
-                // Rate limiting - V4.3.1 Constitution: Be respectful to source APIs
-                // CivitAI recommended: 2-3 seconds between requests
                 await this.delay(2500);
-
-            } catch (error) {
-                console.error(`   ❌ Fetch error: ${error.message}`);
-                break;
             }
+        } catch (error) {
+            console.error(`   ❌ [CivitAI] Fetch internal error: ${error.message}`);
+            console.error(error.stack);
         }
 
-        console.log(`✅ [CivitAI] Fetched ${allModels.length} safe models`);
-        return allModels;
+        console.log(`✅ [CivitAI] ${onBatch ? 'Streaming' : 'Fetched ' + allModels.length + ' safe models'} complete`);
+        return onBatch ? [] : allModels;
     }
 
     /**
