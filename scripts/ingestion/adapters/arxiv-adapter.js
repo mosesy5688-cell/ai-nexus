@@ -71,10 +71,15 @@ export class ArXivAdapter extends BaseAdapter {
             sortBy = 'submittedDate',
             sortOrder = 'descending',
             offset = 0,
-            onBatch // V17.5: Stream support
+            onBatch, // V17.5: Stream support
+            shard = 0,
+            totalShards = 1
         } = options;
 
-        console.log(`📥 [ArXiv] Fetching ~${limitsPerCategory * AI_CATEGORIES.length} papers...`);
+        // V22.1 Sharding: Filter categories belonging to this shard
+        const categories = AI_CATEGORIES.filter((_, idx) => idx % totalShards === shard);
+
+        console.log(`📥 [ArXiv] Shard ${shard}/${totalShards} processing ${categories.length} categories...`);
 
         const allPapers = [];
         const seenIds = new Set();
@@ -98,7 +103,7 @@ export class ArXivAdapter extends BaseAdapter {
             }
         };
 
-        for (const cat of AI_CATEGORIES) {
+        for (const cat of categories) {
             console.log(`   [ArXiv] Category: ${cat}`);
             await this.fetchFromCategory({
                 category: cat,
@@ -197,8 +202,12 @@ export class ArXivAdapter extends BaseAdapter {
                             const bodyMatch = htmlText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
                             const extracted = bodyMatch ? bodyMatch[1] : htmlText;
 
-                            // V19.5 Mode B: Full-Text Preservation (User requested full collection)
-                            paper.full_html = extracted;
+                            // V22.1 Hardening: Absolute truncation for massive papers (500KB limit)
+                            // Some papers have huge SVG/Table data that can crash JSON stringifiers.
+                            const MAX_HTML_SIZE = 500000;
+                            paper.full_html = extracted.length > MAX_HTML_SIZE
+                                ? extracted.substring(0, MAX_HTML_SIZE) + '\n\n[Full-text truncated for memory safety...]'
+                                : extracted;
                         }
                     } catch (e) {
                         // Suppress timeout/network errors to keep pipeline moving
