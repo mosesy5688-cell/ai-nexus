@@ -67,7 +67,7 @@ export class SpacesAdapter extends BaseAdapter {
                 const readmeRes = await fetch(`${HF_RAW}/spaces/${spaceId}/raw/main/README.md`);
                 if (readmeRes.ok) {
                     readme = await readmeRes.text();
-                    if (readme.length > 50000) readme = readme.substring(0, 50000) + '\n[Truncated]';
+                    if (readme.length > 250000) readme = readme.substring(0, 250000) + '\n[Truncated for memory safety]';
                     modelsUsed = this.extractModelsFromReadme(readme);
                 }
             } catch (e) { /* ignore */ }

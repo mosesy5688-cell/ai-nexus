@@ -104,7 +104,7 @@ export class AgentsAdapter extends BaseAdapter {
                 if (readmeRes.ok) {
                     const rd = await readmeRes.json();
                     readme = Buffer.from(rd.content, 'base64').toString('utf-8');
-                    if (readme.length > 50000) readme = readme.substring(0, 50000) + '\n[Truncated]';
+                    if (readme.length > 250000) readme = readme.substring(0, 250000) + '\n[Truncated for memory safety]';
                 }
             } catch (e) { /* ignore */ }
 

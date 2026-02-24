@@ -156,7 +156,7 @@ export class CivitAIAdapter extends BaseAdapter {
         const creator = raw.creator || {};
 
         // Build ID
-        const id = `civitai:${raw.id}`;
+        const id = this.generateId('civitai', String(raw.id), 'model');
         const slug = `civitai-${raw.id}-${this.slugify(raw.name || 'model')}`;
 
         // Extract tags

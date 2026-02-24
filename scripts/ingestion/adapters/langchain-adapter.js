@@ -12,7 +12,7 @@
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
-const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com/api/v1/public';
+const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com/api/v1/hub';
 
 /**
  * LangChain Hub Adapter Implementation
@@ -38,8 +38,18 @@ export class LangChainAdapter extends BaseAdapter {
      * @param {Object} options
      * @param {number} options.limit - Number of items to fetch (default: 2000)
      */
+    /**
+     * Fetch prompts/agents from LangChain Hub API
+     * @param {Object} options
+     * @param {number} options.limit - Number of items to fetch (default: 2000)
+     */
+    /**
+     * Fetch prompts/agents from LangChain Hub API
+     * @param {Object} options
+     * @param {number} options.limit - Number of items to fetch (default: 2000)
+     */
     async fetch(options = {}) {
-        const { limit = 2000 } = options;
+        const { limit = 2000, onBatch } = options;
 
         console.log(`📥 [LangChain] Fetching up to ${limit} prompts/agents...`);
 
@@ -64,7 +74,7 @@ export class LangChainAdapter extends BaseAdapter {
                 }
 
                 const data = await response.json();
-                const items = data.repos || data.prompts || data.results || [];
+                const items = data.repos || [];
 
                 if (items.length === 0) {
                     console.log('   No more items');
@@ -73,9 +83,14 @@ export class LangChainAdapter extends BaseAdapter {
 
                 // Filter safe items
                 const safeItems = items.filter(item => this.isSafeForWork(item));
-                allItems.push(...safeItems);
 
-                console.log(`   📦 Got ${safeItems.length}/${items.length} items (total: ${allItems.length})`);
+                if (onBatch) {
+                    await onBatch(safeItems);
+                } else {
+                    allItems.push(...safeItems);
+                }
+
+                console.log(`   📦 Got ${safeItems.length}/${items.length} items (total: ${onBatch ? 'Streaming' : allItems.length})`);
 
                 offset += pageSize;
                 await this.delay(500); // Rate limiting
@@ -89,8 +104,8 @@ export class LangChainAdapter extends BaseAdapter {
             }
         }
 
-        console.log(`✅ [LangChain] Fetched ${allItems.length} items`);
-        return allItems.slice(0, limit);
+        console.log(`✅ [LangChain] ${onBatch ? 'Streaming' : 'Fetched ' + allItems.length + ' items'} complete`);
+        return onBatch ? [] : allItems.slice(0, limit);
     }
 
     /**
@@ -116,7 +131,7 @@ export class LangChainAdapter extends BaseAdapter {
         const type = isAgent ? 'agent' : 'prompt';
         const id = `langchain-${type}--${owner}--${handle}`;
 
-        return {
+        const entity = {
             id,
             type,
             name: raw.full_name || handle,

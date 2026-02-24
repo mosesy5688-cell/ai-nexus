@@ -23,80 +23,67 @@ const TYPE_TO_ROUTE = {
     'prompt': '/prompt'
 };
 
-
-
 async function main() {
-    console.log('[BAKER V16.5.1] Baking atomized Mesh Profiles...');
+    console.log('[BAKER V22.0] Baking atomized Mesh Profiles (ID Sync Level)...');
 
     try {
-        // 1. Load authoritative graph (V16.11 Gzip Support)
         let graphBuffer = await fs.readFile(GRAPH_PATH);
-
-        // Manual Gunzip for baker core
         try {
             const zlib = await import('zlib');
             graphBuffer = zlib.default.gunzipSync(graphBuffer);
-        } catch (e) {
-            // Fallback if already uncompressed (dev mode)
-        }
+        } catch (e) { }
 
         const graph = JSON.parse(graphBuffer.toString('utf-8'));
         const nodeRegistry = graph.nodes || {};
-        const edgeRegistry = graph.edges || {}; // Authoritative adjacency list
+        const edgeRegistry = graph.edges || {};
         const nodeIds = Object.keys(nodeRegistry);
 
         console.log(`[BAKER] Loaded ${nodeIds.length} nodes from graph.`);
 
         let bakedCount = 0;
-
-        // 2. Process each node
-        for (const nodeId of nodeIds) {
+        for (let nodeId of nodeIds) {
+            // V22.0 Phase 3: Synchronize all entity IDs with V2.1 prefixes
             const node = nodeRegistry[nodeId];
+            const typeValue = node.type || node.t || 'model';
+
+            // Ensure ID is normalized per SPEC-V2.1
+            const syncedId = normalizeId(nodeId, getNodeSource(nodeId, typeValue), typeValue);
+
             const entityRelations = edgeRegistry[nodeId] || [];
+            const canonUrl = getRouteFromId(syncedId, typeValue);
 
-            // V16.11 Fix: Support shorthand 't' or full 'type' from graph.json
-            const typeValue = node.type || node.t;
-            if (!node || !typeValue) continue;
-
-            const baseType = typeValue.toLowerCase();
-            const canonUrl = getRouteFromId(nodeId, baseType);
-
-            // 3. Process relations with baked URLs
             const bakedRelations = entityRelations.map(rel => {
-                const targetId = rel.target || rel.target_id || rel.id;
+                const targetIdRaw = rel.target || rel.target_id || rel.id;
                 const targetType = (rel.type || rel.t || 'model').toLowerCase();
-                const bakedUrl = getRouteFromId(targetId, targetType);
+                const syncedTargetId = normalizeId(targetIdRaw, getNodeSource(targetIdRaw, targetType), targetType);
+                const bakedUrl = getRouteFromId(syncedTargetId, targetType);
 
                 return {
                     ...rel,
                     url: bakedUrl,
-                    target_id: targetId,
-                    target_name: rel.name || rel.target_name || (targetId.includes('--') ? targetId.split('--').pop() : targetId)
+                    target_id: syncedTargetId,
+                    target_name: rel.name || rel.target_name || (syncedTargetId.split('--').pop())
                 };
             });
 
-            // 4. Construct Atomized Profile
             const profile = {
-                id: nodeId,
-                name: node.name || (nodeId.includes('--') ? nodeId.split('--').pop() : nodeId),
+                id: syncedId,
+                name: node.name || (syncedId.split('--').pop()),
                 type: typeValue,
                 url: canonUrl,
                 icon: node.icon || '📦',
                 relations: bakedRelations,
                 _generated_at: new Date().toISOString(),
-                _version: '16.5.1-baked'
+                _version: '22.0.0-synced-baker'
             };
 
-            // 5. Smart Write: mesh/profiles/{nodeId}.json (Gzip Enabled)
-            const targetKey = `mesh/profiles/${nodeId}.json`;
+            const targetKey = `mesh/profiles/${syncedId}.json`;
             await smartWriteWithVersioning(targetKey, profile, CACHE_DIR, { compress: true });
 
             bakedCount++;
             if (bakedCount % 10000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles...`);
         }
-
         console.log(`[BAKER] ✅ Successfully baked ${bakedCount} Mesh Profiles.`);
-
     } catch (error) {
         console.error('[BAKER] ❌ Baking failed:', error.message);
         process.exit(1);

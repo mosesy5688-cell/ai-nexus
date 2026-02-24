@@ -88,46 +88,64 @@ async function main() {
 
     console.log(`[SHARD ${shardId}] Processing ${shardEntities.length} entities...`);
 
-    // Process
-    const results = [];
+    // V18.12.5.21: Industrial Streaming Output (Art 3.4)
+    // Prevents OOM by writing entities to disk as they are processed.
+    const outPath = path.join(CONFIG.ARTIFACT_DIR, `shard-${shardId}.json.gz`);
+    await fs.mkdir(CONFIG.ARTIFACT_DIR, { recursive: true });
+
+    // Create Gzip Stream
+    const outStream = zlib.createGzip();
+    const fileStream = (await import('fs')).createWriteStream(outPath);
+    outStream.pipe(fileStream);
+
+    // Header
+    outStream.write('{\n"shardId":' + shardId + ',\n"entities":[\n');
+
+    let processedCount = 0;
+    let successCount = 0;
     const startTime = Date.now();
 
-    for (const entity of shardEntities) {
-        // V16.99: Balanced Processing (Full Complete)
-        const result = await processEntity(entity, globalStats, entityChecksums, fniHistory, CONFIG);
+    for (let i = 0; i < shardEntities.length; i++) {
+        const entity = shardEntities[i];
+        try {
+            const result = await processEntity(entity, globalStats, entityChecksums, fniHistory, CONFIG);
 
-        // V16.11: Capture FULL data in result for the shard
-        // results.push(result); -> already contains enriched and html if processEntity provides it
-        results.push({
-            ...result,
-            // Optimization: if processEntity didn't return them, we normally wouldn't have them
-            // In current V16.5 impl, processEntity is expected to return the enriched object
-        });
+            if (result.success) successCount++;
+            processedCount++;
 
-        if (results.length % 500 === 0) {
-            console.log(`[SHARD ${shardId}] Progress: ${results.length}/${shardEntities.length}...`);
+            // Write to stream
+            const comma = i === 0 ? '' : ',\n';
+            outStream.write(comma + JSON.stringify(result));
+
+            // GC Guard: Periodically clear references
+            shardEntities[i] = null;
+
+            if (processedCount % 500 === 0) {
+                const mem = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0);
+                console.log(`[SHARD ${shardId}] Progress: ${processedCount}/${shardEntities.length} (RAM: ${mem}MB)...`);
+                // If --expose-gc is set, we use it
+                if (global.gc) global.gc();
+            }
+        } catch (e) {
+            console.error(`[SHARD ${shardId}] Error processing ${entity.id}:`, e.message);
         }
     }
 
-    // V16.11: Monolithic Compressed Output
-    const shardData = {
-        shardId,
-        totalShards,
-        processedCount: results.length,
-        successCount: results.filter(r => r.success).length,
-        entities: results,
-        timestamp: new Date().toISOString(),
-        version: '16.11.0-monolithic'
-    };
+    // Footer
+    const timestamp = new Date().toISOString();
+    outStream.write(`\n],\n"timestamp":"${timestamp}",\n"processedCount":${processedCount},\n"successCount":${successCount},\n"version":"18.12.5.21-streaming"\n}`);
 
-    const json = JSON.stringify(shardData);
-    const compressed = zlib.gzipSync(json);
+    // Finalize
+    outStream.end();
 
-    await fs.mkdir(CONFIG.ARTIFACT_DIR, { recursive: true });
-    const outPath = path.join(CONFIG.ARTIFACT_DIR, `shard-${shardId}.json.gz`);
-    await fs.writeFile(outPath, compressed);
-
-    console.log(`[SHARD ${shardId}] ✅ Complete. Written to ${outPath} (${(compressed.length / 1024 / 1024).toFixed(2)} MB)`);
+    return new Promise((resolve) => {
+        fileStream.on('finish', () => {
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+            const stats = (require('fs').statSync(outPath).size / 1024 / 1024).toFixed(2);
+            console.log(`[SHARD ${shardId}] ✅ Complete. Written to ${outPath} (${stats} MB) in ${duration}s`);
+            resolve();
+        });
+    });
 }
 
 main().catch(err => {

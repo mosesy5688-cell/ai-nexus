@@ -60,7 +60,7 @@ export class GitHubAdapter extends BaseAdapter {
  */
     async fetch(options = {}) {
         const {
-            limit = 200,
+            limit = 10000,
             // V6.2: Expanded topic list for broader coverage
             topics = [
                 // Core AI/ML
@@ -192,9 +192,9 @@ export class GitHubAdapter extends BaseAdapter {
                     // Extract installation/Quick-Start commands *before* aggressive architectural truncation
                     const quickStartBlock = this.extractQuickStartFromReadme(readme);
 
-                    // Truncate to 100KB (V19 Data Suicide Ban: Do NOT arbitrarily truncate small lengths for size optimization)
-                    if (readme.length > 100000) {
-                        readme = readme.substring(0, 100000) + '\n\n[Content truncated...]';
+                    // Truncate to 250KB (Relaxed for 100k entity scale)
+                    if (readme.length > 250000) {
+                        readme = readme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]';
                     }
 
                     // Attach the extracted quickStart block dynamically

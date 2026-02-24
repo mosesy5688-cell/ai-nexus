@@ -195,7 +195,10 @@ export class ArXivAdapter extends BaseAdapter {
                             const htmlText = await htmlRes.text();
                             // Extract just the body/main content to cut down on Head/CSS noise
                             const bodyMatch = htmlText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-                            paper.full_html = bodyMatch ? bodyMatch[1] : htmlText;
+                            const extracted = bodyMatch ? bodyMatch[1] : htmlText;
+
+                            // V19.5 Mode B: Full-Text Preservation (User requested full collection)
+                            paper.full_html = extracted;
                         }
                     } catch (e) {
                         // Suppress timeout/network errors to keep pipeline moving

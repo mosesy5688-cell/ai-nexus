@@ -13,6 +13,7 @@ const CATEGORIES = [
     'vision-multimedia',
     'automation-workflow',
     'infrastructure-ops',
+    'prompts',
 ];
 
 const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset', 'tool', 'prompt'];

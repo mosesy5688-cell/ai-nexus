@@ -44,7 +44,7 @@ export class ReplicateAdapter extends BaseAdapter {
      * @param {number} options.limit - Number of models to fetch (default: 5000)
      */
     async fetch(options = {}) {
-        const { limit = 5000 } = options;
+        const { limit = 5000, onBatch } = options;
 
         console.log(`📥 [Replicate] Fetching up to ${limit} models...`);
 
@@ -56,7 +56,7 @@ export class ReplicateAdapter extends BaseAdapter {
         let cursor = null;
         let page = 1;
 
-        while (allModels.length < limit) {
+        while ((onBatch ? true : allModels.length < limit)) {
             const url = cursor
                 ? `${REPLICATE_API_BASE}/models?cursor=${encodeURIComponent(cursor)}`
                 : `${REPLICATE_API_BASE}/models`;
@@ -77,16 +77,12 @@ export class ReplicateAdapter extends BaseAdapter {
                 const data = await response.json();
                 const models = data.results || [];
 
-                if (models.length === 0) {
-                    console.log('   No more models');
-                    break;
-                }
+                if (models.length === 0) break;
 
                 // Filter safe models
                 const safeModels = models.filter(m => this.isSafeForWork(m));
 
                 // Secondary request logic: fetch full README for each safe model
-                // This satisfies the Phase 1 requirement to increase data density for Deep Dive page
                 console.log(`   📝 Fetching deep README context for ${safeModels.length} models...`);
                 for (const model of safeModels) {
                     try {
@@ -98,24 +94,28 @@ export class ReplicateAdapter extends BaseAdapter {
 
                         if (detailRes.ok) {
                             const detailData = await detailRes.json();
-                            // If API returns a markdown readme, bind it to the model payload
-                            model.readme = detailData.readme || null;
-                        } else if (detailRes.status === 429) {
-                            console.warn(`   ⚠️ Rate limited on README fetch, backing off...`);
-                            await this.delay(3000);
+                            const rawReadme = detailData.readme || null;
+                            if (rawReadme) {
+                                // V19.5 Hardening: Relaxed Truncation (250KB)
+                                model.readme = rawReadme.length > 250000
+                                    ? rawReadme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]'
+                                    : rawReadme;
+                            }
                         }
-                    } catch (e) {
-                        // Suppress timeout/network errors to keep pipeline moving
-                    }
+                    } catch (e) { }
                 }
 
-                allModels.push(...safeModels);
+                if (onBatch) {
+                    await onBatch(safeModels);
+                } else {
+                    allModels.push(...safeModels);
+                }
 
-                console.log(`   📦 Got ${safeModels.length}/${models.length} models (total: ${allModels.length})`);
+                console.log(`   📦 Got ${safeModels.length}/${models.length} models (total: ${onBatch ? 'Streaming' : allModels.length})`);
 
                 // Check for next page
                 cursor = data.next ? new URL(data.next).searchParams.get('cursor') : null;
-                if (!cursor) break;
+                if (!cursor || (!onBatch && allModels.length >= limit)) break;
 
                 page++;
                 await this.delay(1000); // Rate limiting
@@ -126,8 +126,8 @@ export class ReplicateAdapter extends BaseAdapter {
             }
         }
 
-        console.log(`✅ [Replicate] Fetched ${allModels.length} models`);
-        return allModels.slice(0, limit);
+        console.log(`✅ [Replicate] ${onBatch ? 'Streaming' : 'Fetched ' + allModels.length + ' models'} complete`);
+        return onBatch ? [] : allModels.slice(0, limit);
     }
 
     /**

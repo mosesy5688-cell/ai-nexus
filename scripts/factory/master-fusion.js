@@ -1,119 +1,119 @@
 /**
- * Master Fusion Orchestrator V16.11.0
- * Architecture: Monolithic Shard Iteration (Gzip Enabled)
+ * Master Fusion Orchestrator V18.12.5.21
+ * Architecture: Late-Binding FNI & Closed-World Integrity
+ * Optimized for: Split-DB Architecture (Partitioned Output)
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
-import { smartWriteWithVersioning } from './lib/smart-writer.js';
 
-const CACHE_DIR = process.env.CACHE_DIR || './cache';
-const ARTIFACT_DIR = process.env.ARTIFACT_DIR || './artifacts';
-const MESH_DIR = path.join(CACHE_DIR, 'mesh/profiles');
+// Configuration
+const CONFIG = {
+    TOTAL_SHARDS: 20,
+    CACHE_DIR: process.env.CACHE_DIR || './cache',
+    ARTIFACT_DIR: process.env.ARTIFACT_DIR || './artifacts',
+    OUTPUT_DIR: './output'
+};
+
 async function main() {
-    console.log('[FUSION] 🧪 Commencing Master Fusion (Compressed Shard Logic)...');
+    console.log('[FUSION] 🛡️ Starting Industrial-Scale Knowledge Mesh Fusion...');
 
-    let fusedCount = 0;
-    let totalEntitiesFound = 0;
+    // 1. Load Global Registry Fragments (Baseline ID Map)
+    const { loadGlobalRegistry } = await import('./lib/cache-manager.js');
+    console.log('[FUSION] Phase 1: Building Global ID Map (Closed World)...');
 
-    const files = await fs.readdir(ARTIFACT_DIR).catch(() => []);
-    const shardFiles = files.filter(f => f.startsWith('part-') && f.endsWith('.json.gz'))
-        .sort((a, b) => {
-            const na = parseInt(a.match(/\d+/)[0]);
-            const nb = parseInt(b.match(/\d+/)[0]);
-            return na - nb;
-        });
+    // We load registry slim to save RAM (190k IDs is ~15MB)
+    const registry = await loadGlobalRegistry({ slim: true });
+    const entities = registry.entities || [];
+    const allValidIds = new Set(entities.map(e => e.id));
+    console.log(`  [OK] Validated ${allValidIds.size} entities in reference baseline.`);
 
-    console.log(`[FUSION] Found ${shardFiles.length} shards in ${ARTIFACT_DIR}`);
+    // 2. Load Late-Binding FNI Metrics (from Stage 3/4)
+    console.log('[FUSION] Phase 2: Loading Late-Binding FNI Targets...');
+    let fniThresholds = { scorePercentiles: {}, citationCounts: {} };
+    try {
+        const thresholdPath = path.join(CONFIG.OUTPUT_DIR, 'cache/fni-thresholds.json');
+        if (await fs.access(thresholdPath).then(() => true).catch(() => false)) {
+            const data = await fs.readFile(thresholdPath, 'utf-8');
+            fniThresholds = JSON.parse(data);
+            const count = Object.keys(fniThresholds.scorePercentiles).length;
+            console.log(`  [OK] Loaded ${count} FNI percentiles and ${Object.keys(fniThresholds.citationCounts).length} citation weights.`);
+        } else {
+            console.warn('  [WARN] fni-thresholds.json not found. Rank data will be stale.');
+        }
+    } catch (e) {
+        console.error('  [ERROR] Failed to load thresholds:', e.message);
+    }
 
-    for (let i = 0; i < shardFiles.length; i++) {
-        const file = shardFiles[i];
-        const shardPath = path.join(ARTIFACT_DIR, file);
+    // 3. Iterative Shard Merge (Partitioned Output)
+    const { projectEntity } = await import('./lib/registry-loader.js');
+    console.log('[FUSION] Phase 3: Merging enriched shards with late-bound metrics...');
+
+    for (let i = 0; i < CONFIG.TOTAL_SHARDS; i++) {
+        const shardFile = path.join(CONFIG.ARTIFACT_DIR, `shard-${i}.json.gz`);
+        if (!await fs.access(shardFile).then(() => true).catch(() => false)) {
+            console.log(`  [SKIP] Shard ${i} missing.`);
+            continue;
+        }
 
         try {
-            console.log(`[FUSION] 📦 Processing Shard ${i} (${file})...`);
-            const compressed = await fs.readFile(shardPath);
-            const shardData = JSON.parse(zlib.gunzipSync(compressed));
-            const entities = shardData.entities || [];
+            const raw = await fs.readFile(shardFile);
+            const decompressed = zlib.gunzipSync(raw);
+            const shard = JSON.parse(decompressed.toString('utf-8'));
+            const shardEntities = shard.entities || [];
 
-            totalEntitiesFound += entities.length;
+            const fusedEntities = [];
+            for (const result of shardEntities) {
+                const entity = result.enriched || result;
 
-            for (const entityData of entities) {
-                const id = entityData.id || entityData.slug;
-                if (!id) continue;
-
-                // Load mesh profile if exists (V16.6: Try .gz first, then fallback to .json)
-                const meshPath = path.join(MESH_DIR, `${id}.json.gz`);
-                const meshFallback = path.join(MESH_DIR, `${id}.json`);
-
-                const meshData = await fs.readFile(meshPath)
-                    .catch(() => fs.readFile(meshFallback))
-                    .then(buf => {
-                        try {
-                            // Check for Gzip magic number (1f 8b)
-                            if (buf[0] === 0x1f && buf[1] === 0x8b) {
-                                return JSON.parse(zlib.gunzipSync(buf));
-                            }
-                            return JSON.parse(buf);
-                        } catch (e) { return null; }
-                    }).catch(() => null);
-
-                // Load existing fused data to preserve timestamp if unchanged (V19.3: Gzip Aware)
-                const targetKey = `fused/${id}.json`;
-                const existingPath = path.join(CACHE_DIR, `${targetKey}.gz`);
-                const existingFallback = path.join(CACHE_DIR, targetKey);
-
-                const existingData = await fs.readFile(existingPath)
-                    .catch(() => fs.readFile(existingFallback))
-                    .then(buf => {
-                        try {
-                            if (buf[0] === 0x1f && buf[1] === 0x8b) {
-                                return JSON.parse(zlib.gunzipSync(buf));
-                            }
-                            return JSON.parse(buf);
-                        } catch (e) { return null; }
-                    }).catch(() => null);
-
-                // Perform Deep Fusion
-                const baseData = entityData.enriched || entityData;
-
-                // V19.2 Stability Optimization: Only update timestamp if content actually changes
-                let _fused_at = new Date().toISOString();
-                if (existingData) {
-                    const hasDataChanged =
-                        JSON.stringify(existingData.mesh_profile) !== JSON.stringify(meshData || { relations: [] }) ||
-                        existingData.html_readme !== (entityData.html || baseData.html_readme || '') ||
-                        existingData._fusion_status !== (entityData.success ? 'refined' : 'raw');
-
-                    if (!hasDataChanged) {
-                        _fused_at = existingData._fused_at;
-                    }
+                // A. Closed World Filter (No broken links)
+                if (entity.relations) {
+                    const { normalizeId, getNodeSource } = await import('../utils/id-normalizer.js');
+                    entity.relations = entity.relations.filter(r => {
+                        const normTarget = normalizeId(r.target_id, r.target_source || getNodeSource(r.target_id, r.target_type));
+                        return allValidIds.has(normTarget);
+                    });
                 }
 
-                const fusedEntity = {
-                    ...(existingData || {}),
-                    ...baseData,
-                    id: id,
-                    html_readme: entityData.html || baseData.html_readme || (existingData && existingData.html_readme) || '',
-                    mesh_profile: meshData || (existingData && existingData.mesh_profile) || { relations: [] },
-                    _fused_at,
-                    _version: '19.4.0-legacy-retention-fusion',
-                    _fusion_status: entityData.success ? 'refined' : 'raw'
-                };
+                // B. Apply Late-Binding FNI (V16.5 SPEC: Vitality 75% + Mesh 25%)
+                const baseScore = entity.fni_score ?? entity.fni ?? 0;
+                const Sm = Math.min(100, fniThresholds.citationCounts?.[entity.id] || 0);
+                const finalFni = Math.round((baseScore * 0.75) + (Sm * 0.25));
+                const percentile = fniThresholds.scorePercentiles?.[finalFni] || 0;
 
-                // Save to ultimate fusion storage (with pre-compression logic in smartWriter)
-                await smartWriteWithVersioning(targetKey, fusedEntity, CACHE_DIR, { compress: true });
+                entity.fni_score = finalFni;
+                entity.fni_pScore = finalFni; // Backup for search engine
+                entity.fni_percentile = percentile;
+                if (entity.metrics) {
+                    entity.metrics.sm = Sm;
+                }
 
-                fusedCount++;
-                if (fusedCount % 5000 === 0) console.log(`[FUSION] Fused ${fusedCount} nodes...`);
+                // C. Project for VFS (Partitioned Registry Storage)
+                fusedEntities.push(projectEntity(entity, false));
             }
+
+            // Write Partitioned Registry
+            const outDir = path.join(CONFIG.OUTPUT_DIR, 'registry');
+            await fs.mkdir(outDir, { recursive: true });
+            const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.gz`);
+
+            await fs.writeFile(outPath, zlib.gzipSync(JSON.stringify({
+                shardId: i,
+                entities: fusedEntities,
+                _ts: new Date().toISOString()
+            })));
+
+            console.log(`  [OK] Shard ${i}: Fused ${fusedEntities.length} entities.`);
         } catch (e) {
-            console.error(`[FUSION] ❌ Failed to process Shard ${i}:`, e.message);
+            console.error(`  [FAIL] Shard ${i} processing error:`, e.message);
         }
     }
 
-    console.log(`[FUSION] ✅ Finalized ${fusedCount}/${totalEntitiesFound} Universal Refined Entities.`);
+    console.log(`[FUSION] ✅ Complete! Industry-Grade Mesh Fused to ${CONFIG.OUTPUT_DIR}/registry/`);
 }
 
-main().catch(console.error);
+main().catch(err => {
+    console.error('[CRITICAL] Fusion Failure:', err);
+    process.exit(1);
+});

@@ -89,14 +89,14 @@ export class OllamaAdapter extends BaseAdapter {
         const paramsText = raw.parameters ? `\n\n## Parameters\n\`\`\`text\n${raw.parameters}\n\`\`\`\n` : '';
         const entity = {
             // Identity
-            id: `ollama/${ollamaId}`,
+            id: this.generateId('ollama', ollamaId, 'model'),
             type: 'model',
             source: 'ollama',
             source_url: raw.source_url || `https://ollama.com/library/${ollamaId}`,
 
             // Content
             title: raw.name || ollamaId,
-            description: `Ollama model: ${ollamaId}. Run locally with: ollama run ${ollamaId}`,
+            description: this.truncate(raw.description || `Ollama model: ${ollamaId}. Run locally with: ollama run ${ollamaId}`, 500),
             body_content: `${modelfileText}${paramsText}`,
             tags: ['ollama', 'local-deployment'],
 

@@ -14,7 +14,8 @@ const ARXIV_PATTERNS = [
     /arxiv\.org\/abs\/(\d{4}\.\d{4,5})/gi,
     /arxiv\.org\/pdf\/(\d{4}\.\d{4,5})/gi,
     /arXiv:(\d{4}\.\d{4,5})/gi,
-    /\[(\d{4}\.\d{4,5})\]/g  // Common format: [2401.12345]
+    /arxiv-paper--(\d{4}\.\d{4,5})/gi, // V2.1 Support
+    /\[(\d{4}\.\d{4,5})\]/g
 ];
 
 /**
@@ -50,7 +51,7 @@ export function extractArxivIds(text) {
         let match;
         const regex = new RegExp(pattern.source, pattern.flags);
         while ((match = regex.exec(text)) !== null) {
-            ids.add(match[1]);
+            ids.add(`arxiv-paper--${match[1]}`); // Produce V2.1 IDs natively
         }
     }
 
@@ -87,7 +88,8 @@ export function extractDatasetIds(text, tags) {
         const regex = new RegExp(pattern.source, pattern.flags);
         while ((match = regex.exec(searchText)) !== null) {
             if (match[1] && match[1].length >= 3) {
-                datasets.add(match[1].toLowerCase());
+                const dsId = match[1].toLowerCase().replace(/\//g, '--');
+                datasets.add(`hf-dataset--${dsId}`); // Produce V2.1 IDs natively
             }
         }
     }

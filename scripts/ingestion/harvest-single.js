@@ -65,9 +65,15 @@ async function harvestSingle(sourceName, options = {}) {
                     await fs.writeFile(batchFile, JSON.stringify(currentChunk, null, 2));
                     results.chunks.push(batchFile);
                     console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile}`);
+
+                    // V19.5 Hardening: Aggressive GC for high-volume jobs
                     currentChunk = [];
                     chunkIndex++;
-                    if (global.gc) global.gc();
+
+                    if (global.gc) {
+                        console.log(`   🧹 [GC] Periodical cleanup...`);
+                        try { global.gc(); } catch (e) { }
+                    }
                 }
             }
         };
