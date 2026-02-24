@@ -139,57 +139,79 @@ export class KaggleAdapter extends BaseAdapter {
      */
     /**
      * Fetch models from Kaggle
-     * V22.4: Migrated from CLI to direct JSON API for industrial throughput
+     * V22.8: Multi-sort strategy to bypass per-sort ~2K page limit
      */
     async fetchModels(limit, onBatch) {
-        console.log(`   🤖 Fetching models (limit: ${limit}) via Direct API...`);
+        console.log(`   🤖 Fetching models (limit: ${limit}) via Multi-Sort API...`);
         const allModels = [];
-        let page = 1;
+        const seenIds = new Set();
         const pageSize = 100;
 
-        while (true) {
-            const url = `${KAGGLE_API_BASE}/models/list?sortBy=hottest&page=${page}&pageSize=${pageSize}`;
+        // V22.8: Cycle through multiple sort strategies to maximize coverage
+        const sortStrategies = ['hottest', 'downloadCount', 'editDate'];
 
-            try {
-                const response = await fetch(url, { headers: this.getHeaders() });
+        for (const sortBy of sortStrategies) {
+            if (allModels.length >= limit) break;
+            let page = 1;
+            console.log(`   📊 [Kaggle] Sort strategy: ${sortBy}...`);
 
-                if (!response.ok) {
-                    if (response.status === 429) {
-                        console.warn('   ⚠️ [Kaggle Models] Rate limited, waiting 30s...');
-                        await this.delay(30000);
-                        continue;
+            while (page <= 100 && allModels.length < limit) {
+                const url = `${KAGGLE_API_BASE}/models/list?sortBy=${sortBy}&page=${page}&pageSize=${pageSize}`;
+
+                try {
+                    const response = await fetch(url, { headers: this.getHeaders() });
+
+                    if (!response.ok) {
+                        if (response.status === 429) {
+                            console.warn('   ⚠️ [Kaggle Models] Rate limited, waiting 30s...');
+                            await this.delay(30000);
+                            continue;
+                        }
+                        // V22.8: 400 means page limit reached for this sort, try next sort
+                        if (response.status === 400) {
+                            console.log(`   ⏭️ [Kaggle] ${sortBy} exhausted at page ${page}, switching sort...`);
+                            break;
+                        }
+                        console.error(`   ❌ Kaggle Models API error: ${response.status}`);
+                        break;
                     }
-                    console.error(`   ❌ Kaggle Models API error: ${response.status}`);
+
+                    const models = await response.json();
+                    if (!models || models.length === 0) break;
+
+                    // Filter safe models + deduplicate across sorts
+                    const safe = models.filter(m => this.isSafeForWork(m));
+                    const newModels = safe.filter(m => {
+                        const id = m.id || m.slug || `${m.owner}/${m.name}`;
+                        if (seenIds.has(id)) return false;
+                        seenIds.add(id);
+                        return true;
+                    });
+                    const marked = newModels.map(m => ({ ...m, _entityType: 'model' }));
+
+                    if (onBatch && marked.length > 0) {
+                        await onBatch(marked);
+                    } else {
+                        allModels.push(...marked);
+                    }
+
+                    if (page % 10 === 0) {
+                        console.log(`   ${sortBy} p${page}: +${marked.length} new (total: ${onBatch ? 'Streaming' : allModels.length})`);
+                    }
+
+                    if (!onBatch && allModels.length >= limit) break;
+
+                    page++;
+                    await this.delay(500);
+
+                } catch (error) {
+                    console.error(`   ❌ Kaggle Models API Error: ${error.message}`);
                     break;
                 }
-
-                const models = await response.json();
-                if (!models || models.length === 0) break;
-
-                // Filter safe models
-                const safe = models.filter(m => this.isSafeForWork(m));
-                const marked = safe.map(m => ({ ...m, _entityType: 'model' }));
-
-                if (onBatch) {
-                    await onBatch(marked);
-                } else {
-                    allModels.push(...marked);
-                }
-
-                console.log(`   Page ${page}: +${safe.length} models (total: ${onBatch ? 'Streaming' : allModels.length})`);
-
-                if (!onBatch && allModels.length >= limit) break;
-                if (page > 100) break; // Consistency with datasets
-
-                page++;
-                await this.delay(500); // Shorter delay for API
-
-            } catch (error) {
-                console.error(`   ❌ Kaggle Models API Error: ${error.message}`);
-                break;
             }
         }
 
+        console.log(`   ✅ [Kaggle Models] Fetched ${onBatch ? 'Streaming' : allModels.length} models across ${sortStrategies.length} strategies`);
         return onBatch ? [] : allModels.slice(0, limit);
     }
 

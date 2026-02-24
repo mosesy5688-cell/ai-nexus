@@ -53,52 +53,75 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
 
     /**
      * Fetch papers from HuggingFace Daily Papers API
+     * V22.8: Iterates past 90 days for historical coverage (~50/day × 90 = ~4,500 papers)
      * @param {Object} options
-     * @param {number} options.limit - Maximum papers to fetch (default: 100)
+     * @param {number} options.limit - Maximum papers to fetch (default: 5000)
      */
     async fetch(options = {}) {
-        const { limit = 100, onBatch } = options;
+        const { limit = 5000, onBatch } = options;
+        const daysToFetch = Math.min(90, Math.ceil(limit / 40)); // ~40-60 papers/day
 
-        console.log(`📥 [HuggingFace Papers] Fetching daily papers (limit: ${limit})...`);
+        console.log(`📥 [HuggingFace Papers] Fetching daily papers (limit: ${limit}, days: ${daysToFetch})...`);
 
         const allPapers = [];
+        const seenIds = new Set();
 
         try {
-            // Fetch daily papers
-            const response = await fetch(HF_PAPERS_API, {
-                headers: this.getHeaders()
-            });
-
-            if (!response.ok) {
-                throw new Error(`HuggingFace Papers API error: ${response.status}`);
-            }
-
-            const papers = await response.json();
-            console.log(`📦 [HuggingFace Papers] Got ${papers.length} papers from API`);
-
             if (this.hfToken) {
                 console.log(`🔑 [HuggingFace Papers] Using authenticated requests`);
             }
 
-            // Process papers up to limit
-            for (const paper of papers.slice(0, limit)) {
+            const today = new Date();
+            for (let d = 0; d < daysToFetch && allPapers.length < limit; d++) {
+                const date = new Date(today - d * 86400000).toISOString().split('T')[0];
+                const url = `${HF_PAPERS_API}?date=${date}`;
+
                 try {
-                    const enrichedPaper = await this.enrichPaper(paper);
-                    if (enrichedPaper) {
-                        if (onBatch) {
-                            await onBatch([enrichedPaper]);
-                        } else {
-                            allPapers.push(enrichedPaper);
+                    const response = await fetch(url, { headers: this.getHeaders() });
+
+                    if (!response.ok) {
+                        if (response.status === 429) {
+                            console.warn(`   ⚠️ Rate limited on ${date}, waiting 10s...`);
+                            await this.delay(10000);
+                            d--; continue;
+                        }
+                        console.warn(`   ⚠️ API error ${response.status} for ${date}, skipping`);
+                        continue;
+                    }
+
+                    const papers = await response.json();
+                    let added = 0;
+
+                    for (const paper of papers) {
+                        if (allPapers.length >= limit) break;
+                        const paperId = paper.id || paper.paper?.id;
+                        if (!paperId || seenIds.has(paperId)) continue;
+                        seenIds.add(paperId);
+
+                        try {
+                            const enrichedPaper = await this.enrichPaper(paper);
+                            if (enrichedPaper) {
+                                if (onBatch) {
+                                    await onBatch([enrichedPaper]);
+                                } else {
+                                    allPapers.push(enrichedPaper);
+                                }
+                                added++;
+                            }
+                        } catch (error) {
+                            console.warn(`   ⚠️ Error enriching paper ${paperId}: ${error.message}`);
                         }
                     }
+
+                    if (d % 10 === 0) {
+                        console.log(`   📅 ${date}: +${added} papers (total: ${allPapers.length})`);
+                    }
                 } catch (error) {
-                    console.warn(`   ⚠️ Error enriching paper ${paper.id}: ${error.message}`);
+                    console.warn(`   ⚠️ Fetch error for ${date}: ${error.message}`);
                 }
 
-                // Rate limiting - Constitution compliant
-                if ((onBatch ? 1 : allPapers.length) % 10 === 0) {
-                    await this.delay(1000);
-                }
+                // Rate limiting between days
+                await this.delay(500);
             }
 
         } catch (error) {

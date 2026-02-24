@@ -123,6 +123,7 @@ export class GitHubAdapter extends BaseAdapter {
         for (const topic of topics) {
             if (allRepos.length >= limit) break;
             let after = null;
+            let retries = 0; // V22.8: Track retries per topic
 
             for (let page = 1; page <= pagesPerTopic; page++) {
                 if (allRepos.length >= limit) break;
@@ -147,9 +148,18 @@ export class GitHubAdapter extends BaseAdapter {
                         if (await this.handleRateLimit(response)) {
                             page--; continue;
                         }
-                        console.warn(`   ⚠️ GitHub GQL failed: ${response.status}`);
+                        // V22.8: Retry on 502/503 with exponential backoff (max 3 retries, 10s/20s/30s wait)
+                        if ((response.status === 502 || response.status === 503) && retries < 3) {
+                            retries++;
+                            const backoff = retries * 10000; // 10s, 20s, 30s
+                            console.warn(`   ⚠️ GitHub GQL ${response.status}, retry ${retries}/3 in ${backoff / 1000}s...`);
+                            await this.delay(backoff);
+                            page--; continue;
+                        }
+                        console.warn(`   ⚠️ GitHub GQL failed: ${response.status} (giving up on ${topic})`);
                         break;
                     }
+                    retries = 0; // Reset on success
 
                     const result = await response.json();
                     if (result.errors) {
