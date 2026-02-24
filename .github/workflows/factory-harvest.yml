@@ -38,9 +38,13 @@ concurrency:
 # ============================================================
 jobs:
   harvest-huggingface:
-    name: Harvest HuggingFace
+    name: Harvest HuggingFace - Shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      matrix:
+        shard: [0, 1, 2]
+      fail-fast: false
     
     steps:
       - uses: actions/checkout@v4
@@ -56,20 +60,20 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=6144'
         run: |
-          echo "📥 [Parallel] Harvesting HuggingFace Models (V19: 30K)..."
-          node scripts/ingestion/harvest-single.js huggingface --limit 30000
+          echo "📥 [Parallel] Harvesting HuggingFace Models (Shard ${{ matrix.shard }}/3)..."
+          node scripts/ingestion/harvest-single.js huggingface --limit 30000 --shard ${{ matrix.shard }} --total-shards 3
           
       - name: Solidify HuggingFace Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v4
         with:
           path: data/raw_batch_*.json
-          key: harvest-raw-huggingface-${{ github.run_id }}
+          key: harvest-raw-huggingface-${{ github.run_id }}-${{ matrix.shard }}
 
       - name: Upload Batch Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: batch-huggingface
+          name: batch-huggingface-${{ matrix.shard }}
           path: data/raw_batch_*.json
           retention-days: 1
 
@@ -115,31 +119,36 @@ jobs:
   # JOB 3: ACADEMIC SOURCES (ArXiv + Papers + Datasets)
   # ============================================================
   harvest-academic:
-    name: Harvest Academic
+    name: Harvest Academic - Shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    strategy:
+      matrix:
+        shard: [0, 1, 2]
+      fail-fast: false
     
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
       - name: Harvest ArXiv Papers
         if: github.event.inputs.skip_harvest != 'true'
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
-          echo "📥 [Parallel] Harvesting ArXiv (V19: 100K)..."
-          node scripts/ingestion/harvest-single.js arxiv --limit 100000 || echo "ArXiv adapter skipped"
+          echo "📥 [Parallel] Harvesting ArXiv (Shard ${{ matrix.shard }}/3)..."
+          node scripts/ingestion/harvest-single.js arxiv --limit 100000 --shard ${{ matrix.shard }} --total-shards 3 || echo "ArXiv adapter skipped"
           
       - name: Harvest HuggingFace Papers
         if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          echo "📥 [Parallel] Harvesting HF Papers..."
-          node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 || echo "HF Papers adapter skipped"
+          echo "📥 [Parallel] Harvesting HF Papers (Shard ${{ matrix.shard }}/3)..."
+          node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 --shard ${{ matrix.shard }} --total-shards 3 || echo "HF Papers adapter skipped"
 
       - name: Harvest HuggingFace Datasets
         if: github.event.inputs.skip_harvest != 'true'
@@ -147,20 +156,20 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
-          echo "📥 [Parallel] Harvesting HF Datasets (V19: 20K)..."
-          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 20000 || echo "HF Datasets adapter skipped"
+          echo "📥 [Parallel] Harvesting HF Datasets (Shard ${{ matrix.shard }}/3)..."
+          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 20000 --shard ${{ matrix.shard }} --total-shards 3 || echo "HF Datasets adapter skipped"
 
       - name: Solidify Academic Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v4
         with:
           path: data/raw_batch_*.json
-          key: harvest-raw-academic-${{ github.run_id }}
+          key: harvest-raw-academic-${{ github.run_id }}-${{ matrix.shard }}
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: batch-academic
+          name: batch-academic-${{ matrix.shard }}
           path: data/raw_batch_*.json
           retention-days: 1
 

@@ -37,8 +37,13 @@ async function harvestSingle(sourceName, options = {}) {
         await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
         // Fetch from source
-        console.log(`   Fetching and streaming...`);
-        const CHUNK_SIZE = 1500;
+        console.log(`   Fetching ${limit} entities (Shard ${shard}/${totalShards})...`);
+        // Memory Hardening: Adjust chunk size based on source weight
+        // ArXiv is "Heavy" due to full-text HTML extraction (can be 2MB+ per paper)
+        // HuggingFace is "Medium" (READMEs can be long)
+        const HEAVY_SOURCES = ['arxiv', 'semanticscholar'];
+        const CHUNK_SIZE = HEAVY_SOURCES.includes(sourceName) ? 200 : 1500;
+
         const results = { source: sourceName, total: 0, chunks: [] };
         let currentChunk = [];
         let chunkIndex = 0;
@@ -61,26 +66,33 @@ async function harvestSingle(sourceName, options = {}) {
 
                 // Write chunk to disk if it reaches the limit
                 if (currentChunk.length >= CHUNK_SIZE) {
-                    const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_${chunkIndex}.json`);
-                    await fs.writeFile(batchFile, JSON.stringify(currentChunk, null, 2));
+                    const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_s${shard}_c${chunkIndex}.json`);
+                    // V22.1 Optimization: Disable pretty-printing to save 30% memory/disk
+                    await fs.writeFile(batchFile, JSON.stringify(currentChunk));
                     results.chunks.push(batchFile);
-                    console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile}`);
+                    console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile} (${currentChunk.length} entities)`);
 
                     // V19.5 Hardening: Aggressive GC for high-volume jobs
                     currentChunk = [];
                     chunkIndex++;
 
                     if (global.gc) {
-                        console.log(`   🧹 [GC] Periodical cleanup...`);
                         try { global.gc(); } catch (e) { }
                     }
                 }
             }
         };
 
+        const fetchOptions = {
+            limit,
+            onBatch: processBatch,
+            shard,
+            totalShards
+        };
+
         let rawEntities = [];
         try {
-            rawEntities = await adapter.fetch({ limit, onBatch: processBatch });
+            rawEntities = await adapter.fetch(fetchOptions);
         } catch (fetchError) {
             console.error(`   ❌ Fetch error: ${fetchError.message}`);
             console.error(fetchError.stack);
@@ -97,8 +109,8 @@ async function harvestSingle(sourceName, options = {}) {
 
         // Write any remaining items
         if (currentChunk.length > 0) {
-            const batchFile = path.join(OUTPUT_DIR, results.chunks.length === 0 ? `raw_batch_${sourceName}.json` : `raw_batch_${sourceName}_${chunkIndex}.json`);
-            await fs.writeFile(batchFile, JSON.stringify(currentChunk, null, 2));
+            const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_s${shard}_c${chunkIndex}.json`);
+            await fs.writeFile(batchFile, JSON.stringify(currentChunk));
             results.chunks.push(batchFile);
             console.log(`   ✓ Final chunk saved to: ${batchFile}`);
             currentChunk = [];
@@ -135,10 +147,18 @@ async function main() {
     // Parse arguments
     let sourceName = null;
     let limit = 10000;
+    let shard = 0;
+    let totalShards = 1;
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--limit' && args[i + 1]) {
             limit = parseInt(args[i + 1], 10);
+            i++;
+        } else if (args[i] === '--shard' && args[i + 1]) {
+            shard = parseInt(args[i + 1], 10);
+            i++;
+        } else if (args[i] === '--total-shards' && args[i + 1]) {
+            totalShards = parseInt(args[i + 1], 10);
             i++;
         } else if (!args[i].startsWith('--')) {
             sourceName = args[i];
@@ -146,12 +166,12 @@ async function main() {
     }
 
     if (!sourceName) {
-        console.log('Usage: node harvest-single.js <source> [--limit N]');
+        console.log('Usage: node harvest-single.js <source> [--limit N] [--shard S] [--total-shards T]');
         console.log(`Available sources: ${Object.keys(adapters).join(', ')}`);
         process.exit(1);
     }
 
-    await harvestSingle(sourceName, { limit });
+    await harvestSingle(sourceName, { limit, shard, totalShards });
 }
 
 // Export for programmatic use
