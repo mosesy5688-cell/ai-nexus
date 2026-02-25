@@ -21,10 +21,12 @@ import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
  * @returns {number} 0-1 similarity score
  */
 function jaccardSimilarity(tagsA, tagsB) {
-    if (!tagsA?.length || !tagsB?.length) return 0;
+    const arrA = Array.isArray(tagsA) ? tagsA : (typeof tagsA === 'string' ? [tagsA] : []);
+    const arrB = Array.isArray(tagsB) ? tagsB : (typeof tagsB === 'string' ? [tagsB] : []);
+    if (!arrA.length || !arrB.length) return 0;
 
-    const setA = new Set((tagsA || []).filter(t => typeof t === 'string').map(t => t.toLowerCase()));
-    const setB = new Set((tagsB || []).filter(t => typeof t === 'string').map(t => t.toLowerCase()));
+    const setA = new Set(arrA.filter(t => typeof t === 'string').map(t => t.toLowerCase()));
+    const setB = new Set(arrB.filter(t => typeof t === 'string').map(t => t.toLowerCase()));
 
     let intersection = 0;
     for (const tag of setA) {

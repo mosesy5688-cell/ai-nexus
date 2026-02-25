@@ -58,7 +58,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         type: e.type || 'model',
         author: e.author || '',
         description: (e.description || e.summary || '').substring(0, 150),
-        tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]').slice(0, 5) : []),
+        tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? (() => { try { const p = JSON.parse(e.tags); return Array.isArray(p) ? p.slice(0, 5) : []; } catch { return []; } })() : []),
         fni_score: Math.round(e.fni_score || 0),
         image_url: e.image_url || null,
         slug: e.slug || e.id?.split(/[:/]/).pop(),
