@@ -40,17 +40,22 @@ export class ArXivAdapter extends BaseAdapter {
     /**
      * Fetch papers from ArXiv API
      * @param {Object} options
-     * @param {number} options.limit - Number of papers to fetch (default: 200)
+     * @param {number} options.limit - Number of papers to fetch (default: 100000)
      */
     async fetch(options = {}) {
-        const {
-            limit = 200,
-            sortBy = 'submittedDate',
-            sortOrder = 'descending'
-        } = options;
+        const { limit = 100000 } = options;
 
-        // V22.4: OAI-PMH Industrial Harvesting
-        return this.fetchOAI(options);
+        // V22.8: Fixed 90-day Sliding Window
+        // This ensures the latest papers are always fetched first,
+        // while the Global Registry preserves everything older.
+        if (!options.from) {
+            const ninetyDaysAgo = new Date();
+            ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+            options.from = ninetyDaysAgo.toISOString().split('T')[0];
+            console.log(`📡 [ArXiv] No 'from' date provided. Initializing 90-day sliding window: ${options.from}`);
+        }
+
+        return this.fetchOAI({ ...options, limit });
     }
 
     /**
