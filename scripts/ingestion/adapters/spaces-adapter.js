@@ -18,12 +18,25 @@ export class SpacesAdapter extends BaseAdapter {
         const { limit = 500, sort = 'likes', direction = -1, full = true, onBatch } = options;
         console.log(`📥 [HF Spaces] Fetching top ${limit} spaces...`);
 
-        const response = await fetch(`${HF_API}/spaces?sort=${sort}&direction=${direction}&limit=${limit}`);
-        if (!response.ok) throw new Error(`HF Spaces API error: ${response.status}`);
-
-        const spaces = await response.json();
-        console.log(`📦 [HF Spaces] Got ${spaces.length} spaces`);
-        if (!full) return spaces;
+        // V22.8: Paginated fetch for full coverage (HF caps single calls at ~1000)
+        const pageSize = 1000;
+        const spaces = [];
+        for (let offset = 0; offset < limit; offset += pageSize) {
+            const fetchLimit = Math.min(pageSize, limit - offset);
+            const url = `${HF_API}/spaces?sort=${sort}&direction=${direction}&limit=${fetchLimit}&offset=${offset}`;
+            const response = await fetch(url);
+            if (!response.ok) {
+                console.warn(`   ⚠️ HF Spaces API error at offset ${offset}: ${response.status}`);
+                break;
+            }
+            const batch = await response.json();
+            if (!batch.length) break;
+            spaces.push(...batch);
+            console.log(`   📦 Fetched ${spaces.length} space listings (offset: ${offset})...`);
+            if (batch.length < fetchLimit) break;
+            await this.delay(500);
+        }
+        console.log(`📦 [HF Spaces] Got ${spaces.length} spaces from paginated list`);
 
         // V14.5: Reduced batch size and increased delay to prevent rate limit storms
         const fullSpaces = [];
