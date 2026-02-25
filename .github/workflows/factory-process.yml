@@ -128,14 +128,13 @@ jobs:
         run: |
           echo "🔪 Decomposing monolith for parallel processing..."
           node scripts/factory/split-registry.js
-      - name: Upload for Matrix Jobs
-        uses: actions/upload-artifact@v4
+      - name: Save Prepared Data to Cache
+        uses: actions/cache/save@v4
         with:
-          name: prepared-entity-data
           path: |
             data/
             cache/
-          retention-days: 1
+          key: prepared-entity-data-${{ github.run_id }}
 
   # Matrix shards for parallel processing
   matrix-shards:
@@ -159,11 +158,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # V14.5 Optimization: Download from same-workflow artifact (no rate limit issue)
-      - name: Download Entity Data
-        uses: actions/download-artifact@v4
+      # V22.8: Restore from cache (replaces download-artifact for privacy)
+      - name: Restore Entity Data from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: prepared-entity-data
+          path: |
+            data/
+            cache/
+          key: prepared-entity-data-${{ github.run_id }}
 
       # Move downloaded files to correct locations
       # V14.5 Fix: download-artifact preserves directory structure
@@ -225,13 +227,12 @@ jobs:
           echo "🔄 Processing Shard ${{ matrix.shard }}/20..."
           node scripts/factory/shard-processor.js --shard=${{ matrix.shard }} --total=20
 
-      # V16.11: Upload ONLY the compressed monolithic shard (No debris)
-      - name: Upload Shard Artifact
-        uses: actions/upload-artifact@v4
+      # V22.8: Save shard to cache (replaces upload-artifact for privacy)
+      - name: Save Shard to Cache
+        uses: actions/cache/save@v4
         with:
-          name: shard-${{ matrix.shard }}
           path: artifacts/shard-${{ matrix.shard }}.json.gz
-          retention-days: 1
+          key: shard-${{ matrix.shard }}-${{ github.run_id }}
 
   # V4.1: Save all shards to Cache for next stage
   save-shards-cache:
@@ -239,24 +240,117 @@ jobs:
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
     steps:
-      - name: Download All Shard Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: shard-*
-          path: ./shards/
-          merge-multiple: true
-
-      - name: Organize Shards and Entity Data
+      - name: Restore All Shards from Cache
         run: |
           mkdir -p output/shards
-          echo "📦 Collecting 20 parallel compressed shards..."
-          
-          # Force a clean collection from the downloaded artifacts
-          find ./shards -name "shard-*.json.gz" -exec cp -v {} output/shards/ \;
-          
+          echo "📦 Restoring 20 parallel compressed shards from cache..."
+      - name: Restore Shard 0
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-0.json.gz
+          key: shard-0-${{ github.run_id }}
+      - name: Restore Shard 1
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-1.json.gz
+          key: shard-1-${{ github.run_id }}
+      - name: Restore Shard 2
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-2.json.gz
+          key: shard-2-${{ github.run_id }}
+      - name: Restore Shard 3
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-3.json.gz
+          key: shard-3-${{ github.run_id }}
+      - name: Restore Shard 4
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-4.json.gz
+          key: shard-4-${{ github.run_id }}
+      - name: Restore Shard 5
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-5.json.gz
+          key: shard-5-${{ github.run_id }}
+      - name: Restore Shard 6
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-6.json.gz
+          key: shard-6-${{ github.run_id }}
+      - name: Restore Shard 7
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-7.json.gz
+          key: shard-7-${{ github.run_id }}
+      - name: Restore Shard 8
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-8.json.gz
+          key: shard-8-${{ github.run_id }}
+      - name: Restore Shard 9
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-9.json.gz
+          key: shard-9-${{ github.run_id }}
+      - name: Restore Shard 10
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-10.json.gz
+          key: shard-10-${{ github.run_id }}
+      - name: Restore Shard 11
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-11.json.gz
+          key: shard-11-${{ github.run_id }}
+      - name: Restore Shard 12
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-12.json.gz
+          key: shard-12-${{ github.run_id }}
+      - name: Restore Shard 13
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-13.json.gz
+          key: shard-13-${{ github.run_id }}
+      - name: Restore Shard 14
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-14.json.gz
+          key: shard-14-${{ github.run_id }}
+      - name: Restore Shard 15
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-15.json.gz
+          key: shard-15-${{ github.run_id }}
+      - name: Restore Shard 16
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-16.json.gz
+          key: shard-16-${{ github.run_id }}
+      - name: Restore Shard 17
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-17.json.gz
+          key: shard-17-${{ github.run_id }}
+      - name: Restore Shard 18
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-18.json.gz
+          key: shard-18-${{ github.run_id }}
+      - name: Restore Shard 19
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/shard-19.json.gz
+          key: shard-19-${{ github.run_id }}
+
+      - name: Organize Shards
+        run: |
+          mkdir -p output/shards
+          find ./artifacts -name "shard-*.json.gz" -exec cp -v {} output/shards/ \;
           SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
           echo "✅ Total shards collected: $SHARD_COUNT"
-          
           if [ "$SHARD_COUNT" -lt 20 ]; then
             echo "❌ ERROR: Missing shards! Expected 20, found $SHARD_COUNT."
             exit 1
@@ -277,13 +371,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Download shard 0 for checksum data
-      - name: Download Shard 0
-        uses: actions/download-artifact@v4
+      # V22.8: Restore shard-0 from cache for checksum data
+      - name: Restore Shard 0 from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: shard-0
-          path: ./shard-0/
+          path: artifacts/shard-0.json.gz
+          key: shard-0-${{ github.run_id }}
         continue-on-error: true
+
+      - name: Setup Shard 0 Data
+        run: |
+          mkdir -p shard-0
+          cp artifacts/shard-0.json.gz shard-0/ 2>/dev/null || echo "Shard 0 not available"
 
       # V14.5.2: Checksum saving moved to Aggregator (Phase 3) for atomic consistency
       - name: Notify Aggregate Stage

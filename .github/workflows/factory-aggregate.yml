@@ -202,30 +202,12 @@ jobs:
         run: |
           echo "✅ Core registry and fragments verified. Ready for handoff."
 
-      # V4.1: Explicitly upload shards as artifact to satisfy pattern downloader
-      - name: Upload Shard Artifact (Bridge)
-        uses: actions/upload-artifact@v4
-        with:
-          name: agg-shards
-          path: output/cache/shards/shard-*.json.gz
-          retention-days: 1
-
       # V4.1: Internal Cache for same-workflow satellite jobs
       - name: Save Intra-Cycle Core to Cache
         uses: actions/cache/save@v4
         with:
           path: output/
           key: intra-cycle-${{ github.run_id }}-core
-
-      # V4.1: Keep Artifact for same-workflow satellite jobs (Safety Fallback)
-      - name: Upload Registry Artifact (Intra-Chain)
-        uses: actions/upload-artifact@v4
-        with:
-          name: core-registry-v2
-          path: |
-            output/
-            artifacts/
-          retention-days: 1
 
       # V4.1: Save Global Registry for next cycle's 1/4 Harvest
       - name: Save Global Registry to Cache
@@ -275,11 +257,7 @@ jobs:
         with:
           path: output/
           key: intra-cycle-${{ github.run_id }}-core
-      - name: Download Shard Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: agg-shards
-          path: artifacts/
+      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Search Indices
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -291,13 +269,11 @@ jobs:
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=search
-      - name: Upload Search Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Save Search Results to Cache
+        uses: actions/cache/save@v4
         with:
-          name: agg-search
           path: output/cache/search*
-          if-no-files-found: warn
-          retention-days: 1
+          key: intra-cycle-${{ github.run_id }}-search
 
   aggregate-rankings:
     name: "Agg: Rankings"
@@ -313,11 +289,7 @@ jobs:
         with:
           path: output/
           key: intra-cycle-${{ github.run_id }}-core
-      - name: Download Shard Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: agg-shards
-          path: artifacts/
+      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Rankings
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -330,16 +302,13 @@ jobs:
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=rankings
           node scripts/factory/aggregator.js --task=category
-      - name: Upload Rankings Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Save Rankings Results to Cache
+        uses: actions/cache/save@v4
         with:
-          name: agg-rankings
-          # V17.4: Ensure directory hierarchy is preserved
           path: |
             output/cache/rankings/
             output/cache/category_stats.json.gz
-          if-no-files-found: warn
-          retention-days: 1
+          key: intra-cycle-${{ github.run_id }}-rankings
 
 
   aggregate-trending:
@@ -356,11 +325,7 @@ jobs:
         with:
           path: output/
           key: intra-cycle-${{ github.run_id }}-core
-      - name: Download Shard Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: agg-shards
-          path: artifacts/
+      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Restore FNI History from Cache
         uses: actions/cache/restore@v4
         with:
@@ -380,15 +345,13 @@ jobs:
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
           node scripts/factory/aggregator.js --task=trend
-      - name: Upload Trending & Trend Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Save Trending Results to Cache
+        uses: actions/cache/save@v4
         with:
-          name: agg-trending
           path: |
             output/cache/trending.json.gz
             output/cache/trend-data.json.gz
-          if-no-files-found: warn
-          retention-days: 1
+          key: intra-cycle-${{ github.run_id }}-trending
 
   aggregate-relations:
     name: "Agg: Knowledge Mesh"
@@ -404,11 +367,7 @@ jobs:
         with:
           path: output/
           key: intra-cycle-${{ github.run_id }}-core
-      - name: Download Shard Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: agg-shards
-          path: artifacts/
+      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Relations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -420,17 +379,15 @@ jobs:
         run: |
           export NODE_OPTIONS="--max-old-space-size=7168"
           node scripts/factory/aggregator.js --task=relations
-      - name: Upload Relations Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Save Relations Results to Cache
+        uses: actions/cache/save@v4
         with:
-          name: agg-relations
           path: |
             output/cache/relations.json.gz
             output/cache/relations/
             output/cache/mesh/
             output/cache/knowledge/
-          if-no-files-found: warn
-          retention-days: 1
+          key: intra-cycle-${{ github.run_id }}-relations
 
   finalize:
     name: Finalize Aggregation
@@ -439,12 +396,35 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      - name: Consolidate All Results
-        uses: actions/download-artifact@v4
+      # V22.8: Restore satellite results from cache
+      - name: Restore Search Results
+        uses: actions/cache/restore@v4
         with:
-          pattern: agg-*
-          path: output/
-          merge-multiple: true
+          path: output/cache/search*
+          key: intra-cycle-${{ github.run_id }}-search
+      - name: Restore Rankings Results
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/cache/rankings/
+            output/cache/category_stats.json.gz
+          key: intra-cycle-${{ github.run_id }}-rankings
+      - name: Restore Trending Results
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/cache/trending.json.gz
+            output/cache/trend-data.json.gz
+          key: intra-cycle-${{ github.run_id }}-trending
+      - name: Restore Relations Results
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/cache/relations.json.gz
+            output/cache/relations/
+            output/cache/mesh/
+            output/cache/knowledge/
+          key: intra-cycle-${{ github.run_id }}-relations
       - name: Run Health Consolidation
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
