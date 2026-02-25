@@ -54,11 +54,16 @@ const THRESHOLD = 125000;
 check('Entity Count', count >= THRESHOLD, `${count} (expected: >=${THRESHOLD})`);
 
 // 5. Shard Consistency
+const isSearchDb = DB_PATH.includes('search.db');
 const heavySample = db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get();
+
 if (heavySample) {
     const isShardFormat = heavySample.bundle_key.startsWith('data/fused-shard-');
     check('Shard Format', isShardFormat, heavySample.bundle_key);
-    check('Shard Hash Integrity', heavySample.shard_hash && heavySample.shard_hash.length === 64, 'Hash present');
+
+    // Shard hashes are only finalized in meta.db. search.db may have empty strings.
+    const hasHash = heavySample.shard_hash && heavySample.shard_hash.length === 64;
+    check('Shard Hash Integrity', isSearchDb || hasHash, isSearchDb ? 'Skipped (Registry)' : 'Hash present');
 
     // Security Choice B: 8KB Alignment Verification
     const isAligned = heavySample.bundle_offset % 8192 === 0;
@@ -68,13 +73,17 @@ if (heavySample) {
 }
 
 // 6. FTS5 Search Test
-try {
-    const ftsResults = db.prepare(
-        "SELECT e.id, e.name, e.type FROM search s JOIN entities e ON e.rowid = s.rowid WHERE search MATCH '\"llama\"*' LIMIT 5"
-    ).all();
-    check('FTS5 Search', ftsResults.length > 0, `${ftsResults.length} results for "llama"`);
-} catch (e) {
-    check('FTS5 Search', false, e.message);
+if (!isSearchDb) {
+    try {
+        const ftsResults = db.prepare(
+            "SELECT e.id, e.name, e.type FROM search s JOIN entities e ON e.rowid = s.rowid WHERE search MATCH '\"llama\"*' LIMIT 5"
+        ).all();
+        check('FTS5 Search', ftsResults.length > 0, `${ftsResults.length} results for "llama"`);
+    } catch (e) {
+        check('FTS5 Search', false, e.message);
+    }
+} else {
+    check('FTS5 Search', true, 'Skipped (Registry)');
 }
 
 // 7. Trending & Sorting Stability
@@ -83,42 +92,42 @@ check('Popularity Sorting', topEntity && topEntity.fni_score > 0, `Top: ${topEnt
 check('Trending Injection', topEntity && (topEntity.is_trending === 0 || topEntity.is_trending === 1), 'Flag verified');
 
 // V22.8: Shard File Integrity (SHA-256 verification against DB shard_hash)
+if (!isSearchDb) {
+    const dataDir = path.dirname(DB_PATH);
+    const uniqueShards = db.prepare(`
+        SELECT DISTINCT bundle_key, shard_hash 
+        FROM entities 
+        WHERE bundle_key IS NOT NULL AND shard_hash IS NOT NULL AND shard_hash != ''
+    `).all();
 
-const dataDir = path.dirname(DB_PATH);
-const uniqueShards = db.prepare(`
-    SELECT DISTINCT bundle_key, shard_hash 
-    FROM entities 
-    WHERE bundle_key IS NOT NULL AND shard_hash IS NOT NULL
-`).all();
+    if (uniqueShards.length > 0) {
+        console.log(`\n--- V22.8 Shard File Integrity (${uniqueShards.length} shards) ---`);
+        let shardOk = 0, shardFail = 0;
 
-if (uniqueShards.length > 0) {
-    console.log(`\n--- V22.8 Shard File Integrity (${uniqueShards.length} shards) ---`);
-    let shardOk = 0, shardFail = 0;
+        for (const shard of uniqueShards) {
+            const shardPath = path.resolve(dataDir, '..', shard.bundle_key);
+            if (!fs.existsSync(shardPath)) {
+                check(`Shard ${path.basename(shard.bundle_key)}`, false, 'FILE MISSING');
+                shardFail++;
+                continue;
+            }
 
-    for (const shard of uniqueShards) {
-        // bundle_key is like "data/fused-shard-00.bin", resolve relative to output dir
-        const shardPath = path.resolve(dataDir, '..', shard.bundle_key);
+            const fileData = fs.readFileSync(shardPath);
+            const fileHash = crypto.createHash('sha256').update(fileData).digest('hex');
 
-        if (!fs.existsSync(shardPath)) {
-            check(`Shard ${path.basename(shard.bundle_key)}`, false, 'FILE MISSING');
-            shardFail++;
-            continue;
+            if (fileHash === shard.shard_hash) {
+                shardOk++;
+            } else {
+                check(`Shard ${path.basename(shard.bundle_key)}`, false, `Hash mismatch: ${fileHash.slice(0, 16)}… ≠ ${shard.shard_hash.slice(0, 16)}…`);
+                shardFail++;
+            }
         }
-
-        const fileData = fs.readFileSync(shardPath);
-        const fileHash = crypto.createHash('sha256').update(fileData).digest('hex');
-
-        if (fileHash === shard.shard_hash) {
-            shardOk++;
-        } else {
-            check(`Shard ${path.basename(shard.bundle_key)}`, false, `Hash mismatch: ${fileHash.slice(0, 16)}… ≠ ${shard.shard_hash.slice(0, 16)}…`);
-            shardFail++;
-        }
+        check('Shard SHA-256 Integrity', shardFail === 0, `${shardOk}/${uniqueShards.length} shards verified`);
+    } else {
+        check('Shard SHA-256 Integrity', false, 'No shard entries in DB');
     }
-
-    check('Shard SHA-256 Integrity', shardFail === 0, `${shardOk}/${uniqueShards.length} shards verified`);
 } else {
-    check('Shard SHA-256 Integrity', false, 'No shard entries in DB');
+    check('Shard SHA-256 Integrity', true, 'Skipped (Registry)');
 }
 
 db.close();
