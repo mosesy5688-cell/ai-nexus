@@ -6,6 +6,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 const DB_PATH = process.argv[2] || './output/data/content.db';
 let failures = 0;
@@ -80,6 +81,45 @@ try {
 const topEntity = db.prepare('SELECT name, fni_score, is_trending FROM entities ORDER BY fni_score DESC LIMIT 1').get();
 check('Popularity Sorting', topEntity && topEntity.fni_score > 0, `Top: ${topEntity?.name} (${topEntity?.fni_score})`);
 check('Trending Injection', topEntity && (topEntity.is_trending === 0 || topEntity.is_trending === 1), 'Flag verified');
+
+// V22.8: Shard File Integrity (SHA-256 verification against DB shard_hash)
+
+const dataDir = path.dirname(DB_PATH);
+const uniqueShards = db.prepare(`
+    SELECT DISTINCT bundle_key, shard_hash 
+    FROM entities 
+    WHERE bundle_key IS NOT NULL AND shard_hash IS NOT NULL
+`).all();
+
+if (uniqueShards.length > 0) {
+    console.log(`\n--- V22.8 Shard File Integrity (${uniqueShards.length} shards) ---`);
+    let shardOk = 0, shardFail = 0;
+
+    for (const shard of uniqueShards) {
+        // bundle_key is like "data/fused-shard-00.bin", resolve relative to output dir
+        const shardPath = path.resolve(dataDir, '..', shard.bundle_key);
+
+        if (!fs.existsSync(shardPath)) {
+            check(`Shard ${path.basename(shard.bundle_key)}`, false, 'FILE MISSING');
+            shardFail++;
+            continue;
+        }
+
+        const fileData = fs.readFileSync(shardPath);
+        const fileHash = crypto.createHash('sha256').update(fileData).digest('hex');
+
+        if (fileHash === shard.shard_hash) {
+            shardOk++;
+        } else {
+            check(`Shard ${path.basename(shard.bundle_key)}`, false, `Hash mismatch: ${fileHash.slice(0, 16)}… ≠ ${shard.shard_hash.slice(0, 16)}…`);
+            shardFail++;
+        }
+    }
+
+    check('Shard SHA-256 Integrity', shardFail === 0, `${shardOk}/${uniqueShards.length} shards verified`);
+} else {
+    check('Shard SHA-256 Integrity', false, 'No shard entries in DB');
+}
 
 db.close();
 console.log(`\n=== Health Check Complete: ${failures} failures ===`);

@@ -1,14 +1,15 @@
 /**
  * VFS Production Health Probe (Post-Deployment Integrity)
  * 
+ * V22.8: Full-shard coverage — probes 1 random entity per shard
  * Logic:
- * 1. Load local content.db to find 3 random entities with bundles.
- * 2. Execute Range Requests against the production CDN.
- * 3. Verify HTTP 206 and non-zero content.
+ * 1. Load local meta.db to find all unique shards.
+ * 2. For each shard, pick 1 random entity.
+ * 3. Execute Range Request against production CDN.
+ * 4. Verify HTTP 206 and correct content size.
  */
 
 import Database from 'better-sqlite3';
-// V19.4: Use native Node 20 fetch instead of node-fetch
 
 const ARGS = process.argv.slice(2);
 const dbArg = ARGS.find(a => a.startsWith('--db='))?.split('=')[1];
@@ -16,7 +17,7 @@ const DB_PATH = dbArg || './output/data/meta.db';
 const CDN_BASE = 'https://cdn.free2aitools.com';
 
 async function probe() {
-    console.log('[PROBE] 🏥 Commencing Production VFS Integrity Probe...');
+    console.log('[PROBE] 🏥 V22.8 Full-Shard Production VFS Integrity Probe...');
 
     if (!process.env.CLOUDFLARE_ZONE_ID) {
         console.warn('[PROBE] ⚠️ No Zone ID found. Skipping production probe (CI Dry Run).');
@@ -25,12 +26,19 @@ async function probe() {
 
     const db = new Database(DB_PATH, { readonly: true });
 
-    // Pick 3 random entities that have bundles
+    // V22.8: Get one random entity per shard for full coverage
     const samples = db.prepare(`
-        SELECT id, bundle_key, bundle_offset, bundle_size 
-        FROM entities 
-        WHERE bundle_key IS NOT NULL 
-        ORDER BY RANDOM() LIMIT 3
+        SELECT e.id, e.bundle_key, e.bundle_offset, e.bundle_size
+        FROM entities e
+        INNER JOIN (
+            SELECT bundle_key, MIN(rowid) as rid
+            FROM (
+                SELECT bundle_key, rowid FROM entities 
+                WHERE bundle_key IS NOT NULL
+                ORDER BY RANDOM()
+            )
+            GROUP BY bundle_key
+        ) s ON e.rowid = s.rid
     `).all();
 
     db.close();
@@ -40,43 +48,42 @@ async function probe() {
         process.exit(1);
     }
 
+    console.log(`[PROBE] Testing ${samples.length} shards (1 entity per shard)...`);
     let failures = 0;
 
     for (const s of samples) {
         const url = `${CDN_BASE}/${s.bundle_key}`;
         const range = `bytes=${s.bundle_offset}-${s.bundle_offset + s.bundle_size - 1}`;
 
-        console.log(`[PROBE] Testing ${s.id} @ ${url} (${range})...`);
-
         try {
             const res = await fetch(url, {
                 headers: { 'Range': range },
-                timeout: 5000
+                signal: AbortSignal.timeout(10000)
             });
 
             if (res.status === 206) {
                 const buffer = await res.arrayBuffer();
                 if (buffer.byteLength === s.bundle_size) {
-                    console.log(`  ✅ ${s.id}: OK (${buffer.byteLength} bytes)`);
+                    console.log(`  ✅ ${s.bundle_key} → ${s.id}: OK (${buffer.byteLength}B)`);
                 } else {
-                    console.error(`  ❌ ${s.id}: Size Mismatch! Got ${buffer.byteLength}, expected ${s.bundle_size}`);
+                    console.error(`  ❌ ${s.bundle_key} → ${s.id}: Size ${buffer.byteLength} ≠ expected ${s.bundle_size}`);
                     failures++;
                 }
             } else {
-                console.error(`  ❌ ${s.id}: HTTP ${res.status} (${res.statusText})`);
+                console.error(`  ❌ ${s.bundle_key} → ${s.id}: HTTP ${res.status}`);
                 failures++;
             }
         } catch (e) {
-            console.error(`  ❌ ${s.id}: Fetch Error: ${e.message}`);
+            console.error(`  ❌ ${s.bundle_key} → ${s.id}: ${e.message}`);
             failures++;
         }
     }
 
     if (failures > 0) {
-        console.error(`[PROBE] ❌ Probe Failed with ${failures} errors.`);
+        console.error(`[PROBE] ❌ ${failures}/${samples.length} shards FAILED. Deployment integrity compromised.`);
         process.exit(1);
     } else {
-        console.log('[PROBE] 🛡️ All probes passed. Production VFS is coherent.');
+        console.log(`[PROBE] 🛡️ All ${samples.length} shards verified. Production VFS is coherent.`);
     }
 }
 
