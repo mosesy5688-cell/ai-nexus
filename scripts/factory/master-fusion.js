@@ -48,14 +48,16 @@ async function main() {
 
     // 3. Iterative Shard Merge (Partitioned Output)
     const { projectEntity } = await import('./lib/registry-loader.js');
-    console.log('[FUSION] Phase 3: Merging enriched shards with late-bound metrics...');
+    // V22.8: Dynamically scan ARTIFACT_DIR for available shards (supports both shard-N and part-NNN naming)
+    const artifactFiles = await fs.readdir(CONFIG.ARTIFACT_DIR).catch(() => []);
+    const shardFiles = artifactFiles.filter(f => f.endsWith('.json.gz')).sort();
 
-    for (let i = 0; i < CONFIG.TOTAL_SHARDS; i++) {
-        const shardFile = path.join(CONFIG.ARTIFACT_DIR, `shard-${i}.json.gz`);
-        if (!await fs.access(shardFile).then(() => true).catch(() => false)) {
-            console.log(`  [SKIP] Shard ${i} missing.`);
-            continue;
-        }
+    if (shardFiles.length === 0) {
+        console.log('  [WARN] No shard files found in ARTIFACT_DIR. Fusion will produce empty output.');
+    }
+
+    for (let i = 0; i < shardFiles.length; i++) {
+        const shardFile = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
 
         try {
             const raw = await fs.readFile(shardFile);
@@ -93,8 +95,8 @@ async function main() {
                 fusedEntities.push(projectEntity(entity, false));
             }
 
-            // Write Partitioned Registry
-            const outDir = path.join(CONFIG.OUTPUT_DIR, 'registry');
+            // Write Partitioned Registry to cache/fused (V22.8: matches tar packaging path)
+            const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
             await fs.mkdir(outDir, { recursive: true });
             const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.gz`);
 
