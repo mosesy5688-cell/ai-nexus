@@ -175,11 +175,16 @@ async function packDatabase() {
 
     // Inject Metadata into BOTH databases
     console.log('[VFS] 🌐 Injecting Global Metadata...');
+    // V22.8: Expanded for JSON-free future (knowledge/ and reports/ stay independent)
     const metaFiles = [
         { key: 'category_stats', file: 'category_stats.json' },
         { key: 'trending', file: 'trending.json' },
         { key: 'relations', file: 'relations/explicit.json' },
-        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }
+        { key: 'knowledge_links', file: 'relations/knowledge-links.json' },
+        { key: 'mesh_graph', file: 'mesh/graph.json' },
+        { key: 'mesh_stats', file: 'mesh/stats.json' },
+        { key: 'trend_data', file: 'trend-data.json' },
+        { key: 'alt_linker', file: 'relations/alt-meta.json' }
     ];
 
     for (const meta of metaFiles) {
@@ -199,6 +204,30 @@ async function packDatabase() {
             }
         } catch (e) { }
     }
+
+    // V22.8: Rankings directory scan — consolidate pages per category
+    const rankingsDir = path.join(CACHE_DIR, 'rankings');
+    try {
+        const categories = (await fs.readdir(rankingsDir)).filter(d => !d.endsWith('.json') && !d.endsWith('.gz'));
+        for (const cat of categories) {
+            const catDir = path.join(rankingsDir, cat);
+            const pages = (await fs.readdir(catDir)).filter(f => f.endsWith('.json.gz') || f.endsWith('.json'));
+            const merged = [];
+            for (const page of pages.sort()) {
+                try {
+                    const raw = await fs.readFile(path.join(catDir, page));
+                    const data = (page.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b)) ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
+                    if (Array.isArray(data)) merged.push(...data); else if (data.items) merged.push(...data.items);
+                } catch (e) { continue; }
+            }
+            if (merged.length > 0) {
+                const val = JSON.stringify(merged);
+                metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(`rankings_${cat}`, val);
+                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(`rankings_${cat}`, val);
+            }
+        }
+        console.log(`[VFS] 📊 Injected ${categories.length} ranking categories`);
+    } catch (e) { console.warn('[VFS] ⚠️ No rankings directory found, skipping'); }
 
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
 
