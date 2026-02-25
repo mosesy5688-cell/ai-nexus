@@ -158,7 +158,7 @@ async function packDatabase() {
                 stats.packed++;
             }
         })();
-    });
+    })();
 
     if (currentFd) fsSync.closeSync(currentFd);
 
