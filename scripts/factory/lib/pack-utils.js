@@ -147,3 +147,48 @@ export async function collectAndSortMetadata(cacheDir, trendingMap, trendMap) {
         return (a.id || '').localeCompare(b.id || '');
     });
 }
+
+/**
+ * V22.8: Build complete bundle JSON for VFS shard packing
+ */
+export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
+    return Buffer.from(JSON.stringify({
+        readme: e.readme || e.html_readme || '',
+        changelog: e.changelog || '',
+        benchmarks: e.benchmarks || [],
+        paper_abstract: e.paper_abstract || '',
+        mesh_profile: e.mesh_profile || { relations: [] },
+        fni_metrics: fniMetrics,
+        params_billions: pBillions, context_length: ctxLen, architecture: arch,
+        license: e.license || e.license_spdx || '',
+        source_url: e.source_url || '',
+        source: e.source || e.source_platform || '',
+        pipeline_tag: e.pipeline_tag || '',
+        image_url: e.raw_image_url || e.image_url || '',
+        vram_estimate_gb: e.vram_estimate_gb || null,
+        quick_insights: e.quick_insights || [],
+        use_cases: e.use_cases || [],
+        quantization: e.quantization || '',
+        html_readme: e.html_readme || '',
+        relations: e.relations || [],
+        created_at: e.created_at || '',
+        display_description: e.display_description || ''
+    }), 'utf8');
+}
+
+/**
+ * V22.8: Build 33-column entity row for meta.db/search.db
+ */
+export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, summary, bundleKey, offset, size) {
+    return [
+        e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
+        e.author || '', summary, category, tags, e.fni_score || 0, e.fni_percentile || '',
+        e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
+        e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
+        pBillions, arch, ctxLen, e.is_trending ? 1 : 0,
+        e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
+        '', e._trend_7d,
+        e.license || e.license_spdx || '', e.source_url || '', e.pipeline_tag || '',
+        e.raw_image_url || e.image_url || '', e.vram_estimate_gb || 0, e.source || e.source_platform || ''
+    ];
+}

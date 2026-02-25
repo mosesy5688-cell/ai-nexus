@@ -44,7 +44,7 @@ check('Shard Count', shardFiles.length <= 64, `${shardFiles.length} shards (limi
 
 // 5. Schema Completeness (Stage 4/4)
 const columns = db.prepare("PRAGMA table_info(entities)").all().map(c => c.name);
-const requiredCols = ['bundle_offset', 'bundle_size', 'shard_hash', 'is_trending', 'category'];
+const requiredCols = ['bundle_offset', 'bundle_size', 'shard_hash', 'is_trending', 'category', 'license', 'source_url', 'pipeline_tag', 'image_url', 'vram_estimate_gb', 'source'];
 const hasAllCols = requiredCols.every(c => columns.includes(c));
 check('Schema Completeness', hasAllCols, hasAllCols ? 'All V19.2 columns present' : `Missing: ${requiredCols.filter(c => !columns.includes(c))}`);
 
