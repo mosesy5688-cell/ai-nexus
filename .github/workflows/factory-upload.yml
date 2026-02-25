@@ -200,12 +200,6 @@ jobs:
         with:
           path: output/rss/
           key: intra-4-4-${{ github.run_id }}-rss-feeds
-      - name: Upload RSS feeds
-        uses: actions/upload-artifact@v4
-        with:
-          name: rss-feeds
-          path: output/rss/
-          retention-days: 1
 
   upload:
     name: Final Upload to R2
@@ -254,10 +248,15 @@ jobs:
             output/sitemaps/
             output/sitemap.xml
           key: intra-4-4-${{ github.run_id }}-vfs-assets
+      - name: Restore RSS Feeds from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/rss/
+          key: intra-4-4-${{ github.run_id }}-rss-feeds
       - name: Consolidate Enrichment Artifacts
         run: |
-          # V19.2 Path Correction
-          [ -d "output_artifacts/rss-feeds" ] && mkdir -p output/rss && cp -r output_artifacts/rss-feeds/* output/rss/ || true
+          # V22.8: RSS feeds restored directly to output/rss/ via cache
+          [ -d "output/rss" ] && echo "✅ RSS feeds loaded from cache" || echo "⚠️ No RSS feeds found"
           
           # Ensure sitemaps from vfs-packing are in the right place
           if [ -d "output/sitemaps" ]; then
