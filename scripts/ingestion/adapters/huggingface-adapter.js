@@ -210,6 +210,12 @@ export class HuggingFaceAdapter extends BaseAdapter {
                             await delay(backoff);
                             continue; // Retry same request
                         }
+                        // V22.8: 400 = HF API pagination ceiling (~4000-5000 offset)
+                        if (response.status === 400) {
+                            console.log(`   ⏭️ [${tag}] Pagination ceiling at skip=${skip}, moving to next tag...`);
+                            hasMore = false;
+                            break;
+                        }
                         console.warn(`   ⚠️ API error: ${response.status}`);
                         break;
                     }
