@@ -4,9 +4,9 @@ import path from 'path';
 import zlib from 'zlib';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
-import { processShardsIteratively, preProcessDeltas } from './aggregator-shard-manager.js';
+import { processShardsIteratively } from './aggregator-shard-manager.js';
 
-export { processShardsIteratively, preProcessDeltas };
+export { processShardsIteratively };
 
 
 /** Pass 1: Global Statistics and Registry Indexing (V18.12.5.21) */
