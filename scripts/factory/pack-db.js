@@ -102,7 +102,7 @@ async function packDatabase() {
                     stats.heavy++; stats.bytes += size;
                 }
 
-                const rawSummary = e.summary || e.description || '';
+                const rawSummary = s(e.summary || e.description || '');
                 const truncatedSummary = rawSummary.length > 500 ? rawSummary.substring(0, 500) + '...' : rawSummary;
                 const category = getV6Category(e);
                 const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
@@ -160,8 +160,8 @@ async function packDatabase() {
                 } catch (err) { continue; }
             }
             if (content) {
-                metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
-                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
+                metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, s(content));
+                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, s(content));
             }
         } catch (e) { }
     }
@@ -182,7 +182,7 @@ async function packDatabase() {
                 } catch (e) { continue; }
             }
             if (merged.length > 0) {
-                const val = JSON.stringify(merged);
+                const val = s(JSON.stringify(merged));
                 metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(`rankings_${cat}`, val);
                 searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(`rankings_${cat}`, val);
             }
