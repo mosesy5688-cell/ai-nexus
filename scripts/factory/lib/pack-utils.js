@@ -113,22 +113,29 @@ export async function collectAndSortMetadata(cacheDir, trendingMap, trendMap) {
         const fullPath = path.join(fusedDir, file);
         try {
             const raw = await fs.readFile(fullPath);
-            const entity = file.endsWith('.gz') ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
-            const id = entity.id || entity.slug;
+            const parsed = file.endsWith('.gz') ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
 
-            // Deduplication: Prefer more recent or compressed if collision
-            if (metadataMap.has(id) && file.endsWith('.json')) continue;
+            // V22.8: Fused shards contain { shardId, entities: [...], _ts }
+            const entities = parsed.entities || (parsed.id ? [parsed] : [parsed]);
 
-            const trendingInfo = trendingMap.get(id) || { rank: 999999, is_trending: false };
+            for (const entity of entities) {
+                const id = entity.id || entity.slug;
+                if (!id) continue;
 
-            metadataMap.set(id, {
-                ...entity,
-                _trending_rank: trendingInfo.rank,
-                is_trending: trendingInfo.is_trending,
-                _trend_7d: trendMap.get(id) || ''
-            });
+                // Deduplication: Prefer more recent or compressed if collision
+                if (metadataMap.has(id) && file.endsWith('.json')) continue;
 
-            if (metadataMap.size % 50000 === 0) console.log(`[VFS] Collected ${metadataMap.size} unique items...`);
+                const trendingInfo = trendingMap.get(id) || { rank: 999999, is_trending: false };
+
+                metadataMap.set(id, {
+                    ...entity,
+                    _trending_rank: trendingInfo.rank,
+                    is_trending: trendingInfo.is_trending,
+                    _trend_7d: trendMap.get(id) || ''
+                });
+            }
+
+            if (metadataMap.size % 50000 === 0 && metadataMap.size > 0) console.log(`[VFS] Collected ${metadataMap.size} unique items...`);
         } catch (e) {
             console.error(`[VFS] Failed to read ${file}:`, e.message);
         }
