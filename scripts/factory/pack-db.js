@@ -232,7 +232,7 @@ async function packDatabase() {
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
 
     // Finalization
-    searchDb.exec("INSERT INTO search(search) VALUES('optimize');");
+    metaDb.exec("INSERT INTO search(search) VALUES('optimize');");
     metaDb.exec("PRAGMA integrity_check; VACUUM;");
     searchDb.exec("PRAGMA integrity_check; VACUUM;");
 
