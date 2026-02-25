@@ -185,17 +185,33 @@ export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
 
 /**
  * V22.8: Build 33-column entity row for meta.db/search.db
+ * All values must be SQLite-safe: number, string, bigint, buffer, or null.
  */
 export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, summary, bundleKey, offset, size) {
+    // V22.8: Coerce non-primitive values to strings (papers may have array authors, etc.)
+    const s = (v, fallback = '') => {
+        if (v == null) return fallback;
+        if (typeof v === 'string') return v;
+        if (typeof v === 'number' || typeof v === 'bigint') return v;
+        if (Array.isArray(v)) return v.join(', ');
+        if (typeof v === 'object') return JSON.stringify(v);
+        return String(v);
+    };
+    const n = (v, fallback = 0) => {
+        if (typeof v === 'number' && !isNaN(v)) return v;
+        const parsed = Number(v);
+        return isNaN(parsed) ? fallback : parsed;
+    };
+
     return [
-        e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-        e.author || '', summary, category, tags, e.fni_score || 0, e.fni_percentile || '',
-        e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
-        e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
-        pBillions, arch, ctxLen, e.is_trending ? 1 : 0,
-        e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
-        '', e._trend_7d,
-        e.license || e.license_spdx || '', e.source_url || '', e.pipeline_tag || '',
-        e.raw_image_url || e.image_url || '', e.vram_estimate_gb || 0, e.source || e.source_platform || ''
+        s(e.id), s(e.umid || e.id), s(e.slug), s(e.name || e.displayName), s(e.type, 'model'),
+        s(e.author), s(summary), s(category), s(tags), n(e.fni_score), s(e.fni_percentile),
+        n(e.fni_p ?? fniMetrics.p), n(e.fni_v ?? fniMetrics.v),
+        n(e.fni_c ?? fniMetrics.c), n(e.fni_u ?? fniMetrics.u),
+        n(pBillions), s(arch), n(ctxLen), e.is_trending ? 1 : 0,
+        n(e.stars || e.likes), n(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
+        '', s(e._trend_7d),
+        s(e.license || e.license_spdx), s(e.source_url), s(e.pipeline_tag),
+        s(e.raw_image_url || e.image_url), n(e.vram_estimate_gb), s(e.source || e.source_platform)
     ];
 }
