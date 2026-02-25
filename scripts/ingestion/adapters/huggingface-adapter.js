@@ -185,88 +185,96 @@ export class HuggingFaceAdapter extends BaseAdapter {
         const PAGE_SIZE = 1000; // HuggingFace API max per request
 
         for (const tag of tags) {
-            console.log(`\n📥 [HuggingFace] Pipeline tag: ${tag} (Start Offset: ${offset})`);
-            let tagModels = 0;
-            let skip = offset; // V18.2.4: Start from rotation offset
-            let hasMore = true;
+            // V22.8: Dual-sort strategy — 80% popular + 20% newest
+            const sortStrategies = [
+                { sort: 'likes', budget: Math.floor(limitPerTag * 0.8), label: 'popular' },
+                { sort: 'lastModified', budget: Math.ceil(limitPerTag * 0.2), label: 'newest' }
+            ];
 
-            try {
-                // Paginate through all results for this tag
-                while (hasMore && tagModels < limitPerTag) {
-                    const batchLimit = Math.min(PAGE_SIZE, limitPerTag - tagModels);
-                    const expandParams = [
-                        'author', 'cardData', 'config', 'createdAt', 'downloads',
-                        'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
-                    ].map(e => `expand[]=${e}`).join('&');
+            for (const strategy of sortStrategies) {
+                console.log(`\n📥 [HuggingFace] ${tag} — ${strategy.label} (budget: ${strategy.budget})`);
+                let tagModels = 0;
+                let skip = strategy.sort === 'likes' ? offset : 0; // Only apply rotation offset to likes sort
+                let hasMore = true;
 
-                    const url = `${HF_API_BASE}/models?filter=${tag}&sort=likes&direction=-1&limit=${batchLimit}&skip=${skip}&${expandParams}`;
+                try {
+                    // Paginate through all results for this tag+sort
+                    while (hasMore && tagModels < strategy.budget) {
+                        const batchLimit = Math.min(PAGE_SIZE, strategy.budget - tagModels);
+                        const expandParams = [
+                            'author', 'cardData', 'config', 'createdAt', 'downloads',
+                            'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
+                        ].map(e => `expand[]=${e}`).join('&');
 
-                    const response = await fetch(url, { headers: this.getHeaders() });
+                        const url = `${HF_API_BASE}/models?filter=${tag}&sort=${strategy.sort}&direction=-1&limit=${batchLimit}&skip=${skip}&${expandParams}`;
 
-                    if (!response.ok) {
-                        if (response.status === 429) {
-                            const backoff = calculateBackoff(Math.floor(skip / PAGE_SIZE));
-                            console.log(`   ⚠️ Rate limited (429), backing off ${backoff}ms...`);
-                            await delay(backoff);
-                            continue; // Retry same request
+                        const response = await fetch(url, { headers: this.getHeaders() });
+
+                        if (!response.ok) {
+                            if (response.status === 429) {
+                                const backoff = calculateBackoff(Math.floor(skip / PAGE_SIZE));
+                                console.log(`   ⚠️ Rate limited (429), backing off ${backoff}ms...`);
+                                await delay(backoff);
+                                continue; // Retry same request
+                            }
+                            // V22.8: 400 = HF API pagination ceiling (~4000-5000 offset)
+                            if (response.status === 400) {
+                                console.log(`   ⏭️ [${tag}] Pagination ceiling at skip=${skip}, switching...`);
+                                hasMore = false;
+                                break;
+                            }
+                            console.warn(`   ⚠️ API error: ${response.status}`);
+                            break;
                         }
-                        // V22.8: 400 = HF API pagination ceiling (~4000-5000 offset)
-                        if (response.status === 400) {
-                            console.log(`   ⏭️ [${tag}] Pagination ceiling at skip=${skip}, moving to next tag...`);
+
+                        const models = await response.json();
+
+                        if (models.length === 0) {
                             hasMore = false;
                             break;
                         }
-                        console.warn(`   ⚠️ API error: ${response.status}`);
-                        break;
+
+                        // Filter duplicates (shared across both sorts)
+                        const newModels = models.filter(m => {
+                            const id = m.modelId || m.id;
+                            if (collectedIds.has(id)) return false;
+                            collectedIds.add(id);
+                            return true;
+                        });
+
+                        // V2.1: Add NSFW filter
+                        const safeModels = newModels.filter(m => this.isSafeForWork(m));
+
+                        if (onBatch) {
+                            await onBatch(safeModels);
+                        } else {
+                            allModels.push(...safeModels);
+                        }
+
+                        tagModels += models.length;
+                        skip += models.length;
+
+                        // Log progress for large fetches
+                        if (tagModels >= 1000 && tagModels % 2000 < PAGE_SIZE) {
+                            console.log(`   📦 Progress: ${tagModels} ${strategy.label} models fetched...`);
+                        }
+
+                        // Stop if we got less than requested (no more pages)
+                        if (models.length < batchLimit) {
+                            hasMore = false;
+                        }
+
+                        // Rate limit delay between pages
+                        if (hasMore) await delay(500);
                     }
 
-                    const models = await response.json();
+                    console.log(`   🆕 ${tag}/${strategy.label}: ${tagModels} fetched`);
 
-                    if (models.length === 0) {
-                        hasMore = false;
-                        break;
-                    }
-
-                    // Filter duplicates
-                    const newModels = models.filter(m => {
-                        const id = m.modelId || m.id;
-                        if (collectedIds.has(id)) return false;
-                        collectedIds.add(id);
-                        return true;
-                    });
-
-                    // V2.1: Add NSFW filter
-                    const safeModels = newModels.filter(m => this.isSafeForWork(m));
-
-                    if (onBatch) {
-                        await onBatch(safeModels);
-                    } else {
-                        allModels.push(...safeModels);
-                    }
-
-                    tagModels += models.length;
-                    skip += models.length;
-
-                    // Log progress for large fetches
-                    if (tagModels >= 1000 && tagModels % 2000 < PAGE_SIZE) {
-                        console.log(`   📦 Progress: ${tagModels} models fetched...`);
-                    }
-
-                    // Stop if we got less than requested (no more pages)
-                    if (models.length < batchLimit) {
-                        hasMore = false;
-                    }
-
-                    // Rate limit delay between pages
-                    if (hasMore) await delay(500);
+                } catch (error) {
+                    console.error(`   ❌ Tag ${tag}/${strategy.label} failed: ${error.message}`);
                 }
-
-                console.log(`   🆕 ${tagModels} fetched, ${onBatch ? 'Streamed' : allModels.length - (allModels.length - tagModels)} unique added`);
-                await delay(1000); // Delay between tags
-
-            } catch (error) {
-                console.error(`   ❌ Tag ${tag} failed: ${error.message}`);
             }
+            await delay(1000); // Delay between tags
         }
 
         console.log(`\n✅ [HuggingFace] Pipeline tag collection: ${onBatch ? 'Streaming' : allModels.length} complete`);
