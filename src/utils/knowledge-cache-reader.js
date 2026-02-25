@@ -28,9 +28,16 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     const target = stripPrefix(entityId);
     let allRelations = [];
 
-    // V21.5.1: REVERT - SSR relaxation for knowledge-links caused 1102 OOM (54k+ entries).
-    // Extreme Throttling: During SSR, we ONLY trust relations.json. 
-    // Richer mesh data will hydrate on the client-side.
+    // V22.8: Extreme SSR Throttling (Constitutional Safety Fix)
+    // Loading full relations.json or graph.json during SSR at 364K scale causes 1102 Worker OOM.
+    // We skip these for the initial HTML load; rich mesh data will hydrate on the client-side.
+    const isSSR = Boolean(locals?.runtime?.env);
+
+    if (isSSR && options.ssrOnly) {
+        console.warn(`[KnowledgeReader] SSR Memory Protection enabled for ${entityId}. Returning empty relations to prevent 1102 crash.`);
+        return [];
+    }
+
     const sourcesToFetch = options.ssrOnly ? [
         'cache/relations.json',
         'cache/relations/explicit.json',
