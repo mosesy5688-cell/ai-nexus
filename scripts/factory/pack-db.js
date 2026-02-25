@@ -117,6 +117,14 @@ async function packDatabase() {
     metaDb.transaction(() => {
         searchDb.transaction(() => {
             let rowId = 1;
+            const s = (v) => {
+                if (v == null) return '';
+                if (typeof v === 'string') return v;
+                if (Array.isArray(v)) return v.join(', ');
+                if (typeof v === 'object') return JSON.stringify(v);
+                return String(v);
+            };
+
             for (const e of metadataBatch) {
                 const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
                 const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
@@ -154,7 +162,8 @@ async function packDatabase() {
                 insertEntityMeta.run(...metaValues);
                 insertEntitySearch.run(...searchValues);
                 // V22.6: INSERT into contentless search table using rowid alignment
-                updateFts.run(rowId++, e.name || '', truncatedSummary, e.author || '', tags, category);
+                // V22.8 Fix: Ensure all FTS5 binds are strings to prevent TypeError
+                updateFts.run(rowId++, s(e.name || e.displayName || ''), s(truncatedSummary), s(e.author), s(tags), s(category));
                 stats.packed++;
             }
         })();
