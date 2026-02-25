@@ -34,7 +34,7 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     const isSSR = Boolean(locals?.runtime?.env);
 
     if (isSSR && options.ssrOnly) {
-        console.warn(`[KnowledgeReader] SSR Memory Protection enabled for ${rootId}. Returning empty relations to prevent 1102 crash.`);
+        console.warn(`[KnowledgeReader] SSR Memory Protection enabled for ${entityId}. Returning empty relations to prevent 1102 crash.`);
         return [];
     }
 
