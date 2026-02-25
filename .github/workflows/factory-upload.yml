@@ -115,11 +115,11 @@ jobs:
           # V19.2 Fix: Harvest Registry Shards (part-*) instead of incremental Process shards (shard-*)
           # The full registry is in output/cache/registry/
           if [ -d "output/cache/registry" ]; then
-            echo "📦 Moving registry shards for fusion..."
-            find output/cache/registry -name "part-*.json.gz" -exec mv {} artifacts/ \;
+            echo "📦 Copying registry shards for fusion (preserving originals for Closed World)..."
+            find output/cache/registry -name "part-*.json.gz" -exec cp {} artifacts/ \;
           elif [ -d "output/shards" ]; then
             # Fallback for older structures if they somehow persist
-            find output/shards -name "shard-*.json.gz" -exec mv {} artifacts/ \;
+            find output/shards -name "shard-*.json.gz" -exec cp {} artifacts/ \;
           fi
           echo "📦 Shards ready in artifacts/: $(ls artifacts | wc -l)"
       - name: Execute Master Fusion
@@ -144,6 +144,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
+      - name: Restore Base Output (Trending Context)
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
+          restore-keys: cycle-
       - name: Restore Fused Entities
         uses: actions/cache/restore@v4
         with:
@@ -153,12 +159,6 @@ jobs:
         run: |
           mkdir -p output/cache/fused
           tar -xf fused-entities.tar -C output/cache
-      - name: Restore Base Output (Trending Context)
-        uses: actions/cache/restore@v4
-        with:
-          path: output/
-          key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
-          restore-keys: cycle-
       - name: Execute Stable 1.0 Packer
         env:
           CACHE_DIR: ./output/cache
