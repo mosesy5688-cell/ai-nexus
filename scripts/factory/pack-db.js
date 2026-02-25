@@ -9,7 +9,7 @@ import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
-import { loadTrendingMap, loadTrendMap, collectAndSortMetadata } from './lib/pack-utils.js';
+import { loadTrendingMap, loadTrendMap, collectAndSortMetadata, buildBundleJson, buildEntityRow } from './lib/pack-utils.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
@@ -48,6 +48,7 @@ async function packDatabase() {
     setupDb(searchDb);
 
     // Schema A: meta.db (Search Index - Contentless FTS5 per Const. 5.1)
+    // V22.8: Added license, source_url, pipeline_tag, image_url, vram_estimate_gb, source
     const metaSchema = `
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
@@ -57,7 +58,9 @@ async function packDatabase() {
             architecture TEXT,
             context_length INTEGER DEFAULT 0,
             is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
-            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
+            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT,
+            license TEXT DEFAULT '', source_url TEXT DEFAULT '', pipeline_tag TEXT DEFAULT '',
+            image_url TEXT DEFAULT '', vram_estimate_gb REAL DEFAULT 0, source TEXT DEFAULT ''
         );
         -- V22.6: Strictly Contentless FTS5 (content='')
         CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='unicode61 remove_diacritics 2');
@@ -67,6 +70,7 @@ async function packDatabase() {
     `;
 
     // Schema B: search.db (Full Registry - Lossless)
+    // V22.8: Added license, source_url, pipeline_tag, image_url, vram_estimate_gb, source
     const searchSchema = `
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
@@ -76,7 +80,9 @@ async function packDatabase() {
             architecture TEXT,
             context_length INTEGER DEFAULT 0,
             is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
-            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
+            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT,
+            license TEXT DEFAULT '', source_url TEXT DEFAULT '', pipeline_tag TEXT DEFAULT '',
+            image_url TEXT DEFAULT '', vram_estimate_gb REAL DEFAULT 0, source TEXT DEFAULT ''
         );
         CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
         CREATE INDEX idx_fni_full ON entities(fni_score DESC);
@@ -85,8 +91,9 @@ async function packDatabase() {
     metaDb.exec(metaSchema);
     searchDb.exec(searchSchema);
 
-    const insertEntityMeta = metaDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    // V22.8: 27 original + 6 new = 33 columns
+    const insertEntityMeta = metaDb.prepare(`INSERT INTO entities VALUES (${',?'.repeat(33).slice(1)})`);
+    const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${',?'.repeat(33).slice(1)})`);
     // V22.6: FTS5 strictly contentless requires rowid mapping
     const updateFts = metaDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
 
@@ -116,17 +123,7 @@ async function packDatabase() {
                 const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
                 const arch = e.architecture ?? e.technical?.architecture ?? '';
 
-                const bundleJson = Buffer.from(JSON.stringify({
-                    readme: e.readme || e.html_readme || '',
-                    changelog: e.changelog || '',
-                    benchmarks: e.benchmarks || [],
-                    paper_abstract: e.paper_abstract || '',
-                    mesh_profile: e.mesh_profile || { relations: [] },
-                    fni_metrics: fniMetrics,
-                    params_billions: pBillions,
-                    context_length: ctxLen,
-                    architecture: arch
-                }), 'utf8');
+                const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
 
                 let bundleKey = null, offset = 0, size = 0;
                 if (bundleJson.length > THRESHOLD_KB * 1024) {
@@ -146,25 +143,13 @@ async function packDatabase() {
                 }
 
                 const rawSummary = e.summary || e.description || '';
-                // V22.3: Split-DB Truncation Rule (CES Art 5.3)
                 const truncatedSummary = rawSummary.length > 500 ? rawSummary.substring(0, 500) + '...' : rawSummary;
-
                 const category = getV6Category(e);
                 const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
-                const metaValues = [
-                    e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-                    e.author || '', truncatedSummary, category, tags, e.fni_score || 0, e.fni_percentile || '',
-                    e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
-                    e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
-                    pBillions, arch, ctxLen, e.is_trending ? 1 : 0,
-                    e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
-                    '', // shard_hash filled later
-                    e._trend_7d
-                ];
-
+                const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
                 const searchValues = [...metaValues];
-                searchValues[6] = rawSummary; // Restoration of lossless summary for search.db
+                searchValues[6] = rawSummary; // Lossless summary for search.db
 
                 insertEntityMeta.run(...metaValues);
                 insertEntitySearch.run(...searchValues);
