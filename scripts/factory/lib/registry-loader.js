@@ -149,7 +149,7 @@ export async function loadGlobalRegistry(options = {}) {
 /**
  * Internal Projector (Dry / Fast)
  */
-function projectEntity(e, slim) {
+export function projectEntity(e, slim) {
     if (!slim) return e;
     const rawSummary = e.description || e.summary || e.seo_summary?.description || '';
     let summary = rawSummary;
