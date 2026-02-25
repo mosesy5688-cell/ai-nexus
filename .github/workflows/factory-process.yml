@@ -123,6 +123,8 @@ jobs:
       # V18.12.5.1: Architectural Split (Decomposition)
       # Move sharding responsibility from 1/4 (Harvest) to 2/4 (Process)
       - name: Split Registry for Matrix
+        env:
+          NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
           echo "🔪 Decomposing monolith for parallel processing..."
           node scripts/factory/split-registry.js
@@ -218,6 +220,7 @@ jobs:
           FNI_HISTORY_PATH: cache/fni-history.json.gz
           ARTIFACT_DIR: artifacts
           STRICT_R2_LOCKDOWN: 'true'
+          NODE_OPTIONS: '--max-old-space-size=6144'
         run: |
           echo "🔄 Processing Shard ${{ matrix.shard }}/20..."
           node scripts/factory/shard-processor.js --shard=${{ matrix.shard }} --total=20
