@@ -10,15 +10,43 @@ import { saveGlobalRegistry, syncCacheState } from './cache-manager.js';
 /**
  * Persist the global registry and mirror artifacts for distribution
  */
-export async function persistRegistry(rankedEntities, outputDir, cacheDir) {
+export async function persistRegistry(rankedEntities, outputDir, cacheDir, rankingsMap) {
     console.log(`[AGGREGATOR] 💾 Persisting sharded registry...`);
 
-    // 1. Sharded Registry
-    await saveGlobalRegistry({
-        entities: rankedEntities,
-        count: rankedEntities.length,
-        lastUpdated: new Date().toISOString()
-    });
+    if (!rankedEntities && rankingsMap) {
+        // V22.8: High-Fidelity Shard Patching (Preserves READMEs for 4/4 Fusion)
+        const { loadRegistryShardsSequentially } = await import('./registry-loader.js');
+        const { saveRegistryShard, saveGlobalRegistry } = await import('./registry-saver.js');
+        const { projectEntity } = await import('./registry-loader.js');
+
+        const slimMonolith = [];
+
+        await loadRegistryShardsSequentially(async (entities, shardIdx) => {
+            for (const e of entities) {
+                // Update scores/rankings in the deep (high-fidelity) entity
+                e.fni_percentile = rankingsMap.get(e.id) || 0;
+
+                // Collect slim version for the monolith to save memory
+                slimMonolith.push(projectEntity(e, true));
+            }
+            // Save the Deep (HF) shard back to disk (in the cache directory)
+            await saveRegistryShard(shardIdx, entities);
+        }, { slim: false });
+
+        // Save Monolith (Slim version is acceptable for the global index)
+        await saveGlobalRegistry({
+            entities: slimMonolith,
+            count: slimMonolith.length,
+            lastUpdated: new Date().toISOString()
+        });
+    } else {
+        // Satellite or Legacy mode: Persistence of provided (usually slim) entities
+        await saveGlobalRegistry({
+            entities: rankedEntities,
+            count: (rankedEntities || []).length,
+            lastUpdated: new Date().toISOString()
+        });
+    }
 
     // 2. Mirroring (V17.5+)
     const backupDir = path.join(outputDir, 'meta', 'backup');
