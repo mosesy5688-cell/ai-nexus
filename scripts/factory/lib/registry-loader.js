@@ -150,21 +150,21 @@ export async function loadGlobalRegistry(options = {}) {
  * Internal Projector (Dry / Fast)
  */
 export function projectEntity(e, slim) {
-    if (!slim) return e;
+    if (!slim) return e; // V22.8: Absolute Data Preservation (Safeguard 1.1)
+
+    // Summary Recovery Logic
     const rawSummary = e.description || e.summary || e.seo_summary?.description || '';
     let summary = rawSummary;
-
     if (!summary || summary.length < 5) {
-        const source = e.readme || e.content || e.html_readme || '';
+        const source = e.readme || e.content || e.html_readme || e.body_content || '';
         if (source) {
             summary = source.slice(0, 300).replace(/<[^>]+>/g, ' ').replace(/[#*`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 250);
         }
     }
 
+    // Slim Projection (V22.8: Project exactly what's needed for Satellite compute)
     return {
-        id: e.id,
-        umid: e.umid,
-        slug: e.slug || '',
+        id: e.id, umid: e.umid, slug: e.slug || '',
         name: e.name || e.title || e.displayName || '',
         type: e.type || e.entity_type || 'model',
         author: e.author || e.creator || e.organization || '',
@@ -172,29 +172,14 @@ export function projectEntity(e, slim) {
         tags: e.tags || [],
         metrics: e.metrics || {},
         stars: e.stars || e.github_stars || 0,
-        forks: e.forks || e.github_forks || 0,
         downloads: e.downloads || 0,
         likes: e.likes || 0,
         citations: e.citations || 0,
-        size: e.size || '',
-        runtime: e.runtime || null,
         fni_score: e.fni_score ?? e.fni ?? 0,
         fni_percentile: e.fni_percentile || e.percentile || '',
-        fni_trend_7d: e.fni_trend_7d || null,
-        is_rising_star: e.is_rising_star || false,
         primary_category: e.primary_category || '',
         pipeline_tag: e.pipeline_tag || '',
-        published_date: e.published_date || '',
         last_modified: e.last_modified || e.last_updated || e.lastModified || e._updated || '',
-        last_updated: e.last_updated || e.last_modified || e.lastModified || e._updated || '',
-        lastModified: e.lastModified || e.last_updated || e.last_modified || e._updated || '',
-        _updated: e._updated || e.last_updated || e.last_modified || '',
-        // Frontend-required lightweight fields (DeployabilityBadge, TechSpecsFull, ModelSidebar)
-        deploy_score: e.deploy_score || 0,
-        has_gguf: e.has_gguf || false,
-        has_ollama: e.has_ollama || false,
-        ollama_id: e.ollama_id || '',
-        benchmark_avg: e.benchmark_avg || 0,
         license: e.license || e.license_spdx || '',
         source: e.source || ''
     };

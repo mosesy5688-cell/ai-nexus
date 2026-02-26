@@ -143,7 +143,15 @@ async function packDatabase() {
 
                 insertEntityMeta.run(...metaValues);
                 insertEntitySearch.run(...searchValues);
-                updateFts.run(rowId++, e.name || e.displayName || '', truncatedSummary, e.author || '', tags, category);
+                const ftsValues = [
+                    rowId++,
+                    String(e.name || e.displayName || ''),
+                    String(truncatedSummary),
+                    Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
+                    String(tags),
+                    String(category)
+                ];
+                updateFts.run(...ftsValues);
                 stats.packed++;
             }
         })();

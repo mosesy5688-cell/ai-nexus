@@ -160,7 +160,7 @@ export async function collectAndSortMetadata(cacheDir, trendingMap, trendMap) {
  */
 export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
     return Buffer.from(JSON.stringify({
-        readme: e.readme || e.html_readme || e.body_content || '',
+        readme: e.readme || e.html_readme || e.body_content || e.content || e.description || '',
         changelog: e.changelog || '',
         benchmarks: e.benchmarks || [],
         paper_abstract: e.paper_abstract || '',

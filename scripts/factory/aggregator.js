@@ -178,7 +178,6 @@ async function main() {
         try {
             await updateFniHistory(rankedEntities);
             await fs.mkdir('./cache', { recursive: true });
-            await persistRegistry(rankedEntities, CONFIG.OUTPUT_DIR, './cache');
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
             await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
             if (shouldGenerateReport()) await generateDailyReport(CONFIG.OUTPUT_DIR);
