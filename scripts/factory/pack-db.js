@@ -9,8 +9,7 @@ import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
-import { META_SCHEMA, SEARCH_SCHEMA, setupDb } from './lib/pack-schema.js';
-import { loadTrendingMap, loadTrendMap, collectAndSortMetadata, buildBundleJson, buildEntityRow } from './lib/pack-utils.js';
+import { loadTrendingMap, loadTrendMap, collectAndSortMetadata } from './lib/pack-utils.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
@@ -37,15 +36,57 @@ async function packDatabase() {
     const metaDb = new Database(META_DB_PATH);
     const searchDb = new Database(SEARCH_DB_PATH);
 
+    const setupDb = (db) => {
+        db.pragma('page_size = 8192'); // V22.0 High-Density 8K Alignment
+        db.pragma('auto_vacuum = 0');
+        db.pragma('journal_mode = DELETE');
+        db.pragma('synchronous = OFF');
+        db.pragma('encoding = "UTF-8"');
+    };
+
     setupDb(metaDb);
     setupDb(searchDb);
 
-    metaDb.exec(META_SCHEMA);
-    searchDb.exec(SEARCH_SCHEMA);
+    // Schema A: meta.db (Search Index - Contentless FTS5 per Const. 5.1)
+    const metaSchema = `
+        CREATE TABLE entities (
+            id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
+            category TEXT, tags TEXT, fni_score REAL, fni_percentile TEXT,
+            fni_p REAL DEFAULT 0, fni_v REAL DEFAULT 0, fni_c REAL DEFAULT 0, fni_u REAL DEFAULT 0,
+            params_billions REAL DEFAULT 0,
+            architecture TEXT,
+            context_length INTEGER DEFAULT 0,
+            is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
+            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
+        );
+        -- V22.6: Strictly Contentless FTS5 (content='')
+        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='unicode61 remove_diacritics 2');
+        CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
+        CREATE INDEX idx_fni ON entities(fni_score DESC);
+        CREATE INDEX idx_type ON entities(type);
+    `;
 
-    // V22.8: 27 original + 6 new = 33 columns
-    const insertEntityMeta = metaDb.prepare(`INSERT INTO entities VALUES (${',?'.repeat(33).slice(1)})`);
-    const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${',?'.repeat(33).slice(1)})`);
+    // Schema B: search.db (Full Registry - Lossless)
+    const searchSchema = `
+        CREATE TABLE entities (
+            id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
+            category TEXT, tags TEXT, fni_score REAL, fni_percentile TEXT,
+            fni_p REAL DEFAULT 0, fni_v REAL DEFAULT 0, fni_c REAL DEFAULT 0, fni_u REAL DEFAULT 0,
+            params_billions REAL DEFAULT 0,
+            architecture TEXT,
+            context_length INTEGER DEFAULT 0,
+            is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
+            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
+        );
+        CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
+        CREATE INDEX idx_fni_full ON entities(fni_score DESC);
+    `;
+
+    metaDb.exec(metaSchema);
+    searchDb.exec(searchSchema);
+
+    const insertEntityMeta = metaDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     // V22.6: FTS5 strictly contentless requires rowid mapping
     const updateFts = metaDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
 
@@ -69,21 +110,23 @@ async function packDatabase() {
     metaDb.transaction(() => {
         searchDb.transaction(() => {
             let rowId = 1;
-            const s = (v) => {
-                if (v == null) return '';
-                if (typeof v === 'string') return v;
-                if (Array.isArray(v)) return v.join(', ');
-                if (typeof v === 'object') return JSON.stringify(v);
-                return String(v);
-            };
-
             for (const e of metadataBatch) {
                 const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
                 const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
                 const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
                 const arch = e.architecture ?? e.technical?.architecture ?? '';
 
-                const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
+                const bundleJson = Buffer.from(JSON.stringify({
+                    readme: e.readme || e.html_readme || '',
+                    changelog: e.changelog || '',
+                    benchmarks: e.benchmarks || [],
+                    paper_abstract: e.paper_abstract || '',
+                    mesh_profile: e.mesh_profile || { relations: [] },
+                    fni_metrics: fniMetrics,
+                    params_billions: pBillions,
+                    context_length: ctxLen,
+                    architecture: arch
+                }), 'utf8');
 
                 let bundleKey = null, offset = 0, size = 0;
                 if (bundleJson.length > THRESHOLD_KB * 1024) {
@@ -102,24 +145,35 @@ async function packDatabase() {
                     stats.heavy++; stats.bytes += size;
                 }
 
-                const rawSummary = s(e.summary || e.description || '');
+                const rawSummary = e.summary || e.description || '';
+                // V22.3: Split-DB Truncation Rule (CES Art 5.3)
                 const truncatedSummary = rawSummary.length > 500 ? rawSummary.substring(0, 500) + '...' : rawSummary;
+
                 const category = getV6Category(e);
                 const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
-                const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
+                const metaValues = [
+                    e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
+                    e.author || '', truncatedSummary, category, tags, e.fni_score || 0, e.fni_percentile || '',
+                    e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
+                    e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
+                    pBillions, arch, ctxLen, e.is_trending ? 1 : 0,
+                    e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
+                    '', // shard_hash filled later
+                    e._trend_7d
+                ];
+
                 const searchValues = [...metaValues];
-                searchValues[6] = rawSummary; // Lossless summary for search.db
+                searchValues[6] = rawSummary; // Restoration of lossless summary for search.db
 
                 insertEntityMeta.run(...metaValues);
                 insertEntitySearch.run(...searchValues);
                 // V22.6: INSERT into contentless search table using rowid alignment
-                // V22.8 Fix: Ensure all FTS5 binds are strings to prevent TypeError
-                updateFts.run(rowId++, s(e.name || e.displayName || ''), s(truncatedSummary), s(e.author), s(tags), s(category));
+                updateFts.run(rowId++, e.name || '', truncatedSummary, e.author || '', tags, category);
                 stats.packed++;
             }
         })();
-    })();
+    });
 
     if (currentFd) fsSync.closeSync(currentFd);
 
@@ -136,16 +190,11 @@ async function packDatabase() {
 
     // Inject Metadata into BOTH databases
     console.log('[VFS] 🌐 Injecting Global Metadata...');
-    // V22.8: Expanded for JSON-free future (knowledge/ and reports/ stay independent)
     const metaFiles = [
         { key: 'category_stats', file: 'category_stats.json' },
         { key: 'trending', file: 'trending.json' },
         { key: 'relations', file: 'relations/explicit.json' },
-        { key: 'knowledge_links', file: 'relations/knowledge-links.json' },
-        { key: 'mesh_graph', file: 'mesh/graph.json' },
-        { key: 'mesh_stats', file: 'mesh/stats.json' },
-        { key: 'trend_data', file: 'trend-data.json' },
-        { key: 'alt_linker', file: 'relations/alt-meta.json' }
+        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }
     ];
 
     for (const meta of metaFiles) {
@@ -160,40 +209,16 @@ async function packDatabase() {
                 } catch (err) { continue; }
             }
             if (content) {
-                metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, s(content));
-                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, s(content));
+                metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
+                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
             }
         } catch (e) { }
     }
 
-    // V22.8: Rankings directory scan — consolidate pages per category
-    const rankingsDir = path.join(CACHE_DIR, 'rankings');
-    try {
-        const categories = (await fs.readdir(rankingsDir)).filter(d => !d.endsWith('.json') && !d.endsWith('.gz'));
-        for (const cat of categories) {
-            const catDir = path.join(rankingsDir, cat);
-            const pages = (await fs.readdir(catDir)).filter(f => f.endsWith('.json.gz') || f.endsWith('.json'));
-            const merged = [];
-            for (const page of pages.sort()) {
-                try {
-                    const raw = await fs.readFile(path.join(catDir, page));
-                    const data = (page.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b)) ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
-                    if (Array.isArray(data)) merged.push(...data); else if (data.items) merged.push(...data.items);
-                } catch (e) { continue; }
-            }
-            if (merged.length > 0) {
-                const val = s(JSON.stringify(merged));
-                metaDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(`rankings_${cat}`, val);
-                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(`rankings_${cat}`, val);
-            }
-        }
-        console.log(`[VFS] 📊 Injected ${categories.length} ranking categories`);
-    } catch (e) { console.warn('[VFS] ⚠️ No rankings directory found, skipping'); }
-
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
 
     // Finalization
-    metaDb.exec("INSERT INTO search(search) VALUES('optimize');");
+    searchDb.exec("INSERT INTO search(search) VALUES('optimize');");
     metaDb.exec("PRAGMA integrity_check; VACUUM;");
     searchDb.exec("PRAGMA integrity_check; VACUUM;");
 
