@@ -16,29 +16,28 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
     if (!rankedEntities && rankingsMap) {
         // V22.8: High-Fidelity Shard Patching (Preserves READMEs for 4/4 Fusion)
         const { loadRegistryShardsSequentially } = await import('./registry-loader.js');
-        const { saveRegistryShard, saveGlobalRegistry } = await import('./registry-saver.js');
+        const { saveRegistryShard } = await import('./registry-saver.js');
         const { projectEntity } = await import('./registry-loader.js');
+        const { RegistryStreamer } = await import('./registry-streamer.js');
 
-        const slimMonolith = [];
+        const cacheDir = process.env.CACHE_DIR || './cache';
+        const streamer = new RegistryStreamer(path.join(cacheDir, 'global-registry.json.gz'));
 
         await loadRegistryShardsSequentially(async (entities, shardIdx) => {
             for (const e of entities) {
                 // Update scores/rankings in the deep (high-fidelity) entity
                 e.fni_percentile = rankingsMap.get(e.id) || 0;
 
-                // Collect slim version for the monolith to save memory
-                slimMonolith.push(projectEntity(e, true));
+                // Push slim version to monolith (O(1) memory)
+                streamer.push(projectEntity(e, true));
             }
             // Save the Deep (HF) shard back to disk (in the cache directory)
             await saveRegistryShard(shardIdx, entities);
         }, { slim: false });
 
-        // Save Monolith (Slim version is acceptable for the global index)
-        await saveGlobalRegistry({
-            entities: slimMonolith,
-            count: slimMonolith.length,
-            lastUpdated: new Date().toISOString()
-        });
+        // Finalize monolith stream
+        await streamer.end();
+        console.log(`[AGGREGATOR] ✅ High-Fidelity Registry Patching Complete.`);
     } else {
         // Satellite or Legacy mode: Persistence of provided (usually slim) entities
         await saveGlobalRegistry({

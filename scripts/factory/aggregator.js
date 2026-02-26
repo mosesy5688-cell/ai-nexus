@@ -174,6 +174,15 @@ async function main() {
         }
     }
 
+    // V22.8: Memory Cleanup before Persistence (OOM Protection)
+    // Satellite tasks are done; we no longer need the slimmed array if we're doing HF patching.
+    if (taskArg === 'core' || !taskArg) {
+        console.log(`[AGGREGATOR] 🧹 Memory Cleanup: Releasing slimmed entities before High-Fidelity persistence...`);
+    }
+
+    // Capture count before nullifying
+    const entityCount = rankedEntities.length;
+
     if (!taskArg || taskArg === 'core') {
         try {
             await updateFniHistory(rankedEntities);
@@ -183,6 +192,13 @@ async function main() {
             // This is the SINGLE SOURCE OF TRUTH for the global registry monolith and fragments.
             // If and only if in Core/Late-Binding mode, we patch shards to preserve READMEs.
             const persistRankings = (lateBinding && !needsSlimming) ? rankingsMap : null;
+
+            // NULLIFY pointers to free up GC pressure for the patching phase
+            if (persistRankings) {
+                fullSet = null;
+                // Note: we'll pass persistRankings instead of rankedEntities
+            }
+
             await persistRegistry(persistRankings ? null : rankedEntities, CONFIG.OUTPUT_DIR, './cache', persistRankings);
 
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
