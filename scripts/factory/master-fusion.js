@@ -67,7 +67,7 @@ async function main() {
 
             const fusedEntities = [];
             for (const result of shardEntities) {
-                const entity = result.enriched || result;
+                const entity = { ...result, ...(result.enriched || {}) };
 
                 // A. Closed World Filter (No broken links)
                 if (entity.relations) {
