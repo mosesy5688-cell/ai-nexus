@@ -222,23 +222,56 @@ jobs:
           restore-keys: cycle-
       - name: Rebuild Cache Structure
         run: |
-          mkdir -p cache/registry
-          # 1. Monoliths
-          [ -f "output/global-registry.json.gz" ] && cp output/global-registry.json.gz cache/ || true
-          [ -f "output/fni-history.json.gz" ] && cp output/fni-history.json.gz cache/ || true
-          [ -f "output/daily-accum.json.gz" ] && cp output/daily-accum.json.gz cache/ || true
-          [ -f "output/entity-checksums.json.gz" ] && cp output/entity-checksums.json.gz cache/ || true
+          mkdir -p cache/registry cache/fni-history cache/daily-accum
           
-          # 2. Shards (V22.8: Preserve part-* naming conventions)
-          if [ -d "output/meta/backup/registry" ]; then
-            cp -r output/meta/backup/registry/* cache/registry/
-          fi
-          echo "🔄 Cache structure rebuilt for cycle preservation"
+          # V22.8: Robust Context Harvesting (Path Agnostic)
+          HARVEST_ROOTS="output/data/meta/backup output/meta/backup output/cache output"
+          
+          # 1. Monoliths
+          for f in global-registry.json.gz fni-history.json.gz daily-accum.json.gz entity-checksums.json.gz; do
+            for root in $HARVEST_ROOTS; do
+              if [ -f "$root/$f" ]; then
+                cp "$root/$f" cache/
+                echo "✅ Harvested monolith: $f from $root"
+                break
+              fi
+            done
+          done
+          
+          # 2. Shards (Registry, FNI, Accum)
+          for dir in registry fni-history daily-accum; do
+            for root in $HARVEST_ROOTS; do
+              if [ -d "$root/$dir" ] && [ "$(ls -A $root/$dir 2>/dev/null)" ]; then
+                cp -r $root/$dir/* cache/$dir/
+                echo "✅ Harvested shards: $dir from $root"
+                break
+              fi
+            done
+          done
+          
+          echo "🔄 Cache structure rebuilt for high-fidelity cycle preservation"
+          ls -R cache/ | head -20
       - name: Save Global Registry to Cache (V22.8)
         uses: actions/cache/save@v4
         with:
           path: cache/
           key: global-registry-${{ github.run_id }}
+      
+      - name: Save FNI History to Cache (Self-Healing Bridge)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache/fni-history.json.gz
+            cache/fni-history/
+          key: fni-history-${{ github.run_id }}
+
+      - name: Save Daily Accumulator to Cache (Self-Healing Bridge)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache/daily-accum.json.gz
+            cache/daily-accum/
+          key: daily-accum-${{ github.run_id }}
 
   upload:
     name: Final Upload to R2
