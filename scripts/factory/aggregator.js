@@ -181,7 +181,9 @@ async function main() {
 
             // V22.8 Authoritative Aggregation (Safeguard 5.1)
             // This is the SINGLE SOURCE OF TRUTH for the global registry monolith and fragments.
-            await persistRegistry(rankedEntities, CONFIG.OUTPUT_DIR, './cache');
+            // If and only if in Core/Late-Binding mode, we patch shards to preserve READMEs.
+            const persistRankings = (lateBinding && !needsSlimming) ? rankingsMap : null;
+            await persistRegistry(persistRankings ? null : rankedEntities, CONFIG.OUTPUT_DIR, './cache', persistRankings);
 
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
             await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
