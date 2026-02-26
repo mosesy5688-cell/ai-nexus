@@ -178,6 +178,11 @@ async function main() {
         try {
             await updateFniHistory(rankedEntities);
             await fs.mkdir('./cache', { recursive: true });
+
+            // V22.8 Authoritative Aggregation (Safeguard 5.1)
+            // This is the SINGLE SOURCE OF TRUTH for the global registry monolith and fragments.
+            await persistRegistry(rankedEntities, CONFIG.OUTPUT_DIR, './cache');
+
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
             await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
             if (shouldGenerateReport()) await generateDailyReport(CONFIG.OUTPUT_DIR);

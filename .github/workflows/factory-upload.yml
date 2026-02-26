@@ -174,6 +174,7 @@ jobs:
         with:
           path: |
             output/data/
+            output/meta/
             output/sitemaps/
             output/sitemap.xml
           key: intra-4-4-${{ github.run_id }}-vfs-assets
@@ -201,81 +202,10 @@ jobs:
           path: output/rss/
           key: intra-4-4-${{ github.run_id }}-rss-feeds
 
-  # V22.8: High-Fidelity Loop Restoration (Registry Cycle)
-  cache-cycle:
-    name: Cache Cycle Restoration
-    needs: vfs-packing
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Restore VFS Assets (Registry Baseline)
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            output/data/
-          key: intra-4-4-${{ github.run_id }}-vfs-assets
-      - name: Restore Base Output (Monoliths)
-        uses: actions/cache/restore@v4
-        with:
-          path: output/
-          key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
-          restore-keys: cycle-
-      - name: Rebuild Cache Structure
-        run: |
-          mkdir -p cache/registry cache/fni-history cache/daily-accum
-          
-          # V22.8: Robust Context Harvesting (Path Agnostic)
-          HARVEST_ROOTS="output/data/meta/backup output/meta/backup output/cache output"
-          
-          # 1. Monoliths
-          for f in global-registry.json.gz fni-history.json.gz daily-accum.json.gz entity-checksums.json.gz; do
-            for root in $HARVEST_ROOTS; do
-              if [ -f "$root/$f" ]; then
-                cp "$root/$f" cache/
-                echo "✅ Harvested monolith: $f from $root"
-                break
-              fi
-            done
-          done
-          
-          # 2. Shards (Registry, FNI, Accum)
-          for dir in registry fni-history daily-accum; do
-            for root in $HARVEST_ROOTS; do
-              if [ -d "$root/$dir" ] && [ "$(ls -A $root/$dir 2>/dev/null)" ]; then
-                cp -r $root/$dir/* cache/$dir/
-                echo "✅ Harvested shards: $dir from $root"
-                break
-              fi
-            done
-          done
-          
-          echo "🔄 Cache structure rebuilt for high-fidelity cycle preservation"
-          ls -R cache/ | head -20
-      - name: Save Global Registry to Cache (V22.8)
-        uses: actions/cache/save@v4
-        with:
-          path: cache/
-          key: global-registry-${{ github.run_id }}
-      
-      - name: Save FNI History to Cache (Self-Healing Bridge)
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            cache/fni-history.json.gz
-            cache/fni-history/
-          key: fni-history-${{ github.run_id }}
-
-      - name: Save Daily Accumulator to Cache (Self-Healing Bridge)
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            cache/daily-accum.json.gz
-            cache/daily-accum/
-          key: daily-accum-${{ github.run_id }}
 
   upload:
     name: Final Upload to R2
-    needs: [mesh-baking, master-fusion, vfs-packing, rss-feeds, check-upstream, cache-cycle]
+    needs: [mesh-baking, master-fusion, vfs-packing, rss-feeds, check-upstream]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -299,6 +229,12 @@ jobs:
         with:
           path: fused-entities.tar
           key: intra-4-4-${{ github.run_id }}-fused-tar
+      - name: Restore Global Registry Cache (V22.8 Cycle)
+        uses: actions/cache/restore@v4
+        with:
+          path: cache/
+          key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
+          restore-keys: global-registry-
       - name: Extract Fused Entities
         run: |
           mkdir -p output/cache
@@ -317,6 +253,7 @@ jobs:
         with:
           path: |
             output/data/
+            output/meta/
             output/sitemaps/
             output/sitemap.xml
           key: intra-4-4-${{ github.run_id }}-vfs-assets
@@ -339,12 +276,32 @@ jobs:
       - name: Prepare Registry Backup for S3 Upload
         run: |
           mkdir -p output/meta/backup
-          # V19.3 Optimization: Promote legacy monoliths to root for filter compliance
-          [ -f "output/meta/backup/global-registry.json.gz" ] && cp output/meta/backup/global-registry.json.gz output/ || true
-          [ -f "output/meta/backup/fni-history.json.gz" ] && cp output/meta/backup/fni-history.json.gz output/ || true
-          [ -f "output/meta/backup/daily-accum.json.gz" ] && cp output/meta/backup/daily-accum.json.gz output/ || true
-          [ -f "output/meta/backup/entity-checksums.json.gz" ] && cp output/meta/backup/entity-checksums.json.gz output/ || true
-          echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/ and promoted to root"
+          mkdir -p output/cache/registry output/cache/fni-history output/cache/daily-accum
+          
+          # 1. Monolith Promotion (V22.8: Move from backup/cache to root for R2 visibility)
+          MONOLITHS="global-registry.json.gz fni-history.json.gz daily-accum.json.gz entity-checksums.json.gz"
+          for f in $MONOLITHS; do
+            if [ -f "output/meta/backup/$f" ]; then
+              cp "output/meta/backup/$f" output/
+              echo "✅ Promoted $f from meta/backup to root"
+            elif [ -f "output/cache/$f" ]; then
+              cp "output/cache/$f" output/
+              echo "✅ Promoted $f from output/cache to root"
+            elif [ -f "cache/$f" ]; then
+              cp "cache/$f" output/
+              echo "✅ Promoted $f from cache/ to root"
+            fi
+          done
+          
+          # 2. Shard Promotion (V22.8: Ensure Stage 3/4 Fragments are visible in output/cache)
+          for dir in registry fni-history daily-accum; do
+            if [ -d "cache/$dir" ]; then
+              cp -r cache/$dir/* output/cache/$dir/
+              echo "✅ Promoted shards: $dir from internal cache to output/cache"
+            fi
+          done
+          
+          echo "✅ All Industrial Artifacts aligned for R2 upload"
       # V19.0: SQL Health Check before upload (blocks deployment on failure)
       - name: V22.3 SQL Health Check
         run: |
@@ -358,8 +315,8 @@ jobs:
           fi
       - name: Upload to R2 via S3 API
         env:
-          # V22.3: Added Split-DB meta.db and search.db
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,fni-history.json.gz,daily-accum.json.gz,entity-checksums.json.gz,cache/fused/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/meta.db,data/search.db,data/
+          # V22.8: Added cache/registry/ and cache/fni-history/ to ensure sharded visibility
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,fni-history.json.gz,daily-accum.json.gz,entity-checksums.json.gz,cache/fused/,cache/registry/,cache/fni-history/,cache/daily-accum/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/meta.db,data/search.db,data/
           CACHE_DIR: output/cache
         run: node scripts/factory/r2-upload-s3.js
       - name: Save Upload Manifest to Cache

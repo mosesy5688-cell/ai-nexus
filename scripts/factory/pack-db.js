@@ -207,11 +207,6 @@ async function packDatabase() {
 
     searchDb.close();
 
-    // V22.8: High-Fidelity Master Registry Persistence (CES Safeguard 5.1)
-    // Moving this from Aggregator (Stage 3/4) to Packer (Stage 4/4) to preserve data depth.
-    console.log('[VFS] 🛡️ Finalizing Constitutional Master Registry Backup...');
-    await persistRegistry(metadataBatch, './output', CACHE_DIR);
-
     console.log(`[VFS] ✅ Constitutional Split-DB Complete! Shards: ${currentShardId + 1}, Heavy: ${stats.heavy}`);
 }
 
