@@ -72,14 +72,15 @@ Return in JSON format:
         let aiContent = null;
         try {
             // V18.2.3: Robust JSON Extraction (handles case where model wraps response in backticks)
-            let cleanText = text.trim();
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            let cleanText = rawText.trim();
             if (cleanText.startsWith('```')) {
                 const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
                 if (match) cleanText = match[1];
             }
             aiContent = JSON.parse(cleanText);
         } catch (parseError) {
-            console.warn(`[AI] JSON parse failed: ${parseError.message}. Raw text: ${text.substring(0, 100)}...`);
+            console.warn(`[AI] JSON parse failed: ${parseError.message}`);
             return null;
         }
 
