@@ -11,6 +11,7 @@ import crypto from 'crypto';
 import zlib from 'zlib';
 import { loadTrendingMap, loadTrendMap, collectAndSortMetadata, buildBundleJson, buildEntityRow } from './lib/pack-utils.js';
 import { getV6Category } from './lib/category-stats-generator.js';
+import { persistRegistry } from './lib/aggregator-persistence.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
 const META_DB_PATH = './output/data/meta.db';
@@ -204,8 +205,13 @@ async function packDatabase() {
     metaDb.exec("PRAGMA integrity_check; VACUUM;");
     searchDb.exec("PRAGMA integrity_check; VACUUM;");
 
-    metaDb.close();
     searchDb.close();
+
+    // V22.8: High-Fidelity Master Registry Persistence (CES Safeguard 5.1)
+    // Moving this from Aggregator (Stage 3/4) to Packer (Stage 4/4) to preserve data depth.
+    console.log('[VFS] 🛡️ Finalizing Constitutional Master Registry Backup...');
+    await persistRegistry(metadataBatch, './output', CACHE_DIR);
+
     console.log(`[VFS] ✅ Constitutional Split-DB Complete! Shards: ${currentShardId + 1}, Heavy: ${stats.heavy}`);
 }
 

@@ -201,9 +201,48 @@ jobs:
           path: output/rss/
           key: intra-4-4-${{ github.run_id }}-rss-feeds
 
+  # V22.8: High-Fidelity Loop Restoration (Registry Cycle)
+  cache-cycle:
+    name: Cache Cycle Restoration
+    needs: vfs-packing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore VFS Assets (Registry Baseline)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/data/
+          key: intra-4-4-${{ github.run_id }}-vfs-assets
+      - name: Restore Base Output (Monoliths)
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
+          restore-keys: cycle-
+      - name: Rebuild Cache Structure
+        run: |
+          mkdir -p cache/registry
+          # 1. Monoliths
+          [ -f "output/global-registry.json.gz" ] && cp output/global-registry.json.gz cache/ || true
+          [ -f "output/fni-history.json.gz" ] && cp output/fni-history.json.gz cache/ || true
+          [ -f "output/daily-accum.json.gz" ] && cp output/daily-accum.json.gz cache/ || true
+          [ -f "output/entity-checksums.json.gz" ] && cp output/entity-checksums.json.gz cache/ || true
+          
+          # 2. Shards (V22.8: Preserve part-* naming conventions)
+          if [ -d "output/meta/backup/registry" ]; then
+            cp -r output/meta/backup/registry/* cache/registry/
+          fi
+          echo "🔄 Cache structure rebuilt for cycle preservation"
+      - name: Save Global Registry to Cache (V22.8)
+        uses: actions/cache/save@v4
+        with:
+          path: cache/
+          key: global-registry-${{ github.run_id }}
+
   upload:
     name: Final Upload to R2
-    needs: [mesh-baking, master-fusion, vfs-packing, rss-feeds, check-upstream]
+    needs: [mesh-baking, master-fusion, vfs-packing, rss-feeds, check-upstream, cache-cycle]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
