@@ -232,19 +232,25 @@ jobs:
       - name: Restore Global Registry Cache (V22.8 Cycle)
         uses: actions/cache/restore@v4
         with:
-          path: cache/
+          path: |
+            cache/global-registry.json.gz
+            cache/registry/
           key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: global-registry-
       - name: Restore FNI History Cache
         uses: actions/cache/restore@v4
         with:
-          path: cache/
+          path: |
+            cache/fni-history.json.gz
+            cache/fni-history/
           key: fni-history-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: fni-history-
       - name: Restore Daily Accumulator Cache
         uses: actions/cache/restore@v4
         with:
-          path: cache/
+          path: |
+            cache/daily-accum.json.gz
+            cache/daily-accum/
           key: daily-accum-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: daily-accum-
       - name: Extract Fused Entities
