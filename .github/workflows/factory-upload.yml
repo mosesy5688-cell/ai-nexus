@@ -235,6 +235,18 @@ jobs:
           path: cache/
           key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: global-registry-
+      - name: Restore FNI History Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: cache/
+          key: fni-history-${{ needs.check-upstream.outputs.upstream-run-id }}
+          restore-keys: fni-history-
+      - name: Restore Daily Accumulator Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: cache/
+          key: daily-accum-${{ needs.check-upstream.outputs.upstream-run-id }}
+          restore-keys: daily-accum-
       - name: Extract Fused Entities
         run: |
           mkdir -p output/cache
@@ -295,9 +307,11 @@ jobs:
           
           # 2. Shard Promotion (V22.8: Ensure Stage 3/4 Fragments are visible in output/cache)
           for dir in registry fni-history daily-accum; do
-            if [ -d "cache/$dir" ]; then
+            if [ -d "cache/$dir" ] && [ "$(ls -A cache/$dir 2>/dev/null)" ]; then
               cp -r cache/$dir/* output/cache/$dir/
               echo "✅ Promoted shards: $dir from internal cache to output/cache"
+            else
+              echo "⚠️ Skipping shard promotion for $dir (Directory empty or missing)"
             fi
           done
           
