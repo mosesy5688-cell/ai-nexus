@@ -29,7 +29,8 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
                 e.fni_percentile = rankingsMap.get(e.id) || 0;
 
                 // Push slim version to monolith (O(1) memory)
-                streamer.push(projectEntity(e, true));
+                // V22.8: Use deep projection (slim=false) to preserve README/long-text in monolith
+                streamer.push(projectEntity(e, false));
             }
             // Save the Deep (HF) shard back to disk (in the cache directory)
             await saveRegistryShard(shardIdx, entities);

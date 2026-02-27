@@ -17,7 +17,7 @@ const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
 const META_DB_PATH = './output/data/meta.db';
 const SEARCH_DB_PATH = './output/data/search.db';
 const SHARD_PATH_DIR = './output/data';
-const THRESHOLD_KB = 50;
+const THRESHOLD_KB = 0; // V22.8: Universal Sharding (Ensure 100% README/Long-text coverage)
 const MAX_SHARD_SIZE = 256 * 1024 * 1024;
 
 async function packDatabase() {
