@@ -175,6 +175,9 @@ export function normalizeId(id, source, type) {
                 t = 'agent';
             }
         }
+        else if (s === 'langchain') {
+            t = 'prompt';
+        }
         else t = 'model';
     }
 
