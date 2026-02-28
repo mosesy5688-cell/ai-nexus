@@ -189,11 +189,15 @@ jobs:
         run: |
           echo "✅ Core registry and fragments verified. Ready for handoff."
 
-      # V4.1: Internal Cache for same-workflow satellite jobs
+      # V4.2: Internal Cache for same-workflow satellite jobs
+      # V22.8 FIX: Must include cache/ and artifacts/ for satellite shard loading
       - name: Save Intra-Cycle Core to Cache
         uses: actions/cache/save@v4
         with:
-          path: output/
+          path: |
+            output/
+            cache/
+            artifacts/
           key: intra-cycle-${{ github.run_id }}-core
 
       # V4.1: Save Global Registry for next cycle's 1/4 Harvest
@@ -242,7 +246,10 @@ jobs:
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
-          path: output/
+          path: |
+            output/
+            cache/
+            artifacts/
           key: intra-cycle-${{ github.run_id }}-core
       # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Search Indices
@@ -274,7 +281,10 @@ jobs:
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
-          path: output/
+          path: |
+            output/
+            cache/
+            artifacts/
           key: intra-cycle-${{ github.run_id }}-core
       # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Rankings
@@ -310,7 +320,10 @@ jobs:
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
-          path: output/
+          path: |
+            output/
+            cache/
+            artifacts/
           key: intra-cycle-${{ github.run_id }}-core
       # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Restore FNI History from Cache
@@ -352,7 +365,10 @@ jobs:
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
-          path: output/
+          path: |
+            output/
+            cache/
+            artifacts/
           key: intra-cycle-${{ github.run_id }}-core
       # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Relations
@@ -425,7 +441,10 @@ jobs:
       - name: Restore Core Registry
         uses: actions/cache/restore@v4
         with:
-          path: output/
+          path: |
+            output/
+            cache/
+            artifacts/
           key: intra-cycle-${{ github.run_id }}-core
 
       - name: Merge Core with Satellite Outputs
