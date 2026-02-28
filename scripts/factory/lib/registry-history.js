@@ -13,13 +13,16 @@ import { loadWithFallback, saveWithBackup } from './cache-core.js';
  */
 export async function loadFniHistory() {
     const cacheDir = process.env.CACHE_DIR || './cache';
-    const historyDir = path.join(cacheDir, 'fni-history');
+    let historyDir = path.join(cacheDir, 'fni-history'); // Changed to `let` to allow re-assignment
 
+    let files = [];
     try {
-        const files = await fs.readdir(historyDir);
-        const shards = files.filter(f => (f.startsWith('part-') || f.startsWith('shard-')) && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
+        files = await fs.readdir(historyDir);
+    } catch (err) { }
+    const shards = files.filter(f => (f.startsWith('part-') || f.startsWith('shard-')) && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
 
-        if (shards.length > 0) {
+    if (shards.length > 0) {
+        try {
             console.log(`[CACHE] 🧩 Sharded FNI history found (${shards.length} parts). Merging...`);
             let allEntities = {};
             let lastUpdated = null;
@@ -36,8 +39,10 @@ export async function loadFniHistory() {
             }
 
             return { entities: allEntities, lastUpdated: lastUpdated || new Date().toISOString() };
+        } catch (e) {
+            console.warn(`[CACHE] ⚠️ Failed to merge history shards: ${e.message}`);
         }
-    } catch { /* fallback to monolith */ }
+    }
 
     return loadWithFallback('fni-history.json.gz', { entities: {}, lastUpdated: null });
 }

@@ -22,7 +22,7 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
     try {
         shardFiles = await fs.readdir(shardDirPath);
     } catch (err) {
-        // Directory might not exist yet
+        return; // Standard behavior: if directory missing, no shards
     }
 
     let validShards = shardFiles

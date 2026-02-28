@@ -65,7 +65,9 @@ async function main() {
             const shard = JSON.parse(decompressed.toString('utf-8'));
             const shardEntities = shard.entities || [];
 
-            const fusedEntities = [];
+            const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
+            await fs.mkdir(outDir, { recursive: true });
+
             for (const result of shardEntities) {
                 const entity = { ...result, ...(result.enriched || {}) };
 
@@ -92,12 +94,15 @@ async function main() {
                 }
 
                 // C. Project for VFS (Partitioned Registry Storage)
-                fusedEntities.push(projectEntity(entity, false));
+                const projected = projectEntity(entity, false);
+                fusedEntities.push(projected);
+
+                // D. V22.8 EMERGENCY RESTORE: Write individual JSON for Legacy Frontend Support
+                const individualPath = path.join(outDir, `${entity.id}.json.gz`);
+                await fs.writeFile(individualPath, zlib.gzipSync(JSON.stringify(projected)));
             }
 
-            // Write Partitioned Registry to cache/fused (V22.8: matches tar packaging path)
-            const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
-            await fs.mkdir(outDir, { recursive: true });
+            // Write Partitioned Registry for VFS Packer support
             const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.gz`);
 
             await fs.writeFile(outPath, zlib.gzipSync(JSON.stringify({
@@ -112,7 +117,7 @@ async function main() {
         }
     }
 
-    console.log(`[FUSION] ✅ Complete! Industry-Grade Mesh Fused to ${CONFIG.OUTPUT_DIR}/registry/`);
+    console.log(`[FUSION] ✅ Complete! Industry-Grade Mesh Fused to ${CONFIG.CACHE_DIR}/fused/`);
 }
 
 main().catch(err => {

@@ -18,11 +18,14 @@ export async function loadDailyAccum() {
     const cacheDir = process.env.CACHE_DIR || './cache';
     const accumDir = path.join(cacheDir, 'daily-accum');
 
+    let files = [];
     try {
-        const files = await fs.readdir(accumDir);
-        const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
+        files = await fs.readdir(accumDir);
+    } catch (err) { }
+    const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
 
-        if (shards.length > 0) {
+    if (shards.length > 0) {
+        try {
             console.log(`[CACHE] 🧩 Sharded daily accumulator found (${shards.length} parts). Merging...`);
             let allEntries = [];
             let lastUpdated = null;
@@ -44,8 +47,10 @@ export async function loadDailyAccum() {
             }
 
             return { ...meta, entries: allEntries, lastUpdated: lastUpdated || new Date().toISOString() };
+        } catch (e) {
+            console.warn(`[CACHE] ⚠️ Failed to merge daily-accum shards: ${e.message}`);
         }
-    } catch { /* fallback to monolith */ }
+    }
 
     return loadWithFallback('daily-accum.json.gz', { entries: [], lastUpdated: null });
 }
