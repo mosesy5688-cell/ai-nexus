@@ -34,7 +34,9 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     }
 
     let totalSize = 0, etag = '', isLocal = false;
-    if (isDev) {
+    const isSimulatingRemote = !!(process.env.SIMULATE_PRODUCTION);
+
+    if (isDev && !isSimulatingRemote) {
         try {
             const { resolve } = await import('path'), { stat } = await import('fs/promises');
             const stats = await stat(resolve(process.cwd(), 'data', filename));
@@ -45,9 +47,20 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     }
 
     if (!isLocal) {
-        const objectHead = await env.R2_ASSETS.head(`data/${filename}`);
-        if (!objectHead) return new Response('Not Found', { status: 404 });
-        totalSize = objectHead.size; etag = objectHead.httpEtag;
+        if (env?.R2_ASSETS) {
+            const objectHead = await env.R2_ASSETS.head(`data/${filename}`);
+            if (!objectHead) return new Response('Not Found', { status: 404 });
+            totalSize = objectHead.size; etag = objectHead.httpEtag;
+        } else if (isSimulatingRemote) {
+            // V22.8: SIMULATION FALLBACK - Fetch HEAD from CDN to get metadata
+            const baseUrl = 'https://cdn.free2aitools.com';
+            const res = await fetch(`${baseUrl}/data/${filename}`, { method: 'HEAD' });
+            if (!res.ok) return new Response('Not Found', { status: 404 });
+            totalSize = parseInt(res.headers.get('content-length') || '0', 10);
+            etag = res.headers.get('etag') || 'remote-untracked';
+        } else {
+            return new Response('R2 Binding Missing', { status: 500 });
+        }
     }
 
     const commonHeaders = {
@@ -76,11 +89,15 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (isLocal) {
             const { readFile } = await import('fs/promises'), { resolve } = await import('path');
             return new Response(await readFile(resolve(process.cwd(), 'data', filename)), { status: 200, headers });
-        } else {
+        } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`);
             if (!object) return new Response('Not Found', { status: 404 });
             object.writeHttpMetadata(headers as any);
             return new Response(object.body as any, { status: 200, headers });
+        } else {
+            const baseUrl = 'https://cdn.free2aitools.com';
+            const res = await fetch(`${baseUrl}/data/${filename}`);
+            return new Response(res.body, { status: 200, headers });
         }
     }
 
@@ -99,11 +116,15 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
                 const { readFile } = await import('fs/promises'), { resolve } = await import('path');
                 const buf = (await readFile(resolve(process.cwd(), 'data', filename))).subarray(totalSize - suffix);
                 return new Response(buf, { status: 206, headers });
-            } else {
+            } else if (env?.R2_ASSETS) {
                 const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { suffix } });
                 if (!object) return new Response('Not Found', { status: 404 });
                 object.writeHttpMetadata(headers as any);
                 return new Response(object.body as any, { status: 206, headers });
+            } else {
+                const baseUrl = 'https://cdn.free2aitools.com';
+                const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
+                return new Response(res.body, { status: 206, headers });
             }
         }
 
@@ -127,11 +148,15 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             const { bytesRead } = await handle.read(buffer, 0, responseSize, start);
             await handle.close();
             return new Response(buffer.subarray(0, bytesRead), { status: 206, headers });
-        } else {
+        } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { offset: start, length: responseSize } });
             if (!object) return new Response('Not Found', { status: 404 });
             object.writeHttpMetadata(headers as any);
             return new Response(object.body as any, { status: 206, headers });
+        } else {
+            const baseUrl = 'https://cdn.free2aitools.com';
+            const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
+            return new Response(res.body, { status: 206, headers });
         }
     } catch (e) {
         return new Response('Internal Proxy Error', {

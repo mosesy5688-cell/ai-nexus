@@ -1,0 +1,90 @@
+---
+/**
+ * ArXiv Category Hub V22.0
+ * High-Fidelity taxonomy focus page for AI-Nexus Knowledge Mesh.
+ */
+import Layout from '../../layouts/Layout.astro';
+import UniversalCoreIsland from '../../components/entity/UniversalCoreIsland.astro';
+import { loadEntityStreams } from '../../utils/packet-loader';
+import { getCategoryMeta } from '../../data/arxiv-taxonomy';
+
+export async function getStaticPaths() {
+  const { ARXIV_TAXONOMY } = await import('../../data/arxiv-taxonomy');
+  return Object.keys(ARXIV_TAXONOMY).map(slug => ({
+    params: { slug }
+  }));
+}
+
+const { slug } = Astro.params;
+
+// V21.15.12: Dual-Engine Hub Loading (Synthesis First)
+const { entity, mesh, _meta } = await loadEntityStreams('category', slug, Astro.locals);
+
+if (!entity) {
+  return Astro.redirect('/404');
+}
+
+const meta = getCategoryMeta(slug);
+const title = `${meta.label} Hub | AI-Nexus Mesh`;
+const description = entity.description || `Industrial research and ecosystem nodes for ${meta.label}.`;
+
+---
+
+<Layout title={title} description={description}>
+  <main class="category-hub-page max-w-7xl mx-auto px-4 py-12">
+    <!-- Hero Section -->
+    <header class="hub-hero relative mb-20 p-12 bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-800 shadow-2xl">
+      <div class="absolute inset-0 opacity-20 pointer-events-none">
+        <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-transparent"></div>
+        <div class="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 blur-[120px] rounded-full"></div>
+      </div>
+
+      <div class="relative z-10 flex flex-col md:flex-row items-center gap-10">
+        <div class="icon-avatar w-24 h-24 md:w-32 md:h-32 flex items-center justify-center bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-inner">
+          <span class="text-6xl md:text-7xl drop-shadow-lg">{meta.icon}</span>
+        </div>
+        
+        <div class="content space-y-4 text-center md:text-left flex-1">
+          <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
+             <span class="px-3 py-1 bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-full">ArXiv Taxonomy Hub</span>
+             <span class="px-3 py-1 bg-white/10 text-white/70 text-[10px] font-black uppercase tracking-widest rounded-full border border-white/10 uppercase">{slug}</span>
+          </div>
+          <h1 class="text-4xl md:text-6xl font-black text-white tracking-tight">
+            {meta.label}
+          </h1>
+          <p class="text-lg md:text-xl text-zinc-400 font-medium max-w-2xl">
+            {description}
+          </p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Intelligence Hub (Consolidated Matrix) -->
+    <div class="hub-mesh-section">
+      <div class="section-header flex items-center gap-4 mb-10">
+        <h2 class="text-2xl font-black text-zinc-900 dark:text-white tracking-tight uppercase"> Intelligence Matrix</h2>
+        <div class="h-px flex-1 bg-zinc-100 dark:bg-zinc-800"></div>
+      </div>
+      
+      <UniversalCoreIsland id={entity.id} type="category" entity={entity} />
+    </div>
+
+    <!-- Context Footer -->
+    <footer class="mt-24 p-8 bg-zinc-50 dark:bg-zinc-900/40 rounded-3xl border border-zinc-100 dark:border-zinc-800 text-center">
+      <p class="text-xs font-black text-zinc-400 uppercase tracking-widest">
+        Data Source: ArXiv Taxonomy 2024 • Synthesis: V22.0 Digital Mesh
+      </p>
+    </footer>
+  </main>
+</Layout>
+
+<style>
+  .category-hub-page {
+    animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes fade-in-up {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+</style>

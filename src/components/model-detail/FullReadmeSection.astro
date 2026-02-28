@@ -7,14 +7,7 @@
 import MarkdownRenderer from './MarkdownRenderer.astro';
 import { runNeuralMining } from '../../scripts/neural-miner.js';
 
-interface Props {
-  bodyContent: string;
-  model?: any;
-  type: string;
-  title?: string;
-  initialCollapsed?: boolean;
-  maxPreviewLength?: number;
-}
+interface Props { bodyContent: string; model?: any; type: string; title?: string; initialCollapsed?: boolean; maxPreviewLength?: number; }
 
 const { 
   bodyContent, 
@@ -46,56 +39,133 @@ let content = (bodyContent || '').replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n*/g, ''
 const hasLongContent = content.length > maxPreviewLength;
 ---
 
-{((content)) && (
-  <section class="readme-section relative group" id="technical-readme">
-    <div class="flex items-center justify-between mb-8">
-      <div class="flex items-center gap-3">
-         <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
-         <h2 class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">{displayTitle}</h2>
-      </div>
-      
-      {hasLongContent && (
-        <button id="readme-toggle-top" 
-                class="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-400 transition-colors flex items-center gap-2 group/top">
-           <span class="toggle-text">Full Specifications</span>
-           <span class="icon transition-transform group-hover/top:translate-y-0.5">↓</span>
-        </button>
-      )}
+{/* V22.8: Hybrid Hydration Gate. If content is missing at SSR, we render a VFS-Recovery skeleton. */}
+<section class="readme-section relative group" id="technical-readme" 
+         data-model-id={model?.id || ''} 
+         data-model-type={type}
+         data-has-initial={content ? 'true' : 'false'}>
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+       <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
+       <h2 class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">{displayTitle}</h2>
+    </div>
+    
+    <div id="readme-status" class="hidden text-[8px] font-black text-indigo-400/50 uppercase tracking-widest animate-pulse">
+       VFS Recovering Reference...
     </div>
 
-    <div class={`readme-container relative overflow-hidden transition-all duration-700 ease-in-out bg-gradient-to-br from-zinc-50/50 to-transparent dark:from-zinc-900/10 dark:to-transparent rounded-3xl border border-zinc-100 dark:border-zinc-800/50 shadow-inner
-                  ${hasLongContent ? 'collapsed' : ''}`} 
-         id="readme-container">
-      
-      <div class="p-8 sm:p-14">
-        <MarkdownRenderer content={content} />
-      </div>
+    {hasLongContent && (
+      <button id="readme-toggle-top" 
+              class="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-400 transition-colors flex items-center gap-2 group/top">
+         <span class="toggle-text">Full Specifications</span>
+         <span class="icon transition-transform group-hover/top:translate-y-0.5">↓</span>
+      </button>
+    )}
+  </div>
 
-      {hasLongContent && (
-        <div class="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-zinc-950 dark:via-zinc-950/95 pointer-events-none transition-opacity duration-500" id="readme-fade"></div>
+  <div class={`readme-container relative overflow-hidden transition-all duration-700 ease-in-out bg-gradient-to-br from-zinc-50/50 to-transparent dark:from-zinc-900/10 dark:to-transparent rounded-3xl border border-zinc-100 dark:border-zinc-800/50 shadow-inner
+                ${hasLongContent ? 'collapsed' : ''}`} 
+       id="readme-container">
+    
+    <div class="p-8 sm:p-14" id="readme-content-target">
+      {content ? (
+        <MarkdownRenderer content={content} />
+      ) : (
+        <div class="space-y-6 py-4">
+          <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-3/4 animate-shimmer"></div>
+          <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-full animate-shimmer" style="animation-delay: 0.2s"></div>
+          <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-5/6 animate-shimmer" style="animation-delay: 0.4s"></div>
+          <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-4/5 animate-shimmer" style="animation-delay: 0.6s"></div>
+        </div>
       )}
     </div>
 
     {hasLongContent && (
-      <div class="mt-8 flex justify-center">
-        <button id="toggle-readme" 
-                data-type-label={toggleLabel} 
-                class="group flex flex-col items-center gap-3 py-4 px-12 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800">
-          <span class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] group-hover:scale-110 transition-transform toggle-text">Expand full {toggleLabel}</span>
-          <div class="flex flex-col items-center">
-             <div class="w-px h-8 bg-gradient-to-b from-indigo-500 to-transparent toggle-line transition-all"></div>
-             <span class="text-indigo-500 text-xs mt-1 animate-bounce toggle-icon">↓</span>
-          </div>
-        </button>
-      </div>
+      <div class="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-zinc-950 dark:via-zinc-950/95 pointer-events-none transition-opacity duration-500" id="readme-fade"></div>
     )}
-  </section>
-)}
+  </div>
+
+  <div id="readme-footer-container" class={hasLongContent ? '' : 'hidden'}>
+    <div class="mt-8 flex justify-center">
+      <button id="toggle-readme" 
+              data-type-label={toggleLabel} 
+              class="group flex flex-col items-center gap-3 py-4 px-12 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800">
+        <span class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] group-hover:scale-110 transition-transform toggle-text">Expand full {toggleLabel}</span>
+        <div class="flex flex-col items-center">
+           <div class="w-px h-8 bg-gradient-to-b from-indigo-500 to-transparent toggle-line transition-all"></div>
+           <span class="text-indigo-500 text-xs mt-1 animate-bounce toggle-icon">↓</span>
+        </div>
+      </button>
+    </div>
+  </div>
+</section>
 
 <script>
   import { runNeuralMining } from '../../scripts/neural-miner.js';
+  import { initSearch, performSearch } from '../../scripts/home-search.js';
+  import { fetchBundleRange } from '../../utils/vfs-fetcher.ts';
+  import { marked } from 'marked';
 
-  function initReadmeToggle() {
+  async function initVfsRecovery() {
+    const section = document.getElementById('technical-readme');
+    const target = document.getElementById('readme-content-target');
+    const status = document.getElementById('readme-status');
+    const footer = document.getElementById('readme-footer-container');
+    
+    if (!section || !target) return;
+    if (section.dataset.hasInitial === 'true') {
+      setupToggle();
+      return;
+    }
+
+    const modelId = section.dataset.modelId;
+    const modelType = section.dataset.modelType;
+    if (!modelId) return;
+
+    if (status) status.classList.remove('hidden');
+
+    try {
+      // 1. Ensure VFS Engine is ready (Search Engine doubles as Metadata Engine)
+      console.log(`[VFS-Recovery] Attempting metadata recovery for: ${modelId}`);
+      await initSearch();
+
+      // 2. Query VFS for full metadata record (including bundle info)
+      // Custom query to get the high-fidelity row
+      // Note: we can't call performSearch easily for specific columns 
+      // since it's geared for search. We'll use the public initSearch result 
+      // or directly query if we exposed the worker.
+      // Wait, performSearch returns entity data. Let's try it.
+      const query = modelId.split('--').pop(); 
+      const results = await performSearch(query, 10, { entityType: modelType });
+      const record = results.find(r => r.id === modelId || r.slug === modelId);
+
+      if (record && record.bundle_key) {
+        // 3. Hydrate from Shards
+        console.log(`[VFS-Recovery] Found shard mapping: ${record.bundle_key} @ ${record.bundle_offset}`);
+        const bundle = await fetchBundleRange(record.bundle_key, record.bundle_offset, record.bundle_size);
+        
+        if (bundle && (bundle.readme || bundle.html_readme)) {
+          const raw = bundle.readme || bundle.html_readme;
+          const html = await marked(raw);
+          target.innerHTML = `<div class="prose prose-indigo dark:prose-invert max-w-none">${html}</div>`;
+          section.dataset.hasInitial = 'true';
+          if (raw.length > 5000) footer?.classList.remove('hidden');
+          setupToggle();
+          runNeuralMining(target);
+          console.log(`[VFS-Recovery] Recovery SUCCESS.`);
+        }
+      } else {
+         console.warn(`[VFS-Recovery] No shard mapping found in VFS for ${modelId}`);
+         target.innerHTML = `<p class="text-zinc-400 text-sm italic">Documentation currently synchronized with local index. Full specifications available via production mirror.</p>`;
+      }
+    } catch (e) {
+      console.error(`[VFS-Recovery] Recovery Error:`, e);
+    } finally {
+      if (status) status.classList.add('hidden');
+    }
+  }
+
+  function setupToggle() {
     const toggleBtn = document.getElementById('toggle-readme');
     const container = document.getElementById('readme-container');
     const fade = document.getElementById('readme-fade');
@@ -110,7 +180,7 @@ const hasLongContent = content.length > maxPreviewLength;
           container.classList.add('collapsed');
           if (fade) fade.style.opacity = '1';
           toggleBtn.dataset.expanded = 'false';
-          const text = toggleBtn.querySelector('.toggle-text');
+          const text = (toggleBtn as HTMLElement).querySelector('.toggle-text');
           if (text) text.textContent = `Expand full ${typeLabel}`;
           const icon = toggleBtn.querySelector('.toggle-icon');
           if (icon) icon.classList.remove('rotate-180');
@@ -127,7 +197,7 @@ const hasLongContent = content.length > maxPreviewLength;
           container.classList.remove('collapsed');
           if (fade) fade.style.opacity = '0';
           toggleBtn.dataset.expanded = 'true';
-          const text = toggleBtn.querySelector('.toggle-text');
+          const text = (toggleBtn as HTMLElement).querySelector('.toggle-text');
           if (text) text.textContent = 'Show Less';
           const icon = toggleBtn.querySelector('.toggle-icon');
           if (icon) icon.classList.add('rotate-180');
@@ -143,16 +213,14 @@ const hasLongContent = content.length > maxPreviewLength;
 
       toggleBtn.addEventListener('click', toggle);
       if (topToggle) topToggle.addEventListener('click', toggle);
-      
-      runNeuralMining(container);
     }
   }
 
   // Initial load
-  initReadmeToggle();
+  initVfsRecovery();
   
   // View Transitions support
-  document.addEventListener('astro:after-swap', initReadmeToggle);
+  document.addEventListener('astro:after-swap', initVfsRecovery);
 </script>
 
 <style>
@@ -164,5 +232,14 @@ const hasLongContent = content.length > maxPreviewLength;
   }
   .opacity-0 {
     opacity: 0;
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(128,128,128,0.05) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite linear;
   }
 </style>

@@ -83,20 +83,18 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
                 if (result.skipped) {
                     unchanged++;
                 } else {
-                    console.log(`   [NEW] Uploaded: ${result.path}`);
+                    // Removed verbose per-file log to keep progress bar visible
                     success++;
                 }
             } else {
-                console.error(`   [FAIL] Upload: ${result.path} | Error: ${result.error}`);
+                console.error(`\n   [FAIL] Upload: ${result.path} | Error: ${result.error}`);
                 fail++;
             }
         }
 
         const processed = i + batch.length;
-        if (processed % 1000 === 0 || processed === queue.length) {
-            const percent = ((processed / queue.length) * 100).toFixed(1);
-            process.stdout.write(`\r   [PROGRESS] ${percent}% (${processed}/${queue.length}) | New: ${success}, Unchanged: ${unchanged}, Fail: ${fail}`);
-        }
+        const percent = ((processed / queue.length) * 100).toFixed(1);
+        process.stdout.write(`\r   [PROGRESS] ${percent}% (${processed}/${queue.length}) | New: ${success}, Unchanged: ${unchanged}, Fail: ${fail}`);
 
         if ((success + unchanged) % 1000 === 0) await saveCheckpoint(checkpoint);
     }

@@ -4,18 +4,34 @@ import { fetchBundleRange } from './vfs-fetcher.js';
 import { promoteEngine2Fields } from './dual-engine-merger.js';
 import { fetchCompressedJSON } from './resilient-fetch.js';
 import { fetchCatalogData } from './catalog-fetcher.js';
+import { resolveVfsMetadata } from './vfs-metadata-provider.js';
 
 /**
- * V19.4: High-Density Parallel Loader
- * Optimized with "Race-to-Hit" strategy (Promise.any)
+ * V22.8: High-Density VFS Parallel Loader
+ * Strictly prioritizes VFS (SQLite) over legacy JSON streams.
  */
 export async function loadEntityStreams(type: string, slug: string, locals: any = null) {
     const normalized = normalizeEntitySlug(slug, type).toLowerCase();
+    const isSimulatingRemote = !!(typeof process !== 'undefined' && process.env.SIMULATE_PRODUCTION);
 
     let entityResult;
 
-    // V21.13: Server-First Recovery Strategy (Internal R2 Priority)
-    if (locals?.runtime?.env?.R2_ASSETS && typeof window === 'undefined') {
+    // TIER 0: VFS Primary Discovery (V22.8 Mandate)
+    try {
+        const vfsMatch = await resolveVfsMetadata(type, normalized, locals);
+        if (vfsMatch?.data) {
+            entityResult = {
+                data: vfsMatch.data,
+                path: vfsMatch.source,
+                isVfs: true
+            };
+        }
+    } catch (e: any) {
+        console.warn(`[Loader] VFS Discovery skipped for ${normalized}:`, e.message);
+    }
+
+    // TIER 1: Server-First Recovery Strategy (Internal R2 Priority)
+    if (!entityResult && locals?.runtime?.env?.R2_ASSETS && typeof window === 'undefined') {
         const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
         if (sequentialResult) {
             entityResult = {
@@ -86,12 +102,20 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
         return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
     }
 
-    // V19.4.15: ID Persistence Logic
-    // If the source data (Registry/VFS) lacks an ID, we MUST inject the normalized ID
-    // to prevent downstream "ID Unknown" UI failures and broken routing.
+    // V22.8: Regulated ID Persistence
+    // If the source data lacks a canonical ID, we MUST inject a regulated Short-ID
+    // structure (hierarchical) to maintain routing and VFS search parity.
     if (!entityPack.id) {
-        entityPack.id = normalized;
-        console.log(`[Hydration] Injected normalized ID: ${normalized}`);
+        entityPack.id = normalized.includes('--') ? normalized.replace(/--/g, '/') : normalized;
+        console.log(`[Hydration] Injected regulated ID: ${entityPack.id}`);
+    }
+
+    // 3. Validation & Recovery Guard
+    // A valid entity must have an identity. Content (README) is now hydrated 
+    // asynchronously via VFS if missing from the initial packet.
+    const hasIdentity = !!(entityPack.name || entityPack.canonical_name || entityPack.slug);
+    if (!hasIdentity) {
+        return { entity: null, html: null, mesh: null, _meta: { available: false, source: 'invalid-packet' } };
     }
 
     // --- ANCHOR ESTABLISHED ---

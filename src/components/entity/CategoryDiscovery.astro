@@ -1,0 +1,83 @@
+---
+/**
+ * CategoryDiscovery - V22.0
+ * Contextual discovery module for ArXiv taxonomy.
+ * Integrated into implementation detail pages (Models, Papers).
+ */
+import { getCategoryMeta } from '../../data/arxiv-taxonomy';
+import { getRouteFromId } from '../../utils/mesh-routing-core';
+
+interface Props {
+  entity: any;
+}
+
+const { entity } = Astro.props;
+
+// Extract ArXiv category ID
+const arxivTags = (entity?.tags || []).filter((t: string) => t.startsWith('arxiv:'));
+const primaryCategory = arxivTags[0]?.replace('arxiv:', '') || entity?.meta_json?.primary_category;
+
+const meta = primaryCategory ? getCategoryMeta(primaryCategory) : null;
+const categoryPath = primaryCategory ? getRouteFromId(`arxiv--${primaryCategory}`, 'category') : null;
+
+// Simulated related nodes for synthesis
+// In a real scenario, this could fetch from a cache or the mesh orchestrator
+const relatedNodes = (entity?.relations || [])
+  .filter((r: any) => r.target_type === 'category' && stripArxivPrefix(r.target_id) !== primaryCategory)
+  .slice(0, 4);
+
+function stripArxivPrefix(id: string) {
+  return id?.replace('arxiv:', '').replace('arxiv--', '');
+}
+---
+
+{meta && (
+  <div class="category-discovery-module mt-12 p-8 bg-zinc-50 dark:bg-zinc-900/40 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 animate-fade-in">
+    <div class="flex flex-col md:flex-row items-center gap-8">
+      <div class="category-badge w-20 h-20 flex items-center justify-center bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm">
+        <span class="text-4xl">{meta.icon}</span>
+      </div>
+      
+      <div class="flex-1 text-center md:text-left">
+        <div class="flex items-center justify-center md:justify-start gap-2 mb-2">
+           <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded">Taxonomy Context</span>
+           <span class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{primaryCategory}</span>
+        </div>
+        <h3 class="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+          Explored via {meta.label} Hub
+        </h3>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-xl">
+          This implementation is a key node within the <span class="font-bold text-zinc-700 dark:text-zinc-300">{meta.label}</span> academic ecosystem. 
+          Discover related structural associations and lineage.
+        </p>
+        
+        <div class="mt-6 flex flex-wrap justify-center md:justify-start gap-3">
+          <a href={categoryPath} class="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-600 dark:hover:bg-indigo-500 transition-colors">
+            Browse {meta.label} Archive
+          </a>
+          
+          {relatedNodes.length > 0 && (
+             <div class="flex items-center gap-2">
+               <span class="text-[10px] font-bold text-zinc-400">Related:</span>
+               {relatedNodes.map((node: any) => (
+                 <a href={getRouteFromId(node.target_id, node.target_type)} class="text-[10px] font-black text-zinc-600 dark:text-zinc-400 hover:text-indigo-500 uppercase">
+                    {stripArxivPrefix(node.target_id)}
+                 </a>
+               ))}
+             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+<style>
+  .category-discovery-module {
+    transition: all 0.3s ease;
+  }
+  .category-discovery-module:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.1);
+  }
+</style>

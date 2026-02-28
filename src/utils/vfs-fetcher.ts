@@ -19,12 +19,16 @@ export async function fetchEntityFromVfs(id: string, locals: any = null) {
 }
 
 export async function fetchBundleRange(bundleKey: string, offset: number, size: number, locals: any = null) {
-    const env = locals?.runtime?.env;
+    const isSimulatingRemote = !!(typeof process !== 'undefined' && process.env.SIMULATE_PRODUCTION);
     const filename = bundleKey.split('/').pop();
-    const proxyUrl = `/api/vfs-proxy/${filename}`;
+
+    // V22.8: Remote R2 Binary Sharding
+    const targetUrl = isSimulatingRemote
+        ? `${R2_CACHE_URL}/data/${filename}`
+        : `/api/vfs-proxy/${filename}`;
 
     try {
-        const response = await fetch(proxyUrl, {
+        const response = await fetch(targetUrl, {
             headers: {
                 'Range': `bytes=${offset}-${offset + size - 1}`
             }
