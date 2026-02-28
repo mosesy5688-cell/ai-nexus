@@ -10,13 +10,23 @@ export const GET: APIRoute = async ({ locals, url }) => {
         const file = await r2.get(path);
         if (!file) return new Response(`File not found: ${path}`, { status: 404 });
 
+        let content = '';
+        if (path.endsWith('.gz')) {
+            const ds = new DecompressionStream('gzip');
+            const decompressedStream = file.body.pipeThrough(ds);
+            const res = new Response(decompressedStream);
+            content = await res.text();
+        } else {
+            content = await file.text();
+        }
+
         return new Response(JSON.stringify({
             exists: true,
             size: file.size,
-            etag: file.etag,
-            httpMetadata: file.httpMetadata
-        }), { status: 200 });
+            path: path,
+            content: content.slice(0, 5000)
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } catch (e: any) {
-        return new Response(`Error: ${e.message}`, { status: 500 });
+        return new Response(JSON.stringify({ error: e.message, stack: e.stack }), { status: 500 });
     }
 }
