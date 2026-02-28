@@ -18,6 +18,8 @@ const CDN_BASE = 'https://cdn.free2aitools.com';
 export async function loadHotShard() {
     if (isHotLoaded) return;
     const paths = [
+        '/api/vfs-proxy/cache/search-core.json.gz',
+        '/api/vfs-proxy/cache/search/shard-0.json.gz',
         `${CDN_BASE}/cache/search-core.json.gz`,
         `${CDN_BASE}/cache/search/shard-0.json.gz`,
         '/cache/search-core.json.gz'
@@ -27,16 +29,29 @@ export async function loadHotShard() {
         let data = null;
         for (const path of paths) {
             try {
-                const res = await fetch(path);
+                // V22.8: Use a 10s timeout for shard fetches to avoid hanging UI
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                const res = await fetch(path, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
                 if (!res.ok) continue;
 
-                if (path.endsWith('.gz')) {
+                if (path.endsWith('.gz') || path.includes('/vfs-proxy/')) {
                     const ds = new DecompressionStream('gzip');
                     const decompressedRes = new Response(res.body.pipeThrough(ds));
-                    data = await decompressedRes.json();
+                    try {
+                        data = await decompressedRes.json();
+                    } catch (e) {
+                        // Fallback: If decompression fails, try plain JSON (some proxies might auto-decompress)
+                        const cloned = res.clone();
+                        data = await cloned.json();
+                    }
                 } else {
                     data = await res.json();
                 }
+
                 if (data) {
                     console.log(`[HotEngine] Successfully loaded from ${path}`);
                     break;

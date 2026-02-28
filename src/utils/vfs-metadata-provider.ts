@@ -48,55 +48,71 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
     }
 
     // Strategy 2: Remote/Production VFS Proxy (SQLite Range Query / site_metadata)
-    // Production / Simulation Mode: Attempt remote metadata lookup via VFS Proxy API.
-    // This allows local dev to fully simulate production data paths.
+    // Production / Simulation Mode: Attempt remote metadata lookup via R2 binding directly on server
     if (!isDev || isSimulatingRemote) {
-        try {
-            const { R2_CACHE_URL } = await import('../config/constants.js');
-            const paths = getR2PathCandidates(type, normalized);
+        const r2 = locals?.runtime?.env?.R2_ASSETS || locals?.R2_ASSETS || locals?.env?.R2_ASSETS;
+        const { R2_CACHE_URL } = await import('../config/constants.js');
+        const paths = getR2PathCandidates(type, normalized);
 
-            // Prioritize Fused (High Fidelity) and Gzip
-            const prioritized = paths.filter(p => p.includes('/fused/'));
-            if (prioritized.length === 0) prioritized.push(...paths);
+        // Prioritize Fused (High Fidelity) and Gzip
+        const prioritized = paths.filter(p => p.includes('/fused/'));
+        if (prioritized.length === 0) prioritized.push(...paths);
 
-            for (const path of prioritized) {
-                const url = `${R2_CACHE_URL}/${path}`;
-                try {
+        for (const path of prioritized) {
+            try {
+                let data: any = null;
+                let source = '';
+
+                // Tier 1: R2 Binding (High Reliability for Workers)
+                if (r2 && typeof window === 'undefined') {
+                    const file = await r2.get(path);
+                    if (file) {
+                        if (path.endsWith('.gz')) {
+                            const ds = new DecompressionStream('gzip');
+                            const decompressedStream = file.body.pipeThrough(ds);
+                            data = await new Response(decompressedStream).json();
+                        } else {
+                            data = await file.json();
+                        }
+                        source = `r2-binding:${path}`;
+                    }
+                }
+
+                // Tier 2: CDN Fetch (Fallback/Browser)
+                if (!data) {
+                    const url = `${R2_CACHE_URL}/${path}`;
                     const res = await fetch(url);
                     if (res.ok) {
                         const buffer = await res.arrayBuffer();
                         const uint8 = new Uint8Array(buffer);
-
-                        // Robust Gzip Detection (Magic Number 1F 8B)
                         const isGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
 
-                        let data;
                         if (isGzip) {
                             try {
                                 const ds = new DecompressionStream('gzip');
                                 const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
                                 data = await decompressedRes.json();
                             } catch (err) {
-                                // Fallback for environments without DecompressionStream (Node 18)
                                 const zlib = await import('node:zlib');
                                 data = JSON.parse(zlib.gunzipSync(Buffer.from(buffer)).toString('utf-8'));
                             }
                         } else {
                             data = JSON.parse(new TextDecoder().decode(buffer));
                         }
-
-                        const entity = data.entity || data;
-                        console.log(`[VFS-Metadata] [REMOTE] Resolved ${normalized} via ${path} (${isGzip ? 'gzip' : 'plain'})`);
-                        return {
-                            data: entity,
-                            source: `remote-vfs:${path}`,
-                            _isRemote: true
-                        };
+                        source = `remote-fetch:${path}`;
                     }
-                } catch (e) { continue; }
-            }
-        } catch (e: any) {
-            console.warn(`[VFS-Metadata] [REMOTE-FAIL] ${normalized} lookup failed:`, e.message);
+                }
+
+                if (data) {
+                    const entity = data.entity || data;
+                    console.log(`[VFS-Metadata] Resolved ${normalized} via ${source}`);
+                    return {
+                        data: entity,
+                        source: source,
+                        _isRemote: true
+                    };
+                }
+            } catch (e) { continue; }
         }
     }
 
