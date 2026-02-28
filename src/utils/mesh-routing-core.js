@@ -103,8 +103,9 @@ export function getRouteFromId(id, type = null) {
     // V21.15: Handle already-routed absolute paths
     if (id.startsWith('/') && !id.includes('--')) return id;
 
-    const idDerivedType = getTypeFromId(id);
     // V22.8 Fix: Explicit type MUST override derived type for hierarchical IDs (author/name)
+    // If a type is passed in (like 'prompt', 'space', 'paper'), we MUST trust it over the derived type.
+    const idDerivedType = getTypeFromId(id);
     let resolvedType = type || idDerivedType;
 
     let slug = '';
