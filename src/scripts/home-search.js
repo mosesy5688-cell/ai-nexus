@@ -66,7 +66,7 @@ export async function initSearch() {
 
         console.log(`[HomeSearch] Mounting SQLite VFS (${vParam})`);
         dbWorker = await createDbWorker(
-            [{ from: "inline", config: { serverMode: "full", url: `/api/vfs-proxy/meta.db?${vParam}`, requestChunkSize: VFS_CONFIG.requestChunkSize } }],
+            [{ from: "inline", config: { serverMode: "chunked", url: `/api/vfs-proxy/meta.db?${vParam}`, requestChunkSize: VFS_CONFIG.requestChunkSize } }],
             VFS_CONFIG.workerUrl,
             VFS_CONFIG.wasmUrl
         );
@@ -143,7 +143,13 @@ export async function performSearch(query, limit = 20, filters = {}) {
             params.push(`%${filters.sources[0]}%`, `%${filters.sources[0]}%`);
         }
 
-        const ob = filters.sort === 'likes' ? 'e.stars DESC' : (filters.sort === 'last_updated' ? 'e.last_modified DESC' : 'e.fni_score DESC');
+        // V22.8 FIX: Prevent catastrophic VFS Network Scans
+        // FTS queries joined against external ordering columns (e.fni_score) force the SQLite optimizer
+        // to traverse massive b-trees, sparking 1000s of HTTP Range requests that hang the proxy.
+        // We strictly use FTS5 embedded `rank` for active search queries to guarantee 0-ms local logic.
+        const isFTS = query && query.length >= 2;
+        const defaultSort = isFTS ? 'rank' : 'e.fni_score DESC';
+        const ob = filters.sort === 'likes' ? 'e.stars DESC' : (filters.sort === 'last_updated' ? 'e.last_modified DESC' : defaultSort);
         sql += ` ORDER BY ${ob} LIMIT ? OFFSET ?`;
         const page = parseInt(filters.page) || 1;
         const lim = parseInt(limit);
