@@ -27,6 +27,7 @@ export async function initSearch() {
     if (isLoading) return new Promise(resolve => {
         const interval = setInterval(() => {
             if (isLoaded) { clearInterval(interval); resolve(true); }
+            else if (!isLoading) { clearInterval(interval); resolve(false); }
         }, 100);
     });
 
