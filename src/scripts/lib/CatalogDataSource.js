@@ -46,12 +46,6 @@ export class CatalogDataSource {
 
         try {
             this.currentShard += direction;
-            // V18.7: Persist page state to URL for deep-linking
-            if (typeof window !== 'undefined') {
-                const url = new URL(window.location.href);
-                url.searchParams.set('page', String(this.currentShard));
-                window.history.replaceState({ page: this.currentShard }, '', url);
-            }
             // V18.12.0: Optimized resilient fetch logic - V21.17: Align with rankingsDir structure
             const paths = [
                 `https://cdn.free2aitools.com/cache/rankings/${this.type}/p${this.currentShard}.json`,
