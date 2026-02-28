@@ -113,7 +113,7 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     // 3. Validation & Recovery Guard
     // A valid entity must have an identity. Content (README) is now hydrated 
     // asynchronously via VFS if missing from the initial packet.
-    const hasIdentity = !!(entityPack.name || entityPack.canonical_name || entityPack.slug || entityPack.title || entityPack.abstract);
+    const hasIdentity = !!(entityPack.id || entityPack.name || entityPack.canonical_name || entityPack.slug || entityPack.title || entityPack.abstract);
     if (!hasIdentity) {
         return { entity: null, html: null, mesh: null, _meta: { available: false, source: 'invalid-packet' } };
     }

@@ -54,13 +54,14 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
 
     // Tier 4: Trending Fallback (Emergency)
     if (items.length === 0) {
-        // Parallel check for trending/trend-data
-        const [trend1, trend2] = await Promise.all([
+        // Parallel check for trending/trend-data and type-specific merged files
+        const [trend1, trend2, typeMerged] = await Promise.all([
             loadCachedJSON('cache/trending.json', { locals }),
-            loadCachedJSON('cache/trend-data.json', { locals })
+            loadCachedJSON('cache/trend-data.json', { locals }),
+            isType ? loadCachedJSON(`cache/${typeOrCategory}s.json`, { locals }) : Promise.resolve({ data: null })
         ]);
 
-        const trendData = trend1.data || trend2.data;
+        const trendData = typeMerged.data || trend1.data || trend2.data;
         if (trendData) {
             const allRaw = extractItems(trendData);
             if (isType) {
