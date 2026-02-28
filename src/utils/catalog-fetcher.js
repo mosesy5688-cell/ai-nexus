@@ -12,7 +12,7 @@ import { loadCachedJSON } from './loadCachedJSON.js';
  * @param {object} runtime - Optional environment for R2 direct access (Astro context)
  */
 export async function fetchCatalogData(typeOrCategory, runtime = null) {
-    const isType = ['model', 'agent', 'dataset', 'paper', 'space', 'tool'].includes(typeOrCategory);
+    const isType = ['model', 'agent', 'dataset', 'paper', 'space', 'tool', 'prompt'].includes(typeOrCategory);
     const locals = runtime?.locals || runtime || null;
 
     // V16.9.23: Dual-Mode Path Discovery
