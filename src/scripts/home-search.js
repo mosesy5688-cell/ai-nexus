@@ -36,7 +36,7 @@ export async function initSearch() {
         let vHash = '';
         for (let i = 0; i < 3; i++) {
             try {
-                const headRes = await fetch('/api/vfs-proxy/content.db', { method: 'HEAD', cache: 'no-cache' });
+                const headRes = await fetch('/api/vfs-proxy/meta.db', { method: 'HEAD', cache: 'no-cache' });
                 if (headRes.ok) {
                     const rawEtag = headRes.headers.get('ETag') || '';
                     vHash = rawEtag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
@@ -57,7 +57,7 @@ export async function initSearch() {
 
         // 2. Speculative warm-up
         try {
-            await fetch(`/api/vfs-proxy/content.db?${vParam}`, {
+            await fetch(`/api/vfs-proxy/meta.db?${vParam}`, {
                 headers: { 'Range': 'bytes=0-131071' },
                 cache: 'default'
             });
@@ -65,7 +65,7 @@ export async function initSearch() {
 
         console.log(`[HomeSearch] Mounting SQLite VFS (${vParam})`);
         dbWorker = await createDbWorker(
-            [{ from: "inline", config: { serverMode: "full", url: `/api/vfs-proxy/content.db?${vParam}`, requestChunkSize: VFS_CONFIG.requestChunkSize } }],
+            [{ from: "inline", config: { serverMode: "full", url: `/api/vfs-proxy/meta.db?${vParam}`, requestChunkSize: VFS_CONFIG.requestChunkSize } }],
             VFS_CONFIG.workerUrl,
             VFS_CONFIG.wasmUrl
         );

@@ -56,8 +56,8 @@ export function getTypeFromId(id) {
     if (!id || typeof id !== 'string') return 'model';
     const low = id.toLowerCase();
 
-    if (low.startsWith('knowledge--') || low.startsWith('concept--')) return 'knowledge';
-    if (low.startsWith('report--')) return 'report';
+    if (low.startsWith('knowledge') && (low.includes('--') || low.includes('/'))) return 'knowledge';
+    if (low.startsWith('report') && (low.includes('--') || low.includes('/'))) return 'report';
     if (low.startsWith('arxiv-paper--') || low.startsWith('arxiv--') || low.startsWith('hf-paper--') || low.startsWith('paper--')) return 'paper';
     if (low.startsWith('hf-dataset--') || low.startsWith('kaggle-dataset--') || low.startsWith('dataset--')) return 'dataset';
     if (low.startsWith('hf-space--') || low.startsWith('space--')) return 'space';
@@ -104,8 +104,8 @@ export function getRouteFromId(id, type = null) {
     if (id.startsWith('/') && !id.includes('--')) return id;
 
     const idDerivedType = getTypeFromId(id);
-    // Explicit type or ID prefix or presence of -- triggers derived type logic
-    let resolvedType = (id.startsWith('knowledge--') || id.startsWith('report--') || id.includes('--')) ? idDerivedType : (type || idDerivedType);
+    // Explicit type or ID prefix or presence of -- or / triggers derived type logic
+    let resolvedType = (id.includes('--') || id.includes('/')) ? idDerivedType : (type || idDerivedType);
 
     let slug = '';
     const norm = stripPrefix(id);
