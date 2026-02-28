@@ -38,9 +38,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
 
     if (isDev && !isSimulatingRemote) {
         try {
-            const pathMod = 'path'; const fsMod = 'fs/promises';
-            const { resolve } = await import(pathMod);
-            const { stat } = await import(fsMod);
+            const { resolve } = await import('path'), { stat } = await import('fs/promises');
             const stats = await stat(resolve(process.cwd(), 'data', filename));
             totalSize = stats.size; etag = `local-${stats.mtimeMs}`; isLocal = true;
         } catch (e) {
@@ -89,9 +87,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         const headers = new Headers(commonHeaders as any);
         headers.set('Content-Length', totalSize.toString());
         if (isLocal) {
-            const fsMod = 'fs/promises'; const pathMod = 'path';
-            const { readFile } = await import(fsMod);
-            const { resolve } = await import(pathMod);
+            const { readFile } = await import('fs/promises'), { resolve } = await import('path');
             return new Response(await readFile(resolve(process.cwd(), 'data', filename)), { status: 200, headers });
         } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`);
@@ -117,9 +113,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             headers.set('Content-Length', suffix.toString());
             headers.set('Content-Range', `bytes ${totalSize - suffix}-${totalSize - 1}/${totalSize}`);
             if (isLocal) {
-                const fsMod = 'fs/promises'; const pathMod = 'path';
-                const { readFile } = await import(fsMod);
-                const { resolve } = await import(pathMod);
+                const { readFile } = await import('fs/promises'), { resolve } = await import('path');
                 const buf = (await readFile(resolve(process.cwd(), 'data', filename))).subarray(totalSize - suffix);
                 return new Response(buf, { status: 206, headers });
             } else if (env?.R2_ASSETS) {
@@ -148,9 +142,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         headers.set('Content-Range', `bytes ${start}-${end}/${totalSize}`);
 
         if (isLocal) {
-            const fsMod = 'fs/promises'; const pathMod = 'path';
-            const { open } = await import(fsMod);
-            const { resolve } = await import(pathMod);
+            const { open } = await import('fs/promises'), { resolve } = await import('path');
             const handle = await open(resolve(process.cwd(), 'data', filename), 'r');
             const buffer = Buffer.alloc(responseSize);
             const { bytesRead } = await handle.read(buffer, 0, responseSize, start);

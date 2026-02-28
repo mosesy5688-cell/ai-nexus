@@ -32,7 +32,7 @@ export function normalizeEntitySlug(id, type = 'model') {
 export function getR2PathCandidates(type, normalizedSlug) {
     const typeMap = {
         'datasets': 'dataset', 'models': 'model', 'agents': 'agent',
-        'spaces': 'space', 'tools': 'tool', 'papers': 'paper'
+        'spaces': 'space', 'tools': 'tool', 'papers': 'paper', 'prompts': 'prompt'
     };
     const singular = typeMap[type] || (type.endsWith('s') ? type.slice(0, -1) : type);
     const lowerSlug = normalizedSlug.toLowerCase();
@@ -48,7 +48,8 @@ export function getR2PathCandidates(type, normalizedSlug) {
         'paper': ['arxiv-paper--', 'arxiv--', 'paper--', 'hf-paper--'],
         'space': ['hf-space--', 'huggingface--', 'space--'],
         'agent': ['gh-agent--', 'hf-agent--', 'github--', 'huggingface--', 'agent--'],
-        'tool': ['gh-tool--', 'hf-tool--', 'github--', 'huggingface--', 'tool--', 'github-tool--']
+        'tool': ['gh-tool--', 'hf-tool--', 'github--', 'huggingface--', 'tool--', 'github-tool--'],
+        'prompt': ['hf-prompt--', 'prompt--']
     };
     const prefixes = prefixMap[singular] || [];
 

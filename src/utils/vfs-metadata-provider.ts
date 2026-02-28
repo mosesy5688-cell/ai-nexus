@@ -19,15 +19,12 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
     // STRICTOR LOCAL VFS MANDATE: Fails if DB not found, forbidden JSON fallback locally.
     if (isDev && typeof window === 'undefined' && !isSimulatingRemote) {
         try {
-            const sqlMod = 'better-sqlite3';
-            const { default: Database } = await import(sqlMod);
-            const pathMod = 'path';
-            const path = await import(pathMod);
+            const { default: Database } = await import('better-sqlite3');
+            const path = await import('path');
             const dbPath = path.resolve(process.cwd(), 'data/meta.db');
 
             // Check if local DB exists
-            const fsMod = 'fs/promises';
-            const fs = await import(fsMod);
+            const fs = await import('fs/promises');
             const exists = await fs.stat(dbPath).catch(() => null);
 
             if (exists) {
@@ -81,8 +78,7 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
                                 data = await decompressedRes.json();
                             } catch (err) {
                                 // Fallback for environments without DecompressionStream (Node 18)
-                                const zlibMod = 'node:zlib';
-                                const zlib = await import(zlibMod);
+                                const zlib = await import('node:zlib');
                                 data = JSON.parse(zlib.gunzipSync(Buffer.from(buffer)).toString('utf-8'));
                             }
                         } else {

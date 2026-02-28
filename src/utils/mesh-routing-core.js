@@ -104,8 +104,8 @@ export function getRouteFromId(id, type = null) {
     if (id.startsWith('/') && !id.includes('--')) return id;
 
     const idDerivedType = getTypeFromId(id);
-    // Explicit type or ID prefix or presence of -- or / triggers derived type logic
-    let resolvedType = (id.includes('--') || id.includes('/')) ? idDerivedType : (type || idDerivedType);
+    // V22.8 Fix: Explicit type MUST override derived type for hierarchical IDs (author/name)
+    let resolvedType = type || idDerivedType;
 
     let slug = '';
     const norm = stripPrefix(id);
