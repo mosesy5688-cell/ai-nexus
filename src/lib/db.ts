@@ -175,7 +175,7 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 32768, // V21.12: Reduced to 32KB to balance volume vs smoothing queue latency
+    requestChunkSize: 131072, // V22.8: Increased to 128KB to mitigate 429 rate limiting on meta.db
     cacheSize: 8 * 1024 * 1024,
     // Add version query to force cache bypass on stale security headers
     workerUrl: '/assets/sqlite/sqlite.worker.js?v=21.10.3',
