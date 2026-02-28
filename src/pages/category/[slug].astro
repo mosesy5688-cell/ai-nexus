@@ -6,10 +6,10 @@
 import Layout from '../../layouts/Layout.astro';
 import UniversalCoreIsland from '../../components/entity/UniversalCoreIsland.astro';
 import { loadEntityStreams } from '../../utils/packet-loader';
-import { getCategoryMeta } from '../../data/arxiv-taxonomy';
+import { getCategoryMeta } from '../../data/arxiv-taxonomy.js';
 
 export async function getStaticPaths() {
-  const { ARXIV_TAXONOMY } = await import('../../data/arxiv-taxonomy');
+  const { ARXIV_TAXONOMY } = await import('../../data/arxiv-taxonomy.js');
   return Object.keys(ARXIV_TAXONOMY).map(slug => ({
     params: { slug }
   }));
