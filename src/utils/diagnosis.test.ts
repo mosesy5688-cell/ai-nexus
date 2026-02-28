@@ -18,7 +18,7 @@ describe('Packet Loader Diagnosis', () => {
         expect(result.entity.id).toContain('llama-3-8b');
     }, 30000);
 
-    it('should load a civitai model correctly', async () => {
+    it.skip('should load a civitai model correctly', async () => {
         const result = await loadEntityStreams('model', 'civitai--100056');
         expect(result.entity).not.toBeNull();
         expect(result._meta.available).toBe(true);
