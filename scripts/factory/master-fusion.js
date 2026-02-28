@@ -64,6 +64,7 @@ async function main() {
             const decompressed = zlib.gunzipSync(raw);
             const shard = JSON.parse(decompressed.toString('utf-8'));
             const shardEntities = shard.entities || [];
+            let fusedEntities = [];
 
             const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
             await fs.mkdir(outDir, { recursive: true });
