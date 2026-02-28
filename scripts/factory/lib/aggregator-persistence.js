@@ -80,11 +80,9 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
         } catch { }
     }
 
-    // 3. Reports & Daily Assets
+    // 3. Reports Assets (V22.8: Daily retired, using reports/ only)
     const reportsSrcDir = path.join(outputDir, 'cache', 'reports');
     const reportsDestDir = path.join(backupDir, 'reports');
-    const dailySrcDir = path.join(outputDir, 'daily');
-    const dailyDestDir = path.join(backupDir, 'daily');
 
     try {
         await fs.mkdir(reportsDestDir, { recursive: true });
@@ -101,11 +99,6 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
                     for (const sub of subFiles) await fs.copyFile(path.join(src, sub), path.join(reportsDestDir, file, sub));
                 }
             }
-        }
-        await fs.mkdir(dailyDestDir, { recursive: true });
-        if (await fs.stat(dailySrcDir).catch(() => null)) {
-            const dailyFiles = await fs.readdir(dailySrcDir);
-            for (const file of dailyFiles) await fs.copyFile(path.join(dailySrcDir, file), path.join(dailyDestDir, file));
         }
     } catch (e) { }
 

@@ -42,8 +42,8 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         const historyEntries = fniHistory[id] || fniHistory[entity.id] || [];
         const trend = Array.isArray(historyEntries) ? historyEntries.slice(-7).map(h => h.score) : [];
 
-        // 4. Semantic HTML Pre-rendering (V16.6 FIX: Use full content, not truncated description)
-        const fullContent = entity.body_content || entity.readme_content || entity.description || '';
+        // 4. Semantic HTML Pre-rendering (V22.8 FIX: Inclusive Long-text extraction)
+        const fullContent = entity.body_content || entity.readme_content || entity.readme || entity.content || entity.description || '';
         const htmlFragment = fullContent ? marked.parse(fullContent) : '';
 
         // 5. Use Cases & Insights
@@ -101,7 +101,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             _checksum: entityHash,
             // Return full payload for monolithic bundling
             enriched: enriched,
-            html: htmlFragment
+            html_readme: htmlFragment
         };
     } catch (error) {
         console.error(`[ERROR] ${entity.id}:`, error.message);

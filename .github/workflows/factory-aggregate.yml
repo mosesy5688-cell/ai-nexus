@@ -166,35 +166,22 @@ jobs:
       - name: Consolidate Final Artifacts & Context
         if: success()
         run: |
-          mkdir -p output/cache output/meta/backup cache output/cache/shards
-          # Preserve shards in output/cache/shards for the intra-cycle and upload artifacts
-          [ -d "output/shards" ] && cp output/shards/shard-*.json.gz output/cache/shards/ || true
+          mkdir -p output/cache output/meta/backup cache
           
           # 1. Mirror production artifacts for R2 distribution (Stage 4/4)
+          # V22.8: Aggregator persistence handled meta/backup/ mirrors.
+          # We just need to ensure directory structure is consistent.
           [ -d "meta" ] && cp -r meta/* output/meta/ 2>/dev/null || true
           
           # 2. Mirror BACK to root cache/ for persistent memory (Stage 1/4)
+          # Ensure local flow has the latest state for GHA cache save
           if [ -d "output/meta/backup" ] && [ "$(ls -A output/meta/backup)" ]; then
             cp -r output/meta/backup/* cache/ 2>/dev/null || true
-            # V18.3 Fix: Populate output/cache for Satellite Jobs (Zero-Loss Handoff)
-            echo "📦 Populating output/cache/ for satellites..."
-            cp -r output/meta/backup/* output/cache/ 2>/dev/null || true
           fi
           
-          # V18.12.5.23: Copy registry shards to output/cache/ for satellite access
-          # Satellites set CACHE_DIR=output/cache and need registry/part-*.json.gz
-          if [ -d "cache/registry" ] && [ "$(ls -A cache/registry)" ]; then
-            echo "📦 Copying registry shards to output/cache/registry/ for satellites..."
-            mkdir -p output/cache/registry
-            cp -r cache/registry/* output/cache/registry/
-            echo "✅ Copied $(ls cache/registry/*.json.gz 2>/dev/null | wc -l) registry shards"
-          fi
-          # Also copy global registry monolith for loadGlobalRegistry fallback
-          [ -f "cache/global-registry.json.gz" ] && cp cache/global-registry.json.gz output/cache/ || true
-          
-          echo "📦 Final output structure for R2:"
-          ls -R output/meta/backup/ | head -20
-          echo "📦 Final cache structure for Stage 1/4:"
+          echo "📦 Final output structure for R2 staging:"
+          ls -R output/ | head -20
+          echo "📦 Final cache structure for GitHub flow:"
           ls -R cache/ | head -20
 
       # V17.0: Cleaning relocated to finalize step after cache save to prevent Fusion data loss

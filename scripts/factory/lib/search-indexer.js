@@ -35,7 +35,11 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
         fni_v: e.fni_v ?? e.fni_metrics?.v ?? 0,
         fni_c: e.fni_c ?? e.fni_metrics?.c ?? 0,
-        fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0
+        fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0,
+        // V22.8: VFS Binary Shard Routing
+        bundle_key: e.bundle_key || '',
+        bundle_offset: e.bundle_offset ?? 0,
+        bundle_size: e.bundle_size ?? 0
     }));
 
 
@@ -69,7 +73,11 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
         fni_v: e.fni_v ?? e.fni_metrics?.v ?? 0,
         fni_c: e.fni_c ?? e.fni_metrics?.c ?? 0,
-        fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0
+        fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0,
+        // V22.8: VFS Binary Shard Routing
+        bundle_key: e.bundle_key || '',
+        bundle_offset: e.bundle_offset ?? 0,
+        bundle_size: e.bundle_size ?? 0
     }));
     const SHARD_SIZE = 5000;
     const totalShards = Math.ceil(fullEntities.length / SHARD_SIZE);

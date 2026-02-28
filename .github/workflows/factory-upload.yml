@@ -109,23 +109,18 @@ jobs:
         run: |
           mkdir -p output/cache/mesh
           tar -xf mesh-profiles.tar -C output/cache/mesh
-      - name: Organize Shards for Fusion
-        run: |
-          mkdir -p artifacts
-          # V19.2 Fix: Harvest Registry Shards (part-*) instead of incremental Process shards (shard-*)
-          # The full registry is in output/cache/registry/
-          if [ -d "output/cache/registry" ]; then
-            echo "📦 Copying registry shards for fusion (preserving originals for Closed World)..."
-            find output/cache/registry -name "part-*.json.gz" -exec cp {} artifacts/ \;
-          elif [ -d "output/shards" ]; then
-            # Fallback for older structures if they somehow persist
-            find output/shards -name "shard-*.json.gz" -exec cp {} artifacts/ \;
-          fi
-          echo "📦 Shards ready in artifacts/: $(ls artifacts | wc -l)"
+      - name: Restore Global Registry Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            cache/global-registry.json.gz
+            cache/registry/
+          key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
+          restore-keys: global-registry-
       - name: Execute Master Fusion
         env:
           CACHE_DIR: ./output/cache
-          ARTIFACT_DIR: ./artifacts
+          ARTIFACT_DIR: ./cache/registry
         run: node scripts/factory/master-fusion.js
       - name: Tar Fused Entities
         run: tar -cf fused-entities.tar -C output/cache fused
@@ -285,43 +280,44 @@ jobs:
           # V22.8: RSS feeds restored directly to output/rss/ via cache
           [ -d "output/rss" ] && echo "✅ RSS feeds loaded from cache" || echo "⚠️ No RSS feeds found"
           
+          # V22.8: Verify Fused Shards
+          if [ -d "output/cache/fused" ]; then
+            FUSED_COUNT=$(ls -A output/cache/fused | wc -l)
+            echo "✅ [FUSION] $FUSED_COUNT fused shards located in output/cache/fused"
+          else
+            echo "❌ [ERROR] Fused entities missing from output/cache/fused!"
+            exit 1
+          fi
+          
           # Ensure sitemaps from vfs-packing are in the right place
           if [ -d "output/sitemaps" ]; then
             echo "✅ VFS Sitemaps aligned for upload"
           fi
           
           echo "✅ Artifacts consolidated into output/"
-      - name: Prepare Registry Backup for S3 Upload
+      - name: Prepare Industrial Backup for R2
         run: |
-          mkdir -p output/meta/backup
-          mkdir -p output/cache/registry output/cache/fni-history output/cache/daily-accum
+          echo "🛡️  V22.8: Sequestering Industrial Data in meta/backup..."
+          mkdir -p output/meta/backup/registry output/meta/backup/fni-history output/meta/backup/daily-accum
           
-          # 1. Monolith Promotion (V22.8: Move from backup/cache to root for R2 visibility)
+          # 1. Promote Monoliths from local cache to Stage 4 sequestration zone
           MONOLITHS="global-registry.json.gz fni-history.json.gz daily-accum.json.gz entity-checksums.json.gz"
           for f in $MONOLITHS; do
-            if [ -f "output/meta/backup/$f" ]; then
-              cp "output/meta/backup/$f" output/
-              echo "✅ Promoted $f from meta/backup to root"
-            elif [ -f "output/cache/$f" ]; then
-              cp "output/cache/$f" output/
-              echo "✅ Promoted $f from output/cache to root"
-            elif [ -f "cache/$f" ]; then
-              cp "cache/$f" output/
-              echo "✅ Promoted $f from cache/ to root"
+            if [ -f "cache/$f" ]; then
+              cp "cache/$f" output/meta/backup/
+              echo "✅ Sequestered monolith $f to meta/backup"
             fi
           done
           
-          # 2. Shard Promotion (V22.8: Ensure Stage 3/4 Fragments are visible in output/cache)
+          # 2. Promote Shards from local cache to Stage 4 sequestration zone
           for dir in registry fni-history daily-accum; do
             if [ -d "cache/$dir" ] && [ "$(ls -A cache/$dir 2>/dev/null)" ]; then
-              cp -r cache/$dir/* output/cache/$dir/
-              echo "✅ Promoted shards: $dir from internal cache to output/cache"
-            else
-              echo "⚠️ Skipping shard promotion for $dir (Directory empty or missing)"
+              cp -r cache/$dir/* output/meta/backup/$dir/
+              echo "✅ Sequestered $dir shards to meta/backup"
             fi
           done
           
-          echo "✅ All Industrial Artifacts aligned for R2 upload"
+          echo "✅ Industrial Isolation Complete. Public CDN remains clean."
       # V19.0: SQL Health Check before upload (blocks deployment on failure)
       - name: V22.3 SQL Health Check
         run: |
@@ -335,8 +331,8 @@ jobs:
           fi
       - name: Upload to R2 via S3 API
         env:
-          # V22.8: Added cache/registry/ and cache/fni-history/ to ensure sharded visibility
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,fni-history.json.gz,daily-accum.json.gz,entity-checksums.json.gz,cache/fused/,cache/registry/,cache/fni-history/,cache/daily-accum/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/meta.db,data/search.db,data/
+          # V22.8: Relocated industrial shards to meta/ to keep public cache clean
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,cache/fused/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/meta.db,data/search.db,data/
           CACHE_DIR: output/cache
         run: node scripts/factory/r2-upload-s3.js
       - name: Save Upload Manifest to Cache

@@ -80,8 +80,16 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
         for (const result of results) {
             if (result.success) {
                 checkpoint.uploaded.push(result.path);
-                if (result.skipped) unchanged++; else success++;
-            } else fail++;
+                if (result.skipped) {
+                    unchanged++;
+                } else {
+                    console.log(`   [NEW] Uploaded: ${result.path}`);
+                    success++;
+                }
+            } else {
+                console.error(`   [FAIL] Upload: ${result.path} | Error: ${result.error}`);
+                fail++;
+            }
         }
 
         const processed = i + batch.length;
@@ -136,8 +144,8 @@ async function main() {
 
     await saveCheckpoint(checkpoint);
 
-    // V18.2.1: Final Purge of Entropy
-    await purgeEntropy(s3, CONFIG.BUCKET, r2ETagMap);
+    // V22.8 EMERGENCY: Purge disabled to protect production stability (Zero Deletion Policy)
+    // await purgeEntropy(s3, CONFIG.BUCKET, r2ETagMap);
 
     console.log(`\n✅ Upload Complete! New: ${success}, Locally Skipped: ${locallySkipped}, Unchanged on R2: ${unchanged}, Fail: ${fail}`);
     if (fail > 0) process.exit(1);
