@@ -1,5 +1,4 @@
-
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loadEntityStreams } from './packet-loader.ts';
 
 describe('Packet Loader Diagnosis', () => {
@@ -18,13 +17,42 @@ describe('Packet Loader Diagnosis', () => {
         expect(result.entity.id).toContain('llama-3-8b');
     }, 30000);
 
-    it.skip('should load a civitai model correctly', async () => {
-        const result = await loadEntityStreams('model', 'civitai--100056');
-        expect(result.entity).not.toBeNull();
-        expect(result._meta.available).toBe(true);
+    describe('with mocked network', () => {
+        beforeEach(() => {
+            const mockResponse = {
+                ok: true,
+                arrayBuffer: async () => {
+                    const zlib = await import('zlib');
+                    const promisify = (await import('util')).promisify;
+                    const gzip = promisify(zlib.gzip);
 
-        console.log('--- CIVITAI REPRO RESULT ---');
-        console.log('Available:', result._meta.available);
-        console.log('Paths:', JSON.stringify(result._meta.paths, null, 2));
-    }, 30000);
+                    const fakeData = {
+                        entity: { id: 'civitai--100056', name: 'Fake Civitai Model' },
+                        fused: true,
+                        mesh: { profiles: {} }
+                    };
+                    return gzip(JSON.stringify(fakeData));
+                }
+            };
+            vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+        });
+
+        it('should structure a civitai model correctly when CDN cache hits', async () => {
+            // Because we mocked fetch, the fallback will succeed immediately with our fake GZipped JSON
+            const result = await loadEntityStreams('model', 'civitai--100056');
+
+            expect(result.entity).not.toBeNull();
+            expect(result.entity.id).toBe('civitai--100056');
+            expect(result._meta.available).toBe(true);
+            expect(result._meta.source).toBe('entity-first-anchored');
+
+            console.log('--- MOCKED CIVITAI REPRO RESULT ---');
+            console.log('Available:', result._meta.available);
+            console.log('Entity ID:', result.entity.id);
+        }, 10000);
+    });
 });
