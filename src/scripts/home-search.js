@@ -72,9 +72,12 @@ export async function initSearch() {
         isLoaded = true;
         isLoading = false;
 
-        const res = await dbWorker.db.query(`SELECT COUNT(*) as c FROM entities;`);
-        itemCount = res[0].c;
-        console.log(`[HomeSearch] VFS Ready. Peer count: ${itemCount}`);
+        // V22.8 FIX: Do NOT run SELECT COUNT(*) on a remote 150MB VFS database.
+        // It triggers a full index scan, downloading the entire DB via Range requests (151 MiB).
+        // Instead, we just execute a LIMIT 1 query to ensure the mount is functional.
+        await dbWorker.db.query(`SELECT id FROM entities LIMIT 1;`);
+        itemCount = 190000; // Estimated count, precise count not needed for UX
+        console.log(`[HomeSearch] VFS Ready. Peer count approx: ${itemCount}`);
         return true;
     } catch (e) {
         console.error('[HomeSearch] VFS Mount Error:', e);
