@@ -28,7 +28,8 @@ export function calculateFNI(entity, options = {}) {
     }
     else if (id.startsWith('arxiv-')) {
         // ArXiv Anchor: 1000 cites -> log10(1000) = 3.0
-        rawPop = parseInt(stats.citations || stats.citation_count) || 0;
+        // V22.10: Unified Paper Popularity — citations + upvotes + popularity
+        rawPop = parseInt(stats.citations || stats.citation_count || stats.upvotes || stats.popularity || stats.likes) || 0;
         anchor = 3.0;
     }
     else {
@@ -75,6 +76,9 @@ export function calculateFNI(entity, options = {}) {
         finalScore = (baseScore * 0.70) + (Sc * 0.15) + (Su * 0.15);
     } else if (type === 'tool' || type === 'prompt') {
         finalScore = (baseScore * 0.85) + (Sc * 0.15);
+    } else if (type === 'paper' || type === 'dataset') {
+        // V22.10: Papers & Datasets: 80% Vitality + 20% Completeness (no Utility)
+        finalScore = (baseScore * 0.80) + (Sc * 0.20);
     } else if (type === 'space') {
         // Space Appendix Logic: (Sp + Hardware) * kStatus
         let H = calcHardwareBoost(entity.hardware);
@@ -101,8 +105,16 @@ export function calculateFNI(entity, options = {}) {
 
 function calcCompleteness(entity) {
     let s = 0;
+    const type = entity.type || entity.entity_type || 'model';
     if ((entity.body_content || entity.readme_content || '').length > 500) s += 40;
-    if (entity.params_billions || entity.params || entity.size) s += 30;
+
+    if (type === 'paper') {
+        if (entity.arxiv_id || entity.pdf_url || entity.source_url) s += 20;
+        if (parseInt(entity.citations || entity.citation_count || entity.upvotes || entity.popularity) > 0) s += 10;
+    } else {
+        if (entity.params_billions || entity.params || entity.size) s += 30;
+    }
+
     if (entity.tags?.length > 0) s += 15;
     if (entity.author && entity.author !== 'Community') s += 15;
     return s;
