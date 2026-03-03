@@ -35,6 +35,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
 
     let totalSize = 0, etag = '', isLocal = false;
     const isSimulatingRemote = !!(process.env.SIMULATE_PRODUCTION);
+    const baseUrl = 'https://cdn.free2aitools.com';
 
     if (isDev && !isSimulatingRemote) {
         try {
@@ -47,17 +48,21 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     }
 
     if (!isLocal) {
-        if (env?.R2_ASSETS) {
+        if (isSimulatingRemote) {
+            const cdnUrl = `${baseUrl}/data/${filename}`;
+            console.log(`[VFS-PROXY] CDN HEAD: ${cdnUrl}`);
+            try {
+                const res = await fetch(cdnUrl, { method: 'HEAD' });
+                if (!res.ok) return new Response('Not Found', { status: 404 });
+                totalSize = parseInt(res.headers.get('content-length') || '0', 10);
+                etag = res.headers.get('etag') || 'remote-untracked';
+            } catch (err: any) {
+                return new Response(`CDN Error: ${err.message}`, { status: 502 });
+            }
+        } else if (env?.R2_ASSETS) {
             const objectHead = await env.R2_ASSETS.head(`data/${filename}`);
             if (!objectHead) return new Response('Not Found', { status: 404 });
             totalSize = objectHead.size; etag = objectHead.httpEtag;
-        } else if (isSimulatingRemote) {
-            // V22.8: SIMULATION FALLBACK - Fetch HEAD from CDN to get metadata
-            const baseUrl = 'https://cdn.free2aitools.com';
-            const res = await fetch(`${baseUrl}/data/${filename}`, { method: 'HEAD' });
-            if (!res.ok) return new Response('Not Found', { status: 404 });
-            totalSize = parseInt(res.headers.get('content-length') || '0', 10);
-            etag = res.headers.get('etag') || 'remote-untracked';
         } else {
             return new Response('R2 Binding Missing', { status: 500 });
         }
@@ -72,7 +77,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Accept-Ranges': 'bytes',
         // V21.9: Edge Caching with URL-based Version Busting (Prevents 429s)
         'Cache-Control': 'public, max-age=3600, s-maxage=31536000',
-        'x-vfs-proxy-ver': '1.4.8-alignment-perfect',
+        'x-vfs-proxy-ver': '1.5.0-zero-copy',
         'ETag': etag
     };
 
@@ -89,15 +94,16 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (isLocal) {
             const { readFile } = await import('fs/promises'), { resolve } = await import('path');
             return new Response(await readFile(resolve(process.cwd(), 'data', filename)), { status: 200, headers });
+        } else if (isSimulatingRemote) {
+            const res = await fetch(`${baseUrl}/data/${filename}`);
+            return new Response(res.body, { status: 200, headers });
         } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`);
             if (!object) return new Response('Not Found', { status: 404 });
             object.writeHttpMetadata(headers as any);
             return new Response(object.body as any, { status: 200, headers });
         } else {
-            const baseUrl = 'https://cdn.free2aitools.com';
-            const res = await fetch(`${baseUrl}/data/${filename}`);
-            return new Response(res.body, { status: 200, headers });
+            return new Response('R2 Binding Missing', { status: 500 });
         }
     }
 
@@ -105,26 +111,25 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         const rangeValue = rangeHeader.trim().toLowerCase();
         if (!rangeValue.startsWith('bytes=')) return new Response('Invalid Range', { status: 416 });
         const parts = rangeValue.replace('bytes=', '').split(',')[0].split('-');
+        const headers = new Headers(commonHeaders as any);
 
         if (parts[0] === '') { // Suffix range
             const suffix = parseInt(parts[1], 10);
             if (isNaN(suffix)) return new Response('Invalid Suffix', { status: 416 });
-            const headers = new Headers(commonHeaders as any);
             headers.set('Content-Length', suffix.toString());
             headers.set('Content-Range', `bytes ${totalSize - suffix}-${totalSize - 1}/${totalSize}`);
             if (isLocal) {
                 const { readFile } = await import('fs/promises'), { resolve } = await import('path');
                 const buf = (await readFile(resolve(process.cwd(), 'data', filename))).subarray(totalSize - suffix);
                 return new Response(buf, { status: 206, headers });
+            } else if (isSimulatingRemote) {
+                const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
+                return new Response(res.body, { status: 206, headers });
             } else if (env?.R2_ASSETS) {
                 const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { suffix } });
                 if (!object) return new Response('Not Found', { status: 404 });
                 object.writeHttpMetadata(headers as any);
                 return new Response(object.body as any, { status: 206, headers });
-            } else {
-                const baseUrl = 'https://cdn.free2aitools.com';
-                const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
-                return new Response(res.body, { status: 206, headers });
             }
         }
 
@@ -137,7 +142,6 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         // Alignment Guard (RELAXED): Removed to allow library pre-fetching (0.8.x compatibility)
         // Note: sql.js-httpvfs requests arbitrary ranges during index discovery
 
-        const headers = new Headers(commonHeaders as any);
         headers.set('Content-Length', responseSize.toString());
         headers.set('Content-Range', `bytes ${start}-${end}/${totalSize}`);
 
@@ -148,16 +152,16 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             const { bytesRead } = await handle.read(buffer, 0, responseSize, start);
             await handle.close();
             return new Response(buffer.subarray(0, bytesRead), { status: 206, headers });
+        } else if (isSimulatingRemote) {
+            const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
+            return new Response(res.body, { status: 206, headers });
         } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { offset: start, length: responseSize } });
             if (!object) return new Response('Not Found', { status: 404 });
             object.writeHttpMetadata(headers as any);
             return new Response(object.body as any, { status: 206, headers });
-        } else {
-            const baseUrl = 'https://cdn.free2aitools.com';
-            const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
-            return new Response(res.body, { status: 206, headers });
         }
+        return new Response('R2 Binding Missing', { status: 500 });
     } catch (e) {
         return new Response('Internal Proxy Error', {
             status: 500,
@@ -175,7 +179,7 @@ export function buildHardenedQuery(userQuery: string): string {
 }
 
 export const VFS_CONFIG = {
-    requestChunkSize: 131072, // V22.8: Increased to 128KB to mitigate 429 rate limiting on meta.db
+    requestChunkSize: 32768, // V22.9: Tuned to 32KB per R2 alignment & reduced billing granularity
     cacheSize: 8 * 1024 * 1024,
     // Add version query to force cache bypass on stale security headers
     workerUrl: '/assets/sqlite/sqlite.worker.js?v=21.10.3',
