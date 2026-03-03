@@ -245,6 +245,22 @@ export class HuggingFaceAdapter extends BaseAdapter {
                         // V2.1: Add NSFW filter
                         const safeModels = newModels.filter(m => this.isSafeForWork(m));
 
+                        // V22.10: Data Richness Recovery (Zero-cost config extraction)
+                        for (let m of safeModels) {
+                            try {
+                                if (!m.meta_json && (m.config || m.safetensors)) {
+                                    const meta = buildMetaJson(m);
+                                    if (meta) {
+                                        m.meta_json = meta;
+                                        if (meta.context_length) m.context_length = meta.context_length;
+                                        if (meta.params_billions) m.params_billions = meta.params_billions;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn(`   ⚠️ Warning: Meta extraction failed for ${m.id}:`, e.message);
+                            }
+                        }
+
                         if (onBatch) {
                             await onBatch(safeModels);
                         } else {
