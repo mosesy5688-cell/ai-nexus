@@ -1,7 +1,7 @@
 import fsSync from 'fs';
 import path from 'path';
 
-const HOT_SHARD_PATH = './output/cache/hot-shard.bin';
+const HOT_SHARD_PATH = './output/data/hot-shard.bin';
 const HOT_SHARD_LIMIT = 50000;
 const TYPE_ENUM = { model: 0, dataset: 1, agent: 2, tool: 3, space: 4, paper: 5, prompt: 6 };
 
