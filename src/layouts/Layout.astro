@@ -167,13 +167,14 @@ const siteMeta = {
     
     <script is:inline>
         // V16.9.24: Prevent FOUC by applying theme immediately
-        const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-        if (theme === 'dark') document.documentElement.classList.add('dark');
+        // Force dark mode for V22.9 industrial aesthetic
+        document.documentElement.classList.add('dark');
     </script>
     
+    <SearchCommandPalette />
     <Header />
     <OnboardingTour />
-    <main class="flex-grow container mx-auto px-4 py-6">
+    <main class="flex-grow container mx-auto px-4 py-4 max-w-7xl">
         <slot />
     </main>
     <Footer />
