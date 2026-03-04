@@ -13,6 +13,7 @@ import { loadTrendingMap, loadTrendMap, collectAndSortMetadata, buildBundleJson,
 import { getV6Category } from './lib/category-stats-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
+import { generateVectorCore } from './lib/vector-core-generator.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
 const META_DB_PATH = './output/data/meta.db';
@@ -163,6 +164,9 @@ async function packDatabase() {
 
     // ── V22.9: Generate Hot Shard (Top 50K Zero-Copy Binary) ─────────
     generateHotShard(metadataBatch);
+
+    // ── V22.10: Generate Vector Core (Tier 3 Semantic Engine) ─────────
+    generateVectorCore(metadataBatch);
 
     // Finalize Shard Hashes in meta.db
     for (let i = 0; i <= currentShardId; i++) {
