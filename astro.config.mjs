@@ -11,6 +11,8 @@ const BUILD_TIME = Date.now().toString();
 
 
 import cloudflare from "@astrojs/cloudflare";
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
 
 export default defineConfig({
   site: 'https://free2aitools.com',
@@ -44,6 +46,11 @@ export default defineConfig({
   // See SPEC_SITEMAP_V6.1.md for architecture details
   integrations: [tailwind()],
   vite: {
+    plugins: [wasm(), topLevelAwait()],
+    ssr: {
+      // Ensure wa-sqlite WASM is bundled into SSR worker, not externalized
+      noExternal: ['@journeyapps/wa-sqlite']
+    },
     server: {
       watch: {
         // V19.4: Ignore public/ and heavy artifacts to reduce watcher overhead

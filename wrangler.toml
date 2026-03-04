@@ -20,4 +20,8 @@ watch_paths = ["src/**", "public/**", "astro.config.mjs", "package.json"]
 binding = "R2_ASSETS"
 bucket_name = "ai-nexus-assets"
 
+# AI Binding for Tier 3 Semantic Search
+[ai]
+binding = "AI"
+
 # Triggering a fresh deployment at 2025-11-26

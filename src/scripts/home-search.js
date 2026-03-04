@@ -1,177 +1,100 @@
 // src/scripts/home-search.js
-// V19.2: Unified SQLite VFS Orchestrator
-// V21.14: Dual-Engine Fusion Search (VFS + Shard Fallback)
-// Offloads heavy indexing to R2 via sql.js-httpvfs for Zero-UI-Lag performance.
+// V22.10: SSR-Unified Search Orchestrator
+// Tier 1: hot-shard.bin (browser memory, 0ms)
+// Tier 2: /api/search (SSR, meta.db FTS5/B-Tree, ~50ms)
+// Browser no longer loads WASM SQLite — all SQL runs server-side.
 
-import { createDbWorker } from "sql.js-httpvfs";
-import { VFS_CONFIG } from "../lib/db.js";
 import {
     loadHotShard,
     loadFullSearchIndex as loadShards,
     searchShardPool,
-    getShardStatus
+    getShardStatus,
+    parseQueryWithCommands
 } from "./search-shard-engine.js";
 
-// Worker Instance (VFS SQLite)
-let dbWorker = null;
-let isLoaded = false;
-let isLoading = false;
-let itemCount = 0;
+// V22.10: SSR search state (replaces WASM VFS state)
+let isApiReady = true; // SSR API is always ready — no WASM to load
 
-// Initialize Search Engine (Mount VFS + Hot Shard)
 export async function initSearch() {
-    // Stage A: Trigger Hot Shard pre-loading (Instant Engine)
+    // V22.10: Load hot shard eagerly. No WASM SQLite to initialize.
     loadHotShard();
-
-    if (isLoaded || dbWorker) return true;
-    if (isLoading) return new Promise(resolve => {
-        const interval = setInterval(() => {
-            if (isLoaded) { clearInterval(interval); resolve(true); }
-            else if (!isLoading) { clearInterval(interval); resolve(false); }
-        }, 100);
-    });
-
-    isLoading = true;
-    try {
-        // 1. Learn current version via HEAD
-        let vHash = '';
-        for (let i = 0; i < 3; i++) {
-            try {
-                const headRes = await fetch('/api/vfs-proxy/meta.db', { method: 'HEAD', cache: 'no-cache' });
-                if (headRes.ok) {
-                    const rawEtag = headRes.headers.get('ETag') || '';
-                    vHash = rawEtag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
-                    if (vHash) break;
-                }
-                if (headRes.status === 429) await new Promise(r => setTimeout(r, 500 * (i + 1)));
-            } catch (e) {
-                console.warn(`[HomeSearch] HEAD probe failed`, e);
-            }
-        }
-
-        if (!vHash) {
-            vHash = 'v21.10.1-stable';
-            console.warn('[HomeSearch] ETag probe failed, falling back to stable.');
-        }
-
-        const vParam = `v=${vHash}`;
-
-        // 2. Speculative warm-up
-        try {
-            await fetch(`/api/vfs-proxy/meta.db?${vParam}`, {
-                headers: { 'Range': 'bytes=0-131071' },
-                cache: 'default'
-            });
-        } catch (e) { }
-
-        console.log(`[HomeSearch] Mounting SQLite VFS (${vParam})`);
-        dbWorker = await createDbWorker(
-            [{ from: "inline", config: { serverMode: "chunked", url: `/api/vfs-proxy/meta.db?${vParam}`, requestChunkSize: VFS_CONFIG.requestChunkSize } }],
-            VFS_CONFIG.workerUrl,
-            VFS_CONFIG.wasmUrl
-        );
-        isLoaded = true;
-        isLoading = false;
-
-        // V22.8 FIX: Do NOT run SELECT COUNT(*) on a remote 150MB VFS database.
-        // It triggers a full index scan, downloading the entire DB via Range requests (151 MiB).
-        // Instead, we just execute a LIMIT 1 query to ensure the mount is functional.
-        await dbWorker.db.query(`SELECT id FROM entities LIMIT 1;`);
-        itemCount = 190000; // Estimated count, precise count not needed for UX
-        console.log(`[HomeSearch] VFS Ready. Peer count approx: ${itemCount}`);
-        return true;
-    } catch (e) {
-        console.error('[HomeSearch] VFS Mount Error:', e);
-        isLoading = false;
-        return false;
-    }
+    return true;
 }
 
 // V21.14: Shard-based Lazy Loading Fallback Wrapper
 export async function loadFullSearchIndex(onProgress) {
-    return loadShards(onProgress, () => isLoaded);
+    return loadShards(onProgress, () => isApiReady);
 }
 
-// Perform Search via Dual-Engine Fusion (Hot Shard -> VFS FTS5)
-export async function performSearch(query, limit = 20, filters = {}) {
+/**
+ * V22.10: Perform Search via Tier 1 → Tier 2 Cascade
+ * Tier 1: searchShardPool() (browser memory, 0ms)
+ * Tier 2: fetch /api/search (SSR, meta.db FTS5/B-Tree)
+ */
+export async function performSearch(query, filters = {}, limit = 20, page = 0) {
     const start = performance.now();
     const shards = getShardStatus();
 
-    // TIER 1: Hot Shard / Shard Fallback Search (0ms UX)
-    if (!isLoaded && shards.isHotLoaded) {
+    // TIER 1: Hot Shard / Binary Search (0ms)
+    if (shards.isHotLoaded) {
         const hits = searchShardPool(query, limit, filters);
-        if (hits.length > 0 && !isLoaded) {
-            console.log(`[HomeSearch] [Shard Engine] Found ${hits.length} results in ${(performance.now() - start).toFixed(1)}ms`);
+        if (hits.length > 0) {
+            console.log(`[HomeSearch] [Tier 1] Found ${hits.length} results in ${(performance.now() - start).toFixed(1)}ms`);
             return hits;
         }
     }
 
-    if (!dbWorker && !isLoaded) await initSearch();
-
-    // Final Shard Fallback if VFS is dead/mounting
-    if (!dbWorker) {
-        return searchShardPool(query, limit, filters);
-    }
-
+    // TIER 2: SSR API Search (meta.db FTS5/B-Tree)
     try {
-        const columns = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.stars, e.downloads, e.last_modified`;
-        let sql = `SELECT ${columns} FROM entities e`;
-        const params = [];
+        const parsed = parseQueryWithCommands(query);
+        const searchQuery = parsed.query || query;
 
-        if (query && query.length >= 2) {
-            const safeQuery = query.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/).filter(t => t.length > 0).map(t => `"${t}"*`).join(' AND ');
-            if (safeQuery) {
-                sql = `SELECT ${columns} FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ?`;
-                params.push(safeQuery);
+        const params = new URLSearchParams({
+            q: query, // Send full query (SSR parses commands server-side too)
+            sort: filters.sort || 'fni',
+            type: filters.entityType || 'all',
+            limit: String(limit),
+            page: String((page || 0) + 1)
+        });
+
+        const res = await fetch(`/api/search?${params}`, {
+            signal: AbortSignal.timeout(5000) // 5s timeout per CES Art 3.4
+        });
+
+        if (!res.ok) {
+            console.warn(`[HomeSearch] [Tier 2] SSR API returned ${res.status}`);
+            return searchShardPool(query, limit, filters); // Fallback to Tier 1
+        }
+
+        let data = await res.json();
+
+        // --- V22.10 Tier 3: Semantic Engine Auto-Fallback ---
+        // If keyword search fails, intelligently fall back to AI semantic similarity
+        if ((!data.results || data.results.length === 0) && filters.mode !== 'semantic' && query.length >= 3) {
+            console.warn(`[HomeSearch] [Tier 2] 0 results for '${query}'. Initiating Tier 3 Semantic Fallback...`);
+            params.set('mode', 'semantic');
+            const semanticRes = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout(10000) });
+            if (semanticRes.ok) {
+                const semanticData = await semanticRes.json();
+                if (semanticData.results && semanticData.results.length > 0) {
+                    data = semanticData; // Override with semantic results
+                    console.log(`[HomeSearch] [Tier 3] Found ${data.results.length} semantic matches!`);
+                }
             }
-        } else {
-            sql += ` WHERE 1=1`;
         }
-
-        if (filters.entityType && filters.entityType !== 'all') {
-            sql += ` AND e.type = ?`;
-            params.push(filters.entityType);
-        }
-
-        if (filters.min_likes > 0) {
-            sql += ` AND e.stars >= ?`;
-            params.push(filters.min_likes);
-        }
-
-        if (filters.sources && filters.sources.length > 0) {
-            sql += ` AND (e.id LIKE ? OR e.bundle_key LIKE ?)`;
-            params.push(`%${filters.sources[0]}%`, `%${filters.sources[0]}%`);
-        }
-
-        // V22.8 FIX: Prevent catastrophic VFS Network Scans
-        // FTS queries joined against external ordering columns (e.fni_score) force the SQLite optimizer
-        // to traverse massive b-trees, sparking 1000s of HTTP Range requests that hang the proxy.
-        // We strictly use FTS5 embedded `rank` for active search queries to guarantee 0-ms local logic.
-        const isFTS = query && query.length >= 2;
-        const defaultSort = isFTS ? 'rank' : 'e.fni_score DESC';
-        const ob = filters.sort === 'likes' ? 'e.stars DESC' : (filters.sort === 'last_updated' ? 'e.last_modified DESC' : defaultSort);
-        sql += ` ORDER BY ${ob} LIMIT ? OFFSET ?`;
-        const page = parseInt(filters.page) || 1;
-        const lim = parseInt(limit);
-        params.push(lim, (page - 1) * lim);
-
-        let results = await dbWorker.db.query(sql, params);
-
-        // Cold Start Resilience
-        if (results.length === 0 && query.length >= 2) {
-            await new Promise(r => setTimeout(r, 500));
-            results = await dbWorker.db.query(sql, params);
-        }
-
-        const mapped = results.map(r => ({
-            id: r.id, name: r.name, slug: r.slug, type: r.type, author: r.author, description: r.summary,
-            fni_score: r.fni_score, likes: r.stars, downloads: r.downloads, tags: [], last_updated: r.last_modified
+        const mapped = (data.results || []).map(r => ({
+            id: r.id, name: r.name, slug: r.slug, type: r.type, author: r.author,
+            description: r.description, fni_score: r.fni_score, likes: r.likes,
+            downloads: r.downloads, tags: [], last_updated: r.last_updated,
+            license: r.license, task: r.task,
+            params_billions: r.params_billions, context_length: r.context_length
         }));
 
-        console.log(`[HomeSearch] Found ${mapped.length} via VFS in ${(performance.now() - start).toFixed(1)}ms`);
+        console.log(`[HomeSearch] [Tier 2] Found ${mapped.length} via SSR in ${(performance.now() - start).toFixed(1)}ms (server: ${data.elapsed_ms}ms)`);
         return mapped;
     } catch (e) {
-        console.error('[HomeSearch] VFS Search Query Error:', e);
+        console.error('[HomeSearch] [Tier 2] SSR Search Error:', e);
+        // Final fallback to Tier 1 shard data
         return searchShardPool(query, limit, filters);
     }
 }
@@ -193,12 +116,12 @@ export function setFullSearchActive(active) { }
 export function getSearchStatus() {
     const shards = getShardStatus();
     return {
-        isLoaded,
+        isLoaded: true, // SSR API is always available
         isHotLoaded: shards.isHotLoaded,
         isFallingBack: shards.isFallingBack,
         shardsProgress: shards.shardsProgress,
         isFullSearchActive: true,
-        isFullSearchLoading: shards.isFallingBack && !isLoaded,
-        itemCount: isLoaded ? itemCount : shards.itemCount
+        isFullSearchLoading: false,
+        itemCount: shards.itemCount
     };
 }
