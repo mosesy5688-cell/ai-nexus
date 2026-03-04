@@ -1,0 +1,228 @@
+---
+/**
+ * V22.10 SearchCommandPalette: Advanced Command Search Interface
+ * Adheres to UI Iron Triangle: Minimalist, High-Density, Keyboard-First.
+ * Supports: author: | task: | license: | params: | fni: | ctx:
+ */
+---
+
+<div id="search-modal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh] px-4" role="dialog" aria-modal="true">
+  <div class="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-lg shadow-2xl overflow-hidden ring-1 ring-white/5 animate-in fade-in zoom-in duration-200">
+    <!-- Search Input -->
+    <div class="relative border-b border-white/10 p-4">
+      <svg class="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input 
+        type="text" 
+        id="palette-input"
+        placeholder="Search models, tools, papers... or try author:meta params:>7b" 
+        class="w-full bg-transparent pl-12 pr-4 py-2 text-lg text-white placeholder-white/30 outline-none"
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    <!-- Results Area -->
+    <div id="palette-results" class="max-h-[60vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
+      <div id="palette-empty" class="py-12 text-center text-white/40">
+        <p class="text-sm">Start typing to search instantly</p>
+        <p class="text-[10px] mt-2 text-white/30">💡 Try commands: <code class="px-1 bg-white/5 rounded">author:meta</code> <code class="px-1 bg-white/5 rounded">params:>7b</code> <code class="px-1 bg-white/5 rounded">fni:>50</code></p>
+        <p class="text-xs mt-2">Press <kbd class="px-1 py-0.5 rounded bg-white/10 border border-white/20">ESC</kbd> to close</p>
+      </div>
+      <!-- Results injected here -->
+    </div>
+
+    <!-- Footer / Status -->
+    <div class="border-t border-white/10 p-3 flex items-center justify-between text-[10px] text-white/40 uppercase tracking-widest font-mono">
+      <div id="engine-status" class="flex items-center gap-2">
+         <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+         VFS Binary Active (0ms)
+      </div>
+      <div class="flex items-center gap-4">
+        <span><b class="text-white/60">↑↓</b> Navigate</span>
+        <span><b class="text-white/60">Enter</b> Open</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  #palette-results::-webkit-scrollbar { width: 4px; }
+  #palette-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+  #palette-results:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
+
+  .result-item {
+    @apply flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors cursor-pointer border border-transparent;
+  }
+  .result-item.selected {
+    @apply bg-white/10 border-white/20;
+  }
+</style>
+
+<script>
+  import { loadHotShard, searchShardPool } from '../../scripts/search-shard-engine.js';
+  import { performSearch, initSearch } from '../../scripts/home-search.js';
+
+  const modal = document.getElementById('search-modal');
+  const input = document.getElementById('palette-input') as HTMLInputElement;
+  const resultsContainer = document.getElementById('palette-results');
+  const emptyState = document.getElementById('palette-empty');
+  const engineStatus = document.getElementById('engine-status');
+  let selectedIndex = -1;
+  let pendingQuery = '';
+  let dbFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // 1. Initialize Hot Shard ASAP
+  loadHotShard();
+
+  // 2. Global Shortcuts
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      toggleModal();
+    }
+    if (e.key === 'Escape' && !modal?.classList.contains('hidden')) {
+      toggleModal(false);
+    }
+  });
+
+  function toggleModal(show = true) {
+    if (show) {
+      modal?.classList.remove('hidden');
+      input?.focus();
+    } else {
+      modal?.classList.add('hidden');
+    }
+  }
+
+  function setEngineStatus(tier: 'shard' | 'db' | 'loading') {
+    if (!engineStatus) return;
+    if (tier === 'shard') {
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> VFS Binary Active (0ms)`;
+    } else if (tier === 'db') {
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> meta.db Full Search`;
+    } else {
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span> Searching full database...`;
+    }
+  }
+
+  // 3. Instant Search Logic with meta.db Cascade
+  input?.addEventListener('input', () => {
+    const query = input.value.trim();
+    if (dbFallbackTimer) { clearTimeout(dbFallbackTimer); dbFallbackTimer = null; }
+    
+    if (!query) {
+      if (resultsContainer) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.appendChild(emptyState!);
+      }
+      setEngineStatus('shard');
+      return;
+    }
+
+    // TIER 1: Instant Binary Shard Search
+    const shardResults = searchShardPool(query, 12, { sort: 'fni', entityType: 'all' });
+    
+    if (shardResults.length > 0) {
+      setEngineStatus('shard');
+      renderResults(shardResults);
+      return;
+    }
+
+    // TIER 2: Cascade to meta.db for long-tail search
+    // Results from less popular entities may take a moment to load
+    setEngineStatus('loading');
+    resultsContainer!.innerHTML = '<div class="py-8 text-center text-white/40 text-xs"><div class="inline-block w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin mb-2"></div><p>Searching the full database, this may take a moment...</p></div>';
+    
+    pendingQuery = query;
+    dbFallbackTimer = setTimeout(async () => {
+      try {
+        const dbResults = await performSearch(query, { sort: 'fni', entityType: 'all' }, 12, 0);
+        // Only render if the query hasn't changed while we were waiting
+        if (input.value.trim() === pendingQuery) {
+          if (dbResults && dbResults.length > 0) {
+            setEngineStatus('db');
+            renderResults(dbResults);
+          } else {
+            setEngineStatus('db');
+            resultsContainer!.innerHTML = '<div class="py-12 text-center text-white/40 text-xs">No matches found. Try different keywords or use commands like <code class="px-1 bg-white/5 rounded">author:name</code></div>';
+          }
+        }
+      } catch (err) {
+        console.warn('[Palette] meta.db fallback failed:', err);
+        if (input.value.trim() === pendingQuery) {
+          resultsContainer!.innerHTML = '<div class="py-12 text-center text-white/40 text-xs">Could not reach the full database. Showing results from cached index only.</div>';
+        }
+      }
+    }, 150); // Small debounce to avoid spamming VFS mounts
+  });
+
+  function renderResults(results: any[]) {
+    if (!resultsContainer) return;
+    
+    if (results.length === 0) {
+      resultsContainer.innerHTML = '<div class="py-12 text-center text-white/40 text-xs">No matches found.</div>';
+      return;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const formatTime = (secs: number) => {
+        if (!secs) return '';
+        const days = Math.floor((now - secs) / 86400);
+        if (days < 1) return 'today';
+        if (days < 30) return `${days}d`;
+        if (days < 365) return `${Math.floor(days/30)}mo`;
+        return `${Math.floor(days/365)}y`;
+    };
+
+    const formatCtx = (ctx: number) => {
+        if (!ctx) return '';
+        return ctx >= 1000 ? Math.round(ctx/1000) + 'K' : String(ctx);
+    };
+
+    resultsContainer.innerHTML = results.map((r: any, i: number) => `
+      <div class="result-item" data-index="${i}" onclick="window.location.href='/${r.type}/${r.slug}'">
+        <div class="w-8 h-8 rounded bg-white/5 flex items-center justify-center text-[10px] font-bold text-white/40 shrink-0">
+          ${String(r.type || '').substring(0,2).toUpperCase()}
+        </div>
+        <div class="flex-1 min-w-0 pr-2">
+          <div class="flex items-center justify-between pb-1">
+            <div class="flex items-center gap-2 min-w-0 flex-1 pr-4">
+              <span class="text-sm font-medium text-white/90 truncate">${r.name}</span>
+              ${r.author ? `<span class="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[9px] border border-blue-500/20 truncate max-w-[100px] shrink-0">${r.author}</span>` : ''}
+              ${r.task ? `<span class="px-1 py-0.5 rounded bg-white/5 text-[9px] truncate max-w-[80px] shrink-0">${r.task}</span>` : ''}
+            </div>
+            <span class="text-[10px] font-mono text-emerald-400 shrink-0">FNI ${(r.fni_score || 0).toFixed(1)}</span>
+          </div>
+          
+          <div class="flex items-center gap-2 text-[10px] text-white/40 font-mono overflow-hidden whitespace-nowrap">
+             <span class="truncate flex-1 max-w-[140px] text-white/30" title="${r.slug}">${(r.slug || '').split('/').pop() || r.slug}</span>
+             
+             ${r.downloads ? `
+             <span class="w-1 h-1 rounded-full bg-white/10 shrink-0"></span>
+             <span class="shrink-0">${(r.downloads / 1000).toFixed(0)}k ↓</span>
+             ` : ''}
+             
+             ${r.context_length ? `
+             <span class="w-1 h-1 rounded-full bg-white/10 shrink-0"></span>
+             <span class="text-purple-400 shrink-0 border border-purple-500/20 px-1 rounded-sm">${formatCtx(r.context_length)} ctx</span>
+             ` : ''}
+             
+             ${r.license ? `
+             <span class="w-1 h-1 rounded-full bg-white/10 shrink-0"></span>
+             <span class="text-white/50 shrink-0 truncate max-w-[80px]">${r.license}</span>
+             ` : ''}
+             
+             ${r.updated_secs || r.last_modified ? `
+             <span class="w-1 h-1 rounded-full bg-white/10 shrink-0"></span>
+             <span class="text-amber-500/70 shrink-0">🕒 ${formatTime(r.updated_secs || (r.last_modified ? Math.floor(new Date(r.last_modified).getTime()/1000) : 0))}</span>
+             ` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+    
+    selectedIndex = -1;
+  }
+</script>

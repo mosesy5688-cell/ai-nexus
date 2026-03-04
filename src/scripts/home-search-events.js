@@ -1,14 +1,13 @@
 // src/scripts/home-search-events.js
+// V22.10: Unified Tier 1 → Tier 2 cascade (aligned with SearchCommandPalette)
 import {
     initSearch,
-    loadFullSearchIndex,
     getSearchHistory,
     saveSearchHistory,
     clearSearchHistory,
-    performSearch,
-    setFullSearchActive,
-    getSearchStatus
+    performSearch
 } from './home-search.js';
+import { loadHotShard, searchShardPool } from './search-shard-engine.js';
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
 import { highlightTerms } from './search-ui-controller.js';
 
@@ -98,18 +97,12 @@ export function setupSearchEvents() {
     const dropdown = document.getElementById('search-results-dropdown');
 
     searchBox?.addEventListener('focus', async () => {
-        const wait = (ms) => new Promise(res => setTimeout(res, ms));
-        let retries = 3;
-        while (retries > 0) {
-            const success = await initSearch();
-            if (success || getSearchStatus().isLoaded) break;
-            retries--;
-            await wait(500);
-        }
+        // V22.10: initSearch() is now instant (no WASM to load — just triggers hot shard)
+        await initSearch();
         if (!searchBox.value.trim()) renderHistory();
     });
 
-    searchBox?.addEventListener('mouseenter', initSearch);
+    searchBox?.addEventListener('mouseenter', () => { loadHotShard(); initSearch(); });
 
 
     let searchDebounceTimer;
@@ -125,15 +118,15 @@ export function setupSearchEvents() {
             return;
         }
 
-        // V18.2.12: Instant init + Debounced search
-        initSearch();
-
-        // V18.2.12: Silent Full Load on first interaction
-        const status = getSearchStatus();
-        if (!status.isFullSearchActive && !status.isFullSearchLoading) {
-            loadFullSearchIndex();
+        // V22.10: Unified Tier 1 → Tier 2 cascade (same as command palette)
+        // TIER 1: Instant binary shard search (0ms)
+        const shardResults = searchShardPool(query, 10, { sort: 'fni', entityType: 'all' });
+        if (shardResults.length > 0) {
+            renderResults(shardResults);
+            return; // Tier 1 satisfied, skip Tier 2
         }
 
+        // TIER 2: Cascade to meta.db for long-tail search
         clearTimeout(searchDebounceTimer);
         searchDebounceTimer = setTimeout(async () => {
             const results = await performSearch(query);
@@ -143,7 +136,7 @@ export function setupSearchEvents() {
                 const resultsGrid = document.getElementById('models-grid');
                 resultsGrid?.classList.remove('hidden');
             }
-        }, 300);
+        }, 150); // V22.10: Aligned debounce with command palette
     });
 
 

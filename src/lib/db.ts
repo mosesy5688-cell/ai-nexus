@@ -95,13 +95,17 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             const { readFile } = await import('fs/promises'), { resolve } = await import('path');
             return new Response(await readFile(resolve(process.cwd(), 'data', filename)), { status: 200, headers });
         } else if (isSimulatingRemote) {
-            const res = await fetch(`${baseUrl}/data/${filename}`);
-            return new Response(res.body, { status: 200, headers });
+            const cdnUrl = `${baseUrl}/data/${filename}${url.search}`;
+            const res = await fetch(cdnUrl);
+            const proxyRes = new Response(res.body, res);
+            Object.entries(commonHeaders).forEach(([k, v]) => proxyRes.headers.set(k, v));
+            return proxyRes;
         } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`);
             if (!object) return new Response('Not Found', { status: 404 });
-            object.writeHttpMetadata(headers as any);
-            return new Response(object.body as any, { status: 200, headers });
+            const headersWithMeta = new Headers(commonHeaders as any);
+            object.writeHttpMetadata(headersWithMeta as any);
+            return new Response(object.body as any, { status: 200, headers: headersWithMeta });
         } else {
             return new Response('R2 Binding Missing', { status: 500 });
         }
@@ -111,6 +115,15 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         const rangeValue = rangeHeader.trim().toLowerCase();
         if (!rangeValue.startsWith('bytes=')) return new Response('Invalid Range', { status: 416 });
         const parts = rangeValue.replace('bytes=', '').split(',')[0].split('-');
+
+        if (isSimulatingRemote) {
+            const cdnUrl = `${baseUrl}/data/${filename}${url.search}`;
+            const res = await fetch(cdnUrl, { headers: { 'Range': rangeHeader } });
+            const proxyRes = new Response(res.body, res);
+            Object.entries(commonHeaders).forEach(([k, v]) => proxyRes.headers.set(k, v));
+            return proxyRes;
+        }
+
         const headers = new Headers(commonHeaders as any);
 
         if (parts[0] === '') { // Suffix range
@@ -140,7 +153,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         const responseSize = end - start + 1;
 
         // Alignment Guard (RELAXED): Removed to allow library pre-fetching (0.8.x compatibility)
-        // Note: sql.js-httpvfs requests arbitrary ranges during index discovery
+        // Note: Range requests may be arbitrary during SQLite VFS page discovery
 
         headers.set('Content-Length', responseSize.toString());
         headers.set('Content-Range', `bytes ${start}-${end}/${totalSize}`);
@@ -178,13 +191,9 @@ export function buildHardenedQuery(userQuery: string): string {
     return tokens.length === 0 ? '' : tokens.map(t => `"${t}"*`).join(' AND ');
 }
 
-export const VFS_CONFIG = {
-    requestChunkSize: 32768, // V22.9: Tuned to 32KB per R2 alignment & reduced billing granularity
-    cacheSize: 8 * 1024 * 1024,
-    // Add version query to force cache bypass on stale security headers
-    workerUrl: '/assets/sqlite/sqlite.worker.js?v=21.10.3',
-    wasmUrl: '/assets/sqlite/sql-wasm.wasm?v=21.10.3'
-};
+// V22.10: VFS_CONFIG removed — browser no longer loads WASM SQLite.
+// Search now runs server-side via /api/search.ts (wa-sqlite + R2 Range VFS on SSR).
+// The VFS Proxy above is retained for fused-shard detail hydration only.
 
 const MAX_SEARCH_SEATS = 512; // V21.10: 512 concurrent range requests permitted
 let activeSeats = 0;
