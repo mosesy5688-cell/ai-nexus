@@ -44,8 +44,8 @@ const externalLinks = [
 
                 <!-- Desktop Navigation (Consolidated) -->
                 <div class="hidden lg:flex items-center gap-5">
-                    {navLinks.slice(0, 6).map(link => (
-                        <a href={link.href} class="text-sm font-medium text-gray-500 hover:text-white transition-colors">
+                    {navLinks.map(link => (
+                        <a href={link.href} class="text-sm font-medium text-gray-500 hover:text-indigo-600 dark:hover:text-white transition-colors">
                             {link.text}
                         </a>
                     ))}

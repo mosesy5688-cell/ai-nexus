@@ -25,7 +25,7 @@ try {
       by_type: { 
         model: 51502, paper: 55257, agent: 148, space: 1022, 
         dataset: 16140, tool: 1050, knowledge: 29, report: 1,
-        concept: 3
+        concept: 3, prompt: 342
       } 
     };
   }
@@ -36,10 +36,11 @@ try {
 // Node type icons, colors and navigation links
 const typeConfig = {
   model: { icon: '🤖', color: 'bg-blue-500', label: 'Models', href: '/models' },
+  dataset: { icon: '📊', color: 'bg-cyan-500', label: 'Datasets', href: '/datasets' },
+  prompt: { icon: '✍️', color: 'bg-rose-600', label: 'Prompts', href: '/prompts' },
   paper: { icon: '📄', color: 'bg-purple-500', label: 'Papers', href: '/papers' },
   agent: { icon: '🤖', color: 'bg-emerald-500', label: 'Agents', href: '/agents' },
   space: { icon: '🚀', color: 'bg-orange-500', label: 'Spaces', href: '/spaces' },
-  dataset: { icon: '📊', color: 'bg-cyan-500', label: 'Datasets', href: '/datasets' },
   tool: { icon: '🔧', color: 'bg-amber-500', label: 'Tools', href: '/tools' },
   knowledge: { icon: '📚', color: 'bg-indigo-500', label: 'Knowledge', href: '/knowledge' },
   report: { icon: '📰', color: 'bg-rose-500', label: 'Reports', href: '/reports' }
@@ -58,7 +59,7 @@ const totalEdges = meshStats.edges || 0;
         Knowledge Mesh
       </h2>
       <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-        8-node interconnected knowledge graph
+        9-node interconnected knowledge graph
       </p>
     </div>
     <div class="flex items-center gap-3 text-[11px]">
@@ -74,7 +75,7 @@ const totalEdges = meshStats.edges || 0;
   </div>
 
   <!-- Interactive Navigation Mesh -->
-  <div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+  <div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-3">
     {Object.entries(typeConfig).map(([type, config]) => {
       const count = nodesByType[type] || 0;
       

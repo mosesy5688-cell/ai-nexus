@@ -43,7 +43,7 @@ const { initialQuery = '', totalEntities = 125312 } = Astro.props;
         <input 
           type="text"
           id="home-direct-input"
-          placeholder="Search 50,000+ entities instantly..." 
+          placeholder="Search entities instantly..." 
           class="flex-1 bg-transparent border-none text-xl text-white outline-none placeholder-white/30 font-light tracking-tight py-2"
           autocomplete="off"
         />
@@ -54,7 +54,7 @@ const { initialQuery = '', totalEntities = 125312 } = Astro.props;
       </div>
       
       <!-- Search Hints (Concise) -->
-      <div class="mt-5 flex flex-wrap justify-center gap-4 text-[10px] text-white/20 font-bold uppercase tracking-[0.2em]">
+      <div class="mt-5 flex flex-wrap justify-center gap-4 text-[10px] text-gray-500 dark:text-white/20 font-bold uppercase tracking-[0.2em]">
           <span class="opacity-40">Quick Access:</span>
           {['Llama 3.1', 'Flux.1', 'Qwen 2.5', 'SDXL'].map(q => (
               <button 
@@ -79,15 +79,34 @@ const { initialQuery = '', totalEntities = 125312 } = Astro.props;
     const homeInput = document.getElementById('home-direct-input') as HTMLInputElement;
     const paletteInput = document.getElementById('palette-input') as HTMLInputElement;
 
-    if (homeInput && paletteInput) {
-        // When clicking or focusing the home input, open the palette immediately
-        homeInput.addEventListener('focus', () => {
+    if (homeInput) {
+        const syncAndOpen = (e: Event) => {
+            const val = homeInput.value;
             document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k' }));
-            // Optional: transfer any existing text
-            if (homeInput.value) {
-                paletteInput.value = homeInput.value;
-                paletteInput.dispatchEvent(new Event('input'));
-                homeInput.value = ''; // clear home input so it's clean next time
+            
+            // Wait for modal to mount
+            setTimeout(() => {
+                const pInput = document.getElementById('palette-input') as HTMLInputElement;
+                if (pInput) {
+                    pInput.value = val;
+                    pInput.focus();
+                    pInput.setSelectionRange(val.length, val.length);
+                    pInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    // Use a slightly longer delay to clear home input after transfer is confirmed
+                    setTimeout(() => { homeInput.value = ''; }, 10);
+                }
+            }, 100);
+        };
+
+        homeInput.addEventListener('focus', syncAndOpen);
+        homeInput.addEventListener('click', syncAndOpen);
+        homeInput.addEventListener('input', (e) => {
+            if (homeInput.value.length > 0) syncAndOpen(e);
+        });
+        homeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                syncAndOpen(e);
             }
         });
     }
