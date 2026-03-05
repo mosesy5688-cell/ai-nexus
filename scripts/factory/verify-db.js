@@ -27,10 +27,10 @@ const isSearchDb = dbName === 'search.db';
 const GLOBAL_THRESHOLDS = {
     search: 350000,
     core: 45000,
-    paper: 350000,
-    model: 80000,
-    dataset: 40000,
-    ecosystem: 10000,
+    paper: 200000, // Actual ~223k
+    model: 100000, // Actual ~112k
+    dataset: 40000, // Actual ~43k
+    ecosystem: 1000, // Refined for current count
     agent: 800,
     tool: 5000,
     prompt: 4000,
