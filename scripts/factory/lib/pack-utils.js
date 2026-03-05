@@ -155,68 +155,78 @@ export async function collectAndSortMetadata(cacheDir, trendingMap, trendMap) {
     });
 }
 
-/**
- * V22.8: Build complete bundle JSON for VFS shard packing
- */
-export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
-    return Buffer.from(JSON.stringify({
-        readme: e.readme || e.html_readme || e.body_content || e.content || e.description || '',
-        changelog: e.changelog || '',
-        benchmarks: e.benchmarks || [],
-        paper_abstract: e.paper_abstract || '',
-        mesh_profile: e.mesh_profile || { relations: [] },
-        fni_metrics: fniMetrics,
-        params_billions: pBillions, context_length: ctxLen, architecture: arch,
-        license: e.license || e.license_spdx || '',
-        source_url: e.source_url || '',
-        source: e.source || e.source_platform || '',
-        pipeline_tag: e.pipeline_tag || '',
-        image_url: e.raw_image_url || e.image_url || '',
-        vram_estimate_gb: e.vram_estimate_gb || null,
-        quick_insights: e.quick_insights || [],
-        use_cases: e.use_cases || [],
-        quantization: e.quantization || '',
-        html_readme: e.html_readme || '',
-        relations: e.relations || [],
-        created_at: e.created_at || '',
-        display_description: e.display_description || ''
-    }), 'utf8');
-}
-
-/**
- * V22.8: Build 33-column entity row for meta.db/search.db
- * All values must be SQLite-safe: number, string, bigint, buffer, or null.
- */
-export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, summary, bundleKey, offset, size) {
-    // V22.8: Coerce non-primitive values to strings (papers may have array authors, etc.)
-    const s = (v, fallback = '') => {
-        if (v == null) return fallback;
-        if (typeof v === 'string') return v;
-        if (typeof v === 'number' || typeof v === 'bigint') return v;
-        if (Array.isArray(v)) return v.join(', ');
-        if (typeof v === 'object') return JSON.stringify(v);
-        return String(v);
-    };
-    const n = (v, fallback = 0) => {
-        if (typeof v === 'number' && !isNaN(v)) return v;
-        const parsed = Number(v);
-        return isNaN(parsed) ? fallback : parsed;
-    };
-
-    return [
-        s(e.id), s(e.umid || e.id), s(e.slug), s(e.name || e.displayName), s(e.type, 'model'),
-        s(e.author), s(summary), s(category), s(tags), n(e.fni_score), s(e.fni_percentile),
-        n(e.fni_p ?? fniMetrics.p), n(e.fni_v ?? fniMetrics?.f ?? fniMetrics?.v),
-        n(e.fni_c ?? fniMetrics.c), n(e.fni_u ?? fniMetrics.u),
-        n(pBillions), s(arch), n(ctxLen), e.is_trending ? 1 : 0,
-        n(e.stars || e.likes), n(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
-        '', s(e._trend_7d),
-        s(e.license || e.license_spdx), s(e.source_url), s(e.pipeline_tag),
-        s(e.raw_image_url || e.image_url), n(e.vram_estimate_gb), s(e.source || e.source_platform)
-    ];
-}
+// V23.1: Builders extracted to satisfy CES Art 5.1
+export { buildBundleJson, buildEntityRow } from './row-builders.js';
 
 // ── V23.1: Shard DB Extracted Utilities ─────────
+
+/**
+ * Configure SQLite pragmas for high-density 16KB VFS operations
+ */
+export function setupDatabasePragmas(db) {
+    db.pragma('page_size = 16384');
+    db.pragma('auto_vacuum = 0');
+    db.pragma('journal_mode = DELETE');
+    db.pragma('synchronous = OFF');
+    db.pragma('encoding = "UTF-8"');
+}
+
+/**
+ * Inject essential site metadata into all database partitions
+ */
+export async function injectMetadata(metaDbs, searchDb, cacheDir) {
+    const metaFiles = [
+        { key: 'category_stats', file: 'category_stats.json' },
+        { key: 'trending', file: 'trending.json' },
+        { key: 'relations', file: 'relations/explicit.json' },
+        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }
+    ];
+
+    for (const meta of metaFiles) {
+        try {
+            const possiblePaths = [path.join(cacheDir, meta.file), path.join(cacheDir, `${meta.file}.gz`)];
+            let content = null;
+            for (const p of possiblePaths) {
+                try {
+                    const raw = await fs.readFile(p);
+                    content = (p.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b)) ? zlib.gunzipSync(raw).toString('utf-8') : raw.toString('utf-8');
+                    break;
+                } catch (err) { continue; }
+            }
+            if (content) {
+                Object.values(metaDbs).forEach(db => {
+                    db.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
+                });
+                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
+            }
+        } catch (e) { }
+    }
+}
+
+/**
+ * Generate a formatted build summary report for the V23.1 Shard-DB architecture
+ */
+export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
+    const fsSync = (await import('fs')).default;
+    console.log('\n' + '='.repeat(70));
+    console.log('           💎 V23.1 SHARD-DB BUILD SUMMARY REPORT 💎');
+    console.log('='.repeat(70));
+    console.log(`${'Partition Name'.padEnd(25)} | ${'Entities'.padEnd(12)} | ${'Size (MB)'.padEnd(12)} | ${'Status'}`);
+    console.log('-'.repeat(70));
+
+    const finalReportDbs = { ...metaDbs, "full-search": searchDb };
+    for (const [name, db] of Object.entries(finalReportDbs)) {
+        const fileStats = fsSync.statSync(db.name);
+        const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
+        const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
+        const status = (fileStats.size > 125 * 1024 * 1024) ? '⚠️ OOM RISK' : '✅ OK';
+        console.log(`${name.padEnd(25)} | ${String(count).padEnd(12)} | ${String(sizeMB).padEnd(12)} | ${status}`);
+    }
+    console.log('='.repeat(70));
+    console.log(`[VFS] Fused Binary Shards : ${currentShardId + 1}`);
+    console.log(`[VFS] Total Heavy Entities : ${stats.heavy} (${(stats.bytes / 1024 / 1024).toFixed(2)} MB)`);
+    console.log('='.repeat(70) + '\n');
+}
 
 export const cyrb53 = (str, seed = 0) => {
     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
