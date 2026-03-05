@@ -21,19 +21,31 @@ export function hydrateEntity(data, type, summaryData) {
 
     const derivedName = entity.name || entity.title || entity.pretty_name || (entity.id ? entity.id.split('--').pop() : 'Unknown');
 
+    const fScore = computed.fni ?? entity.fni_score ?? entity.fni ?? 0;
+    const fMetrics = computed.fni_metrics || entity.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
+
+    let fp = computed.fni_p ?? entity.fni_p ?? entity.fniP ?? fMetrics.p ?? meta.fni?.p ?? meta.p ?? 0;
+    let fv = computed.fni_v ?? entity.fni_v ?? entity.fniV ?? fMetrics.v ?? meta.fni?.v ?? meta.v ?? 0;
+    let fc = computed.fni_c ?? entity.fni_c ?? entity.fniC ?? fMetrics.c ?? meta.fni?.c ?? meta.c ?? 0;
+    let fu = computed.fni_u ?? entity.fni_u ?? entity.fniU ?? fMetrics.u ?? meta.fni?.u ?? meta.u ?? 0;
+
+    // V22.10: Synthesize missing pillars if the FNI score exists (Legacy/Offline protection)
+    if (fScore > 0 && fp === 0 && fv === 0 && fc === 0 && fu === 0) {
+        fp = fScore; fv = fScore; fc = fScore; fu = fScore;
+    }
+
     const hydrated = {
         ...entity,
         meta: meta,
-        meta_json: meta, // V18.2.1 Alignment: Ensure meta_json is an object for downstream components
-        fni_score: computed.fni ?? entity.fni_score ?? entity.fni ?? 0,
-        fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile,
+        meta_json: meta, // V18.2.1 Alignment
+        fni_score: fScore,
+        fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile ?? 0,
         fni_commentary: computed.fni_commentary || entity.fni_commentary || meta.fni?.commentary || null,
-        fni_metrics: computed.fni_metrics || entity.fni_metrics || meta.fni?.metrics || {},
-        // V16.4.1 FNI Sub-score Promotion
-        fni_p: computed.fni_p ?? entity.fni_p ?? entity.fniP ?? meta.fni?.p ?? meta.p ?? 0,
-        fni_v: computed.fni_v ?? entity.fni_v ?? entity.fniV ?? meta.fni?.v ?? meta.v ?? 0,
-        fni_c: computed.fni_c ?? entity.fni_c ?? entity.fniC ?? meta.fni?.c ?? meta.c ?? 0,
-        fni_u: computed.fni_u ?? entity.fni_u ?? entity.fniU ?? meta.fni?.u ?? meta.u ?? 0,
+        fni_metrics: fMetrics,
+        fni_p: fp,
+        fni_v: fv,
+        fni_c: fc,
+        fni_u: fu,
         name: derivedName,
         relations: computed.relations || entity.relations || meta.extended?.relations || meta.relations || {},
         body_content: entity.body_content || meta.html_readme || meta.readme || null,

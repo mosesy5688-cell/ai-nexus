@@ -55,14 +55,12 @@
 }
 
 .article-content {
-    color: #374151;
-    /* V3.1: gray-700 for Light Mode */
+    /* V6.3: Color delegated to prose / dark:prose-invert */
     line-height: 1.8;
 }
 
 .article-content h2 {
-    color: #1f2937;
-    /* V3.1: gray-800 for Light Mode */
+    /* V6.3: Color delegated to prose-headings / dark:prose-invert */
     font-size: 1.5rem;
     font-weight: 700;
     margin: 2rem 0 1rem;
@@ -95,12 +93,6 @@
     text-align: left;
 }
 
-.article-content th {
-    background: #f3f4f6;
-    /* V3.1: gray-100 for Light Mode */
-    color: #1f2937;
-    /* V3.1: gray-800 */
-}
 
 .article-content code {
     background: rgba(30, 41, 59, 0.8);

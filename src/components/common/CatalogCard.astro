@@ -17,7 +17,11 @@ if (!baseName || baseName.toLowerCase() === 'unknown') {
 const displayTitle = baseName;
 const author = extractAuthor(id, item.author || item.creator || item.organization || 'Community');
 const description = item.description || item.summary || item.seo_summary?.description || 'Structural intelligence indexing in progress...';
-const truncatedDesc = description;
+let textDesc = description;
+if (typeof textDesc === 'string' && textDesc.startsWith('---')) {
+    textDesc = textDesc.replace(/---[\s\S]*?---/, '').trim();
+}
+const truncatedDesc = (textDesc || '').replace(/[#*`>]/g, '').trim();
 
 // Routing & Metadata - V19.1 Unification
 const link = generateEntityUrl(item, type);
@@ -26,11 +30,11 @@ const isActive = isRecentlyActive(item.last_updated || item.lastModified);
 const fni = Math.round(item.fni_score ?? item.fni ?? item.fniScore ?? 0);
 const fniPercentile = item.fni_percentile || item.percentile || '';
 
-// FNI Color Semantics (SPEC-CORE-FEATURES V1.0)
-let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
-if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
-else if (fni >= 70) fniBadgeClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
-else if (fni > 0) fniBadgeClass = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
+// FNI Color Semantics (V22.10 Industrial)
+let fniBadgeClass = "bg-black/40 border-white/5 text-zinc-500";
+if (fni >= 85) fniBadgeClass = "bg-emerald-950/30 border-emerald-500/20 text-emerald-500";
+else if (fni >= 70) fniBadgeClass = "bg-indigo-950/30 border-indigo-500/20 text-indigo-400";
+else if (fni > 0) fniBadgeClass = "bg-zinc-900/50 border-white/10 text-white";
 
 // Color Mapping - Professional Muted Palette
 let typeBadgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
@@ -72,126 +76,75 @@ if (item.fni_score > 0) {
     // FNI is already in the top badge, but we can add more if needed
 }
 ---
-
-<a href={link} data-astro-prefetch class="entity-card group p-3 bg-white dark:bg-zinc-900 rounded-md transition-all border border-zinc-100 dark:border-zinc-800 hover:border-blue-500/50 block h-full flex flex-col" data-entity-id={id} data-entity-type={type}>
-    <div class="flex items-center justify-between mb-2">
-         <div class="flex items-center gap-2">
-             <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded {typeBadgeColor}">{typeLabel}</span>
-             {isActive && <span class="w-1 h-1 rounded-full bg-emerald-500 shrink-0" title="Recently updated"></span>}
-         </div>
-         <div class="flex items-center gap-2">
-             {isRisingStar && <span class="text-[8px] font-black bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded uppercase tracking-tighter">Rising</span>}
-             {(fni > 0 || fniPercentile) && (
-                <div class={`flex items-center gap-1 px-1.5 py-0.5 rounded ${fniBadgeClass} border border-black/5 dark:border-white/5`}>
-                    <span class="text-[9px] font-bold">{fni > 0 ? fni : ''}</span>
-                    {fniPercentile && (typeof fniPercentile === 'string' && fniPercentile.startsWith('top_')) ? (
-                       <span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">{fniPercentile.replace('top_', 'Top ')}</span>
-                    ) : (fniPercentile && typeof fniPercentile === 'number' && fniPercentile >= 90) ? (
-                       <span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">Top {100 - fniPercentile}%</span>
-                    ) : null}
+<section id="daily-report-banner" class="mb-12 bg-[var(--bg-surface)] rounded-sm border border-[var(--border-hairline)] p-6 hidden">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+        <div class="flex items-center gap-6">
+            <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-black/20 rounded border border-white/5 text-xl opacity-60">
+                📉
+            </div>
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="px-1.5 py-0.5 bg-black/40 text-[#bdc3ff] text-[9px] font-black uppercase tracking-widest rounded-sm border border-white/5">Daily Pulse</span>
+                    <h3 class="text-base font-black text-white uppercase tracking-tight" id="report-title">Today in AI Intelligence</h3>
                 </div>
-             )}
-         </div>
+                <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-tight max-w-md" id="report-summary">Loading technical market shifts and model velocity spikes...</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 w-full md:w-auto">
+            <div class="flex-grow md:flex-grow-0">
+                <a id="report-top-model-link" href="/ranking" class="flex flex-col px-4 py-2 bg-black/20 hover:bg-black/30 border border-white/5 rounded-sm transition-colors">
+                    <span class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Velocity Leader</span>
+                    <span class="text-xs font-black text-white tabular-nums uppercase" id="report-top-model">--</span>
+                </a>
+            </div>
+            
+            <a href="/reports" class="whitespace-nowrap px-6 py-2.5 bg-white text-black hover:bg-zinc-200 rounded-sm text-[10px] font-black uppercase tracking-widest transition-transform active:scale-95">
+                Full Report
+            </a>
+        </div>
+    </div>
+</section>
+<a href={link} data-astro-prefetch class="entity-card group py-1.5 px-2.5 bg-[var(--bg-surface)] rounded-sm transition-all border border-[var(--border-hairline)] hover:border-zinc-500 flex flex-col md:flex-row md:items-center justify-between w-full h-auto gap-2 md:gap-3 relative overflow-hidden" data-entity-id={id} data-entity-type={type}>
+    <!-- Left: Identity -->
+    <div class="flex items-center gap-3 md:w-1/4 shrink-0 overflow-hidden">
+        <span class="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm bg-black/20 text-zinc-400 border border-white/5 shrink-0 min-w-[60px] text-center truncate">{typeLabel}</span>
+        {isActive && <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>}
+        <h3 class="text-xs font-bold text-white group-hover:text-[#bdc3ff] transition-colors truncate" title={displayTitle}>
+            {displayTitle}
+        </h3>
     </div>
     
-    <h3 class="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1 mb-1.5" title={displayTitle}>
-        {displayTitle}
-    </h3>
-    
-    <p class="text-[9px] sm:text-[10px] text-gray-400 dark:text-zinc-500 mb-2 uppercase tracking-tight font-bold italic">by {author}</p>
-    
-    <p class="text-[10px] sm:text-[11px] text-gray-600 dark:text-zinc-400 line-clamp-2 mb-3 flex-grow leading-tight">
-        {truncatedDesc}
-    </p>
+    <!-- Mid: Description -->
+    <div class="flex-1 truncate hidden md:block border-l border-[var(--border-hairline)] pl-4">
+        <p class="text-[10px] text-zinc-300 truncate mt-0.5 font-medium">
+            {truncatedDesc}
+        </p>
+    </div>
 
-    <div class="flex items-center gap-3 pt-2 border-t border-zinc-50 dark:border-zinc-800 text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">
-        {metrics.map(m => (
-            <div class="flex items-center gap-1" title={m.label}>
-                <span>{m.value}</span>
-                <span class="opacity-60">{m.label.charAt(0)}</span>
-            </div>
-        ))}
+    <!-- Right: Author, Badges & Metrics -->
+    <div class="flex items-center gap-4 shrink-0 whitespace-nowrap justify-between md:justify-end md:w-[35%] border-t md:border-t-0 border-[var(--border-hairline)] pt-2 md:pt-0">
+        <span class="text-[9px] text-zinc-400 font-medium truncate max-w-[150px]">by <strong class="text-zinc-300 font-bold">{author || 'Unknown'}</strong></span>
+        
+        <div class="flex items-center gap-1.5 justify-end hidden sm:flex">
+            {isRisingStar && <span class="text-[8px] font-black bg-rose-950/30 text-rose-500 px-1 py-0.5 rounded-sm uppercase tracking-tighter border border-rose-500/20">Rising</span>}
+            {(fni > 0 || fniPercentile) && (
+                <div class={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm border relative z-10 fni-badge-container ${fniBadgeClass}`}>
+                    <span class="text-[10px] font-black font-mono tabular-nums fni-value">{fni > 0 ? fni : '0'}</span>
+                    <span class="text-[8px] font-bold uppercase tracking-widest opacity-80">FNI</span>
+                </div>
+            )}
+        </div>
+
+        <div class="flex items-center gap-3 text-[9px] font-bold text-zinc-500 uppercase tracking-widest justify-end min-w-[120px] metrics-container">
+            {metrics.map(m => (
+                <div class="flex items-center gap-1 shrink-0" title={m.label}>
+                    <span class="text-white font-mono tabular-nums max-w-[40px] truncate block">{m.value}</span>
+                    <span class="opacity-40">{m.label.substring(0, 3)}</span>
+                </div>
+            ))}
+        </div>
     </div>
 </a>
 
-<script>
-    /**
-     * V19.2 Lazy-Hydration System
-     * Resolves missing backend data (descriptions/metrics) via client-side fetch when visible.
-     */
-    document.addEventListener('astro:page-load', () => {
-        const cards = document.querySelectorAll('.entity-card');
-        
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(async entry => {
-                if (entry.isIntersecting) {
-                    const card = entry.target;
-                    if (card.getAttribute('data-hydrated')) return;
-                    
-                    const id = card.getAttribute('data-entity-id');
-                    if (!id) return;
 
-                    try {
-                        // V19.2: Fetch from Fused Storage (Primary)
-                        const res = await fetch(`https://cdn.free2aitools.com/cache/fused/${id}.json.gz`);
-                        if (!res.ok) throw new Error('Not found');
-                        
-                        // Transparent decompression handled by browser (Content-Encoding: gzip)
-                        // If browser doesn't support it, fetch the .json fallback if needed, 
-                        // but production CDN ensures .gz works.
-                        const data = await res.json();
-                        
-                        // 1. Update Description if missing or placeholder
-                        const descEl = card.querySelector('p.text-gray-600');
-                        if (descEl && (descEl.textContent.trim().includes('Structural intelligence') || descEl.textContent.trim().length < 10)) {
-                            descEl.textContent = data.description || data.summary || data.enriched?.display_description || descEl.textContent;
-                        }
-
-                        // 2. Update FNI if missing
-                        const fni = Math.round(data.fni_score ?? data.fni ?? 0);
-                        if (fni > 0) {
-                            const fniContainer = card.querySelector('.flex.items-center.gap-2:last-child');
-                            if (fniContainer && !fniContainer.querySelector('.bg-emerald-100, .bg-amber-100, .bg-rose-100, .bg-gray-100')) {
-                                let color = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
-                                if (fni >= 85) color = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
-                                else if (fni >= 70) color = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
-                                else if (fni > 0) color = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
-                                
-                                const badge = document.createElement('div');
-                                badge.className = `flex items-center gap-1 px-1.5 py-0.5 rounded ${color} border border-black/5 dark:border-white/5`;
-                                badge.innerHTML = `<span class="text-[9px] font-bold">${fni}</span>`;
-                                fniContainer.prepend(badge);
-                            }
-                        }
-
-                        // 3. Update Metrics (Inject if container is empty)
-                        const metricsContainer = card.querySelector('.pt-2.border-t');
-                        if (metricsContainer && metricsContainer.children.length === 0) {
-                            const metrics = [];
-                            const formatCompact = (num) => new Intl.NumberFormat('en-US',{notation:'compact'}).format(num);
-                            if (data.params_billions) metrics.push({value: `${data.params_billions}B`, label: 'Params'});
-                            if (data.context_length) metrics.push({value: formatCompact(data.context_length), label: 'Context'});
-                            if (data.downloads) metrics.push({value: formatCompact(data.downloads), label: 'Downloads'});
-                            if (data.stars || data.github_stars) metrics.push({value: formatCompact(data.stars || data.github_stars), label: 'Stars'});
-                            if (data.citations) metrics.push({value: formatCompact(data.citations), label: 'Citations'});
-                            
-                            metricsContainer.innerHTML = metrics.map(m => 
-                                `<div class="flex items-center gap-1" title="${m.label}">
-                                    <span>${m.value}</span>
-                                    <span class="opacity-60">${m.label.charAt(0)}</span>
-                                </div>`
-                            ).join('');
-                        }
-
-                        card.setAttribute('data-hydrated', 'true');
-                        observer.unobserve(card);
-                    } catch (e) {
-                        // Silent fail - keep placeholder
-                    }
-                }
-            });
-        }, { rootMargin: '100px' });
-
-        cards.forEach(card => observer.observe(card));
-    });
-</script>

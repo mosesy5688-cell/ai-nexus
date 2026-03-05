@@ -103,16 +103,16 @@ if (commands.length === 0) return null;
 ---
 
 <div class={`quick-commands-container space-y-4 ${className}`}>
-  <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
-    <span>⚡</span> Quick Commands
+  <h3 class="text-xs font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+    QUICK DEPLOY
   </h3>
   
   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
     {commands.map(item => (
-      <div class="command-box group relative bg-zinc-950 border border-zinc-800 rounded-sm overflow-hidden transition-all hover:border-zinc-500 shadow-none">
-        <div class="flex items-center justify-between px-3 py-1 bg-zinc-900 border-b border-zinc-800">
-           <span class="text-[9px] font-black text-zinc-500 flex items-center gap-1 uppercase tracking-widest">
-             <span>{item.icon}</span> {item.label}
+      <div class="command-box group relative bg-[var(--bg-canvas)] border border-[var(--border-hairline)] rounded-sm overflow-hidden transition-all hover:border-zinc-500 shadow-none">
+        <div class="flex items-center justify-between px-3 py-1.5 bg-[var(--bg-surface)] border-b border-[var(--border-hairline)]">
+           <span class="text-[9px] font-black text-zinc-400 flex items-center gap-1.5 uppercase tracking-widest">
+             <span class="opacity-80">{item.icon}</span> {item.label}
            </span>
         </div>
         <div class="p-3 flex items-center justify-between gap-4 font-mono">

@@ -19,10 +19,15 @@ if (!fs.existsSync(DB_PATH)) {
 const dbName = path.basename(DB_PATH);
 const isSearchDb = dbName === 'search.db';
 const isPaperShard = dbName.includes('paper-shard');
-const isModelShard = dbName.includes('model-shard');
+const isDatasetDb = dbName.includes('dataset');
+const isEcosystemDb = dbName.includes('ecosystem');
 
 // V23.1 Threshold Defaults
-const DEFAULT_THRESHOLD = isSearchDb ? 350000 : (isPaperShard ? 50000 : (isModelShard ? 10000 : 50000));
+const DEFAULT_THRESHOLD = isSearchDb ? 350000
+    : (isPaperShard ? 50000
+        : (isModelShard ? 10000
+            : (isDatasetDb ? 40000
+                : (isEcosystemDb ? 10000 : 50000))));
 const THRESHOLD = parseInt(args.find(a => a.startsWith('--threshold='))?.split('=')[1] || String(DEFAULT_THRESHOLD));
 const EXPECTED_PAGE_SIZE = parseInt(args.find(a => a.startsWith('--page-size='))?.split('=')[1] || '16384');
 const MAX_DB_SIZE_MB = 125; // SPEC 2.0 Hard Limit

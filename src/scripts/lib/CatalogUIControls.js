@@ -21,13 +21,6 @@ export class CatalogUIControls {
         }, { rootMargin: '800px' });
         instance.observer.observe(instance.sentinel);
 
-        const loadMoreBtn = document.createElement('button');
-        loadMoreBtn.id = 'load-more-btn';
-        loadMoreBtn.className = 'px-6 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded text-[10px] font-black uppercase tracking-widest transition-all border border-zinc-200 dark:border-zinc-700 hidden mt-4';
-        loadMoreBtn.textContent = 'Load More Engineering Data';
-        loadMoreBtn.onclick = () => instance.loadMore();
-        instance.sentinel.appendChild(loadMoreBtn);
-
         if (instance.paginationContainer) instance.paginationContainer.style.display = 'none';
     }
 
@@ -53,9 +46,7 @@ export class CatalogUIControls {
         const loadMoreBtn = instance.sentinel.querySelector('#load-more-btn');
 
         if (hasMoreData) {
-            instance.sentinel.querySelector('div:not(#load-more-btn)')?.remove();
-            instance.sentinel.insertAdjacentHTML('afterbegin', '<div class="flex items-center gap-2 text-zinc-500 text-[9px] animate-pulse font-black uppercase tracking-[0.2em]"><div class="w-1.5 h-1.5 bg-amber-500 rounded-full"></div> Synchronizing technical shards...</div>');
-            if (loadMoreBtn) loadMoreBtn.classList.remove('hidden');
+            instance.sentinel.innerHTML = '<div class="flex items-center gap-2 text-zinc-500 text-[9px] animate-pulse font-black uppercase tracking-[0.2em]"><div class="w-1.5 h-1.5 bg-amber-500 rounded-full"></div> Synchronizing technical shards...</div>';
         } else {
             instance.sentinel.innerHTML = '<div class="text-zinc-400 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 py-8 border-t border-zinc-100 dark:border-zinc-800 w-full text-center">End of Professional Technical Index</div>';
             if (instance.observer) instance.observer.disconnect();

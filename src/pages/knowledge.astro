@@ -8,7 +8,6 @@ export const prerender = true;
 
 import Layout from '../layouts/Layout.astro';
 import KnowledgeCategoryCard from '../components/knowledge/KnowledgeCategoryCard.astro';
-import MeshVisualizer from '../components/mesh/MeshVisualizer.astro';
 import { KNOWLEDGE_CATEGORIES, getTotalArticleCount } from '../data/knowledge-base-config';
 
 const pageTitle = "AI Knowledge Base - Free2AITools";
@@ -18,27 +17,13 @@ const totalArticles = getTotalArticleCount();
 
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-8 max-w-6xl">
-    <!-- Hero Section -->
-    <header class="text-center mb-10 py-10 bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-pink-500/10 rounded-2xl border border-indigo-500/20">
-      <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4 shadow-lg shadow-indigo-500/25">
-        <span class="text-3xl">📚</span>
-      </div>
-      <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-3">
+    <header class="text-center mb-10 py-10">
+      <h1 class="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-3 tracking-tighter uppercase">
         AI Knowledge Base
       </h1>
-      <p class="text-base text-gray-600 dark:text-gray-300 max-w-xl mx-auto mb-5">
+      <p class="text-base text-gray-600 dark:text-zinc-400 max-w-xl mx-auto font-medium">
         Comprehensive guides to understand AI models, benchmarks, and deployment strategies
       </p>
-      <div class="flex items-center justify-center gap-4 text-xs">
-        <div class="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full text-indigo-700 dark:text-indigo-300 font-medium">
-          <span>📂</span>
-          <span>{KNOWLEDGE_CATEGORIES.length} Categories</span>
-        </div>
-        <div class="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/40 rounded-full text-purple-700 dark:text-purple-300 font-medium">
-          <span>📝</span>
-          <span>{totalArticles} Articles</span>
-        </div>
-      </div>
     </header>
 
     <!-- Quick Search -->
@@ -58,9 +43,6 @@ const totalArticles = getTotalArticleCount();
       </div>
     </div>
 
-    <section class="mb-12">
-      <MeshVisualizer />
-    </section>
 
     <!-- Categories Grid -->
     <div class="categories-grid">

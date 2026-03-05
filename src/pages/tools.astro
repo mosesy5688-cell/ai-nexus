@@ -32,7 +32,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
 
         <ListingControls type="tool" searchId="tools-search" />
 
-        <div id="tools-catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div id="tools-catalog-grid" class="flex flex-col gap-1">
             {tools.map((tool: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-1 duration-300">
                     <CatalogCard item={tool} type="tool" />

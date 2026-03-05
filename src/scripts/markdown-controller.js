@@ -95,7 +95,7 @@ const KNOWLEDGE_TERMS = {
     'Quantization': 'Compression technique (GGUF/AWQ) to run large models on consumer GPUs.',
     'VRAM': 'Video RAM - the memory required on your GPU to load model weights.',
     'Context Length': 'The maximum number of tokens a model can process in one go.',
-    'FNI': 'Fair Nexus Index - our proprietary trust and transparency score.',
+    'FNI': 'Free2AITools Nexus Index - our proprietary trust and transparency score.',
     'Transformer': 'The core neural network architecture behind all modern LLMs.',
     'Token': 'The basic unit of text processing in LLMs, roughly 0.75 words.',
     'Parameters': 'The "neurons" of a model; more parameters usually mean higher intelligence.',

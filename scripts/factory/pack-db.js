@@ -45,7 +45,7 @@ async function packDatabase() {
     // Dynamic Shard Calculation
     const paperCount = metadataBatch.filter(e => e.type === 'paper').length;
     const modelShardCount = 5;
-    const paperShardCount = Math.max(1, Math.ceil(paperCount / 60000));
+    const paperShardCount = Math.max(1, Math.ceil(paperCount / 45000));
     console.log(`[VFS] Routing: 1 Model Core + ${modelShardCount} Model Shards, ${paperShardCount} Paper Shards.`);
 
     const metaDbs = {

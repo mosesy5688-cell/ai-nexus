@@ -1,11 +1,11 @@
 export const article = {
-    title: 'What is FNI?',
-    description: 'Fair Nexus Index (FNI) is our transparent, multi-dimensional scoring system for ranking AI models on Free2AITools.',
-    category: 'Metrics',
-    content: `
+  title: 'What is FNI?',
+  description: 'Free2AITools Nexus Index (FNI) is our transparent, multi-dimensional scoring system for ranking AI models on Free2AITools.',
+  category: 'Metrics',
+  content: `
   ## Overview
   
-  **FNI (Fair Nexus Index)** is Free2AITools' proprietary scoring system for ranking AI models. It provides a transparent, multi-dimensional view of model quality.
+  **FNI (Free2AITools Nexus Index)** is Free2AITools' proprietary scoring system for ranking AI models. It provides a transparent, multi-dimensional view of model quality.
   
   ## The Four Dimensions
   

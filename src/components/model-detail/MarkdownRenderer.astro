@@ -49,13 +49,15 @@ renderer.code = (args) => {
   const language = args.lang || 'text';
   const escapedCode = code.replace(/"/g, '&quot;');
   return `
-    <div class="relative group my-4">
-      <button class="markdown-copy-btn absolute top-2 right-2 p-2 bg-gray-800/50 hover:bg-gray-700/80 text-white rounded-md opacity-0 group-hover:opacity-100 transition-all border border-gray-600/30 backdrop-blur-sm z-10"
-              data-code="${escapedCode}" title="Copy code">
-        <span class="btn-icon text-sm">📋</span>
-        <span class="btn-text hidden">Copy</span>
-      </button>
-      <pre class="relative"><code class="language-${language || 'text'}">${code}</code></pre>
+    <div class="relative group my-6 border border-[var(--border-hairline)] rounded-sm overflow-hidden">
+      <div class="bg-black/40 px-4 py-1.5 flex justify-between items-center border-b border-[var(--border-hairline)]">
+        <span class="text-[9px] font-black uppercase tracking-widest text-zinc-500">${language || 'code'}</span>
+        <button class="markdown-copy-btn px-2 py-1 bg-white/5 hover:bg-white/10 text-white rounded-sm transition-colors text-[9px] font-black uppercase tracking-widest"
+                data-code="${escapedCode}" title="Copy code">
+          <span class="btn-text">Copy</span>
+        </button>
+      </div>
+      <pre class="relative !m-0 !rounded-none !bg-black p-4"><code class="language-${language || 'text'} text-xs">${code}</code></pre>
     </div>
   `;
 };
@@ -65,38 +67,38 @@ const renderedHtml = await marked.parse(processedContent, { renderer });
 ---
 
 {headers.length > 1 && (
-  <nav class="markdown-toc mb-10 p-6 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900/50 dark:to-gray-900/10 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
-    <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-      <span class="text-4xl">📑</span>
+  <nav class="markdown-toc mb-10 p-6 bg-[var(--bg-surface)] border border-[var(--border-hairline)] rounded-sm relative overflow-hidden group">
+    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+      <span class="text-4xl text-zinc-500">📑</span>
     </div>
     <div class="flex items-center gap-2 mb-4">
-      <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></div>
-      <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">Document Outline</div>
+      <div class="w-1.5 h-1.5 bg-[#bdc3ff] rounded-sm"></div>
+      <div class="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Document Outline</div>
     </div>
     <ul class="space-y-2 border-l-2 border-gray-100 dark:border-gray-800/50 ml-1">
       {headers.map(h => (
         <li class={`${h.depth === 1 ? 'mt-3 first:mt-0' : ''}`}>
           <a href={`#${h.slug}`} 
-             class={`block py-0.5 pl-4 -ml-[2px] border-l-2 border-transparent hover:border-indigo-500 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all
-                    ${h.depth === 1 ? 'text-[13px] font-black uppercase tracking-tight' : 'text-xs font-medium'}
+             class={`block py-0.5 pl-4 -ml-[2px] border-l-2 border-transparent hover:border-[#bdc3ff] text-zinc-400 hover:text-white transition-all
+                    ${h.depth === 1 ? 'text-[11px] font-black uppercase tracking-tight' : 'text-[10px] font-bold'}
                     ${h.depth === 3 ? 'pl-8 opacity-70' : ''}`}>
             {h.text}
           </a>
         </li>
       ))}
     </ul>
-    <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800/50 flex justify-between items-center">
-       <span class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">AI-Optimized Extraction</span>
-       <a href="#" class="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:underline">↑ Core Focus</a>
+    <div class="mt-6 pt-4 border-t border-[var(--border-hairline)] flex justify-between items-center">
+       <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-tighter">AI-Optimized Extraction</span>
+       <a href="#" class="text-[9px] font-black text-[#bdc3ff] uppercase tracking-widest hover:underline">↑ Top</a>
     </div>
   </nav>
 )}
 
 <div class={`markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none 
             prose-headings:font-black prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-white
-            prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-a:font-bold prose-a:no-underline hover:prose-a:underline
-            prose-pre:bg-[#0a0a0a] prose-pre:border prose-pre:border-zinc-800 prose-pre:rounded-xl
-            prose-img:rounded-xl prose-img:shadow-lg prose-strong:text-zinc-900 dark:prose-strong:text-white
+            prose-a:text-[#bdc3ff] prose-a:font-bold prose-a:no-underline hover:prose-a:underline
+            prose-img:rounded-sm prose-img:border prose-img:border-[var(--border-hairline)]
+            prose-strong:text-zinc-900 dark:prose-strong:text-white
             leading-relaxed tracking-tight ${className}`}
      set:html={renderedHtml}
 />

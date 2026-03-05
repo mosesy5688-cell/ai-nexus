@@ -39,16 +39,16 @@ try {
   
   {/* V16.2: Technical Setup & Implementation (Consolidated) */}
   {(model.installation || model.configuration || model.usage) && (
-    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-inner">
-       <h2 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-          <span>⚙️</span> Technical Implementation
+    <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
+       <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+          ⚙️ Technical Implementation
        </h2>
        
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* V16.10: Visual Architectural Skeleton */}
           <div class="space-y-4">
-             <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <span class="w-2 h-2 bg-indigo-500 rounded-full"></span> Internal Architecture
+             <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-tight">
+                <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Internal Architecture
              </h3>
              <ArchitectureSchema 
                layers={model.num_layers} 
@@ -66,10 +66,10 @@ try {
           <div class="space-y-8">
             {model.installation && (
               <div class="space-y-4">
-                 <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Installation
+                 <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-tight">
+                    <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Installation
                  </h3>
-                 <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                 <div class="bg-[var(--bg-canvas)] rounded-sm p-4 border border-[var(--border-hairline)]">
                     <MarkdownRenderer content={model.installation} />
                  </div>
               </div>
@@ -77,10 +77,10 @@ try {
 
             {model.usage && (
               <div class="space-y-4">
-                 <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span class="w-2 h-2 bg-green-500 rounded-full"></span> Usage Example
+                 <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-tight">
+                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Usage Example
                  </h3>
-                 <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                 <div class="bg-[var(--bg-canvas)] rounded-sm p-4 border border-[var(--border-hairline)]">
                     <MarkdownRenderer content={model.usage} />
                  </div>
               </div>
@@ -89,9 +89,9 @@ try {
         </div>
 
        {model.configuration && (
-         <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-            <dt class="text-sm font-bold leading-6 text-gray-900 dark:text-white uppercase tracking-tighter">Config Logic</dt>
-            <dd class="mt-1 text-sm leading-6 text-gray-700 dark:text-gray-300 sm:col-span-2 sm:mt-0">
+         <div class="mt-6 pt-6 border-t border-[var(--border-hairline)] sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+            <dt class="text-xs font-bold leading-6 text-white uppercase tracking-tighter">Config Logic</dt>
+            <dd class="mt-1 text-sm leading-6 text-zinc-300 sm:col-span-2 sm:mt-0">
                <MarkdownRenderer content={model.configuration} />
             </dd>
          </div>

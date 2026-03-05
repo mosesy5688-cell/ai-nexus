@@ -12,7 +12,7 @@
 
 const SITE_URL = 'https://free2aitools.com';
 const SITE_NAME = 'Free AI Tools';
-const SITE_DESCRIPTION = 'The open-source AI knowledge hub. Discover, explore, and compare AI models with our transparent Fair Nexus Index.';
+const SITE_DESCRIPTION = 'The open-source AI knowledge hub. Discover, explore, and compare AI models with our transparent Free2AITools Nexus Index.';
 
 /**
  * Build JSON-LD for Homepage
