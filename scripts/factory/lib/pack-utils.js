@@ -206,7 +206,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
     return [
         s(e.id), s(e.umid || e.id), s(e.slug), s(e.name || e.displayName), s(e.type, 'model'),
         s(e.author), s(summary), s(category), s(tags), n(e.fni_score), s(e.fni_percentile),
-        n(e.fni_p ?? fniMetrics.p), n(e.fni_v ?? fniMetrics.v),
+        n(e.fni_p ?? fniMetrics.p), n(e.fni_v ?? fniMetrics?.f ?? fniMetrics?.v),
         n(e.fni_c ?? fniMetrics.c), n(e.fni_u ?? fniMetrics.u),
         n(pBillions), s(arch), n(ctxLen), e.is_trending ? 1 : 0,
         n(e.stars || e.likes), n(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),

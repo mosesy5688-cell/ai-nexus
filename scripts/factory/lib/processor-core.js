@@ -70,7 +70,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             fni_score: finalFni,
             fni_metrics: fniMetrics,
             fni_p: fniMetrics.p,
-            fni_v: fniMetrics.v,
+            fni_v: fniMetrics.f ?? fniMetrics.v,
             fni_c: fniMetrics.c,
             fni_u: fniMetrics.u,
             vram_estimate_gb: vramEstimate,
