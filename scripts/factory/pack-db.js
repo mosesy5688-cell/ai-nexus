@@ -9,10 +9,13 @@ import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
-import { loadTrendingMap, loadTrendMap, collectAndSortMetadata, buildBundleJson, buildEntityRow, cyrb53, getModelShardIndex } from './lib/pack-utils.js';
+import {
+    loadTrendingMap, loadTrendMap, collectAndSortMetadata,
+    buildBundleJson, buildEntityRow, getModelShardIndex,
+    setupDatabasePragmas, injectMetadata, printBuildSummary
+} from './lib/pack-utils.js';
 import { dbSchemas, searchDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
-import { persistRegistry } from './lib/aggregator-persistence.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
 import { generateVectorCore } from './lib/vector-core-generator.js';
 
@@ -21,8 +24,6 @@ const SEARCH_DB_PATH = './output/data/search.db';
 const SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 0; // V22.8: Universal Sharding
 const MAX_SHARD_SIZE = 256 * 1024 * 1024;
-
-
 
 async function packDatabase() {
     console.log('[VFS] 💎 Commencing Constitutional V23.1 Shard-DB Packing...');
@@ -54,25 +55,12 @@ async function packDatabase() {
         ecosystem: new Database(path.join(SHARD_PATH_DIR, 'meta-ecosystem.db')),
     };
 
-    // Legacy full DB
     const searchDb = new Database(SEARCH_DB_PATH);
 
-    const setupDb = (db) => {
-        db.pragma('page_size = 16384'); // V23.1 High-Density 16K Alignment for fewer R2 requests
-        db.pragma('auto_vacuum = 0');
-        db.pragma('journal_mode = DELETE');
-        db.pragma('synchronous = OFF');
-        db.pragma('encoding = "UTF-8"');
-    };
-
-    Object.values(metaDbs).forEach(setupDb);
-    setupDb(searchDb);
-
-
+    Object.values(metaDbs).forEach(setupDatabasePragmas);
+    setupDatabasePragmas(searchDb);
 
     Object.values(metaDbs).forEach(db => db.exec(dbSchemas));
-
-
     searchDb.exec(searchDbSchema);
 
     // Prepare Statements
@@ -146,18 +134,13 @@ async function packDatabase() {
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
         // Routing Logic
-        let targetKey = 'ecosystem';
-        if (e.type === 'dataset') {
-            targetKey = 'dataset';
-        } else if (e.type === 'paper') {
-            targetKey = 'paper';
-        } else if (e.type === 'model' || !e.type) {
+        let targetKey = (e.type === 'dataset') ? 'dataset' : (e.type === 'paper') ? 'paper' : 'ecosystem';
+        if (e.type === 'model' || !e.type) {
             if (e.is_trending || modelCoreCount < 50000) {
                 targetKey = 'core';
                 modelCoreCount++;
             } else {
-                const sIdx = getModelShardIndex(e.slug || e.id || e.name || '');
-                targetKey = `shard${sIdx}`;
+                targetKey = `shard${getModelShardIndex(e.slug || e.id || e.name || '')}`;
             }
         }
 
@@ -173,22 +156,18 @@ async function packDatabase() {
             String(category)
         ];
         prepFts[targetKey].run(...ftsValues);
-
         stats.packed++;
     }
 
     Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
     searchDb.exec("COMMIT");
-
     if (currentFd) fsSync.closeSync(currentFd);
 
-    // ── V22.9: Generate Hot Shard (Top 50K Zero-Copy Binary) ─────────
+    // ── V22.9/V22.10: Generation ─────────
     generateHotShard(metadataBatch);
-
-    // ── V22.10: Generate Vector Core (Tier 3 Semantic Engine) ─────────
     generateVectorCore(metadataBatch);
 
-    // Finalize Shard Hashes in all DBs
+    // Finalize Shard Hashes
     console.log('[VFS] 🌐 Updating shard hashes...');
     for (let i = 0; i <= currentShardId; i++) {
         const name = `fused-shard-${String(i).padStart(3, '0')}.bin`;
@@ -202,36 +181,10 @@ async function packDatabase() {
         }
     }
 
-    // Inject Metadata into BOTH databases
-    console.log('[VFS] 🌐 Injecting Global Metadata...');
-    const metaFiles = [
-        { key: 'category_stats', file: 'category_stats.json' },
-        { key: 'trending', file: 'trending.json' },
-        { key: 'relations', file: 'relations/explicit.json' },
-        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }
-    ];
-
-    for (const meta of metaFiles) {
-        try {
-            const possiblePaths = [path.join(CACHE_DIR, meta.file), path.join(CACHE_DIR, `${meta.file}.gz`)];
-            let content = null;
-            for (const p of possiblePaths) {
-                try {
-                    const raw = await fs.readFile(p);
-                    content = (p.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b)) ? zlib.gunzipSync(raw).toString('utf-8') : raw.toString('utf-8');
-                    break;
-                } catch (err) { continue; }
-            }
-            if (content) {
-                Object.values(metaDbs).forEach(db => {
-                    db.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
-                });
-                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
-            }
-        } catch (e) { }
-    }
-
+    await injectMetadata(metaDbs, searchDb, CACHE_DIR);
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
+
+    printBuildSummary(metaDbs, searchDb, stats, currentShardId);
 
     // Finalization
     console.log('[VFS] 🌐 Optimizing databases...');
@@ -244,7 +197,7 @@ async function packDatabase() {
     searchDb.exec("PRAGMA integrity_check; VACUUM;");
     searchDb.close();
 
-    console.log(`[VFS] ✅ V23.1 Shard-DB Complete! Shards: ${currentShardId + 1}, Models in Core: ${modelCoreCount}`);
+    console.log(`[VFS] ✅ V23.1 Shard-DB Packing Complete.`);
 }
 
 packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });
