@@ -240,9 +240,10 @@ export const cyrb53 = (str, seed = 0) => {
     return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 };
 
-export function getModelShardIndex(nameStr) {
+export function getShardIndex(nameStr, shardCount) {
+    if (!shardCount || shardCount <= 1) return 1;
     const hash = cyrb53(nameStr || '');
-    return (hash % 5) + 1; // Returns 1, 2, 3, 4, 5
+    return (hash % shardCount) + 1; // Returns 1..shardCount
 }
 
 

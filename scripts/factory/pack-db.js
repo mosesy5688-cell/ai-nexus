@@ -11,7 +11,7 @@ import crypto from 'crypto';
 import zlib from 'zlib';
 import {
     loadTrendingMap, loadTrendMap, collectAndSortMetadata,
-    buildBundleJson, buildEntityRow, getModelShardIndex,
+    buildBundleJson, buildEntityRow, getShardIndex,
     setupDatabasePragmas, injectMetadata, printBuildSummary
 } from './lib/pack-utils.js';
 import { dbSchemas, searchDbSchema } from './lib/pack-schemas.js';
@@ -42,18 +42,25 @@ async function packDatabase() {
     const trendMap = await loadTrendMap(CACHE_DIR);
     const metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
-    // Initialize Databases
+    // Dynamic Shard Calculation
+    const paperCount = metadataBatch.filter(e => e.type === 'paper').length;
+    const modelShardCount = 5;
+    const paperShardCount = Math.max(1, Math.ceil(paperCount / 60000));
+    console.log(`[VFS] Routing: 1 Model Core + ${modelShardCount} Model Shards, ${paperShardCount} Paper Shards.`);
+
     const metaDbs = {
         core: new Database(path.join(SHARD_PATH_DIR, 'meta-model-core.db')),
-        shard1: new Database(path.join(SHARD_PATH_DIR, 'meta-model-shard-01.db')),
-        shard2: new Database(path.join(SHARD_PATH_DIR, 'meta-model-shard-02.db')),
-        shard3: new Database(path.join(SHARD_PATH_DIR, 'meta-model-shard-03.db')),
-        shard4: new Database(path.join(SHARD_PATH_DIR, 'meta-model-shard-04.db')),
-        shard5: new Database(path.join(SHARD_PATH_DIR, 'meta-model-shard-05.db')),
         dataset: new Database(path.join(SHARD_PATH_DIR, 'meta-dataset.db')),
-        paper: new Database(path.join(SHARD_PATH_DIR, 'meta-paper.db')),
         ecosystem: new Database(path.join(SHARD_PATH_DIR, 'meta-ecosystem.db')),
     };
+
+    for (let i = 1; i <= modelShardCount; i++) {
+        metaDbs[`model_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, `meta-model-shard-${String(i).padStart(2, '0')}.db`));
+    }
+    for (let i = 1; i <= paperShardCount; i++) {
+        const name = paperShardCount === 1 ? 'meta-paper.db' : `meta-paper-shard-${String(i).padStart(2, '0')}.db`;
+        metaDbs[`paper_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, name));
+    }
 
     const searchDb = new Database(SEARCH_DB_PATH);
 
@@ -94,10 +101,8 @@ async function packDatabase() {
     Object.values(metaDbs).forEach(db => db.exec("BEGIN TRANSACTION"));
     searchDb.exec("BEGIN TRANSACTION");
 
-    let rowIds = {
-        core: 1, shard1: 1, shard2: 1, shard3: 1, shard4: 1, shard5: 1,
-        dataset: 1, paper: 1, ecosystem: 1
-    };
+    let rowIds = {};
+    Object.keys(metaDbs).forEach(k => rowIds[k] = 1);
 
     let modelCoreCount = 0;
 
@@ -133,14 +138,16 @@ async function packDatabase() {
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
-        // Routing Logic
-        let targetKey = (e.type === 'dataset') ? 'dataset' : (e.type === 'paper') ? 'paper' : 'ecosystem';
-        if (e.type === 'model' || !e.type) {
+        // Routing Logic (Shard-DB 3.0)
+        let targetKey = (e.type === 'dataset') ? 'dataset' : 'ecosystem';
+        if (e.type === 'paper') {
+            targetKey = `paper_shard_${getShardIndex(e.slug || e.id, paperShardCount)}`;
+        } else if (e.type === 'model' || !e.type) {
             if (e.is_trending || modelCoreCount < 50000) {
                 targetKey = 'core';
                 modelCoreCount++;
             } else {
-                targetKey = `shard${getModelShardIndex(e.slug || e.id || e.name || '')}`;
+                targetKey = `model_shard_${getShardIndex(e.slug || e.id, modelShardCount)}`;
             }
         }
 
@@ -182,7 +189,14 @@ async function packDatabase() {
     }
 
     await injectMetadata(metaDbs, searchDb, CACHE_DIR);
-    await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
+    const fullManifest = {
+        shards: manifest,
+        partitions: {
+            model: modelShardCount,
+            paper: paperShardCount
+        }
+    };
+    await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(fullManifest, null, 2));
 
     printBuildSummary(metaDbs, searchDb, stats, currentShardId);
 
