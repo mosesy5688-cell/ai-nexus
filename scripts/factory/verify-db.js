@@ -10,7 +10,20 @@ import crypto from 'crypto';
 
 const args = process.argv.slice(2);
 const DB_PATH = args.find(a => !a.startsWith('--')) || './output/data/meta-model-core.db';
-const THRESHOLD = parseInt(args.find(a => a.startsWith('--threshold='))?.split('=')[1] || '50000');
+
+if (!fs.existsSync(DB_PATH)) {
+    console.error(`❌ FATAL: ${DB_PATH} does not exist.`);
+    process.exit(1);
+}
+
+const dbName = path.basename(DB_PATH);
+const isSearchDb = dbName === 'search.db';
+const isPaperShard = dbName.includes('paper-shard');
+const isModelShard = dbName.includes('model-shard');
+
+// V23.1 Threshold Defaults
+const DEFAULT_THRESHOLD = isSearchDb ? 350000 : (isPaperShard ? 50000 : (isModelShard ? 10000 : 50000));
+const THRESHOLD = parseInt(args.find(a => a.startsWith('--threshold='))?.split('=')[1] || String(DEFAULT_THRESHOLD));
 const EXPECTED_PAGE_SIZE = parseInt(args.find(a => a.startsWith('--page-size='))?.split('=')[1] || '16384');
 const MAX_DB_SIZE_MB = 125; // SPEC 2.0 Hard Limit
 
@@ -22,14 +35,7 @@ function check(label, pass, detail = '') {
     if (!pass) failures++;
 }
 
-// 0. File existence
-if (!fs.existsSync(DB_PATH)) {
-    console.error(`❌ FATAL: ${DB_PATH} does not exist.`);
-    process.exit(1);
-}
-
 const db = new Database(DB_PATH, { readonly: true });
-const dbName = path.basename(DB_PATH);
 console.log(`=== V23.1 Health Check [${dbName}] ===\n`);
 
 // 1. Integrity check
@@ -59,7 +65,6 @@ const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
 check('Entity Count', count >= THRESHOLD, `${count} (min threshold: ${THRESHOLD})`);
 
 // 5. Shard Consistency
-const isSearchDb = DB_PATH.includes('search.db');
 const heavySample = db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get();
 
 if (heavySample) {

@@ -162,8 +162,10 @@ jobs:
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/search.db --out=output
       - name: V23.1 SQL Health Check
         run: |
-          node scripts/factory/verify-db.js output/data/meta-model-core.db --threshold=50000
-          node scripts/factory/verify-db.js output/data/search.db --threshold=350000
+          for db in output/data/*.db; do
+            echo "🔍 Verifying $db..."
+            node scripts/factory/verify-db.js "$db"
+          done
       - name: Save VFS Assets to Cache
         uses: actions/cache/save@v4
         with:
@@ -321,11 +323,11 @@ jobs:
       # V23.1: SQL Health Check before upload (blocks deployment on failure)
       - name: V23.1 SQL Health Check
         run: |
-          if [ -f "output/data/meta-model-core.db" ]; then
-            echo "🔍 Running core.db health check..."
-            node scripts/factory/verify-db.js output/data/meta-model-core.db --threshold=50000
-            echo "🔍 Running search.db health check..."
-            node scripts/factory/verify-db.js output/data/search.db --threshold=350000
+          if [ -d "output/data" ]; then
+            for db in output/data/*.db; do
+              echo "🔍 Production Guard: Verifying $db..."
+              node scripts/factory/verify-db.js "$db"
+            done
           else
             echo "⚠️ No VFS DBs found in output — skipping health check"
           fi
