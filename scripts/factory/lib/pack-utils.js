@@ -4,6 +4,7 @@
  */
 
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 
@@ -207,7 +208,6 @@ export async function injectMetadata(metaDbs, searchDb, cacheDir) {
  * Generate a formatted build summary report for the V23.1 Shard-DB architecture
  */
 export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
-    const fsSync = (await import('fs')).default;
     console.log('\n' + '='.repeat(70));
     console.log('           💎 V23.1 SHARD-DB BUILD SUMMARY REPORT 💎');
     console.log('='.repeat(70));
