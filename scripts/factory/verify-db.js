@@ -30,7 +30,7 @@ const GLOBAL_THRESHOLDS = {
     paper: 200000, // Actual ~223k
     model: 100000, // Actual ~112k
     dataset: 40000, // Actual ~43k
-    ecosystem: 1000, // Refined for current count
+    ecosystem: 1000, // Actual count is lower
     agent: 800,
     tool: 5000,
     prompt: 4000,
