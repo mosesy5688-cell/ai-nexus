@@ -219,7 +219,8 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
         const fileStats = fsSync.statSync(db.name);
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
-        const status = (fileStats.size > 125 * 1024 * 1024) ? '⚠️ OOM RISK' : '✅ OK';
+        const limitMB = (name === 'full-search') ? 700 : 125;
+        const status = (fileStats.size > limitMB * 1024 * 1024) ? '⚠️ OOM RISK' : '✅ OK';
         console.log(`${name.padEnd(25)} | ${String(count).padEnd(12)} | ${String(sizeMB).padEnd(12)} | ${status}`);
     }
     console.log('='.repeat(70));

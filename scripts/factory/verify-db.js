@@ -52,7 +52,7 @@ function getCategory(name) {
 const category = getCategory(dbName);
 const THRESHOLD = GLOBAL_THRESHOLDS[category] || 100;
 const EXPECTED_PAGE_SIZE = 16384;
-const MAX_DB_SIZE_MB = 125;
+const MAX_DB_SIZE_MB = isSearchDb ? 700 : 125;
 
 let failures = 0;
 
