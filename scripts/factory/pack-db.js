@@ -42,24 +42,50 @@ async function packDatabase() {
     const trendMap = await loadTrendMap(CACHE_DIR);
     const metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
-    // Dynamic Shard Calculation
-    const paperCount = metadataBatch.filter(e => e.type === 'paper').length;
-    const modelShardCount = 5;
-    const paperShardCount = Math.max(1, Math.ceil(paperCount / 45000));
-    console.log(`[VFS] Routing: 1 Model Core + ${modelShardCount} Model Shards, ${paperShardCount} Paper Shards.`);
+    // Universal Shard Calculation (Shard-DB 4.0)
+    const typeGroups = {};
+    metadataBatch.forEach(e => {
+        const type = e.type || 'model';
+        if (!typeGroups[type]) typeGroups[type] = [];
+        typeGroups[type].push(e);
+    });
+
+    const partitionCounts = {};
+    const SHARD_TARGET_BYTES = 75 * 1024 * 1024; // ~75MB raw JSON per shard
+
+    for (const [type, entities] of Object.entries(typeGroups)) {
+        if (type === 'model') {
+            const nonTrending = entities.filter(e => !e.is_trending);
+            // Core takes first 50k, sharding applies after that
+            const modelShardBytes = nonTrending.slice(50000).reduce((sum, e) => sum + JSON.stringify(e).length, 0);
+            partitionCounts.model = Math.max(1, Math.ceil(modelShardBytes / SHARD_TARGET_BYTES));
+        } else {
+            const totalBytes = entities.reduce((sum, e) => sum + JSON.stringify(e).length, 0);
+            partitionCounts[type] = Math.max(1, Math.ceil(totalBytes / SHARD_TARGET_BYTES));
+        }
+    }
+
+    console.log('[VFS] Universal Routing Table:');
+    Object.entries(partitionCounts).forEach(([type, count]) => {
+        console.log(`  - ${type.padEnd(12)}: ${count} shard(s)`);
+    });
 
     const metaDbs = {
-        core: new Database(path.join(SHARD_PATH_DIR, 'meta-model-core.db')),
-        dataset: new Database(path.join(SHARD_PATH_DIR, 'meta-dataset.db')),
-        ecosystem: new Database(path.join(SHARD_PATH_DIR, 'meta-ecosystem.db')),
+        core: new Database(path.join(SHARD_PATH_DIR, 'meta-model-core.db'))
     };
 
-    for (let i = 1; i <= modelShardCount; i++) {
-        metaDbs[`model_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, `meta-model-shard-${String(i).padStart(2, '0')}.db`));
-    }
-    for (let i = 1; i <= paperShardCount; i++) {
-        const name = paperShardCount === 1 ? 'meta-paper.db' : `meta-paper-shard-${String(i).padStart(2, '0')}.db`;
-        metaDbs[`paper_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, name));
+    // Dynamically initialize DBs for all types/shards
+    for (const [type, count] of Object.entries(partitionCounts)) {
+        if (type === 'model') {
+            for (let i = 1; i <= count; i++) {
+                metaDbs[`model_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, `meta-model-shard-${String(i).padStart(2, '0')}.db`));
+            }
+        } else {
+            for (let i = 1; i <= count; i++) {
+                const name = count === 1 ? `meta-${type}.db` : `meta-${type}-shard-${String(i).padStart(2, '0')}.db`;
+                metaDbs[`${type}_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, name));
+            }
+        }
     }
 
     const searchDb = new Database(SEARCH_DB_PATH);
@@ -138,17 +164,20 @@ async function packDatabase() {
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
-        // Routing Logic (Shard-DB 3.0)
-        let targetKey = (e.type === 'dataset') ? 'dataset' : 'ecosystem';
-        if (e.type === 'paper') {
-            targetKey = `paper_shard_${getShardIndex(e.slug || e.id, paperShardCount)}`;
-        } else if (e.type === 'model' || !e.type) {
+        // Universal Routing Logic (Shard-DB 4.0)
+        let type = e.type || 'model';
+        let targetKey = '';
+
+        if (type === 'model') {
             if (e.is_trending || modelCoreCount < 50000) {
                 targetKey = 'core';
                 modelCoreCount++;
             } else {
-                targetKey = `model_shard_${getShardIndex(e.slug || e.id, modelShardCount)}`;
+                targetKey = `model_shard_${getShardIndex(e.slug || e.id, partitionCounts.model)}`;
             }
+        } else {
+            const shardIdx = getShardIndex(e.slug || e.id, partitionCounts[type]);
+            targetKey = `${type}_shard_${shardIdx}`;
         }
 
         prepInserts[targetKey].run(...metaValues);
@@ -191,10 +220,7 @@ async function packDatabase() {
     await injectMetadata(metaDbs, searchDb, CACHE_DIR);
     const fullManifest = {
         shards: manifest,
-        partitions: {
-            model: modelShardCount,
-            paper: paperShardCount
-        }
+        partitions: partitionCounts
     };
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(fullManifest, null, 2));
 
