@@ -2,6 +2,7 @@
 // src/components/home/HomeTechnicalHeader.astro
 // V21.16: Premium Technical Header (Copy of Knowledge page architecture)
 import MeshVisualizer from '../mesh/MeshVisualizer.astro';
+import { loadCachedJSON } from '../../utils/loadCachedJSON.js';
 
 interface Props {
   initialQuery?: string;
@@ -9,57 +10,63 @@ interface Props {
 }
 
 const { initialQuery = '', totalEntities = 125312 } = Astro.props;
+
+let totalNodes = totalEntities;
+try {
+  const { data } = await loadCachedJSON('cache/mesh/stats.json', { locals: Astro.locals });
+  if (data && data.nodes) totalNodes = data.nodes;
+} catch (e) {}
+
 ---
 
-<div class="technical-header-container mb-12">
-    <!-- Hero Section: Mirrored from /knowledge -->
-    <header class="text-center mb-10 py-10 bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-pink-500/10 rounded-2xl border border-indigo-500/20">
-      <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mb-4 shadow-lg shadow-indigo-500/25">
-        <span class="text-3xl">🕸️</span>
-      </div>
-      <h1 class="text-3xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 tracking-tight">
-        The Definitive Open-Source AI Index
+<div class="technical-header-container mb-12 border-b border-[#272727] pb-12">
+    <!-- Hero Section: V22.11 Industrial Mirror -->
+    <header class="text-left mb-10 pt-6">
+
+
+      <h1 class="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tight leading-tight">
+        Explore the AI Ecosystem
       </h1>
-      <p class="text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-6 px-4">
-        High-trust technical rankings, structural lineage, and precision performance metrics for the entire AI ecosystem.
-      </p>
       
-      <div class="flex items-center justify-center gap-4 text-xs font-bold uppercase tracking-widest">
-        <div class="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full text-indigo-700 dark:text-indigo-300 border border-indigo-500/10">
-          <span>ACTIVE</span>
-          <span class="w-1 h-1 rounded-full bg-emerald-500"></span>
-        </div>
+      <div class="max-w-2xl mb-8">
+        <p class="text-base text-zinc-300 font-medium leading-relaxed">
+          The comprehensive open-source AI index. Discover, compare, and integrate models, datasets, and agents with unified performance benchmarks.
+        </p>
       </div>
     </header>
 
-    <!-- V22.9: Industrial Search Input (Syncs with Command Palette) -->
-    <div class="max-w-3xl mx-auto mb-10 group">
+    <!-- V22.11: Hyper-Precision Search Input -->
+    <div class="max-w-4xl mr-auto mb-10 group mt-12">
       <div 
-        class="relative border border-white/10 hover:border-white/20 bg-white/5 backdrop-blur-md rounded-2xl p-2 transition-all flex items-center gap-4 group-hover:bg-white/10 shadow-2xl shadow-indigo-500/5"
+        class="relative border border-[#272727] bg-[#313131]/20 backdrop-blur-md rounded-lg p-1 transition-all flex items-center gap-0 group-hover:border-zinc-700/50"
       >
-        <svg class="w-6 h-6 text-indigo-500/40 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+        <div class="pl-6 pr-4 py-6 border-r border-[#272727] flex items-center justify-center bg-black/20 rounded-l">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
         <input 
           type="text"
           id="home-direct-input"
-          placeholder="Search entities instantly..." 
-          class="flex-1 bg-transparent border-none text-xl text-white outline-none placeholder-white/30 font-light tracking-tight py-2"
+          placeholder="DISCOVER, FILTER, INTEGRATE..." 
+          class="block w-full px-8 py-6 bg-transparent text-2xl md:text-3xl font-black text-white placeholder-zinc-500 outline-none uppercase tracking-tighter"
           autocomplete="off"
+          spellcheck="false"
         />
-        <div class="flex items-center gap-2 px-3 py-1.5 mr-1 rounded-lg bg-black/40 border border-white/10 text-xs text-white/40 font-mono tracking-tighter cursor-pointer hover:bg-white/10" onclick="document.dispatchEvent(new KeyboardEvent('keydown', {ctrlKey: true, key: 'k'}))">
-          <span class="opacity-50 hidden sm:inline">PRESS</span>
-          <kbd class="text-white/60 font-bold">CTRL K</kbd>
+        <div class="absolute inset-y-0 right-0 pr-8 flex items-center gap-3 pointer-events-none">
+           <div class="px-2 py-1 rounded bg-white/5 border border-white/10 font-mono text-[9px] font-black text-zinc-600 uppercase tracking-widest">
+              Ctrl+K
+           </div>
         </div>
       </div>
       
-      <!-- Search Hints (Concise) -->
-      <div class="mt-5 flex flex-wrap justify-center gap-4 text-[10px] text-gray-500 dark:text-white/20 font-bold uppercase tracking-[0.2em]">
-          <span class="opacity-40">Quick Access:</span>
-          {['Llama 3.1', 'Flux.1', 'Qwen 2.5', 'SDXL'].map(q => (
+      <!-- Search Hints (Industrial Minimal) -->
+      <div class="mt-4 flex flex-wrap gap-6 text-[9px] text-zinc-700 font-black uppercase tracking-widest">
+          <span class="text-zinc-400">Fast Nodes:</span>
+          {['Llama-3.1', 'Flux', 'Agentic-Workflows', 'FTS5-Search'].map(q => (
               <button 
                 onclick={`document.dispatchEvent(new KeyboardEvent('keydown', {ctrlKey: true, key: 'k'})); setTimeout(() => { const inp = document.getElementById('palette-input'); if(inp) { inp.value = '${q}'; inp.dispatchEvent(new Event('input')); }}, 100)`}
-                class="hover:text-indigo-400 transition-colors"
+                class="hover:text-white transition-colors border-b border-zinc-800 pb-0.5"
               >
                 {q}
               </button>
@@ -68,49 +75,58 @@ const { initialQuery = '', totalEntities = 125312 } = Astro.props;
     </div>
 
     <!-- Knowledge Mesh Integration (Upper Area) -->
-    <section class="mb-10">
+    <section class="mb-10 opacity-60 hover:opacity-100 transition-opacity">
       <MeshVisualizer />
     </section>
 </div>
 
 <script>
-  // Unified Phase 2 Trigger: Direct input syncs to Command Palette
-  document.addEventListener('astro:page-load', () => {
+  // V22.10: High-Frequency Input Bridge
+  function initHomeSearch() {
     const homeInput = document.getElementById('home-direct-input') as HTMLInputElement;
-    const paletteInput = document.getElementById('palette-input') as HTMLInputElement;
+    if (!homeInput) return;
 
-    if (homeInput) {
-        const syncAndOpen = (e: Event) => {
-            const val = homeInput.value;
-            document.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k' }));
-            
-            // Wait for modal to mount
-            setTimeout(() => {
-                const pInput = document.getElementById('palette-input') as HTMLInputElement;
-                if (pInput) {
-                    pInput.value = val;
-                    pInput.focus();
-                    pInput.setSelectionRange(val.length, val.length);
-                    pInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    // Use a slightly longer delay to clear home input after transfer is confirmed
-                    setTimeout(() => { homeInput.value = ''; }, 10);
-                }
-            }, 100);
-        };
-
-        homeInput.addEventListener('focus', syncAndOpen);
-        homeInput.addEventListener('click', syncAndOpen);
-        homeInput.addEventListener('input', (e) => {
-            if (homeInput.value.length > 0) syncAndOpen(e);
-        });
-        homeInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                syncAndOpen(e);
+    const openPalette = (initialValue: string) => {
+        // Dispatch Ctrl+K to open modal
+        document.dispatchEvent(new KeyboardEvent('keydown', {
+            ctrlKey: true,
+            key: 'k',
+            bubbles: true,
+            cancelable: true
+        }));
+        
+        // Transfer focus and value
+        setTimeout(() => {
+            const paletteInput = document.getElementById('palette-input') as HTMLInputElement;
+            if (paletteInput) {
+                paletteInput.value = initialValue;
+                paletteInput.focus();
+                // Trigger input event on palette to start search
+                paletteInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
-        });
-    }
-  });
+        }, 50);
+    };
+
+    homeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && homeInput.value.trim().length > 0) {
+        e.preventDefault(); // Prevent default form submission if input is in a form
+        openPalette(homeInput.value);
+      }
+    });
+
+    // Mirror typing to palette after 3 chars to give a "seamless" transition
+    homeInput.addEventListener('input', () => {
+      if (homeInput.value.length >= 3) {
+         const val = homeInput.value;
+         openPalette(val);
+         // Do not clear homeInput.value here, as per instruction to stop premature clearing.
+      }
+    });
+  }
+
+  // Initialize on load and after view transitions
+  initHomeSearch();
+  document.addEventListener('astro:after-swap', initHomeSearch);
 </script>
 
 <style>

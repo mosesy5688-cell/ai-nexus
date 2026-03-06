@@ -59,11 +59,11 @@ export async function loadHotShard() {
     if (isHotLoaded) return;
 
     // Priority 1: Zero-Copy Binary (hot-shard.bin)
-    // V22.9: Added Cache-Buster to ensure latest 56-byte structure is loaded
-    const version = Date.now().toString().slice(-6);
+    // Priority 1: Zero-Copy Binary (hot-shard.bin)
+    // Removed cache-buster to allow Native HTTP/ETag caching and Edge caching.
     const binaryPaths = [
-        `/api/vfs-proxy/hot-shard.bin?v=${version}`,
-        `${CDN_BASE}/data/hot-shard.bin?v=${version}`
+        `/api/vfs-proxy/hot-shard.bin`,
+        `${CDN_BASE}/data/hot-shard.bin`
     ];
 
     for (const path of binaryPaths) {
@@ -93,6 +93,8 @@ export async function loadHotShard() {
             if (!res.ok) continue;
 
             let data;
+            const etag = res.headers.get('etag') || 'unknown'; // V22.10.1 ETag validation
+
             const ds = new DecompressionStream('gzip');
             const decompressedRes = new Response(res.body.pipeThrough(ds));
             try {

@@ -128,11 +128,16 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
 
     // VFS Ignition: If bundle metadata exists, fetch from shards (High Performance Stream)
     if (entityPack.bundle_key && entityPack.bundle_size > 0) {
-        const bundle = await fetchBundleRange(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
-        if (bundle) {
-            html = bundle.readme || bundle.html_readme || html;
-            mesh = bundle.mesh_profile?.relations || mesh;
-            console.log(`[VFS-Ignition] Hydrated heavy assets from ${entityPack.bundle_key}`);
+        try {
+            const bundle = await fetchBundleRange(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
+            if (bundle) {
+                // V22.10: Metadata from Shard is the ONLY authority for README/Mesh if present.
+                html = bundle.readme || bundle.html_readme || null;
+                mesh = bundle.mesh_profile?.relations || bundle.relations || mesh;
+                console.log(`[VFS-Ignition] Hydrated high-fidelity assets for ${fullId}`);
+            }
+        } catch (e: any) {
+            console.warn(`[VFS-Ignition-FAIL] Shard recovery failed for ${fullId}:`, e.message);
         }
     }
 

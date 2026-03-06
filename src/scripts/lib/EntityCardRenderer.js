@@ -38,24 +38,18 @@ export class EntityCardRenderer {
         const fni = Math.round(item.fni_score ?? item.fni ?? 0);
         const fniPercentile = item.fni_percentile || item.percentile || '';
 
-        // R5.7.1 Minimalism Tokens
-        let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
-        if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
-        else if (fni >= 70) fniBadgeClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
-        else if (fni > 0) fniBadgeClass = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
-
-        let typeBadgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
-        if (type === 'model') typeBadgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
-        if (type === 'agent') typeBadgeColor = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
-        if (type === 'dataset') typeBadgeColor = 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400';
-        if (type === 'tool') typeBadgeColor = 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
-        if (type === 'paper') typeBadgeColor = 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
-        if (type === 'space') typeBadgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+        // R5.7.1 Minimalism Tokens mapped to V22.10 Industrial
+        let fniBadgeClass = "bg-black/40 border-white/5 text-zinc-500";
+        if (fni >= 85) fniBadgeClass = "bg-emerald-950/30 border-emerald-500/20 text-emerald-500";
+        else if (fni >= 70) fniBadgeClass = "bg-indigo-950/30 border-indigo-500/20 text-indigo-400";
+        else if (fni > 0) fniBadgeClass = "bg-zinc-900/50 border-white/10 text-white";
 
         const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
 
         const metrics = [];
         if (type === 'model' || type === 'dataset' || type === 'space') {
+            if (type === 'model' && item.params_billions > 0) metrics.push({ icon: '🧠', value: `${item.params_billions}B`, label: 'Params' });
+            if (type === 'model' && item.context_length > 0) metrics.push({ icon: '📏', value: this.formatNumber(item.context_length), label: 'Context' });
             if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'Downloads' });
             if (item.likes > 0) metrics.push({ icon: '❤️', value: this.formatNumber(item.likes), label: 'Likes' });
         } else if (type === 'agent' || type === 'tool') {
@@ -69,43 +63,44 @@ export class EntityCardRenderer {
         }
 
         return `
-            <a href="${link}" data-astro-prefetch class="entity-card group p-3 bg-white dark:bg-zinc-900 rounded-md transition-all border border-zinc-100 dark:border-zinc-800 hover:border-blue-500/50 block h-full flex flex-col" data-entity-id="${id}" data-entity-type="${type}">
-                <div class="flex items-center justify-between mb-2">
-                     <div class="flex items-center gap-2">
-                         <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
-                         ${isActive ? '<span class="w-1 h-1 rounded-full bg-emerald-500 shrink-0" title="Recently updated"></span>' : ''}
-                     </div>
-                     <div class="flex items-center gap-2">
-                         ${(fni > 0 || fniPercentile) ? `
-                            <div class="flex items-center gap-1 px-1.5 py-0.5 rounded ${fniBadgeClass} border border-black/5 dark:border-white/5">
-                                <span class="text-[9px] font-bold">${fni > 0 ? fni : ''}</span>
-                                ${(fniPercentile && typeof fniPercentile === 'string' && fniPercentile.startsWith('top_')) ?
-                    `<span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">${fniPercentile.replace('top_', 'Top ')}</span>`
-                    : (fniPercentile && typeof fniPercentile === 'number' && fniPercentile >= 90) ?
-                        `<span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">Top ${100 - fniPercentile}%</span>`
-                        : ''}
-                            </div>
-                         ` : ''}
-                     </div>
+            <a href="${link}" data-astro-prefetch class="entity-card group py-2 px-3 bg-[var(--bg-surface)] rounded-sm transition-all border border-[var(--border-hairline)] hover:border-zinc-500 flex flex-col md:flex-row md:items-center justify-between w-full h-auto gap-2 md:gap-4 relative overflow-hidden" data-entity-id="${id}" data-entity-type="${type}">
+                <!-- Left: Identity -->
+                <div class="flex items-center gap-3 md:w-1/4 shrink-0 overflow-hidden">
+                    <span class="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm bg-black/20 text-zinc-500 border border-white/5 shrink-0 min-w-[60px] text-center truncate">${typeLabel}</span>
+                    ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>' : ''}
+                    <h3 class="text-xs font-bold text-white group-hover:text-[#bdc3ff] transition-colors truncate" title="${displayTitle}">
+                        ${displayTitle}
+                    </h3>
                 </div>
                 
-                <h3 class="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1 mb-1.5" title="${displayTitle}">
-                    ${displayTitle}
-                </h3>
-                
-                <p class="text-[9px] sm:text-[10px] text-gray-400 dark:text-zinc-500 mb-2 uppercase tracking-tight font-bold italic">by ${author}</p>
-                
-                <p class="text-[10px] sm:text-[11px] text-gray-600 dark:text-zinc-400 line-clamp-2 mb-3 flex-grow leading-tight">
-                    ${cleanDesc}
-                </p>
+                <!-- Mid: Description -->
+                <div class="flex-1 truncate hidden md:block border-l border-[var(--border-hairline)] pl-4">
+                    <p class="text-[10px] text-zinc-400 truncate mt-0.5 font-medium">
+                        ${cleanDesc}
+                    </p>
+                </div>
 
-                <div class="flex items-center gap-3 pt-2 border-t border-zinc-50 dark:border-zinc-800 text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">
-                    ${metrics.map(m => `
-                        <div class="flex items-center gap-1" title="${m.label}">
-                            <span>${m.value}</span>
-                            <span class="opacity-60">${m.label.charAt(0)}</span>
-                        </div>
-                    `).join('')}
+                <!-- Right: Author, Badges & Metrics -->
+                <div class="flex items-center gap-4 shrink-0 whitespace-nowrap justify-between md:justify-end md:w-[35%] border-t md:border-t-0 border-[var(--border-hairline)] pt-2 md:pt-0">
+                    <span class="text-[9px] text-zinc-500 font-medium truncate max-w-[100px]">by <strong class="text-zinc-400 font-bold">${author || 'Unknown'}</strong></span>
+                    
+                    <div class="flex items-center gap-1.5 justify-end hidden sm:flex">
+                        ${(fni > 0 || fniPercentile) ? `
+                            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-sm border relative z-10 fni-badge-container ${fniBadgeClass}">
+                                <span class="text-[10px] font-black tabular-nums fni-value">${fni > 0 ? fni : '0'}</span>
+                                <span class="text-[8px] font-bold uppercase tracking-widest opacity-80">FNI</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="flex items-center gap-3 text-[9px] font-bold text-zinc-500 uppercase tracking-widest justify-end min-w-[120px] metrics-container">
+                        ${metrics.map(m => `
+                            <div class="flex items-center gap-1 shrink-0" title="${m.label}">
+                                <span class="text-white tabular-nums">${m.value}</span>
+                                <span class="opacity-40">${m.label.substring(0, 3)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             </a>
         `;

@@ -9,16 +9,19 @@ import { FacadeVFS } from '@journeyapps/wa-sqlite/src/FacadeVFS.js';
 import * as VFS from '@journeyapps/wa-sqlite/src/VFS.js';
 import { getChunkFromCacheAPI, putChunkToCacheAPI } from './vfs-cache-utils.js';
 
+function getBasename(path: string): string {
+    return path.split(/[\\/]/).pop() || '';
+}
+
 const CHUNK_SIZE = 256 * 1024; // 256KB chunks
 const L0_CACHE = new Map<string, Uint8Array>();
 const MAX_L0_CHUNKS = 128; // ~32MB in-memory per isolate
 
 export class R2RangeVFS extends FacadeVFS {
-    private fileSize: number | null = null;
-    private dbEtag: string = '';
-    private sizePromise: Promise<number> | null = null;
+    private fileStates = new Map<string, { size: number, etag: string, sizePromise: Promise<number> | null }>();
+    private handleMap = new Map<number, string>();
 
-    constructor(private bucket: any, private options: { simulate?: boolean } = {}, module?: any) {
+    constructor(public bucket: any, private options: { simulate?: boolean } = {}, module?: any) {
         // Register the VFS with a unique name per file (e.g. 'r2-range')
         super('r2-range', module);
     }
@@ -28,46 +31,56 @@ export class R2RangeVFS extends FacadeVFS {
         return ['xOpen', 'xAccess', 'xRead', 'xFileSize'].includes(methodName);
     }
 
-    private async _fetchSize(): Promise<number> {
-        if (this.sizePromise) return this.sizePromise;
+    private async _fetchSize(name: string): Promise<{ size: number, etag: string }> {
+        let state = this.fileStates.get(name);
+        if (state && state.sizePromise) return state.sizePromise.then(() => state!);
 
-        this.sizePromise = (async () => {
+        if (!state) {
+            state = { size: 0, etag: '', sizePromise: null };
+            this.fileStates.set(name, state);
+        }
+
+        state.sizePromise = (async () => {
+            const key = `data/${name}`;
             if (this.bucket && !this.options.simulate) {
-                // Production: Get size and ETag from R2
-                const obj = await this.bucket.head('data/meta.db');
-                if (!obj) throw new Error('meta.db head failed');
-                this.fileSize = obj.size;
-                // Clean ETag (e.g. W/"xyz" -> xyz)
-                this.dbEtag = (obj.httpMetadata?.etag || obj.etag || 'v22').replace(/"/g, '').replace('W/', '');
+                const obj = await this.bucket.head(key);
+                if (!obj) throw new Error(`${key} head failed`);
+                state!.size = obj.size;
+                state!.etag = (obj.httpMetadata?.etag || obj.etag || 'v23').replace(/"/g, '').replace('W/', '');
             } else {
-                // Local Simulation: Get size and ETag from CDN
-                const res = await fetch('https://cdn.free2aitools.com/data/meta.db', { method: 'HEAD' });
-                this.fileSize = parseInt(res.headers.get('content-length') || '0', 10);
-                this.dbEtag = (res.headers.get('etag') || 'v22-dev').replace(/"/g, '').replace('W/', '');
+                const res = await fetch(`https://cdn.free2aitools.com/${key}`, { method: 'HEAD' });
+                if (!res.ok) throw new Error(`${key} CDN head failed`);
+                state!.size = parseInt(res.headers.get('content-length') || '0', 10);
+                state!.etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '').replace('W/', '');
             }
-            console.log(`[R2 VFS] DB ETag: ${this.dbEtag}, Size: ${this.fileSize}`);
-            return this.fileSize!;
+            console.log(`[R2 VFS] Loaded ${name}: ETag=${state!.etag}, Size=${state!.size}`);
+            return state!.size;
         })();
 
-        return this.sizePromise;
+        await state.sizePromise;
+        return { size: state.size, etag: state.etag };
     }
 
     async jOpen(name: string | null, pFile: number, flags: number, pOutFlags: DataView): Promise<number> {
-        if (name && !name.endsWith('meta.db')) {
-            return VFS.SQLITE_CANTOPEN;
-        }
-        await this._fetchSize(); // Ensure size/ETag are loaded before opening
+        if (!name) return VFS.SQLITE_CANTOPEN;
+        const fileName = getBasename(name);
+        this.handleMap.set(pFile, fileName);
+        await this._fetchSize(fileName);
         pOutFlags.setInt32(0, flags, true);
         return VFS.SQLITE_OK;
     }
 
     async jRead(pFile: number, pData: Uint8Array, iOffset: number): Promise<number> {
+        const fileName = this.handleMap.get(pFile);
+        if (!fileName) return VFS.SQLITE_IOERR_READ;
+        const state = this.fileStates.get(fileName);
+        if (!state) return VFS.SQLITE_IOERR_READ;
+
         const length = pData.byteLength;
         const chunkIndex = Math.floor(iOffset / CHUNK_SIZE);
         const chunkOffset = iOffset % CHUNK_SIZE;
 
-        // The core fixing: Cache key MUST include ETag for version isolation
-        const cacheKey = `${this.dbEtag}-${chunkIndex}`;
+        const cacheKey = `${fileName}-${state.etag}-${chunkIndex}`;
 
         try {
             // --- L0 Cache (In-Memory, 0ms) ---
@@ -78,7 +91,7 @@ export class R2RangeVFS extends FacadeVFS {
 
             // --- L1 Cache (Cloudflare Cache API, ~10ms) ---
             // The utility uses: https://vfs-cache.internal/${etag}/chunk/${chunkIndex}
-            let chunk = await getChunkFromCacheAPI(chunkIndex, this.dbEtag);
+            let chunk = await getChunkFromCacheAPI(chunkIndex, state.etag);
 
             // --- L2 Origin (R2 Storage, ~50ms) ---
             if (!chunk) {
@@ -86,22 +99,23 @@ export class R2RangeVFS extends FacadeVFS {
                 const end = start + CHUNK_SIZE - 1;
 
                 if (this.bucket && !this.options.simulate) {
-                    const obj = await this.bucket.get('data/meta.db', { range: { offset: start, length: CHUNK_SIZE } });
+                    const obj = await this.bucket.get(`data/${fileName}`, { range: { offset: start, length: CHUNK_SIZE } });
                     chunk = new Uint8Array(await obj.arrayBuffer());
                 } else {
-                    const res = await fetch('https://cdn.free2aitools.com/data/meta.db', { headers: { Range: `bytes=${start}-${end}` } });
+                    const res = await fetch(`https://cdn.free2aitools.com/data/${fileName}`, { headers: { Range: `bytes=${start}-${end}` } });
                     chunk = new Uint8Array(await res.arrayBuffer());
                 }
 
                 // Write back to Edge Cache (1-year Immutable TTL)
-                if (chunk) await putChunkToCacheAPI(chunkIndex, chunk, this.dbEtag);
+                if (chunk) await putChunkToCacheAPI(chunkIndex, chunk, state.etag);
             }
 
             if (chunk) {
                 // Save to L0
                 L0_CACHE.set(cacheKey, chunk);
                 if (L0_CACHE.size > MAX_L0_CHUNKS) {
-                    L0_CACHE.delete(L0_CACHE.keys().next().value); // Evict LRU
+                    const firstKey = L0_CACHE.keys().next().value;
+                    if (firstKey) L0_CACHE.delete(firstKey); // Evict LRU
                 }
 
                 pData.set(chunk.subarray(chunkOffset, chunkOffset + length));
@@ -115,15 +129,24 @@ export class R2RangeVFS extends FacadeVFS {
     }
 
     async jFileSize(pFile: number, pSize64: DataView): Promise<number> {
-        const size = await this._fetchSize();
-        pSize64.setBigInt64(0, BigInt(size), true);
+        const fileName = this.handleMap.get(pFile);
+        if (!fileName) return VFS.SQLITE_IOERR_FSTAT;
+        const state = this.fileStates.get(fileName);
+        if (!state) return VFS.SQLITE_IOERR_FSTAT;
+
+        pSize64.setBigInt64(0, BigInt(state.size), true);
         return VFS.SQLITE_OK;
     }
 
     async jAccess(name: string, flags: number, pResOut: DataView): Promise<number> {
-        // Only pretend meta.db exists. Force "-journal" or "-wal" to not exist.
-        const exists = (name && name.endsWith('meta.db')) ? 1 : 0;
+        // Assume exists for any .db request to the VFS
+        const exists = name.endsWith('.db') ? 1 : 0;
         pResOut.setInt32(0, exists, true);
+        return VFS.SQLITE_OK;
+    }
+
+    async jClose(pFile: number): Promise<number> {
+        this.handleMap.delete(pFile);
         return VFS.SQLITE_OK;
     }
 

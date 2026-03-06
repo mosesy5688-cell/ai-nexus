@@ -6,42 +6,45 @@
  */
 ---
 
-<div id="search-modal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh] px-4" role="dialog" aria-modal="true">
-  <div class="w-full max-w-2xl bg-[#0a0a0a] border border-white/10 rounded-lg shadow-2xl overflow-hidden ring-1 ring-white/5 animate-in fade-in zoom-in duration-200">
+<div id="search-modal" class="fixed inset-0 z-[100] hidden bg-[#181818]/80 backdrop-blur-md flex items-start justify-center pt-[15vh] px-4" role="dialog" aria-modal="true">
+  <div class="w-full max-w-2xl bg-[#181818] border border-[#272727] rounded-sm overflow-hidden animate-in fade-in zoom-in duration-200">
     <!-- Search Input -->
-    <div class="relative border-b border-white/10 p-4">
-      <svg class="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="relative border-b border-[#272727] p-4">
+      <svg class="absolute left-7 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
       <input 
         type="text" 
         id="palette-input"
         placeholder="Search models, tools, papers... or try author:meta params:>7b" 
-        class="w-full bg-transparent pl-12 pr-4 py-2 text-lg text-white placeholder-white/30 outline-none"
+        class="w-full bg-transparent pl-12 pr-4 py-2 text-xl text-white placeholder-zinc-500 outline-none font-medium"
         autocomplete="off"
         spellcheck="false"
       />
     </div>
 
     <!-- Results Area -->
-    <div id="palette-results" class="max-h-[60vh] overflow-y-auto custom-scrollbar p-2 space-y-1">
-      <div id="palette-empty" class="py-12 text-center text-white/40">
-        <p class="text-sm">Start typing to search instantly</p>
-        <p class="text-[10px] mt-2 text-white/30">💡 Try commands: <code class="px-1 bg-white/5 rounded">author:meta</code> <code class="px-1 bg-white/5 rounded">params:>7b</code> <code class="px-1 bg-white/5 rounded">fni:>50</code></p>
-        <p class="text-xs mt-2">Press <kbd class="px-1 py-0.5 rounded bg-white/10 border border-white/20">ESC</kbd> to close</p>
+    <div id="palette-results" class="max-h-[60vh] overflow-y-auto custom-scrollbar p-2 space-y-1 bg-black/20">
+      <div id="palette-empty" class="py-12 text-center text-zinc-500">
+        <p class="text-xs font-semibold">Start typing to search instantly</p>
+        <p class="text-[10px] mt-4 text-zinc-500 font-medium leading-loose">
+          💡 Try commands: <code class="px-1 bg-white/5 rounded border border-white/5">author:meta</code> <br/>
+          <code class="px-1 bg-white/5 rounded border border-white/5">params:>7b</code> <code class="px-1 bg-white/5 rounded border border-white/5">fni:>50</code>
+        </p>
+        <p class="text-[8px] mt-6 font-black uppercase tracking-widest opacity-40">Press ESC to close</p>
       </div>
       <!-- Results injected here -->
     </div>
 
     <!-- Footer / Status -->
-    <div class="border-t border-white/10 p-3 flex items-center justify-between text-[10px] text-white/40 uppercase tracking-widest font-mono">
+    <div class="border-t border-[#272727] p-3 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
       <div id="engine-status" class="flex items-center gap-2">
-         <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-         VFS Binary Active (0ms)
+         <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+         VFS Range Active (0ms)
       </div>
-      <div class="flex items-center gap-4">
-        <span><b class="text-white/60">↑↓</b> Navigate</span>
-        <span><b class="text-white/60">Enter</b> Open</span>
+      <div class="flex items-center gap-4 text-xs font-sans">
+        <span><b class="text-zinc-400">↑↓</b> Navigate</span>
+        <span><b class="text-zinc-400">Enter</b> Open</span>
       </div>
     </div>
   </div>
@@ -49,14 +52,13 @@
 
 <style>
   #palette-results::-webkit-scrollbar { width: 4px; }
-  #palette-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-  #palette-results:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
+  #palette-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 2px; }
 
   .result-item {
-    @apply flex items-center gap-3 p-2 rounded-md hover:bg-white/5 transition-colors cursor-pointer border border-transparent;
+    @apply flex items-center gap-3 p-2 border border-transparent transition-all cursor-pointer;
   }
   .result-item.selected {
-    @apply bg-white/10 border-white/20;
+    @apply bg-[#313131] border-[#272727];
   }
 </style>
 
@@ -72,6 +74,7 @@
   let selectedIndex = -1;
   let pendingQuery = '';
   let dbFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let currentTier: 'shard' | 'db' | 'semantic' | 'loading' = 'shard';
 
   // 1. Initialize Hot Shard ASAP
   loadHotShard();
@@ -96,12 +99,15 @@
     }
   }
 
-  function setEngineStatus(tier: 'shard' | 'db' | 'loading') {
+  function setEngineStatus(tier: 'shard' | 'db' | 'semantic' | 'loading') {
     if (!engineStatus) return;
+    currentTier = tier;
     if (tier === 'shard') {
       engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> VFS Binary Active (0ms)`;
     } else if (tier === 'db') {
       engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> meta.db Full Search`;
+    } else if (tier === 'semantic') {
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span> Tier 3 Semantic Engine`;
     } else {
       engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span> Searching full database...`;
     }
@@ -142,10 +148,10 @@
         // Only render if the query hasn't changed while we were waiting
         if (input.value.trim() === pendingQuery) {
           if (dbResults && dbResults.length > 0) {
-            setEngineStatus('db');
+            if (currentTier !== 'semantic') setEngineStatus('db');
             renderResults(dbResults);
           } else {
-            setEngineStatus('db');
+            if (currentTier !== 'semantic') setEngineStatus('db');
             resultsContainer!.innerHTML = '<div class="py-12 text-center text-white/40 text-xs">No matches found. Try different keywords or use commands like <code class="px-1 bg-white/5 rounded">author:name</code></div>';
           }
         }
@@ -225,4 +231,9 @@
     
     selectedIndex = -1;
   }
+
+  // 4. Status Event Listener (V22.10 Tier signaling)
+  window.addEventListener('search-status-change', (e: any) => {
+    if (e.detail?.tier) setEngineStatus(e.detail.tier);
+  });
 </script>

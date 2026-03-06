@@ -1,9 +1,10 @@
 ---
 /**
- * EntityHeader - V15.0 Unified Hero Component
- * Replaces type-specific headers (ModelHeader, AgentHeader, etc.)
+ * EntityHeader - V22.10 Industrial Hero Component
+ * Replaces type-specific headers. Optimized for high-density data.
  */
 import ShareButtons from '../common/ShareButtons.astro';
+import { formatRelativeTime } from '../../utils/date-formatter.ts';
 
 interface Props {
   name: string;
@@ -17,6 +18,10 @@ interface Props {
   fniScore?: number;
   fniPercentile?: number;
   fniCommentary?: string;
+  fniP?: number;
+  fniV?: number;
+  fniC?: number;
+  fniU?: number;
   paramsB?: number;
   sourceUrl?: string;
   entityId?: string;
@@ -36,9 +41,12 @@ const {
   verified = false,
   lastUpdated,
   description,
-  fniScore,
-  fniPercentile,
-  fniCommentary,
+  fniScore = 0,
+  fniPercentile = 0,
+  fniP = 0,
+  fniV = 0,
+  fniC = 0,
+  fniU = 0,
   paramsB,
   sourceUrl,
   entityId = '',
@@ -76,173 +84,167 @@ const trendStroke = trendDir === 'up' ? '#22c55e' : trendDir === 'down' ? '#ef44
 
 const svgPath = generateSvgPath(trend_7d, 80, 32, 4);
 
-// Type-specific colors
+// Type-specific colors (V22.10 Industrial Muted)
 const typeColors: Record<string, string> = {
-  model: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-100',
-  agent: 'text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 border-purple-100',
-  dataset: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-100',
-  paper: 'text-rose-600 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-300 border-rose-100',
-  space: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 border-blue-100',
-  tool: 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 border-amber-100',
+  model: 'text-zinc-400 border-zinc-500/20',
+  agent: 'text-zinc-400 border-zinc-500/20',
+  dataset: 'text-zinc-400 border-zinc-500/20',
+  paper: 'text-zinc-400 border-zinc-500/20',
+  space: 'text-zinc-400 border-zinc-500/20',
+  tool: 'text-zinc-400 border-zinc-500/20',
 };
 
 const colors = typeColors[entityType] || typeColors.model;
 
-// V16.2: Hardened description cleaning
-const descriptionStr = typeof description === 'string' ? description : (description ? String(description) : '');
-const cleanDescription = (descriptionStr && descriptionStr !== 'null')
-  ? descriptionStr.replace(/^---[\s\S]*?---\s*/m, '').replace(/<[^>]*>?/gm, '')
-      .replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '')
-      .replace(/!\[GitHub.*?\]\(.*?\)/gi, '').replace(/!\[.*?badge.*?\]\(.*?\)/gi, '')
-      .replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() 
-  : '';
-
 const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
 
-// V19: Relative time formatting for freshness indicator
-function formatRelativeTime(dateStr?: string): string | null {
-  if (!dateStr) return null;
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return null;
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return null; // future date
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Updated today';
-    if (diffDays === 1) return 'Updated yesterday';
-    if (diffDays < 30) return `Updated ${diffDays} days ago`;
-    const diffMonths = Math.floor(diffDays / 30);
-    if (diffMonths < 12) return `Updated ${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
-    const diffYears = Math.floor(diffMonths / 12);
-    return `Updated ${diffYears} year${diffYears > 1 ? 's' : ''} ago`;
-  } catch {
-    return null;
-  }
-}
+
 const relativeTime = formatRelativeTime(lastUpdated);
 ---
 
-<header class="mb-8 border-b border-zinc-100 dark:border-zinc-800 pb-8">
-  <div class="flex flex-col gap-6">
+<header class="mb-8 border-b border-white/5 pb-8">
+  <div class="flex flex-col gap-8">
     <!-- Identity Block -->
-    <div class="flex items-start gap-4 sm:gap-6">
-      <div class="flex flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 items-center justify-center bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-3xl sm:text-4xl shadow-sm select-none">
+    <div class="flex items-start gap-4">
+      <div class="flex flex-shrink-0 w-14 h-14 items-center justify-center bg-white/5 rounded-sm border border-white/10 text-2xl select-none font-mono">
         {entityIcon}
       </div>
       
-      <div class="min-w-0">
-        <div class="flex items-center gap-3 mb-3">
-          <span class={`px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-black uppercase tracking-widest border ${colors}`}>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-3 mb-4">
+          <span class={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${colors}`}>
             {entityLabel}
           </span>
           {relativeTime && (
-            <span class="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+            <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
               {relativeTime}
             </span>
           )}
         </div>
         
-        <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter leading-tight mb-3">
+        <h1 class="text-2xl sm:text-4xl font-black text-white tracking-tighter leading-none mb-3 uppercase">
           {name}
         </h1>
         
-        <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm font-bold text-zinc-500">
+        <div class="flex flex-wrap items-center gap-6 text-sm font-medium text-zinc-500">
           <span class="flex items-center gap-2">
-            by <strong class="text-zinc-900 dark:text-white font-black uppercase tracking-tight">{displayAuthor}</strong>
+            by <strong class="text-white font-bold">{displayAuthor}</strong>
           </span>
           {entityId && (
-            <span class="font-mono text-[9px] sm:text-[11px] opacity-40 truncate max-w-[250px]" title={entityId}>
-              ID: {entityId}
+            <span class="font-mono text-xs text-zinc-500 opacity-80 truncate max-w-[350px]" title={entityId}>
+              {entityId}
             </span>
           )}
         </div>
       </div>
     </div>
 
-    <!-- Metric Block (Strict Vertical Below Identity) -->
-    <div class="flex flex-wrap gap-3">
-      {paramsB && (
-        <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
-           <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Scale</span>
-           <span class="text-xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">{paramsB >= 1 ? paramsB : paramsB + 'B'}</span>
+    <!-- V22.11 Industrial Metric Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-px bg-[var(--border-hairline)] border border-[var(--border-hairline)] rounded-sm overflow-hidden mt-2">
+      <!-- FNI Total -->
+      <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center gap-1">
+        <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Nexus Index</span>
+        <div class="flex items-baseline gap-2">
+           <span class="text-4xl font-black font-mono text-white leading-none tracking-tighter tabular-nums">{fniScore.toFixed(1)}</span>
+           <span class="text-[10px] font-black font-mono text-rose-600">Top {100 - fniPercentile}%</span>
         </div>
-      )}
+      </div>
 
-      {contextLength && contextLength > 0 && (
-        <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center min-w-[90px]">
-           <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Context Window</span>
-           <span class="text-2xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">
-             {contextLength >= 1000 ? (contextLength / 1000) + 'K' : contextLength}
-           </span>
+      <!-- FNI Pillars (P/V/C/U) -->
+      <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>P: Popularity</span>
+           <span class="text-white font-mono tabular-nums">{fniP.toFixed(0)}</span>
         </div>
-      )}
-
-      {(downloads !== undefined && downloads > 0) && (
-        <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center min-w-[90px]">
-           <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Downloads</span>
-           <span class="text-2xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">
-             {downloads >= 1000000 ? (downloads / 1000000).toFixed(1) + 'M' : downloads >= 1000 ? (downloads / 1000).toFixed(1) + 'K' : downloads.toLocaleString()}
-           </span>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniP}%`}></div>
         </div>
-      )}
-      
-      {fniScore !== undefined && fniScore !== null && (
-        <div class="flex items-stretch bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-          <!-- Rank -->
-          <div class="px-5 py-3 border-r border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center min-w-[90px]">
-            <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">FNI Rank</span>
-            <span class="text-3xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">{fniScore}</span>
-          </div>
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>V: Velocity</span>
+           <span class="text-white font-mono tabular-nums">{fniV.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniV}%`}></div>
+        </div>
+      </div>
 
-          <!-- Trend & Stats Multi-Block -->
-          <div class="flex flex-col">
-            <!-- Percentile (Top Row) -->
-            {fniPercentile !== undefined && fniPercentile !== null && !isNaN(Number(fniPercentile)) && (
-              <div class="px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4 bg-zinc-100/50 dark:bg-zinc-800/30">
-                <span class="text-[8px] font-black text-zinc-500/70 uppercase tracking-widest">Percentile</span>
-                <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase">Top {100 - Math.round(Number(fniPercentile))}%</span>
-              </div>
-            )}
-            
-            <!-- Sparkline (Bottom Row) -->
-            <div class={`px-4 flex-grow flex items-center gap-4 ${fniPercentile ? 'py-1.5' : 'py-3'}`}>
-               <div class="flex flex-col">
-                 <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Activity</span>
-                 <div class="flex items-center gap-3">
-                    {svgPath && (
-                      <svg width="64" height="20" viewBox="0 0 80 32" class="opacity-90">
-                        <path d={svgPath} fill="none" stroke={trendStroke} stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
-                      </svg>
-                    )}
-                    <span class={`text-xs font-black ${trendColor} tracking-tighter`}>
-                      {trendDiff > 0.01 ? '↗' : trendDiff < -0.01 ? '↘' : '→'} {trendPercent}%
-                    </span>
-                 </div>
-               </div>
+      <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>C: Credibility</span>
+           <span class="text-white font-mono tabular-nums">{fniC.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniC}%`}></div>
+        </div>
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>U: Utility</span>
+           <span class="text-white font-mono tabular-nums">{fniU.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniU}%`}></div>
+        </div>
+      </div>
+
+      <!-- Technical Context -->
+      <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center">
+        <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 text-center md:text-left">Tech Context</span>
+        <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+          {paramsB && (
+            <div class="flex flex-col">
+              <span class="text-[14px] font-black font-mono text-white tabular-nums">{paramsB >= 1 ? paramsB : paramsB + 'B'}</span>
+              <span class="text-[8px] text-zinc-500 uppercase font-black">Params</span>
             </div>
-          </div>
+          )}
+          {contextLength && (
+            <div class="flex flex-col">
+              <span class="text-[14px] font-black font-mono text-white tabular-nums">{contextLength >= 1000 ? (contextLength / 1000) + 'K' : contextLength}</span>
+              <span class="text-[8px] text-zinc-500 uppercase font-black">Ctx</span>
+            </div>
+          )}
         </div>
-      )}
+      </div>
+
+      <!-- Vital Stats -->
+      <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center md:col-span-2 lg:col-span-2">
+         <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Vital Performance</span>
+         <div class="flex items-center gap-6">
+            <div class="flex flex-col">
+               <span class="text-[14px] font-black font-mono text-white tabular-nums">
+                 {downloads >= 1000000 ? (downloads / 1000000).toFixed(1) + 'M' : downloads >= 1000 ? (downloads / 1000).toFixed(1) + 'K' : downloads?.toLocaleString()}
+               </span>
+               <span class="text-[8px] text-zinc-500 uppercase font-black">DL / 30D</span>
+            </div>
+            <div class="flex-1 max-w-[80px]">
+               {svgPath && (
+                 <svg width="80" height="24" viewBox="0 0 80 32" class="opacity-100">
+                   <path d={svgPath} fill="none" stroke="#bdc3ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+                 </svg>
+               )}
+            </div>
+            <span class={`text-[10px] font-black font-mono ${trendColor} tabular-nums`}>
+              {trendPercent}%
+            </span>
+         </div>
+      </div>
     </div>
   </div>
 
-  {cleanDescription && (
-    <div class="mt-6 max-w-4xl">
-      <p class="text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed font-medium tracking-tight">
-        {cleanDescription.length > 300 ? cleanDescription.slice(0, 300) + '...' : cleanDescription}
+  {description && (
+    <div class="mt-5 max-w-5xl">
+      <p class="text-[13px] text-zinc-400 leading-snug font-medium tracking-tight">
+        {description}
       </p>
     </div>
   )}
 
-  <div class="mt-6 flex items-center justify-between pt-6 border-t border-zinc-50 dark:border-zinc-800/50">
+  <div class="mt-8 flex items-center justify-between pt-8 border-t border-white/5">
     <div class="flex items-center gap-4">
       {sourceUrl && (
-        <a href={sourceUrl} target="_blank" class="px-6 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg font-black text-xs uppercase tracking-widest hover:bg-black dark:hover:bg-zinc-100 transition-colors flex items-center gap-2">
-          View Source Code <span>→</span>
+        <a href={sourceUrl} target="_blank" class="px-5 py-2 bg-white text-black rounded font-bold text-xs hover:bg-zinc-200 transition-colors flex items-center gap-2">
+          Source <span>→</span>
         </a>
       )}
     </div>
-    <ShareButtons title={name} description={cleanDescription || ''} />
+    <ShareButtons title={name} description={description || ''} />
   </div>
 </header>

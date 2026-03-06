@@ -132,7 +132,8 @@ export async function fetchEntityFromR2(type, slug, locals) {
                         computed: data.computed || {},
                         seo: data.seo || {},
                         _cache_path: path,
-                        _cache_source: 'r2-cache'
+                        _cache_source: 'r2-cache',
+                        _etag: file.httpEtag || 'unknown'
                     };
                 }
             } catch (e) {
@@ -182,7 +183,8 @@ export async function fetchEntityFromR2(type, slug, locals) {
                         computed: data.computed || {},
                         seo: data.seo || {},
                         _cache_path: path,
-                        _cache_source: 'cdn-static'
+                        _cache_source: 'cdn-static',
+                        _etag: res.headers.get('etag') || 'unknown'
                     };
                 }
             } catch (e) {
@@ -225,11 +227,12 @@ export async function fetchEntityFromR2(type, slug, locals) {
                             return {
                                 entity: found,
                                 computed: { fni: found.fni_score || found.fni || 0 },
-                                _cache_source: 'local-fs-shim'
+                                _cache_source: 'local-fs-shim',
+                                _etag: 'local-dev'
                             };
                         }
                     } else {
-                        return { ...data, entity: data.entity || data, _cache_source: 'local-fs-shim' };
+                        return { ...data, entity: data.entity || data, _cache_source: 'local-fs-shim', _etag: 'local-dev' };
                     }
                 }
             }

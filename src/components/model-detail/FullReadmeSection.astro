@@ -63,11 +63,11 @@ const hasLongContent = content.length > maxPreviewLength;
     )}
   </div>
 
-  <div class={`readme-container relative overflow-hidden transition-all duration-700 ease-in-out bg-gradient-to-br from-zinc-50/50 to-transparent dark:from-zinc-900/10 dark:to-transparent rounded-3xl border border-zinc-100 dark:border-zinc-800/50 shadow-inner
+  <div class={`readme-container relative overflow-hidden transition-all duration-700 ease-in-out bg-[var(--bg-surface)] rounded-sm border border-[var(--border-hairline)]
                 ${hasLongContent ? 'collapsed' : ''}`} 
        id="readme-container">
     
-    <div class="p-8 sm:p-14" id="readme-content-target">
+    <div class="p-6 sm:p-10" id="readme-content-target">
       {content ? (
         <MarkdownRenderer content={content} />
       ) : (
@@ -89,7 +89,7 @@ const hasLongContent = content.length > maxPreviewLength;
     <div class="mt-8 flex justify-center">
       <button id="toggle-readme" 
               data-type-label={toggleLabel} 
-              class="group flex flex-col items-center gap-3 py-4 px-12 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-800">
+              class="group flex flex-col items-center gap-3 py-4 px-12 rounded-sm hover:bg-[var(--bg-canvas)] transition-all border border-transparent hover:border-[var(--border-hairline)]">
         <span class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] group-hover:scale-110 transition-transform toggle-text">Expand full {toggleLabel}</span>
         <div class="flex flex-col items-center">
            <div class="w-px h-8 bg-gradient-to-b from-indigo-500 to-transparent toggle-line transition-all"></div>

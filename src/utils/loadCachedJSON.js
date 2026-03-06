@@ -55,7 +55,8 @@ export async function loadCachedJSON(path, options = {}) {
                 return {
                     data,
                     source: 'r2-internal',
-                    freshness: data?.generated_at || new Date().toISOString()
+                    freshness: data?.generated_at || new Date().toISOString(),
+                    etag: file.httpEtag || 'unknown-r2-etag'
                 };
             }
         } catch (e) {
@@ -118,7 +119,8 @@ export async function loadCachedJSON(path, options = {}) {
             return {
                 data,
                 source: 'cdn',
-                freshness: data?.generated_at || new Date().toISOString()
+                freshness: data?.generated_at || new Date().toISOString(),
+                etag: res.headers.get('etag') || 'unknown-cdn-etag'
             };
         }
     } catch (e) {
@@ -129,7 +131,8 @@ export async function loadCachedJSON(path, options = {}) {
     return {
         data: fallbackData,
         source: 'fallback',
-        freshness: 'stale'
+        freshness: 'stale',
+        etag: 'fallback-stub'
     };
 }
 

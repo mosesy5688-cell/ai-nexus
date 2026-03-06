@@ -72,6 +72,10 @@ export async function performSearch(query, filters = {}, limit = 20, page = 0) {
         // If keyword search fails, intelligently fall back to AI semantic similarity
         if ((!data.results || data.results.length === 0) && filters.mode !== 'semantic' && query.length >= 3) {
             console.warn(`[HomeSearch] [Tier 2] 0 results for '${query}'. Initiating Tier 3 Semantic Fallback...`);
+
+            // Signal UI to show Tier 3 status
+            window.dispatchEvent(new CustomEvent('search-status-change', { detail: { tier: 'semantic' } }));
+
             params.set('mode', 'semantic');
             const semanticRes = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout(10000) });
             if (semanticRes.ok) {

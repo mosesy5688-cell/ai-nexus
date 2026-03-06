@@ -149,10 +149,35 @@ const siteMeta = {
     
     <!-- V18.1: Extreme Prefetching & Visual Stability -->
     <style is:global>
-        @font-face {
-            font-display: swap;
+        :root {
+            --bg-canvas: #181818;
+            --bg-surface: #313131;
+            --border-hairline: #272727;
+            --text-primary: #c2c2c2;
+            --text-strong: #ffffff;
+            --brand-orange: #ff6633;
+        }
+
+        html {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+            font-variant-numeric: tabular-nums;
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+        }
+
+        /* V22.10: Zero Shadow Policy */
+        * {
+            box-shadow: none !important;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
         
+        /* Industrial Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
         /* Eliminate CLS via aspect-ratio containment */
         .listing-card-grid {
             content-visibility: auto;
@@ -160,7 +185,7 @@ const siteMeta = {
         }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased flex flex-col min-h-screen">
+<body class="bg-[var(--bg-canvas)] text-[var(--text-primary)] font-sans antialiased flex flex-col min-h-screen selection:bg-zinc-500/30">
     <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-58C2CQ8G"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>

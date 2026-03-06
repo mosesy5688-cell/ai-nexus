@@ -120,7 +120,7 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
         icon: '📈',
         description: 'Understanding Free2AITools metrics',
         articles: [
-            { slug: 'what-is-fni', title: 'What is FNI?', description: 'Fair Nexus Index - our model trust score explained', difficulty: 'Beginner', effort: '2 min' },
+            { slug: 'what-is-fni', title: 'What is FNI?', description: 'Free2AITools Nexus Index - our model trust score explained', difficulty: 'Beginner', effort: '2 min' },
             { slug: 'what-is-deploy-score', title: 'What is Deploy Score?', description: 'Model deployability measurement explained', difficulty: 'Beginner', effort: '2 min' }
         ]
     },

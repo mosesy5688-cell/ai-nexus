@@ -3,7 +3,7 @@ import { loadCachedJSON } from '../../utils/loadCachedJSON.js';
 
 /**
  * MeshVisualizer V18.12.0
- * Visualizes the 8-node knowledge graph from cache/mesh/graph.json
+ * Visualizes the 9-node knowledge graph from cache/mesh/graph.json
  * Displays nodes and edges in a navigable format
  */
 
@@ -35,15 +35,15 @@ try {
 
 // Node type icons, colors and navigation links
 const typeConfig = {
-  model: { icon: '🤖', color: 'bg-blue-500', label: 'Models', href: '/models' },
-  dataset: { icon: '📊', color: 'bg-cyan-500', label: 'Datasets', href: '/datasets' },
-  prompt: { icon: '✍️', color: 'bg-rose-600', label: 'Prompts', href: '/prompts' },
-  paper: { icon: '📄', color: 'bg-purple-500', label: 'Papers', href: '/papers' },
-  agent: { icon: '🤖', color: 'bg-emerald-500', label: 'Agents', href: '/agents' },
-  space: { icon: '🚀', color: 'bg-orange-500', label: 'Spaces', href: '/spaces' },
-  tool: { icon: '🔧', color: 'bg-amber-500', label: 'Tools', href: '/tools' },
-  knowledge: { icon: '📚', color: 'bg-indigo-500', label: 'Knowledge', href: '/knowledge' },
-  report: { icon: '📰', color: 'bg-rose-500', label: 'Reports', href: '/reports' }
+  model: { icon: '🧠', color: 'bg-black/40', label: 'Models', href: '/models' },
+  agent: { icon: '🤖', color: 'bg-black/40', label: 'Agents', href: '/agents' },
+  space: { icon: '🚀', color: 'bg-black/40', label: 'Spaces', href: '/spaces' },
+  tool: { icon: '🔧', color: 'bg-black/40', label: 'Tools', href: '/tools' },
+  prompt: { icon: '✍️', color: 'bg-black/40', label: 'Prompts', href: '/prompts' },
+  dataset: { icon: '📊', color: 'bg-black/40', label: 'Datasets', href: '/datasets' },
+  paper: { icon: '📄', color: 'bg-black/40', label: 'Papers', href: '/papers' },
+  report: { icon: '📰', color: 'bg-black/40', label: 'Reports', href: '/reports' },
+  knowledge: { icon: '📚', color: 'bg-black/40', label: 'Knowledge', href: '/knowledge' }
 };
 
 const nodesByType = meshStats.by_type || {};
@@ -51,44 +51,22 @@ const totalNodes = meshStats.nodes || 0;
 const totalEdges = meshStats.edges || 0;
 ---
 
-<section class="mesh-visualizer bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-  <div class="flex items-center justify-between mb-5">
-    <div>
-      <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-        <span class="text-2xl">🕸️</span>
-        Knowledge Mesh
-      </h2>
-      <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-        9-node interconnected knowledge graph
-      </p>
-    </div>
-    <div class="flex items-center gap-3 text-[11px]">
-      <div class="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
-        <span class="font-bold text-indigo-600">{totalNodes.toLocaleString()}</span>
-        <span class="text-gray-500">nodes</span>
-      </div>
-      <div class="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
-        <span class="font-bold text-emerald-600">{totalEdges.toLocaleString()}</span>
-        <span class="text-gray-500">edges</span>
-      </div>
-    </div>
-  </div>
-
+<section class="mesh-visualizer bg-[var(--bg-canvas)] rounded-sm p-6 border border-[var(--border-hairline)] relative overflow-hidden">
   <!-- Interactive Navigation Mesh -->
-  <div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-3">
+  <div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2">
     {Object.entries(typeConfig).map(([type, config]) => {
       const count = nodesByType[type] || 0;
       
       return (
-        <a href={config.href} class="group flex flex-col items-center p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all">
-          <div class={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center text-white text-xl shadow-sm group-hover:scale-110 transition-transform`}>
+        <a href={config.href} class="group flex flex-col items-center p-3 bg-[var(--bg-surface)] rounded-sm border border-[var(--border-hairline)] hover:border-zinc-500 transition-all">
+          <div class={`w-10 h-10 ${config.color} rounded-sm flex items-center justify-center text-white text-xl border border-white/5 group-hover:scale-110 transition-transform`}>
             {config.icon}
           </div>
           <div class="text-center mt-2">
-            <div class="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-tighter">
+            <div class="text-[9px] font-black text-white uppercase tracking-tighter">
               {config.label}
             </div>
-            <div class="text-[11px] font-medium text-gray-400">
+            <div class="text-[9px] font-bold text-zinc-600 tabular-nums">
               {count > 0 ? count.toLocaleString() : '-'}
             </div>
           </div>

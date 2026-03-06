@@ -46,43 +46,31 @@ export class CatalogDataSource {
 
         try {
             this.currentShard += direction;
-            // V18.12.0: Optimized resilient fetch logic - V21.17: Align with rankingsDir structure
-            const paths = [
-                `https://cdn.free2aitools.com/cache/rankings/${this.type}/p${this.currentShard}.json`,
-                `https://cdn.free2aitools.com/cache/rankings/_type_${this.type}/p${this.currentShard}.json`
-            ];
+
+            // V22.11 Compliance: All Non-Report/Knowledge data MUST come from VFS.
+            // Replace direct CDN JSON fetching with the SQLite-backed SSR Search API.
+            const url = new URL(window.location.origin + '/api/search');
+            url.searchParams.set('type', this.type === 'model' ? 'base,instruct,chat,embeddings' : this.type); // ensure models list all subtypes if necessary, or just rely on 'type' logic in api
+            url.searchParams.set('page', this.currentShard);
+            url.searchParams.set('limit', 24); // Hardcoded chunk size for predictable grid pushing
+            url.searchParams.set('sort', 'fni');
 
             let data = null;
+            const response = await fetch(url.toString());
 
-            for (const p of paths) {
-                try {
-                    // Try .json.gz first (Production Standard)
-                    let response = await fetch(p + '.gz');
-                    if (!response.ok) response = await fetch(p);
-
-                    if (response.ok) {
-                        const isGzip = response.url.endsWith('.gz');
-                        const isEnc = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
-
-                        if (isGzip && !isEnc) {
-                            const ds = new DecompressionStream('gzip');
-                            const decompressedStream = response.body.pipeThrough(ds);
-                            data = await new Response(decompressedStream).json();
-                        } else {
-                            data = await response.json();
-                        }
-                        break;
-                    }
-                } catch (e) { continue; }
+            if (response.ok) {
+                data = await response.json();
             }
 
-            if (!data) throw new Error(`Fetch failed for ${this.type} shard ${this.currentShard}`);
+            if (!data || !data.results || data.results.length === 0) {
+                this.fullDataLoaded = true;
+                return null;
+            }
 
-            // Update metadata if available in the shard
-            if (data.total_pages || data.totalPages) this.totalPages = data.total_pages || data.totalPages;
-            if (data.total_items || data.totalEntities) this.totalEntities = data.total_items || data.totalEntities;
+            // Estimate total pages purely to keep the UI progressing if not provided by Search API
+            this.totalPages = this.currentShard + 1;
 
-            let allRaw = Array.isArray(data) ? data : (data.entities || data.models || data.items || []);
+            let allRaw = data.results;
             const validItems = DataNormalizer.normalizeCollection(allRaw, this.type)
                 .filter(i => i.type === this.type || (this.type === 'model' && (!i.type || i.type === 'model')));
 
