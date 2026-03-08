@@ -6,6 +6,10 @@ import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.m
 // @ts-ignore
 import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { R2RangeVFS } from './r2-vfs.js';
+// V24.10d: Pre-compiled WASM module for CF Workers
+// wasmModuleImports: true in astro.config.mjs enables this
+// @ts-ignore
+import precompiledWasm from '../assets/sqlite/wa-sqlite-async.wasm';
 
 let globalSqlite3: any = null;
 let globalSqliteModule: any = null;
@@ -61,20 +65,13 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
                 console.warn('[SQLite] WASM local read failed');
             }
         } else {
-            // V24.10d: CF Workers blocks WebAssembly.instantiate(bytes)
-            // Try compile() + instantiate(module) as two-step approach
-            const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
+            // V24.10d: CF Workers blocks ALL runtime WASM compilation
+            // Use pre-compiled module from static import (wasmModuleImports: true)
             wasmConfig.locateFile = (file: string) => `https://cdn.free2aitools.com/wasm/${file}`;
             wasmConfig.instantiateWasm = (imports: any, successCallback: any) => {
-                (async () => {
-                    const res = await fetch(wasmUrl);
-                    const bytes = await res.arrayBuffer();
-                    // Two-step: compile first, then instantiate from module
-                    const compiled = await WebAssembly.compile(bytes);
-                    const instance = await WebAssembly.instantiate(compiled, imports);
-                    successCallback(instance, compiled);
-                })().catch(e => console.error('[SQLite] WASM init failed:', e));
-                return {};
+                const instance = new WebAssembly.Instance(precompiledWasm, imports);
+                successCallback(instance, precompiledWasm);
+                return instance.exports;
             };
         }
 

@@ -11,7 +11,6 @@ const BUILD_TIME = Date.now().toString();
 
 
 import cloudflare from "@astrojs/cloudflare";
-import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 
 export default defineConfig({
@@ -28,8 +27,7 @@ export default defineConfig({
   },
   adapter: cloudflare({
     runtime: { mode: 'local', type: 'pages' },
-    // V18.2.6: Disable built-in session KV to comply with Zero-Cost Constitution
-    // This suppresses the "Enabling sessions with Cloudflare KV" build step
+    // cloudflareModules defaults to true — handles .wasm imports as pre-compiled modules
     sessionPersistence: false
   }),
   build: {
@@ -47,7 +45,6 @@ export default defineConfig({
   integrations: [tailwind()],
   vite: {
     plugins: [
-      wasm(),
       topLevelAwait(),
       // V23.10: Strip inline source maps in dev to prevent source leak in automated tests
       {
