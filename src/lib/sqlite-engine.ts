@@ -61,14 +61,16 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
                 console.warn('[SQLite] WASM local read failed');
             }
         } else {
-            // Cloudflare Workers: fetch WASM via fetch() and pass as wasmBinary
+            // V24.10c: Cloudflare Workers blocks WebAssembly.instantiate(bytes)
+            // Must use instantiateStreaming(Response) which IS allowed
             const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
-            const res = await fetch(wasmUrl);
-            if (!res.ok) throw new Error(`WASM fetch failed: ${res.status}`);
-            wasmConfig.wasmBinary = await res.arrayBuffer();
-            // V24.10: Provide locateFile so Emscripten never builds a relative URL
-            // (Workers fetch() rejects relative URLs with "Invalid URL string.")
             wasmConfig.locateFile = (file: string) => `https://cdn.free2aitools.com/wasm/${file}`;
+            wasmConfig.instantiateWasm = (imports: any, successCallback: any) => {
+                WebAssembly.instantiateStreaming(fetch(wasmUrl), imports)
+                    .then(result => successCallback(result.instance, result.module))
+                    .catch(e => console.error('[SQLite] WASM instantiate failed:', e));
+                return {};
+            };
         }
 
         globalSqliteModule = await SQLiteAsyncESMFactory(wasmConfig);
