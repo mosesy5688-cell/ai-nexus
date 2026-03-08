@@ -64,8 +64,8 @@ try {
       <div class="mt-4 flex flex-wrap gap-6 text-[9px] text-zinc-700 font-black uppercase tracking-widest">
           <span class="text-zinc-400">Fast Nodes:</span>
           {['Llama-3.1', 'Flux', 'Agentic-Workflows', 'FTS5-Search'].map(q => (
-              <button 
-                onclick={`document.dispatchEvent(new KeyboardEvent('keydown', {ctrlKey: true, key: 'k'})); setTimeout(() => { const inp = document.getElementById('palette-input'); if(inp) { inp.value = '${q}'; inp.dispatchEvent(new Event('input')); }}, 100)`}
+              <button
+                onclick={`const m=document.getElementById('search-modal'); if(m) m.classList.remove('hidden'); setTimeout(() => { const inp = document.getElementById('palette-input'); if(inp) { inp.value = '${q}'; inp.focus(); inp.dispatchEvent(new Event('input')); }}, 100)`}
                 class="hover:text-white transition-colors border-b border-zinc-800 pb-0.5"
               >
                 {q}
@@ -87,21 +87,16 @@ try {
     if (!homeInput) return;
 
     const openPalette = (initialValue: string) => {
-        // Dispatch Ctrl+K to open modal
-        document.dispatchEvent(new KeyboardEvent('keydown', {
-            ctrlKey: true,
-            key: 'k',
-            bubbles: true,
-            cancelable: true
-        }));
-        
+        // Directly toggle the modal (avoids synthetic KeyboardEvent dispatch issues)
+        const modal = document.getElementById('search-modal');
+        if (modal) modal.classList.remove('hidden');
+
         // Transfer focus and value
         setTimeout(() => {
             const paletteInput = document.getElementById('palette-input') as HTMLInputElement;
             if (paletteInput) {
                 paletteInput.value = initialValue;
                 paletteInput.focus();
-                // Trigger input event on palette to start search
                 paletteInput.dispatchEvent(new Event('input', { bubbles: true }));
             }
         }, 50);
