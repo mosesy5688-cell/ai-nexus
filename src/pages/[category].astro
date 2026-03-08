@@ -58,7 +58,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
 
         <ListingControls type="all" searchId="category-search" categoryFilterId="category-filter" />
 
-        <div id="category-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div id="category-grid" class="flex flex-col gap-1">
             {items.map((item: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={item} type={item.type || 'model'} />
@@ -78,22 +78,20 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
 
     <script define:vars={{ initialData: items, category }}>
         window.__CATALOG_DATA__ = initialData;
+        window.__CATEGORY_FILTER__ = category;
     </script>
 
     <script>
         import { UniversalCatalog } from '../scripts/lib/UniversalCatalog.js';
-        
-        const init = () => {
-            // Get category from URL path for the dataUrl
-            const pathParts = window.location.pathname.split('/');
-            const category = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
 
+        const init = () => {
             new UniversalCatalog({
                 initialData: window.__CATALOG_DATA__ || [],
-                type: 'all', // Show all types in category view
+                type: 'all',
+                categoryFilter: window.__CATEGORY_FILTER__ || '',
                 gridId: 'category-grid',
                 searchId: 'category-search',
-                dataUrl: `https://cdn.free2aitools.com/cache/rankings/${category}/p1.json`
+                categoryFilterId: 'category-filter'
             });
         };
 

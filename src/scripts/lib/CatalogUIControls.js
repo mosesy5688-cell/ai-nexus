@@ -6,19 +6,33 @@ import { EntityCardRenderer } from './EntityCardRenderer.js';
 
 export class CatalogUIControls {
     static setupInfiniteScroll(instance) {
-        if (!instance.grid) return;
+        if (!instance.grid) {
+            console.error('[CatalogUIControls] ❌ Grid element not found, cannot setup infinite scroll.');
+            return;
+        }
+
+        console.log(`[CatalogUIControls] 🚀 Setting up infinite scroll for ${instance.config.gridId}`);
+
         instance.sentinel = document.getElementById('catalog-sentinel') || document.createElement('div');
-        if (!instance.sentinel.id) {
+        if (!instance.sentinel.id || !instance.sentinel.parentNode) {
             instance.sentinel.id = 'catalog-sentinel';
-            instance.sentinel.className = 'w-full flex flex-col items-center justify-center py-12 gap-4';
+            instance.sentinel.className = 'w-full flex flex-col items-center justify-center py-20 gap-4 border-t border-dashed border-zinc-800 mt-12';
             instance.grid.after(instance.sentinel);
+            console.log('[CatalogUIControls] ✅ Sentinel created and appended.');
         }
 
         instance.observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && !instance.source.isLoadingShard && instance.hasMore()) {
-                instance.loadMore();
+            if (entries[0].isIntersecting) {
+                console.log('[CatalogUIControls] 👀 Sentinel in view.');
+                if (!instance.source.isLoadingShard && instance.hasMore()) {
+                    console.log('[CatalogUIControls] 📥 Triggering loadMore...');
+                    instance.loadMore();
+                } else {
+                    console.log(`[CatalogUIControls] ⏭️ Skipping loadMore: loading=${instance.source.isLoadingShard}, hasMore=${instance.hasMore()}`);
+                }
             }
-        }, { rootMargin: '800px' });
+        }, { rootMargin: '600px', threshold: 0.01 });
+
         instance.observer.observe(instance.sentinel);
 
         if (instance.paginationContainer) instance.paginationContainer.style.display = 'none';
@@ -29,13 +43,18 @@ export class CatalogUIControls {
         const start = append ? (instance.currentPage - 1) * instance.itemsPerPage : 0;
         const pageItems = instance.filtered.slice(start, instance.currentPage * instance.itemsPerPage);
 
+        console.log(`[CatalogUIControls] 🖼️ Rendering grid: append=${append}, page=${instance.currentPage}, items=${pageItems.length}`);
+
         const existingIds = append ? new Set(Array.from(instance.grid.children).map(c => c.querySelector('[data-entity-id]')?.getAttribute('data-entity-id'))) : new Set();
         const freshItems = pageItems.filter(i => !existingIds.has(i.id));
 
-        const html = freshItems.map(item => EntityCardRenderer.createCardHTML(item, instance.source.type)).join('');
+        const html = freshItems.map(item => EntityCardRenderer.createCardHTML(item, item.type || instance.source.type)).join('');
 
-        if (append) instance.grid.insertAdjacentHTML('beforeend', html);
-        else instance.grid.innerHTML = html;
+        if (append) {
+            if (html) instance.grid.insertAdjacentHTML('beforeend', html);
+        } else {
+            instance.grid.innerHTML = html;
+        }
 
         this.updateSentinel(instance);
     }
@@ -43,12 +62,27 @@ export class CatalogUIControls {
     static updateSentinel(instance) {
         if (!instance.sentinel) return;
         const hasMoreData = instance.hasMore();
-        const loadMoreBtn = instance.sentinel.querySelector('#load-more-btn');
 
         if (hasMoreData) {
-            instance.sentinel.innerHTML = '<div class="flex items-center gap-2 text-zinc-500 text-[9px] animate-pulse font-black uppercase tracking-[0.2em]"><div class="w-1.5 h-1.5 bg-amber-500 rounded-full"></div> Synchronizing technical shards...</div>';
+            instance.sentinel.innerHTML = `
+                <div class="flex flex-col items-center gap-4 text-amber-500">
+                    <div class="flex items-center gap-3 text-xs font-black uppercase tracking-[0.3em] animate-pulse">
+                        <div class="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        Querying Technical Registry...
+                    </div>
+                    <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest opacity-60">
+                        Synchronizing High-Density Metrics (Proxy v23.1)
+                    </div>
+                </div>
+            `;
         } else {
-            instance.sentinel.innerHTML = '<div class="text-zinc-400 text-[10px] font-black uppercase tracking-[0.25em] opacity-40 py-8 border-t border-zinc-100 dark:border-zinc-800 w-full text-center">End of Professional Technical Index</div>';
+            instance.sentinel.innerHTML = `
+                <div class="py-12 flex flex-col items-center gap-4 w-full opacity-40">
+                    <div class="h-px bg-zinc-800 w-1/4"></div>
+                    <div class="text-zinc-400 text-[10px] font-black uppercase tracking-[0.4em]">End of Industrial Technical Index</div>
+                    <div class="h-px bg-zinc-800 w-1/4"></div>
+                </div>
+            `;
             if (instance.observer) instance.observer.disconnect();
         }
     }
@@ -93,10 +127,10 @@ export class CatalogUIControls {
 
     static updateStats(instance) {
         if (instance.countLabel) {
-            const total = instance.source.totalEntities || instance.filtered.length;
-            instance.countLabel.textContent = instance.source.isLoadingShard
-                ? `Syncing Technical Index [Shard ${instance.source.currentShard}/${instance.source.totalPages}]...`
-                : `${total.toLocaleString()} ${instance.source.type}s verified in Industrial Intelligence Index`;
+            const total = instance.filtered.length;
+            instance.countLabel.textContent = instance.source.isLoading
+                ? `Synchronizing Technical Registry...`
+                : `${total.toLocaleString()} ${instance.source.type}s indexed in Industrial Intelligence Registry`;
         }
     }
 }

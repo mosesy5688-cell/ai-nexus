@@ -16,43 +16,47 @@ export async function loadHotModels() {
     }
 
     try {
-        // V18.12.5.4: Restore trending.json path (loadCachedJSON handles .gz fallback)
-        const loadPromise = loadCachedJSON('cache/trending.json');
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
+        // V23.1: Try Tier 1 Binary Hot Shard first (Speed + Reliability)
+        const { loadHotShard, searchShardPool } = await import('./search-shard-engine.js');
+        await loadHotShard();
+        const binaryModels = searchShardPool('', 12, { entityType: 'model', sort: 'fni' });
 
-        const { data } = await Promise.race([loadPromise, timeoutPromise]);
-
-        const models = (data?.models || data || []).slice(0, 12);
-
-        if (!models || models.length === 0) {
-            if (gridEl) gridEl.innerHTML = '<p class="col-span-full text-center text-gray-500 py-12">No hot models currently indexed in FNI leaderboard.</p>';
+        if (binaryModels && binaryModels.length > 0) {
+            console.log('[Home] Hot models loaded from Tier 1 Binary Shard.');
+            renderModelsToGrid(binaryModels, gridEl, loadingSkeleton);
             return;
         }
 
-        const html = models.filter(m => !!m).map(model => createModelCardHTML(model)).join('');
+        // V18.12.5.4: Legacy JSON Fallback (if Binary Shard is not ready)
+        const loadPromise = loadCachedJSON('cache/trending.json');
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
 
-        if (gridEl) {
-            gridEl.innerHTML = html;
-            gridEl.classList.remove('hidden');
-        }
+        const { data } = await Promise.race([loadPromise, timeoutPromise]);
+        const models = (data?.models || data || []).slice(0, 12);
 
-        // Hide skeletons if they exist
-        const skeletons = document.querySelectorAll('.skeleton-card');
-        skeletons.forEach(s => s.classList.add('hidden'));
-
-        if (loadingSkeleton) {
-            loadingSkeleton.classList.add('hidden');
-            loadingSkeleton.style.display = 'none';
+        if (models && models.length > 0) {
+            console.log('[Home] Hot models loaded from Legacy JSON.');
+            renderModelsToGrid(models, gridEl, loadingSkeleton);
+        } else {
+            console.warn('[Home] All hot model sources failed.');
+            if (gridEl) gridEl.innerHTML = '<p class="col-span-full text-center text-gray-500 py-12">Universal Hub is re-synchronizing. Check back in a moment.</p>';
         }
 
     } catch (e) {
         console.error("Failed to load hot models:", e);
-        const errorEl = document.getElementById('hot-models-error');
-        const errorMsgEl = document.getElementById('hot-models-error-msg');
-        if (errorEl) {
-            errorEl.classList.remove('hidden');
-            errorMsgEl.textContent = "Data Connectivity Lag: Please refresh in a moment.";
-        }
+        if (loadingSkeleton) loadingSkeleton.classList.add('hidden');
+    }
+}
+
+function renderModelsToGrid(models, gridEl, loadingSkeleton) {
+    const html = models.filter(m => !!m).map(model => createModelCardHTML(model)).join('');
+    if (gridEl) {
+        gridEl.innerHTML = html;
+        gridEl.classList.remove('hidden');
+    }
+    if (loadingSkeleton) {
+        loadingSkeleton.classList.add('hidden');
+        loadingSkeleton.style.display = 'none';
     }
 }
 

@@ -39,24 +39,91 @@ export const DataNormalizer = {
             }
         }
 
-        return {
+        // V23.4: Industrial Spec Technical Extraction
+        let license = item.license || '';
+        let raw_tag = item.pipeline_tag || '';
+        let pipeline_tag = raw_tag.split(/\s+/)[0].replace(/[:/]/g, '').toLowerCase(); // Strict Opus 4.6 Cleaning
+
+        let params_billions = parseFloat(item.params_billions ?? item.params ?? item.technical?.parameters_b ?? 0);
+        params_billions = Math.round(params_billions * 100) / 100;
+        // V23.1: Precision Refinement
+        const rawScore = item.fni_score ?? item.fni ?? item.fniScore ?? 0;
+        let fni_score = Math.round(rawScore * 1000) / 1000;
+        let context_length = parseInt(item.context_length ?? item.context ?? 0);
+        let vram_est = item.vram_est ?? item.vram ?? 0;
+
+        // V23.1 Shard-DB 4.0: Extract from tags (models.json / legacy shards)
+        if (item.tags && Array.isArray(item.tags)) {
+            if (!license) {
+                const licTag = item.tags.find(t => t.startsWith('license:'));
+                if (licTag) license = licTag.split(':')[1].trim();
+            }
+            if (!pipeline_tag) {
+                const bestTag = item.tags.find(t => !/[:/\s]/.test(t) && t.length > 2 && t.length < 15);
+                if (bestTag) pipeline_tag = bestTag.toLowerCase();
+            }
+        }
+
+        // V23.1 Shard-DB 4.0: Deep YAML Extraction from Summary
+        if (item.summary && item.summary.startsWith('---')) {
+            const yamlPart = item.summary.split('---')[1];
+            if (yamlPart) {
+                if (!license) {
+                    const licMatch = yamlPart.match(/license:\s*([^\n\r]+)/i);
+                    if (licMatch) license = licMatch[1].trim();
+                }
+                if (!pipeline_tag) {
+                    const tagMatch = yamlPart.match(/pipeline_tag:\s*([^\n\r]+)/i) || yamlPart.match(/task:\s*([^\n\r]+)/i);
+                    if (tagMatch) pipeline_tag = tagMatch[1].trim().split(/\s+/)[0].toLowerCase();
+                }
+                if (params_billions === 0) {
+                    const pMatch = yamlPart.match(/params:\s*([0-9.]+)/i) || yamlPart.match(/parameters:\s*([0-9.]+)/i) || yamlPart.match(/size:\s*([0-9.]+)/i);
+                    if (pMatch) params_billions = parseFloat(pMatch[1]);
+                }
+                if (context_length === 0) {
+                    const ctxMatch = yamlPart.match(/context:\s*([0-9.]+)/i) || yamlPart.match(/context_length:\s*([0-9.]+)/i) || yamlPart.match(/ctx:\s*([0-9.]+)/i);
+                    if (ctxMatch) context_length = parseInt(ctxMatch[1]);
+                }
+                // Check for embedded FNI in YAML (some experimental shards)
+                const fniMatch = yamlPart.match(/fni_score:\s*([0-9.]+)/i);
+                if (fniMatch && fni_score === 0) fni_score = parseFloat(fniMatch[1]);
+            }
+        }
+
+        // V23.4: Virtual VRAM Estimator (Params * 2 + overhead)
+        if (params_billions > 0 && !vram_est) {
+            vram_est = Math.ceil(params_billions * 2 * 1.2); // Rough 16-bit estimate + KV overhead
+        }
+
+        const normalized = {
             ...item,
             id,
             name,
             type,
             slug,
             author,
+            license,
+            pipeline_tag: pipeline_tag || type,
             category: item.category || item.primary_category || '',
-            // Handle legacy 'fni', 'fniScore' and current 'fni_score'
-            fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
+            fni_score,
             fni_percentile: item.fni_percentile || item.percentile || '',
-            // V19.5 Data Parity Promotion
             fni_p: item.fni_p ?? item.fniP ?? item.fni_metrics?.p ?? 0,
             fni_v: item.fni_v ?? item.fniV ?? item.fni_metrics?.v ?? 0,
             fni_c: item.fni_c ?? item.fniC ?? item.fni_metrics?.c ?? 0,
             fni_u: item.fni_u ?? item.fniU ?? item.fni_metrics?.u ?? 0,
-            params_billions: item.params_billions ?? item.params ?? item.technical?.parameters_b ?? 0
+            params_billions: params_billions || parseFloat(item.params || 0),
+            context_length,
+            vram_est,
+            typeLabel: (pipeline_tag || type).replace(/-/g, ' '),
+            downloads: item.downloads ?? item.pulls ?? item.installs ?? item.download_count ?? 0,
+            summary: item.summary || ''
         };
+
+        if (id && normalized.fni_score > 0) {
+            console.debug(`[NORM] ${id}: FNI=${normalized.fni_score}, B=${normalized.params_billions}, VRAM=${normalized.vram_est}`);
+        }
+
+        return normalized;
     },
 
     /**

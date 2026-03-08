@@ -52,7 +52,7 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
         </p>
 
         <div class="grid grid-cols-1 gap-4 mb-10 max-w-sm mx-auto">
-            <a href={`/search?q=${encodeURIComponent(displayId)}`} class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-indigo-500 transition-all group">
+            <a href={`/search?q=${encodeURIComponent(displayId)}`} data-astro-reload class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-indigo-500 transition-all group">
                 <div class="text-left">
                     <p class="text-[9px] text-zinc-400 uppercase font-black tracking-widest leading-none mb-1">Search Pipeline</p>
                     <p class="text-xs font-bold text-zinc-900 dark:text-white">Query Global Registry</p>

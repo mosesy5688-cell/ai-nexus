@@ -85,11 +85,11 @@ const entityTypes = [
 </Layout>
 
 <script>
-    import { loadFullSearchIndex } from '../scripts/home-search.js';
     import { setupSearchUI } from '../scripts/search-ui-controller.js';
     
     // Init Logic
     document.addEventListener('astro:page-load', async () => {
+        console.log('[Search] Initializing Search UI...');
         const dom = {
             form: document.getElementById('results-search-form'),
             box: document.getElementById('results-search-box'),

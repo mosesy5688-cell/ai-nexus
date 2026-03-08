@@ -37,7 +37,9 @@ export const GET: APIRoute = async () => {
             'sitemap-4.xml.gz',
             'sitemap-5.xml.gz',
             'sitemap-6.xml.gz',
-            'sitemap-7.xml.gz'
+            'sitemap-7.xml.gz',
+            'sitemap-8.xml.gz',
+            'sitemap-9.xml.gz'
         ];
 
         const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>

@@ -1,43 +1,62 @@
 ---
 // SSR Mode - Server-side rendering for stability
-// export const prerender = true;
 import Layout from '../../layouts/Layout.astro';
+import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlite-engine';
 
 const title = "AI Model & Tool Rankings";
 const description = "Explore top-rated AI models, agents, datasets, and tools ranked by the Free2AITools Nexus Index (FNI).";
 
 const CATEGORY_META: Record<string, { label: string; icon: string; description: string; href: string }> = {
-  'text-generation': { 
-    label: 'Text Generation', 
-    icon: '💬', 
-    description: 'Top LLMs, code assistants, and translation systems.', 
-    href: '/text-generation' 
+  'text-generation': {
+    label: 'Text Generation',
+    icon: '💬',
+    description: 'Top LLMs, code assistants, and translation systems.',
+    href: '/text-generation'
   },
-  'knowledge-retrieval': { 
-    label: 'Knowledge Retrieval', 
-    icon: '🔍', 
-    description: 'RAG, embeddings, and intelligent data analysis.', 
-    href: '/knowledge-retrieval' 
+  'knowledge-retrieval': {
+    label: 'Knowledge Retrieval',
+    icon: '🔍',
+    description: 'RAG, embeddings, and intelligent data analysis.',
+    href: '/knowledge-retrieval'
   },
-  'vision-multimedia': { 
-    label: 'Vision & Multimedia', 
-    icon: '🎨', 
-    description: 'Image generation, video AI, and speech processing.', 
-    href: '/vision-multimedia' 
+  'vision-multimedia': {
+    label: 'Vision & Multimedia',
+    icon: '🎨',
+    description: 'Image generation, video AI, and speech processing.',
+    href: '/vision-multimedia'
   },
-  'automation-workflow': { 
-    label: 'Automation', 
-    icon: '⚡', 
-    description: 'AI agents and autonomous workflow frameworks.', 
-    href: '/automation-workflow' 
+  'automation-workflow': {
+    label: 'Automation',
+    icon: '⚡',
+    description: 'AI agents and autonomous workflow frameworks.',
+    href: '/automation-workflow'
   },
-  'infrastructure-ops': { 
-    label: 'Infrastructure', 
-    icon: '🔧', 
-    description: 'Fine-tuning, quantization, and deployment tools.', 
-    href: '/infrastructure-ops' 
+  'infrastructure-ops': {
+    label: 'Infrastructure',
+    icon: '🔧',
+    description: 'Fine-tuning, quantization, and deployment tools.',
+    href: '/infrastructure-ops'
   }
 };
+
+// V23.6: VFS-Only Category Counts (replaces CDN category_stats.json)
+const env = ((Astro as any).locals.runtime)?.env || {};
+const r2Bucket = env.R2_ASSETS;
+const isDev = !!import.meta.env?.DEV;
+const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== 'production');
+
+let categoryCounts: Record<string, number> = {};
+try {
+    await loadManifest(r2Bucket, shouldSimulate);
+    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-model-core.db');
+    const rows = await executeSql(engine.sqlite3, engine.db,
+        `SELECT category, COUNT(*) as count FROM entities WHERE category != '' GROUP BY category`, []);
+    for (const r of rows) {
+        if (r.category) categoryCounts[r.category] = r.count;
+    }
+} catch (e: any) {
+    console.warn('[Ranking] VFS category count query failed:', e.message);
+}
 
 // V18.10.2: Explicit Edge Caching with Revalidation Guard
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=60');
@@ -54,7 +73,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
             </p>
         </div>
 
-        <!-- Main Categories (Dynamic Load) -->
+        <!-- Main Categories -->
         <div id="ranking-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             {Object.entries(CATEGORY_META).map(([key, meta]) => (
                 <a href={meta.href} class="group relative p-8 rounded-[2rem] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col glass-effect">
@@ -65,13 +84,13 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
                         <div class="text-4xl mb-6">{meta.icon}</div>
                         <h2 class="text-2xl font-black text-theme-primary mb-3">{meta.label}</h2>
                         <p class="text-theme-secondary mb-8 flex-grow">{meta.description}</p>
-                        
+
                         <div class="flex items-center justify-between mt-auto">
                             <span class="inline-flex items-center text-blue-600 dark:text-blue-400 font-bold group-hover:gap-2 transition-all">
-                                View Technical Index <span class="ml-1">→</span>
+                                View Technical Index <span class="ml-1">&rarr;</span>
                             </span>
-                            <span class="category-count text-xs font-bold px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-100/50 dark:border-blue-500/20" data-category={key}>
-                                Loading...
+                            <span class="text-xs font-bold px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-100/50 dark:border-blue-500/20">
+                                {categoryCounts[key] ? `${categoryCounts[key].toLocaleString()} Models` : 'Explore'}
                             </span>
                         </div>
                     </div>
@@ -105,47 +124,4 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
             </div>
         </div>
     </div>
-
-    <script>
-        async function loadRankingStats() {
-            try {
-                let res = await fetch('https://cdn.free2aitools.com/cache/category_stats.json');
-                if (!res.ok) {
-                    // V18.2: Try .gz fallback
-                    const resGz = await fetch('https://cdn.free2aitools.com/cache/category_stats.json.gz');
-                    if (resGz.ok) res = resGz;
-                }
-                
-                if (!res.ok) throw new Error('Failed to fetch stats');
-                
-                let data;
-                const isGz = res.url.endsWith('.gz');
-                const isAlreadyDec = res.headers.get('Content-Encoding') === 'gzip' || res.headers.get('content-encoding') === 'gzip';
-
-                if (isGz && !isAlreadyDec) {
-                    const ds = new DecompressionStream('gzip');
-                    const decompressedStream = res.body.pipeThrough(ds);
-                    data = await new Response(decompressedStream).json();
-                } else {
-                    data = await res.json();
-                }
-                
-                if (data.categories) {
-                    data.categories.forEach(cat => {
-                        const catId = cat.id || cat.category;
-                        if (!catId) return;
-                        const badges = document.querySelectorAll(`.category-count[data-category="${catId}"]`);
-                        badges.forEach(badge => {
-                            badge.textContent = `${cat.count.toLocaleString()} Models`;
-                        });
-                    });
-                }
-            } catch (e) {
-                console.error('[Ranking] Stats load error:', e);
-                document.querySelectorAll('.category-count').forEach(b => b.textContent = 'Explore');
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', loadRankingStats);
-    </script>
 </Layout>

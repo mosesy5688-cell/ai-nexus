@@ -21,34 +21,99 @@ export function getShardIndex(nameStr: string, shardCount: number) {
     return (hash % shardCount) + 1;
 }
 
-export function determineTargetDbs(type: string, q: string, page: number, manifest?: any): string[] {
-    const partitions = manifest?.partitions || { model: 5, paper: 4 }; // V23.1 Default Fallback
+/**
+ * V23.2: Federated Search Router
+ * - Keyword search (q present): full federation across ALL shards in two phases
+ * - Browse mode (no q): core or category-specific shard only
+ * - Exact slug lookup: use getShardForSlug() separately (Layer 3 hash routing)
+ *
+ * Returns { priority, expansion } for two-phase execution:
+ *   Phase A (priority): high-hit-rate DBs, ~200-500ms
+ *   Phase B (expansion): remaining shards, only if Phase A results < limit
+ */
+export function determineTargetDbs(type: string, q: string, page: number, manifest?: any): { priority: string[], expansion: string[] } {
+    const partitions = manifest?.partitions || { model: 5, paper: 14 }; // V23.1 Default Fallback
+
+    const formatName = (cat: string, idx: number, total: number) => {
+        return total === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
+    };
+
+    // No search query: browse/pagination mode
+    if (!q) {
+        if (type === 'model') {
+            return { priority: ['meta-model-core.db'], expansion: [] };
+        }
+        if (type === 'all') {
+            // Cross-type browse: core + one shard per single-shard category
+            const priority: string[] = ['meta-model-core.db'];
+            for (const [cat, count] of Object.entries(partitions) as [string, number][]) {
+                if (cat === 'model') continue;
+                priority.push(count === 1 ? `meta-${cat}.db` : formatName(cat, 1, count));
+            }
+            return { priority, expansion: [] };
+        }
+        const count = partitions[type] || 1;
+        return { priority: [formatName(type, 1, count)], expansion: [] };
+    }
+
+    // Keyword search: federated across all shards
+
+    // Phase A: priority DBs (core + single-shard categories)
+    const priority: string[] = ['meta-model-core.db'];
+    for (const [cat, count] of Object.entries(partitions) as [string, number][]) {
+        if (cat === 'model') continue;
+        if (count === 1) priority.push(formatName(cat, 1, 1));
+    }
+
+    // Phase B: expansion DBs (all shards of multi-shard categories)
+    const expansion: string[] = [];
 
     if (type === 'all') {
-        if (!q) return ['meta-model-core.db'];
-        const mIdx = getShardIndex(q, partitions.model);
-        const pIdx = getShardIndex(q, partitions.paper);
-        const targets = ['meta-model-core.db', 'meta-ecosystem.db', `meta-model-shard-${String(mIdx).padStart(2, '0')}.db`];
-        if (partitions.paper > 0) {
-            const paperName = partitions.paper === 1 ? 'meta-paper.db' : `meta-paper-shard-${String(pIdx).padStart(2, '0')}.db`;
-            targets.push(paperName);
+        for (const [cat, count] of Object.entries(partitions) as [string, number][]) {
+            if (count <= 1) continue; // already in priority
+            for (let i = 1; i <= count; i++) {
+                if (cat === 'model') {
+                    expansion.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
+                } else {
+                    expansion.push(formatName(cat, i, count));
+                }
+            }
         }
-        return targets;
+    } else if (type === 'model') {
+        // Model-specific: core already in priority, add all model shards
+        const mCount = partitions.model || 5;
+        for (let i = 1; i <= mCount; i++) {
+            expansion.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
+        }
+    } else {
+        // Category-specific: federate all shards of that category
+        const count = partitions[type] || 1;
+        if (count > 1) {
+            // Remove single-shard entry from priority if present, add all shards
+            const singleName = formatName(type, 1, 1);
+            const idx = priority.indexOf(singleName);
+            if (idx > -1) priority.splice(idx, 1);
+            for (let i = 1; i <= count; i++) {
+                priority.push(formatName(type, i, count));
+            }
+        }
     }
-    if (type === 'dataset') return ['meta-dataset.db'];
-    if (type === 'paper') {
-        const pIdx = getShardIndex(q || '', partitions.paper);
-        return [partitions.paper === 1 ? 'meta-paper.db' : `meta-paper-shard-${String(pIdx).padStart(2, '0')}.db`];
-    }
-    if (type === 'agent' || type === 'tool' || type === 'space' || type === 'prompt') return ['meta-ecosystem.db'];
 
-    // Model routing
-    if (q === '' && page <= 5) return ['meta-model-core.db'];
-    if (q) {
-        const mIdx = getShardIndex(q, partitions.model);
-        return ['meta-model-core.db', `meta-model-shard-${String(mIdx).padStart(2, '0')}.db`];
+    return { priority, expansion };
+}
+
+/**
+ * Layer 3: Hash-Direct slug lookup (detail pages / hydration only)
+ */
+export function getShardForSlug(slug: string, type: string, manifest?: any): string {
+    const partitions = manifest?.partitions || { model: 5, paper: 14 };
+    if (type === 'model') {
+        const idx = getShardIndex(slug, partitions.model || 5);
+        return `meta-model-shard-${String(idx).padStart(2, '0')}.db`;
     }
-    return ['meta-model-core.db'];
+    const count = partitions[type] || 1;
+    const idx = getShardIndex(slug, count);
+    return count === 1 ? `meta-${type}.db` : `meta-${type}-shard-${String(idx).padStart(2, '0')}.db`;
 }
 
 /**

@@ -46,7 +46,21 @@ export default defineConfig({
   // See SPEC_SITEMAP_V6.1.md for architecture details
   integrations: [tailwind()],
   vite: {
-    plugins: [wasm(), topLevelAwait()],
+    plugins: [
+      wasm(),
+      topLevelAwait(),
+      // V23.10: Strip inline source maps in dev to prevent source leak in automated tests
+      {
+        name: 'strip-dev-sourcemaps',
+        apply: 'serve',
+        transform(code, id) {
+          if (id.includes('node_modules')) return;
+          if (code.includes('sourceMappingURL=data:')) {
+            return code.replace(/\/\/[#@]\s*sourceMappingURL=data:[^\n]+/g, '');
+          }
+        }
+      }
+    ],
     ssr: {
       // Ensure wa-sqlite WASM is bundled into SSR worker, not externalized
       noExternal: ['@journeyapps/wa-sqlite']

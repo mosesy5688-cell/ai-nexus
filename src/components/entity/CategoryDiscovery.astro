@@ -60,7 +60,7 @@ function stripArxivPrefix(id: string) {
              <div class="flex items-center gap-2">
                <span class="text-[10px] font-bold text-zinc-400">Related:</span>
                {relatedNodes.map((node: any) => (
-                 <a href={getRouteFromId(node.target_id, node.target_type)} class="text-[10px] font-black text-zinc-600 dark:text-zinc-400 hover:text-indigo-500 uppercase">
+                 <a href={getRouteFromId(node.target_id, node.target_type)} data-astro-reload class="text-[10px] font-black text-zinc-600 dark:text-zinc-400 hover:text-indigo-500 uppercase">
                     {stripArxivPrefix(node.target_id)}
                  </a>
                ))}

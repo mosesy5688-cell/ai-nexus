@@ -20,9 +20,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
         const response = await next();
         if (!response) throw new Error("Astro next() returned null response");
 
-        // Add essential guardian/timing headers for observability
-        response.headers.set('X-Guardian-Time', `${(performance.now() - startTime).toFixed(2)}ms`);
-        response.headers.set('X-Guardian-Version', 'v18.12.5-resilient');
+        // V23.10: Guard against immutable Response headers (e.g. Response.redirect())
+        try {
+            response.headers.set('X-Guardian-Time', `${(performance.now() - startTime).toFixed(2)}ms`);
+            response.headers.set('X-Guardian-Version', 'v18.12.5-resilient');
+        } catch {
+            // Response has immutable headers (redirects, static assets) — return as-is
+        }
 
         return response;
     } catch (e: any) {

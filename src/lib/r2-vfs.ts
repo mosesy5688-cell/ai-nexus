@@ -42,18 +42,24 @@ export class R2RangeVFS extends FacadeVFS {
 
         state.sizePromise = (async () => {
             const key = `data/${name}`;
-            if (this.bucket && !this.options.simulate) {
-                const obj = await this.bucket.head(key);
-                if (!obj) throw new Error(`${key} head failed`);
-                state!.size = obj.size;
-                state!.etag = (obj.httpMetadata?.etag || obj.etag || 'v23').replace(/"/g, '').replace('W/', '');
-            } else {
-                const res = await fetch(`https://cdn.free2aitools.com/${key}`, { method: 'HEAD' });
-                if (!res.ok) throw new Error(`${key} CDN head failed`);
-                state!.size = parseInt(res.headers.get('content-length') || '0', 10);
-                state!.etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '').replace('W/', '');
+            try {
+                if (this.bucket && !this.options.simulate) {
+                    const obj = await this.bucket.head(key);
+                    if (!obj) throw new Error(`${key} head failed`);
+                    state!.size = obj.size;
+                    state!.etag = (obj.httpMetadata?.etag || obj.etag || 'v23').replace(/"/g, '').replace('W/', '');
+                } else {
+                    const res = await fetch(`https://cdn.free2aitools.com/${key}`, { method: 'HEAD' });
+                    if (!res.ok) throw new Error(`${key} CDN head failed`);
+                    state!.size = parseInt(res.headers.get('content-length') || '0', 10);
+                    state!.etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '').replace('W/', '');
+                }
+                console.log(`[R2 VFS] [HEAD] Synchronized Metadata for ${name}: ETag=${state!.etag}, Size=${state!.size}`);
+            } catch (e: any) {
+                console.warn(`[R2 VFS] Warning: Failed to fetch metadata for ${name} (${e.message}). Using empty fallback.`);
+                state!.size = 0;
+                state!.etag = 'missing';
             }
-            console.log(`[R2 VFS] Loaded ${name}: ETag=${state!.etag}, Size=${state!.size}`);
             return state!.size;
         })();
 
@@ -85,8 +91,14 @@ export class R2RangeVFS extends FacadeVFS {
         try {
             // --- L0 Cache (In-Memory, 0ms) ---
             if (L0_CACHE.has(cacheKey)) {
-                pData.set(L0_CACHE.get(cacheKey)!.subarray(chunkOffset, chunkOffset + length));
-                return VFS.SQLITE_OK;
+                const cachedChunk = L0_CACHE.get(cacheKey)!;
+                const avail = cachedChunk.length - chunkOffset;
+                const toCopy = Math.max(0, Math.min(avail, length));
+                if (toCopy < length) pData.fill(0); // Very important: zero fill trailing memory
+                if (toCopy > 0) {
+                    pData.set(cachedChunk.subarray(chunkOffset, chunkOffset + toCopy));
+                }
+                return toCopy < length ? VFS.SQLITE_IOERR_SHORT_READ : VFS.SQLITE_OK;
             }
 
             // --- L1 Cache (Cloudflare Cache API, ~10ms) ---
@@ -118,8 +130,13 @@ export class R2RangeVFS extends FacadeVFS {
                     if (firstKey) L0_CACHE.delete(firstKey); // Evict LRU
                 }
 
-                pData.set(chunk.subarray(chunkOffset, chunkOffset + length));
-                return VFS.SQLITE_OK;
+                const avail = chunk.length - chunkOffset;
+                const toCopy = Math.max(0, Math.min(avail, length));
+                if (toCopy < length) pData.fill(0); // Very important: zero fill trailing memory
+                if (toCopy > 0) {
+                    pData.set(chunk.subarray(chunkOffset, chunkOffset + toCopy));
+                }
+                return toCopy < length ? VFS.SQLITE_IOERR_SHORT_READ : VFS.SQLITE_OK;
             }
             return VFS.SQLITE_IOERR_READ;
         } catch (e) {

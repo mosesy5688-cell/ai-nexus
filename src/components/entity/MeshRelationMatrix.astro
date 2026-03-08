@@ -83,8 +83,9 @@ const typeIcons: Record<string, string> = {
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3" id={`relation-grid-${group.label.replace(/\s+/g, '-')}`}>
                     {group.relations.map((rel, index) => (
-                        <a 
+                        <a
                             href={getRouteFromId(rel.target_id, rel.target_type)}
+                            data-astro-reload
                             class={`group flex items-center justify-between p-2.5 bg-zinc-50 dark:bg-zinc-900/40 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 transition-colors ${index >= 6 ? 'extra-relation hidden' : ''}`}
                         >
                             <div class="flex items-center gap-3 min-w-0">

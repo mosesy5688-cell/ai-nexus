@@ -1,101 +1,83 @@
 /**
- * catalog-fetcher.js (V16.9.23)
- * SSR Data Orchestrator for 6 Entity Catalogs & Category Hubs
- * Handles R2 (internal) -> CDN (public) fallback with Tiered Recovery.
+ * catalog-fetcher.js (V23.6 - SHARD-DB 4.0 Standard)
+ * ARCHITECTURE: PURE VFS (Zero JSON Mandate)
  */
 import { DataNormalizer } from '../scripts/lib/DataNormalizer.js';
-import { loadCachedJSON } from './loadCachedJSON.js';
+import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine';
+import { determineTargetDbs } from './search-query-builder';
 
 /**
- * Fetches catalog data with tiered fallback
- * @param {string} typeOrCategory - Entity type (model, agent...) or Category ID
- * @param {object} runtime - Optional environment for R2 direct access (Astro context)
+ * Fetches catalog data using the Federated VFS Engine (wa-sqlite)
+ * Optimized for 128MB Workers SSR (No large file loads)
  */
-export async function fetchCatalogData(typeOrCategory, runtime = null) {
-    const isType = ['model', 'agent', 'dataset', 'paper', 'space', 'tool', 'prompt'].includes(typeOrCategory);
-    const locals = runtime?.locals || runtime || null;
+const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'prompt'];
 
-    // V16.9.23: Dual-Mode Path Discovery
-    const paginatedPath = `cache/rankings/${typeOrCategory}/p1.json`;
-    const legacyPath = `cache/rankings/${typeOrCategory}-fni-top.json`;
+export async function fetchCatalogData(type, runtime = null) {
+    const start = Date.now();
+    const env = (runtime)?.env || (runtime) || {};
+    const r2Bucket = env.R2_ASSETS;
 
-    let items = [];
-    let source = 'none';
-    let totalPages = 1;
-    let totalEntities = 0;
+    // V23.1 Simulation Guard
+    const isDev = !!import.meta.env?.DEV;
+    const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== 'production');
 
-    // Tier 1: Primary Rankings (loadCachedJSON handles R2/CDN and .gz)
-    const { data: rankData, source: rankSource } = await loadCachedJSON(paginatedPath, { locals });
-    if (rankData) {
-        items = extractItems(rankData);
-        totalPages = rankData.total_pages || rankData.totalPages || 1;
-        totalEntities = rankData.total_items || rankData.totalEntities || items.length;
-        source = `rankings-p1-${rankSource}`;
-    }
+    // V23.6: Detect category vs entity type
+    const isCategory = !ENTITY_TYPES.includes(type);
 
-    // Tier 2: Legacy Fallback
-    if (items.length === 0) {
-        const { data: legacyData, source: legacySource } = await loadCachedJSON(legacyPath, { locals });
-        if (legacyData) {
-            items = extractItems(legacyData);
-            source = `rankings-legacy-${legacySource}`;
+    try {
+        const manifest = await loadManifest(r2Bucket, shouldSimulate);
+
+        let sql, sqlParams, shardList;
+        if (isCategory) {
+            // Category query: search across priority shards with WHERE category = ?
+            sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 24`;
+            sqlParams = [type];
+            const { priority } = determineTargetDbs('all', '', 1, manifest);
+            shardList = priority.slice(0, 3);
+        } else {
+            sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 24`;
+            sqlParams = [type];
+            const { priority } = determineTargetDbs(type, '', 1, manifest);
+            shardList = priority.slice(0, 2);
         }
-    }
 
-    // Tier 3: Tool-specific search-shard-0.json fallback
-    if (items.length === 0 && typeOrCategory === 'tool') {
-        const { data: toolData } = await loadCachedJSON('cache/search/shard-0.json', { locals });
-        if (toolData) {
-            const allRaw = extractItems(toolData);
-            items = allRaw.filter(i => i.type === 'tool' || i.t === 'tool');
-            source = 'search-index-fallback';
-        }
-    }
+        // Query priority shards only for SSR (memory-safe)
+        let allRows = [];
+        const promises = shardList.map(async (dbName) => {
+            const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
+            return await executeSql(engine.sqlite3, engine.db, sql, sqlParams);
+        });
 
-    // Tier 4: Trending Fallback (Emergency)
-    if (items.length === 0) {
-        // Parallel check for trending/trend-data and type-specific merged files
-        const [trend1, trend2, typeMerged] = await Promise.all([
-            loadCachedJSON('cache/trending.json', { locals }),
-            loadCachedJSON('cache/trend-data.json', { locals }),
-            isType ? loadCachedJSON(`cache/${typeOrCategory}s.json`, { locals }) : Promise.resolve({ data: null })
-        ]);
+        const results = await Promise.all(promises);
+        allRows = results.flat();
 
-        const trendData = typeMerged.data || trend1.data || trend2.data;
-        if (trendData) {
-            const allRaw = extractItems(trendData);
-            if (isType) {
-                items = allRaw.filter(i => (i.type || i.t) === typeOrCategory || (typeOrCategory === 'model' && !(i.type || i.t)));
-            } else {
-                items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
+        // Federated Sort & Deduplicate
+        allRows.sort((a, b) => b.fni_score - a.fni_score);
+
+        const uniqueItems = [];
+        const seen = new Set();
+        for (const item of allRows) {
+            if (!seen.has(item.id)) {
+                seen.add(item.id);
+                uniqueItems.push(item);
             }
-            items = items.slice(0, 50);
-            source = `trending-fallback-${trend1.data ? 'trending' : 'trend-data'}`;
         }
+
+        const normalized = DataNormalizer.normalizeCollection(uniqueItems, type);
+        console.log(`[CatalogFetcher] VFS Resolved ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
+
+        return {
+            items: normalized,
+            totalPages: Math.ceil(manifest.partitions?.[type] || 1),
+            totalEntities: normalized.length, // Placeholder for SSR
+            error: null,
+            source: 'vfs-federated'
+        };
+
+    } catch (e) {
+        console.error(`[CatalogFetcher] VFS Failed:`, e.message);
+        return { items: [], totalPages: 1, totalEntities: 0, error: e.message, source: 'vfs-error' };
     }
-
-    // SSR Optimization: Cap the total number of items to normalize to prevent Error 1102
-    // V18.2.5: Aggressive reduction for SSR (24 items) to avoid OOM in Workers
-    const isSSR = Boolean(locals?.env || (typeof process !== 'undefined' && process.env.AGGREGATOR_MODE));
-    const finalItems = items.slice(0, isSSR ? 24 : 100);
-
-    const normalized = DataNormalizer.normalizeCollection(finalItems, isType ? typeOrCategory : 'model');
-    console.log(`[CatalogFetcher] Resolved ${normalized.length} items (SSR Cap: ${isSSR ? 24 : 100}) for ${typeOrCategory} via ${source}`);
-
-    return {
-        items: normalized,
-        totalPages,
-        totalEntities,
-        error: normalized.length === 0 ? 'No entities found' : null,
-        data_missing: normalized.length === 0,
-        source
-    };
-}
-
-function extractItems(data) {
-    if (!data) return [];
-    if (Array.isArray(data)) return data;
-    return data.entities || data.models || data.items || [];
 }
 
 /**
@@ -104,31 +86,20 @@ function extractItems(data) {
 export function truncateListingItem(item) {
     if (!item) return null;
     return {
-        id: item.id || item.slug || '',
-        name: item.name || item.title || '',
-        author: item.author || item.creator || item.organization || '',
-        // V18.2.5 Fix: Recover summary from multiple potential fields
-        description: item.description || item.summary || item.seo_summary?.description || '',
-        type: item.type || item.entity_type || 'model',
+        id: item.id,
+        name: item.name,
+        author: item.author,
+        description: item.summary || item.description || '',
+        type: item.type,
         downloads: item.downloads || 0,
         likes: item.likes || 0,
-        // SPEC-CORE-METRICS: Universal promotions
-        stars: item.stars || item.github_stars || 0,
-        forks: item.forks || item.github_forks || 0,
-        citations: item.citations || 0,
-        published_date: item.published_date || '',
-        runtime: item.runtime || null,
-        size: item.size || '',
-        fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
-        fni_percentile: item.fni_percentile || item.percentile || item.fniPercentile || '',
-        // V19.5 Data Parity: FNI Sub-scores
-        fni_p: item.fni_p ?? item.fniP ?? 0,
-        fni_v: item.fni_v ?? item.fniV ?? 0,
-        fni_c: item.fni_c ?? item.fniC ?? 0,
-        fni_u: item.fni_u ?? item.fniU ?? 0,
-        // V19.5 Data Parity: Technical Params
-        params_billions: item.params_billions ?? item.params ?? 0,
-        pipeline_tag: item.pipeline_tag || item.primary_category || '',
-        lastModified: item.lastModified || item._updated || ''
+        stars: item.stars || 0,
+        fni_score: item.fni_score || 0,
+        pipeline_tag: item.pipeline_tag || item.task || '',
+        typeLabel: item.typeLabel || (item.pipeline_tag || item.type || '').replace(/-/g, ' '),
+        params_billions: item.params_billions || 0,
+        context_length: item.context_length || 0,
+        vram_est: item.vram_est || 0,
+        last_updated: item.last_updated || ''
     };
 }

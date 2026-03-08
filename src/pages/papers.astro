@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allPapers = [], totalPages, totalEntities, error } = await fetchCatalogData('paper', Astro.locals.runtime?.env);
+const { items: allPapers = [], totalPages, totalEntities, error } = await fetchCatalogData('paper', (Astro as any).locals.runtime);
 const papers = allPapers.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Research Papers Catalog | Neural Archive";
@@ -23,21 +23,32 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
     <main class="min-h-screen py-4">
         <header class="mb-12">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
-                Research <span class="text-amber-600">Papers</span>
+                Research <span class="text-amber-400">Papers</span>
             </h1>
-            <p class="text-base text-gray-600 dark:text-zinc-400 max-w-2xl">
+            <p class="text-base text-gray-600 dark:text-zinc-300 max-w-2xl">
                 The cutting edge of artificial intelligence research. Sharded from the global knowledge mesh.
             </p>
         </header>
 
+        {error && (
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 text-amber-800">
+                <p class="font-bold">📡 Catalog Synchronization in Progress</p>
+                <p class="text-sm">We are currently updating the technical index. Some results may be temporarily cached.</p>
+            </div>
+        )}
+
         <ListingControls type="paper" searchId="papers-search" />
 
         <div id="papers-catalog-grid" class="flex flex-col gap-1">
-            {papers.map((paper: any) => (
+            {papers.length > 0 ? papers.map((paper: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={paper} type="paper" />
                 </div>
-            ))}
+            )) : !error && (
+                <div class="col-span-full py-20 text-center">
+                    <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">Loading Catalog Index...</p>
+                </div>
+            )}
         </div>
 
         <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
@@ -62,7 +73,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
                 type: 'paper',
                 gridId: 'papers-catalog-grid',
                 searchId: 'papers-search',
-                dataUrl: 'https://cdn.free2aitools.com/cache/rankings/paper/p1.json'
             });
         };
 

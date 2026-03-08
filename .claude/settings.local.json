@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 20 npm run:*)",
+      "WebSearch",
+      "Bash(npx astro:*)",
+      "Bash(npm run:*)",
+      "Bash(PYTHONIOENCODING=utf-8 python:*)",
+      "Bash(grep:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:free2aitools.com)",
+      "WebFetch(domain:cdn.free2aitools.com)",
+      "Bash(for f in src/pages/model/[...slug].astro src/pages/agent/[...slug].astro src/pages/dataset/[...slug].astro src/pages/paper/[...slug].astro src/pages/space/[...slug].astro src/pages/tool/[...slug].astro src/pages/prompt/[...slug].astro)",
+      "Bash(do echo \"=== $f ===\")",
+      "Read(//g/ai-nexus/**)",
+      "Bash(done)",
+      "Bash(sed:*)",
+      "Bash(node:*)"
+    ]
+  }
+}

@@ -25,7 +25,7 @@ import Layout from '../layouts/Layout.astro';
                     <a href="/" class="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95">
                         Go Home
                     </a>
-                    <a id="search-fallback" href="/search" class="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-gray-700 bg-white border-2 border-gray-100 rounded-xl shadow-sm hover:border-indigo-100 hover:bg-indigo-50/30 transition-all dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700">
+                    <a id="search-fallback" href="/search" data-astro-reload class="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-gray-700 bg-white border-2 border-gray-100 rounded-xl shadow-sm hover:border-indigo-100 hover:bg-indigo-50/30 transition-all dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700">
                         Search Database
                     </a>
                 </div>
@@ -42,9 +42,9 @@ import Layout from '../layouts/Layout.astro';
                     const contextDiv = document.getElementById('not-found-context');
                     const idSpan = document.getElementById('missing-id');
                     
-                    // 0. Context Parsing (from [...slug].astro redirects)
+                    // 0. Context Parsing
                     const reason = url.searchParams.get('reason');
-                    const missingId = url.searchParams.get('id');
+                    const missingId = url.searchParams.get('id') || url.searchParams.get('path') || url.searchParams.get('q');
                     const attempt = url.searchParams.get('attempt') || '0';
 
                     if (reason === 'entity-not-found' && missingId && contextDiv && idSpan) {
@@ -73,11 +73,45 @@ import Layout from '../layouts/Layout.astro';
                     }
 
                     // 3. Last Fail-Safe: Pre-fill Search
-                    const segments = path.split('/').filter(Boolean);
-                    const query = missingId || (segments.length > 0 ? segments[segments.length - 1] : '');
+                    const segments = path.split('/').concat(missingId ? missingId.split('/') : []).filter(Boolean).filter(s => s !== '404' && s !== 'search');
+                    let query = segments.length > 0 ? decodeURIComponent(segments[segments.length - 1]) : '';
+                    
+                    // V23.4: Clean query - if it's a full path, take the leaf
+                    if (query && query.includes('/')) {
+                        query = query.split('/').pop();
+                    }
+
+                    // If we came from a category root, allow searching for the category name if q is missing
+                    if (query === 'models' || query === 'datasets' || query === 'papers') {
+                        query = url.searchParams.get('q') || query;
+                    }
+
                     if (query && searchBtn) {
-                        searchBtn.href = `/search?q=${encodeURIComponent(query)}`;
-                        searchBtn.textContent = `Search for "${query}"`;
+                        const isCategory = ['models', 'datasets', 'papers', 'agents', 'tools'].includes(query);
+                        
+                        if (isCategory) {
+                            searchBtn.href = `/${query}`;
+                            searchBtn.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                </svg>
+                                Explore ${query.charAt(0).toUpperCase() + query.slice(1)}
+                            `;
+                        } else {
+                            searchBtn.href = `/search?q=${encodeURIComponent(query)}`;
+                            searchBtn.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                Search for "${query}"
+                            `;
+                        }
+                        
+                        searchBtn.classList.remove('hidden');
+                    } else if (searchBtn) {
+                        searchBtn.href = '/';
+                        searchBtn.textContent = 'Return to Homepage';
+                        searchBtn.classList.remove('hidden');
                     }
                 })();
 

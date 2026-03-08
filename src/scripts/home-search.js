@@ -89,9 +89,11 @@ export async function performSearch(query, filters = {}, limit = 20, page = 0) {
         const mapped = (data.results || []).map(r => ({
             id: r.id, name: r.name, slug: r.slug, type: r.type, author: r.author,
             description: r.description, fni_score: r.fni_score, likes: r.likes,
-            downloads: r.downloads, tags: [], last_updated: r.last_updated,
-            license: r.license, task: r.task,
-            params_billions: r.params_billions, context_length: r.context_length
+            downloads: r.downloads, last_updated: r.last_updated,
+            license: r.license, pipeline_tag: r.pipeline_tag || r.task || '',
+            typeLabel: (r.pipeline_tag || r.task || r.type || '').replace(/-/g, ' '),
+            params_billions: r.params_billions, context_length: r.context_length,
+            vram_est: r.vram_est || 0
         }));
 
         console.log(`[HomeSearch] [Tier 2] Found ${mapped.length} via SSR in ${(performance.now() - start).toFixed(1)}ms (server: ${data.elapsed_ms}ms)`);

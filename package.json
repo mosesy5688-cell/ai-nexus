@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run copy:wasm && astro dev",
     "clean": "node -e \"const fs=require('fs');const p='.astro';fs.existsSync(p)&&fs.rmSync(p,{recursive:true})\"",
-    "copy:wasm": "node -e \"const fs=require('fs'); fs.mkdirSync('public/assets/sqlite', {recursive:true}); fs.copyFileSync('node_modules/sql.js-httpvfs/dist/sqlite.worker.js', 'public/assets/sqlite/sqlite.worker.js'); fs.copyFileSync('node_modules/sql.js-httpvfs/dist/sql-wasm.wasm', 'public/assets/sqlite/sql-wasm.wasm');\"",
+    "copy:wasm": "node -e \"const fs=require('fs'); fs.mkdirSync('public/assets/sqlite', {recursive:true}); fs.copyFileSync('node_modules/sql.js-httpvfs/dist/sqlite.worker.js', 'public/assets/sqlite/sqlite.worker.js'); fs.copyFileSync('node_modules/sql.js-httpvfs/dist/sql-wasm.wasm', 'public/assets/sqlite/sql-wasm.wasm'); fs.copyFileSync('node_modules/@journeyapps/wa-sqlite/dist/wa-sqlite-async.wasm', 'public/assets/sqlite/wa-sqlite-async.wasm');\"",
     "build": "npm run copy:wasm && npm run clean && cross-env NODE_ENV=production astro build",
     "preview": "astro preview",
     "fetch-data": "node scripts/multi-source-fetcher.js",

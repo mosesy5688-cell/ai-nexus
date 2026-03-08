@@ -44,10 +44,16 @@ export async function loadCachedJSON(path, options = {}) {
                 // V18.2: Handle Gzip decompression in Worker environment
                 let data;
                 if (r2Path.endsWith('.gz')) {
-                    const ds = new DecompressionStream('gzip');
-                    const decompressedStream = file.body.pipeThrough(ds);
-                    const response = new Response(decompressedStream);
-                    data = await response.json();
+                    try {
+                        const ds = new DecompressionStream('gzip');
+                        const decompressedStream = file.body.pipeThrough(ds);
+                        const response = new Response(decompressedStream);
+                        data = await response.json();
+                    } catch (decompressError) {
+                        console.warn(`[loadCachedJSON] R2 Gzip failed for ${r2Path}, falling back to plain text.`);
+                        const text = await file.text();
+                        data = JSON.parse(text);
+                    }
                 } else {
                     data = await file.json();
                 }
