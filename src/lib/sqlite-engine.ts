@@ -1,6 +1,6 @@
 /**
  * SQLite WASM Engine & Connection Pool (SSR)
- * V23.10: Handle Persistence Fix & Universal Routing
+ * V24.10d: CF Workers WASM instantiation fix
  */
 import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.mjs';
 // @ts-ignore
@@ -61,14 +61,19 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
                 console.warn('[SQLite] WASM local read failed');
             }
         } else {
-            // V24.10c: Cloudflare Workers blocks WebAssembly.instantiate(bytes)
-            // Must use instantiateStreaming(Response) which IS allowed
+            // V24.10d: CF Workers blocks WebAssembly.instantiate(bytes)
+            // Try compile() + instantiate(module) as two-step approach
             const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
             wasmConfig.locateFile = (file: string) => `https://cdn.free2aitools.com/wasm/${file}`;
             wasmConfig.instantiateWasm = (imports: any, successCallback: any) => {
-                WebAssembly.instantiateStreaming(fetch(wasmUrl), imports)
-                    .then(result => successCallback(result.instance, result.module))
-                    .catch(e => console.error('[SQLite] WASM instantiate failed:', e));
+                (async () => {
+                    const res = await fetch(wasmUrl);
+                    const bytes = await res.arrayBuffer();
+                    // Two-step: compile first, then instantiate from module
+                    const compiled = await WebAssembly.compile(bytes);
+                    const instance = await WebAssembly.instantiate(compiled, imports);
+                    successCallback(instance, compiled);
+                })().catch(e => console.error('[SQLite] WASM init failed:', e));
                 return {};
             };
         }
