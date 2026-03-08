@@ -64,15 +64,18 @@ export const GET: APIRoute = async ({ locals }) => {
             steps.push({ step: 'wasm-fetch', status: 'FAIL', detail: e.message });
         }
 
-        // Step 1.6: WASM compile test
+        // Step 1.6: WASM compile test (using instantiateStreaming — CF Workers compliant)
         try {
             const tc = Date.now();
             const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
-            const res = await fetch(wasmUrl);
-            const ab = await res.arrayBuffer();
             const mod = await SQLiteAsyncESMFactory({
-                wasmBinary: ab,
-                locateFile: (file: string) => `https://cdn.free2aitools.com/wasm/${file}`
+                locateFile: (file: string) => `https://cdn.free2aitools.com/wasm/${file}`,
+                instantiateWasm: (imports: any, successCallback: any) => {
+                    WebAssembly.instantiateStreaming(fetch(wasmUrl), imports)
+                        .then(result => successCallback(result.instance, result.module))
+                        .catch(e => console.error('[Diag] WASM streaming failed:', e));
+                    return {};
+                }
             });
             const sqlite3 = Factory(mod);
             steps.push({
