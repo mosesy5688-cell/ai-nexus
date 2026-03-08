@@ -6,10 +6,16 @@ import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlit
 // Mutex to serialize WASM execution within a single Isolate (prevents OOM)
 let searchMutex: Promise<void> = Promise.resolve();
 
-const RESPONSE_HEADERS = {
+// V24.9: Separate cache policies — only cache successful non-empty responses
+const CACHE_HEADERS_HIT = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
     'Cache-Control': 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=86400'
+};
+const CACHE_HEADERS_MISS = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 'public, max-age=0, s-maxage=10'
 };
 
 /** Query a batch of shards with concurrency throttle (Anti-OOM) */
@@ -72,7 +78,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
     if (!q && type === 'all') {
         return new Response(JSON.stringify({ results: [], tier: 'empty', elapsed_ms: 0 }), {
-            headers: RESPONSE_HEADERS
+            headers: CACHE_HEADERS_MISS
         });
     }
 
@@ -154,9 +160,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
             const elapsed = Date.now() - start;
             const tier = semanticScores ? 'semantic' : 'db';
 
+            const headers = finalResults.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
             const response = new Response(
                 JSON.stringify({ results: finalResults, tier, elapsed_ms: elapsed }),
-                { headers: RESPONSE_HEADERS }
+                { headers }
             );
 
             // ── Write back to S0 edge cache (non-blocking) ──

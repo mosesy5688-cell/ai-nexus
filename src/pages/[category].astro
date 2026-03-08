@@ -33,8 +33,10 @@ const items = (rawItems || []).slice(0, 100).map(truncateListingItem).filter(Boo
 const pageTitle = `${meta.label} - AI Technical Index | Free2AI`;
 const pageDescription = `Discover the best ${meta.label} AI models, agents, tools and research. Updated daily.`;
 
-// V18.10.2: Explicit Edge Caching with Revalidation Guard
-Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=60');
+// V24.9: Only edge-cache pages with data; prevent caching empty/error states
+Astro.response.headers.set('Cache-Control', items.length > 0
+    ? 'public, max-age=0, must-revalidate, s-maxage=60'
+    : 'public, max-age=0, s-maxage=0');
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -64,13 +66,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
                     <CatalogCard item={item} type={item.type || 'model'} />
                 </div>
             ))}
-            {items.length === 0 && (
-                <div class="col-span-full py-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl">
-                    <span class="text-4xl block mb-4 opacity-50">📡</span>
-                    <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">Synchronizing category data...</p>
-                    <p class="text-xs text-gray-500 mt-2 italic">Real-time indexing in progress for {category}</p>
-                </div>
-            )}
         </div>
 
         <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>

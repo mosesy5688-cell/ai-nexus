@@ -39,7 +39,7 @@ export async function loadHotModels() {
             renderModelsToGrid(models, gridEl, loadingSkeleton);
         } else {
             console.warn('[Home] All hot model sources failed.');
-            if (gridEl) gridEl.innerHTML = '<p class="col-span-full text-center text-gray-500 py-12">Universal Hub is re-synchronizing. Check back in a moment.</p>';
+            if (gridEl) gridEl.innerHTML = '<p class="col-span-full text-center text-gray-500 py-12">No models available at the moment.</p>';
         }
 
     } catch (e) {
