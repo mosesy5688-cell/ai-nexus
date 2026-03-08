@@ -192,9 +192,10 @@ export class SqliteClient {
 
             const columns = this.sqlite3.column_names(stmt);
             while (await this.sqlite3.step(stmt) === SQLite.SQLITE_ROW) {
+                const rowData = this.sqlite3.row(stmt);
                 const obj = {};
                 columns.forEach((col, i) => {
-                    obj[col] = this.sqlite3.column_value(stmt, i);
+                    obj[col] = rowData[i];
                 });
                 results.push(obj);
             }
