@@ -179,6 +179,21 @@ export const GET: APIRoute = async ({ locals }) => {
             steps.push({ step: 'agent-db-count', status: 'FAIL', detail: e.message });
         }
 
+        // Step 7: Entity type distribution in core DB (category mixing debug)
+        try {
+            const t7 = Date.now();
+            const typeDist = await executeSql(engine.sqlite3, engine.db,
+                `SELECT type, count(*) as cnt FROM entities GROUP BY type ORDER BY cnt DESC LIMIT 20`, []);
+            steps.push({
+                step: 'type-distribution',
+                status: 'ok',
+                detail: JSON.stringify(typeDist),
+                ms: Date.now() - t7
+            });
+        } catch (e: any) {
+            steps.push({ step: 'type-distribution', status: 'FAIL', detail: e.message });
+        }
+
     } catch (e: any) {
         steps.push({ step: 'global', status: 'FATAL', detail: e.message + '\n' + e.stack });
     }

@@ -32,7 +32,7 @@ export function getShardIndex(nameStr: string, shardCount: number) {
  *   Phase B (expansion): remaining shards, only if Phase A results < limit
  */
 export function determineTargetDbs(type: string, q: string, page: number, manifest?: any): { priority: string[], expansion: string[] } {
-    const partitions = manifest?.partitions || { model: 5, paper: 14 }; // V23.1 Default Fallback
+    const partitions = manifest?.partitions || { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
 
     const formatName = (cat: string, idx: number, total: number) => {
         return total === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
@@ -81,7 +81,7 @@ export function determineTargetDbs(type: string, q: string, page: number, manife
         }
     } else if (type === 'model') {
         // Model-specific: core already in priority, add all model shards
-        const mCount = partitions.model || 5;
+        const mCount = partitions.model || 3;
         for (let i = 1; i <= mCount; i++) {
             expansion.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
         }
@@ -106,7 +106,7 @@ export function determineTargetDbs(type: string, q: string, page: number, manife
  * Layer 3: Hash-Direct slug lookup (detail pages / hydration only)
  */
 export function getShardForSlug(slug: string, type: string, manifest?: any): string {
-    const partitions = manifest?.partitions || { model: 5, paper: 14 };
+    const partitions = manifest?.partitions || { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
     if (type === 'model') {
         const idx = getShardIndex(slug, partitions.model || 5);
         return `meta-model-shard-${String(idx).padStart(2, '0')}.db`;
