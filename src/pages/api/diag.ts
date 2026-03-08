@@ -1,4 +1,7 @@
 import type { APIRoute } from 'astro';
+import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.mjs';
+// @ts-ignore
+import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlite-engine';
 
 export const prerender = false;
@@ -25,6 +28,8 @@ export const GET: APIRoute = async ({ locals }) => {
                 shouldSimulate,
                 envKeys: Object.keys(env).join(','),
                 runtime: typeof (locals as any).runtime,
+                hasCachesDefault: typeof caches !== 'undefined' && 'default' in caches,
+                processVersionsNode: typeof process !== 'undefined' ? process.versions?.node : 'no-process',
             })
         });
 
@@ -44,7 +49,43 @@ export const GET: APIRoute = async ({ locals }) => {
             return respond(steps, t0);
         }
 
-        // Step 2: Open DB connection
+        // Step 1.5: WASM fetch test (isolated from sqlite-engine singleton)
+        try {
+            const tw = Date.now();
+            const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
+            const res = await fetch(wasmUrl);
+            steps.push({
+                step: 'wasm-fetch',
+                status: res.ok ? 'ok' : 'FAIL',
+                detail: `status=${res.status}, size=${res.headers.get('content-length')}`,
+                ms: Date.now() - tw
+            });
+        } catch (e: any) {
+            steps.push({ step: 'wasm-fetch', status: 'FAIL', detail: e.message });
+        }
+
+        // Step 1.6: WASM compile test
+        try {
+            const tc = Date.now();
+            const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
+            const res = await fetch(wasmUrl);
+            const ab = await res.arrayBuffer();
+            const mod = await SQLiteAsyncESMFactory({
+                wasmBinary: ab,
+                locateFile: (file: string) => `https://cdn.free2aitools.com/wasm/${file}`
+            });
+            const sqlite3 = Factory(mod);
+            steps.push({
+                step: 'wasm-compile',
+                status: 'ok',
+                detail: `module=${typeof mod}, sqlite3=${typeof sqlite3}, hasOpen=${typeof sqlite3.open_v2}`,
+                ms: Date.now() - tc
+            });
+        } catch (e: any) {
+            steps.push({ step: 'wasm-compile', status: 'FAIL', detail: e.message + (e.stack ? '\n' + e.stack.split('\n').slice(0,3).join('\n') : '') });
+        }
+
+        // Step 2: Open DB connection (uses sqlite-engine singleton)
         const dbName = 'meta-model-core.db';
         let engine: any;
         try {
