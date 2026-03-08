@@ -14,6 +14,21 @@ const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'pr
 
 export async function fetchCatalogData(type, runtime = null) {
     const start = Date.now();
+    const SSR_TIMEOUT_MS = 15000; // 15s max — prevents Cloudflare 524 timeout
+
+    try {
+        const result = await Promise.race([
+            _fetchCatalogDataInner(type, runtime, start),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('SSR timeout')), SSR_TIMEOUT_MS))
+        ]);
+        return result;
+    } catch (e) {
+        console.error(`[CatalogFetcher] ${e.message} after ${Date.now() - start}ms for ${type}`);
+        return { items: [], totalPages: 1, totalEntities: 0, error: e.message, source: 'vfs-timeout' };
+    }
+}
+
+async function _fetchCatalogDataInner(type, runtime, start) {
     const env = (runtime)?.env || (runtime) || {};
     const r2Bucket = env.R2_ASSETS;
 
@@ -24,60 +39,56 @@ export async function fetchCatalogData(type, runtime = null) {
     // V23.6: Detect category vs entity type
     const isCategory = !ENTITY_TYPES.includes(type);
 
-    try {
-        const manifest = await loadManifest(r2Bucket, shouldSimulate);
+    const manifest = await loadManifest(r2Bucket, shouldSimulate);
 
-        let sql, sqlParams, shardList;
-        if (isCategory) {
-            // Category query: search across priority shards with WHERE category = ?
-            sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 24`;
-            sqlParams = [type];
-            const { priority } = determineTargetDbs('all', '', 1, manifest);
-            shardList = priority.slice(0, 3);
-        } else {
-            sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 24`;
-            sqlParams = [type];
-            const { priority } = determineTargetDbs(type, '', 1, manifest);
-            shardList = priority.slice(0, 2);
-        }
-
-        // Query priority shards only for SSR (memory-safe)
-        let allRows = [];
-        const promises = shardList.map(async (dbName) => {
-            const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-            return await executeSql(engine.sqlite3, engine.db, sql, sqlParams);
-        });
-
-        const results = await Promise.all(promises);
-        allRows = results.flat();
-
-        // Federated Sort & Deduplicate
-        allRows.sort((a, b) => b.fni_score - a.fni_score);
-
-        const uniqueItems = [];
-        const seen = new Set();
-        for (const item of allRows) {
-            if (!seen.has(item.id)) {
-                seen.add(item.id);
-                uniqueItems.push(item);
-            }
-        }
-
-        const normalized = DataNormalizer.normalizeCollection(uniqueItems, type);
-        console.log(`[CatalogFetcher] VFS Resolved ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
-
-        return {
-            items: normalized,
-            totalPages: Math.ceil(manifest.partitions?.[type] || 1),
-            totalEntities: normalized.length, // Placeholder for SSR
-            error: null,
-            source: 'vfs-federated'
-        };
-
-    } catch (e) {
-        console.error(`[CatalogFetcher] VFS Failed:`, e.message);
-        return { items: [], totalPages: 1, totalEntities: 0, error: e.message, source: 'vfs-error' };
+    let sql, sqlParams, shardList;
+    if (isCategory) {
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 24`;
+        sqlParams = [type];
+        const { priority } = determineTargetDbs('all', '', 1, manifest);
+        shardList = priority.slice(0, 3);
+    } else {
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 24`;
+        sqlParams = [type];
+        const { priority } = determineTargetDbs(type, '', 1, manifest);
+        // V24.10d: Only query 1 shard for SSR speed — client lazy-loads the rest
+        shardList = priority.slice(0, 1);
     }
+
+    // Query single priority shard for SSR (speed-safe)
+    let allRows = [];
+    for (const dbName of shardList) {
+        try {
+            const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
+            const rows = await executeSql(engine.sqlite3, engine.db, sql, sqlParams);
+            allRows = allRows.concat(rows);
+        } catch (e) {
+            console.warn(`[CatalogFetcher] Shard ${dbName} failed:`, e.message);
+        }
+    }
+
+    // Sort & Deduplicate
+    allRows.sort((a, b) => b.fni_score - a.fni_score);
+
+    const uniqueItems = [];
+    const seen = new Set();
+    for (const item of allRows) {
+        if (!seen.has(item.id)) {
+            seen.add(item.id);
+            uniqueItems.push(item);
+        }
+    }
+
+    const normalized = DataNormalizer.normalizeCollection(uniqueItems, type);
+    console.log(`[CatalogFetcher] VFS Resolved ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
+
+    return {
+        items: normalized,
+        totalPages: Math.ceil(manifest.partitions?.[type] || 1),
+        totalEntities: normalized.length,
+        error: null,
+        source: 'vfs-federated'
+    };
 }
 
 /**

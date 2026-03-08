@@ -36,7 +36,7 @@ export class CatalogDataSource {
     }
 
     _buildShardQueue() {
-        const p = this._manifestData?.partitions || { model: 5, paper: 14, dataset: 8, tool: 2 };
+        const p = this._manifestData?.partitions || { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
         const fmt = (cat, idx, count) =>
             count === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
 
