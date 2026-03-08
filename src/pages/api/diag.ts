@@ -1,7 +1,4 @@
 import type { APIRoute } from 'astro';
-import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.mjs';
-// @ts-ignore
-import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlite-engine';
 
 export const prerender = false;
@@ -49,59 +46,7 @@ export const GET: APIRoute = async ({ locals }) => {
             return respond(steps, t0);
         }
 
-        // Step 1.5: WASM fetch test (isolated from sqlite-engine singleton)
-        try {
-            const tw = Date.now();
-            const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
-            const res = await fetch(wasmUrl);
-            steps.push({
-                step: 'wasm-fetch',
-                status: res.ok ? 'ok' : 'FAIL',
-                detail: `status=${res.status}, size=${res.headers.get('content-length')}`,
-                ms: Date.now() - tw
-            });
-        } catch (e: any) {
-            steps.push({ step: 'wasm-fetch', status: 'FAIL', detail: e.message });
-        }
-
-        // Step 1.6: Enumerate available WebAssembly methods
-        const wasmMethods = Object.getOwnPropertyNames(WebAssembly).filter(k => typeof (WebAssembly as any)[k] === 'function');
-        steps.push({ step: 'wasm-api', status: 'ok', detail: wasmMethods.join(', ') });
-
-        // Step 1.7: Test WebAssembly.compile(bytes) + instantiate(module)
-        try {
-            const tc = Date.now();
-            const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
-            const res2 = await fetch(wasmUrl);
-            const bytes = await res2.arrayBuffer();
-            steps.push({ step: 'wasm-bytes', status: 'ok', detail: `size=${bytes.byteLength}` });
-
-            const compiled = await WebAssembly.compile(bytes);
-            steps.push({ step: 'wasm-compile-step', status: 'ok', detail: `type=${typeof compiled}, isModule=${compiled instanceof WebAssembly.Module}`, ms: Date.now() - tc });
-
-            // Full Emscripten factory test with two-step approach
-            const ti = Date.now();
-            const mod = await SQLiteAsyncESMFactory({
-                locateFile: (file: string) => `https://cdn.free2aitools.com/wasm/${file}`,
-                instantiateWasm: (imports: any, successCallback: any) => {
-                    WebAssembly.instantiate(compiled, imports)
-                        .then(instance => successCallback(instance, compiled))
-                        .catch(e => console.error('[Diag] instantiate failed:', e));
-                    return {};
-                }
-            });
-            const sqlite3 = Factory(mod);
-            steps.push({
-                step: 'wasm-factory',
-                status: 'ok',
-                detail: `sqlite3=${typeof sqlite3}, hasOpen=${typeof sqlite3.open_v2}`,
-                ms: Date.now() - ti
-            });
-        } catch (e: any) {
-            steps.push({ step: 'wasm-compile', status: 'FAIL', detail: e.message + (e.stack ? '\n' + e.stack.split('\n').slice(0,3).join('\n') : '') });
-        }
-
-        // Step 2: Open DB connection (uses sqlite-engine singleton)
+        // Step 2: Open DB connection (uses sqlite-engine singleton with pre-compiled WASM)
         const dbName = 'meta-model-core.db';
         let engine: any;
         try {
