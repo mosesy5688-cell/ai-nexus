@@ -16,7 +16,11 @@
       "Read(//g/ai-nexus/**)",
       "Bash(done)",
       "Bash(sed:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git show:*)",
+      "Bash(git diff:*)",
+      "Bash(gh api:*)",
+      "Bash(gh:*)"
     ]
   }
 }

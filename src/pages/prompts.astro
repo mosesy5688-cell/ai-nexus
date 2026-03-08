@@ -9,14 +9,16 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allPrompts = [], error } = await fetchCatalogData('prompt', (Astro as any).locals.runtime);
+const { items: allPrompts = [] } = await fetchCatalogData('prompt', (Astro as any).locals.runtime);
 const prompts = allPrompts.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Prompts & Templates Catalog | Free2AI";
 const pageDescription = "Discover top-tier AI system prompts, templates, and instructions for major LLMs.";
 
-// V18.10.2: Explicit Edge Caching with Revalidation Guard
-Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=60');
+// V24.9: Only edge-cache pages with data; prevent caching empty/error states
+Astro.response.headers.set('Cache-Control', prompts.length > 0
+    ? 'public, max-age=0, must-revalidate, s-maxage=60'
+    : 'public, max-age=0, s-maxage=0');
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -30,25 +32,14 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
             </p>
         </header>
 
-        {error && (
-            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 text-amber-800">
-                <p class="font-bold">📡 Catalog Synchronization in Progress</p>
-                <p class="text-sm">We are currently updating the technical index. Some results may be temporarily cached.</p>
-            </div>
-        )}
-
         <ListingControls type="prompt" searchId="prompts-search" />
 
         <div id="prompts-catalog-grid" class="flex flex-col gap-1">
-            {prompts.length > 0 ? prompts.map((p: any) => (
+            {prompts.map((p: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={p} type="prompt" />
                 </div>
-            )) : !error && (
-                <div class="col-span-full py-20 text-center">
-                    <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">Loading Catalog Index...</p>
-                </div>
-            )}
+            ))}
         </div>
 
         <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>

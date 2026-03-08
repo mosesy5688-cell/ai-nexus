@@ -71,7 +71,7 @@ export class CatalogUIControls {
                         Querying Technical Registry...
                     </div>
                     <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest opacity-60">
-                        Synchronizing High-Density Metrics (Proxy v23.1)
+                        Loading Next Page...
                     </div>
                 </div>
             `;
@@ -129,8 +129,8 @@ export class CatalogUIControls {
         if (instance.countLabel) {
             const total = instance.filtered.length;
             instance.countLabel.textContent = instance.source.isLoading
-                ? `Synchronizing Technical Registry...`
-                : `${total.toLocaleString()} ${instance.source.type}s indexed in Industrial Intelligence Registry`;
+                ? `Loading...`
+                : `${total.toLocaleString()} ${instance.source.type}s indexed`;
         }
     }
 }
