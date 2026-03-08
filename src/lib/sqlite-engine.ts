@@ -65,7 +65,10 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
             const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
             const res = await fetch(wasmUrl);
             if (!res.ok) throw new Error(`WASM fetch failed: ${res.status}`);
-            wasmConfig.wasmBinary = new Uint8Array(await res.arrayBuffer());
+            wasmConfig.wasmBinary = await res.arrayBuffer();
+            // V24.10: Provide locateFile so Emscripten never builds a relative URL
+            // (Workers fetch() rejects relative URLs with "Invalid URL string.")
+            wasmConfig.locateFile = (file: string) => `https://cdn.free2aitools.com/wasm/${file}`;
         }
 
         globalSqliteModule = await SQLiteAsyncESMFactory(wasmConfig);
