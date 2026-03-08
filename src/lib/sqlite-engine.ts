@@ -38,7 +38,11 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
     sqliteInitPromise = (async () => {
         const wasmConfig: any = {};
 
-        if (typeof process !== 'undefined' && process.versions?.node) {
+        // V24.10: Detect CF Workers first — nodejs_compat_v2 polyfills process.versions
+        // so the old `process.versions?.node` check incorrectly takes the Node.js path
+        const isCloudflareWorkers = typeof caches !== 'undefined' && 'default' in caches;
+
+        if (!isCloudflareWorkers && typeof process !== 'undefined' && process.versions?.node) {
             // Node.js (dev): read WASM from local filesystem
             const { readFileSync } = await import('fs');
             const { join } = await import('path');
@@ -57,8 +61,7 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
                 console.warn('[SQLite] WASM local read failed');
             }
         } else {
-            // V24.9: Cloudflare Workers — fetch WASM via fetch() and pass as wasmBinary
-            // Emscripten's built-in loader uses XMLHttpRequest which doesn't exist in Workers
+            // Cloudflare Workers: fetch WASM via fetch() and pass as wasmBinary
             const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
             const res = await fetch(wasmUrl);
             if (!res.ok) throw new Error(`WASM fetch failed: ${res.status}`);
