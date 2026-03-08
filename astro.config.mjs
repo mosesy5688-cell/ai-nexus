@@ -18,7 +18,7 @@ export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'server',
   redirects: {
-    '/model': '/models',
+    '/model': { status: 301, destination: '/models' },
     '/agent': '/agents',
     '/space': '/spaces',
     '/tool': '/tools',

@@ -36,11 +36,10 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
     if (sqliteInitPromise) return sqliteInitPromise;
 
     sqliteInitPromise = (async () => {
-        const wasmConfig: any = {
-            locateFile: (file: string) => `https://cdn.free2aitools.com/wasm/${file}`
-        };
+        const wasmConfig: any = {};
 
         if (typeof process !== 'undefined' && process.versions?.node) {
+            // Node.js (dev): read WASM from local filesystem
             const { readFileSync } = await import('fs');
             const { join } = await import('path');
             try {
@@ -57,6 +56,13 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
             } catch (e) {
                 console.warn('[SQLite] WASM local read failed');
             }
+        } else {
+            // V24.9: Cloudflare Workers — fetch WASM via fetch() and pass as wasmBinary
+            // Emscripten's built-in loader uses XMLHttpRequest which doesn't exist in Workers
+            const wasmUrl = 'https://cdn.free2aitools.com/wasm/wa-sqlite-async.wasm';
+            const res = await fetch(wasmUrl);
+            if (!res.ok) throw new Error(`WASM fetch failed: ${res.status}`);
+            wasmConfig.wasmBinary = new Uint8Array(await res.arrayBuffer());
         }
 
         globalSqliteModule = await SQLiteAsyncESMFactory(wasmConfig);
