@@ -45,19 +45,25 @@ if (type === 'tool') typeBadgeColor = 'bg-emerald-50 dark:bg-emerald-900/30 text
 if (type === 'paper') typeBadgeColor = 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
 if (type === 'space') typeBadgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
 
-const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
+const typeLabel = (item.pipeline_tag || item.primary_category || type).split(/\s+/)[0].replace(/[:/]/g, '').replace(/-/g, ' ');
+const cleanedTag = (item.pipeline_tag || type).split(/\s+/)[0].replace(/[:/]/g, '');
 
 // V19.1 Polymorphic Metrics Calculation
 const formatCompact = (num) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(num || 0);
 
 const metrics = [];
-if (type === 'model' || type === 'dataset' || type === 'space') {
-    if (type === 'model' && item.params_billions > 0) metrics.push({ icon: '🧠', value: `${item.params_billions}B`, label: 'Params' });
-    if (type === 'model' && item.context_length > 0) metrics.push({ icon: '📏', value: formatCompact(item.context_length), label: 'Context' });
+if (item.downloads > 0 || (type === 'model' || type === 'dataset' || type === 'space')) {
     if (item.downloads > 0) metrics.push({ icon: '📥', value: formatCompact(item.downloads), label: 'Downloads' });
+}
+if (type === 'model') {
+    if (item.params_billions > 0) metrics.push({ icon: '🧠', value: `${item.params_billions}B`, label: 'Params' });
+    if (item.context_length > 0) metrics.push({ icon: '📏', value: formatCompact(item.context_length), label: 'Context' });
     if (item.likes > 0) metrics.push({ icon: '❤️', value: formatCompact(item.likes), label: 'Likes' });
-    if (type === 'dataset' && item.size) metrics.push({ icon: '💾', value: item.size, label: 'Size' });
-    if (type === 'space' && item.runtime) {
+} else if (type === 'dataset') {
+    if (item.size) metrics.push({ icon: '💾', value: item.size, label: 'Size' });
+    if (item.likes > 0) metrics.push({ icon: '❤️', value: formatCompact(item.likes), label: 'Likes' });
+} else if (type === 'space') {
+    if (item.runtime) {
         const stage = typeof item.runtime === 'object' ? (item.runtime.stage || 'Live') : item.runtime;
         metrics.push({ icon: '🚀', value: stage, label: 'Runtime' });
     }
@@ -76,73 +82,62 @@ if (item.fni_score > 0) {
     // FNI is already in the top badge, but we can add more if needed
 }
 ---
-<section id="daily-report-banner" class="mb-12 bg-[var(--bg-surface)] rounded-sm border border-[var(--border-hairline)] p-6 hidden">
-    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
-        <div class="flex items-center gap-6">
-            <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-black/20 rounded border border-white/5 text-xl opacity-60">
-                📉
-            </div>
-            <div>
-                <div class="flex items-center gap-2 mb-1">
-                    <span class="px-1.5 py-0.5 bg-black/40 text-[#bdc3ff] text-[9px] font-black uppercase tracking-widest rounded-sm border border-white/5">Daily Pulse</span>
-                    <h3 class="text-base font-black text-white uppercase tracking-tight" id="report-title">Today in AI Intelligence</h3>
-                </div>
-                <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-tight max-w-md" id="report-summary">Loading technical market shifts and model velocity spikes...</p>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-4 w-full md:w-auto">
-            <div class="flex-grow md:flex-grow-0">
-                <a id="report-top-model-link" href="/ranking" class="flex flex-col px-4 py-2 bg-black/20 hover:bg-black/30 border border-white/5 rounded-sm transition-colors">
-                    <span class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Velocity Leader</span>
-                    <span class="text-xs font-black text-white tabular-nums uppercase" id="report-top-model">--</span>
-                </a>
-            </div>
-            
-            <a href="/reports" class="whitespace-nowrap px-6 py-2.5 bg-white text-black hover:bg-zinc-200 rounded-sm text-[10px] font-black uppercase tracking-widest transition-transform active:scale-95">
-                Full Report
-            </a>
-        </div>
-    </div>
-</section>
-<a href={link} data-astro-prefetch class="entity-card group py-1.5 px-2.5 bg-[var(--bg-surface)] rounded-sm transition-all border border-[var(--border-hairline)] hover:border-zinc-500 flex flex-col md:flex-row md:items-center justify-between w-full h-auto gap-2 md:gap-3 relative overflow-hidden" data-entity-id={id} data-entity-type={type}>
-    <!-- Left: Identity -->
-    <div class="flex items-center gap-3 md:w-1/4 shrink-0 overflow-hidden">
-        <span class="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm bg-black/20 text-zinc-400 border border-white/5 shrink-0 min-w-[60px] text-center truncate">{typeLabel}</span>
-        {isActive && <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>}
-        <h3 class="text-xs font-bold text-white group-hover:text-[#bdc3ff] transition-colors truncate" title={displayTitle}>
+<a href={link} data-astro-prefetch class="entity-card group h-[44px] px-3 bg-[#1e1e1e] hover:bg-[#252525] border-b border-[#2a2a2a] transition-all flex items-center justify-between gap-4 overflow-hidden" data-entity-id={id} data-entity-type={type}>
+    <!-- Column 1: Identity -->
+    <div class="flex items-center gap-2 md:gap-3 flex-1 md:flex-none md:w-1/4 min-w-0">
+        <span class={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm border border-white/5 shrink-0 hidden sm:inline-block sm:min-w-[65px] text-center truncate ${typeBadgeColor}`}>{typeLabel}</span>
+        <h3 class="text-xs font-bold text-zinc-100 group-hover:text-[#bdc3ff] transition-colors truncate" title={displayTitle}>
             {displayTitle}
         </h3>
     </div>
     
-    <!-- Mid: Description -->
-    <div class="flex-1 truncate hidden md:block border-l border-[var(--border-hairline)] pl-4">
-        <p class="text-[10px] text-zinc-300 truncate mt-0.5 font-medium">
-            {truncatedDesc}
-        </p>
+    <!-- Column 2: Mission-Critical Specs (55%) -->
+    <div class="flex-1 hidden md:flex items-center gap-6 px-4 border-l border-white/5 overflow-hidden">
+        {cleanedTag && (
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">ARCH:</span>
+                <span class="text-[9px] font-bold text-zinc-300 truncate max-w-[120px] uppercase">{cleanedTag.replace(/-/g, ' ')}</span>
+            </div>
+        )}
+
+        {item.params_billions > 0 && (
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-[8px] font-black text-[#bdc3ff]/80 uppercase tracking-widest">SIZE:</span>
+                <span class="text-[10px] font-black text-[#bdc3ff] tabular-nums">{item.params_billions}B</span>
+            </div>
+        )}
+
+        {item.context_length > 0 && (
+            <div class="flex items-center gap-1.5 shrink-0 hidden lg:flex">
+                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">CTX:</span>
+                <span class="text-[10px] font-black text-zinc-300 tabular-nums">{item.context_length >= 1000 ? `${Math.round(item.context_length/1000)}k` : item.context_length}</span>
+            </div>
+        )}
+
+        {item.vram_est > 0 && (
+            <div class="flex items-center gap-1.5 shrink-0 hidden lg:flex">
+                <span class="text-[8px] font-black text-emerald-500/80 uppercase tracking-widest">VRAM:</span>
+                <span class="text-[10px] font-black text-emerald-400 tabular-nums">~{item.vram_est}G</span>
+            </div>
+        )}
     </div>
 
-    <!-- Right: Author, Badges & Metrics -->
-    <div class="flex items-center gap-4 shrink-0 whitespace-nowrap justify-between md:justify-end md:w-[35%] border-t md:border-t-0 border-[var(--border-hairline)] pt-2 md:pt-0">
-        <span class="text-[9px] text-zinc-400 font-medium truncate max-w-[150px]">by <strong class="text-zinc-300 font-bold">{author || 'Unknown'}</strong></span>
-        
-        <div class="flex items-center gap-1.5 justify-end hidden sm:flex">
-            {isRisingStar && <span class="text-[8px] font-black bg-rose-950/30 text-rose-500 px-1 py-0.5 rounded-sm uppercase tracking-tighter border border-rose-500/20">Rising</span>}
-            {(fni > 0 || fniPercentile) && (
-                <div class={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm border relative z-10 fni-badge-container ${fniBadgeClass}`}>
-                    <span class="text-[10px] font-black font-mono tabular-nums fni-value">{fni > 0 ? fni : '0'}</span>
-                    <span class="text-[8px] font-bold uppercase tracking-widest opacity-80">FNI</span>
-                </div>
-            )}
+    <!-- Column 3: Stats & FNI (20%) -->
+    <div class="flex items-center gap-3 md:gap-5 shrink-0 justify-end md:w-[20%] font-mono">
+        <div class="flex items-center gap-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+            <div class="flex items-center gap-1.5 shrink-0" title="Downloads">
+                <span class="text-zinc-300 font-black tabular-nums">{formatCompact(item.downloads || 0)}</span>
+                <span class="text-[12px] opacity-70">📥</span>
+            </div>
         </div>
 
-        <div class="flex items-center gap-3 text-[9px] font-bold text-zinc-500 uppercase tracking-widest justify-end min-w-[120px] metrics-container">
-            {metrics.map(m => (
-                <div class="flex items-center gap-1 shrink-0" title={m.label}>
-                    <span class="text-white font-mono tabular-nums max-w-[40px] truncate block">{m.value}</span>
-                    <span class="opacity-40">{m.label.substring(0, 3)}</span>
+        <div class="flex items-center gap-2">
+            {(fni > 0 || fniPercentile) && (
+                <div class={`flex items-center gap-2 px-2.5 py-0.5 rounded-sm border fni-badge-container ${fniBadgeClass}`}>
+                    <span class="text-[11px] font-black tabular-nums">{fni}</span>
+                    <span class="text-[8px] font-black uppercase tracking-widest opacity-60">FNI</span>
                 </div>
-            ))}
+            )}
         </div>
     </div>
 </a>

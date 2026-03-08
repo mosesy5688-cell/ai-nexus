@@ -131,6 +131,16 @@ export function getRouteFromId(id, type = null) {
 
     if (!slug || slug === 'unknown') return '#';
 
+    // V23.8: Single-segment model slugs without owner/ are likely concepts, not entities
+    // Only apply when type was NOT explicitly passed (derived fallback to 'model')
+    if (resolvedType === 'model' && !type && !slug.includes('/')) {
+        if (KNOWLEDGE_ALIAS_MAP[slug]) {
+            return `/knowledge/${KNOWLEDGE_ALIAS_MAP[slug]}`;
+        }
+        // Unknown concept: route to search for discovery
+        return `/search?q=${encodeURIComponent(slug.replace(/-/g, ' '))}`;
+    }
+
     const routeMap = {
         'dataset': `/dataset/${slug}`,
         'space': `/space/${slug}`,

@@ -97,7 +97,8 @@ const { entityId, entityName, entity, hasBench, enrichedTags } = Astro.props;
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
              {enrichedTags.slice(0, 12).map((tag: any) => (
                 <a 
-                  href={`/search?q=${encodeURIComponent(tag.name)}`} 
+                  href={`/search?q=${encodeURIComponent(tag.name)}`}
+                  data-astro-reload
                   class="flex items-center justify-center px-2 py-2 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 rounded-lg text-[9px] font-black border border-zinc-100 dark:border-zinc-700 hover:border-indigo-500 hover:text-indigo-600 transition-all shadow-sm uppercase tracking-tighter"
                 >
                    {tag.name}

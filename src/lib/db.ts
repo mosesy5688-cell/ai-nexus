@@ -17,7 +17,8 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     const url = new URL(request.url);
     let filename = url.pathname.split('/').pop();
 
-    if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.vfs') && !filename.endsWith('.bin'))) {
+    const allowedExtensions = ['.db', '.vfs', '.bin', '.db-journal', '.db-shm', '.db-wal'];
+    if (!filename || !allowedExtensions.some(ext => (filename as string).endsWith(ext))) {
         return new Response('Access Denied', {
             status: 403,
             headers: {
@@ -34,7 +35,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     }
 
     let totalSize = 0, etag = '', isLocal = false;
-    const isSimulatingRemote = !!(process.env.SIMULATE_PRODUCTION);
+    const isSimulatingRemote = !!(process.env.SIMULATE_PRODUCTION || (import.meta as any).env?.SIMULATE_PRODUCTION);
     const baseUrl = 'https://cdn.free2aitools.com';
 
     if (isDev && !isSimulatingRemote) {
@@ -116,34 +117,19 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (!rangeValue.startsWith('bytes=')) return new Response('Invalid Range', { status: 416 });
         const parts = rangeValue.replace('bytes=', '').split(',')[0].split('-');
 
-        if (isSimulatingRemote) {
-            const cdnUrl = `${baseUrl}/data/${filename}${url.search}`;
-            const res = await fetch(cdnUrl, { headers: { 'Range': rangeHeader } });
-            const proxyRes = new Response(res.body, res);
-            Object.entries(commonHeaders).forEach(([k, v]) => proxyRes.headers.set(k, v));
-            return proxyRes;
-        }
-
         const headers = new Headers(commonHeaders as any);
 
-        if (parts[0] === '') { // Suffix range
-            const suffix = parseInt(parts[1], 10);
-            if (isNaN(suffix)) return new Response('Invalid Suffix', { status: 416 });
-            headers.set('Content-Length', suffix.toString());
-            headers.set('Content-Range', `bytes ${totalSize - suffix}-${totalSize - 1}/${totalSize}`);
-            if (isLocal) {
-                const { readFile } = await import('fs/promises'), { resolve } = await import('path');
-                const buf = (await readFile(resolve(process.cwd(), 'data', filename))).subarray(totalSize - suffix);
-                return new Response(buf, { status: 206, headers });
-            } else if (isSimulatingRemote) {
-                const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
-                return new Response(res.body, { status: 206, headers });
-            } else if (env?.R2_ASSETS) {
-                const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { suffix } });
-                if (!object) return new Response('Not Found', { status: 404 });
-                object.writeHttpMetadata(headers as any);
-                return new Response(object.body as any, { status: 206, headers });
-            }
+        if (isSimulatingRemote) {
+            // V23.10: Proxy Range requests to CDN instead of redirect
+            // Response.redirect() has immutable headers, causing middleware crashes
+            const remoteUrl = `${baseUrl}/data/${filename}`;
+            console.log(`[VFS-Proxy] Proxying Range: ${filename} -> ${remoteUrl}`);
+            const res = await fetch(remoteUrl, { headers: { Range: rangeHeader } });
+            const proxyHeaders = new Headers(commonHeaders as any);
+            const cr = res.headers.get('Content-Range');
+            if (cr) proxyHeaders.set('Content-Range', cr);
+            proxyHeaders.set('Content-Length', res.headers.get('Content-Length') || '0');
+            return new Response(res.body, { status: res.status, headers: proxyHeaders });
         }
 
         const start = parseInt(parts[0], 10);
@@ -151,9 +137,6 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         if (isNaN(start) || start >= totalSize) return new Response('Range Not Satisfiable', { status: 416 });
         if (end >= totalSize) end = totalSize - 1;
         const responseSize = end - start + 1;
-
-        // Alignment Guard (RELAXED): Removed to allow library pre-fetching (0.8.x compatibility)
-        // Note: Range requests may be arbitrary during SQLite VFS page discovery
 
         headers.set('Content-Length', responseSize.toString());
         headers.set('Content-Range', `bytes ${start}-${end}/${totalSize}`);
@@ -165,9 +148,6 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             const { bytesRead } = await handle.read(buffer, 0, responseSize, start);
             await handle.close();
             return new Response(buffer.subarray(0, bytesRead), { status: 206, headers });
-        } else if (isSimulatingRemote) {
-            const res = await fetch(`${baseUrl}/data/${filename}`, { headers: { 'Range': rangeHeader } });
-            return new Response(res.body, { status: 206, headers });
         } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { offset: start, length: responseSize } });
             if (!object) return new Response('Not Found', { status: 404 });

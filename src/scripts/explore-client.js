@@ -131,11 +131,21 @@ function triggerSearch() {
         return;
     }
 
+    const grid = document.getElementById('explore-grid');
+    // V23.1: If pre-rendered via SSR, skip initial client search to avoid flickering/clearing
+    if (grid && grid.children.length > 0 && pendingSearch === true) {
+        console.log('[Explore] SSR content detected. Skipping initial client search.');
+        pendingSearch = false; // Reset flag so subsequent filter changes DO trigger search
+        updateUIState('loaded');
+        return;
+    }
+
     const filters = getFilters();
     updateActiveFiltersDisplay(filters);
     updateUIState('loading');
 
     const searchId = Date.now();
+    pendingSearch = false;
 
     searchWorker.postMessage({
         id: searchId,

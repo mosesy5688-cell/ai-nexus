@@ -1,154 +1,164 @@
-/**
- * CatalogDataSource.js (V16.9.10)
- * Logic for Shard Chaining and Search Engine Augmentation
- * Constitution: Split for < 250 line compliance
- */
-import MiniSearch from 'minisearch';
 import { DataNormalizer } from './DataNormalizer.js';
+import { SqliteClient } from './SqliteClient.js';
+
+const CDN_BASE = 'https://cdn.free2aitools.com';
 
 export class CatalogDataSource {
     constructor(config) {
-        this.type = config.type;
-        this.dataUrl = config.dataUrl;
-        this.items = DataNormalizer.normalizeCollection(config.initialData || [], config.type);
-        this.currentShard = 0;
-        this.totalPages = 1;
-        this.totalEntities = 0;
-        this.isLoadingShard = false;
+        this.type = config.type || 'model';
+        this.categoryFilter = config.categoryFilter || '';
+        this.items = DataNormalizer.normalizeCollection(config.initialData || [], this.type);
+        this.itemsPerPage = config.itemsPerPage || 48;
+        this.isLoading = false;
         this.fullDataLoaded = false;
+        this.dbClient = new SqliteClient();
 
-        this.engine = new MiniSearch({
-            fields: ['name', 'author', 'description', 'tags'],
-            storeFields: [
-                'id', 'name', 'type', 'fni_score', 'fni_percentile',
-                // V19.5 Data Parity: FNI Sub-scores
-                'fni_p', 'fni_v', 'fni_c', 'fni_u',
-                // V19.5 Data Parity: Technical Params
-                'params_billions', 'context_length', 'architecture',
-                'slug', 'description', 'author'
-            ],
-            idField: 'id',
-            searchOptions: {
-                boost: { name: 3, author: 1.5 },
-                fuzzy: 0.2,
-                prefix: true
-            }
-        });
-
-        if (this.items.length > 0) {
-            this.engine.addAll(this.items);
-        }
+        // V23.6: Multi-shard state
+        this.shardQueue = [];
+        this.shardIndex = 0;
+        this.shardOffset = 0;
+        this._manifestLoaded = false;
+        this._manifestData = null;
     }
 
-    async loadNextShard(direction = 1) {
-        if (this.isLoadingShard || (this.currentShard >= this.totalPages && direction > 0)) return null;
-        this.isLoadingShard = true;
+    async _loadManifest() {
+        if (this._manifestLoaded) return;
+        try {
+            const res = await fetch(`${CDN_BASE}/data/shards_manifest.json`, {
+                signal: AbortSignal.timeout(5000)
+            });
+            if (res.ok) this._manifestData = await res.json();
+        } catch (e) {
+            console.warn('[CatalogDataSource] Manifest fetch failed, using defaults');
+        }
+        this._buildShardQueue();
+        this._manifestLoaded = true;
+    }
+
+    _buildShardQueue() {
+        const p = this._manifestData?.partitions || { model: 5, paper: 14, dataset: 8, tool: 2 };
+        const fmt = (cat, idx, count) =>
+            count === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
+
+        const type = this.type;
+
+        if (this.categoryFilter || type === 'all') {
+            // Cross-type: model-core first, then all other shards
+            this.shardQueue = ['meta-model-core.db'];
+            for (const [cat, count] of Object.entries(p)) {
+                if (cat === 'model') {
+                    for (let i = 1; i <= count; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
+                } else {
+                    for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(cat, i, count));
+                }
+            }
+        } else if (type === 'model') {
+            this.shardQueue = ['meta-model-core.db'];
+            const mc = p.model || 5;
+            for (let i = 1; i <= mc; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
+        } else {
+            const count = p[type] || 1;
+            this.shardQueue = [];
+            for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(type, i, count));
+        }
+        console.log(`[CatalogDataSource] Shard queue (${type}): ${this.shardQueue.length} shards`);
+    }
+
+    _buildSql() {
+        if (this.categoryFilter) {
+            return { sql: 'SELECT * FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+                params: [this.categoryFilter, this.itemsPerPage, this.shardOffset] };
+        }
+        if (this.type === 'all') {
+            return { sql: 'SELECT * FROM entities ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+                params: [this.itemsPerPage, this.shardOffset] };
+        }
+        return { sql: 'SELECT * FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+            params: [this.type, this.itemsPerPage, this.shardOffset] };
+    }
+
+    async loadNextPage() {
+        if (this.isLoading || this.fullDataLoaded) return null;
+        this.isLoading = true;
 
         try {
-            this.currentShard += direction;
+            await this._loadManifest();
 
-            // V22.11 Compliance: All Non-Report/Knowledge data MUST come from VFS.
-            // Replace direct CDN JSON fetching with the SQLite-backed SSR Search API.
-            const url = new URL(window.location.origin + '/api/search');
-            url.searchParams.set('type', this.type === 'model' ? 'base,instruct,chat,embeddings' : this.type); // ensure models list all subtypes if necessary, or just rely on 'type' logic in api
-            url.searchParams.set('page', this.currentShard);
-            url.searchParams.set('limit', 24); // Hardcoded chunk size for predictable grid pushing
-            url.searchParams.set('sort', 'fni');
-
-            let data = null;
-            const response = await fetch(url.toString());
-
-            if (response.ok) {
-                data = await response.json();
-            }
-
-            if (!data || !data.results || data.results.length === 0) {
+            if (this.shardIndex >= this.shardQueue.length) {
                 this.fullDataLoaded = true;
-                return null;
+                return [];
             }
 
-            // Estimate total pages purely to keep the UI progressing if not provided by Search API
-            this.totalPages = this.currentShard + 1;
+            const dbName = this.shardQueue[this.shardIndex];
+            await this.dbClient.open(dbName);
 
-            let allRaw = data.results;
-            const validItems = DataNormalizer.normalizeCollection(allRaw, this.type)
-                .filter(i => i.type === this.type || (this.type === 'model' && (!i.type || i.type === 'model')));
+            const { sql, params } = this._buildSql();
+            const rows = await this.dbClient.query(sql, params);
 
-            const map = new Map();
-            this.items.forEach(i => map.set(i.id, i));
-            validItems.forEach(i => {
-                if (!map.has(i.id)) {
-                    map.set(i.id, i);
-                    this.engine.add(i);
+            if (rows.length === 0) {
+                // Shard exhausted — advance to next
+                this.shardIndex++;
+                this.shardOffset = 0;
+                if (this.shardIndex >= this.shardQueue.length) {
+                    this.fullDataLoaded = true;
+                    return [];
                 }
-            });
+                this.isLoading = false;
+                return this.loadNextPage();
+            }
 
-            this.items = Array.from(map.values());
-            return validItems;
+            this.shardOffset += rows.length;
+            const normalized = DataNormalizer.normalizeCollection(rows, this.type === 'all' ? undefined : this.type);
+
+            // Deduplicate
+            const existingIds = new Set(this.items.map(i => i.id));
+            const fresh = normalized.filter(i => !existingIds.has(i.id));
+            this.items = [...this.items, ...fresh];
+            return fresh;
         } catch (e) {
-            console.error(`[CatalogDataSource] Shard ${this.currentShard} Load Failed:`, e);
-            this.fullDataLoaded = true;
+            console.error(`[CatalogDataSource] Shard ${this.shardQueue[this.shardIndex]} error:`, e.message);
+            this.shardIndex++;
+            this.shardOffset = 0;
+            if (this.shardIndex >= this.shardQueue.length) this.fullDataLoaded = true;
             return null;
         } finally {
-            this.isLoadingShard = false;
+            this.isLoading = false;
         }
     }
 
-    async augmentSearch() {
-        try {
-            // V18.12.0: Resilient fallback for search augmentation
-            const path = 'https://cdn.free2aitools.com/cache/search-core.json';
-            let resp = await fetch(path + '.gz');
-            if (!resp.ok) resp = await fetch(path);
-
-            if (!resp.ok) return [];
-
-            let data;
-            const isGz = resp.url.endsWith('.gz');
-            const isEnc = resp.headers.get('Content-Encoding') === 'gzip' || resp.headers.get('content-encoding') === 'gzip';
-
-            if (isGz && !isEnc) {
-                try {
-                    const resClone = resp.clone();
-                    const ds = new DecompressionStream('gzip');
-                    data = await new Response(resClone.body.pipeThrough(ds)).json();
-                } catch (decompressError) {
-                    console.warn(`[CatalogDataSource] AugmentSearch Gzip failed, falling back to plain JSON.`);
-                    data = await resp.json();
-                }
-            } else {
-                data = await resp.json();
-            }
-
-            const coreEntities = (data.entities || []).filter(e => e.type === this.type || (this.type === 'model' && (!e.type || e.type === 'model')));
-            const normalized = DataNormalizer.normalizeCollection(coreEntities, this.type);
-
-            this.engine.addAll(normalized.filter(i => !this.engine.get(i.id)));
-            return normalized;
-        } catch (e) {
-            console.warn('[CatalogDataSource] Search augmentation failed:', e);
-            return [];
-        }
-    }
-
-    search(query, category) {
-        const q = (query || '').trim();
+    async search(query, category) {
+        const q = (query || '').toLowerCase().trim();
         const cat = category || '';
+        let localResults = [...this.items];
+        if (cat) localResults = localResults.filter(i => i.category === cat || i.pipeline_tag === cat);
+        const filtered = q ? localResults.filter(i =>
+            i.name?.toLowerCase().includes(q) || i.author?.toLowerCase().includes(q) || i.id?.toLowerCase().includes(q)
+        ) : localResults;
 
-        let results = [...this.items];
-        if (cat && cat !== '') {
-            results = results.filter(i => i.category === cat);
-        }
+        if (q.length < 3) return filtered.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
 
-        if (q && q.length >= 2) {
-            const searchResults = this.engine.search(q);
-            const searchIds = new Set(searchResults.map(r => r.id));
-            results = results.filter(i => searchIds.has(i.id));
+        // Federated SSR search
+        try {
+            const params = new URLSearchParams({ q, type: this.type, sort: 'fni', limit: '50', page: '1' });
+            const res = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout(5000) });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.results?.length > 0) return DataNormalizer.normalizeCollection(data.results, this.type);
+            }
+        } catch (e) { console.warn('[CatalogDataSource] API search fallback:', e); }
 
-            const scoreMap = new Map(searchResults.map(r => [r.id, r.score]));
-            results.sort((a, b) => (scoreMap.get(b.id) || 0) - (scoreMap.get(a.id) || 0));
-        }
-
-        return results.map(r => ({ ...r, fni_score: r.fni_score ?? r.fni ?? 0 }));
+        // Local FTS5 fallback
+        try {
+            const safeQuery = q.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/).filter(t => t.length > 0).map(t => `"${t}"*`).join(' AND ');
+            if (!safeQuery) return filtered;
+            const sql = `SELECT e.* FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ? AND e.type = ? ORDER BY e.fni_score DESC LIMIT 50`;
+            const rows = await this.dbClient.query(sql, [safeQuery, this.type]);
+            return DataNormalizer.normalizeCollection(rows, this.type);
+        } catch (e) { return filtered; }
     }
+
+    // Compat methods for UniversalCatalog / CatalogUIControls
+    async loadNextShard() { return this.loadNextPage(); }
+    async augmentSearch() { return this.loadNextPage(); }
+    get isLoadingShard() { return this.isLoading; }
 }

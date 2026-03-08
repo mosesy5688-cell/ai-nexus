@@ -35,7 +35,7 @@ const { meshTiers } = Astro.props;
             <ul class="space-y-3 relation-group" data-max="8">
               {displayNodes.map((node: any, index: number) => (
                 <li class={`${index >= 8 ? 'hidden extra-rel' : ''}`}>
-                  <a href={getRouteFromId(node.id, node.type)} class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
+                  <a href={getRouteFromId(node.id, node.type)} data-astro-reload class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
                     <div class="flex items-center gap-3">
                        <span class="text-xl filter grayscale group-hover:grayscale-0 transition-all">{node.icon}</span>
                        <span class="text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{node.name}</span>

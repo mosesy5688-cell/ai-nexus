@@ -1,0 +1,134 @@
+---
+/**
+ * EntityMetricGrid - V22.11 Industrial Metric Grid
+ * Extracted from EntityHeader.astro to comply with CES file length limits.
+ */
+interface Props {
+  fniScore: number;
+  fniPercentile: number;
+  fniP: number;
+  fniV: number;
+  fniC: number;
+  fniU: number;
+  fniPillarsSynthesized: boolean;
+  paramsB?: number;
+  contextLength?: number;
+  downloads?: number;
+  svgPath?: string;
+  trendColor: string;
+  trendPercent: string;
+}
+
+const {
+  fniScore,
+  fniPercentile,
+  fniP,
+  fniV,
+  fniC,
+  fniU,
+  fniPillarsSynthesized,
+  paramsB,
+  contextLength,
+  downloads = 0,
+  svgPath,
+  trendColor,
+  trendPercent
+} = Astro.props;
+---
+
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-px bg-[var(--border-hairline)] border border-[var(--border-hairline)] rounded-sm overflow-hidden mt-2">
+  <!-- FNI Total -->
+  <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center gap-1">
+    <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Nexus Index</span>
+    <div class="flex items-baseline gap-2">
+       <span class="text-4xl font-black font-mono text-white leading-none tracking-tighter tabular-nums">{fniScore.toFixed(1)}</span>
+       <span class="text-[10px] font-black font-mono text-rose-600">Top {100 - fniPercentile}%</span>
+    </div>
+  </div>
+
+  <!-- FNI Pillars (P/V/C/U) -->
+  {fniPillarsSynthesized ? (
+    <div class="bg-[var(--bg-surface)] p-2 col-span-2 flex flex-col items-center justify-center gap-1">
+      <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">P / V / C / U Breakdown</span>
+      <span class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Calibration Pending</span>
+      <p class="text-[8px] text-zinc-600 mt-1">Pillar scores are computed during the next indexing cycle.</p>
+    </div>
+  ) : (
+    <Fragment>
+      <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>P: Popularity</span>
+           <span class="text-white font-mono tabular-nums">{fniP.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniP}%`}></div>
+        </div>
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>V: Velocity</span>
+           <span class="text-white font-mono tabular-nums">{fniV.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniV}%`}></div>
+        </div>
+      </div>
+      <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>C: Credibility</span>
+           <span class="text-white font-mono tabular-nums">{fniC.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniC}%`}></div>
+        </div>
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>U: Utility</span>
+           <span class="text-white font-mono tabular-nums">{fniU.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniU}%`}></div>
+        </div>
+      </div>
+    </Fragment>
+  )}
+
+  <!-- Technical Context -->
+  <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center">
+    <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 text-center md:text-left">Tech Context</span>
+    <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+      {paramsB && (
+        <div class="flex flex-col">
+          <span class="text-[14px] font-black font-mono text-white tabular-nums">{paramsB >= 1 ? paramsB : paramsB + 'B'}</span>
+          <span class="text-[8px] text-zinc-500 uppercase font-black">Params</span>
+        </div>
+      )}
+      {contextLength && (
+        <div class="flex flex-col">
+          <span class="text-[14px] font-black font-mono text-white tabular-nums">{contextLength >= 1000 ? (contextLength / 1000) + 'K' : contextLength}</span>
+          <span class="text-[8px] text-zinc-500 uppercase font-black">Ctx</span>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <!-- Vital Stats -->
+  <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center md:col-span-2 lg:col-span-2">
+     <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Vital Performance</span>
+     <div class="flex items-center gap-6">
+        <div class="flex flex-col">
+           <span class="text-[14px] font-black font-mono text-white tabular-nums">
+             {downloads >= 1000000 ? (downloads / 1000000).toFixed(1) + 'M' : downloads >= 1000 ? (downloads / 1000).toFixed(1) + 'K' : downloads?.toLocaleString()}
+           </span>
+           <span class="text-[8px] text-zinc-500 uppercase font-black">DL / 30D</span>
+        </div>
+        <div class="flex-1 max-w-[80px]">
+           {svgPath && (
+             <svg width="80" height="24" viewBox="0 0 80 32" class="opacity-100">
+               <path d={svgPath} fill="none" stroke="#bdc3ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+             </svg>
+           )}
+        </div>
+        <span class={`text-[10px] font-black font-mono ${trendColor} tabular-nums`}>
+          {trendPercent}%
+        </span>
+     </div>
+  </div>
+</div>

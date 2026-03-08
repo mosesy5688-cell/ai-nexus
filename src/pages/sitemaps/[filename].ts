@@ -1,11 +1,9 @@
 /**
- * Sitemap Files Proxy
- * V6.2: Serves all sitemap files from R2 via CDN
- * 
+ * Sitemap Files Proxy (V23.10)
+ * Serves sitemap-index.xml and compressed shard files (.xml.gz) from R2 CDN.
+ * Only .xml.gz format for shards — zero SSR decompression overhead.
+ *
  * Routes: /sitemaps/[filename]
- * Examples:
- *   /sitemaps/sitemap-static.xml
- *   /sitemaps/sitemap-1.xml.gz
  */
 
 import type { APIRoute, GetStaticPaths } from 'astro';
@@ -13,79 +11,53 @@ import type { APIRoute, GetStaticPaths } from 'astro';
 export const prerender = true;
 
 const R2_CDN_BASE = 'https://cdn.free2aitools.com';
+const SHARD_COUNT = 9;
 
 export const getStaticPaths: GetStaticPaths = async () => {
-    return [
-        { params: { filename: 'sitemap-1.xml.gz' } },
-        { params: { filename: 'sitemap-2.xml.gz' } },
-        { params: { filename: 'sitemap-3.xml.gz' } },
-        { params: { filename: 'sitemap-4.xml.gz' } },
-        { params: { filename: 'sitemap-5.xml.gz' } },
-        { params: { filename: 'sitemap-6.xml.gz' } },
-        { params: { filename: 'sitemap-7.xml.gz' } },
-        { params: { filename: 'sitemap-index.xml' } },
-    ];
+    const paths = [{ params: { filename: 'sitemap-index.xml' } }];
+    for (let i = 1; i <= SHARD_COUNT; i++) {
+        paths.push({ params: { filename: `sitemap-${i}.xml.gz` } });
+    }
+    return paths;
 };
 
 export const GET: APIRoute = async ({ params }) => {
     const { filename } = params;
-
-    if (!filename) {
-        return new Response('Not found', { status: 404 });
-    }
+    if (!filename) return new Response('Not found', { status: 404 });
 
     try {
-        const r2Url = `${R2_CDN_BASE}/sitemaps/${filename}`;
+        // sitemap-index.xml: rewrite <loc> to point to .xml.gz routes
+        if (filename === 'sitemap-index.xml') {
+            const res = await fetch(`${R2_CDN_BASE}/sitemaps/${filename}`, {
+                headers: { 'Accept-Encoding': 'identity' }
+            });
+            if (!res.ok) return new Response('Sitemap index not found', { status: 404 });
 
-        // V18.2: Force identity to skip transparent decompression by some fetch clients.
-        // This ensures the magic number check is reliable across all environments.
+            let xml = await res.text();
+            xml = xml.replace(/<loc>([^<]*sitemap-\d+)\.xml<\/loc>/g, '<loc>$1.xml.gz</loc>');
+            return new Response(xml, { status: 200, headers: {
+                'Content-Type': 'application/xml',
+                'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+            }});
+        }
+
+        // Shard files: pass through .gz compressed content directly
+        const r2Url = `${R2_CDN_BASE}/sitemaps/${filename}`;
         const response = await fetch(r2Url, {
             headers: { 'Accept-Encoding': 'identity' }
         });
 
         if (!response.ok) {
-            return new Response(`Sitemap ${filename} not found`, {
-                status: 404,
-                headers: { 'Content-Type': 'text/plain' }
-            });
+            return new Response(`Sitemap ${filename} not found`, { status: 404 });
         }
 
-        // Get response body
-        const body = await response.arrayBuffer();
-        const bytes = new Uint8Array(body);
-
-        // For gzip files, decompress and return XML
-        // We detect the magic number (1f 8b) to handle both compressed and uncompressed files safely.
-        if (filename.endsWith('.gz') && bytes[0] === 0x1f && bytes[1] === 0x8b) {
-            try {
-                const decompressedStream = new Response(body).body?.pipeThrough(new DecompressionStream('gzip'));
-                if (decompressedStream) {
-                    return new Response(decompressedStream, {
-                        status: 200,
-                        headers: {
-                            'Content-Type': 'application/xml',
-                            'Cache-Control': 'public, max-age=3600',
-                        },
-                    });
-                }
-            } catch (e) {
-                console.error('Decompression failed:', e);
-            }
-        }
-
-        // Non-gzip files or fallback
-        return new Response(body, {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/xml',
-                'Cache-Control': 'public, max-age=3600',
-            },
-        });
+        return new Response(await response.arrayBuffer(), { status: 200, headers: {
+            'Content-Type': 'application/gzip',
+            'Content-Encoding': 'gzip',
+            'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+        }});
     } catch (error) {
-        console.error(`Error fetching sitemap ${filename}:`, error);
-        return new Response('Internal Server Error', {
-            status: 500,
-            headers: { 'Content-Type': 'text/plain' }
-        });
+        console.error(`[Sitemap] Error fetching ${filename}:`, error);
+        return new Response('Internal Server Error', { status: 500 });
     }
 };

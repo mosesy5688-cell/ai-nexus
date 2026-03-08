@@ -1,5 +1,5 @@
 // src/scripts/lib/UniversalCatalog.js
-// V16.9.11: Modularized for CES Compliance (< 250 lines)
+// V23.1: VFS-First Infinite Loading Controller
 import { CatalogDataSource } from './CatalogDataSource.js';
 import { CatalogUIControls } from './CatalogUIControls.js';
 
@@ -8,12 +8,11 @@ export class UniversalCatalog {
         this.config = config;
         this.source = new CatalogDataSource({
             type: config.type,
-            dataUrl: config.dataUrl,
+            categoryFilter: config.categoryFilter || '',
             initialData: config.initialData || []
         });
 
         if (config.totalPages) this.source.totalPages = config.totalPages;
-        if (config.totalEntities) this.source.totalEntities = config.totalEntities;
 
         this.filtered = [...this.source.items];
         this.currentPage = 1;
@@ -33,22 +32,21 @@ export class UniversalCatalog {
     init() {
         if (this.searchInput) {
             this.searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
-            this.searchInput.addEventListener('focus', () => this.augmentSearch(), { once: true });
         }
 
         const params = new URLSearchParams(window.location.search);
         const urlCat = params.get('category');
         const urlQuery = params.get('q');
 
-        if (urlCat) {
-            if (this.categoryFilter) this.categoryFilter.value = urlCat;
-            this.handleSearch(urlCat);
-        } else if (urlQuery) {
-            if (this.searchInput) this.searchInput.value = urlQuery;
-            this.handleSearch(urlQuery);
+        if (urlCat && this.categoryFilter) {
+            this.categoryFilter.value = urlCat;
         }
 
-        if (this.sortSelect && this.filtered.length > 0) {
+        if (urlQuery && this.searchInput) {
+            this.searchInput.value = urlQuery;
+        }
+
+        if (this.sortSelect) {
             this.sortSelect.addEventListener('change', (e) => this.handleSort(e.target.value));
         }
 
@@ -64,11 +62,25 @@ export class UniversalCatalog {
 
         this.updateStats();
 
-        if (this.config.dataUrl && this.source.items.length < this.itemsPerPage) {
-            this.loadFullData();
+        // V23.2: Initiate Background Sync Loop
+        this.syncLoop();
+    }
+
+    async syncLoop() {
+        if (this.source.fullDataLoaded) return;
+
+        // If user is at bottom, sync immediately, otherwise slow sync
+        const delay = this.hasReachedEnd() ? 500 : 8000;
+
+        if (this.hasReachedEnd()) {
+            await this.loadMore();
         } else {
-            this.source.currentShard = 1;
+            // Background pre-fetch next page
+            await this.source.loadNextPage();
+            this.handleSearch(this.searchInput?.value || '', null, true);
         }
+
+        setTimeout(() => this.syncLoop(), delay);
     }
 
     updateUrlParam(key, value) {
@@ -79,38 +91,49 @@ export class UniversalCatalog {
     }
 
     hasMore() {
+        // We have more items in local memory OR more data in SQLite to load
         return (this.currentPage * this.itemsPerPage) < this.filtered.length ||
-            this.source.currentShard < this.source.totalPages;
+            !this.source.fullDataLoaded;
+    }
+
+    hasReachedEnd() {
+        const scrollBottom = window.innerHeight + window.scrollY;
+        const bodyHeight = document.documentElement.scrollHeight;
+        return (bodyHeight - scrollBottom) < 800; // Trigger when 800px from bottom
     }
 
     async loadMore() {
-        if ((this.currentPage * this.itemsPerPage) >= this.filtered.length - 12 && !this.source.fullDataLoaded) {
-            await this.loadFullData();
-        }
-        this.currentPage++;
-        this.renderGrid(true);
-        this.updateStats();
-        if (!this.useInfiniteScroll) this.renderPagination();
-    }
+        if (this.isLoadingMore || this.source.isLoading) return;
+        this.isLoadingMore = true;
 
-    async loadFullData() {
-        const newItems = await this.source.loadNextShard();
-        if (newItems === null && this.source.fullDataLoaded) {
-            if (this.grid && !this.grid.querySelector('.empty-state-msg') && this.source.items.length === 0) {
-                this.grid.innerHTML = '<div class="empty-state-msg col-span-full text-center py-20 bg-gray-900/50 rounded-xl border border-gray-800"><p class="text-xl text-gray-400 font-medium">Ecosystem Syncing...</p></div>';
+        try {
+            // Fetch more from SQLite if we are running low on filtered items
+            if ((this.currentPage * this.itemsPerPage) >= this.filtered.length - 12 && !this.source.fullDataLoaded) {
+                const newItems = await this.source.loadNextPage();
+                if (newItems && newItems.length > 0) {
+                    await this.handleSearch(this.searchInput?.value || '', null, true);
+                }
             }
-            return;
+
+            // Increment page and render if we have available items
+            if ((this.currentPage * this.itemsPerPage) < this.filtered.length) {
+                this.currentPage++;
+                this.renderGrid(true);
+            }
+
+            this.updateStats();
+            if (!this.useInfiniteScroll) this.renderPagination();
+        } catch (err) {
+            console.error('[UniversalCatalog] loadMore failed:', err);
+        } finally {
+            this.isLoadingMore = false;
         }
-        if (newItems) this.handleSearch(this.searchInput?.value || '', null, true);
     }
 
-    async augmentSearch() {
-        const newItems = await this.source.augmentSearch();
-        if (newItems && this.searchInput?.value) this.handleSearch(this.searchInput.value);
-    }
+    async handleSearch(query = '', category = '', silent = false) {
+        const results = await this.source.search(query, category || this.categoryFilter?.value || '');
+        this.filtered = results;
 
-    handleSearch(query = '', category = '', silent = false) {
-        this.filtered = this.source.search(query, category || this.categoryFilter?.value || '');
         if (!silent) {
             this.currentPage = 1;
             this.handleSort(this.sortSelect?.value || 'fni');

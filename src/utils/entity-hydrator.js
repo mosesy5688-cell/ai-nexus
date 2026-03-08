@@ -29,10 +29,8 @@ export function hydrateEntity(data, type, summaryData) {
     let fc = computed.fni_c ?? entity.fni_c ?? entity.fniC ?? fMetrics.c ?? meta.fni?.c ?? meta.c ?? 0;
     let fu = computed.fni_u ?? entity.fni_u ?? entity.fniU ?? fMetrics.u ?? meta.fni?.u ?? meta.u ?? 0;
 
-    // V22.10: Synthesize missing pillars if the FNI score exists (Legacy/Offline protection)
-    if (fScore > 0 && fp === 0 && fv === 0 && fc === 0 && fu === 0) {
-        fp = fScore; fv = fScore; fc = fScore; fu = fScore;
-    }
+    // V23.6: Mark pillars as synthesized when no real data exists (D5 fix)
+    const pillarsSynthesized = (fScore > 0 && fp === 0 && fv === 0 && fc === 0 && fu === 0);
 
     const hydrated = {
         ...entity,
@@ -46,6 +44,7 @@ export function hydrateEntity(data, type, summaryData) {
         fni_v: fv,
         fni_c: fc,
         fni_u: fu,
+        fni_pillars_synthesized: pillarsSynthesized,
         name: derivedName,
         relations: computed.relations || entity.relations || meta.extended?.relations || meta.relations || {},
         body_content: entity.body_content || meta.html_readme || meta.readme || null,

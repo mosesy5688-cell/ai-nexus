@@ -60,16 +60,11 @@ const defaultSchema = {
 };
 const schemaToUse = jsonld || defaultSchema;
 
-// V19.4: Global Metadata Inlining (SSR -> Client Bridge)
-import { getGlobalStats } from '../utils/config-loader.js';
-const [categoryStats, trendingData] = await Promise.all([
-    getGlobalStats('category_stats', Astro.locals).catch(() => null),
-    getGlobalStats('trending', Astro.locals).catch(() => null)
-]);
-
+// V23.1: Zero-JSON SSR Compliance
+// Global stats are now expected to be loaded client-side or via VFS metadata shards
 const siteMeta = {
-    category_stats: categoryStats,
-    trending: trendingData,
+    category_stats: {},
+    trending: {},
     _inlined_at: new Date().toISOString()
 };
 ---
@@ -103,7 +98,7 @@ const siteMeta = {
     </script>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     
     <!-- V16.8.1 RSS Feeds: Standardized Daily Feed -->
@@ -164,6 +159,7 @@ const siteMeta = {
             font-variant-numeric: tabular-nums;
             background-color: var(--bg-canvas);
             color: var(--text-primary);
+            overflow-x: hidden;
         }
 
         /* V22.10: Zero Shadow Policy */
@@ -193,8 +189,14 @@ const siteMeta = {
     
     <script is:inline>
         // V16.9.24: Prevent FOUC by applying theme immediately
-        // Force dark mode for V22.9 industrial aesthetic
-        document.documentElement.classList.add('dark');
+        function applyTheme() {
+            document.documentElement.classList.add('dark');
+            document.body.style.backgroundColor = '#181818';
+        }
+        applyTheme();
+        
+        // V22.11: Persist theme across View Transitions
+        document.addEventListener('astro:after-swap', applyTheme);
     </script>
     
     <SearchCommandPalette />

@@ -154,8 +154,10 @@ export function searchShardPool(query, limit, filters) {
             if (!compareNumeric(rec.fniScore, combined.fni)) continue;
             if (!compareNumeric(rec.contextLength, combined.ctx)) continue;
 
-            // Fuzzy Name/Slug Match
-            if (!q || rec.name.toLowerCase().includes(q) || rec.slug.toLowerCase().includes(q)) {
+            // Multi-term AND match across name, slug, author
+            const hay = (rec.name + ' ' + rec.slug + ' ' + rec.author).toLowerCase();
+            const terms = q ? q.split(/\s+/) : [];
+            if (!q || terms.every(t => hay.includes(t))) {
                 results.push({
                     id: rec.slug,
                     name: rec.name,

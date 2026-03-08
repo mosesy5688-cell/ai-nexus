@@ -9,8 +9,8 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allDatasets = [], totalPages, totalEntities, error } = await fetchCatalogData('dataset', Astro.locals.runtime?.env);
-const datasets = allDatasets.slice(0, 24).map(truncateListingItem);
+const { items: allDatasets = [], totalPages, totalEntities, error } = await fetchCatalogData('dataset', (Astro as any).locals.runtime);
+const datasets = allDatasets.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Datasets Catalog | Open Data Index";
 const pageDescription = "Explore 50,000+ open-source AI datasets for training, evaluation, and fine-tuning.";
@@ -23,21 +23,32 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
     <main class="min-h-screen py-4">
         <header class="mb-12">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
-                AI Datasets <span class="text-sky-600">Archive</span>
+                AI Datasets <span class="text-sky-400">Archive</span>
             </h1>
-            <p class="text-base text-gray-600 dark:text-zinc-400 max-w-2xl">
+            <p class="text-base text-gray-600 dark:text-zinc-300 max-w-2xl">
                 The high-fidelity foundation for model intelligence. Diverse, massive, and sharded.
             </p>
         </header>
 
+        {error && (
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 text-amber-800">
+                <p class="font-bold">📡 Catalog Synchronization in Progress</p>
+                <p class="text-sm">We are currently updating the technical index. Some results may be temporarily cached.</p>
+            </div>
+        )}
+
         <ListingControls type="dataset" searchId="datasets-search" />
 
         <div id="datasets-catalog-grid" class="flex flex-col gap-1">
-            {datasets.map((dataset: any) => (
+            {datasets.length > 0 ? datasets.map((dataset: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={dataset} type="dataset" />
                 </div>
-            ))}
+            )) : !error && (
+                <div class="col-span-full py-20 text-center">
+                    <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">Loading Catalog Index...</p>
+                </div>
+            )}
         </div>
 
         <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
@@ -62,7 +73,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
                 type: 'dataset',
                 gridId: 'datasets-catalog-grid',
                 searchId: 'datasets-search',
-                dataUrl: 'https://cdn.free2aitools.com/cache/rankings/dataset/p1.json'
             });
         };
 

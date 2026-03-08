@@ -20,21 +20,26 @@ export function setupSearchUI(dom) {
         results.innerHTML = '';
         empty.classList.add('hidden');
 
-        await initSearch();
-        const searchResults = await performSearch(query, 40);
-        const filtered = type === 'all' ? searchResults : searchResults.filter(r => r.type === type);
+        try {
+            await initSearch();
+            const searchResults = await performSearch(query, { sort: 'fni', entityType: type }, 40);
 
-        const cleaned = filtered.map(item => ({
-            ...item,
-            description: (item.description || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim()
-        }));
+            const cleaned = (searchResults || []).map(item => ({
+                ...item,
+                description: (item.description || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim()
+            }));
 
-        loading.classList.add('hidden');
+            loading.classList.add('hidden');
 
-        if (cleaned.length === 0) {
+            if (cleaned.length === 0) {
+                empty.classList.remove('hidden');
+            } else {
+                renderResults(cleaned, results, query);
+            }
+        } catch (err) {
+            console.error('[Search] handleSearch failed:', err);
+            loading.classList.add('hidden');
             empty.classList.remove('hidden');
-        } else {
-            renderResults(cleaned, results, query);
         }
 
         // Update URL & Title

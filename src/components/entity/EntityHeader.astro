@@ -4,6 +4,7 @@
  * Replaces type-specific headers. Optimized for high-density data.
  */
 import ShareButtons from '../common/ShareButtons.astro';
+import EntityMetricGrid from './EntityMetricGrid.astro';
 import { formatRelativeTime } from '../../utils/date-formatter.ts';
 
 interface Props {
@@ -22,6 +23,7 @@ interface Props {
   fniV?: number;
   fniC?: number;
   fniU?: number;
+  fniPillarsSynthesized?: boolean;
   paramsB?: number;
   sourceUrl?: string;
   entityId?: string;
@@ -47,6 +49,7 @@ const {
   fniV = 0,
   fniC = 0,
   fniU = 0,
+  fniPillarsSynthesized = false,
   paramsB,
   sourceUrl,
   entityId = '',
@@ -59,7 +62,7 @@ const {
 
 const trend_7d = rawTrend || [];
 
-// V16.7: High-Density Sparkline Generator (Server-Side SVG)
+// High-Density Sparkline Generator (Server-Side SVG)
 function generateSvgPath(scores: number[], width: number, height: number, pad: number) {
   if (!scores || scores.length < 2) return "";
   const max = Math.max(...scores);
@@ -80,7 +83,6 @@ const trendDiff = lastScore - firstScore;
 const trendPercent = firstScore !== 0 ? ((trendDiff / firstScore) * 100).toFixed(1) : "0.0";
 const trendDir = trendDiff > 0.05 ? 'up' : trendDiff < -0.05 ? 'down' : 'stable';
 const trendColor = trendDir === 'up' ? 'text-green-500' : trendDir === 'down' ? 'text-red-500' : 'text-zinc-400';
-const trendStroke = trendDir === 'up' ? '#22c55e' : trendDir === 'down' ? '#ef4444' : '#94a3b8';
 
 const svgPath = generateSvgPath(trend_7d, 80, 32, 4);
 
@@ -95,10 +97,7 @@ const typeColors: Record<string, string> = {
 };
 
 const colors = typeColors[entityType] || typeColors.model;
-
 const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
-
-
 const relativeTime = formatRelativeTime(lastUpdated);
 ---
 
@@ -139,94 +138,22 @@ const relativeTime = formatRelativeTime(lastUpdated);
       </div>
     </div>
 
-    <!-- V22.11 Industrial Metric Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-px bg-[var(--border-hairline)] border border-[var(--border-hairline)] rounded-sm overflow-hidden mt-2">
-      <!-- FNI Total -->
-      <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center gap-1">
-        <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Nexus Index</span>
-        <div class="flex items-baseline gap-2">
-           <span class="text-4xl font-black font-mono text-white leading-none tracking-tighter tabular-nums">{fniScore.toFixed(1)}</span>
-           <span class="text-[10px] font-black font-mono text-rose-600">Top {100 - fniPercentile}%</span>
-        </div>
-      </div>
-
-      <!-- FNI Pillars (P/V/C/U) -->
-      <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
-        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>P: Popularity</span>
-           <span class="text-white font-mono tabular-nums">{fniP.toFixed(0)}</span>
-        </div>
-        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniP}%`}></div>
-        </div>
-        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>V: Velocity</span>
-           <span class="text-white font-mono tabular-nums">{fniV.toFixed(0)}</span>
-        </div>
-        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniV}%`}></div>
-        </div>
-      </div>
-
-      <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
-        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>C: Credibility</span>
-           <span class="text-white font-mono tabular-nums">{fniC.toFixed(0)}</span>
-        </div>
-        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniC}%`}></div>
-        </div>
-        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>U: Utility</span>
-           <span class="text-white font-mono tabular-nums">{fniU.toFixed(0)}</span>
-        </div>
-        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniU}%`}></div>
-        </div>
-      </div>
-
-      <!-- Technical Context -->
-      <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center">
-        <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2 text-center md:text-left">Tech Context</span>
-        <div class="flex flex-wrap gap-4 justify-center md:justify-start">
-          {paramsB && (
-            <div class="flex flex-col">
-              <span class="text-[14px] font-black font-mono text-white tabular-nums">{paramsB >= 1 ? paramsB : paramsB + 'B'}</span>
-              <span class="text-[8px] text-zinc-500 uppercase font-black">Params</span>
-            </div>
-          )}
-          {contextLength && (
-            <div class="flex flex-col">
-              <span class="text-[14px] font-black font-mono text-white tabular-nums">{contextLength >= 1000 ? (contextLength / 1000) + 'K' : contextLength}</span>
-              <span class="text-[8px] text-zinc-500 uppercase font-black">Ctx</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <!-- Vital Stats -->
-      <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center md:col-span-2 lg:col-span-2">
-         <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Vital Performance</span>
-         <div class="flex items-center gap-6">
-            <div class="flex flex-col">
-               <span class="text-[14px] font-black font-mono text-white tabular-nums">
-                 {downloads >= 1000000 ? (downloads / 1000000).toFixed(1) + 'M' : downloads >= 1000 ? (downloads / 1000).toFixed(1) + 'K' : downloads?.toLocaleString()}
-               </span>
-               <span class="text-[8px] text-zinc-500 uppercase font-black">DL / 30D</span>
-            </div>
-            <div class="flex-1 max-w-[80px]">
-               {svgPath && (
-                 <svg width="80" height="24" viewBox="0 0 80 32" class="opacity-100">
-                   <path d={svgPath} fill="none" stroke="#bdc3ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
-                 </svg>
-               )}
-            </div>
-            <span class={`text-[10px] font-black font-mono ${trendColor} tabular-nums`}>
-              {trendPercent}%
-            </span>
-         </div>
-      </div>
-    </div>
+    <!-- V22.11 Industrial Metric Grid (Extracted) -->
+    <EntityMetricGrid 
+      fniScore={fniScore}
+      fniPercentile={fniPercentile}
+      fniP={fniP}
+      fniV={fniV}
+      fniC={fniC}
+      fniU={fniU}
+      fniPillarsSynthesized={fniPillarsSynthesized}
+      paramsB={paramsB}
+      contextLength={contextLength}
+      downloads={downloads}
+      svgPath={svgPath}
+      trendColor={trendColor}
+      trendPercent={trendPercent}
+    />
   </div>
 
   {description && (

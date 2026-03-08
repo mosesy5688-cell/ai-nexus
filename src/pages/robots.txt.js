@@ -6,8 +6,8 @@ User-agent: *
 Allow: /
 Crawl-delay: 1
 
-# Sitemaps - V6.2 SEO Optimization
-Sitemap: https://free2aitools.com/sitemap.xml
+# Sitemaps - V23.6 Sharded Sitemap Index
+Sitemap: https://free2aitools.com/sitemaps/sitemap-index.xml
 
 # Block legacy/sensitive paths
 Disallow: /api/

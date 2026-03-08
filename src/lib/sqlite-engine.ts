@@ -1,6 +1,6 @@
 /**
  * SQLite WASM Engine & Connection Pool (SSR)
- * V23.1: Centralized LRU Cache & Federated Query Execution
+ * V23.10: Handle Persistence Fix & Universal Routing
  */
 import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.mjs';
 // @ts-ignore
@@ -11,72 +11,99 @@ let globalSqlite3: any = null;
 let globalSqliteModule: any = null;
 let globalVFS: any = null;
 let sqliteInitPromise: Promise<void> | null = null;
-let globalVfsName: string = '';
 let shardManifest: any = null;
 
-const MAX_CACHED_DBS = 4;
-if (!(globalThis as any).dbCache) {
-    (globalThis as any).dbCache = new Map<string, { db: any, lastUsed: number }>();
+// V23.10: Move cache to module scope to prevent handle mismatch across HMR reloads
+const dbCache = new Map<string, { db: any, lastUsed: number }>();
+const MAX_CACHED_DBS = 16;
+
+// V23.1: Global Lock for Asyncify Re-entrancy Protection
+let sqliteLock: Promise<void> = Promise.resolve();
+
+async function withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const prevLock = sqliteLock;
+    let resolveLock: () => void;
+    sqliteLock = new Promise(resolve => resolveLock = resolve);
+    await prevLock;
+    try {
+        return await fn();
+    } finally {
+        resolveLock!();
+    }
+}
+
+async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
+    if (sqliteInitPromise) return sqliteInitPromise;
+
+    sqliteInitPromise = (async () => {
+        const wasmConfig: any = {
+            locateFile: (file: string) => `https://cdn.free2aitools.com/wasm/${file}`
+        };
+
+        if (typeof process !== 'undefined' && process.versions?.node) {
+            const { readFileSync } = await import('fs');
+            const { join } = await import('path');
+            try {
+                const paths = [
+                    join(process.cwd(), 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm'),
+                    join(process.cwd(), '..', 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm')
+                ];
+                for (const p of paths) {
+                    try {
+                        wasmConfig.wasmBinary = readFileSync(p);
+                        break;
+                    } catch { }
+                }
+            } catch (e) {
+                console.warn('[SQLite] WASM local read failed');
+            }
+        }
+
+        globalSqliteModule = await SQLiteAsyncESMFactory(wasmConfig);
+        globalSqlite3 = Factory(globalSqliteModule);
+        globalVFS = new R2RangeVFS(r2Bucket, { simulate: shouldSimulate }, globalSqliteModule);
+        globalSqliteModule.vfs_register(globalVFS, true);
+    })();
+
+    return sqliteInitPromise;
 }
 
 export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boolean, dbName: string) {
-    if (!sqliteInitPromise) {
-        sqliteInitPromise = (async () => {
-            let wasmConfig: any = {};
-            if (typeof process !== 'undefined' && process.versions?.node) {
-                const { readFileSync } = await import('fs');
-                const { resolve, dirname } = await import('path');
-                const { fileURLToPath } = await import('url');
-                const wasmPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../node_modules/@journeyapps/wa-sqlite/dist/wa-sqlite-async.wasm');
-                try {
-                    wasmConfig.wasmBinary = readFileSync(wasmPath);
-                } catch (e) {
-                    console.warn('[SQLite] WASM local read failed, falling back to default locateFile');
-                }
-            }
-
-            globalSqliteModule = await SQLiteAsyncESMFactory(wasmConfig);
-            globalSqlite3 = Factory(globalSqliteModule);
-
-            globalVfsName = `r2-range-${Date.now()}`;
-            globalVFS = new R2RangeVFS(r2Bucket, { simulate: shouldSimulate }, globalSqliteModule);
-            // @ts-ignore
-            globalVFS.name = globalVfsName;
-            globalSqlite3.vfs_register(globalVFS, true);
-        })();
-    }
-
-    await sqliteInitPromise;
+    await initSqlite(r2Bucket, shouldSimulate);
     if (!shouldSimulate && r2Bucket && globalVFS) globalVFS.bucket = r2Bucket;
 
-    const cache = (globalThis as any).dbCache as Map<string, { db: any, lastUsed: number }>;
-
-    if (cache.has(dbName)) {
-        const entry = cache.get(dbName)!;
+    if (dbCache.has(dbName)) {
+        const entry = dbCache.get(dbName)!;
         entry.lastUsed = Date.now();
         return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db };
     }
 
-    if (cache.size >= MAX_CACHED_DBS) {
+    if (dbCache.size >= MAX_CACHED_DBS) {
         let oldestName = '';
         let oldestTime = Infinity;
-        for (const [name, entry] of cache.entries()) {
-            if (name === 'meta-model-core.db' || name === 'meta-ecosystem.db') continue;
+        for (const [name, entry] of dbCache.entries()) {
+            if (name.includes('core')) continue;
             if (entry.lastUsed < oldestTime) {
                 oldestTime = entry.lastUsed;
                 oldestName = name;
             }
         }
         if (oldestName) {
-            const evicted = cache.get(oldestName)!;
-            await globalSqlite3.close(evicted.db);
-            cache.delete(oldestName);
+            const evicted = dbCache.get(oldestName)!;
+            dbCache.delete(oldestName);
+            await withLock(async () => {
+                await globalSqlite3.close(evicted.db);
+            });
         }
     }
 
-    const db = await globalSqlite3.open_v2(dbName, 1, globalVfsName);
-    cache.set(dbName, { db, lastUsed: Date.now() });
+    const db = await withLock(async () => {
+        const handle = await globalSqlite3.open_v2(dbName, 1, 'r2-range');
+        if (!handle) throw new Error(`Failed to open handle: ${dbName}`);
+        return handle;
+    });
 
+    dbCache.set(dbName, { db, lastUsed: Date.now() });
     return { sqlite3: globalSqlite3, module: globalSqliteModule, db };
 }
 
@@ -86,37 +113,48 @@ export async function loadManifest(r2Bucket: any, simulate: boolean) {
         if (r2Bucket && !simulate) {
             const obj = await r2Bucket.get('data/shards_manifest.json');
             shardManifest = await obj.json();
+            shardManifest._etag = (obj.httpEtag || obj.etag || 'v23').replace(/"/g, '');
         } else {
             const res = await fetch('https://cdn.free2aitools.com/data/shards_manifest.json');
             shardManifest = await res.json();
+            shardManifest._etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '');
         }
     } catch (e) {
-        shardManifest = { partitions: { model: 5, paper: 4 } };
+        shardManifest = { partitions: { model: 5, paper: 14, dataset: 8, tool: 2 }, _etag: 'fallback' };
     }
     return shardManifest;
 }
 
-export async function executeSql(sqlite3: any, db: any, sql: string, params: any[], semanticScores?: Map<number, number>) {
-    const rows: any[] = [];
-    for await (const stmt of sqlite3.statements(db, sql)) {
-        if (params.length > 0) sqlite3.bind_collection(stmt, params);
-        let columns: string[] | null = null;
-        while (await sqlite3.step(stmt) === 100) {
-            columns = columns ?? sqlite3.column_names(stmt);
-            const row = sqlite3.row(stmt);
-            const obj: any = {};
-            columns!.forEach((c, idx) => obj[c] = row[idx]);
+export async function executeSql(sqlite3: any, db: any, sql: string, params: any[] = [], semanticScores?: Map<number, number>) {
+    return await withLock(async () => {
+        const rows: any[] = [];
+        try {
+            for await (const stmt of sqlite3.statements(db, sql)) {
+                if (params && params.length > 0) {
+                    const count = sqlite3.bind_parameter_count(stmt);
+                    sqlite3.bind_collection(stmt, params.slice(0, count));
+                }
 
-            rows.push({
-                id: obj.id, name: obj.name, slug: obj.slug, type: obj.type,
-                author: obj.author, description: obj.summary, fni_score: obj.fni_score,
-                likes: obj.stars, downloads: obj.downloads, last_updated: obj.last_modified,
-                license: obj.license, task: obj.pipeline_tag,
-                params_billions: obj.params_billions, context_length: obj.context_length,
-                _semanticScore: semanticScores ? semanticScores.get(obj._rowid || obj.id) || 0 : (obj.rank || 0),
-                _dbSort: obj.rank !== undefined ? obj.rank : -(obj.fni_score || 0)
-            });
+                while (await sqlite3.step(stmt) === 100) {
+                    const columns = sqlite3.column_names(stmt);
+                    const rowData = sqlite3.row(stmt);
+                    const obj: any = {};
+                    columns.forEach((c: string, i: number) => {
+                        obj[c] = rowData[i];
+                    });
+                    if (semanticScores && obj._rowid != null) {
+                        obj._semanticScore = semanticScores.get(obj._rowid) ?? 0;
+                    }
+                    if (!semanticScores) {
+                        obj._dbSort = obj.rank != null ? obj.rank : -(obj.fni_score || 0);
+                    }
+                    rows.push(obj);
+                }
+            }
+            return rows;
+        } catch (e: any) {
+            console.error(`[SQLite Engine] SQL Error:`, e.message, "| SQL:", sql);
+            throw e;
         }
-    }
-    return rows;
+    });
 }
