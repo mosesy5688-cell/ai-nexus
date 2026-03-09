@@ -134,6 +134,9 @@ export class SemanticScholarAdapter extends BaseAdapter {
                 influential_count: raw.influential_citation_count || 0,
                 year: raw.year
             },
+            // V24.12: Promoted fields for DB schema expansion
+            citation_count: raw.citation_count || 0,
+
             popularity: raw.citation_count || 0,
             downloads: 0,
             arxiv_id: arxivId,

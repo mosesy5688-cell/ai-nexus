@@ -11,7 +11,8 @@ export const entitiesTableSql = `
         params_billions REAL DEFAULT 0, architecture TEXT, context_length INTEGER DEFAULT 0,
         is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
         last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT,
-        license TEXT, source_url TEXT, pipeline_tag TEXT, image_url TEXT, vram_estimate_gb REAL, source TEXT
+        license TEXT, source_url TEXT, pipeline_tag TEXT, image_url TEXT, vram_estimate_gb REAL, source TEXT,
+        task_categories TEXT, num_rows INTEGER DEFAULT 0, primary_language TEXT, forks INTEGER DEFAULT 0, citation_count INTEGER DEFAULT 0
     );
 `;
 

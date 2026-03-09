@@ -267,6 +267,10 @@ export class GitHubAdapter extends BaseAdapter {
             created_at: raw.created_at,
             updated_at: raw.pushed_at,
 
+            // V24.12: Promoted fields for DB schema expansion
+            primary_language: raw.language || '',
+            forks: raw.forks_count || 0,
+
             // Metrics
             popularity: raw.stargazers_count || 0,
             downloads: 0, // GitHub doesn't have downloads

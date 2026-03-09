@@ -290,6 +290,11 @@ export class DatasetsAdapter extends BaseAdapter {
             created_at: raw.createdAt,
             updated_at: raw.lastModified,
 
+            // V24.12: Promoted fields for DB schema expansion
+            task_categories: Array.isArray(raw.cardData?.task_categories) ? raw.cardData.task_categories.join(', ') : '',
+            num_rows: 0, // Set below after schema extraction
+            primary_language: Array.isArray(raw.cardData?.language) ? raw.cardData.language[0] : (raw.cardData?.language || ''),
+
             // Metrics
             popularity: raw.downloads || 0,
             downloads: raw.downloads || 0,
@@ -306,6 +311,9 @@ export class DatasetsAdapter extends BaseAdapter {
             compliance_status: null,
             quality_score: null
         };
+
+        // V24.12: Set num_rows from schema extraction
+        entity.num_rows = totalRows || 0;
 
         // Extract any visualization assets
         // V17.2: Use pre-extracted assets if available (from pruned data)

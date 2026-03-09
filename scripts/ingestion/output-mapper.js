@@ -46,7 +46,13 @@ export async function saveOutput(entities, outputDir, outputFile) {
         commercial_slots: null, // Will be calculated by existing logic
         notebooklm_summary: null,
         velocity_score: e.velocity || 0,
-        last_commercial_at: null
+        last_commercial_at: null,
+        // V24.12: Schema expansion fields (promoted from meta_json)
+        task_categories: e.task_categories || '',
+        num_rows: e.num_rows || 0,
+        primary_language: e.primary_language || '',
+        forks: e.forks || 0,
+        citation_count: e.citation_count || 0
     }));
 
     // V18.2.1 GA: Sharded Output Logic (Art 3.1 Compliance)
