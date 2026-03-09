@@ -69,8 +69,8 @@ export class UniversalCatalog {
     async syncLoop() {
         if (this.source.fullDataLoaded) return;
 
-        // If user is at bottom, sync immediately, otherwise slow sync
-        const delay = this.hasReachedEnd() ? 500 : 8000;
+        // If user is at bottom, sync immediately, otherwise pre-fetch aggressively
+        const delay = this.hasReachedEnd() ? 500 : 2000;
 
         if (this.hasReachedEnd()) {
             await this.loadMore();
@@ -108,7 +108,7 @@ export class UniversalCatalog {
 
         try {
             // Fetch more from SQLite if we are running low on filtered items
-            if ((this.currentPage * this.itemsPerPage) >= this.filtered.length - 12 && !this.source.fullDataLoaded) {
+            if ((this.currentPage * this.itemsPerPage) >= this.filtered.length - 24 && !this.source.fullDataLoaded) {
                 const newItems = await this.source.loadNextPage();
                 if (newItems && newItems.length > 0) {
                     await this.handleSearch(this.searchInput?.value || '', null, true);

@@ -65,16 +65,18 @@ export class CatalogUIControls {
 
         if (hasMoreData) {
             instance.sentinel.innerHTML = `
-                <div class="flex flex-col items-center gap-4 text-amber-500">
-                    <div class="flex items-center gap-3 text-xs font-black uppercase tracking-[0.3em] animate-pulse">
+                <div class="flex flex-col items-center gap-4">
+                    <div class="flex items-center gap-3 text-xs font-black uppercase tracking-[0.3em] animate-pulse text-amber-500">
                         <div class="w-2 h-2 bg-amber-500 rounded-full"></div>
                         Querying Technical Registry...
                     </div>
-                    <div class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest opacity-60">
-                        Loading Next Page...
-                    </div>
+                    <button id="load-more-btn" class="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-sm text-[10px] font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-all">
+                        Load More
+                    </button>
                 </div>
             `;
+            const btn = instance.sentinel.querySelector('#load-more-btn');
+            if (btn) btn.addEventListener('click', () => instance.loadMore());
         } else {
             instance.sentinel.innerHTML = `
                 <div class="py-12 flex flex-col items-center gap-4 w-full opacity-40">
