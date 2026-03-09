@@ -47,7 +47,7 @@ renderer.code = (args) => {
   // marked v13+: args is an object with { text, lang, raw, escaped }
   const code = args.text || '';
   const language = args.lang || 'text';
-  const escapedCode = code.replace(/"/g, '&quot;');
+  const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   return `
     <div class="relative group my-6 border border-[var(--border-hairline)] rounded-sm overflow-hidden">
       <div class="bg-black/40 px-4 py-1.5 flex justify-between items-center border-b border-[var(--border-hairline)]">

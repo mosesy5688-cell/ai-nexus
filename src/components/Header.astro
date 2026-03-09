@@ -38,6 +38,11 @@ const externalLinks = [
                         </a>
                     ))}
                     <div class="h-3 w-[1px] bg-[#272727] mx-1"></div>
+                    <!-- Guide button — opens onboarding tour -->
+                    <button type="button" onclick="window.openOnboardingTour?.()" class="text-[9px] font-black text-zinc-500 hover:text-white uppercase tracking-widest transition-colors whitespace-nowrap" title="New user guide">
+                        Guide
+                    </button>
+                    <div class="h-3 w-[1px] bg-[#272727] mx-1"></div>
                     <!-- V22.10: Sticky Header Search Input -->
                     <form action="/search" method="get" data-astro-reload class="relative group ml-2 flex items-center">
                         <svg class="absolute left-2 w-3.5 h-3.5 text-zinc-400 group-focus-within:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,6 +86,9 @@ const externalLinks = [
                         <a href={link.href} class="block py-2 px-3 text-xs font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">{link.text}</a>
                     </li>
                 ))}
+                <li>
+                    <button type="button" onclick="window.openOnboardingTour?.()" class="block w-full text-left py-2 px-3 text-xs font-black text-zinc-500 hover:text-white uppercase tracking-widest transition-colors">Guide</button>
+                </li>
             </ul>
         </div>
     </nav>

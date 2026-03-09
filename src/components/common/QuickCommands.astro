@@ -99,12 +99,20 @@ if (repoUrl && repoUrl.includes('github.com') && commands.length < 2) {
     });
 }
 
+// Fallback: ensure models always have at least basic commands
+if (type === 'model' && commands.length === 0) {
+    commands.push(
+      { label: 'HF Download', cmd: `huggingface-cli download ${cleanId}`, icon: '🤗' },
+      { label: 'Install Lib', cmd: `pip install -U transformers`, icon: '📦' }
+    );
+}
+
 if (commands.length === 0) return null;
 ---
 
 <div class={`quick-commands-container space-y-4 ${className}`}>
   <h3 class="text-xs font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-    QUICK DEPLOY
+    Quick Commands
   </h3>
   
   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
