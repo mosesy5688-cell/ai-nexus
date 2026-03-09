@@ -1,10 +1,7 @@
 import type { APIRoute } from 'astro';
 import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/search-query-builder.js';
 import { searchSemantic } from '../../lib/semantic-engine.js';
-import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlite-engine.js';
-
-// Mutex to serialize WASM execution within a single Isolate (prevents OOM)
-let searchMutex: Promise<void> = Promise.resolve();
+import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
 
 // V24.9: Separate cache policies — only cache successful non-empty responses
 const CACHE_HEADERS_HIT = {
@@ -18,7 +15,7 @@ const CACHE_HEADERS_MISS = {
     'Cache-Control': 'public, max-age=0, s-maxage=10'
 };
 
-/** Query a batch of shards with concurrency throttle (Anti-OOM) */
+/** Query a batch of shards with concurrency throttle + retry-on-failure */
 async function queryShardBatch(
     dbs: string[], sql: string, params: any[],
     r2Bucket: any, shouldSimulate: boolean, semanticScores?: Map<number, number>
@@ -32,8 +29,16 @@ async function queryShardBatch(
                 const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
                 return await executeSql(engine.sqlite3, engine.db, sql, params, semanticScores);
             } catch (err: any) {
-                console.warn(`[SSR Search] Skipping shard ${dbName}: ${err.message}`);
-                return [];
+                // Retry once: evict stale connection, re-fetch from R2
+                console.warn(`[SSR Search] Shard ${dbName} failed (${err.message}), retrying…`);
+                try {
+                    await evictCachedDb(dbName);
+                    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
+                    return await executeSql(engine.sqlite3, engine.db, sql, params, semanticScores);
+                } catch (retryErr: any) {
+                    console.error(`[SSR Search] Shard ${dbName} retry failed: ${retryErr.message}`);
+                    return [];
+                }
             }
         }));
         results = results.concat(chunkResults.flat());
@@ -90,7 +95,6 @@ export const GET: APIRoute = async ({ url, locals }) => {
         const manifest = await loadManifest(r2Bucket, shouldSimulate);
 
         // ── S0: Edge Response Cache (caches.default) ──
-        // Check BEFORE acquiring searchMutex so cached hits never block other requests
         const manifestEtag = manifest?._etag || 'v23';
         const cacheKeyUrl = `https://search-cache.internal/${manifestEtag}/q=${encodeURIComponent(q)}&type=${type}&sort=${sort}&mode=${mode}&limit=${limit}&page=${page}`;
         const cacheKeyReq = new Request(cacheKeyUrl);
@@ -105,76 +109,67 @@ export const GET: APIRoute = async ({ url, locals }) => {
             }
         }
 
-        // ── S0 Miss: Acquire mutex and execute federated query ──
+        // ── S0 Miss: Execute federated query ──
+        // Note: WASM serialization handled by withLock() in sqlite-engine.ts
         const parsed = parseCommands(q);
 
-        let releaseLock: () => void;
-        const lockAcquired = new Promise<void>(resolve => { releaseLock = resolve; });
-        const previousMutex = searchMutex;
-        searchMutex = previousMutex.then(() => lockAcquired).catch(() => lockAcquired);
-        await previousMutex;
+        // Build SQL
+        let finalSql = '';
+        let finalParams: any[] = [];
+        let semanticScores: Map<number, number> | null = null;
 
-        try {
-            // Build SQL
-            let finalSql = '';
-            let finalParams: any[] = [];
-            let semanticScores: Map<number, number> | null = null;
-
-            if (mode === 'semantic' && env.AI) {
-                const ranked = await searchSemantic(q, limit, env);
-                if (ranked.length > 0) {
-                    semanticScores = new Map(ranked.map(r => [r.rowid, r.score]));
-                    const placeholders = ranked.map(() => '?').join(',');
-                    finalSql = `SELECT *, rowid as _rowid FROM entities e WHERE e.rowid IN (${placeholders})`;
-                    finalParams = ranked.map(r => r.rowid);
-                }
+        if (mode === 'semantic' && env.AI) {
+            const ranked = await searchSemantic(q, limit, env);
+            if (ranked.length > 0) {
+                semanticScores = new Map(ranked.map(r => [r.rowid, r.score]));
+                const placeholders = ranked.map(() => '?').join(',');
+                finalSql = `SELECT *, rowid as _rowid FROM entities e WHERE e.rowid IN (${placeholders})`;
+                finalParams = ranked.map(r => r.rowid);
             }
-
-            if (finalSql === '') {
-                const { sql: baseSql, params, isFTS } = buildQuery(parsed, type);
-                const orderBy = sort === 'likes' ? 'e.stars DESC'
-                    : sort === 'last_updated' ? 'e.last_modified DESC'
-                        : isFTS ? 'rank' : 'e.fni_score DESC';
-                const offset = (page - 1) * limit;
-                finalSql = `${baseSql} ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
-                finalParams = params;
-            }
-
-            // ── Two-Phase Federated Query ──
-            const { priority, expansion } = determineTargetDbs(type, q, page, manifest);
-
-            // Phase A: Priority shards (core + single-shard categories)
-            let allRows = await queryShardBatch(
-                priority, finalSql, finalParams, r2Bucket, shouldSimulate, semanticScores || undefined
-            );
-
-            // Phase B: Expansion shards (only if Phase A results insufficient)
-            if (allRows.length < limit && expansion.length > 0) {
-                const expansionRows = await queryShardBatch(
-                    expansion, finalSql, finalParams, r2Bucket, shouldSimulate, semanticScores || undefined
-                );
-                allRows = allRows.concat(expansionRows);
-            }
-
-            const finalResults = mergeResults(allRows, sort, limit, semanticScores);
-            const elapsed = Date.now() - start;
-            const tier = semanticScores ? 'semantic' : 'db';
-
-            const headers = finalResults.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
-            const response = new Response(
-                JSON.stringify({ results: finalResults, tier, elapsed_ms: elapsed }),
-                { headers }
-            );
-
-            // ── Write back to S0 edge cache (non-blocking) ──
-            if (edgeCache && finalResults.length > 0) {
-                edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
-            }
-
-            return response;
-        } finally {
-            releaseLock!();
         }
+
+        if (finalSql === '') {
+            const { sql: baseSql, params, isFTS } = buildQuery(parsed, type);
+            const orderBy = sort === 'likes' ? 'e.stars DESC'
+                : sort === 'last_updated' ? 'e.last_modified DESC'
+                    : isFTS ? 'rank' : 'e.fni_score DESC';
+            const offset = (page - 1) * limit;
+            finalSql = `${baseSql} ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
+            finalParams = params;
+        }
+
+        // ── Two-Phase Federated Query ──
+        const { priority, expansion } = determineTargetDbs(type, q, page, manifest);
+
+        // Phase A: Priority shards (core + single-shard categories)
+        let allRows = await queryShardBatch(
+            priority, finalSql, finalParams, r2Bucket, shouldSimulate, semanticScores || undefined
+        );
+
+        // Phase B: Expansion shards (only if Phase A results insufficient)
+        if (allRows.length < limit && expansion.length > 0) {
+            const expansionRows = await queryShardBatch(
+                expansion, finalSql, finalParams, r2Bucket, shouldSimulate, semanticScores || undefined
+            );
+            allRows = allRows.concat(expansionRows);
+        }
+
+        const finalResults = mergeResults(allRows, sort, limit, semanticScores);
+        const elapsed = Date.now() - start;
+        const tier = semanticScores ? 'semantic' : 'db';
+
+        const headers = finalResults.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
+        const response = new Response(
+            JSON.stringify({ results: finalResults, tier, elapsed_ms: elapsed }),
+            { headers }
+        );
+
+        // ── Write back to S0 edge cache (non-blocking) ──
+        if (edgeCache && finalResults.length > 0) {
+            edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
+        }
+
+        return response;
     } catch (e: any) {
         console.error('[SSR Search] Error:', e.message);
         return new Response(JSON.stringify({ error: e.message, tier: 'error' }), {
