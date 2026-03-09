@@ -50,7 +50,7 @@ export const DataNormalizer = {
         const rawScore = item.fni_score ?? item.fni ?? item.fniScore ?? 0;
         let fni_score = Math.round(rawScore * 1000) / 1000;
         let context_length = parseInt(item.context_length ?? item.context ?? 0);
-        let vram_est = item.vram_est ?? item.vram ?? 0;
+        let vram_est = item.vram_estimate_gb ?? item.vram_est ?? item.vram ?? 0;
 
         // V23.1 Shard-DB 4.0: Extract from tags (models.json / legacy shards)
         if (item.tags && Array.isArray(item.tags)) {
@@ -103,6 +103,7 @@ export const DataNormalizer = {
             slug,
             author,
             license,
+            architecture: item.architecture || '',
             pipeline_tag: pipeline_tag || type,
             category: item.category || item.primary_category || '',
             fni_score,
