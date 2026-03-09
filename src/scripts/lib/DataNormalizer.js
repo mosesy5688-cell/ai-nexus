@@ -45,12 +45,16 @@ export const DataNormalizer = {
         let pipeline_tag = raw_tag.split(/\s+/)[0].replace(/[:/]/g, '').toLowerCase(); // Strict Opus 4.6 Cleaning
 
         let params_billions = parseFloat(item.params_billions ?? item.params ?? item.technical?.parameters_b ?? 0);
+        // V24.12: Auto-convert raw param count to billions (e.g., 3821079552 → 3.8)
+        if (params_billions > 1000) params_billions = params_billions / 1e9;
         params_billions = Math.round(params_billions * 100) / 100;
         // V23.1: Precision Refinement
         const rawScore = item.fni_score ?? item.fni ?? item.fniScore ?? 0;
         let fni_score = Math.round(rawScore * 1000) / 1000;
         let context_length = parseInt(item.context_length ?? item.context ?? 0);
         let vram_est = item.vram_estimate_gb ?? item.vram_est ?? item.vram ?? 0;
+        // V24.12: Auto-convert raw bytes to GB (e.g., 2865809667 → ~2.7)
+        if (vram_est > 10000) vram_est = Math.round(vram_est / 1e9 * 10) / 10;
 
         // V23.1 Shard-DB 4.0: Extract from tags (models.json / legacy shards)
         if (item.tags && Array.isArray(item.tags)) {
