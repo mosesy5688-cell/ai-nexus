@@ -97,7 +97,7 @@ async function packDatabase() {
     searchDb.exec(searchDbSchema);
 
     // Prepare Statements
-    const placeholder = Array(33).fill('?').join(', ');
+    const placeholder = Array(38).fill('?').join(', ');
     const prepInserts = {};
     const prepFts = {};
 
@@ -137,6 +137,13 @@ async function packDatabase() {
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
         const arch = e.architecture ?? e.technical?.architecture ?? '';
+
+        // V24.12: Promote meta_json fields to top-level for DB storage
+        const meta = typeof e.meta_json === 'string' ? JSON.parse(e.meta_json || '{}') : (e.meta_json || {});
+        e.task_categories ??= Array.isArray(meta.task_categories) ? meta.task_categories.join(', ') : (meta.task_categories || '');
+        e.num_rows ??= meta.rows_count || 0;
+        e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || '');
+        e.forks ??= meta.forks || 0; e.citation_count ??= meta.citation_count || 0;
 
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;

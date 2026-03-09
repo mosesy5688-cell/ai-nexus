@@ -32,7 +32,7 @@ export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
 }
 
 /**
- * V22.8: Build 33-column entity row for meta.db/search.db
+ * V24.12: Build 38-column entity row for meta.db/search.db
  */
 export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, summary, bundleKey, offset, size) {
     const s = (v, fallback = '') => {
@@ -58,6 +58,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         n(e.stars || e.likes), n(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
         '', s(e._trend_7d),
         s(e.license || e.license_spdx), s(e.source_url), s(e.pipeline_tag),
-        s(e.raw_image_url || e.image_url), n(e.vram_estimate_gb), s(e.source || e.source_platform)
+        s(e.raw_image_url || e.image_url), n(e.vram_estimate_gb), s(e.source || e.source_platform),
+        s(e.task_categories), n(e.num_rows), s(e.primary_language), n(e.forks), n(e.citation_count)
     ];
 }

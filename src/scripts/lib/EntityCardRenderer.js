@@ -63,11 +63,20 @@ export class EntityCardRenderer {
             if (license) metrics.push({ icon: '📜', value: license, label: 'License' });
             if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
         } else if (type === 'dataset') {
+            const taskCats = item.task_categories || '';
+            if (taskCats) metrics.push({ icon: '🎯', value: taskCats.split(',')[0].trim().replace(/-/g, ' '), label: 'Task' });
+            if (item.num_rows > 0) metrics.push({ icon: '📊', value: this.formatNumber(item.num_rows), label: 'Rows' });
+            if (item.primary_language) metrics.push({ icon: '🌐', value: item.primary_language, label: 'Lang' });
             if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
             if (item.likes > 0) metrics.push({ icon: '❤️', value: this.formatNumber(item.likes), label: 'Likes' });
         } else if (type === 'agent' || type === 'tool') {
+            if (item.primary_language) metrics.push({ icon: '💻', value: item.primary_language, label: 'Lang' });
             const stars = item.stars || item.github_stars || 0;
             if (stars > 0) metrics.push({ icon: '⭐', value: this.formatNumber(stars), label: 'Stars' });
+            if (item.forks > 0) metrics.push({ icon: '🔀', value: this.formatNumber(item.forks), label: 'Forks' });
+            if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
+        } else if (type === 'paper') {
+            if (item.citation_count > 0) metrics.push({ icon: '📚', value: this.formatNumber(item.citation_count), label: 'Cited' });
             if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
         } else {
             if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });

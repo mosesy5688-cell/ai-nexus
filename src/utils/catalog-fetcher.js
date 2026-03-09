@@ -43,12 +43,12 @@ async function _fetchCatalogDataInner(type, runtime, start) {
 
     let sql, sqlParams, shardList;
     if (isCategory) {
-        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag, license, vram_estimate_gb, architecture FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 24`;
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 24`;
         sqlParams = [type];
         const { priority } = determineTargetDbs('all', '', 1, manifest);
         shardList = priority.slice(0, 3);
     } else {
-        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 24`;
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 24`;
         sqlParams = [type];
         const { priority } = determineTargetDbs(type, '', 1, manifest);
         // V24.10d: Only query 1 shard for SSR speed — client lazy-loads the rest
@@ -113,6 +113,11 @@ export function truncateListingItem(item) {
         vram_est: item.vram_estimate_gb || item.vram_est || 0,
         license: item.license || '',
         architecture: item.architecture || '',
-        last_updated: item.last_updated || ''
+        last_updated: item.last_updated || '',
+        task_categories: item.task_categories || '',
+        num_rows: item.num_rows || 0,
+        primary_language: item.primary_language || '',
+        forks: item.forks || 0,
+        citation_count: item.citation_count || 0
     };
 }
