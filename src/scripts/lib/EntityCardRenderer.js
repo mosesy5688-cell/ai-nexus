@@ -26,6 +26,9 @@ export class EntityCardRenderer {
         const fni = Math.round(item.fni_score ?? item.fni ?? 0);
         const fniPercentile = item.fni_percentile || item.percentile || '';
         const pipeline_tag = item.pipeline_tag || '';
+        const archLabel = (item.architecture || pipeline_tag || type).split(/\s+/)[0].replace(/[:/]/g, '');
+        const vram = item.vram_estimate_gb || item.vram_est || (item.params_billions > 0 ? Math.round(item.params_billions * 2.4) : 0);
+        const license = (item.license || '').replace(/^apache-/i, 'Apache ').replace(/^mit$/i, 'MIT').split(/\s+/)[0];
 
         // V23.1 Standard Colors for Badges
         const badgeColors = {
@@ -46,6 +49,33 @@ export class EntityCardRenderer {
         else if (fni >= 70) fniBadgeClass = "bg-indigo-950/30 border-indigo-500/20 text-indigo-400";
         else if (fni > 0) fniBadgeClass = "bg-zinc-900/50 border-white/10 text-white";
 
+        // Build polymorphic metrics per entity type
+        const metrics = [];
+        if (type === 'model') {
+            if (item.params_billions > 0) metrics.push({ icon: '🧠', value: `${item.params_billions}B`, label: 'Size' });
+            if (item.context_length > 0) metrics.push({ icon: '📏', value: item.context_length >= 1000 ? `${Math.round(item.context_length / 1000)}k` : item.context_length, label: 'CTX' });
+            if (vram > 0) metrics.push({ icon: '💾', value: `~${vram}G`, label: 'VRAM' });
+            if (license) metrics.push({ icon: '📜', value: license, label: 'License' });
+            if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
+        } else if (type === 'dataset') {
+            if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
+            if (item.likes > 0) metrics.push({ icon: '❤️', value: this.formatNumber(item.likes), label: 'Likes' });
+        } else if (type === 'agent' || type === 'tool') {
+            const stars = item.stars || item.github_stars || 0;
+            if (stars > 0) metrics.push({ icon: '⭐', value: this.formatNumber(stars), label: 'Stars' });
+            if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
+        } else {
+            if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
+        }
+
+        const metricsHtml = metrics.map(m => `
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-[10px] opacity-70">${m.icon}</span>
+                <span class="text-[10px] font-black text-zinc-300 tabular-nums">${m.value}</span>
+                <span class="text-[8px] font-black text-zinc-500 uppercase tracking-widest hidden lg:inline">${m.label}</span>
+            </div>
+        `).join('');
+
         return `
             <a href="${link}" class="entity-card group h-[44px] px-3 bg-[#1e1e1e] hover:bg-[#252525] border-b border-[#2a2a2a] transition-all flex items-center justify-between gap-4 overflow-hidden select-none" data-entity-id="${id}" data-entity-type="${type}">
                 <!-- Column 1: Identity -->
@@ -55,53 +85,24 @@ export class EntityCardRenderer {
                         ${displayTitle}
                     </h3>
                 </div>
-                
-                <!-- Column 2: Specs (55%) -->
+
+                <!-- Column 2: Polymorphic Specs -->
                 <div class="flex-1 hidden md:flex items-center gap-6 px-4 border-l border-white/5 overflow-hidden">
                     <div class="flex items-center gap-1.5 shrink-0">
                         <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">ARCH:</span>
-                        <span class="text-[9px] font-bold text-zinc-300 truncate max-w-[120px] uppercase">${(pipeline_tag || type).replace(/-/g, ' ')}</span>
+                        <span class="text-[9px] font-bold text-zinc-300 truncate max-w-[120px] uppercase">${(archLabel || type).replace(/-/g, ' ')}</span>
                     </div>
-
-                    ${item.params_billions > 0 ? `
-                        <div class="flex items-center gap-1.5 shrink-0">
-                            <span class="text-[8px] font-black text-[#bdc3ff]/80 uppercase tracking-widest">SIZE:</span>
-                            <span class="text-[10px] font-black text-[#bdc3ff] tabular-nums">${item.params_billions}B</span>
-                        </div>
-                    ` : ''}
-
-                    ${item.context_length > 0 ? `
-                        <div class="flex items-center gap-1.5 shrink-0 hidden lg:flex">
-                            <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">CTX:</span>
-                            <span class="text-[10px] font-black text-zinc-300 tabular-nums">${item.context_length >= 1000 ? `${Math.round(item.context_length / 1000)}k` : item.context_length}</span>
-                        </div>
-                    ` : ''}
-
-                    ${item.vram_est > 0 ? `
-                        <div class="flex items-center gap-1.5 shrink-0 hidden lg:flex">
-                            <span class="text-[8px] font-black text-emerald-500/80 uppercase tracking-widest">VRAM:</span>
-                            <span class="text-[10px] font-black text-emerald-400 tabular-nums">~${item.vram_est}G</span>
-                        </div>
-                    ` : ''}
+                    ${metricsHtml}
                 </div>
 
-                <!-- Column 3: Stats & FNI (20%) -->
-                <div class="flex items-center gap-3 md:gap-5 shrink-0 justify-end md:w-[20%] font-mono">
-                    <div class="flex items-center gap-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                        <div class="flex items-center gap-1.5 shrink-0" title="Downloads">
-                            <span class="text-zinc-300 font-black tabular-nums">${this.formatNumber(item.downloads || 0)}</span>
-                            <span class="text-[12px] opacity-70">📥</span>
+                <!-- Column 3: FNI -->
+                <div class="flex items-center gap-3 shrink-0 justify-end font-mono">
+                    ${fni > 0 ? `
+                        <div class="flex items-center gap-2 px-2.5 py-0.5 rounded-sm border fni-badge-container ${fniBadgeClass}">
+                            <span class="text-[11px] font-black tabular-nums">${fni}</span>
+                            <span class="text-[8px] font-black uppercase tracking-widest opacity-60">FNI</span>
                         </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        ${fni > 0 ? `
-                            <div class="flex items-center gap-2 px-2.5 py-0.5 rounded-sm border fni-badge-container ${fniBadgeClass}">
-                                <span class="text-[11px] font-black tabular-nums">${fni}</span>
-                                <span class="text-[8px] font-black uppercase tracking-widest opacity-60">FNI</span>
-                            </div>
-                        ` : ''}
-                    </div>
+                    ` : ''}
                 </div>
             </a>
         `;

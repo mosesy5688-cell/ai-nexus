@@ -43,12 +43,12 @@ async function _fetchCatalogDataInner(type, runtime, start) {
 
     let sql, sqlParams, shardList;
     if (isCategory) {
-        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 24`;
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag, license, vram_estimate_gb, architecture FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 24`;
         sqlParams = [type];
         const { priority } = determineTargetDbs('all', '', 1, manifest);
         shardList = priority.slice(0, 3);
     } else {
-        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 24`;
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 24`;
         sqlParams = [type];
         const { priority } = determineTargetDbs(type, '', 1, manifest);
         // V24.10d: Only query 1 shard for SSR speed — client lazy-loads the rest
@@ -110,7 +110,9 @@ export function truncateListingItem(item) {
         typeLabel: item.typeLabel || (item.pipeline_tag || item.type || '').replace(/-/g, ' '),
         params_billions: item.params_billions || 0,
         context_length: item.context_length || 0,
-        vram_est: item.vram_est || 0,
+        vram_est: item.vram_estimate_gb || item.vram_est || 0,
+        license: item.license || '',
+        architecture: item.architecture || '',
         last_updated: item.last_updated || ''
     };
 }
