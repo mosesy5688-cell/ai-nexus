@@ -27,7 +27,12 @@ export class EntityCardRenderer {
         const fniPercentile = item.fni_percentile || item.percentile || '';
         const pipeline_tag = item.pipeline_tag || '';
         const archLabel = (item.architecture || pipeline_tag || type).split(/\s+/)[0].replace(/[:/]/g, '');
-        const vram = item.vram_estimate_gb || item.vram_est || (item.params_billions > 0 ? Math.round(item.params_billions * 2.4) : 0);
+        // Unit normalization: raw param count → billions, raw bytes → GB
+        let paramsBillions = item.params_billions || 0;
+        if (paramsBillions > 1000) paramsBillions = Math.round(paramsBillions / 1e9 * 100) / 100;
+        let rawVram = item.vram_estimate_gb || item.vram_est || 0;
+        if (rawVram > 10000) rawVram = Math.round(rawVram / 1e9 * 10) / 10;
+        const vram = rawVram || (paramsBillions > 0 ? Math.round(paramsBillions * 2.4) : 0);
         const license = (item.license || '').replace(/^apache-/i, 'Apache ').replace(/^mit$/i, 'MIT').split(/\s+/)[0];
 
         // V23.1 Standard Colors for Badges
@@ -52,7 +57,7 @@ export class EntityCardRenderer {
         // Build polymorphic metrics per entity type
         const metrics = [];
         if (type === 'model') {
-            if (item.params_billions > 0) metrics.push({ icon: '🧠', value: `${item.params_billions}B`, label: 'Size' });
+            if (paramsBillions > 0) metrics.push({ icon: '🧠', value: `${paramsBillions}B`, label: 'Size' });
             if (item.context_length > 0) metrics.push({ icon: '📏', value: item.context_length >= 1000 ? `${Math.round(item.context_length / 1000)}k` : item.context_length, label: 'CTX' });
             if (vram > 0) metrics.push({ icon: '💾', value: `~${vram}G`, label: 'VRAM' });
             if (license) metrics.push({ icon: '📜', value: license, label: 'License' });
