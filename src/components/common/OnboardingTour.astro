@@ -9,11 +9,7 @@
  * @component
  */
 
-interface Props {
-  showOnMount?: boolean;
-}
-
-const { showOnMount = true } = Astro.props;
+// No props needed — opened via window.openOnboardingTour()
 ---
 
 <!-- Onboarding Modal -->
@@ -36,7 +32,7 @@ const { showOnMount = true } = Astro.props;
         <ul class="space-y-3 text-left">
           <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
             <span class="text-xl">🔍</span>
-            <span>Search 70,000+ AI Models</span>
+            <span>Search AI Models & Tools</span>
           </li>
           <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
             <span class="text-xl">📊</span>
@@ -123,83 +119,53 @@ const { showOnMount = true } = Astro.props;
   </div>
 </div>
 
-<script define:vars={{ showOnMount }}>
+<script>
   document.addEventListener('DOMContentLoaded', () => {
-    const STORAGE_KEY = 'free2ai_onboarding_complete';
     const modal = document.getElementById('onboarding-modal');
     const progress = document.getElementById('onboarding-progress');
     const steps = document.querySelectorAll('.onboarding-step');
     const prevBtn = document.getElementById('onboarding-prev');
     const nextBtn = document.getElementById('onboarding-next');
     const skipBtn = document.getElementById('onboarding-skip');
-    
+
     let currentStep = 1;
     const totalSteps = 4;
 
-    // Check if user has completed onboarding
-    const hasCompleted = localStorage.getItem(STORAGE_KEY);
-    
-    if (showOnMount && !hasCompleted && modal) {
-      // Show modal with slight delay for better UX
-      setTimeout(() => {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-      }, 500);
-    }
-
     function updateStep() {
-      // Update progress bar
-      if (progress) {
-        progress.style.width = `${(currentStep / totalSteps) * 100}%`;
-      }
-
-      // Show/hide steps
+      if (progress) progress.style.width = `${(currentStep / totalSteps) * 100}%`;
       steps.forEach((step, index) => {
         step.classList.toggle('hidden', index + 1 !== currentStep);
       });
-
-      // Update buttons
       if (prevBtn) prevBtn.classList.toggle('hidden', currentStep === 1);
       if (nextBtn) nextBtn.textContent = currentStep === totalSteps ? 'Get Started' : 'Next';
     }
 
-    function closeModal() {
-      if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-      }
-      localStorage.setItem(STORAGE_KEY, 'true');
+    function openModal() {
+      currentStep = 1;
+      updateStep();
+      if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
     }
 
-    // Event listeners
+    function closeModal() {
+      if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    }
+
+    // Expose globally so Header button can trigger it
+    window.openOnboardingTour = openModal;
+
     nextBtn?.addEventListener('click', () => {
-      if (currentStep < totalSteps) {
-        currentStep++;
-        updateStep();
-      } else {
-        closeModal();
-      }
+      if (currentStep < totalSteps) { currentStep++; updateStep(); }
+      else closeModal();
     });
 
     prevBtn?.addEventListener('click', () => {
-      if (currentStep > 1) {
-        currentStep--;
-        updateStep();
-      }
+      if (currentStep > 1) { currentStep--; updateStep(); }
     });
 
     skipBtn?.addEventListener('click', closeModal);
-
-    // Close on background click
-    modal?.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
-    });
-
-    // Close on Escape key
+    modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-        closeModal();
-      }
+      if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) closeModal();
     });
   });
 </script>
