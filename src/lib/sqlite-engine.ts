@@ -123,6 +123,16 @@ export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boole
     return { sqlite3: globalSqlite3, module: globalSqliteModule, db };
 }
 
+/** Evict a cached DB connection and reset VFS state for re-fetch on retry */
+export async function evictCachedDb(dbName: string) {
+    const entry = dbCache.get(dbName);
+    if (entry) {
+        dbCache.delete(dbName);
+        try { await withLock(async () => globalSqlite3.close(entry.db)); } catch {}
+    }
+    if (globalVFS) globalVFS.resetFileState(dbName);
+}
+
 export async function loadManifest(r2Bucket: any, simulate: boolean) {
     if (shardManifest) return shardManifest;
     try {

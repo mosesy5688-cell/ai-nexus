@@ -42,29 +42,42 @@ export class R2RangeVFS extends FacadeVFS {
 
         state.sizePromise = (async () => {
             const key = `data/${name}`;
-            try {
-                if (this.bucket && !this.options.simulate) {
-                    const obj = await this.bucket.head(key);
-                    if (!obj) throw new Error(`${key} head failed`);
-                    state!.size = obj.size;
-                    state!.etag = (obj.httpMetadata?.etag || obj.etag || 'v23').replace(/"/g, '').replace('W/', '');
-                } else {
-                    const res = await fetch(`https://cdn.free2aitools.com/${key}`, { method: 'HEAD' });
-                    if (!res.ok) throw new Error(`${key} CDN head failed`);
-                    state!.size = parseInt(res.headers.get('content-length') || '0', 10);
-                    state!.etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '').replace('W/', '');
+            const MAX_RETRIES = 2;
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    if (this.bucket && !this.options.simulate) {
+                        const obj = await this.bucket.head(key);
+                        if (!obj) throw new Error(`${key} head failed`);
+                        state!.size = obj.size;
+                        state!.etag = (obj.httpMetadata?.etag || obj.etag || 'v23').replace(/"/g, '').replace('W/', '');
+                    } else {
+                        const res = await fetch(`https://cdn.free2aitools.com/${key}`, { method: 'HEAD' });
+                        if (!res.ok) throw new Error(`${key} CDN head failed (${res.status})`);
+                        state!.size = parseInt(res.headers.get('content-length') || '0', 10);
+                        state!.etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '').replace('W/', '');
+                    }
+                    if (state!.size === 0) throw new Error(`${key} returned size=0, likely invalid`);
+                    console.log(`[R2 VFS] [HEAD] Synchronized Metadata for ${name}: ETag=${state!.etag}, Size=${state!.size}`);
+                    return state!.size;
+                } catch (e: any) {
+                    if (attempt < MAX_RETRIES) {
+                        console.warn(`[R2 VFS] HEAD retry ${attempt + 1}/${MAX_RETRIES} for ${name}: ${e.message}`);
+                        continue;
+                    }
+                    console.error(`[R2 VFS] HEAD failed after ${MAX_RETRIES + 1} attempts for ${name}: ${e.message}`);
+                    throw new Error(`VFS metadata unavailable: ${name}`);
                 }
-                console.log(`[R2 VFS] [HEAD] Synchronized Metadata for ${name}: ETag=${state!.etag}, Size=${state!.size}`);
-            } catch (e: any) {
-                console.warn(`[R2 VFS] Warning: Failed to fetch metadata for ${name} (${e.message}). Using empty fallback.`);
-                state!.size = 0;
-                state!.etag = 'missing';
             }
             return state!.size;
         })();
 
         await state.sizePromise;
         return { size: state.size, etag: state.etag };
+    }
+
+    /** Invalidate cached metadata so next access re-fetches from R2 */
+    resetFileState(name: string) {
+        this.fileStates.delete(name);
     }
 
     async jOpen(name: string | null, pFile: number, flags: number, pOutFlags: DataView): Promise<number> {
