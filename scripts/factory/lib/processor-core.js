@@ -51,7 +51,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         const useCases = getUseCases(tags, entity.pipeline_tag || '', finalType, finalFni);
         const quickInsights = getQuickInsights({ ...entity, fni_score: finalFni, vram_gb: vramEstimate }, finalType);
 
-        // V25.1: 自动指标提升 (Metrics Promotion for Papers/Prompts)
+        // V25.1: Metrics Promotion for Papers/Prompts
         let promotedMetrics = {};
         try {
             if (typeof entity.meta_json === 'string') {
