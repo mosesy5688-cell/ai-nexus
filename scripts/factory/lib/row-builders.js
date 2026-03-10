@@ -63,6 +63,6 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.runtime_hardware), n(e.vocab_size), n(e.num_layers), n(e.hidden_size),
         s(e.datasets_used), s(e.quick_start),
         n(e.vram_fp16_gb), n(e.vram_int8_gb), n(e.vram_int4_gb),
-        s(e.readme_html), s(e.ui_related_mesh), s(e.search_vector)
+        '', '', s(e.search_vector)
     ];
 }
