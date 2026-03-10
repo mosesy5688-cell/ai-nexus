@@ -376,8 +376,12 @@ jobs:
           
           echo -e "\n🔥 [V25.1] Commencing Proactive CDN Warming..."
           WARM_URLS=(
+            "https://cdn.free2aitools.com/data/shards_manifest.json"
             "https://cdn.free2aitools.com/data/meta-model-core.db"
-            "https://cdn.free2aitools.com/data/search.db"
+            "https://cdn.free2aitools.com/data/meta-agent.db"
+            "https://cdn.free2aitools.com/data/meta-tool.db"
+            "https://cdn.free2aitools.com/data/meta-space.db"
+            "https://cdn.free2aitools.com/data/meta-prompt.db"
             "https://cdn.free2aitools.com/sitemap.xml"
             "https://cdn.free2aitools.com/cache/trending.json"
           )
