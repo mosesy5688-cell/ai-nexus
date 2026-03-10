@@ -375,16 +375,31 @@ jobs:
           cat purge_res.json
           
           echo -e "\n🔥 [V25.1] Commencing Proactive CDN Warming..."
+          
+          # Initialize with global configurations, core db, and trending cache
           WARM_URLS=(
             "https://cdn.free2aitools.com/data/shards_manifest.json"
             "https://cdn.free2aitools.com/data/meta-model-core.db"
-            "https://cdn.free2aitools.com/data/meta-agent.db"
-            "https://cdn.free2aitools.com/data/meta-tool.db"
-            "https://cdn.free2aitools.com/data/meta-space.db"
-            "https://cdn.free2aitools.com/data/meta-prompt.db"
             "https://cdn.free2aitools.com/sitemap.xml"
             "https://cdn.free2aitools.com/cache/trending.json"
           )
+          
+          # V25.1 Compute Shift-Left: Dynamic VFS Shard Warming for all 7 entity types
+          declare -A PARTITIONS=( ["model"]=3 ["paper"]=14 ["dataset"]=8 ["tool"]=2 ["agent"]=1 ["space"]=1 ["prompt"]=1 )
+          
+          for entity in "${!PARTITIONS[@]}"; do
+            count=${PARTITIONS[$entity]}
+            if [ "$count" -eq 1 ]; then
+               WARM_URLS+=("https://cdn.free2aitools.com/data/meta-${entity}.db")
+            else
+               for (( i=1; i<=count; i++ )); do
+                 shard_num=$(printf "%02d" $i)
+                 # Note: model shards are strictly meta-model-shard-XX.db while core is meta-model-core.db
+                 WARM_URLS+=("https://cdn.free2aitools.com/data/meta-${entity}-shard-${shard_num}.db")
+               done
+            fi
+          done
+
           for url in "${WARM_URLS[@]}"; do
             echo "Warming: $url"
             curl -s -o /dev/null -H "User-Agent: Nexus-Warmer/1.0" "$url"
