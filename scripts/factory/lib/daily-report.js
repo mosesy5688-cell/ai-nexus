@@ -10,7 +10,7 @@ import path from 'path';
 import { loadDailyAccum, saveDailyAccum } from './cache-manager.js';
 
 const DAILY_TOP_ENTITIES = 50;
-const GEMINI_MODEL = 'gemini-3.1-flash'; // Upgraded to Gemini 3.1 Flash for maximum reasoning per $5 quota stability limit
+const GEMINI_MODEL = 'gemini-2.0-flash'; // Expert Mandated: 2.0-flash for max stability and free tier compatibility
 
 /**
  * Generate AI content using Gemini
@@ -26,7 +26,12 @@ async function generateAIContent(topEntities) {
         `${i + 1}. ${e.name} (FNI: ${e.fni_score?.toFixed(1) || 'N/A'}, type: ${e.type || 'model'})`
     ).join('\n');
 
-    const prompt = `You are the lead AI analyst at a top-tier tech consulting firm (e.g., Gartner/McKinsey), representing the free2aitools brand. Based on the following data, generate today's artificial intelligence industry insight report.
+    const systemInstruction = `You are the lead AI analyst at a top-tier tech consulting firm (e.g., Gartner/McKinsey), representing the free2aitools brand.
+Your style must be professional, objective, data-driven, and hardcore.
+Mandatory use of high-frequency industry terminology (e.g., RAG, Agentic Workflows, Inference Scaling, KV Cache, Mixture of Experts).
+You must act as a strict data formatter. Return ONLY valid JSON.`;
+
+    const prompt = `Based on the following data, generate today's artificial intelligence industry insight report.
 
 Top 3 entities today:
 ${top3}
@@ -37,26 +42,27 @@ Strict Requirements:
 1. title: MUST use exactly this format: "free2aitools Daily Report: [Core Tech Breakthrough/Trend Keyword]". Example: "free2aitools Daily Report: DeepSeek-V3 Architecture Analysis & Long-Context Reasoning Breakthrough"
 2. subtitle: 15-25 words, summarizing today's core data points and advancements.
 3. summary: 100-150 words. Your analysis must contain three parts: (1) Objective summary of today's major breakthroughs, (2) Industry Implications, (3) Technical Outlook.
+Explicitly point out what changed compared to "yesterday" and cite specific model/paper names.
 
-Style:
-- Professional, objective, data-driven, hardcore.
-- Mandatory use of high-frequency industry terminology (e.g., RAG, Agentic Workflows, Inference Scaling, KV Cache, Mixture of Experts).
-- Explicitly point out what changed compared to "yesterday" and cite specific model/paper names.
-
-Return ONLY valid JSON:
+Return exactly this JSON format:
 {"title": "...", "subtitle": "...", "summary": "..."}`;
 
     try {
+        // Physical Throttle (15 RPM Death Line) -> 4100ms mandatory wait
+        console.log('[AI] Physical Throttle Engaged: Sleeping 4.1s to respect 15 RPM limit.');
+        await new Promise(resolve => setTimeout(resolve, 4100));
+
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 256,
+                        temperature: 0.2, // Low temperature for strict structural compliance
+                        maxOutputTokens: 512,
                         responseMimeType: 'application/json'
                     }
                 })
