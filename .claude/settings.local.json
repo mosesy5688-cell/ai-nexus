@@ -20,7 +20,14 @@
       "Bash(git show:*)",
       "Bash(git diff:*)",
       "Bash(gh api:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(gh pr:*)",
+      "Bash(npx vitest:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git:*)"
     ]
   }
 }

@@ -9,6 +9,7 @@ import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
+import { configureDistiller, distillEntity } from './lib/v25-distiller.js';
 import {
     loadTrendingMap, loadTrendMap, collectAndSortMetadata,
     buildBundleJson, buildEntityRow, getShardIndex,
@@ -19,11 +20,8 @@ import { getV6Category } from './lib/category-stats-generator.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
 import { generateVectorCore } from './lib/vector-core-generator.js';
 
-const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
-const SEARCH_DB_PATH = './output/data/search.db';
-const SHARD_PATH_DIR = './output/data';
-const THRESHOLD_KB = 0; // V22.8: Universal Sharding
-const MAX_SHARD_SIZE = 256 * 1024 * 1024;
+const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
+const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 256 * 1024 * 1024;
 
 async function packDatabase() {
     console.log('[VFS] 💎 Commencing Constitutional V23.1 Shard-DB Packing...');
@@ -70,9 +68,7 @@ async function packDatabase() {
         console.log(`  - ${type.padEnd(12)}: ${count} shard(s)`);
     });
 
-    const metaDbs = {
-        core: new Database(path.join(SHARD_PATH_DIR, 'meta-model-core.db'))
-    };
+    const metaDbs = { core: new Database(path.join(SHARD_PATH_DIR, 'meta-model-core.db')) };
 
     // Dynamically initialize DBs for all types/shards
     for (const [type, count] of Object.entries(partitionCounts)) {
@@ -98,8 +94,7 @@ async function packDatabase() {
 
     // Prepare Statements
     const placeholder = Array(38).fill('?').join(', ');
-    const prepInserts = {};
-    const prepFts = {};
+    const prepInserts = {}, prepFts = {};
 
     for (const [key, db] of Object.entries(metaDbs)) {
         prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
@@ -132,18 +127,25 @@ async function packDatabase() {
 
     let modelCoreCount = 0;
 
+    // V25.1 Compute Shift-Left: Initialize Distiller
+    configureDistiller();
+
+    const entityLookup = new Map();
+    metadataBatch.forEach(e => {
+        entityLookup.set(e.id || e.slug, {
+            name: e.name || e.displayName || (e.id || e.slug),
+            icon: e.icon || '📦'
+        });
+    });
+
     for (const e of metadataBatch) {
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
         const arch = e.architecture ?? e.technical?.architecture ?? '';
 
-        // V24.12: Promote meta_json fields to top-level for DB storage
-        const meta = typeof e.meta_json === 'string' ? JSON.parse(e.meta_json || '{}') : (e.meta_json || {});
-        e.task_categories ??= Array.isArray(meta.task_categories) ? meta.task_categories.join(', ') : (meta.task_categories || '');
-        e.num_rows ??= meta.rows_count || 0;
-        e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || '');
-        e.forks ??= meta.forks || 0; e.citation_count ??= meta.citation_count || 0;
+        // V25.1 Distillation Pipeline
+        e = distillEntity(e, pBillions, entityLookup);
 
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;
@@ -195,7 +197,7 @@ async function packDatabase() {
             String(e.name || e.displayName || ''),
             String(truncatedSummary),
             Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags),
+            String(tags + " " + (e.search_vector || '')),
             String(category)
         ];
         prepFts[targetKey].run(...ftsValues);
@@ -225,10 +227,7 @@ async function packDatabase() {
     }
 
     await injectMetadata(metaDbs, searchDb, CACHE_DIR);
-    const fullManifest = {
-        shards: manifest,
-        partitions: partitionCounts
-    };
+    const fullManifest = { shards: manifest, partitions: partitionCounts };
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(fullManifest, null, 2));
 
     printBuildSummary(metaDbs, searchDb, stats, currentShardId);
