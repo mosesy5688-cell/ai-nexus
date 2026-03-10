@@ -58,17 +58,24 @@ async function main() {
                 const syncedTargetId = normalizeId(targetIdRaw, getNodeSource(targetIdRaw, targetType), targetType);
                 const bakedUrl = getRouteFromId(syncedTargetId, targetType);
 
+                // V25.1 Compute Shift-Left: Zero-Placeholder Registry Lookup
+                const registryNode = nodeRegistry[targetIdRaw] || nodeRegistry[syncedTargetId] || {};
+                const finalTargetName = rel.name || rel.target_name || registryNode.name || registryNode.displayName || (syncedTargetId.split('--').pop());
+                const finalTargetIcon = rel.icon || registryNode.icon || '📦';
+
                 return {
                     ...rel,
                     url: bakedUrl,
                     target_id: syncedTargetId,
-                    target_name: rel.name || rel.target_name || (syncedTargetId.split('--').pop())
+                    target_name: finalTargetName,
+                    icon: finalTargetIcon
                 };
             });
 
+            // V25.1 Compute Shift-Left: Enforce High-Fidelity Naming
             const profile = {
                 id: syncedId,
-                name: node.name || (syncedId.split('--').pop()),
+                name: node.name || node.displayName || (syncedId.split('--').pop()),
                 type: typeValue,
                 url: canonUrl,
                 icon: node.icon || '📦',

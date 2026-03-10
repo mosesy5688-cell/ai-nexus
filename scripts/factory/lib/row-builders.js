@@ -59,6 +59,10 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         '', s(e._trend_7d),
         s(e.license || e.license_spdx), s(e.source_url), s(e.pipeline_tag),
         s(e.raw_image_url || e.image_url), n(e.vram_estimate_gb), s(e.source || e.source_platform),
-        s(e.task_categories), n(e.num_rows), s(e.primary_language), n(e.forks), n(e.citation_count)
+        s(e.task_categories), n(e.num_rows), s(e.primary_language), n(e.forks), n(e.citation_count),
+        s(e.runtime_hardware), n(e.vocab_size), n(e.num_layers), n(e.hidden_size),
+        s(e.datasets_used), s(e.quick_start),
+        n(e.vram_fp16_gb), n(e.vram_int8_gb), n(e.vram_int4_gb),
+        s(e.readme_html), s(e.ui_related_mesh), s(e.search_vector)
     ];
 }
