@@ -138,7 +138,7 @@ async function packDatabase() {
         });
     });
 
-    for (const e of metadataBatch) {
+    for (let e of metadataBatch) {
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
