@@ -10,7 +10,7 @@ import path from 'path';
 import { loadDailyAccum, saveDailyAccum } from './cache-manager.js';
 
 const DAILY_TOP_ENTITIES = 50;
-const GEMINI_MODEL = 'gemini-2.5-flash'; // Upgraded to 2.5 Flash for better logic while respecting the $5 quota stability limit
+const GEMINI_MODEL = 'gemini-3.1-flash'; // Upgraded to Gemini 3.1 Flash for maximum reasoning per $5 quota stability limit
 
 /**
  * Generate AI content using Gemini
