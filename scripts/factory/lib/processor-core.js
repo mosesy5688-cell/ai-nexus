@@ -51,6 +51,28 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         const useCases = getUseCases(tags, entity.pipeline_tag || '', finalType, finalFni);
         const quickInsights = getQuickInsights({ ...entity, fni_score: finalFni, vram_gb: vramEstimate }, finalType);
 
+        // V25.1: 自动指标提升 (Metrics Promotion for Papers/Prompts)
+        let promotedMetrics = {};
+        try {
+            if (typeof entity.meta_json === 'string') {
+                const meta = JSON.parse(entity.meta_json);
+                if (meta.citations !== undefined) promotedMetrics.citations = parseInt(meta.citations) || 0;
+                if (meta.stars !== undefined) promotedMetrics.stars = parseInt(meta.stars) || 0;
+                if (meta.likes !== undefined) promotedMetrics.likes = parseInt(meta.likes) || 0;
+                if (meta.downloads !== undefined) promotedMetrics.downloads = parseInt(meta.downloads) || 0;
+                if (meta.views !== undefined) promotedMetrics.views = parseInt(meta.views) || 0;
+            } else if (typeof entity.meta_json === 'object' && entity.meta_json !== null) {
+                const meta = entity.meta_json;
+                if (meta.citations !== undefined) promotedMetrics.citations = parseInt(meta.citations) || 0;
+                if (meta.stars !== undefined) promotedMetrics.stars = parseInt(meta.stars) || 0;
+                if (meta.likes !== undefined) promotedMetrics.likes = parseInt(meta.likes) || 0;
+                if (meta.downloads !== undefined) promotedMetrics.downloads = parseInt(meta.downloads) || 0;
+                if (meta.views !== undefined) promotedMetrics.views = parseInt(meta.views) || 0;
+            }
+        } catch (e) {
+            // Ignore parse errors from invalid meta_json
+        }
+
         // 6. Metadata Normalization
         const normalizedAuthor = entity.author || (entity.id?.includes('/') ? entity.id.split('/')[0] : 'Community');
         const displayDescription = entity.seo_summary?.description || (fullContent ? fullContent.slice(0, 200).replace(/\s+/g, ' ') + '...' : '');
@@ -65,6 +87,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
 
         const enriched = {
             ...entity,
+            ...promotedMetrics,
             id: id,
             type: finalType,
             fni_score: finalFni,

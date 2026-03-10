@@ -26,24 +26,24 @@ async function generateAIContent(topEntities) {
         `${i + 1}. ${e.name} (FNI: ${e.fni_score?.toFixed(1) || 'N/A'}, type: ${e.type || 'model'})`
     ).join('\n');
 
-    const prompt = `You are an AI technology editor. Based on the following data, generate a title, subtitle, and summary for a DAILY report.
+    const prompt = `你是顶级技术咨询公司 (如 Gartner/McKinsey) 的首席 AI 分析师，代表 free2aitools 品牌。基于以下数据，生成今天的人工智能行业洞察报告。
 
-Latest Top 3 AI Entities:
+今日排名前 3 的实体:
 ${top3}
 
-Total ${topEntities.length} high-FNI entities made it to today's list.
+总计有 ${topEntities.length} 个高价值实体登上了今日榜单。
 
-Requirements:
-1. title: 10-20 words, highlight the most notable model or trend today
-2. subtitle: 15-25 words, supplement with key data points
-3. summary: 50-80 words, objective analysis of today's breakthroughs
+严格要求 (Requirements):
+1. title: 必须采用此格式: "free2aitools 每日报告：[核心技术突破/趋势关键词]"。例如: "free2aitools 每日报告：DeepSeek-V3 架构解析与长文本推理性能的跨代跨越"
+2. subtitle: 15-25 词，概括今天最核心的数据点和进展。
+3. summary: 100-150 词。你的分析必须包含三部分：① 今日重大突破客观总结 ② 行业影响 (Implications) ③ 技术展望 (Outlook)。
 
-Style requirements:
-- Objective, professional, data-driven
-- Focus on what changed SINCE YESTERDAY
-- Emphasize specific data and model names
+格式与风格 (Style):
+- 专业、客观、数据驱动、硬核。
+- 强制使用高频行业专业术语 (如 RAG, Agentic Workflows, Inference Scaling, KV Cache, Mixture of Experts 等)。
+- 明确指出相较于"昨日"的变化点，并引用具体的模型/论文名称。
 
-Return in JSON format:
+返回严格的 JSON 格式 (Return ONLY valid JSON):
 {"title": "...", "subtitle": "...", "summary": "..."}`;
 
     try {
