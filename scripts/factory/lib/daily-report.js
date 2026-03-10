@@ -26,24 +26,24 @@ async function generateAIContent(topEntities) {
         `${i + 1}. ${e.name} (FNI: ${e.fni_score?.toFixed(1) || 'N/A'}, type: ${e.type || 'model'})`
     ).join('\n');
 
-    const prompt = `你是顶级技术咨询公司 (如 Gartner/McKinsey) 的首席 AI 分析师，代表 free2aitools 品牌。基于以下数据，生成今天的人工智能行业洞察报告。
+    const prompt = `You are the lead AI analyst at a top-tier tech consulting firm (e.g., Gartner/McKinsey), representing the free2aitools brand. Based on the following data, generate today's artificial intelligence industry insight report.
 
-今日排名前 3 的实体:
+Top 3 entities today:
 ${top3}
 
-总计有 ${topEntities.length} 个高价值实体登上了今日榜单。
+A total of ${topEntities.length} high-value entities made it to today's list.
 
-严格要求 (Requirements):
-1. title: 必须采用此格式: "free2aitools 每日报告：[核心技术突破/趋势关键词]"。例如: "free2aitools 每日报告：DeepSeek-V3 架构解析与长文本推理性能的跨代跨越"
-2. subtitle: 15-25 词，概括今天最核心的数据点和进展。
-3. summary: 100-150 词。你的分析必须包含三部分：① 今日重大突破客观总结 ② 行业影响 (Implications) ③ 技术展望 (Outlook)。
+Strict Requirements:
+1. title: MUST use exactly this format: "free2aitools Daily Report: [Core Tech Breakthrough/Trend Keyword]". Example: "free2aitools Daily Report: DeepSeek-V3 Architecture Analysis & Long-Context Reasoning Breakthrough"
+2. subtitle: 15-25 words, summarizing today's core data points and advancements.
+3. summary: 100-150 words. Your analysis must contain three parts: (1) Objective summary of today's major breakthroughs, (2) Industry Implications, (3) Technical Outlook.
 
-格式与风格 (Style):
-- 专业、客观、数据驱动、硬核。
-- 强制使用高频行业专业术语 (如 RAG, Agentic Workflows, Inference Scaling, KV Cache, Mixture of Experts 等)。
-- 明确指出相较于"昨日"的变化点，并引用具体的模型/论文名称。
+Style:
+- Professional, objective, data-driven, hardcore.
+- Mandatory use of high-frequency industry terminology (e.g., RAG, Agentic Workflows, Inference Scaling, KV Cache, Mixture of Experts).
+- Explicitly point out what changed compared to "yesterday" and cite specific model/paper names.
 
-返回严格的 JSON 格式 (Return ONLY valid JSON):
+Return ONLY valid JSON:
 {"title": "...", "subtitle": "...", "summary": "..."}`;
 
     try {
