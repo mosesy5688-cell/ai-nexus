@@ -7,10 +7,11 @@
 import MarkdownRenderer from './MarkdownRenderer.astro';
 import { runNeuralMining } from '../../scripts/neural-miner.js';
 
-interface Props { bodyContent: string; model?: any; type: string; title?: string; initialCollapsed?: boolean; maxPreviewLength?: number; }
+interface Props { bodyContent: string; htmlReadme?: string; model?: any; type: string; title?: string; initialCollapsed?: boolean; maxPreviewLength?: number; }
 
 const { 
   bodyContent, 
+  htmlReadme,
   model, 
   type, 
   title = '', 
@@ -18,6 +19,9 @@ const {
   maxPreviewLength = 8000
 } = Astro.props;
 
+// V25.1: Prefer pre-compiled html_readme from VFS Bundle — zero SSR marked.parse() overhead
+const usePrecompiledHtml = !!(htmlReadme && htmlReadme.length > 10);
+const rawContent = usePrecompiledHtml ? '' : (bodyContent || '').replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n*/g, '');
 function getTitle(type: string, manualTitle: string) {
   if (manualTitle) return manualTitle;
   switch (type) {
@@ -33,8 +37,7 @@ function getTitle(type: string, manualTitle: string) {
 const displayTitle = getTitle(type, title);
 const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Documentation' : 'README');
 
-// Clean content (V21.15.8: Hardened Regex)
-let content = (bodyContent || '').replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n*/g, '');
+const content = usePrecompiledHtml ? htmlReadme! : rawContent;
 
 const hasLongContent = content.length > maxPreviewLength;
 ---
@@ -69,7 +72,16 @@ const hasLongContent = content.length > maxPreviewLength;
     
     <div class="p-6 sm:p-10" id="readme-content-target">
       {content ? (
-        <MarkdownRenderer content={content} />
+        usePrecompiledHtml ? (
+          <div class="markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none 
+                      prose-headings:font-black prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-white
+                      prose-a:text-[#bdc3ff] prose-a:font-bold prose-a:no-underline hover:prose-a:underline
+                      prose-strong:text-zinc-900 dark:prose-strong:text-white
+                      leading-relaxed tracking-tight" 
+               set:html={content} />
+        ) : (
+          <MarkdownRenderer content={content} />
+        )
       ) : (
         <div class="space-y-6 py-4">
           <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-3/4 animate-shimmer"></div>
@@ -101,126 +113,13 @@ const hasLongContent = content.length > maxPreviewLength;
 </section>
 
 <script>
-  import { runNeuralMining } from '../../scripts/neural-miner.js';
-  import { initSearch, performSearch } from '../../scripts/home-search.js';
-  import { fetchBundleRange } from '../../utils/vfs-fetcher.ts';
-  import { marked } from 'marked';
-
-  async function initVfsRecovery() {
-    const section = document.getElementById('technical-readme');
-    const target = document.getElementById('readme-content-target');
-    const status = document.getElementById('readme-status');
-    const footer = document.getElementById('readme-footer-container');
-    
-    if (!section || !target) return;
-    if (section.dataset.hasInitial === 'true') {
-      setupToggle();
-      return;
-    }
-
-    const modelId = section.dataset.modelId;
-    const modelType = section.dataset.modelType;
-    if (!modelId) return;
-
-    if (status) status.classList.remove('hidden');
-
-    try {
-      // 1. Ensure VFS Engine is ready (Search Engine doubles as Metadata Engine)
-      console.log(`[VFS-Recovery] Attempting metadata recovery for: ${modelId}`);
-      await initSearch();
-
-      // 2. Query VFS for full metadata record (including bundle info)
-      // Custom query to get the high-fidelity row
-      // Note: we can't call performSearch easily for specific columns 
-      // since it's geared for search. We'll use the public initSearch result 
-      // or directly query if we exposed the worker.
-      // Wait, performSearch returns entity data. Let's try it.
-      const query = modelId.split('--').pop(); 
-      const results = await performSearch(query, 10, { entityType: modelType });
-      const record = results.find(r => r.id === modelId || r.slug === modelId);
-
-      if (record && record.bundle_key) {
-        // 3. Hydrate from Shards
-        console.log(`[VFS-Recovery] Found shard mapping: ${record.bundle_key} @ ${record.bundle_offset}`);
-        const bundle = await fetchBundleRange(record.bundle_key, record.bundle_offset, record.bundle_size);
-        
-        if (bundle && (bundle.readme || bundle.html_readme)) {
-          const raw = bundle.readme || bundle.html_readme;
-          const html = await marked(raw);
-          target.innerHTML = `<div class="prose prose-indigo dark:prose-invert max-w-none">${html}</div>`;
-          section.dataset.hasInitial = 'true';
-          if (raw.length > 5000) footer?.classList.remove('hidden');
-          setupToggle();
-          runNeuralMining(target);
-          console.log(`[VFS-Recovery] Recovery SUCCESS.`);
-        }
-      } else {
-         console.warn(`[VFS-Recovery] No shard mapping found in VFS for ${modelId}`);
-         target.innerHTML = `<p class="text-zinc-400 text-sm italic">Documentation currently synchronized with local index. Full specifications available via production mirror.</p>`;
-      }
-    } catch (e) {
-      console.error(`[VFS-Recovery] Recovery Error:`, e);
-    } finally {
-      if (status) status.classList.add('hidden');
-    }
-  }
-
-  function setupToggle() {
-    const toggleBtn = document.getElementById('toggle-readme');
-    const container = document.getElementById('readme-container');
-    const fade = document.getElementById('readme-fade');
-    const topToggle = document.getElementById('readme-toggle-top');
-    
-    if (toggleBtn && container) {
-      const typeLabel = toggleBtn.getAttribute('data-type-label') || 'Card';
-      
-      const toggle = () => {
-        const isExpanded = toggleBtn.dataset.expanded === 'true';
-        if (isExpanded) {
-          container.classList.add('collapsed');
-          if (fade) fade.style.opacity = '1';
-          toggleBtn.dataset.expanded = 'false';
-          const text = (toggleBtn as HTMLElement).querySelector('.toggle-text');
-          if (text) text.textContent = `Expand full ${typeLabel}`;
-          const icon = toggleBtn.querySelector('.toggle-icon');
-          if (icon) icon.classList.remove('rotate-180');
-          const line = toggleBtn.querySelector('.toggle-line');
-          if (line) line.classList.remove('opacity-0');
-          
-          if (topToggle) {
-             const topText = topToggle.querySelector('.toggle-text');
-             if (topText) topText.textContent = 'Full Specifications';
-          }
-          
-          container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-          container.classList.remove('collapsed');
-          if (fade) fade.style.opacity = '0';
-          toggleBtn.dataset.expanded = 'true';
-          const text = (toggleBtn as HTMLElement).querySelector('.toggle-text');
-          if (text) text.textContent = 'Show Less';
-          const icon = toggleBtn.querySelector('.toggle-icon');
-          if (icon) icon.classList.add('rotate-180');
-          const line = toggleBtn.querySelector('.toggle-line');
-          if (line) line.classList.add('opacity-0');
-
-          if (topToggle) {
-             const topText = topToggle.querySelector('.toggle-text');
-             if (topText) topText.textContent = 'Show Summary';
-          }
-        }
-      };
-
-      toggleBtn.addEventListener('click', toggle);
-      if (topToggle) topToggle.addEventListener('click', toggle);
-    }
-  }
+  import { runReadmeController } from '../../scripts/readme-controller.js';
 
   // Initial load
-  initVfsRecovery();
+  runReadmeController();
   
   // View Transitions support
-  document.addEventListener('astro:after-swap', initVfsRecovery);
+  document.addEventListener('astro:after-swap', runReadmeController);
 </script>
 
 <style>

@@ -25,18 +25,27 @@ export class CatalogDataSource {
         if (this._manifestLoaded) return;
         try {
             const res = await fetch(`${CDN_BASE}/data/shards_manifest.json`, {
-                signal: AbortSignal.timeout(5000)
+                signal: AbortSignal.timeout(20000) // V25.1: Safety guardrail — 103 Early Hints targets <500ms; 20s prevents false "0 entities" on extreme network jitter
             });
-            if (res.ok) this._manifestData = await res.json();
+            if (res.ok) {
+                this._manifestData = await res.json();
+                // V25.1: Persist partitions to localStorage — future fallbacks use last known good values
+                try { localStorage.setItem('_vfs_partitions', JSON.stringify(this._manifestData.partitions)); } catch (_) { }
+            }
         } catch (e) {
-            console.warn('[CatalogDataSource] Manifest fetch failed, using defaults');
+            console.warn('[CatalogDataSource] Manifest fetch failed, using persisted/default partitions');
         }
         this._buildShardQueue();
         this._manifestLoaded = true;
     }
 
     _buildShardQueue() {
-        const p = this._manifestData?.partitions || { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
+        // V25.1: Dynamic partition resolution — manifest → localStorage → hardcoded safety net
+        let partitions = this._manifestData?.partitions;
+        if (!partitions) {
+            try { partitions = JSON.parse(localStorage.getItem('_vfs_partitions') || ''); } catch (_) { }
+        }
+        const p = partitions || { model: 3, paper: 15, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
         const fmt = (cat, idx, count) =>
             count === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
 
@@ -66,15 +75,21 @@ export class CatalogDataSource {
 
     _buildSql() {
         if (this.categoryFilter) {
-            return { sql: 'SELECT * FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
-                params: [this.categoryFilter, this.itemsPerPage, this.shardOffset] };
+            return {
+                sql: 'SELECT * FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+                params: [this.categoryFilter, this.itemsPerPage, this.shardOffset]
+            };
         }
         if (this.type === 'all') {
-            return { sql: 'SELECT * FROM entities ORDER BY fni_score DESC LIMIT ? OFFSET ?',
-                params: [this.itemsPerPage, this.shardOffset] };
+            return {
+                sql: 'SELECT * FROM entities ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+                params: [this.itemsPerPage, this.shardOffset]
+            };
         }
-        return { sql: 'SELECT * FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
-            params: [this.type, this.itemsPerPage, this.shardOffset] };
+        return {
+            sql: 'SELECT * FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+            params: [this.type, this.itemsPerPage, this.shardOffset]
+        };
     }
 
     async loadNextPage() {

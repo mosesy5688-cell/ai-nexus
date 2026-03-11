@@ -11,7 +11,7 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
     const isSSR = Boolean(locals?.runtime?.env);
     const category = entity?.primary_category || entity?.pipeline_tag || '';
 
-    const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStatsResult, categoryAlts] = await Promise.all([
+    const [rawRelationsResult, graphMeta, knowledgeIndex, specsResult, meshStatsResult, categoryAlts] = await Promise.all([
         fetchMeshRelations(locals, rootId, { ssrOnly: isSSR ? true : ssrOnly }).catch(() => []),
         fetchGraphMetadata(locals).catch(() => ({})),
         fetchConceptMetadata(locals).catch(() => ([])),
@@ -20,7 +20,14 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
         category ? fetchCategoryAlts(locals, category).catch(() => []) : Promise.resolve([])
     ]);
 
-    // V22.8: Structural Early-Exit to prevent 1102 CPU timeouts
+    // V25.1 Zero-Placeholder Optimization: Prioritize pre-baked relations from entity itself
+    // Backend profile-baker.js now puts these in ui_related_mesh or entities.relations
+    const prebakedRelations = entity?.ui_related_mesh || entity?.relations || [];
+    const rawRelations = (Array.isArray(prebakedRelations) && prebakedRelations.length > 0)
+        ? prebakedRelations
+        : rawRelationsResult;
+
+    // V22.8: Structural Early-Exit - UPDATED for V25.1: Don't exit if we have prebaked data
     if (isSSR && Array.isArray(rawRelations) && rawRelations.length === 0) {
         return { tiers: JSON.parse(JSON.stringify(DEFAULT_TIERS)), nodeRegistry: new Map(), filteredRelations: [] };
     }
@@ -45,13 +52,13 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
         return validIds.has(id) || validIds.has(stripPrefix(id)) || id.includes('--');
     };
 
-    const ensureNode = (id, typeHint = 'model') => {
+    const ensureNode = (id, typeHint = 'model', precomputedMeta = null) => {
         if (!id || typeof id !== 'string' || !isNodeValid(id)) return null;
 
         let norm = stripPrefix(id);
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
-        const meta = graphMeta[id] || {};
+        const meta = precomputedMeta || graphMeta[id] || {};
         const idDerived = getTypeFromId(id);
         let nodeType = (id.includes('--')) ? idDerived : (meta.t || typeHint || idDerived);
 
@@ -65,9 +72,9 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
 
         const node = {
             id, norm,
-            name: meta.n || id.split('--').pop()?.replace(/-/g, ' ')?.toUpperCase() || 'UNKNOWN',
+            name: meta.n || meta.target_name || id.split('--').pop()?.replace(/-/g, ' ')?.toUpperCase() || 'UNKNOWN',
             type: nodeType,
-            icon: meta.icon || UNIVERSAL_ICONS[nodeType] || '📦',
+            icon: meta.icon || meta.target_icon || UNIVERSAL_ICONS[nodeType] || '📦',
             author: nodeAuthor,
             relation: '',
             _mapped: false

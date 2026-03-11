@@ -49,6 +49,29 @@ const captionLabel = type.charAt(0).toUpperCase() + type.slice(1);
           <td class="px-3 py-2 text-zinc-300 font-mono" itemprop="softwareRequirements">{model.library_name}</td>
         </tr>
       )}
+      
+      {/* V25.1 Industrial Columns */}
+      {model.runtime_hardware && (
+        <tr class="hover:bg-zinc-800/20 transition-colors border-b border-[var(--border-hairline)]">
+          <td class="px-3 py-2 font-black text-zinc-400 bg-[var(--bg-canvas)]">Runtime Target</td>
+          <td class="px-3 py-2 text-[#bdc3ff] font-bold font-mono text-[10px] uppercase tracking-widest">{model.runtime_hardware}</td>
+        </tr>
+      )}
+      {model.vocab_size && (
+        <tr class="hover:bg-zinc-800/20 transition-colors border-b border-[var(--border-hairline)]">
+          <td class="px-3 py-2 font-black text-zinc-400 bg-[var(--bg-canvas)]">Vocab Size</td>
+          <td class="px-3 py-2 text-zinc-300 font-mono text-[11px]">{(model.vocab_size).toLocaleString()} tokens</td>
+        </tr>
+      )}
+      {(model.num_layers || model.hidden_size) && (
+        <tr class="hover:bg-zinc-800/20 transition-colors border-b border-[var(--border-hairline)]">
+          <td class="px-3 py-2 font-black text-zinc-400 bg-[var(--bg-canvas)]">Shape</td>
+          <td class="px-3 py-2 text-zinc-400 font-mono text-[10px]">
+             {model.num_layers && `L${model.num_layers}`} {model.hidden_size && `D${model.hidden_size}`}
+          </td>
+        </tr>
+      )}
+
       <tr class="hover:bg-zinc-800/20 transition-colors">
         <td class="px-3 py-2 font-black text-white bg-[var(--bg-canvas)]">Provider</td>
         <td class="px-3 py-2 text-zinc-300 capitalize">{source}</td>

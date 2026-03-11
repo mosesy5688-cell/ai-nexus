@@ -34,17 +34,13 @@ async function getL1Cache() {
     }
 }
 
-async function resolveEtag(filename: string, targetUrl: string): Promise<string> {
+// V25.1: Zero-Handshake — Atomic Purge guarantees freshness, no HEAD needed
+async function resolveEtag(filename: string, _targetUrl: string): Promise<string> {
     if (L0_ETAGS.has(filename)) return L0_ETAGS.get(filename)!;
-    try {
-        // Fetch HEAD to strictly align with R2 ETag versioning
-        const res = await fetch(targetUrl, { method: 'HEAD' });
-        const etag = (res.headers.get('etag') || 'dev').replace(/"/g, '').replace('W/', '');
-        L0_ETAGS.set(filename, etag);
-        return etag;
-    } catch (e) {
-        return 'fallback-v22';
-    }
+    // Trust deployment pipeline: purge_everything + proactive warming = consistent data
+    const etag = 'v25-trust';
+    L0_ETAGS.set(filename, etag);
+    return etag;
 }
 
 export async function fetchBundleRange(bundleKey: string, offset: number, size: number, locals: any = null) {

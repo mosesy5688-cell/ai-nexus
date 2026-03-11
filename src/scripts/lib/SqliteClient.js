@@ -26,34 +26,19 @@ class BrowserRangeVFS extends FacadeVFS {
         return ['xOpen', 'xAccess', 'xRead', 'xFileSize'].includes(methodName);
     }
 
-    async _fetchMetadata(name) {
-        let state = this.fileStates.get(name);
-        if (state && state.promise) return state.promise;
-
-        if (!state) {
-            state = { size: 0, etag: '', promise: null };
-            this.fileStates.set(name, state);
+    // V25.1: Zero-Handshake — no HEAD request. Size detected lazily from Content-Range.
+    _ensureState(name) {
+        if (!this.fileStates.has(name)) {
+            this.fileStates.set(name, { size: 0, etag: 'v25-trust', sizeKnown: false });
         }
-
-        state.promise = (async () => {
-            const url = `/api/vfs-proxy/${name}`;
-            const res = await fetch(url, { method: 'HEAD' });
-            if (!res.ok) throw new Error(`VFS HEAD failed for ${name}`);
-
-            state.size = parseInt(res.headers.get('content-length') || '0', 10);
-            state.etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '').replace('W/', '');
-            console.log(`[Browser VFS] [HEAD] Synchronized: ${name}, ETag=${state.etag}, Size=${state.size}`);
-            return state.size;
-        })();
-
-        return state.promise;
+        return this.fileStates.get(name);
     }
 
     async jOpen(name, pFile, flags, pOutFlags) {
         if (!name) return SQLite.SQLITE_CANTOPEN;
         const fileName = name.split('/').pop();
         this.handleMap.set(pFile, fileName);
-        await this._fetchMetadata(fileName);
+        this._ensureState(fileName); // V25.1: No HEAD request, lazy size discovery
         pOutFlags.setInt32(0, flags, true);
         return SQLite.SQLITE_OK;
     }
@@ -67,7 +52,7 @@ class BrowserRangeVFS extends FacadeVFS {
         const length = pData.byteLength;
         const chunkIndex = Math.floor(iOffset / CHUNK_SIZE);
         const chunkOffset = iOffset % CHUNK_SIZE;
-        const cacheKey = `${fileName}-${state.etag}-${chunkIndex}`;
+        const cacheKey = `${fileName}-v25-${chunkIndex}`; // V25.1: Static version key — Atomic Purge guarantees freshness
 
         try {
             // --- L0 Cache (In-Memory) ---
@@ -88,6 +73,15 @@ class BrowserRangeVFS extends FacadeVFS {
             const res = await fetch(url, {
                 headers: { 'Range': `bytes=${start}-${end}` }
             });
+
+            // V25.1: Lazy size detection from Content-Range header
+            if (!state.sizeKnown) {
+                const cr = res.headers.get('content-range'); // e.g. "bytes 0-262143/111000000"
+                if (cr) {
+                    const total = parseInt(cr.split('/')[1], 10);
+                    if (total > 0) { state.size = total; state.sizeKnown = true; }
+                }
+            }
 
             if (!res.ok) {
                 if (res.status === 416) {

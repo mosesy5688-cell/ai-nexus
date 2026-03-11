@@ -71,28 +71,28 @@ const likes = dataset?.likes ? Number(dataset.likes) : null;
 
   <!-- Section: Data Preview & Schema (Grid) -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-     <section class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
-        <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-           <span class="p-2 bg-blue-500/10 rounded-lg text-blue-500">👁️</span> Data Preview
+     <section class="lg:col-span-2 bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)]">
+        <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+           <span>👁️</span> Data Preview
         </h2>
         
         {realRows && columns.length > 0 ? (
-          <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-xl shadow-inner bg-gray-50/50 dark:bg-gray-900/50">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 font-mono text-[11px]">
-              <thead class="bg-gray-50 dark:bg-gray-800">
+          <div class="overflow-x-auto border border-[var(--border-hairline)] rounded-sm bg-[var(--bg-canvas)]">
+            <table class="min-w-full divide-y divide-[var(--border-hairline)] font-mono text-[10px]">
+              <thead class="bg-black/20">
                 <tr>
                   {columns.map((col: string) => (
-                    <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    <th class="px-4 py-3 text-left text-[9px] font-black text-zinc-500 uppercase tracking-widest border-r border-[var(--border-hairline)] last:border-r-0">
                       {col}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+              <tbody class="divide-y divide-[var(--border-hairline)]">
                 {realRows.map((row: any) => (
-                  <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <tr class="hover:bg-white/5 transition-colors">
                     {columns.map((col: string) => (
-                      <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400 truncate max-w-[200px]">
+                      <td class="px-4 py-3 whitespace-nowrap text-zinc-300 truncate max-w-[200px] border-r border-[var(--border-hairline)] last:border-r-0">
                         {row[col]?.toString() || '-'}
                       </td>
                     ))}
@@ -126,20 +126,20 @@ const likes = dataset?.likes ? Number(dataset.likes) : null;
         )}
      </section>
 
-     <section class="bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl p-8 border border-indigo-100 dark:border-indigo-800/20">
-        <h2 class="text-xs font-black mb-8 text-indigo-900 dark:text-indigo-200 uppercase tracking-widest flex items-center gap-2">
+     <section class="bg-[var(--bg-canvas)] rounded-sm p-8 border border-[var(--border-hairline)] shadow-inner">
+        <h2 class="text-[10px] font-black mb-8 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
            <span>🧬</span> Field Logic
         </h2>
         <div class="space-y-6">
            {fieldTypes.length > 0 ? (
-             <div class="font-mono text-xs space-y-4">
-               {fieldTypes.map((field: any) => (
-                 <div class="p-3 bg-white dark:bg-gray-800 rounded-lg border border-indigo-100/50 dark:border-indigo-900/30 flex justify-between items-center">
-                    <span class="text-purple-600 dark:text-purple-400 font-bold truncate max-w-[120px]">{field.name}</span>
-                    <span class="text-gray-400">{field.type}</span>
-                 </div>
-               ))}
-             </div>
+              <div class="font-mono text-[10px] space-y-2">
+                {fieldTypes.map((field: any) => (
+                  <div class="p-3 bg-black/20 rounded-sm border border-[var(--border-hairline)] flex justify-between items-center group/field hover:bg-black/30 transition-colors">
+                     <span class="text-indigo-400 font-black truncate max-w-[120px] uppercase tracking-tighter">{field.name}</span>
+                     <span class="text-zinc-500 font-bold">{field.type}</span>
+                  </div>
+                ))}
+              </div>
            ) : (
              <div class="text-center py-8">
                <div class="text-2xl mb-2 opacity-30">🧬</div>

@@ -1,172 +1,75 @@
 ---
+/**
+ * Reports Index — V25.1 News-Style Title List
+ * Minimal SSR: single fetch from index.json.gz → title + date list
+ * No DailyTrendingSection, TrendChart, or per-day fallback scanning.
+ */
 import Layout from '@/layouts/Layout.astro';
-import ReportCard from '@/components/ReportCard.astro';
-import DailyTrendingSection from '@/components/DailyTrendingSection.astro';
-import TrendChart from '@/components/charts/TrendChart.astro';
 import { getRouteFromId } from '@/utils/mesh-routing-core';
 
-// V16.2: Fetch reports from CDN (SPEC-KNOWLEDGE-MESH-V16.2 Section 8)
 const CDN_BASE = 'https://cdn.free2aitools.com';
-let reports = [];
+let reports: any[] = [];
 
-// V16.2.5: Ensure daily reports exist in array format
-if (!reports || reports.length === 0) {
-    reports = [];
-}
-
-// Fallback to CDN if empty (Production or Local empty)
-if (reports.length === 0) {
-    try {
-        const paths = [`${CDN_BASE}/cache/reports/index.json.gz`];
-        for (const p of paths) {
-            const res = await fetch(p);
-            if (res.ok) {
-                const uint8 = new Uint8Array(await res.arrayBuffer());
-                let data;
-                if (p.endsWith('.gz') && uint8[0] === 0x1f && uint8[1] === 0x8b) {
-                    const ds = new DecompressionStream('gzip');
-                    const decompressedStream = new Response(uint8).body?.pipeThrough(ds);
-                    data = await new Response(decompressedStream).json();
-                } else {
-                    data = JSON.parse(new TextDecoder().decode(uint8));
-                }
-                
-                reports = (data.reports || []).map(r => ({
-                    reportId: r.id,
-                    title: r.title,
-                    date: r.date,
-                    summary: `${r.highlights || 0} highlights from AI ecosystem today`,
-                    highlights: r.highlights
-                }));
-                break;
-            }
+try {
+    const res = await fetch(`${CDN_BASE}/cache/reports/index.json.gz`);
+    if (res.ok) {
+        const uint8 = new Uint8Array(await res.arrayBuffer());
+        let data;
+        if (uint8[0] === 0x1f && uint8[1] === 0x8b) {
+            const ds = new DecompressionStream('gzip');
+            data = await new Response(new Response(uint8).body!.pipeThrough(ds)).json();
+        } else {
+            data = JSON.parse(new TextDecoder().decode(uint8));
         }
-    } catch (e) {
-        console.warn('[Reports] CDN index fetch failed.', e.message);
+        reports = (data.reports || []).map((r: any) => ({
+            id: r.id,
+            title: r.title || `Daily AI Update: ${r.date || r.id}`,
+            date: r.date || r.id,
+        }));
     }
-    
-    // Daily fallback if index empty
-    if (reports.length === 0) {
-        const now = new Date();
-        for (let i = 0; i < 14; i++) {
-            const d = new Date(now);
-            d.setDate(now.getDate() - i);
-            const dateKey = d.toISOString().split('T')[0];
-            try {
-                // Try JSON first, it's faster. If not, try gz.
-                const paths = [
-                    `${CDN_BASE}/cache/reports/daily/${dateKey}.json`,
-                    `${CDN_BASE}/cache/reports/daily/${dateKey}.json.gz`
-                ];
-                
-                for(const attempt of paths) {
-                    const dRes = await fetch(attempt);
-                    if (dRes.ok) {
-                        let dData;
-                        const dBuffer = await dRes.arrayBuffer();
-                        const dUint8 = new Uint8Array(dBuffer);
-                        const dHasMagic = dUint8.length > 2 && dUint8[0] === 0x1f && dUint8[1] === 0x8b;
-                        
-                        if (attempt.endsWith('.gz') && dHasMagic) {
-                            try {
-                                const ds = new DecompressionStream('gzip');
-                                const decompressedStream = new Response(dBuffer).body.pipeThrough(ds);
-                                const response = new Response(decompressedStream);
-                                dData = await response.json();
-                            } catch (decompressError) {
-                                dData = JSON.parse(new TextDecoder().decode(dBuffer));
-                            }
-                        } else {
-                            dData = JSON.parse(new TextDecoder().decode(dBuffer));
-                        }
-                        
-                        reports.push({
-                            reportId: dateKey,
-                            title: `Daily AI Update: ${dateKey}`,
-                            date: dData.generated || dData.datePublished || dateKey,
-                            summary: dData.summary || dData.daily_brief?.summary || "Daily neural mesh synchronization report",
-                            highlights: dData.highlights?.length || dData.daily_brief?.new_entities_count || 0
-                        });
-                        break;
-                    }
-                }
-            } catch (e) {}
-            if (reports.length >= 7) break;
-        }
-    }
+} catch (e) {
+    console.warn('[Reports] Index fetch failed:', (e as Error).message);
 }
-
-const finalLatest = reports.length > 0 ? reports[0] : null;
-const olderReports = reports.length > 1 ? reports.slice(1) : [];
 
 const pageTitle = "AI Industry Daily Reports";
-const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape with our daily reports.";
+const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape.";
+
+// V24.9: Only edge-cache pages with data
+Astro.response.headers.set('Cache-Control', reports.length > 0
+    ? 'public, max-age=0, must-revalidate, s-maxage=300'
+    : 'public, max-age=0, s-maxage=0');
 ---
 
-<!-- V14.4 Art 5.6: News-style Reports Listing -->
 <Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-16">
-    <header class="text-center mb-12 max-w-xl mx-auto">
+  <div class="container mx-auto px-4 py-16 max-w-3xl">
+    <header class="mb-12">
       <h1 class="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight mb-3">
         Intelligence Reports
       </h1>
-      <p class="text-base text-zinc-500 dark:text-zinc-400 font-medium leading-normal mb-6">
-        Technical briefings, ecosystem trends, and model velocity analysis for the neural landscape.
+      <p class="text-base text-zinc-500 dark:text-zinc-400 font-medium leading-normal">
+        Daily technical briefings from the AI ecosystem.
       </p>
-      
-      <div class="flex justify-center items-center gap-6">
-        <a href="/reports/archive" class="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-black uppercase tracking-widest border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 transition-colors">
-          Daily Archive
-        </a>
-        <a href="/reports/annual" class="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-black uppercase tracking-widest border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 transition-colors">
-          Annual Reports
-        </a>
-      </div>
     </header>
 
-    <!-- Live Pulse Section -->
-    <section class="mb-20">
-      <div class="flex items-center gap-4 mb-10">
-        <h2 class="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Live Market Pulse</h2>
-        <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
-      </div>
-      <DailyTrendingSection />
-    </section>
-
-    <!-- Trend Charts Section -->
-    <section class="mb-20">
-      <div class="flex items-center gap-4 mb-10">
-        <h2 class="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Velocity Trends</h2>
-        <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
-      </div>
-      <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
-        <TrendChart type="line" height="350px" />
-      </div>
-    </section>
-
     {reports.length > 0 ? (
-      <div class="mt-8 relative border border-[var(--border-hairline)] bg-[var(--bg-surface)] rounded-sm overflow-hidden">
+      <div class="border border-[var(--border-hairline)] bg-[var(--bg-surface)] rounded-sm overflow-hidden">
         <div class="p-4 border-b border-[var(--border-hairline)] bg-black/40 flex items-center justify-between">
-            <h2 class="text-xs font-black text-white uppercase tracking-widest">Intelligence Archive</h2>
-            <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{reports.length} Records</span>
+          <h2 class="text-xs font-black text-white uppercase tracking-widest">Archive</h2>
+          <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{reports.length} Reports</span>
         </div>
         <ul class="divide-y divide-[var(--border-hairline)]">
           {reports.map((report) => (
             <li class="group transition-colors hover:bg-black/20">
-              <a href={getRouteFromId(report.reportId, 'report')} class="flex flex-col md:flex-row md:items-center p-4 gap-4">
-                <div class="flex-shrink-0 w-32">
-                  <span class="text-[10px] font-black tabular-nums text-zinc-500 tracking-widest group-hover:text-indigo-400 transition-colors">
-                    {new Date(report.date).toISOString().split('T')[0]}
-                  </span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h3 class="text-sm font-bold text-white mb-1 truncate group-hover:text-[#bdc3ff] transition-colors">{report.title}</h3>
-                  <p class="text-[11px] font-medium text-zinc-400 truncate">{report.summary}</p>
-                </div>
-                <div class="flex-shrink-0 flex items-center gap-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
-                  <span>{report.highlights} Nodes</span>
-                  <span class="text-[#bdc3ff] opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">Select &rarr;</span>
-                </div>
+              <a href={getRouteFromId(report.id, 'report')} class="flex items-center p-4 gap-6">
+                <span class="flex-shrink-0 w-28 text-[10px] font-black tabular-nums text-zinc-500 tracking-widest group-hover:text-indigo-400 transition-colors">
+                  {new Date(report.date).toISOString().split('T')[0]}
+                </span>
+                <h3 class="flex-1 min-w-0 text-sm font-bold text-white truncate group-hover:text-[#bdc3ff] transition-colors">
+                  {report.title}
+                </h3>
+                <span class="flex-shrink-0 text-[#bdc3ff] text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                  &rarr;
+                </span>
               </a>
             </li>
           ))}
