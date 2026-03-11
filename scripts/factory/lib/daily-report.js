@@ -112,13 +112,21 @@ export async function updateDailyAccumulator(entities, outputDir = './output') {
         .filter(e => (e.fni_score || e.fni || 0) > 0)  // Only filter out zero/missing FNI
         .sort((a, b) => (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0))
         .slice(0, DAILY_TOP_ENTITIES)
-        .map(e => ({
-            ...e, // V18.2.1 GA: Inclusive backup
-            id: e.id,
-            name: e.name || e.slug,
-            fni_score: e.fni_score || e.fni || 0,
-            date: new Date().toISOString().split('T')[0],
-        }));
+        .map(e => {
+            // V25.1.2: Ensure FNI score is prioritized and has fallout protection 
+            let score = e.fni_score || e.fni || 0;
+            if (score === 0 && e.quality_score) score = e.quality_score;
+
+            return {
+                id: e.id,
+                name: e.name || e.slug,
+                type: e.type || 'model',
+                fni_score: Math.round(score),
+                date: new Date().toISOString().split('T')[0],
+                pipeline_tag: e.pipeline_tag || '',
+                author: e.author || 'Community'
+            };
+        });
 
     accumulator.entries = accumulator.entries || [];
     accumulator.entries.push(...topMovers);
