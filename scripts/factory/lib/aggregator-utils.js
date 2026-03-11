@@ -35,13 +35,18 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
         }
     }
 
+    const scoreToCount = new Map();
+    for (const s of allScores) {
+        scoreToCount.set(s, (scoreToCount.get(s) || 0) + 1);
+    }
+
     const rankingsMap = new Map();
 
     for (const [id, score] of scoreMap) {
         // V25.5 FIX: Accurate Percentile for Tied Scores (Abolish "Tied for Top")
         // If 10,000 entities have score 0, they should all be at Bottom, not Top 100%.
         const rank = scoreToRank.get(score) ?? 0;
-        const countAtScore = allScores.filter(s => s === score).length;
+        const countAtScore = scoreToCount.get(score) || 1;
         // Use the middle of the range for tied scores to prevent saturation
         const effectiveRank = rank + (countAtScore - 1) / 2;
         const numericPercentile = Math.max(1, Math.round((1 - effectiveRank / count) * 100));
