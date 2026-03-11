@@ -38,6 +38,8 @@ export async function generateTrending(entities, outputDir = './output') {
         context_length: e.context_length ?? e.technical?.context_length ?? 0,
         stars: e.stars || 0,
         downloads: e.downloads || 0,
+        fni_score: e.fni_score ?? e.fni ?? 0,
+        fni_percentile: e.fni_percentile || e.percentile || '',
         fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
         fni_v: e.fni_v ?? e.fni_metrics?.v ?? 0,
         fni_c: e.fni_c ?? e.fni_metrics?.c ?? 0,

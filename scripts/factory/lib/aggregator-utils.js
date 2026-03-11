@@ -38,10 +38,13 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
     const rankingsMap = new Map();
 
     for (const [id, score] of scoreMap) {
-        // V25.1: If we have an existing string-based percentile (top_1%), preserve it.
-        // Otherwise calculate numeric fallback.
+        // V25.5 FIX: Accurate Percentile for Tied Scores (Abolish "Tied for Top")
+        // If 10,000 entities have score 0, they should all be at Bottom, not Top 100%.
         const rank = scoreToRank.get(score) ?? 0;
-        const numericPercentile = Math.round((1 - rank / count) * 100);
+        const countAtScore = allScores.filter(s => s === score).length;
+        // Use the middle of the range for tied scores to prevent saturation
+        const effectiveRank = rank + (countAtScore - 1) / 2;
+        const numericPercentile = Math.max(1, Math.round((1 - effectiveRank / count) * 100));
         rankingsMap.set(id, numericPercentile);
     }
 
@@ -152,9 +155,9 @@ function processEntity(e, update, mOptions = {}) {
     }
 
     entity.type = entity.type || entity.entity_type || 'model';
-    const finalFni = entity.fni_score ?? entity.fni ?? 0;
+    const finalFni = entity.fni_score ?? 0; // V25.5 FIX: Abolish 'fni' fallback. Only trust computed score.
     entity.fni_score = finalFni;
-    entity.fni = finalFni;
+    entity.fni = finalFni; // Placeholder for legacy frontend compatibility (mapped to Score)
 
     if (!entity.image_url) {
         entity.image_url = entity.raw_image_url || entity.preview_url || null;
