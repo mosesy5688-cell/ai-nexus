@@ -82,8 +82,8 @@ if (type === 'model') {
 } else if (type === 'paper') {
     if (item.citation_count > 0) metrics.push({ icon: '📚', value: formatCompact(item.citation_count), label: 'Cited' });
     if (item.downloads > 0) metrics.push({ icon: '📥', value: formatCompact(item.downloads), label: 'DL' });
-    // V25.1.2: Add Date and Topic for density
-    const year = item.last_updated ? new Date(item.last_updated).getFullYear() : '';
+    // V25.1.2: Add Date and Topic for density - Use last_modified from SQLite schema
+    const year = (item.last_modified || item.last_updated) ? new Date(item.last_modified || item.last_updated).getFullYear() : '';
     if (year) metrics.push({ icon: '📅', value: year, label: 'Year' });
     const topic = (item.pipeline_tag || '').replace('arxiv:', '');
     if (topic && topic !== 'paper') metrics.push({ icon: '📁', value: topic, label: 'Topic' });
