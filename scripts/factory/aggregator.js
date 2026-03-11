@@ -67,7 +67,7 @@ async function main() {
     // Pass 1 now calculates Mesh Impact (Sm) and Exports FNI Thresholds.
     const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
 
-    const { rankingsMap, registryMap } = rankingsAndIndices;
+    const { rankingsMap, registryMap, scoreMap } = rankingsAndIndices;
     console.log(`✓ Global rankings and registry mapping aligned (including Mesh Impact).`);
 
     let successCount = 0;
@@ -94,6 +94,12 @@ async function main() {
         await loadRegistryShardsSequentially(async (slimEntities, shardIdx) => {
             for (const e of slimEntities) {
                 e.fni_percentile = rankingsMap.get(e.id) || 0;
+                // V22.10 FIX: Sync fresh score to in-memory set for Daily Report consistency
+                if (scoreMap && scoreMap.has(e.id)) {
+                    const finalFni = scoreMap.get(e.id);
+                    e.fni_score = finalFni;
+                    e.fni = finalFni;
+                }
                 fullSet.push(e);
             }
             successCount++;
@@ -199,7 +205,7 @@ async function main() {
                 // Note: we'll pass persistRankings instead of rankedEntities
             }
 
-            await persistRegistry(persistRankings ? null : rankedEntities, CONFIG.OUTPUT_DIR, './cache', persistRankings);
+            await persistRegistry(persistRankings ? null : rankedEntities, CONFIG.OUTPUT_DIR, './cache', persistRankings, scoreMap);
 
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
             await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);

@@ -10,7 +10,7 @@ import { saveGlobalRegistry, syncCacheState } from './cache-manager.js';
 /**
  * Persist the global registry and mirror artifacts for distribution
  */
-export async function persistRegistry(rankedEntities, outputDir, cacheDir, rankingsMap) {
+export async function persistRegistry(rankedEntities, outputDir, cacheDir, rankingsMap, scoreMap) {
     console.log(`[AGGREGATOR] 💾 Persisting sharded registry...`);
 
     if (!rankedEntities && rankingsMap) {
@@ -27,6 +27,13 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
             for (const e of entities) {
                 // Update scores/rankings in the deep (high-fidelity) entity
                 e.fni_percentile = rankingsMap.get(e.id) || 0;
+                
+                // V22.10 FIX: Propagate fresh FNI scores to shards
+                if (scoreMap && scoreMap.has(e.id)) {
+                    const finalFni = scoreMap.get(e.id);
+                    e.fni_score = finalFni;
+                    e.fni = finalFni;
+                }
 
                 // Push slim version to monolith (O(1) memory)
                 // V22.8: Use deep projection (slim=false) to preserve README/long-text in monolith
