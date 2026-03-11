@@ -48,9 +48,11 @@ export const DataNormalizer = {
         // V24.12: Auto-convert raw param count to billions (e.g., 3821079552 → 3.8)
         if (params_billions > 1000) params_billions = params_billions / 1e9;
         params_billions = Math.round(params_billions * 100) / 100;
-        // V23.1: Precision Refinement
-        const rawScore = item.fni_score ?? item.fni ?? item.fniScore ?? 0;
-        let fni_score = Math.round(rawScore * 1000) / 1000;
+        // V23.1:        // FNI Indexing - V25.1.2: Radical Calibration fallback
+        let fni = item.fni_score ?? item.fni ?? 0;
+        if (fni === 0 && item.quality_score) fni = item.quality_score;
+        const normalizedFni = Math.round(fni);
+        let fni_score = Math.round(normalizedFni * 1000) / 1000;
         let context_length = parseInt(item.context_length ?? item.context ?? 0);
         let vram_est = item.vram_estimate_gb ?? item.vram_est ?? item.vram ?? 0;
         // V24.12: Auto-convert raw bytes to GB (e.g., 2865809667 → ~2.7)
@@ -113,6 +115,7 @@ export const DataNormalizer = {
             fni_score,
             fni_percentile: item.fni_percentile || item.percentile || '',
             fni_p: item.fni_p ?? item.fniP ?? item.fni_metrics?.p ?? 0,
+            fni_f: item.fni_f ?? item.fni_metrics?.f ?? 0,
             fni_v: item.fni_v ?? item.fniV ?? item.fni_metrics?.v ?? 0,
             fni_c: item.fni_c ?? item.fniC ?? item.fni_metrics?.c ?? 0,
             fni_u: item.fni_u ?? item.fniU ?? item.fni_metrics?.u ?? 0,

@@ -25,6 +25,7 @@ export function hydrateEntity(data, type, summaryData) {
     const fMetrics = computed.fni_metrics || entity.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
 
     let fp = computed.fni_p ?? entity.fni_p ?? entity.fniP ?? fMetrics.p ?? meta.fni?.p ?? meta.p ?? 0;
+    let ff = computed.fni_f ?? entity.fni_f ?? fMetrics.f ?? meta.fni?.f ?? 0; 
     let fv = computed.fni_v ?? entity.fni_v ?? entity.fniV ?? fMetrics.v ?? meta.fni?.v ?? meta.v ?? 0;
     let fc = computed.fni_c ?? entity.fni_c ?? entity.fniC ?? fMetrics.c ?? meta.fni?.c ?? meta.c ?? 0;
     let fu = computed.fni_u ?? entity.fni_u ?? entity.fniU ?? fMetrics.u ?? meta.fni?.u ?? meta.u ?? 0;
@@ -41,6 +42,7 @@ export function hydrateEntity(data, type, summaryData) {
         fni_commentary: computed.fni_commentary || entity.fni_commentary || meta.fni?.commentary || null,
         fni_metrics: fMetrics,
         fni_p: fp,
+        fni_f: ff,
         fni_v: fv,
         fni_c: fc,
         fni_u: fu,

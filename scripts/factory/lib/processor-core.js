@@ -26,54 +26,50 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             return { id: id || entity.id, success: false, error: 'Invalid cache path' };
         }
 
-        // 1. Core Score Calculation
+        // 1. Metric Promotion (V25.1.2: AOT Promotion for FNI Calibration)
+        // We MUST extract these BEFORE calculateFNI so the ranker sees the data.
+        let meta = {};
+        try {
+            meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json || '{}') : (entity.meta_json || {});
+        } catch (e) { }
+
+        // Core Ranking Metrics
+        entity.stars = entity.stars || meta.stars || meta.stargazers_count || 0;
+        entity.forks = entity.forks || meta.forks || meta.forks_count || 0;
+        entity.citations = entity.citations || entity.citation_count || meta.citations || meta.citation_count || 0;
+        entity.downloads = entity.downloads || meta.downloads || meta.download_count || 0;
+        entity.likes = entity.likes || meta.likes || meta.like_count || 0;
+
+        // Space Specific Metrics
+        entity.hardware = entity.hardware || meta.runtime_hardware || meta.hardware || '';
+        entity.runtime_status = entity.runtime_status || entity.running_status || meta.runtime_stage || meta.runtime_status || '';
+
+        // 2. Core Score Calculation
         const fniResult = calculateFNI(entity, { includeMetrics: true });
         const finalType = entity.type || entity.entity_type || 'model';
         const finalFni = fniResult.score;
         const fniMetrics = fniResult.metrics;
 
-        // 2. VRAM Estimation
+        // 3. VRAM Estimation
         let vramEstimate = null;
         if (finalType === 'model' && (entity.params_billions || entity.params)) {
             vramEstimate = estimateVRAM(entity.params_billions || entity.params, 'q4', entity.context_length || 8192);
         }
 
-        // 3. 7-Day Trend Embedding
+        // 4. 7-Day Trend Embedding
         const historyEntries = fniHistory[id] || fniHistory[entity.id] || [];
         const trend = Array.isArray(historyEntries) ? historyEntries.slice(-7).map(h => h.score) : [];
 
-        // 4. Semantic HTML Pre-rendering (V22.8 FIX: Inclusive Long-text extraction)
+        // 5. Semantic HTML Pre-rendering (V22.8 FIX: Inclusive Long-text extraction)
         const fullContent = entity.body_content || entity.readme_content || entity.readme || entity.content || entity.description || '';
         const htmlFragment = fullContent ? marked.parse(fullContent) : '';
 
-        // 5. Use Cases & Insights
+        // 6. Use Cases & Insights
         const tags = Array.isArray(entity.tags) ? entity.tags : [];
         const useCases = getUseCases(tags, entity.pipeline_tag || '', finalType, finalFni);
         const quickInsights = getQuickInsights({ ...entity, fni_score: finalFni, vram_gb: vramEstimate }, finalType);
 
-        // V25.1: Metrics Promotion for Papers/Prompts
-        let promotedMetrics = {};
-        try {
-            if (typeof entity.meta_json === 'string') {
-                const meta = JSON.parse(entity.meta_json);
-                if (meta.citations !== undefined) promotedMetrics.citations = parseInt(meta.citations) || 0;
-                if (meta.stars !== undefined) promotedMetrics.stars = parseInt(meta.stars) || 0;
-                if (meta.likes !== undefined) promotedMetrics.likes = parseInt(meta.likes) || 0;
-                if (meta.downloads !== undefined) promotedMetrics.downloads = parseInt(meta.downloads) || 0;
-                if (meta.views !== undefined) promotedMetrics.views = parseInt(meta.views) || 0;
-            } else if (typeof entity.meta_json === 'object' && entity.meta_json !== null) {
-                const meta = entity.meta_json;
-                if (meta.citations !== undefined) promotedMetrics.citations = parseInt(meta.citations) || 0;
-                if (meta.stars !== undefined) promotedMetrics.stars = parseInt(meta.stars) || 0;
-                if (meta.likes !== undefined) promotedMetrics.likes = parseInt(meta.likes) || 0;
-                if (meta.downloads !== undefined) promotedMetrics.downloads = parseInt(meta.downloads) || 0;
-                if (meta.views !== undefined) promotedMetrics.views = parseInt(meta.views) || 0;
-            }
-        } catch (e) {
-            // Ignore parse errors from invalid meta_json
-        }
-
-        // 6. Metadata Normalization
+        // 7. Metadata Normalization
         const normalizedAuthor = entity.author || (entity.id?.includes('/') ? entity.id.split('/')[0] : 'Community');
         const displayDescription = entity.seo_summary?.description || (fullContent ? fullContent.slice(0, 200).replace(/\s+/g, ' ') + '...' : '');
 
@@ -87,7 +83,6 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
 
         const enriched = {
             ...entity,
-            ...promotedMetrics,
             id: id,
             type: finalType,
             fni_score: finalFni,
