@@ -34,8 +34,8 @@ export function calculateFNI(entity, options = {}) {
     }
     else {
         // Ecosystems: (l * 20) + d. Base 25.
-        const d = parseInt(stats.downloads || stats.downloadCount || stats.pulls || stats.run_count) || 0;
-        const l = parseInt(stats.likes || stats.favoriteCount || stats.upVotes || stats.stars || stats.stargazers_count) || 0;
+        const d = parseInt(stats.downloads || stats.downloadCount || stats.pulls || stats.run_count || 0) || 0;
+        const l = parseInt(stats.likes || stats.stars || stats.favoriteCount || stats.upVotes || stats.stargazers_count || stats.popularity || 0) || 0;
         rawPop = (l * 20) + d;
         anchor = 7.0; // Standard 10M log scale
     }

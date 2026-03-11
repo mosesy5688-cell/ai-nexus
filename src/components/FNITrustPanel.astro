@@ -8,9 +8,11 @@ interface Props {
   fniScore: number;
   fniPercentile: number;
   fniP: number;
-  fniV: number;
+  fniF: number;
+  fniV?: number;
   fniC: number;
   fniU?: number;
+  fniPillarsSynthesized?: boolean;
   fniCommentary?: string;
   fniCalculatedAt?: string;
   modelName: string;
@@ -21,9 +23,11 @@ const {
   fniScore = 0, 
   fniPercentile = 0, 
   fniP = 0, 
+  fniF = 0,
   fniV = 0, 
   fniC = 0,
   fniU = 0,
+  fniPillarsSynthesized = false,
   fniCommentary = '',
   fniCalculatedAt = '',
   modelName = '',
@@ -33,6 +37,7 @@ const {
 // Calculate bar chart percentages
 const maxScore = 100;
 const pPercent = (fniP / maxScore) * 100;
+const fPercent = (fniF / maxScore) * 100;
 const vPercent = (fniV / maxScore) * 100;
 const cPercent = (fniC / maxScore) * 100;
 const uPercent = (fniU / maxScore) * 100;
@@ -48,7 +53,7 @@ const formattedDate = fniCalculatedAt
   <div class="flex items-center justify-between mb-6">
     <h3 class="text-sm font-black text-white flex items-center gap-2 uppercase tracking-tighter">
       <span class="opacity-60">⚖️</span>
-      Nexus Index
+      Nexus Index <span class="text-[10px] font-bold text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded ml-1">V16.5</span>
     </h3>
     <div class="flex items-center gap-4">
       <a href="/methodology" class="text-[9px] font-black text-[#bdc3ff] hover:underline uppercase tracking-widest">
@@ -69,7 +74,7 @@ const formattedDate = fniCalculatedAt
           {fniScore.toFixed(1)}
         </div>
         <div class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mt-2">
-          TOP {100 - fniPercentile}% SYSTEM IMPACT
+          {fniPillarsSynthesized ? 'ESTIMATED IMPACT TIER' : `TOP ${Math.max(1, 100 - Math.round(fniPercentile))}% SYSTEM IMPACT`}
         </div>
       </div>
 
@@ -86,21 +91,21 @@ const formattedDate = fniCalculatedAt
           </div>
         </div>
 
-        <!-- Velocity -->
+        <!-- Freshness -->
         <div>
           <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
-            <span class="text-zinc-500">Velocity (V)</span>
-            <span class="text-white tabular-nums">{fniV.toFixed(0)}</span>
+            <span class="text-zinc-500">Freshness (F)</span>
+            <span class="text-white tabular-nums">{fniF.toFixed(0)}</span>
           </div>
           <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
-            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${vPercent}%`}></div>
+            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${fPercent}%`}></div>
           </div>
         </div>
 
-        <!-- Credibility -->
+        <!-- Completeness -->
         <div>
           <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
-            <span class="text-zinc-500">Credibility (C)</span>
+            <span class="text-zinc-500">Completeness (C)</span>
             <span class="text-white tabular-nums">{fniC.toFixed(0)}</span>
           </div>
           <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
@@ -125,10 +130,10 @@ const formattedDate = fniCalculatedAt
     <div class="flex flex-col">
       <div class="bg-black/20 rounded-sm p-4 border border-white/5 flex-1 relative">
         <h4 class="text-[9px] font-black text-zinc-500 mb-3 flex items-center gap-2 uppercase tracking-widest">
-          <span>💬</span> Why this score?
+          <span>💬</span> Index Insight
         </h4>
         <p class="text-[11px] text-zinc-400 leading-relaxed font-medium tracking-tight">
-          {fniCommentary || `The Free2AITools Nexus Index for ${modelName} aggregates Popularity (P:${fniP.toFixed(0)}), Velocity (V:${fniV.toFixed(0)}), and Credibility (C:${fniC.toFixed(0)}). The Utility score (U:${fniU.toFixed(0)}) represents deployment readiness and structural reliability within the ecosystem.`}
+          {fniCommentary || `The Free2AITools Nexus Index for ${modelName} aggregates Popularity (P:${fniP.toFixed(0)}), Freshness (F:${fniF.toFixed(0)}), and Completeness (C:${fniC.toFixed(0)}). The Utility score (U:${fniU.toFixed(0)}) represents deployment readiness and ecosystem adoption.`}
         </p>
       </div>
 
@@ -136,13 +141,13 @@ const formattedDate = fniCalculatedAt
         <span class="text-xs font-black text-white/50 uppercase tracking-[0.2em] mb-1">Free2AITools</span>
         <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Nexus Index</span>
         <h4 class="text-[9px] font-black text-zinc-500 mb-2 uppercase tracking-widest">
-          Verification Sources
+          Verification Authority
         </h4>
         <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-medium">
-          <a href="https://huggingface.co/metrics" class="text-[#bdc3ff] hover:underline truncate">HuggingFace Stats</a>
-          <a href="/methodology#velocity" class="text-[#bdc3ff] hover:underline truncate">7D Delta Tracker</a>
-          <a href="https://paperswithcode.com" class="text-[#bdc3ff] hover:underline truncate">Arxiv Citations</a>
-          <a href="/methodology#utility" class="text-[#bdc3ff] hover:underline truncate">Deploy Readiness</a>
+          <a href="https://huggingface.co/metrics" class="text-[#bdc3ff] hover:underline truncate">HuggingFace API</a>
+          <a href="https://github.com" class="text-[#bdc3ff] hover:underline truncate">GitHub Metadata</a>
+          <a href="https://arxiv.org" class="text-[#bdc3ff] hover:underline truncate">Arxiv Citation DB</a>
+          <a href="/methodology#utility" class="text-[#bdc3ff] hover:underline truncate">System Audit</a>
         </div>
       </div>
 
@@ -150,10 +155,10 @@ const formattedDate = fniCalculatedAt
         <div class="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest">
           <span class="flex items-center gap-1.5 text-[#bdc3ff]">
             <span class="w-1.5 h-1.5 rounded-full bg-[#bdc3ff] animate-pulse"></span>
-            Data Verified
+            Unbiased Data
           </span>
           <span class="text-zinc-600">
-            Updated: {fniCalculatedAt ? new Date(fniCalculatedAt).toISOString().split('T')[0] : 'Real-time'}
+            Node Refresh: {fniCalculatedAt ? new Date(fniCalculatedAt).toISOString().split('T')[0] : 'VFS Live'}
           </span>
         </div>
       </div>

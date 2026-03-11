@@ -22,7 +22,22 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.task_categories ??= Array.isArray(meta.task_categories) ? meta.task_categories.join(', ') : (meta.task_categories || '');
     e.num_rows ??= meta.rows_count || 0;
     e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || '');
-    e.forks ??= meta.forks || 0; e.citation_count ??= meta.citation_count || 0;
+    e.forks ??= meta.forks || 0; 
+    e.citation_count ??= meta.citation_count || 0;
+    e.stars ??= meta.stars || 0;
+
+    // V25.1.2: FNI Pillar Promotion (Strict P-F-C-U Alignment)
+    const fMetrics = e.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
+    e.fni_p ??= e.fni_p ?? fMetrics.p ?? meta.fni?.p ?? 0;
+    e.fni_f ??= e.fni_f ?? fMetrics.f ?? meta.fni?.f ?? 0;
+    e.fni_c ??= e.fni_c ?? fMetrics.c ?? meta.fni?.c ?? 0;
+    e.fni_u ??= e.fni_u ?? fMetrics.u ?? meta.fni?.u ?? 0;
+    e.fni_v ??= e.fni_v ?? 0; // Velocity (Growth) reserved for Stage 4/4
+
+    // V25.1.2: Radical FNI Calibration - Use quality_score as fallback for Cold Starts
+    if (!e.fni_score || e.fni_score === 0) {
+        e.fni_score = e.quality_score || 0;
+    }
 
     // V25.1 Distillation: Goldmine
     e.runtime_hardware = meta.runtime_hardware || meta.hardware || '';
