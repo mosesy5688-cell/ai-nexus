@@ -27,6 +27,25 @@ export async function generateDailyReportsIndex(outputDir = './output') {
     await fs.mkdir(reportsDir, { recursive: true });
 
     const reports = [];
+    const CDN_BASE = 'https://cdn.free2aitools.com';
+
+    // V25.1.4: Pre-load existing index from CDN to preserve history
+    try {
+        console.log(`  [REPORTS-INDEX] Fetching existing index from ${CDN_BASE}...`);
+        const res = await fetch(`${CDN_BASE}/cache/reports/index.json.gz`);
+        if (res.ok) {
+            const zlib = await import('zlib');
+            const buffer = Buffer.from(await res.arrayBuffer());
+            const content = zlib.gunzipSync(buffer);
+            const existing = JSON.parse(content.toString('utf-8'));
+            if (existing.reports) {
+                reports.push(...existing.reports);
+                console.log(`  [REPORTS-INDEX] Loaded ${existing.reports.length} historical reports from CDN.`);
+            }
+        }
+    } catch (e) {
+        console.warn(`  [REPORTS-INDEX] Could not load existing index: ${e.message}`);
+    }
 
     // Scan directories
     const dirsToScan = [dailyDir, backupDir];
