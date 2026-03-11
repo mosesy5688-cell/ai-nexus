@@ -93,7 +93,7 @@ async function packDatabase() {
     searchDb.exec(searchDbSchema);
 
     // Prepare Statements
-    const placeholder = Array(50).fill('?').join(', ');
+    const placeholder = Array(51).fill('?').join(', ');
     const prepInserts = {}, prepFts = {};
 
     for (const [key, db] of Object.entries(metaDbs)) {
