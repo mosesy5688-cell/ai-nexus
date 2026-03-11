@@ -88,10 +88,10 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
         citationCounts: Object.fromEntries(citationCounts) // Optional: for debugging
     }, null, 2));
 
-    scoreMap.clear();
     citationCounts.clear();
     console.log(`  [STATS] Mapped ${registryMap.size} entities with Mesh Impact applied.`);
-    return { rankingsMap, registryMap };
+    // V22.8 FIX: Return scoreMap to allow propagation to shards during High-Fidelity patching
+    return { rankingsMap, registryMap, scoreMap };
 }
 
 /**
