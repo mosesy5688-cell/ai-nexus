@@ -14,11 +14,11 @@ import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 <div class="space-y-12">
   {likes && (
     <section class="flex flex-wrap gap-4">
-      <div class="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/30">
+      <div class="flex items-center gap-2 px-4 py-2 bg-[var(--bg-surface)] rounded-sm border border-[var(--border-hairline)]">
         <span class="text-lg">❤️</span>
         <div>
-          <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Likes</div>
-          <div class="text-sm font-black text-gray-900 dark:text-white">{likes >= 1e6 ? `${(likes/1e6).toFixed(1)}M` : likes.toLocaleString()}</div>
+          <div class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Likes</div>
+          <div class="text-sm font-black text-white">{likes >= 1e6 ? `${(likes/1e6).toFixed(1)}M` : likes.toLocaleString()}</div>
         </div>
       </div>
     </section>
@@ -26,19 +26,19 @@ import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 
   <!-- Section: Prompt Spec Grid -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-       <section class="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
-         <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-            <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">📋</span> Specs
+       <section class="bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)]">
+         <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+            <span>📋</span> Specs
          </h2>
-         <dl class="space-y-4 text-sm font-medium">
-           <div class="flex justify-between items-center pb-4 border-b border-gray-50 dark:border-gray-700">
-             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">Author</dt>
-             <dd class="text-gray-900 dark:text-white">{displayAuthor}</dd>
+         <dl class="space-y-4 text-xs font-medium">
+           <div class="flex justify-between items-center pb-4 border-b border-[var(--border-hairline)]">
+             <dt class="text-zinc-500 uppercase tracking-widest text-[9px] font-black">Author</dt>
+             <dd class="text-white font-bold">{displayAuthor}</dd>
            </div>
            {promptData.source_url && (
              <div class="mt-6">
                <a href={promptData.source_url} target="_blank" rel="noopener noreferrer"
-                  class="flex items-center justify-center w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all font-bold text-xs uppercase tracking-tight shadow-sm">
+                  class="flex items-center justify-center w-full px-4 py-2 bg-white text-black rounded-sm hover:bg-zinc-200 transition-colors font-bold text-xs uppercase tracking-tight">
                  Explore Source Node
                </a>
              </div>

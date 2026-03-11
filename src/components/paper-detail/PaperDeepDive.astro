@@ -27,26 +27,30 @@ import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 
   <!-- Section: Abstract & Citation (Grid) -->
   <div class="grid grid-cols-1 lg:grid-cols-1 gap-12">
-      <section class="bg-white dark:bg-gray-800 rounded-2xl p-8 lg:p-12 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-        <div class="absolute top-0 left-0 w-2 h-full bg-indigo-600/20"></div>
-        <h2 class="text-xl font-black mb-8 text-gray-900 dark:text-white flex items-center gap-2 uppercase tracking-widest text-xs">
+      <section class="bg-[var(--bg-surface)] rounded-sm p-8 lg:p-12 border border-[var(--border-hairline)] relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-600/20"></div>
+        <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-8 flex items-center gap-2">
            <span>📝</span> Executive Summary
         </h2>
-        <p class="text-gray-800 dark:text-gray-200 leading-[1.8] text-lg font-serif italic tracking-tight">
+        <div class="markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none 
+                    prose-headings:font-black prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-white
+                    prose-a:text-[#bdc3ff] prose-a:font-bold prose-a:no-underline hover:prose-a:underline
+                    prose-strong:text-zinc-900 dark:prose-strong:text-white
+                    leading-relaxed tracking-tight italic text-zinc-700 dark:text-zinc-300">
           "{paper?.abstract || 'Technical abstract for this publication is currently being indexed.'}"
-        </p>
+        </div>
       </section>
 
-      <section class="bg-[#0a0a0a] rounded-2xl p-8 border border-gray-800 shadow-2xl relative">
-        <h2 class="text-sm font-black mb-6 text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+      <section class="bg-[var(--bg-canvas)] rounded-sm p-8 border border-[var(--border-hairline)] relative">
+        <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
            <span>❝</span> Cite Node
         </h2>
          <div class="relative group">
-            <div class="bg-black/50 text-indigo-300 p-6 rounded-xl font-mono text-[11px] overflow-x-auto border border-gray-800/50">
+            <div class="bg-black/50 text-indigo-300 p-6 rounded-sm font-mono text-[11px] overflow-x-auto border border-[var(--border-hairline)]">
                <pre id="bibtex-code"><code>{bibtex}</code></pre>
             </div>
             <button 
-              class="absolute top-4 right-4 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all active:scale-95 shadow-lg"
+              class="absolute top-4 right-4 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-sm transition-all active:scale-95 shadow-lg"
               onclick={`navigator.clipboard.writeText(document.getElementById('bibtex-code').innerText).then(() => { this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>'; setTimeout(() => this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>', 2000); })`}
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,13 +63,13 @@ import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 
   <!-- Section: Peer Network (Authors) -->
   {paper.authors && paper.authors.length > 0 && (
-    <section class="bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl p-8 border border-gray-100 dark:border-gray-800">
-      <h2 class="text-xs font-black mb-6 text-gray-400 uppercase tracking-widest flex items-center gap-2">
+    <section class="bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)]">
+      <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
          <span>👥</span> Collaborating Minds
       </h2>
       <div class="flex flex-wrap gap-2">
         {(Array.isArray(paper.authors) ? paper.authors : [paper.authors]).map((author: string) => (
-           <span class="px-3 py-1 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-colors cursor-default">
+           <span class="px-3 py-1 bg-[var(--bg-canvas)] text-zinc-300 rounded-sm text-xs font-bold border border-[var(--border-hairline)] hover:border-indigo-500 transition-colors cursor-default">
              {author}
            </span>
         ))}

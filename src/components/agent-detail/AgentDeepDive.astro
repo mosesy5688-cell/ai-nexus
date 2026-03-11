@@ -51,8 +51,8 @@ const likes = agent?.likes ? Number(agent.likes) : null;
 
       {/* V16.2: Real Data Deep Dive */}
       {agent.installation && (
-        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
+          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span>💻</span> Installation
           </h2>
           <MarkdownRenderer content={agent.installation} />
@@ -60,8 +60,8 @@ const likes = agent?.likes ? Number(agent.likes) : null;
       )}
 
       {agent.configuration && (
-        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
+          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span>⚙️</span> Configuration
           </h2>
           <MarkdownRenderer content={agent.configuration} />
@@ -69,8 +69,8 @@ const likes = agent?.likes ? Number(agent.likes) : null;
       )}
 
       {agent.usage && (
-        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
+          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span>🚀</span> Usage Examples
           </h2>
           <MarkdownRenderer content={agent.usage} />
@@ -78,11 +78,11 @@ const likes = agent?.likes ? Number(agent.likes) : null;
       )}
 
       {agent.license_full && (
-        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
+          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span>📄</span> License Details
           </h2>
-          <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg text-xs text-gray-600 dark:text-gray-400 font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800">
+          <div class="bg-[var(--bg-canvas)] p-4 rounded-sm text-xs text-zinc-400 font-mono whitespace-pre-wrap border border-[var(--border-hairline)]">
             {agent.license_full}
           </div>
         </section>

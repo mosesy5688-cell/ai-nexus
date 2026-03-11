@@ -23,12 +23,17 @@ Astro.response.headers.set('Cache-Control', tools.length > 0
 
 <Layout title={pageTitle} description={pageDescription}>
     <main class="min-h-screen py-4">
-        <header class="mb-12">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
-                AI Tools <span class="text-emerald-400">Utilities</span>
+        <header class="mb-12 border-b border-[var(--border-hairline)] pb-8">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Utility Node v25.1</span>
+                <span class="w-1 h-1 bg-indigo-500 rounded-full"></span>
+                <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Industrial SDKs</span>
+            </div>
+            <h1 class="text-3xl md:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter uppercase">
+                AI Tools <span class="text-zinc-500">Utilities</span>
             </h1>
-            <p class="text-base text-gray-600 dark:text-zinc-300 max-w-2xl">
-                High-Resolution Catalog of Neural Frameworks & SDKs. Professional utilities for researchers.
+            <p class="text-sm text-gray-600 dark:text-zinc-400 max-w-2xl leading-relaxed tracking-tight">
+                High-resolution catalog of neural frameworks and software kits. Professional utilities for researchers and core developers.
             </p>
         </header>
 

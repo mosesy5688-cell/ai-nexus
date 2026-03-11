@@ -16,7 +16,7 @@ export class UniversalCatalog {
 
         this.filtered = [...this.source.items];
         this.currentPage = 1;
-        this.itemsPerPage = config.itemsPerPage || 24;
+        this.itemsPerPage = config.itemsPerPage || 48; // V25.1: Aligned with SSR LIMIT & Tabular Density spec
         this.useInfiniteScroll = config.useInfiniteScroll !== false;
 
         this.grid = document.getElementById(config.gridId || 'models-catalog-grid');

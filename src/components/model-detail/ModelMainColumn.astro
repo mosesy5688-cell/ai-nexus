@@ -40,15 +40,15 @@ try {
   {/* V16.2: Technical Setup & Implementation (Consolidated) */}
   {(model.installation || model.configuration || model.usage) && (
     <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
-       <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+       <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
           ⚙️ Technical Implementation
        </h2>
        
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* V16.10: Visual Architectural Skeleton */}
           <div class="space-y-4">
-             <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-tight">
-                <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Internal Architecture
+             <h3 class="text-[9px] font-black text-zinc-500 flex items-center gap-2 uppercase tracking-widest">
+                <span class="w-1 h-1 bg-indigo-500 rounded-full"></span> Internal Architecture
              </h3>
              <ArchitectureSchema 
                layers={model.num_layers} 
@@ -66,8 +66,8 @@ try {
           <div class="space-y-8">
             {model.installation && (
               <div class="space-y-4">
-                 <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-tight">
-                    <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> Installation
+                 <h3 class="text-[9px] font-black text-zinc-500 flex items-center gap-2 uppercase tracking-widest">
+                    <span class="w-1 h-1 bg-indigo-500 rounded-full"></span> Installation
                  </h3>
                  <div class="bg-[var(--bg-canvas)] rounded-sm p-4 border border-[var(--border-hairline)]">
                     <MarkdownRenderer content={model.installation} />
@@ -77,8 +77,8 @@ try {
 
             {model.usage && (
               <div class="space-y-4">
-                 <h3 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-tight">
-                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Usage Example
+                 <h3 class="text-[9px] font-black text-zinc-500 flex items-center gap-2 uppercase tracking-widest">
+                    <span class="w-1 h-1 bg-green-500 rounded-full"></span> Usage Example
                  </h3>
                  <div class="bg-[var(--bg-canvas)] rounded-sm p-4 border border-[var(--border-hairline)]">
                     <MarkdownRenderer content={model.usage} />

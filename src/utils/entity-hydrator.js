@@ -48,6 +48,14 @@ export function hydrateEntity(data, type, summaryData) {
         name: derivedName,
         relations: computed.relations || entity.relations || meta.extended?.relations || meta.relations || {},
         body_content: entity.body_content || meta.html_readme || meta.readme || null,
+
+        // V25.1 Industrial Columns
+        runtime_hardware: entity.runtime_hardware || meta.runtime_hardware || meta.technical?.hardware || null,
+        vocab_size: entity.vocab_size || meta.vocab_size || meta.technical?.vocab_size || null,
+        num_layers: entity.num_layers || meta.num_layers || meta.technical?.num_layers || null,
+        hidden_size: entity.hidden_size || meta.hidden_size || meta.technical?.hidden_size || null,
+        // note: datasets_used is handled in mineRelations
+        quick_start: entity.quick_start || meta.quick_start || null,
         _computed: computed,
         _seo: seo,
         _hydrated: true

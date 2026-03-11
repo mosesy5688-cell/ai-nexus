@@ -46,27 +46,27 @@ import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
   <!-- Section: Tool Info & Classification (Grid) -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-       <section class="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
-         <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-            <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">📋</span> Specs
+       <section class="bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)]">
+         <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+            <span>📋</span> Specs
          </h2>
-         <dl class="space-y-4 text-sm font-medium">
-           <div class="flex justify-between items-center pb-4 border-b border-gray-50 dark:border-gray-700">
-             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">Language</dt>
-             <dd class="text-gray-900 dark:text-white">{tool.language || 'Python'}</dd>
+         <dl class="space-y-4 text-xs font-medium">
+           <div class="flex justify-between items-center pb-4 border-b border-[var(--border-hairline)]">
+             <dt class="text-zinc-500 uppercase tracking-widest text-[9px] font-black">Language</dt>
+             <dd class="text-white font-bold">{tool.language || 'Python'}</dd>
            </div>
-           <div class="flex justify-between items-center pb-4 border-b border-gray-50 dark:border-gray-700">
-             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">License</dt>
-             <dd class="text-gray-900 dark:text-white">{tool.license || 'Open Source'}</dd>
+           <div class="flex justify-between items-center pb-4 border-b border-[var(--border-hairline)]">
+             <dt class="text-zinc-500 uppercase tracking-widest text-[9px] font-black">License</dt>
+             <dd class="text-white font-bold">{tool.license || 'Open Source'}</dd>
            </div>
            <div class="flex justify-between items-center">
-             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">Version</dt>
-             <dd class="text-gray-900 dark:text-white">{tool.version || 'v1.0.0'}</dd>
+             <dt class="text-zinc-500 uppercase tracking-widest text-[9px] font-black">Version</dt>
+             <dd class="text-white font-bold">{tool.version || 'v1.0.0'}</dd>
            </div>
            {tool.source_url && (
              <div class="mt-6">
                <a href={tool.source_url} target="_blank" rel="noopener noreferrer"
-                  class="flex items-center justify-center w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all font-bold text-xs uppercase tracking-tight shadow-sm">
+                  class="flex items-center justify-center w-full px-4 py-2 bg-white text-black rounded-sm hover:bg-zinc-200 transition-colors font-bold text-xs uppercase tracking-tight">
                  Explore Source Node
                </a>
              </div>
@@ -78,16 +78,14 @@ import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
   <!-- Section: Usage / API Integration (V19: Real data or Fallback) -->
   {realUsage ? (
-    <section class="bg-[#0a0a0a] rounded-2xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden group">
-       <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-          <span class="text-8xl text-indigo-500 select-none">CODE</span>
+    <section class="bg-[var(--bg-canvas)] rounded-sm p-8 border border-[var(--border-hairline)] relative overflow-hidden group">
+       <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+          <span class="text-8xl text-indigo-500 select-none font-black">CODE</span>
        </div>
-       <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2">
-          <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">🔌</span> Usage & Integration
+       <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+          <span>🔌</span> Usage & Integration
        </h2>
-       <div class="prose prose-invert prose-sm max-w-none">
-         <MarkdownRenderer content={realUsage} />
-       </div>
+       <MarkdownRenderer content={realUsage} />
     </section>
   ) : (
     <section class="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center">
