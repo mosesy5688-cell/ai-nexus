@@ -8,35 +8,39 @@ import Layout from '@/layouts/Layout.astro';
 import { getRouteFromId } from '@/utils/mesh-routing-core';
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
+const env = (Astro as any).locals?.runtime?.env;
+const R2_ASSETS = env?.R2_ASSETS;
+
 let reports: any[] = [];
 
-try {
-    const res = await fetch(`${CDN_BASE}/cache/reports/index.json.gz`);
-    if (res.ok) {
-        const uint8 = new Uint8Array(await res.arrayBuffer());
-        let data;
-        if (uint8[0] === 0x1f && uint8[1] === 0x8b) {
-            const ds = new DecompressionStream('gzip');
-            data = await new Response(new Response(uint8).body!.pipeThrough(ds)).json();
-        } else {
-            data = JSON.parse(new TextDecoder().decode(uint8));
-        }
-        reports = (data.reports || []).map((r: any) => ({
-            id: r.id,
-            title: r.title || `Daily AI Update: ${r.date || r.id}`,
-            date: r.date || r.id,
-        }));
+if (R2_ASSETS) {
+    // V25.3: Real-time Discovery via R2.list()
+    try {
+        const list = await R2_ASSETS.list({ prefix: 'cache/reports/daily/' });
+        reports = list.objects
+            .filter((obj: any) => obj.key.endsWith('.json.gz') || obj.key.endsWith('.json'))
+            .map((obj: any) => {
+                const filename = obj.key.split('/').pop()!;
+                const dateStr = filename.split('.')[0];
+                return {
+                    id: dateStr,
+                    title: `AI Daily Digest - ${dateStr}`, // Discovery-time title
+                    date: dateStr,
+                    lastModified: obj.uploaded
+                };
+            })
+            .sort((a: any, b: any) => b.date.localeCompare(a.date));
+    } catch (e) {
+        console.error('[Reports] R2.list failed:', (e as Error).message);
     }
-} catch (e) {
-    console.warn('[Reports] Index fetch failed:', (e as Error).message);
 }
 
 const pageTitle = "AI Industry Daily Reports";
 const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape.";
 
-// V24.9: Only edge-cache pages with data
+// V25.3: Atomic Edge Caching (60s) to balance freshness and R2 Operations cost
 Astro.response.headers.set('Cache-Control', reports.length > 0
-    ? 'public, max-age=0, must-revalidate, s-maxage=300'
+    ? 'public, max-age=60, s-maxage=60'
     : 'public, max-age=0, s-maxage=0');
 ---
 

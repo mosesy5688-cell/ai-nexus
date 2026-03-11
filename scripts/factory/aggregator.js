@@ -12,7 +12,7 @@ import { computeAltRelations } from './lib/alt-linker.js';
 import { computeKnowledgeLinks } from './lib/knowledge-linker.js';
 import { generateKnowledgeData } from './lib/knowledge-data-generator.js';
 import { generateDailyReport, updateDailyAccumulator, shouldGenerateReport } from './lib/daily-report.js';
-import { generateDailyReportsIndex } from './lib/daily-reports-index.js';
+
 import { loadFniHistory, loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
@@ -210,7 +210,7 @@ async function main() {
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
             await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
             if (shouldGenerateReport()) await generateDailyReport(CONFIG.OUTPUT_DIR);
-            await generateDailyReportsIndex(CONFIG.OUTPUT_DIR);
+
         } catch (e) {
             console.error(`[AGGREGATOR] ❌ Finalization failed: ${e.message}`);
         }
