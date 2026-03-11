@@ -68,7 +68,7 @@ const contentHtml = report.content ? marked.parse(report.content) : "";
                 )}
               </div>
               <h2 class="text-3xl font-black text-gray-900 dark:text-white mb-4 tracking-tight group-hover:text-indigo-600 transition-colors">
-                <a href={getRouteFromId(item.id)}>
+                <a href={getRouteFromId(item.id, item.type)}>
                   {item.name || item.id}
                 </a>
               </h2>
