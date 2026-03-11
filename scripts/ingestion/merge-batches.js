@@ -151,9 +151,9 @@ async function mergeBatches() {
         // V19.0: Stream from SQLite sorted by ID (O(1) Memory Use)
         const iterator = registryManager.getStreamingIterator('id ASC');
         for (const entity of iterator) {
-            // Scrub on the fly (V2.1 Alignment)
+            // V25.1: TRUST THE SOURCE FROM ADAPTER (No more guessing)
             const oldId = entity.id;
-            const source = getNodeSource(oldId, entity.type);
+            const source = entity.source || getNodeSource(oldId, entity.type);
             const newId = normalizeId(oldId, source, entity.type);
 
             // V22.7: Clean pass-through (already prepared in Phase 1)

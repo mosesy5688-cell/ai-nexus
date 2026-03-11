@@ -34,7 +34,7 @@ FORBIDDEN_FILES = [
 # Files/Dirs to Ignore (Vendor code, locks, build artifacts)
 IGNORE_DIRS = {
     'node_modules', '.git', 'dist', '.wrangler', '.astro', 
-    'coverage', 'venv', '__pycache__'
+    'coverage', 'venv', '__pycache__', 'output'
 }
 
 # Directories exempt from Art 9.1 Confidentiality check (e.g., knowledge articles can use "prompt" in title)

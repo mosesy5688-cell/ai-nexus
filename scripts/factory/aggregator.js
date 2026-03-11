@@ -94,12 +94,6 @@ async function main() {
         await loadRegistryShardsSequentially(async (slimEntities, shardIdx) => {
             for (const e of slimEntities) {
                 e.fni_percentile = rankingsMap.get(e.id) || 0;
-                // V22.10 FIX: Sync fresh score to in-memory set for Daily Report consistency
-                if (scoreMap && scoreMap.has(e.id)) {
-                    const finalFni = scoreMap.get(e.id);
-                    e.fni_score = finalFni;
-                    e.fni = finalFni;
-                }
                 fullSet.push(e);
             }
             successCount++;
