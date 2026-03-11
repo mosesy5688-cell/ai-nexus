@@ -17,20 +17,20 @@ export function calculateFNI(entity, options = {}) {
     let anchor = 7.0;
 
     if (id.startsWith('hf-')) {
-        // HF Anchor: 1M -> log10(1M) = 6.0
+        // HF Anchor: 3M+ -> log10(3.16M) = 6.5
         rawPop = (parseInt(stats.likes || stats.like_count) || 0) + ((parseInt(stats.downloads || stats.download_count) || 0) * 0.01);
-        anchor = 6.0;
+        anchor = 6.5;
     }
     else if (id.startsWith('gh-')) {
-        // GH Anchor: 30k stars -> log10(30k) = 4.47
+        // GH Anchor: 100k+ stars -> log10(100k) = 5.0
         rawPop = (parseInt(stats.stars || stats.stargazers_count) || 0) + ((parseInt(stats.forks || stats.forks_count) || 0) * 2);
-        anchor = 4.47;
+        anchor = 5.0;
     }
     else if (id.startsWith('arxiv-')) {
-        // ArXiv Anchor: 1000 cites -> log10(1000) = 3.0
+        // ArXiv Anchor: 3k+ cites -> log10(3162) = 3.5
         // V22.10: Unified Paper Popularity — citations + upvotes + popularity
         rawPop = parseInt(stats.citations || stats.citation_count || stats.upvotes || stats.popularity || stats.likes) || 0;
-        anchor = 3.0;
+        anchor = 3.5;
     }
     else {
         // Ecosystems: (l * 20) + d. Base 25.
@@ -61,7 +61,8 @@ export function calculateFNI(entity, options = {}) {
     // --- 3. Base Vitality Blend (Stage 1) ---
     // Note: Sm (Mesh Impact) is calculated in Stage 3/4 (Aggregator) due to graph dependency.
     // In Stage 2/4, we use a placeholder or partial blend.
-    let vitality = (Sp * 0.40) + (Sf * 0.35);
+    // V25.5: Weight Taper (45% Pop / 30% Fresh)
+    let vitality = (Sp * 0.45) + (Sf * 0.30);
     // Normalized to 75% for now (Mesh covers 25%)
     // But for Detail pages, we want a comparable 0-100 score.
     const baseScore = vitality / 0.75;
