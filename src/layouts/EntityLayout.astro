@@ -43,19 +43,19 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
   <Layout title={title || "Technical Snapshot"} description="The knowledge graph is currently indexing this entity.">
      <div class="py-24 text-center max-w-2xl mx-auto px-4">
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-md mb-6 transition-all hover:bg-indigo-100">
-            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-            <span class="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Technical Snapshot: Indexing Node</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500/50 animate-pulse"></span>
+            <span class="text-[9px] font-bold uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Technical Snapshot: Indexing Node</span>
         </div>
-        <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100 mb-2 tracking-tighter uppercase italic">Deep Hive Sync in Progress</h1>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-[var(--text-strong)] mb-2 tracking-tight uppercase">Deep Hive Sync in Progress</h1>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-8 font-medium max-w-md mx-auto leading-relaxed">
-           The Nexus Knowledge Mesh has identified ID <span class="bg-zinc-100 dark:bg-zinc-800 px-1 rounded font-mono text-[10px] text-zinc-900 dark:text-white uppercase">{displayId || 'Unknown'}</span>, but the technical profil is currently being re-fused via Tier-1 cache.
+           The Nexus Knowledge Mesh has identified ID <span class="bg-zinc-100 dark:bg-zinc-800 px-1 rounded font-mono text-[10px] text-zinc-900 dark:text-[var(--text-strong)] uppercase">{displayId || 'Unknown'}</span>, but the technical profil is currently being re-fused via Tier-1 cache.
         </p>
 
         <div class="grid grid-cols-1 gap-4 mb-10 max-w-sm mx-auto">
             <a href={`/search?q=${encodeURIComponent(displayId)}`} data-astro-reload class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-indigo-500 transition-all group">
                 <div class="text-left">
-                    <p class="text-[9px] text-zinc-400 uppercase font-black tracking-widest leading-none mb-1">Search Pipeline</p>
-                    <p class="text-xs font-bold text-zinc-900 dark:text-white">Query Global Registry</p>
+                    <p class="text-[9px] text-zinc-400 uppercase font-bold tracking-widest leading-none mb-1">Search Pipeline</p>
+                    <p class="text-xs font-bold text-zinc-900 dark:text-[var(--text-strong)]">Query Global Registry</p>
                 </div>
                 <span class="text-indigo-500 group-hover:translate-x-1 transition-transform">→</span>
             </a>
@@ -137,12 +137,12 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
         <section id="deep-dive-section" class="pt-8 border-t border-gray-100 dark:border-gray-800">
           <details id="z4-details" open class="group">
             <summary class="list-none cursor-pointer flex items-center justify-between mb-4 group-open:mb-4">
-               <h2 class="text-2xl font-black flex items-center gap-3 text-gray-900 dark:text-white uppercase tracking-tighter">
-                  <span class="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">🔬</span> 
+               <h2 class="text-xl font-bold flex items-center gap-3 text-gray-900 dark:text-[var(--text-strong)] uppercase tracking-tight">
+                  <span class="p-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl">🔬</span> 
                   <span>Technical Deep Dive</span>
                </h2>
                <div class="flex items-center gap-4">
-                  <span class="text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest group-open:hidden">Full Specifications [+]</span>
+                  <span class="text-indigo-500 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-widest group-open:hidden">Full Specifications [+]</span>
                   <span class="text-gray-400 group-open:block hidden text-2xl transition-transform duration-300 group-open:rotate-180">▾</span>
                </div>
             </summary>
@@ -189,11 +189,11 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
     tabs.forEach(tab => {
       const isActive = tab.getAttribute('data-target') === targetId;
       if (isActive) {
-        tab.classList.add('text-indigo-600', 'border-indigo-600', 'font-black');
-        tab.classList.remove('text-gray-500', 'border-transparent', 'font-bold');
+        tab.classList.add('text-indigo-600', 'border-indigo-600', 'font-bold');
+        tab.classList.remove('text-gray-500', 'border-transparent');
       } else {
-        tab.classList.remove('text-indigo-600', 'border-indigo-600', 'font-black');
-        tab.classList.add('text-gray-500', 'border-transparent', 'font-bold');
+        tab.classList.remove('text-indigo-600', 'border-indigo-600', 'font-bold');
+        tab.classList.add('text-gray-500', 'border-transparent');
       }
     });
 

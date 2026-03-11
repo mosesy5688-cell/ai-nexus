@@ -34,7 +34,7 @@ const fniPercentile = item.fni_percentile || item.percentile || '';
 let fniBadgeClass = "bg-black/40 border-white/5 text-zinc-500";
 if (fni >= 85) fniBadgeClass = "bg-emerald-950/30 border-emerald-500/20 text-emerald-500";
 else if (fni >= 70) fniBadgeClass = "bg-indigo-950/30 border-indigo-500/20 text-indigo-400";
-else if (fni > 0) fniBadgeClass = "bg-zinc-900/50 border-white/10 text-white";
+else if (fni > 0) fniBadgeClass = "bg-zinc-900/50 border-white/10 text-[var(--text-strong)]";
 
 // Color Mapping - Professional Muted Palette
 let typeBadgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
@@ -91,8 +91,8 @@ if (type === 'model') {
 <a href={link} data-astro-prefetch class="entity-card group h-[44px] px-3 bg-[#1e1e1e] hover:bg-[#252525] border-b border-[#2a2a2a] transition-all flex items-center justify-between gap-4 overflow-hidden" data-entity-id={id} data-entity-type={type}>
     <!-- Column 1: Identity -->
     <div class="flex items-center gap-2 md:gap-3 flex-1 md:flex-none md:w-1/4 min-w-0">
-        <span class={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm border border-white/5 shrink-0 hidden sm:inline-block sm:min-w-[65px] text-center truncate ${typeBadgeColor}`}>{typeLabel}</span>
-        <h3 class="text-xs font-bold text-zinc-100 group-hover:text-[#bdc3ff] transition-colors truncate" title={displayTitle}>
+        <span class={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm border border-white/5 shrink-0 hidden sm:inline-block sm:min-w-[65px] text-center truncate ${typeBadgeColor}`}>{typeLabel}</span>
+        <h3 class="text-xs font-bold text-[var(--text-strong)] group-hover:text-[#bdc3ff] transition-colors truncate" title={displayTitle}>
             {displayTitle}
         </h3>
     </div>
@@ -101,15 +101,15 @@ if (type === 'model') {
     <div class="flex-1 hidden md:flex items-center gap-6 px-4 border-l border-white/5 overflow-hidden">
         {archLabel && (
             <div class="flex items-center gap-1.5 shrink-0">
-                <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">ARCH:</span>
-                <span class="text-[9px] font-bold text-zinc-300 truncate max-w-[120px] uppercase">{archLabel.replace(/-/g, ' ')}</span>
+                <span class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">ARCH:</span>
+                <span class="text-[9px] font-medium text-zinc-400 truncate max-w-[120px] uppercase">{archLabel.replace(/-/g, ' ')}</span>
             </div>
         )}
         {metrics.map(m => (
             <div class="flex items-center gap-1.5 shrink-0">
                 <span class="text-[10px] opacity-70">{m.icon}</span>
-                <span class="text-[10px] font-black text-zinc-300 tabular-nums">{m.value}</span>
-                <span class="text-[8px] font-black text-zinc-500 uppercase tracking-widest hidden lg:inline">{m.label}</span>
+                <span class="text-[10px] font-bold text-zinc-400 tabular-nums">{m.value}</span>
+                <span class="text-[8px] font-bold text-zinc-600 uppercase tracking-widest hidden lg:inline">{m.label}</span>
             </div>
         ))}
     </div>
@@ -118,8 +118,8 @@ if (type === 'model') {
     <div class="flex items-center gap-3 shrink-0 justify-end font-mono">
         {(fni > 0 || fniPercentile) && (
             <div class={`flex items-center gap-2 px-2.5 py-0.5 rounded-sm border fni-badge-container ${fniBadgeClass}`}>
-                <span class="text-[11px] font-black tabular-nums">{fni}</span>
-                <span class="text-[8px] font-black uppercase tracking-widest opacity-60">FNI</span>
+                <span class="text-[11px] font-bold tabular-nums">{fni}</span>
+                <span class="text-[8px] font-bold uppercase tracking-widest opacity-60">FNI</span>
             </div>
         )}
     </div>

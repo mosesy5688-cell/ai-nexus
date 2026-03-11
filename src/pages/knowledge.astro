@@ -19,11 +19,11 @@ const totalArticles = getTotalArticleCount();
   <div class="container mx-auto px-4 py-8 max-w-6xl">
     <header class="text-center mb-16 py-12 border-b border-[var(--border-hairline)]">
       <div class="flex items-center justify-center gap-2 mb-4">
-          <span class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Knowledge Node v25.1</span>
-          <span class="w-1 h-1 bg-indigo-500 rounded-full"></span>
-          <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Technical Hub</span>
+          <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Knowledge Node v25.1</span>
+          <span class="w-1 h-1 bg-indigo-500/50 rounded-full"></span>
+          <span class="text-[10px] font-bold text-indigo-500/70 uppercase tracking-widest">Technical Hub</span>
       </div>
-      <h1 class="text-4xl md:text-6xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter uppercase">
+      <h1 class="text-3xl md:text-5xl font-bold text-gray-900 dark:text-[var(--text-strong)] mb-4 tracking-tight uppercase">
         AI Knowledge <span class="text-zinc-500">Base</span>
       </h1>
       <p class="text-sm md:text-base text-gray-600 dark:text-zinc-400 max-w-xl mx-auto font-medium leading-relaxed tracking-tight">
@@ -38,7 +38,7 @@ const totalArticles = getTotalArticleCount();
           type="text" 
           id="kb-search"
           placeholder="Search knowledge base..." 
-          class="w-full px-5 py-3 pl-12 text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition-all"
+          class="w-full px-5 py-3 pl-12 text-base border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-[var(--text-strong)] focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition-all"
         />
         <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,8 +59,8 @@ const totalArticles = getTotalArticleCount();
 
 
     <!-- Featured Articles -->
-    <section class="mb-10 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
-      <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+    <section class="mb-10 p-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-900/50 rounded-2xl border border-gray-200 dark:border-gray-700">
+      <h2 class="text-lg font-bold text-gray-900 dark:text-[var(--text-strong)] mb-4 flex items-center gap-2">
         ⭐ Popular Articles
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -96,7 +96,7 @@ const totalArticles = getTotalArticleCount();
     </section>
 
     <!-- CTA Section -->
-    <section class="text-center py-10 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl text-white">
+    <section class="text-center py-10 px-6 bg-gradient-to-r from-indigo-600/90 to-purple-600/90 rounded-2xl text-[var(--text-strong)]">
       <h2 class="text-xl font-bold mb-2">Ready to explore models?</h2>
       <p class="text-sm text-indigo-100 mb-6 max-w-lg mx-auto">
         Apply your knowledge to find the perfect AI model for your use case

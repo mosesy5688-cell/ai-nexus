@@ -43,7 +43,7 @@ Astro.response.headers.set('Cache-Control', reports.length > 0
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-16 max-w-3xl">
     <header class="mb-12">
-      <h1 class="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight mb-3">
+      <h1 class="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-[var(--text-strong)] tracking-tight mb-3 uppercase">
         Intelligence Reports
       </h1>
       <p class="text-base text-zinc-500 dark:text-zinc-400 font-medium leading-normal">
@@ -54,17 +54,17 @@ Astro.response.headers.set('Cache-Control', reports.length > 0
     {reports.length > 0 ? (
       <div class="border border-[var(--border-hairline)] bg-[var(--bg-surface)] rounded-sm overflow-hidden">
         <div class="p-4 border-b border-[var(--border-hairline)] bg-black/40 flex items-center justify-between">
-          <h2 class="text-xs font-black text-white uppercase tracking-widest">Archive</h2>
+          <h2 class="text-xs font-bold text-[var(--text-strong)] uppercase tracking-widest">Archive</h2>
           <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{reports.length} Reports</span>
         </div>
         <ul class="divide-y divide-[var(--border-hairline)]">
           {reports.map((report) => (
             <li class="group transition-colors hover:bg-black/20">
               <a href={getRouteFromId(report.id, 'report')} class="flex items-center p-4 gap-6">
-                <span class="flex-shrink-0 w-28 text-[10px] font-black tabular-nums text-zinc-500 tracking-widest group-hover:text-indigo-400 transition-colors">
+                <span class="flex-shrink-0 w-28 text-[10px] font-bold tabular-nums text-zinc-500 tracking-widest group-hover:text-indigo-400 transition-colors">
                   {new Date(report.date).toISOString().split('T')[0]}
                 </span>
-                <h3 class="flex-1 min-w-0 text-sm font-bold text-white truncate group-hover:text-[#bdc3ff] transition-colors">
+                <h3 class="flex-1 min-w-0 text-sm font-bold text-[var(--text-strong)] truncate group-hover:text-[#bdc3ff] transition-colors">
                   {report.title}
                 </h3>
                 <span class="flex-shrink-0 text-[#bdc3ff] text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">

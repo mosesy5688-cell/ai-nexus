@@ -49,8 +49,8 @@ const hasLongContent = content.length > maxPreviewLength;
          data-has-initial={content ? 'true' : 'false'}>
   <div class="flex items-center justify-between mb-8">
     <div class="flex items-center gap-3">
-       <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
-       <h2 class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">{displayTitle}</h2>
+       <div class="w-1.5 h-1.5 bg-indigo-500/50 rounded-full shadow-none"></div>
+       <h2 class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">{displayTitle}</h2>
     </div>
     
     <div id="readme-status" class="hidden text-[8px] font-black text-indigo-400/50 uppercase tracking-widest animate-pulse">
@@ -74,10 +74,10 @@ const hasLongContent = content.length > maxPreviewLength;
       {content ? (
         usePrecompiledHtml ? (
           <div class="markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none 
-                      prose-headings:font-black prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-white
+                      prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-[var(--text-strong)]
                       prose-a:text-[#bdc3ff] prose-a:font-bold prose-a:no-underline hover:prose-a:underline
-                      prose-strong:text-zinc-900 dark:prose-strong:text-white
-                      leading-relaxed tracking-tight" 
+                      prose-strong:text-zinc-900 dark:prose-strong:text-[var(--text-strong)]
+                      leading-relaxed tracking-tight text-zinc-600 dark:text-[var(--text-primary)]" 
                set:html={content} />
         ) : (
           <MarkdownRenderer content={content} />
