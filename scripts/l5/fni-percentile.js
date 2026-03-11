@@ -58,11 +58,27 @@ export function assignPercentileBadge(rank, total) {
  * @returns {Array} Enriched results with fni_percentile field
  */
 export function enrichWithPercentiles(results) {
+    if (!results || results.length === 0) return [];
+
+    // Sort all results by FNI score descending once
     const sortedByFNI = [...results].sort((a, b) => b.fni_score - a.fni_score);
+    const total = results.length;
+
+    // Build a lookup map of id -> rank to avoid findIndex O(N^2)
+    const rankMap = new Map();
+    sortedByFNI.forEach((entity, index) => {
+        // If multiple entities have the same score, findIndex would return the first one.
+        // To mimic that behavior but faster:
+        if (index > 0 && entity.fni_score === sortedByFNI[index - 1].fni_score) {
+            rankMap.set(entity.id, rankMap.get(sortedByFNI[index - 1].id));
+        } else {
+            rankMap.set(entity.id, index + 1);
+        }
+    });
 
     return results.map(entity => {
-        const rank = sortedByFNI.findIndex(e => e.id === entity.id) + 1;
-        const fni_percentile = assignPercentileBadge(rank, results.length);
+        const rank = rankMap.get(entity.id) || total;
+        const fni_percentile = assignPercentileBadge(rank, total);
         return { ...entity, fni_percentile };
     });
 }

@@ -121,7 +121,7 @@ export function normalizeId(id, source, type) {
     // V18.2.5 Strategy: Attempt to strip valid prefixes, but don't loop indefinitely
     // Unless it's a known "source-only" prefix like hf-- followed by t--
     let iterations = 0;
-    while (iterations < 2) { // Max 2 passes (Source then Type, or just one Full)
+    while (iterations < 5) { // Allow more iterations for nested/corrupted prefixes
         let matched = false;
         for (const p of keys) {
             if (finalInput.startsWith(p)) {
@@ -131,10 +131,11 @@ export function normalizeId(id, source, type) {
                 finalInput = finalInput.slice(p.length);
                 matched = true;
 
-                // If we matched a FULL source+type prefix, we are done. Stop stripping.
-                // This prevents stripping an author named "model" after "hf-model--"
-                if (hint.s && hint.t) {
-                    iterations = 2; // Break outer loop
+                // V25.1 Enhancement: If it's a FULL prefix, keep stripping to find potential 
+                // nested corruption (e.g. gh-agent--mcp-agent--). 
+                // Only partial hints (just 's' or just 't') should trigger careful termination.
+                if (!hint.s || !hint.t) {
+                    iterations = 5; // Exit after partial strip to protect names
                 }
                 break;
             }
@@ -149,8 +150,10 @@ export function normalizeId(id, source, type) {
     let t = (type || hintT || '').toLowerCase();
 
     // Canonical source normalization
-    if (s === 'huggingface') s = 'hf';
-    if (s === 'github') s = 'gh';
+    if (s === 'huggingface' || s === 'hf_hub') s = 'hf';
+    if (s === 'github' || s === 'gh_repo') s = 'gh';
+    if (s === 'mcp_registry') s = 'mcp';
+    if (s === 'langchain_hub') s = 'langchain';
 
     // Contextual Guessing (Fallback)
     if (!s) {
@@ -189,16 +192,23 @@ export function normalizeId(id, source, type) {
 }
 
 export function getNodeSource(id, type) {
+    const lowerId = (id || '').toLowerCase();
+
+    // 1. High-Specific Fixed Sources
     if (type === 'paper') return 'arxiv';
+    if (type === 'prompt') return 'langchain';
+    
+    // 2. Multi-Source Types (Strict Prefix Matching)
     if (type === 'agent' || type === 'tool') {
-        const lowerId = (id || '').toLowerCase();
         if (lowerId.startsWith('hf-') || lowerId.startsWith('huggingface--')) return 'hf';
-        return 'gh';
+        if (lowerId.startsWith('mcp-') || lowerId.includes('mcp-server')) return 'mcp';
+        if (lowerId.startsWith('langchain-')) return 'langchain';
+        return 'gh'; // Default for agents/tools
     }
 
     if (type === 'dataset' || type === 'space') return 'hf';
+
     if (type === 'model') {
-        const lowerId = (id || '').toLowerCase();
         if (lowerId.startsWith('gh-model--') || lowerId.startsWith('github--')) return 'gh';
         if (lowerId.startsWith('civitai')) return 'civitai';
         if (lowerId.startsWith('replicate')) return 'replicate';
@@ -206,14 +216,7 @@ export function getNodeSource(id, type) {
         if (lowerId.startsWith('ollama')) return 'ollama';
         return 'hf';
     }
-    if (type === 'agent') {
-        const lowerId = (id || '').toLowerCase();
-        if (lowerId.startsWith('mcp')) return 'mcp';
-        if (lowerId.startsWith('langchain')) return 'langchain';
-    }
-    if (type === 'prompt') {
-        return 'langchain'; // Currently only LangChain provides prompt artifacts natively
-    }
+
     return null;
 }
 

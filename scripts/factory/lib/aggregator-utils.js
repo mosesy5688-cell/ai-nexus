@@ -11,42 +11,16 @@ export { processShardsIteratively };
 
 /** Pass 1: Global Statistics and Registry Indexing (V18.12.5.21) */
 export async function calculateGlobalStats(registryLoader, artifactDir, totalShards) {
-    console.log(`[AGGREGATOR] Pass 1/2: Mesh Discovery & Global Indexing...`);
+    console.log(`[AGGREGATOR] Pass 1/2: Global Indexing & Ranking...`);
     const scoreMap = new Map();
     const registryMap = new Map(); // id -> registryShardIdx
-    const citationCounts = new Map(); // id -> score
 
-    // V18.12.5.21: Mesh Discovery Pass
-    // Scan all entities for relation targets to calculate Sm (Mesh Impact)
-    // Formula: Model Cite +1, Paper Cite +3, Collection +5. Cap 100.
-    await registryLoader(async (entities) => {
-        const { extractEntityRelations } = await import('./relation-extractors.js');
-        for (const e of entities) {
-            const relations = extractEntityRelations(e);
-            for (const rel of relations) {
-                const targetId = rel.target_id;
-                const sourceId = rel.source_id;
-                const weight = rel.target_type === 'paper' ? 3 : 1;
-                citationCounts.set(targetId, (citationCounts.get(targetId) || 0) + weight);
-            }
-        }
-    }, { slim: true });
-
-    console.log(`  [MESH] Discovered ${citationCounts.size} citation targets.`);
-
-    // Pass 1.2: Calculate weighted scores
+    // V25.1 FIX: Abolish Stage 4/4 Scoring. Trust Stage 2/4 Authority ONLY.
     await registryLoader(async (entities, idx) => {
         for (const e of entities) {
-            // S_m calculation
-            const Sm = Math.min(100, citationCounts.get(e.id) || 0);
-
-            // FNI_final = (Vitality * 0.75) + (Sm * 0.25)
-            // Note: Stage 2/4 results already include Pop, Fresh, Comp, Util in a 0-100 score.
-            // We treat that as the 75% baseline.
-            const baseScore = e.fni_score ?? 0;
-            const finalFni = Math.round((baseScore * 0.75) + (Sm * 0.25));
-
-            scoreMap.set(e.id, finalFni);
+            // Read score directly from Stage 2/4 result
+            const currentScore = e.fni_score ?? e.fni ?? 0;
+            scoreMap.set(e.id, currentScore);
             registryMap.set(e.id, idx);
         }
     }, { slim: true });
@@ -62,16 +36,16 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
     }
 
     const rankingsMap = new Map();
-    const thresholds = []; // For exporting score-to-percentile map
 
     for (const [id, score] of scoreMap) {
+        // V25.1: If we have an existing string-based percentile (top_1%), preserve it.
+        // Otherwise calculate numeric fallback.
         const rank = scoreToRank.get(score) ?? 0;
-        const percentile = Math.round((1 - rank / count) * 100);
-        rankingsMap.set(id, percentile);
+        const numericPercentile = Math.round((1 - rank / count) * 100);
+        rankingsMap.set(id, numericPercentile);
     }
 
     // Build Thresholds for Late-Binding (Stage 4/4)
-    // We export a mapping of score -> percentile
     const sortedUniqueScores = Array.from(scoreToRank.keys()).sort((a, b) => b - a);
     const scorePercentiles = {};
     for (const s of sortedUniqueScores) {
@@ -84,13 +58,10 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
     await fs.writeFile('./output/cache/fni-thresholds.json', JSON.stringify({
         _ts: new Date().toISOString(),
         _count: count,
-        scorePercentiles,
-        citationCounts: Object.fromEntries(citationCounts) // Optional: for debugging
+        scorePercentiles
     }, null, 2));
 
-    citationCounts.clear();
-    console.log(`  [STATS] Mapped ${registryMap.size} entities with Mesh Impact applied.`);
-    // V22.8 FIX: Return scoreMap to allow propagation to shards during High-Fidelity patching
+    console.log(`  [STATS] Mapped ${registryMap.size} entities with Authority-First scoring.`);
     return { rankingsMap, registryMap, scoreMap };
 }
 
@@ -213,7 +184,14 @@ export async function mergePartitionedShard(baselineEntities, shardIndex, rankin
                 const existing = shardRegistry.get(incoming.id);
                 if (existing) {
                     const merged = processEntity(existing, incoming, { slim });
-                    merged.fni_percentile = rankingsMap.get(merged.id) || 0;
+                    // V25.1: Trust existing string-based percentile (top_1%) if present.
+                    // Only overwrite with numeric rank if current value is missing or numeric 0-100.
+                    const currentP = merged.fni_percentile;
+                    const hasBadge = typeof currentP === 'string' && currentP.includes('top_');
+                    
+                    if (!hasBadge) {
+                        merged.fni_percentile = rankingsMap.get(merged.id) || 0;
+                    }
                     shardRegistry.set(merged.id, merged);
                     updateCount++;
                 }
@@ -224,7 +202,11 @@ export async function mergePartitionedShard(baselineEntities, shardIndex, rankin
     }
 
     for (const ent of shardRegistry.values()) {
-        if (ent.fni_percentile === undefined) ent.fni_percentile = rankingsMap.get(ent.id) || 0;
+        const currentP = ent.fni_percentile;
+        const hasBadge = typeof currentP === 'string' && currentP.includes('top_');
+        if (!hasBadge && currentP === undefined) {
+            ent.fni_percentile = rankingsMap.get(ent.id) || 0;
+        }
     }
 
     return {

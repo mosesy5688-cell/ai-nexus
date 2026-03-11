@@ -11,7 +11,8 @@ export function scrubIdentities(entities) {
     let migratedCount = 0;
     const finalSet = entities.map(e => {
         const oldId = e.id;
-        const source = getNodeSource(oldId, e.type);
+        // V25.1: Prioritize existing source to prevent misclassification
+        const source = e.source || getNodeSource(oldId, e.type);
         const newId = normalizeId(oldId, source, e.type);
         if (oldId !== newId) {
             migratedCount++;
