@@ -1,5 +1,12 @@
+---
 import '../../styles/markdown-premium.css';
 import { marked } from 'marked';
+
+interface Props {
+  content: string;
+}
+
+const { content } = Astro.props;
 
 // Configure marked for information density styling
 const htmlContent = marked.parse(content || '');
