@@ -1,7 +1,12 @@
 # Factory 1.5 - Density Booster (Paper Enrichment)
 # V25.8.3: Asynchronous full-text collection for academic papers
 #
-# Triggers: After Factory 4/4 completes, or manual dispatch
+# Trigger: workflow_dispatch ONLY (dispatched by Factory 4/4 upload job).
+# NOTE: workflow_run is NOT used because GitHub has a 3-level depth limit
+# for chained workflow_run triggers. Factory 4/4 is already Level 3,
+# so Level 4 would be silently dropped. Factory 4/4 uses `gh workflow run`
+# to dispatch this workflow, which resets the depth counter.
+#
 # Architecture: 16 parallel runners, each assigned a UMID partition range
 # Budget: 5000 papers / 5h per runner (80K papers/cycle max)
 # Core: Rust content-extractor FFI for HTML extraction + classification
@@ -13,9 +18,6 @@ permissions:
   contents: read
 
 on:
-  workflow_run:
-    workflows: ["Factory 4/4 - Finalize"]
-    types: [completed]
   workflow_dispatch:
 
 jobs:
@@ -23,7 +25,6 @@ jobs:
     name: Check Upstream
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Gate Check
         run: echo "✅ Upstream OK. Starting Density Booster."

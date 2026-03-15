@@ -414,3 +414,14 @@ jobs:
           echo "🏥 Triggering Daily Health Check..."
           gh workflow run global-health-monitor.yml
         continue-on-error: true
+
+      # V25.8.3: Recursion Bypass — workflow_run chain depth limit is 3.
+      # Factory 4/4 is Level 3, so Factory 1.5 cannot be triggered via workflow_run.
+      # Manual dispatch resets the depth counter.
+      - name: Trigger Factory 1.5 Density Booster
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🚀 [Recursion Bypass] Dispatching Factory 1.5 - Density Booster..."
+          gh workflow run factory-enrich.yml
+        continue-on-error: true
