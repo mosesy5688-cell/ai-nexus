@@ -120,10 +120,7 @@ export class RegistryManager {
 
         transaction(batchEntities);
 
-        // Apply FNI decay for unvisited (archived) entities
-        console.log('[REGISTRY] Applying global FNI decay...');
-        this.db.exec("UPDATE registry SET fni_score = fni_score * 0.95 WHERE status = 'archived'");
-
+        // V25.8: FNI decay computed at read-time via _last_seen (no destructive mutation)
         console.log(`  [REGISTRY] Stats: ${added} added, ${updated} updated.`);
         this.count = this.db.prepare('SELECT count(*) as count FROM registry').get().count;
         return {
