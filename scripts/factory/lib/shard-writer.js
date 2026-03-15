@@ -35,8 +35,9 @@ async function loadZstd() {
 }
 
 export class ShardWriter {
-    constructor(outputDir) {
+    constructor(outputDir, namePrefix = 'fused-shard') {
         this.outputDir = outputDir;
+        this.namePrefix = namePrefix;
         this.fd = null;
         this.shardId = 0;
         this.shardSize = 0;
@@ -57,7 +58,7 @@ export class ShardWriter {
     open() {
         if (this.shardId >= MAX_SHARDS) { console.error('❌ Shard limit exceeded'); process.exit(1); }
         if (this.fd) this.finalize();
-        this.currentName = `fused-shard-${String(this.shardId).padStart(3, '0')}.bin`;
+        this.currentName = `${this.namePrefix}-${String(this.shardId).padStart(3, '0')}.bin`;
         const fullPath = path.join(this.outputDir, this.currentName);
         this.fd = fsSync.openSync(fullPath, 'w');
         fsSync.writeSync(this.fd, Buffer.alloc(SHARD_HEADER_SIZE, 0));

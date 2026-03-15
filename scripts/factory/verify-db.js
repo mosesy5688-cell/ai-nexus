@@ -117,6 +117,33 @@ if (heavySample) {
     check('Shard Hash Integrity', isSearchDb || hasHash, 'Registry/Hash check');
 }
 
+// 7. Binary Shard Validation (V25.8.2: NXVF V4.1 Header Check)
+const shardDir = path.join(dirPath, '..', 'cache', 'registry');
+if (fs.existsSync(shardDir)) {
+    const binShards = fs.readdirSync(shardDir).filter(f => f.endsWith('.bin'));
+    if (binShards.length > 0) {
+        let binOk = 0;
+        let binFail = 0;
+        for (const shard of binShards) {
+            const data = fs.readFileSync(path.join(shardDir, shard));
+            const hasNxvf = data.length >= 29 && data[0] === 0x4E && data[1] === 0x58 && data[2] === 0x56 && data[3] === 0x46;
+            if (hasNxvf) {
+                const entityCount = data.readUInt32LE(11);
+                const offsetTableOff = data.readUInt32LE(7);
+                const checksum = data.readUInt32LE(15);
+                const table = data.subarray(offsetTableOff, offsetTableOff + entityCount * 8);
+                let computed = 0;
+                for (let i = 0; i < table.length; i += 4) computed ^= table.readUInt32LE(i);
+                if ((computed >>> 0) === checksum) binOk++;
+                else binFail++;
+            } else {
+                binFail++;
+            }
+        }
+        check('Binary Shards (NXVF)', binFail === 0, `${binOk}/${binShards.length} valid`);
+    }
+}
+
 db.close();
 console.log(`\n=== Health Check Complete: ${failures} failures ===`);
 process.exit(failures > 0 ? 1 : 0);

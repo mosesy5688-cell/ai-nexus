@@ -53,3 +53,6 @@ export function encryptPayload(shardName, payload, entityOffset) {
     const cipher = crypto.createCipheriv('aes-256-ctr', _aesKey, iv);
     return Buffer.concat([cipher.update(payload), cipher.final()]);
 }
+
+/** AES-CTR is symmetric — decrypt is identical to encrypt */
+export const decryptPayload = encryptPayload;

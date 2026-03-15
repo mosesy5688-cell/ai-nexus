@@ -1,17 +1,17 @@
 /**
- * Registry Loader Module V18.2.11
- * Handles sharded loading, field projection, and OOM-safe summary recovery.
+ * Registry Loader Module V25.8.2
+ * Handles binary NXVF shards (primary) with transparent JSON.gz fallback.
  */
 import fs from 'fs/promises';
 import path from 'path';
 import { loadWithFallback } from './cache-core.js';
+import { readBinaryShard, isBinaryShard } from './registry-binary-reader.js';
 
 const REGISTRY_DIR = 'registry';
 const MONOLITH_FILE = 'global-registry.json.gz';
 
 /**
- * Iterative Shard Loader for Partitioned Aggregation
- * Passes shards one by one to a consumer function to keep heap usage O(1).
+ * Iterative Shard Loader — Binary + JSON.gz (O(1) heap per shard)
  */
 export async function loadRegistryShardsSequentially(consumer, options = {}) {
     const cacheDir = process.env.CACHE_DIR || './cache';
@@ -21,8 +21,8 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
     let shardFiles = [];
     try {
         shardFiles = await fs.readdir(shardDirPath);
-    } catch (err) {
-        return; // Standard behavior: if directory missing, no shards
+    } catch {
+        return;
     }
 
     let validShards = shardFiles
@@ -33,17 +33,14 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
         })
         .sort();
 
-    // V18.12.5.19: Selective R2 Probing
-    // If we're in a satellite task or factory aggregate, R2 is typically redundant 
-    // because the 'Core' task just wrote fresh local shards.
     const inhibitR2 = process.env.AGGREGATOR_MODE === 'true' && !process.env.AGGREGATOR_FORCE_R2;
 
     if (validShards.length === 0) {
         if (inhibitR2) {
-            console.log(`[CACHE] ⚠️ No local shards found. R2 Probe INHIBITED in Aggregator mode.`);
+            console.log(`[CACHE] No local shards found. R2 Probe INHIBITED in Aggregator mode.`);
             return;
         }
-        console.log(`[CACHE] 🔍 No local shards found. Probing for R2 baseline...`);
+        console.log(`[CACHE] No local shards found. Probing for R2 baseline...`);
         for (let i = startShard; i <= 300; i++) {
             const shardName = `part-${String(i).padStart(3, '0')}.json.gz`;
             const recovered = await loadWithFallback(`registry/${shardName}`, null, false);
@@ -51,21 +48,40 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
                 const entities = (recovered.entities || recovered).map(e => projectEntity(e, slim));
                 await consumer(entities, i);
             } else if (i > 10) {
-                // Stop if we hit a gap after some shards found? 
-                // Or just keep going. Usually we stop after a few misses.
                 break;
             }
         }
     } else {
-        console.log(`[CACHE] 📂 Processing ${validShards.length} shards sequentially...`);
+        console.log(`[CACHE] Processing ${validShards.length} shards sequentially...`);
         for (const s of validShards) {
-            const recovered = await loadWithFallback(`registry/${s}`, null, false);
-            if (recovered && (recovered.entities || Array.isArray(recovered))) {
-                const entities = (recovered.entities || recovered).map(e => projectEntity(e, slim));
-                await consumer(entities, parseInt(s.match(/part-(\d+)/)[1]));
+            const shardIdx = parseInt(s.match(/part-(\d+)/)[1]);
+            const fullPath = path.join(shardDirPath, s);
+            const entities = await loadShardAuto(fullPath, s, slim);
+            if (entities && entities.length > 0) {
+                await consumer(entities, shardIdx);
             }
         }
     }
+}
+
+/**
+ * Auto-detect shard format and load entities
+ */
+async function loadShardAuto(fullPath, filename, slim) {
+    // Binary NXVF shard (primary path)
+    if (filename.endsWith('.bin') && isBinaryShard(fullPath)) {
+        const result = await readBinaryShard(fullPath);
+        if (result && result.entities) {
+            return result.entities.map(e => projectEntity(e, slim));
+        }
+        return [];
+    }
+    // JSON.gz fallback (legacy compatibility)
+    const recovered = await loadWithFallback(`registry/${filename}`, null, false);
+    if (recovered && (recovered.entities || Array.isArray(recovered))) {
+        return (recovered.entities || recovered).map(e => projectEntity(e, slim));
+    }
+    return [];
 }
 
 export async function loadGlobalRegistry(options = {}) {
@@ -74,55 +90,42 @@ export async function loadGlobalRegistry(options = {}) {
     const monolithPath = path.join(cacheDir, MONOLITH_FILE);
     const REGISTRY_FLOOR = parseInt(process.env.REGISTRY_FLOOR || '85000');
     const { slim = false } = options;
-    const inhibitR2 = process.env.AGGREGATOR_MODE === 'true' && !process.env.AGGREGATOR_FORCE_R2;
     let allEntities = [];
-
-    const zlib = await import('zlib');
-    const tryLoad = async (filepath) => {
-        const data = await fs.readFile(filepath);
-        const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
-        if (filepath.endsWith('.gz') || isGzip) {
-            try {
-                const decompressed = zlib.gunzipSync(data).toString('utf-8');
-                const parsed = JSON.parse(decompressed);
-                const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
-                return { entities, count: entities.length };
-            } catch (e) {
-                if (!isGzip) console.warn(`[CACHE] Fake .gz detected: ${filepath}`);
-                throw e;
-            }
-        }
-        const parsed = JSON.parse(data.toString('utf-8'));
-        const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
-        return { entities, count: entities.length };
-    };
 
     if (process.env.FORCE_R2_RESTORE !== 'true') {
         const shardFiles = await fs.readdir(shardDirPath).catch(() => []);
-        const validShards = shardFiles.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json')));
+        // V25.8.2: Accept .bin (binary) + .json.gz/.json (legacy)
+        const validShards = shardFiles.filter(f =>
+            f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.gz') || f.endsWith('.json'))
+        );
 
         if (validShards.length > 0) {
             for (const s of validShards.sort()) {
-                const recovered = await loadWithFallback(`registry/${s}`, null, false);
-                if (recovered && (recovered.entities || Array.isArray(recovered))) {
-                    const entities = recovered.entities || recovered;
-                    for (let i = 0; i < entities.length; i++) {
-                        allEntities.push(projectEntity(entities[i], slim));
-                    }
-                }
+                const fullPath = path.join(shardDirPath, s);
+                const entities = await loadShardAuto(fullPath, s, slim);
+                for (const e of entities) allEntities.push(e);
             }
-            if (allEntities.length >= REGISTRY_FLOOR) return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
+            if (allEntities.length >= REGISTRY_FLOOR) {
+                return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
+            }
         }
 
+        // Monolith fallback (always JSON.gz)
         try {
-            const registry = await tryLoad(monolithPath);
+            const registry = await tryLoadJsonGz(monolithPath);
             const entities = registry.entities || [];
             if (entities.length >= REGISTRY_FLOOR) {
-                return { entities: entities.map(e => projectEntity(e, slim)), count: entities.length, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
+                return {
+                    entities: entities.map(e => projectEntity(e, slim)),
+                    count: entities.length,
+                    lastUpdated: registry.lastUpdated,
+                    didLoadFromStorage: true
+                };
             }
         } catch { }
     }
 
+    // R2 Recovery (legacy JSON.gz shards only)
     if (process.env.ALLOW_R2_RECOVERY === 'true' || process.env.FORCE_R2_RESTORE === 'true') {
         try {
             let i = 0;
@@ -131,13 +134,13 @@ export async function loadGlobalRegistry(options = {}) {
                 const recovered = await loadWithFallback(shardName, null, false);
                 if (recovered && (recovered.entities || Array.isArray(recovered))) {
                     const entities = recovered.entities || recovered;
-                    for (let j = 0; j < entities.length; j++) {
-                        allEntities.push(projectEntity(entities[j], slim));
-                    }
+                    for (const e of entities) allEntities.push(projectEntity(e, slim));
                     i++;
                 } else break;
             }
-            if (allEntities.length >= REGISTRY_FLOOR) return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
+            if (allEntities.length >= REGISTRY_FLOOR) {
+                return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
+            }
         } catch (e) {
             console.error(`[CACHE] R2 Restoration failed: ${e.message}`);
         }
@@ -146,13 +149,27 @@ export async function loadGlobalRegistry(options = {}) {
     return { entities: [], count: 0, didLoadFromStorage: false };
 }
 
+async function tryLoadJsonGz(filepath) {
+    const zlib = await import('zlib');
+    const data = await fs.readFile(filepath);
+    const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
+    if (filepath.endsWith('.gz') || isGzip) {
+        const decompressed = zlib.gunzipSync(data).toString('utf-8');
+        const parsed = JSON.parse(decompressed);
+        const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
+        return { entities, count: entities.length, lastUpdated: parsed.lastUpdated };
+    }
+    const parsed = JSON.parse(data.toString('utf-8'));
+    const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
+    return { entities, count: entities.length };
+}
+
 /**
  * Internal Projector (Dry / Fast)
  */
 export function projectEntity(e, slim) {
-    if (!slim) return e; // V22.8: Absolute Data Preservation (Safeguard 1.1)
+    if (!slim) return e;
 
-    // Summary Recovery Logic
     const rawSummary = e.description || e.summary || e.seo_summary?.description || '';
     let summary = rawSummary;
     if (!summary || summary.length < 5) {
@@ -162,7 +179,6 @@ export function projectEntity(e, slim) {
         }
     }
 
-    // Slim Projection (V22.8: Project exactly what's needed for Satellite compute)
     return {
         id: e.id, umid: e.umid, slug: e.slug || '',
         name: e.name || e.title || e.displayName || '',

@@ -55,7 +55,7 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
         });
     }
 
-    // 2. Mirroring (V17.5+)
+    // 2. Mirroring (V25.8.2: Binary shards + JSON.gz monolith backup)
     const backupDir = path.join(outputDir, 'meta', 'backup');
     await fs.mkdir(backupDir, { recursive: true });
 
