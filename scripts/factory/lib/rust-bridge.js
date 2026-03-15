@@ -154,37 +154,58 @@ export function validateFusionContentFFI(fulltext, originalBody) {
 
 /** Streaming shard aggregation (Rust). OOM-safe for 400K+ entities. */
 export function streamAggregateFFI(shardDir, outputPath) {
-    if (_streamAggregator) return _streamAggregator.streamAggregate(shardDir, outputPath);
+    if (_streamAggregator) {
+        try {
+            return _streamAggregator.streamAggregate(shardDir, outputPath);
+        } catch (e) {
+            console.warn(`[RUST-BRIDGE] streamAggregate failed: ${e.message}. Falling back to JS.`);
+            return null;
+        }
+    }
     return null;
 }
 
 /** V25.8.3: Satellite task FFI — search index builder. */
 export function buildSearchIndexFFI(entitiesJson) {
-    if (_satelliteTasks) return _satelliteTasks.buildSearchIndex(entitiesJson);
+    if (_satelliteTasks) {
+        try { return _satelliteTasks.buildSearchIndex(entitiesJson); }
+        catch (e) { console.warn(`[RUST-BRIDGE] buildSearchIndex failed: ${e.message}. JS fallback.`); return null; }
+    }
     return null;
 }
 
 /** V25.8.3: Satellite task FFI — relations graph builder. */
 export function buildRelationsGraphFFI(nodesJson, relationsJson) {
-    if (_satelliteTasks) return _satelliteTasks.buildRelationsGraph(nodesJson, relationsJson);
+    if (_satelliteTasks) {
+        try { return _satelliteTasks.buildRelationsGraph(nodesJson, relationsJson); }
+        catch (e) { console.warn(`[RUST-BRIDGE] buildRelationsGraph failed: ${e.message}. JS fallback.`); return null; }
+    }
     return null;
 }
 
 /** V25.8.3: Satellite task FFI — knowledge linker. */
 export function computeKnowledgeLinksFFI(entitiesJson) {
-    if (_satelliteTasks) return _satelliteTasks.computeKnowledgeLinks(entitiesJson);
+    if (_satelliteTasks) {
+        try { return _satelliteTasks.computeKnowledgeLinks(entitiesJson); }
+        catch (e) { console.warn(`[RUST-BRIDGE] computeKnowledgeLinks failed: ${e.message}. JS fallback.`); return null; }
+    }
     return null;
 }
 
 /** V25.8.3: Satellite task FFI — alt linker (Jaccard similarity). */
 export function computeAltRelationsFFI(entitiesJson) {
-    if (_satelliteTasks) return _satelliteTasks.computeAltRelations(entitiesJson);
+    if (_satelliteTasks) {
+        try { return _satelliteTasks.computeAltRelations(entitiesJson); }
+        catch (e) { console.warn(`[RUST-BRIDGE] computeAltRelations failed: ${e.message}. JS fallback.`); return null; }
+    }
     return null;
 }
 
 /** V25.8.3: Satellite task FFI — mesh graph builder. */
 export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson) {
-    if (_satelliteTasks) return _satelliteTasks.buildMeshGraph(explicitJson, knowledgeLinksJson, reportsJson);
+    if (_satelliteTasks) {
+        try { return _satelliteTasks.buildMeshGraph(explicitJson, knowledgeLinksJson, reportsJson); }
+        catch (e) { console.warn(`[RUST-BRIDGE] buildMeshGraph failed: ${e.message}. JS fallback.`); return null; }
     return null;
 }
 
