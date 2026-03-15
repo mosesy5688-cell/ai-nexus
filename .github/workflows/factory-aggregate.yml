@@ -202,6 +202,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           UMID_SALT: ${{ secrets.UMID_SALT }}
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           STRICT_R2_LOCKDOWN: 'true'
         run: |
             echo "🔄 Running Merge-Core (V2.0 Sharding)..."
