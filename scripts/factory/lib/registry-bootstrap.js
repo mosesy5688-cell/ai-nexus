@@ -16,7 +16,8 @@ import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './umid-generator.js';
-import { loadGlobalRegistry } from './cache-manager.js';
+import { loadRegistryShardsSequentially } from './registry-loader.js';
+import { saveRegistryShard } from './registry-saver.js';
 import { createR2Client } from './r2-helpers.js';
 import { initRustBridge } from './rust-bridge.js';
 import { initShardCrypto } from './shard-crypto.js';
@@ -53,42 +54,43 @@ async function releaseLock(s3) {
     console.log('[BOOTSTRAP] R2 lock released.');
 }
 
-// ── Phase A: UMID Stamping ──────────────────────────────
+// ── Phase A: UMID Stamping (Streaming — O(1) memory per shard) ───
 async function phaseUmidStamping() {
-    console.log('[BOOTSTRAP] Phase A: UMID Stamping (V25.8)...');
+    console.log('[BOOTSTRAP] Phase A: UMID Stamping (V25.8 Streaming)...');
 
     if (!process.env.UMID_SALT) {
         console.error('[BOOTSTRAP] FATAL: UMID_SALT environment variable is required.');
         process.exit(1);
     }
 
-    const registry = await loadGlobalRegistry({ slim: false });
-    const entities = registry.entities || registry;
-
-    if (!Array.isArray(entities) || entities.length === 0) {
-        console.error('[BOOTSTRAP] FATAL: No entities found in global registry.');
-        process.exit(1);
-    }
-
-    console.log(`[BOOTSTRAP] Processing ${entities.length} entities...`);
-
     const mapping = {};
     let stamped = 0;
+    let shardCount = 0;
 
-    for (const entity of entities) {
-        const id = entity.id || entity.slug;
-        if (!id) continue;
+    await loadRegistryShardsSequentially(async (entities, shardIdx) => {
+        for (const entity of entities) {
+            const id = entity.id || entity.slug;
+            if (!id) continue;
 
-        const umid = generateUMID(id);
-        entity.umid = umid;
-        entity.canonical_url = generateCanonicalUrl(entity);
-        entity.citation = generateCitation(entity);
-        mapping[id] = umid;
-        stamped++;
-
-        if (stamped % 50000 === 0) {
-            console.log(`  [STAMP] ${stamped} entities processed...`);
+            entity.umid = generateUMID(id);
+            entity.canonical_url = generateCanonicalUrl(entity);
+            entity.citation = generateCitation(entity);
+            mapping[id] = entity.umid;
+            stamped++;
         }
+
+        // Write back stamped shard immediately (frees memory)
+        await saveRegistryShard(shardIdx, entities);
+        shardCount++;
+
+        if (stamped % 50000 < entities.length) {
+            console.log(`  [STAMP] ${stamped} entities processed (${shardCount} shards)...`);
+        }
+    }, { slim: false });
+
+    if (stamped === 0) {
+        console.error('[BOOTSTRAP] FATAL: No entities found in registry shards.');
+        process.exit(1);
     }
 
     // Output mapping file
@@ -98,10 +100,10 @@ async function phaseUmidStamping() {
     await fs.writeFile(mappingPath, compressed);
 
     console.log(`[BOOTSTRAP] Phase A complete.`);
-    console.log(`  Stamped: ${stamped} entities`);
+    console.log(`  Stamped: ${stamped} entities across ${shardCount} shards`);
     console.log(`  Mapping: ${mappingPath} (${(compressed.length / 1024 / 1024).toFixed(2)} MB)`);
 
-    return { entities, mapping };
+    return { mapping };
 }
 
 // ── Phase B: Vault Push ─────────────────────────────────
@@ -130,13 +132,13 @@ async function phaseVaultPush() {
             const shards = await fs.readdir(registryDir);
             let uploaded = 0;
             for (const shard of shards) {
-                if (!shard.endsWith('.json.gz')) continue;
+                if (!shard.endsWith('.bin') && !shard.endsWith('.json.gz')) continue;
                 const data = await fs.readFile(path.join(registryDir, shard));
                 await s3.send(new PutObjectCommand({
                     Bucket: R2_BUCKET,
                     Key: `vault/legacy/registry/${shard}`,
                     Body: data,
-                    ContentType: 'application/gzip'
+                    ContentType: shard.endsWith('.bin') ? 'application/octet-stream' : 'application/gzip'
                 }));
                 uploaded++;
             }
