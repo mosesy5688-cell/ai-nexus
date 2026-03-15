@@ -206,6 +206,7 @@ export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson)
     if (_satelliteTasks) {
         try { return _satelliteTasks.buildMeshGraph(explicitJson, knowledgeLinksJson, reportsJson); }
         catch (e) { console.warn(`[RUST-BRIDGE] buildMeshGraph failed: ${e.message}. JS fallback.`); return null; }
+    }
     return null;
 }
 
