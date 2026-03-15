@@ -1,0 +1,11 @@
+{
+  "name": "content-extractor-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "content-extractor-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}

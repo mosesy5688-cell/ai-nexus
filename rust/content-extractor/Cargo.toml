@@ -1,0 +1,16 @@
+[package]
+name = "content-extractor-rust"
+version = "1.0.0"
+edition = "2021"
+description = "V25.8.3 Density Booster — HTML extraction + content classification (4-bucket)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+regex = "1"
+
+[build-dependencies]
+napi-build = "2"
