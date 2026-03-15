@@ -100,16 +100,17 @@ jobs:
         run: |
           node -e "
             const { createRequire } = require('module');
-            const req = createRequire(__filename);
+            const path = require('path');
+            const req = createRequire(path.resolve(process.cwd(), 'package.json'));
             const crates = ['shard-router', 'fni-calc', 'mesh-engine'];
             let loaded = 0;
             for (const c of crates) {
               try {
                 const mod = req('./rust/' + c + '/' + c + '-rust.node');
-                console.log('✅ ' + c + ': loaded');
+                console.log(c + ': loaded');
                 loaded++;
               } catch (e) {
-                console.log('⚠️  ' + c + ': not available (' + e.message.slice(0,50) + ')');
+                console.log(c + ': not available (' + e.message.slice(0,50) + ')');
               }
             }
             console.log('Loaded: ' + loaded + '/' + crates.length);
