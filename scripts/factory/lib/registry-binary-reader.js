@@ -30,12 +30,17 @@ async function ensureDeps() {
     }
 }
 
-/** Detect if decrypted payload is valid (JSON start byte or Zstd magic). */
+/** Detect if decrypted payload is valid (2-byte JSON signature or Zstd magic). */
 function isValidPayload(buf) {
-    if (!buf || buf.length === 0) return false;
-    const b = buf[0];
-    // JSON object '{' (0x7B), array '[' (0x5B), or Zstd magic (0x28)
-    return b === 0x7B || b === 0x5B || (buf.length >= 4 && buf.subarray(0, 4).equals(ZSTD_MAGIC));
+    if (!buf || buf.length < 2) return false;
+    const b0 = buf[0], b1 = buf[1];
+    // JSON object: must start with {"  (0x7B 0x22)
+    if (b0 === 0x7B && b1 === 0x22) return true;
+    // JSON array: must start with [{ or [[ or [" or [] (valid JSON array starts)
+    if (b0 === 0x5B && (b1 === 0x7B || b1 === 0x5B || b1 === 0x22 || b1 === 0x5D)) return true;
+    // Zstd magic (4 bytes: 28 B5 2F FD)
+    if (buf.length >= 4 && buf.subarray(0, 4).equals(ZSTD_MAGIC)) return true;
+    return false;
 }
 
 /**
@@ -104,10 +109,11 @@ export async function readBinaryShard(filePath) {
         const size = offsetTable.readUInt32LE(i * 8 + 4);
         let payload = Buffer.from(data.subarray(offset, offset + size));
 
-        // AES-CTR decryption — auto-detect encrypted vs plaintext shards
-        const decrypted = decryptPayload(shardName, payload, offset);
-        const looksValid = isValidPayload(decrypted);
-        payload = looksValid ? decrypted : payload;
+        // AES-CTR decryption — check raw first, only decrypt if not already valid
+        if (!isValidPayload(payload)) {
+            const decrypted = decryptPayload(shardName, payload, offset);
+            if (isValidPayload(decrypted)) payload = decrypted;
+        }
 
         // Zstd decompression (detect via magic bytes)
         if (payload.length >= 4 && payload.subarray(0, 4).equals(ZSTD_MAGIC)) {
