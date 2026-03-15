@@ -1,52 +1,39 @@
 /**
- * Registry Saver Module V18.2.11
- * Handles sharded storage and streaming monolith serialization to bypass V8 limits.
+ * Registry Saver Module V25.8.2
+ * Binary VFS 4.1 shards (NXVF + Zstd + AES-CTR) + JSON.gz monolith for SEO/backup.
  */
 import path from 'path';
 import { SHARD_SIZE, purgeStaleShards } from './registry-utils.js';
-import { saveWithBackup } from './cache-core.js';
+import { ShardWriter } from './shard-writer.js';
 
 const MONOLITH_FILE = 'global-registry.json.gz';
-const REGISTRY_DIR = 'registry';
 
 /**
- * Atomic Shard Saver for Partitioned Aggregation
- * Persists a single shard to disk and R2 using streaming to bypass V8 limits.
+ * Save a registry shard as Binary VFS 4.1 (.bin)
+ * Replaces legacy JSON.gz shards with NXVF binary format.
  */
 export async function saveRegistryShard(index, entities) {
-    const timestamp = new Date().toISOString();
     const count = entities.length;
-    const shardName = `registry/part-${String(index).padStart(3, '0')}.json.gz`;
     const cacheDir = process.env.CACHE_DIR || './cache';
-    const localPath = path.join(cacheDir, shardName);
-
-    console.log(`[CACHE] 💾 Persisting Registry Shard ${index} (${count} entities) [Streaming]...`);
-
-    const zlib = await import('zlib');
-    const { createWriteStream } = await import('fs');
+    const registryDir = path.join(cacheDir, 'registry');
     const { mkdir } = await import('fs/promises');
+    await mkdir(registryDir, { recursive: true });
 
-    await mkdir(path.dirname(localPath), { recursive: true });
+    console.log(`[CACHE] Persisting Registry Shard ${index} (${count} entities) [Binary V4.1]`);
 
-    await new Promise((resolve, reject) => {
-        const output = createWriteStream(localPath);
-        const gzip = zlib.createGzip();
-        gzip.pipe(output);
+    const writer = new ShardWriter(registryDir, 'part');
+    await writer.init();
+    writer.shardId = index;
+    writer.open();
 
-        output.on('error', reject);
-        gzip.on('error', reject);
-        output.on('finish', resolve);
+    for (const entity of entities) {
+        const payload = Buffer.from(JSON.stringify(entity));
+        writer.writeEntity(payload);
+    }
+    writer.finalize();
 
-        gzip.write(`{"entities":[`);
-        for (let i = 0; i < count; i++) {
-            if (i > 0) gzip.write(',');
-            gzip.write(JSON.stringify(entities[i]));
-        }
-        gzip.write(`],"count":${count},"lastUpdated":"${timestamp}"}`);
-        gzip.end();
-    });
-
-    // V18.12.5.16: R2 Backup Integration for Streams
+    // R2 backup for binary shards
+    const shardFile = `part-${String(index).padStart(3, '0')}.bin`;
     if (process.env.ENABLE_R2_BACKUP === 'true') {
         const { createReadStream } = await import('fs');
         const { createR2Client } = await import('./r2-helpers.js');
@@ -54,44 +41,42 @@ export async function saveRegistryShard(index, entities) {
         const s3 = createR2Client();
         if (s3) {
             try {
-                const r2Key = `${process.env.R2_BACKUP_PREFIX || 'meta/backup/'}${shardName}`;
+                const r2Key = `${process.env.R2_BACKUP_PREFIX || 'meta/backup/'}registry/${shardFile}`;
                 await s3.send(new PutObjectCommand({
                     Bucket: process.env.R2_BUCKET || 'ai-nexus-assets',
                     Key: r2Key,
-                    Body: createReadStream(localPath),
-                    ContentType: 'application/x-gzip',
-                    ContentEncoding: 'gzip'
+                    Body: createReadStream(path.join(registryDir, shardFile)),
+                    ContentType: 'application/octet-stream'
                 }));
             } catch (err) {
-                console.warn(`[CACHE] ⚠️ Shard R2 backup failed: ${err.message}`);
+                console.warn(`[CACHE] Shard R2 backup failed: ${err.message}`);
             }
         }
     }
 }
 
+/**
+ * Save global registry: Binary shards + JSON.gz monolith (SEO/Backup).
+ * Monolith remains JSON.gz for CDN/SEO compatibility.
+ */
 export async function saveGlobalRegistry(input) {
     const inputEntities = Array.isArray(input) ? input : (input?.entities || []);
     const count = inputEntities.length;
     const timestamp = new Date().toISOString();
 
-    console.log(`[CACHE] 💾 Persisting Registry (${count} entities)...`);
+    console.log(`[CACHE] Persisting Registry (${count} entities)...`);
 
     const cacheDir = process.env.CACHE_DIR || './cache';
-    const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
     const monolithPath = path.join(cacheDir, MONOLITH_FILE);
 
-    // 1. Sharded Save (Atomic Chunks)
+    // 1. Binary Sharded Save (V25.8.2 NXVF)
     const shardCount = Math.ceil(count / SHARD_SIZE);
-    const fs = await import('fs/promises');
-    await fs.mkdir(shardDirPath, { recursive: true });
-
     for (let i = 0; i < shardCount; i++) {
         const shardData = inputEntities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
-        const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
-        await saveWithBackup(shardName, { entities: shardData, count: shardData.length, lastUpdated: timestamp }, { compress: true });
+        await saveRegistryShard(i, shardData);
     }
 
-    // 2. Monolith Save (Streaming to bypass V8 limits)
+    // 2. Monolith Save (Streaming JSON.gz for SEO/Backup — NOT binary)
     const zlib = await import('zlib');
     const { createWriteStream } = await import('fs');
 
@@ -113,7 +98,7 @@ export async function saveGlobalRegistry(input) {
         gzip.end();
     });
 
-    console.log(`[CACHE] ✅ Registry persisted. Shards: ${shardCount}, Monolith: OK (Via Stream).`);
+    console.log(`[CACHE] Registry persisted. Shards: ${shardCount} (Binary), Monolith: OK (JSON.gz).`);
 
     // 3. Purge stale shards from R2
     await purgeStaleShards('registry', shardCount);
