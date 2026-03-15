@@ -193,6 +193,23 @@ jobs:
             echo "⚠️ Harvest context not in cache. Will use shards only."
           fi
 
+      # V25.8.3: Purge legacy .json.gz ghost files from registry directory.
+      # These are stale files from pre-V25.8 pipeline runs, persisted through GHA cache.
+      # Current pipeline writes binary .bin (NXVF). Ghost .json.gz files cause Rust
+      # stream-aggregator to read corrupted/truncated data instead of current .bin shards.
+      - name: Purge Legacy Registry Ghosts
+        run: |
+          if [ -d "cache/registry" ]; then
+            GHOST_COUNT=$(find cache/registry -name 'part-*.json.gz' -o -name 'part-*.json' 2>/dev/null | wc -l)
+            if [ "$GHOST_COUNT" -gt 0 ]; then
+              echo "🧹 Purging $GHOST_COUNT legacy .json.gz ghost files from cache/registry/"
+              find cache/registry -name 'part-*.json.gz' -delete 2>/dev/null || true
+              find cache/registry -name 'part-*.json' -delete 2>/dev/null || true
+            fi
+            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+            echo "✅ Registry: $BIN_COUNT binary shards, 0 legacy ghosts"
+          fi
+
       - name: Run Core Merge & Health
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

@@ -73,17 +73,30 @@ async function validateShard(filePath) {
 async function restoreFromPrefix(s3, prefix, label) {
     console.log(`[R2-RESTORE] Scanning ${label}: ${prefix}`);
     const objects = await listR2Objects(s3, prefix);
-    const shards = objects.filter(o =>
+    const allShards = objects.filter(o =>
         (o.Key.endsWith('.bin') || o.Key.endsWith('.json.gz')) &&
         o.Key.includes('part-') && o.Size > 0
     );
+
+    // V25.8.3: Prefer .bin (NXVF binary) over legacy .json.gz.
+    // If both formats exist for a shard, only download .bin to prevent ghost files.
+    const binIds = new Set(allShards.filter(o => o.Key.endsWith('.bin'))
+        .map(o => path.basename(o.Key).match(/part-(\d+)/)?.[1]).filter(Boolean));
+    const shards = allShards.filter(o => {
+        if (o.Key.endsWith('.json.gz')) {
+            const id = path.basename(o.Key).match(/part-(\d+)/)?.[1];
+            if (id && binIds.has(id)) return false; // .bin exists, skip legacy
+        }
+        return true;
+    });
 
     if (shards.length === 0) {
         console.log(`[R2-RESTORE] No shards found at ${prefix}`);
         return 0;
     }
 
-    console.log(`[R2-RESTORE] Found ${shards.length} shards at ${label}`);
+    const skipped = allShards.length - shards.length;
+    console.log(`[R2-RESTORE] Found ${shards.length} shards at ${label}${skipped > 0 ? ` (skipped ${skipped} legacy .json.gz)` : ''}`);
     let valid = 0;
 
     for (const obj of shards) {

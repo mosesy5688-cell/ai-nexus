@@ -1,7 +1,7 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::fs;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use flate2::read::GzDecoder;
 
 mod percentile;
@@ -88,13 +88,22 @@ pub(crate) fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>> 
     let file = fs::File::open(path)
         .map_err(|e| Error::from_reason(format!("Cannot open {}: {}", path, e)))?;
 
-    let data: serde_json::Value = if path.ends_with(".gz") {
-        let decoder = GzDecoder::new(BufReader::new(file));
-        serde_json::from_reader(BufReader::new(decoder))
+    // Read entire file to string, then sanitize malformed \u escapes before parsing.
+    // JS JSON.stringify can produce \uXXXX sequences that serde_json rejects
+    // (e.g. lone surrogates \uD800-\uDFFF, or truncated escapes near buffer boundaries).
+    let mut raw = String::new();
+    if path.ends_with(".gz") {
+        let mut decoder = GzDecoder::new(BufReader::new(file));
+        decoder.read_to_string(&mut raw)
+            .map_err(|e| Error::from_reason(format!("Decompress error in {}: {}", path, e)))?;
     } else {
-        serde_json::from_reader(BufReader::new(file))
+        BufReader::new(file).read_to_string(&mut raw)
+            .map_err(|e| Error::from_reason(format!("Read error in {}: {}", path, e)))?;
     }
-    .map_err(|e| Error::from_reason(format!("JSON parse error in {}: {}", path, e)))?;
+
+    let sanitized = sanitize_json_escapes(&raw);
+    let data: serde_json::Value = serde_json::from_str(&sanitized)
+        .map_err(|e| Error::from_reason(format!("JSON parse error in {}: {}", path, e)))?;
 
     // Handle both { "entities": [...] } and [...] formats
     if let Some(arr) = data.as_array() {
@@ -104,4 +113,60 @@ pub(crate) fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>> 
     } else {
         Ok(vec![data])
     }
+}
+
+/// Fix malformed \uXXXX escape sequences that JS serializers can produce.
+/// Replaces incomplete \u escapes (fewer than 4 hex digits) with \uFFFD (replacement char).
+fn sanitize_json_escapes(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut result = Vec::with_capacity(len);
+    let mut i = 0;
+
+    let mut in_string = false;
+    let mut escaped = false;
+
+    while i < len {
+        let b = bytes[i];
+        if escaped {
+            // Previous char was \, this char is the escape type
+            result.push(b);
+            if b == b'u' && in_string {
+                // \u found inside string — check for 4 hex digits
+                if i + 4 < len && bytes[i + 1..i + 5].iter().all(|c| c.is_ascii_hexdigit()) {
+                    result.extend_from_slice(&bytes[i + 1..i + 5]);
+                    i += 5;
+                } else {
+                    // Malformed — replace: overwrite the 'u' with uFFFD
+                    let u_pos = result.len() - 1;
+                    result[u_pos] = b'u';
+                    result.extend_from_slice(b"FFFD");
+                    // Skip any partial hex digits
+                    i += 1;
+                    while i < len && bytes[i].is_ascii_hexdigit() {
+                        i += 1;
+                    }
+                }
+            } else {
+                i += 1;
+            }
+            escaped = false;
+            continue;
+        }
+        if b == b'"' && in_string {
+            in_string = false;
+        } else if b == b'"' {
+            in_string = true;
+        } else if b == b'\\' && in_string {
+            escaped = true;
+            result.push(b);
+            i += 1;
+            continue;
+        }
+        result.push(b);
+        i += 1;
+    }
+
+    // Safe: we only replaced ASCII sequences, preserving valid UTF-8
+    String::from_utf8(result).unwrap_or_else(|_| input.to_string())
 }
