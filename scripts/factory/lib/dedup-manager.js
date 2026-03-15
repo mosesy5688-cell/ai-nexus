@@ -28,15 +28,17 @@ const DEDUP_SCHEMA = `
         last_refresh_at TEXT,
         refresh_count INTEGER DEFAULT 0,
         fni_score REAL DEFAULT 0,
+        has_fulltext INTEGER DEFAULT 0,
         status TEXT DEFAULT 'active'
     );
     CREATE INDEX IF NOT EXISTS idx_refresh ON ledger(last_refresh_at ASC);
     CREATE INDEX IF NOT EXISTS idx_type ON ledger(type);
     CREATE INDEX IF NOT EXISTS idx_status ON ledger(status);
+    CREATE INDEX IF NOT EXISTS idx_enrichment ON ledger(type, has_fulltext) WHERE status = 'active';
 `;
 
 /**
- * Open or create the dedup ledger.
+ * Open or create the dedup ledger. Applies schema migration for has_fulltext.
  */
 export function openLedger(dbPath = DEDUP_DB_PATH) {
     const dir = path.dirname(dbPath);
@@ -46,6 +48,13 @@ export function openLedger(dbPath = DEDUP_DB_PATH) {
     const db = new Database(dbPath);
     setupDatabasePragmas(db);
     db.exec(DEDUP_SCHEMA);
+
+    // V25.8.3: Migrate existing DBs — add has_fulltext if missing
+    const cols = db.pragma('table_info(ledger)').map(c => c.name);
+    if (!cols.includes('has_fulltext')) {
+        db.exec('ALTER TABLE ledger ADD COLUMN has_fulltext INTEGER DEFAULT 0');
+        db.exec('CREATE INDEX IF NOT EXISTS idx_enrichment ON ledger(type, has_fulltext) WHERE status = \'active\'');
+    }
     return db;
 }
 
@@ -124,6 +133,46 @@ export function getRefreshCandidates(limit = 15000, dbPath = DEDUP_DB_PATH) {
     `).all(limit);
     db.close();
     return candidates;
+}
+
+/**
+ * V25.8.3: Get papers needing fulltext enrichment (Density Booster queue).
+ * Filters by UMID hex prefix range for partition-parallel workers.
+ * @param {string} prefixStart - Hex prefix start (e.g. '00')
+ * @param {string} prefixEnd - Hex prefix end (e.g. '0f')
+ * @param {number} limit - Max papers to return
+ * @param {string} dbPath - Path to dedup.db
+ * @returns {Array<{umid: string, canonical_id: string, source: string}>}
+ */
+export function getEnrichmentQueue(prefixStart, prefixEnd, limit = 5000, dbPath = DEDUP_DB_PATH) {
+    const db = openLedger(dbPath);
+    const queue = db.prepare(`
+        SELECT umid, canonical_id, source
+        FROM ledger
+        WHERE type = 'paper' AND has_fulltext = 0 AND status = 'active'
+          AND umid >= ? AND umid < ?
+        ORDER BY fni_score DESC
+        LIMIT ?
+    `).all(prefixStart, prefixEnd + 'g', limit);
+    db.close();
+    console.log(`[DEDUP] Enrichment queue: ${queue.length} papers in [${prefixStart}..${prefixEnd}]`);
+    return queue;
+}
+
+/**
+ * V25.8.3: Mark UMIDs as enriched (has_fulltext = 1).
+ * @param {string[]} umids - Array of enriched UMIDs
+ * @param {string} dbPath - Path to dedup.db
+ */
+export function markEnriched(umids, dbPath = DEDUP_DB_PATH) {
+    if (!umids.length) return;
+    const db = openLedger(dbPath);
+    const stmt = db.prepare('UPDATE ledger SET has_fulltext = 1 WHERE umid = ?');
+    db.exec('BEGIN TRANSACTION');
+    for (const umid of umids) stmt.run(umid);
+    db.exec('COMMIT');
+    db.close();
+    console.log(`[DEDUP] Marked ${umids.length} UMIDs as enriched`);
 }
 
 /**

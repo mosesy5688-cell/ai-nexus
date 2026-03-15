@@ -22,6 +22,7 @@ jobs:
           - shard-router
           - fni-calc
           - mesh-engine
+          - content-extractor
 
     steps:
       - uses: actions/checkout@v4
@@ -91,7 +92,7 @@ jobs:
 
       - name: Place .node Files
         run: |
-          for crate in shard-router fni-calc mesh-engine; do
+          for crate in shard-router fni-calc mesh-engine content-extractor; do
             cp rust/artifacts/${crate}-rust-node/*.node rust/${crate}/ 2>/dev/null || true
           done
           ls -la rust/*/*.node 2>/dev/null || echo "No .node files found"
@@ -102,7 +103,7 @@ jobs:
             const { createRequire } = require('module');
             const path = require('path');
             const req = createRequire(path.resolve(process.cwd(), 'package.json'));
-            const crates = ['shard-router', 'fni-calc', 'mesh-engine'];
+            const crates = ['shard-router', 'fni-calc', 'mesh-engine', 'content-extractor'];
             let loaded = 0;
             for (const c of crates) {
               try {
@@ -116,3 +117,14 @@ jobs:
             console.log('Loaded: ' + loaded + '/' + crates.length);
             if (loaded === 0) process.exit(1);
           "
+
+      # V25.8.3: Persist .node binaries to GHA Cache for downstream workflows
+      - name: Save Rust Binaries to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}

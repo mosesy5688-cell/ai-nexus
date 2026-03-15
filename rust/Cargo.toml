@@ -4,6 +4,7 @@ members = [
     "shard-router",
     "fni-calc",
     "mesh-engine",
+    "content-extractor",
 ]
 
 [workspace.dependencies]

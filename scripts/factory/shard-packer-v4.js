@@ -14,9 +14,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
 import { generateUMID } from './lib/umid-generator.js';
-import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
+import { initRustBridge, computeShardSlotFFI, buildEnrichmentManifestFFI, validateFusionContentFFI } from './lib/rust-bridge.js';
 import { ShardWriter } from './lib/shard-writer.js';
-import { createR2Client, streamToR2, downloadFromR2 } from './lib/r2-helpers.js';
+import { createR2Client, streamToR2, downloadFromR2, fetchAllR2ETags } from './lib/r2-helpers.js';
+import { ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const SHARD_SOFT_LIMIT = 4 * 1024 * 1024;  // 4MB soft (optimized for VFS-mmap)
 const TOTAL_SLOTS = 4096;
@@ -89,6 +90,15 @@ export async function packV4Shards() {
     }
     console.log(`[V4-PACKER] Sources: ${allSourceFiles.length} files`);
 
+    // V25.8.3 Fusion Sweep — build enrichment manifest via Rust FFI (Spec §3.2)
+    let enrichmentManifest = new Map();
+    if (r2) {
+        console.log('[V4-PACKER] Fusion Sweep: scanning R2 enrichment/fulltext/...');
+        const etags = await fetchAllR2ETags(r2, r2Bucket, ['enrichment/fulltext/']);
+        enrichmentManifest = buildEnrichmentManifestFFI([...etags.keys()]);
+        console.log(`[V4-PACKER] Fusion Sweep: ${enrichmentManifest.size} enriched papers found`);
+    }
+
     // Route entities to logical slots
     const slots = new Map();
     let entityIndex = 0;
@@ -108,9 +118,27 @@ export async function packV4Shards() {
             const umid = umidMapping[id] || generateUMID(id);
             const slotId = computeShardSlotFFI(umid, TOTAL_SLOTS);
 
+            // V25.8.3 Fusion: inject enriched fulltext via Rust validation (Spec §3.2)
+            let bodyContent = entity.readme || entity.html_readme || entity.body_content || '';
+            let hasFulltext = entity.has_fulltext || false;
+            if (entity.type === 'paper' && enrichmentManifest.has(umid)) {
+                try {
+                    const { Body } = await r2.send(new GetObjectCommand({
+                        Bucket: r2Bucket, Key: enrichmentManifest.get(umid)
+                    }));
+                    const chunks = []; for await (const c of Body) chunks.push(c);
+                    const fulltext = zlib.gunzipSync(Buffer.concat(chunks)).toString('utf-8');
+                    // Rust FFI validates quality + prevents downgrade
+                    const fusion = validateFusionContentFFI(fulltext, bodyContent);
+                    bodyContent = fusion.text;
+                    hasFulltext = fusion.hasFulltext;
+                } catch { /* non-fatal: keep original body_content */ }
+            }
+
             const payload = Buffer.from(JSON.stringify({
                 umid,
-                readme: entity.readme || entity.html_readme || entity.body_content || '',
+                readme: bodyContent,
+                has_fulltext: hasFulltext,
                 mesh_profile: entity.mesh_profile || { relations: [] },
                 benchmarks: entity.benchmarks || [],
                 paper_abstract: entity.paper_abstract || '',

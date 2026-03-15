@@ -1,0 +1,221 @@
+/**
+ * V25.8.3 Density Booster — Asynchronous Paper Enrichment Worker
+ *
+ * Factory 1.5: Fetches full-text for papers via ar5iv (primary) + S2 (fallback).
+ * Core extraction/classification delegated to Rust content-extractor FFI.
+ *
+ * Usage: node density-booster.js --partition-start=00 --partition-end=0f
+ * Budget: 5000 papers / 5 hours per runner (Spec §2.2).
+ */
+
+import { createR2Client, fetchAllR2ETags } from './lib/r2-helpers.js';
+import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
+import { initRustBridge, extractAndClassifyFFI } from './lib/rust-bridge.js';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import zlib from 'zlib';
+import { promisify } from 'util';
+
+const gzip = promisify(zlib.gzip);
+
+// ── Config ──────────────────────────────────────────────
+const AR5IV_BASE = 'https://ar5iv.labs.arxiv.org/html';
+const S2_API = 'https://api.semanticscholar.org/graph/v1/paper';
+const RATE_LIMIT_MS = 5000;
+const FETCH_TIMEOUT_MS = 15000;
+const BUDGET = 5000;
+const MAX_RUNTIME_MS = 5 * 60 * 60 * 1000; // 5 hours
+const R2_BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
+const BREAKER_THRESHOLD = 5;
+const BREAKER_PAUSE_MS = 2 * 60 * 1000; // 2 minutes
+const BREAKER_RECOVERY_DELAY = 10000;
+const S2_DAILY_QUOTA = 5000;  // Spec §2.1: global account limit
+const S2_RUNNER_BUDGET = Math.floor(S2_DAILY_QUOTA / 16); // 312 per runner (conservative)
+
+// ── Args ────────────────────────────────────────────────
+const args = Object.fromEntries(
+    process.argv.slice(2).filter(a => a.startsWith('--')).map(a => {
+        const [k, v] = a.substring(2).split('=');
+        return [k, v];
+    })
+);
+const PARTITION_START = args['partition-start'] || '00';
+const PARTITION_END = args['partition-end'] || 'ff';
+
+// ── Circuit Breaker State ───────────────────────────────
+let consecutiveFailures = 0;
+let baseDelay = RATE_LIMIT_MS;
+
+async function rateLimitPause() {
+    await new Promise(r => setTimeout(r, baseDelay));
+}
+
+async function handleFailure() {
+    consecutiveFailures++;
+    if (consecutiveFailures >= BREAKER_THRESHOLD) {
+        console.warn(`[BOOSTER] Circuit breaker tripped (${consecutiveFailures} failures). Pausing ${BREAKER_PAUSE_MS / 1000}s...`);
+        await new Promise(r => setTimeout(r, BREAKER_PAUSE_MS));
+        consecutiveFailures = 0;
+        baseDelay = BREAKER_RECOVERY_DELAY;
+    }
+}
+
+function handleSuccess() {
+    consecutiveFailures = 0;
+    if (baseDelay > RATE_LIMIT_MS) baseDelay = RATE_LIMIT_MS;
+}
+
+// ── Fetchers ────────────────────────────────────────────
+function extractArxivId(canonicalId) {
+    const m = canonicalId.match(/arxiv[_-](?:paper--)?(.+)/i);
+    return m ? m[1].replace(/v\d+$/, '') : null;
+}
+
+async function fetchAr5iv(arxivId) {
+    const url = `${AR5IV_BASE}/${arxivId}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    try {
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Free2AITools-Booster/1.5', 'Accept': 'text/html' },
+            signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        if (res.status === 404) return { type: 'SKIP', html: null };
+        if (res.status === 429) return { type: 'FAILURE', html: null };
+        if (!res.ok) return { type: 'FAILURE', html: null };
+        return { type: 'HTML', html: await res.text() };
+    } catch (e) {
+        clearTimeout(timer);
+        return { type: 'FAILURE', html: null };
+    }
+}
+
+let s2CallCount = 0;
+
+async function fetchS2Fulltext(arxivId) {
+    if (!arxivId) return null;
+    // V25.8.3 §2.1: Local quota guard — hard cap per runner
+    if (s2CallCount >= S2_RUNNER_BUDGET) {
+        console.warn(`[BOOSTER] S2 quota exhausted (${s2CallCount}/${S2_RUNNER_BUDGET}). Skipping S2 fallback.`);
+        return null;
+    }
+    s2CallCount++;
+    try {
+        const res = await fetch(`${S2_API}/ArXiv:${arxivId}?fields=title,abstract,fullText`, {
+            headers: { 'User-Agent': 'Free2AITools-Booster/1.5' },
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.fullText || null;
+    } catch { return null; }
+}
+
+// ── Pre-sweep R2 ────────────────────────────────────────
+async function buildAlreadyEnrichedSet(s3) {
+    const enrichedSet = new Set();
+    const prefixes = [];
+    const start = parseInt(PARTITION_START, 16);
+    const end = parseInt(PARTITION_END, 16);
+    for (let i = start; i <= end; i++) {
+        prefixes.push(`enrichment/fulltext/${i.toString(16).padStart(2, '0')}/`);
+    }
+    const etags = await fetchAllR2ETags(s3, R2_BUCKET, prefixes);
+    for (const key of etags.keys()) {
+        const m = key.match(/\/([a-f0-9]+)\.md\.gz$/);
+        if (m) enrichedSet.add(m[1]);
+    }
+    console.log(`[BOOSTER] Pre-sweep: ${enrichedSet.size} UMIDs already enriched`);
+    return enrichedSet;
+}
+
+// ── Main ────────────────────────────────────────────────
+async function main() {
+    console.log(`[BOOSTER] V25.8.3 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
+    const startTime = Date.now();
+
+    const rustStatus = initRustBridge();
+    console.log(`[BOOSTER] Rust: ${rustStatus.mode}`);
+
+    const s3 = createR2Client();
+    if (!s3) { console.error('[BOOSTER] FATAL: R2 credentials missing'); process.exit(1); }
+
+    const alreadyEnriched = await buildAlreadyEnrichedSet(s3);
+    const queue = getEnrichmentQueue(PARTITION_START, PARTITION_END, BUDGET);
+    const workQueue = queue.filter(p => !alreadyEnriched.has(p.umid));
+    console.log(`[BOOSTER] Work queue: ${workQueue.length} papers (${queue.length} total - ${alreadyEnriched.size} done)`);
+
+    let processed = 0, success = 0, partial = 0, skipped = 0, failed = 0;
+    const enrichedUmids = [];
+
+    for (const paper of workQueue) {
+        if (Date.now() - startTime > MAX_RUNTIME_MS) {
+            console.log('[BOOSTER] Budget timeout reached. Exiting gracefully.');
+            break;
+        }
+
+        const arxivId = extractArxivId(paper.canonical_id);
+        if (!arxivId) { skipped++; processed++; continue; }
+
+        await rateLimitPause();
+
+        // Primary: ar5iv
+        const ar5ivResult = await fetchAr5iv(arxivId);
+        let result;
+
+        if (ar5ivResult.type === 'HTML' && ar5ivResult.html) {
+            result = extractAndClassifyFFI(ar5ivResult.html);
+        } else if (ar5ivResult.type === 'SKIP') {
+            // Fallback: S2 Full-Text API
+            const s2Text = await fetchS2Fulltext(arxivId);
+            if (s2Text) {
+                result = extractAndClassifyFFI(`<p>${s2Text}</p>`);
+            } else {
+                skipped++;
+                processed++;
+                continue;
+            }
+        } else {
+            // FAILURE
+            await handleFailure();
+            failed++;
+            processed++;
+            continue;
+        }
+
+        // Upload SUCCESS and PARTIAL to R2
+        if (result.classification === 'SUCCESS' || result.classification === 'PARTIAL') {
+            const partition = paper.umid.substring(0, 2);
+            const key = `enrichment/fulltext/${partition}/${paper.umid}.md.gz`;
+            const compressed = await gzip(Buffer.from(result.text, 'utf-8'));
+            await s3.send(new PutObjectCommand({
+                Bucket: R2_BUCKET, Key: key, Body: compressed,
+                ContentType: 'application/gzip'
+            }));
+
+            if (result.classification === 'SUCCESS') {
+                enrichedUmids.push(paper.umid);
+                success++;
+            } else {
+                partial++;
+            }
+            handleSuccess();
+        } else {
+            skipped++;
+        }
+
+        processed++;
+        if (processed % 100 === 0) {
+            const elapsed = ((Date.now() - startTime) / 60000).toFixed(1);
+            console.log(`[BOOSTER] Progress: ${processed}/${workQueue.length} | S:${success} P:${partial} K:${skipped} F:${failed} | ${elapsed}min`);
+        }
+    }
+
+    // Mark enriched UMIDs in dedup ledger
+    if (enrichedUmids.length > 0) markEnriched(enrichedUmids);
+
+    console.log(`[BOOSTER] Complete: ${processed} processed | SUCCESS:${success} PARTIAL:${partial} SKIP:${skipped} FAIL:${failed}`);
+    console.log(`[BOOSTER] Runtime: ${((Date.now() - startTime) / 60000).toFixed(1)} minutes`);
+}
+
+main().catch(err => { console.error('[BOOSTER] Fatal:', err); process.exit(1); });

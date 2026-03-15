@@ -1,0 +1,159 @@
+# Factory 1.5 - Density Booster (Paper Enrichment)
+# V25.8.3: Asynchronous full-text collection for academic papers
+#
+# Triggers: After Factory 4/4 completes, or manual dispatch
+# Architecture: 16 parallel runners, each assigned a UMID partition range
+# Budget: 5000 papers / 5h per runner (80K papers/cycle max)
+# Core: Rust content-extractor FFI for HTML extraction + classification
+
+name: Factory 1.5 - Density Booster
+
+permissions:
+  actions: read
+  contents: read
+
+on:
+  workflow_run:
+    workflows: ["Factory 4/4 - Finalize"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  check-upstream:
+    name: Check Upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Gate Check
+        run: echo "✅ Upstream OK. Starting Density Booster."
+
+  enrich:
+    name: Enrich [${{ matrix.partition }}]
+    needs: check-upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      matrix:
+        partition:
+          - { start: '00', end: '0f' }
+          - { start: '10', end: '1f' }
+          - { start: '20', end: '2f' }
+          - { start: '30', end: '3f' }
+          - { start: '40', end: '4f' }
+          - { start: '50', end: '5f' }
+          - { start: '60', end: '6f' }
+          - { start: '70', end: '7f' }
+          - { start: '80', end: '8f' }
+          - { start: '90', end: '9f' }
+          - { start: 'a0', end: 'af' }
+          - { start: 'b0', end: 'bf' }
+          - { start: 'c0', end: 'cf' }
+          - { start: 'd0', end: 'df' }
+          - { start: 'e0', end: 'ef' }
+          - { start: 'f0', end: 'ff' }
+      fail-fast: false
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      # Restore all Rust .node binaries (must match rust-build.yml cache/save)
+      - name: Restore Rust FFI Binaries
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
+
+      # Download dedup.db from R2
+      - name: Restore Dedup Ledger from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/data
+          node -e "
+            import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+            import { GetObjectCommand } from '@aws-sdk/client-s3';
+            import fs from 'fs';
+            const s3 = createR2Client();
+            if (!s3) { console.error('No R2 creds'); process.exit(1); }
+            try {
+              const { Body } = await s3.send(new GetObjectCommand({
+                Bucket: 'ai-nexus-assets', Key: 'state/dedup.db'
+              }));
+              const chunks = []; for await (const c of Body) chunks.push(c);
+              fs.writeFileSync('output/data/dedup.db', Buffer.concat(chunks));
+              console.log('✅ dedup.db restored from R2');
+            } catch (e) { console.warn('⚠️ dedup.db not found on R2:', e.message); }
+          "
+
+      # Run Density Booster
+      - name: Run Booster [${{ matrix.partition.start }}..${{ matrix.partition.end }}]
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          DEDUP_DB_PATH: ./output/data/dedup.db
+          NODE_OPTIONS: '--max-old-space-size=4096'
+        run: |
+          node scripts/factory/density-booster.js \
+            --partition-start=${{ matrix.partition.start }} \
+            --partition-end=${{ matrix.partition.end }}
+
+      # Upload updated dedup.db back to R2
+      - name: Sync Dedup Ledger to R2
+        if: always()
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ -f "output/data/dedup.db" ]; then
+            node -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import { PutObjectCommand } from '@aws-sdk/client-s3';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (!s3) process.exit(0);
+              const data = fs.readFileSync('output/data/dedup.db');
+              await s3.send(new PutObjectCommand({
+                Bucket: 'ai-nexus-assets', Key: 'state/dedup.db',
+                Body: data, ContentType: 'application/x-sqlite3'
+              }));
+              console.log('✅ dedup.db synced to R2');
+            "
+          fi
+
+  summary:
+    name: Enrichment Summary
+    needs: enrich
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Factory 1.5 - Density Booster Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Partitions: 16 parallel (00-ff)" >> $GITHUB_STEP_SUMMARY
+          echo "- Budget: 5000 papers/partition" >> $GITHUB_STEP_SUMMARY
+          echo "- Storage: R2 enrichment/fulltext/{partition}/{umid}.md.gz" >> $GITHUB_STEP_SUMMARY
+          echo "- Next: Fusion in Factory 3/4 Aggregate (T+1)" >> $GITHUB_STEP_SUMMARY
