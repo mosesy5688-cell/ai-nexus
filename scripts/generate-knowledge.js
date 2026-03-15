@@ -1,57 +1,50 @@
 /**
- * Knowledge Auto-Generator
- * V12: Template-based knowledge article generation with optional Gemini polish
- * 
- * Based on AI_SUMMARY_PLAN_V1.1 and CONTENT_GEN_STD_V1.3
- * 
- * Phase 1: Smart Templates (current)
- * Phase 2: AI-Assisted (future, with Gemini)
- * 
+ * Knowledge Auto-Generator V25.8
+ * Phase 1: Smart Templates | Phase 2: AI-Assisted via Gemini
+ *
+ * V25.8 §4: Pure Text Mode — Gemini creates content; Rust builds the mesh.
  * @module scripts/generate-knowledge
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateWithGemini, enforceKnowledgeStagger, getKnownTopics } from './factory/lib/knowledge-ai.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CONFIG = {
     KNOWLEDGE_DIR: path.join(__dirname, '../src/pages/knowledge'),
-    CONFIG_PATH: path.join(__dirname, '../src/data/knowledge-base-config.ts'),
-    DAILY_INTERVAL_MS: 24 * 60 * 60 * 1000, // 24 hours
-    ARTICLES_PER_RUN: 2, // Max new articles per run
+    ARTICLES_PER_RUN: 2,
 };
 
 // Knowledge article templates per category
 const TEMPLATES = {
     benchmark: {
-        sections: ['overview', 'methodology', 'metrics', 'limitations'],
-        template: (topic) => `---
-title: "${topic.title}"
-description: "${topic.description}"
+        template: (t) => `---
+title: "${t.title}"
+description: "${t.description}"
 category: "benchmarks"
-slug: "${topic.slug}"
+slug: "${t.slug}"
 created: "${new Date().toISOString()}"
 ---
 
-# What is ${topic.title}?
+# What is ${t.title}?
 
-${topic.overview || `${topic.title} is a benchmark used to evaluate AI model capabilities.`}
+${t.overview || `${t.title} is a benchmark used to evaluate AI model capabilities.`}
 
 ## Methodology
 
-${topic.methodology || 'This section describes how the benchmark evaluates models.'}
+${t.methodology || 'This section describes how the benchmark evaluates models.'}
 
 ## Key Metrics
 
-${topic.metrics || '- Metric 1\n- Metric 2\n- Metric 3'}
+${t.metrics || '- Metric 1\n- Metric 2\n- Metric 3'}
 
 ## Limitations
 
-${topic.limitations || 'All benchmarks have limitations that users should be aware of.'}
+${t.limitations || 'All benchmarks have limitations that users should be aware of.'}
 
 ## Related Resources
 
@@ -60,26 +53,25 @@ ${topic.limitations || 'All benchmarks have limitations that users should be awa
     },
 
     architecture: {
-        sections: ['definition', 'howItWorks', 'applications'],
-        template: (topic) => `---
-title: "${topic.title}"
-description: "${topic.description}"
+        template: (t) => `---
+title: "${t.title}"
+description: "${t.description}"
 category: "architecture"
-slug: "${topic.slug}"
+slug: "${t.slug}"
 created: "${new Date().toISOString()}"
 ---
 
-# What is ${topic.title}?
+# What is ${t.title}?
 
-${topic.definition || `${topic.title} is an AI architecture concept.`}
+${t.definition || `${t.title} is an AI architecture concept.`}
 
 ## How It Works
 
-${topic.howItWorks || 'Technical description of the mechanism.'}
+${t.howItWorks || 'Technical description of the mechanism.'}
 
 ## Applications
 
-${topic.applications || 'Common use cases and applications.'}
+${t.applications || 'Common use cases and applications.'}
 
 ## Related Resources
 
@@ -88,30 +80,29 @@ ${topic.applications || 'Common use cases and applications.'}
     },
 
     'model-family': {
-        sections: ['overview', 'variants', 'capabilities', 'usage'],
-        template: (topic) => `---
-title: "${topic.title}"
-description: "${topic.description}"
+        template: (t) => `---
+title: "${t.title}"
+description: "${t.description}"
 category: "model-families"
-slug: "${topic.slug}"
+slug: "${t.slug}"
 created: "${new Date().toISOString()}"
 ---
 
-# ${topic.title}
+# ${t.title}
 
-${topic.overview || `Overview of the ${topic.title} model family.`}
+${t.overview || `Overview of the ${t.title} model family.`}
 
 ## Model Variants
 
-${topic.variants || '| Variant | Parameters | Context Length |\n|---------|------------|----------------|\n| Base | TBD | TBD |'}
+${t.variants || '| Variant | Parameters | Context Length |\n|---------|------------|----------------|\n| Base | TBD | TBD |'}
 
 ## Capabilities
 
-${topic.capabilities || '- Capability 1\n- Capability 2'}
+${t.capabilities || '- Capability 1\n- Capability 2'}
 
 ## How to Use
 
-${topic.usage || 'Basic usage instructions.'}
+${t.usage || 'Basic usage instructions.'}
 
 ## Related Resources
 
@@ -120,75 +111,59 @@ ${topic.usage || 'Basic usage instructions.'}
     }
 };
 
-/**
- * Generate a knowledge article from template
- */
 function generateArticleFromTemplate(topic, category) {
-    const template = TEMPLATES[category] || TEMPLATES.architecture;
-    return template.template(topic);
+    return (TEMPLATES[category] || TEMPLATES.architecture).template(topic);
 }
 
-/**
- * Check if article already exists
- */
 function articleExists(slug) {
-    const filePath = path.join(CONFIG.KNOWLEDGE_DIR, `${slug}.md`);
-    return fs.existsSync(filePath);
+    return fs.existsSync(path.join(CONFIG.KNOWLEDGE_DIR, `${slug}.md`));
 }
 
-/**
- * Save article to file
- */
 function saveArticle(slug, content) {
-    const filePath = path.join(CONFIG.KNOWLEDGE_DIR, `${slug}.md`);
-    fs.writeFileSync(filePath, content);
+    fs.writeFileSync(path.join(CONFIG.KNOWLEDGE_DIR, `${slug}.md`), content);
     console.log(`  [Created] ${slug}.md`);
-    return filePath;
 }
 
-/**
- * Get pending topics from config that don't have articles yet
- */
 function getPendingTopics() {
-    // TODO: Read from knowledge-base-config.ts and find missing articles
-    // For now, return empty - no new topics to generate
-    return [];
+    const topics = [];
+    for (const slugs of Object.values(getKnownTopics())) {
+        for (const topic of slugs) {
+            if (!articleExists(topic.slug)) topics.push(topic);
+        }
+    }
+    return topics;
 }
 
-/**
- * Main generation function
- */
 async function main() {
-    console.log('📚 Starting Knowledge Auto-Generator...');
-    console.log(`   Config: ${CONFIG.ARTICLES_PER_RUN} articles/run, ${CONFIG.DAILY_INTERVAL_MS / (24 * 60 * 60 * 1000)} day interval`);
+    console.log('[KNOWLEDGE V25.8] Starting Auto-Generator...');
+    const pending = getPendingTopics();
+    console.log(`   Found ${pending.length} pending topics`);
+    if (pending.length === 0) { console.log('All topics covered.'); return; }
 
-    // Get pending topics
-    const pendingTopics = getPendingTopics();
-    console.log(`   Found ${pendingTopics.length} pending topics`);
-
-    if (pendingTopics.length === 0) {
-        console.log('✅ No new articles to generate. All topics covered.');
-        return;
-    }
-
-    // Generate up to ARTICLES_PER_RUN articles
-    const toGenerate = pendingTopics.slice(0, CONFIG.ARTICLES_PER_RUN);
-    let generatedCount = 0;
+    const toGenerate = pending.slice(0, CONFIG.ARTICLES_PER_RUN);
+    let generated = 0;
 
     for (const topic of toGenerate) {
-        if (articleExists(topic.slug)) {
-            console.log(`  [Skip] ${topic.slug}.md already exists`);
-            continue;
+        if (articleExists(topic.slug)) continue;
+
+        // V25.8 §4: Phase 2 — AI-Assisted with Gemini (Pure Text Mode)
+        const ai = process.env.GEMINI_API_KEY ? await generateWithGemini(topic) : null;
+        if (ai) {
+            topic.overview = ai.overview || topic.overview;
+            topic.definition = ai.overview || topic.definition;
+            topic.howItWorks = ai.howItWorks || topic.howItWorks;
+            topic.methodology = ai.howItWorks || topic.methodology;
+            topic.applications = ai.useCases || topic.applications;
+            topic.capabilities = ai.useCases || topic.capabilities;
+            topic.limitations = ai.limitations || topic.limitations;
+            await enforceKnowledgeStagger();
         }
 
-        const content = generateArticleFromTemplate(topic, topic.category);
-        saveArticle(topic.slug, content);
-        generatedCount++;
+        saveArticle(topic.slug, generateArticleFromTemplate(topic, topic.category));
+        generated++;
     }
 
-    console.log(`\n✅ Knowledge Auto-Generator completed`);
-    console.log(`   Generated: ${generatedCount} new articles`);
-    console.log(`   Remaining: ${pendingTopics.length - generatedCount} topics`);
+    console.log(`[KNOWLEDGE] Generated: ${generated}, Remaining: ${pending.length - generated}`);
 }
 
 main().catch(console.error);

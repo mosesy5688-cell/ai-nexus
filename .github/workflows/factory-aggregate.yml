@@ -76,7 +76,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - name: Install Dependencies
         run: npm ci
@@ -99,13 +99,18 @@ jobs:
           mkdir -p cache data output/meta/backup
 
       - name: Organize Shards & Context
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
           mkdir -p artifacts output/cache/shards
           # Copy shards for local aggregator use
           if [ -d "output/shards" ]; then
             SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
-            echo "📦 Preparing $SHARD_COUNT shards for aggregation..."
-            
+            echo "📦 Preparing $SHARD_COUNT shards from cache..."
+
             # V18.2.3: Integrity Check (Sniff Magic Bytes)
             for f in output/shards/shard-*.json.gz; do
               [ -e "$f" ] || continue
@@ -117,11 +122,36 @@ jobs:
               fi
             done
           fi
-          
+
+          # V25.8 §2.2: R2 Fallback — restore missing shards from R2 state/shards/
+          CACHE_COUNT=$(ls artifacts/shard-*.json.gz 2>/dev/null | wc -l)
+          if [ "$CACHE_COUNT" -lt 20 ]; then
+            echo "⚠️ Only $CACHE_COUNT shards from cache. Attempting R2 restoration..."
+            for i in $(seq 0 19); do
+              if [ ! -f "artifacts/shard-${i}.json.gz" ]; then
+                echo "  Fetching shard-${i} from R2..."
+                node -e "
+                  import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+                  import fs from 'fs';
+                  const s3 = createR2Client();
+                  if (s3) {
+                    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+                    const { Body } = await s3.send(new GetObjectCommand({
+                      Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-${i}.json.gz'
+                    }));
+                    const chunks = []; for await (const c of Body) chunks.push(c);
+                    fs.writeFileSync('artifacts/shard-${i}.json.gz', Buffer.concat(chunks));
+                    console.log('✅ Restored shard-${i} from R2');
+                  }
+                " || echo "  ⚠️ shard-${i} not available on R2"
+              fi
+            done
+          fi
+
           # Final validation
           FINAL_COUNT=$(ls artifacts/shard-*.json.gz 2>/dev/null | wc -l)
           echo "✅ Final compressed shards for aggregator: $FINAL_COUNT"
-          
+
           if [ "$FINAL_COUNT" -eq 0 ]; then
             echo "❌ ERROR: No valid compressed shard files found!"
             ls -R output/shards || echo "output/shards is empty"
@@ -157,6 +187,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
+          UMID_SALT: ${{ secrets.UMID_SALT }}
           STRICT_R2_LOCKDOWN: 'true'
         run: |
             echo "🔄 Running Merge-Core (V2.0 Sharding)..."
@@ -241,7 +272,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
@@ -276,7 +307,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
@@ -315,7 +346,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
@@ -360,7 +391,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4

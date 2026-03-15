@@ -1,5 +1,6 @@
 /** V19.2 Database & VFS Service: Industrial-Grade Search Plane (Under 250 Lines) */
 import type { R2Bucket } from '@cloudflare/workers-types';
+import { initShardDecrypt, decryptShardRange } from './shard-decrypt';
 
 /** HARDENED RANGE PROXY: Seat Limit & Alignment Guard */
 export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
@@ -149,12 +150,15 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             const buffer = Buffer.alloc(responseSize);
             const { bytesRead } = await handle.read(buffer, 0, responseSize, start);
             await handle.close();
-            return new Response(buffer.subarray(0, bytesRead), { status: 206, headers });
+            const body = await maybeDecryptBin(filename as string, buffer.subarray(0, bytesRead), start, env);
+            return new Response(body, { status: 206, headers });
         } else if (env?.R2_ASSETS) {
             const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { offset: start, length: responseSize } });
             if (!object) return new Response('Not Found', { status: 404 });
             object.writeHttpMetadata(headers as any);
-            return new Response(object.body as any, { status: 206, headers });
+            const raw = await new Response(object.body as any).arrayBuffer();
+            const body = await maybeDecryptBin(filename as string, raw, start, env);
+            return new Response(body, { status: 206, headers });
         }
         return new Response('R2 Binding Missing', { status: 500 });
     } catch (e) {
@@ -163,6 +167,15 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
             headers: { 'Cross-Origin-Resource-Policy': 'cross-origin' }
         });
     }
+}
+
+/** V5.8 §1.1: Conditionally decrypt .bin shard range reads (AES-256-CTR) */
+async function maybeDecryptBin(
+    filename: string, data: ArrayBuffer | Uint8Array, offset: number, env: any
+): Promise<ArrayBuffer | Uint8Array> {
+    if (!filename.endsWith('.bin') || !(env as any)?.AES_CRYPTO_KEY) return data;
+    await initShardDecrypt((env as any).AES_CRYPTO_KEY);
+    return decryptShardRange(filename, data instanceof Uint8Array ? data.buffer : data, offset);
 }
 
 /** SEARCH PLANE HARDENING: Sanitizes and optimizes FTS5 queries */

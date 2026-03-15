@@ -130,7 +130,13 @@ export async function generateSitemap(source, outputDir = './output') {
         console.log(`[SITEMAP] Mode: VFS Streaming (DB: ${source})`);
         const db = new Database(source, { readonly: true });
 
-        const stmt = db.prepare('SELECT id, type, fni_score, last_modified FROM entities');
+        // V25.8 SEO Gating: Exclude thin content (< ~600 words ≈ 3600 chars) to prevent SEO penalties
+        const stmt = db.prepare(`
+            SELECT id, type, fni_score, last_modified FROM entities
+            WHERE (LENGTH(COALESCE(readme_html, '')) + LENGTH(COALESCE(summary, ''))) > 3600
+               OR fni_score >= 20
+               OR type = 'paper'
+        `);
         const cursor = stmt.iterate();
 
         for (const entity of cursor) {

@@ -47,7 +47,7 @@ export const GET: APIRoute = async ({ locals }) => {
         }
 
         // Step 2: Open DB connection (uses sqlite-engine singleton with pre-compiled WASM)
-        const dbName = 'meta-model-core.db';
+        const dbName = 'meta-00.db'; // V5.8: 16-way hash sharding
         let engine: any;
         try {
             const t2 = Date.now();
@@ -108,10 +108,10 @@ export const GET: APIRoute = async ({ locals }) => {
             steps.push({ step: 'tables', status: 'FAIL', detail: e.message });
         }
 
-        // Step 6: Try a second DB (meta-agent.db)
+        // Step 6: Try a second DB (meta-01.db) — V5.8 hash sharding
         try {
             const t6 = Date.now();
-            const engine2 = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-agent.db');
+            const engine2 = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-01.db');
             const agentCount = await executeSql(engine2.sqlite3, engine2.db,
                 `SELECT count(*) as cnt FROM entities`, []);
             steps.push({

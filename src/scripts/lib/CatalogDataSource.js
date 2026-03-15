@@ -45,49 +45,54 @@ export class CatalogDataSource {
         if (!partitions) {
             try { partitions = JSON.parse(localStorage.getItem('_vfs_partitions') || ''); } catch (_) { }
         }
-        const p = partitions || { model: 3, paper: 15, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
-        const fmt = (cat, idx, count) =>
-            count === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
 
-        const type = this.type;
-
-        if (this.categoryFilter || type === 'all') {
-            // Cross-type: model-core first, then all other shards
-            this.shardQueue = ['meta-model-core.db'];
-            for (const [cat, count] of Object.entries(p)) {
-                if (cat === 'model') {
-                    for (let i = 1; i <= count; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
-                } else {
-                    for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(cat, i, count));
-                }
-            }
-        } else if (type === 'model') {
-            this.shardQueue = ['meta-model-core.db'];
-            const mc = p.model || 5;
-            for (let i = 1; i <= mc; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
+        // V5.8: 16-way hash sharding — all types mixed in each meta-NN.db
+        if (partitions?.meta_shards) {
+            const count = partitions.meta_shards;
+            this.shardQueue = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
         } else {
-            const count = p[type] || 1;
-            this.shardQueue = [];
-            for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(type, i, count));
+            // Legacy type-based sharding fallback
+            const p = partitions || { model: 3, paper: 15, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
+            const fmt = (cat, idx, count) =>
+                count === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
+            const type = this.type;
+            if (this.categoryFilter || type === 'all') {
+                this.shardQueue = ['meta-model-core.db'];
+                for (const [cat, count] of Object.entries(p)) {
+                    if (cat === 'model') {
+                        for (let i = 1; i <= count; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
+                    } else {
+                        for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(cat, i, count));
+                    }
+                }
+            } else if (type === 'model') {
+                this.shardQueue = ['meta-model-core.db'];
+                const mc = p.model || 5;
+                for (let i = 1; i <= mc; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
+            } else {
+                const count = p[type] || 1;
+                this.shardQueue = [];
+                for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(type, i, count));
+            }
         }
-        console.log(`[CatalogDataSource] Shard queue (${type}): ${this.shardQueue.length} shards`);
+        console.log(`[CatalogDataSource] Shard queue (${this.type}): ${this.shardQueue.length} shards`);
     }
 
     _buildSql() {
         if (this.categoryFilter) {
             return {
-                sql: 'SELECT * FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+                sql: 'SELECT * FROM entities WHERE category = ? ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT ? OFFSET ?',
                 params: [this.categoryFilter, this.itemsPerPage, this.shardOffset]
             };
         }
         if (this.type === 'all') {
             return {
-                sql: 'SELECT * FROM entities ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+                sql: 'SELECT * FROM entities ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT ? OFFSET ?',
                 params: [this.itemsPerPage, this.shardOffset]
             };
         }
         return {
-            sql: 'SELECT * FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT ? OFFSET ?',
+            sql: 'SELECT * FROM entities WHERE type = ? ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT ? OFFSET ?',
             params: [this.type, this.itemsPerPage, this.shardOffset]
         };
     }
@@ -166,7 +171,7 @@ export class CatalogDataSource {
         try {
             const safeQuery = q.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/).filter(t => t.length > 0).map(t => `"${t}"*`).join(' AND ');
             if (!safeQuery) return filtered;
-            const sql = `SELECT e.* FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ? AND e.type = ? ORDER BY e.fni_score DESC LIMIT 50`;
+            const sql = `SELECT e.* FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ? AND e.type = ? ORDER BY e.fni_score DESC, e.raw_pop DESC, e.slug ASC LIMIT 50`;
             const rows = await this.dbClient.query(sql, [safeQuery, this.type]);
             return DataNormalizer.normalizeCollection(rows, this.type);
         } catch (e) { return filtered; }

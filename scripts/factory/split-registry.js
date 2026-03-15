@@ -13,23 +13,24 @@ import zlib from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
+import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
 
 const TOTAL_SHARDS = 20;
 const DATA_DIR = 'data';
 const INPUT_FILE = path.join(DATA_DIR, 'merged.json.gz');
 const INPUT_FILE_PLAIN = path.join(DATA_DIR, 'merged.json');
 
+// V25.8: Initialize Rust FFI for xxhash64 routing (JS fallback if unavailable)
+const rustStatus = initRustBridge();
+console.log(`[SPLITTER] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
+
 /**
- * Utility: Stable Hash function for ID-based sharding
+ * V25.8: Shard routing via xxhash64 (Rust) or 32-bit fallback (JS).
+ * Spec §1.2: xxhash64(id) % totalSlots
  */
 function getShardFromId(id, total) {
     if (!id) return 0;
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-        hash = ((hash << 5) - hash) + id.charCodeAt(i);
-        hash |= 0; // Convert to 32bit integer
-    }
-    return Math.abs(hash) % total;
+    return computeShardSlotFFI(id, total);
 }
 
 /**

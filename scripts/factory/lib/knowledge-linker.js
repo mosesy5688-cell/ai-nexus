@@ -163,6 +163,29 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
         links: allLinks,
     };
 
+    // V25.8: Bidirectional Mesh - Generate inverse links (AI -> Entity)
+    const inverseLinks = {};
+    for (const link of allLinks) {
+        for (const k of link.knowledge) {
+            if (!inverseLinks[k.slug]) inverseLinks[k.slug] = [];
+            if (inverseLinks[k.slug].length < 20) { // MAX_RELATIONS_PER_NODE
+                inverseLinks[k.slug].push({
+                    entity_id: link.entity_id,
+                    entity_type: link.entity_type,
+                    confidence: k.confidence
+                });
+            }
+        }
+    }
+
+    // Sort inverse links by confidence (highest first)
+    for (const slug of Object.keys(inverseLinks)) {
+        inverseLinks[slug].sort((a, b) => b.confidence - a.confidence);
+    }
+
+    output.inverseLinks = inverseLinks;
+    output._v = '25.8';
+
     const zlib = await import('zlib');
     await fs.writeFile(
         path.join(relationsDir, 'knowledge-links.json.gz'),
@@ -170,6 +193,7 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
     );
 
     console.log(`  [KNOWLEDGE-LINKER] Linked ${allLinks.length} entities to knowledge articles`);
+    console.log(`  [KNOWLEDGE-LINKER] V25.8: ${Object.keys(inverseLinks).length} inverse mesh hubs created`);
     console.log(`  Top 5 articles:`);
     const topArticles = Object.entries(knowledgeStats)
         .sort((a, b) => b[1] - a[1])
@@ -178,7 +202,7 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
         console.log(`    - ${slug}: ${count}`);
     }
 
-    return { totalLinks: allLinks.length, stats: knowledgeStats };
+    return { totalLinks: allLinks.length, inverseHubs: Object.keys(inverseLinks).length, stats: knowledgeStats };
 }
 
 // CLI execution

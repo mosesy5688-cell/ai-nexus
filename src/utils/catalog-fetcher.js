@@ -43,12 +43,12 @@ async function _fetchCatalogDataInner(type, runtime, start) {
 
     let sql, sqlParams, shardList;
     if (isCategory) {
-        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE category = ? ORDER BY fni_score DESC LIMIT 48`; // V25.1: Aligned with Tabular Density spec
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, category, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE category = ? ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 48`; // V25.1: Aligned with Tabular Density spec
         sqlParams = [type];
         const { priority } = determineTargetDbs('all', '', 1, manifest);
         shardList = priority.slice(0, 3);
     } else {
-        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE type = ? ORDER BY fni_score DESC LIMIT 48`; // V25.1: Aligned with Tabular Density spec
+        sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE type = ? ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 48`; // V25.1: Aligned with Tabular Density spec
         sqlParams = [type];
         const { priority } = determineTargetDbs(type, '', 1, manifest);
         // V24.10d: Only query 1 shard for SSR speed — client lazy-loads the rest

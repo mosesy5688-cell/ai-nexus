@@ -49,6 +49,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         const finalType = entity.type || entity.entity_type || 'model';
         const finalFni = fniResult.score;
         const fniMetrics = fniResult.metrics;
+        const rawPop = fniResult.rawPop || 0;
 
         // 3. VRAM Estimation
         let vramEstimate = null;
@@ -88,9 +89,11 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             fni_score: finalFni,
             fni_metrics: fniMetrics,
             fni_p: fniMetrics.p,
-            fni_v: fniMetrics.f ?? fniMetrics.v,
+            fni_f: fniMetrics.f,
+            fni_v: fniMetrics.v, // V18.9: Mesh gravity (Sm)
             fni_c: fniMetrics.c,
             fni_u: fniMetrics.u,
+            raw_pop: rawPop,
             vram_estimate_gb: vramEstimate,
             trend_7d: trend,
             use_cases: useCases,

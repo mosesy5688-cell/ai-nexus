@@ -5,23 +5,25 @@
 
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
-import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
 import { configureDistiller, distillEntity } from './lib/v25-distiller.js';
 import {
     loadTrendingMap, loadTrendMap, collectAndSortMetadata,
-    buildBundleJson, buildEntityRow, getShardIndex,
-    setupDatabasePragmas, injectMetadata, printBuildSummary
+    buildBundleJson, buildEntityRow,
+    setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary
 } from './lib/pack-utils.js';
-import { dbSchemas, searchDbSchema } from './lib/pack-schemas.js';
+import { computeShardSlot } from './lib/umid-generator.js';
+import { dbSchemas, searchDbSchema, ftsDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
 import { generateVectorCore } from './lib/vector-core-generator.js';
+import { finalizePack } from './lib/pack-finalizer.js';
+import { ShardWriter } from './lib/shard-writer.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
-const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 256 * 1024 * 1024;
+const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 4 * 1024 * 1024; // V5.8: 4MB hard-cap per spec §1.1
 
 async function packDatabase() {
     console.log('[VFS] 💎 Commencing Constitutional V23.1 Shard-DB Packing...');
@@ -40,60 +42,34 @@ async function packDatabase() {
     const trendMap = await loadTrendMap(CACHE_DIR);
     const metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
-    // Universal Shard Calculation (Shard-DB 4.0)
-    const typeGroups = {};
-    metadataBatch.forEach(e => {
-        const type = e.type || 'model';
-        if (!typeGroups[type]) typeGroups[type] = [];
-        typeGroups[type].push(e);
-    });
+    // V5.8 §1.1: 16-way hash-based meta sharding — meta-${SlotID % 16}.db
+    const META_SHARD_COUNT = 16;
+    const partitionCounts = { meta_shards: META_SHARD_COUNT };
 
-    const partitionCounts = {};
-    const SHARD_TARGET_BYTES = 75 * 1024 * 1024; // ~75MB raw JSON per shard
+    console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards (SlotID % ${META_SHARD_COUNT})`);
 
-    for (const [type, entities] of Object.entries(typeGroups)) {
-        if (type === 'model') {
-            const nonTrending = entities.filter(e => !e.is_trending);
-            // Core takes first 50k, sharding applies after that
-            const modelShardBytes = nonTrending.slice(50000).reduce((sum, e) => sum + JSON.stringify(e).length, 0);
-            partitionCounts.model = Math.max(1, Math.ceil(modelShardBytes / SHARD_TARGET_BYTES));
-        } else {
-            const totalBytes = entities.reduce((sum, e) => sum + JSON.stringify(e).length, 0);
-            partitionCounts[type] = Math.max(1, Math.ceil(totalBytes / SHARD_TARGET_BYTES));
-        }
-    }
-
-    console.log('[VFS] Universal Routing Table:');
-    Object.entries(partitionCounts).forEach(([type, count]) => {
-        console.log(`  - ${type.padEnd(12)}: ${count} shard(s)`);
-    });
-
-    const metaDbs = { core: new Database(path.join(SHARD_PATH_DIR, 'meta-model-core.db')) };
-
-    // Dynamically initialize DBs for all types/shards
-    for (const [type, count] of Object.entries(partitionCounts)) {
-        if (type === 'model') {
-            for (let i = 1; i <= count; i++) {
-                metaDbs[`model_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, `meta-model-shard-${String(i).padStart(2, '0')}.db`));
-            }
-        } else {
-            for (let i = 1; i <= count; i++) {
-                const name = count === 1 ? `meta-${type}.db` : `meta-${type}-shard-${String(i).padStart(2, '0')}.db`;
-                metaDbs[`${type}_shard_${i}`] = new Database(path.join(SHARD_PATH_DIR, name));
-            }
-        }
+    const metaDbs = {};
+    for (let i = 0; i < META_SHARD_COUNT; i++) {
+        const key = `slot_${i}`;
+        metaDbs[key] = new Database(path.join(SHARD_PATH_DIR, `meta-${String(i).padStart(2, '0')}.db`));
     }
 
     const searchDb = new Database(SEARCH_DB_PATH);
 
+    // V25.8: Standalone FTS5 database (decoupled from meta.db)
+    const FTS_DB_PATH = path.join(SHARD_PATH_DIR, 'fts.db');
+    const ftsDb = new Database(FTS_DB_PATH);
+
     Object.values(metaDbs).forEach(setupDatabasePragmas);
     setupDatabasePragmas(searchDb);
+    setupFtsPragmas(ftsDb); // V5.8 §1.1: WAL mode + incremental merge for FTS5
 
     Object.values(metaDbs).forEach(db => db.exec(dbSchemas));
     searchDb.exec(searchDbSchema);
+    ftsDb.exec(ftsDbSchema);
 
     // Prepare Statements
-    const placeholder = Array(51).fill('?').join(', ');
+    const placeholder = Array(54).fill('?').join(', ');
     const prepInserts = {}, prepFts = {};
 
     for (const [key, db] of Object.entries(metaDbs)) {
@@ -101,31 +77,23 @@ async function packDatabase() {
         prepFts[key] = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
     }
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
+    // V25.8: Decoupled FTS5 insert (umid-keyed for cross-DB joins)
+    const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 
-    let currentShardId = 0, currentShardSize = 0;
     const stats = { packed: 0, heavy: 0, bytes: 0 };
     const manifest = {};
 
-    let currentFd = null;
-    const openShard = () => {
-        if (currentShardId >= 64) { console.error('❌ Shard limit exceeded'); process.exit(1); }
-        if (currentFd) fsSync.closeSync(currentFd);
-        const name = `fused-shard-${String(currentShardId).padStart(3, '0')}.bin`;
-        const fullPath = path.join(SHARD_PATH_DIR, name);
-        currentFd = fsSync.openSync(fullPath, 'w');
-        currentShardSize = 0;
-        return name;
-    };
-
-    let currentShardName = openShard();
+    // V25.8: Shard Header V4.0 + Zstd via ShardWriter (extracted for CES compliance)
+    const shardWriter = new ShardWriter(SHARD_PATH_DIR);
+    await shardWriter.init();
+    let currentShardName = shardWriter.open();
 
     Object.values(metaDbs).forEach(db => db.exec("BEGIN TRANSACTION"));
     searchDb.exec("BEGIN TRANSACTION");
+    ftsDb.exec("BEGIN TRANSACTION");
 
     let rowIds = {};
     Object.keys(metaDbs).forEach(k => rowIds[k] = 1);
-
-    let modelCoreCount = 0;
 
     // V25.1 Compute Shift-Left: Initialize Distiller
     configureDistiller();
@@ -150,18 +118,12 @@ async function packDatabase() {
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;
         if (bundleJson.length > THRESHOLD_KB * 1024) {
-            const padding = (16384 - (currentShardSize % 16384)) % 16384;
-            if (padding > 0) {
-                fsSync.writeSync(currentFd, Buffer.alloc(padding, 0));
-                currentShardSize += padding;
+            shardWriter.writePadding();
+            if (shardWriter.wouldExceed(bundleJson.length, MAX_SHARD_SIZE)) {
+                currentShardName = shardWriter.nextShard();
             }
-            if (currentShardSize + bundleJson.length > MAX_SHARD_SIZE) {
-                currentShardId++;
-                currentShardName = openShard();
-            }
-            bundleKey = `data/${currentShardName}`; offset = currentShardSize; size = bundleJson.length;
-            fsSync.writeSync(currentFd, bundleJson);
-            currentShardSize += size;
+            const pos = shardWriter.writeEntity(bundleJson);
+            bundleKey = `data/${currentShardName}`; offset = pos.offset; size = pos.size;
             stats.heavy++; stats.bytes += size;
         }
 
@@ -173,21 +135,9 @@ async function packDatabase() {
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
-        // Universal Routing Logic (Shard-DB 4.0)
-        let type = e.type || 'model';
-        let targetKey = '';
-
-        if (type === 'model') {
-            if (e.is_trending || modelCoreCount < 50000) {
-                targetKey = 'core';
-                modelCoreCount++;
-            } else {
-                targetKey = `model_shard_${getShardIndex(e.slug || e.id, partitionCounts.model)}`;
-            }
-        } else {
-            const shardIdx = getShardIndex(e.slug || e.id, partitionCounts[type]);
-            targetKey = `${type}_shard_${shardIdx}`;
-        }
+        // V5.8 §1.1: 16-way hash routing — SlotID = computeShardSlot(UMID, 16)
+        const slotId = computeShardSlot(e.umid || e.slug || e.id, META_SHARD_COUNT);
+        const targetKey = `slot_${slotId}`;
 
         prepInserts[targetKey].run(...metaValues);
         insertEntitySearch.run(...searchValues);
@@ -201,49 +151,32 @@ async function packDatabase() {
             String(category)
         ];
         prepFts[targetKey].run(...ftsValues);
+
+        // V25.8: Insert into decoupled fts.db (UMID-keyed)
+        insertFts.run(
+            stats.packed + 1,
+            String(e.umid || e.id),
+            String(e.name || e.displayName || ''),
+            String(truncatedSummary),
+            Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
+            String(tags + ' ' + (e.search_vector || '')),
+            String(category)
+        );
+
         stats.packed++;
     }
 
     Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
     searchDb.exec("COMMIT");
-    if (currentFd) fsSync.closeSync(currentFd);
+    ftsDb.exec("COMMIT");
+    shardWriter.finalize(); // V25.8: Patch shard header + write offset table
 
     // ── V22.9/V22.10: Generation ─────────
     generateHotShard(metadataBatch);
     generateVectorCore(metadataBatch);
 
-    // Finalize Shard Hashes
-    console.log('[VFS] 🌐 Updating shard hashes...');
-    for (let i = 0; i <= currentShardId; i++) {
-        const name = `fused-shard-${String(i).padStart(3, '0')}.bin`;
-        const file = path.join(SHARD_PATH_DIR, name);
-        if (fsSync.existsSync(file)) {
-            const hash = crypto.createHash('sha256').update(fsSync.readFileSync(file)).digest('hex');
-            manifest[`data/${name}`] = hash;
-            Object.values(metaDbs).forEach(db => {
-                db.prepare('UPDATE entities SET shard_hash = ? WHERE bundle_key = ?').run(hash, `data/${name}`);
-            });
-        }
-    }
-
-    await injectMetadata(metaDbs, searchDb, CACHE_DIR);
-    const fullManifest = { shards: manifest, partitions: partitionCounts };
-    await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(fullManifest, null, 2));
-
-    printBuildSummary(metaDbs, searchDb, stats, currentShardId);
-
-    // Finalization
-    console.log('[VFS] 🌐 Optimizing databases...');
-    Object.values(metaDbs).forEach(db => {
-        db.exec("INSERT INTO search(search) VALUES('optimize');");
-        db.exec("PRAGMA integrity_check; VACUUM;");
-        db.close();
-    });
-
-    searchDb.exec("PRAGMA integrity_check; VACUUM;");
-    searchDb.close();
-
-    console.log(`[VFS] ✅ V23.1 Shard-DB Packing Complete.`);
+    // V25.8: Finalize shard hashes, optimize DBs, generate indexes
+    await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 }
 
 packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });

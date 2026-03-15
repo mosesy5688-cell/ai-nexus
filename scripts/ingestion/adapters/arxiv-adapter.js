@@ -21,6 +21,7 @@ import {
     buildMetaJson,
     calculatePaperQuality
 } from './arxiv-parser.js';
+import { fetchAr5ivHtml } from './ar5iv-fetcher.js';
 
 const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
 const ARXIV_OAI_BASE = 'https://export.arxiv.org/oai2';
@@ -140,6 +141,17 @@ export class ArXivAdapter extends BaseAdapter {
                     }
                 }
 
+                // V25.8: Ar5iv full-text enrichment for top papers in batch
+                if (batch.length > 0 && process.env.ENABLE_AR5IV !== 'false') {
+                    const enrichLimit = Math.min(10, batch.length); // Max 10 per OAI batch
+                    for (let ei = 0; ei < enrichLimit; ei++) {
+                        try {
+                            const fullHtml = await fetchAr5ivHtml(batch[ei].arxiv_id);
+                            if (fullHtml) batch[ei].full_html = fullHtml;
+                        } catch { /* Non-critical: fallback to abstract */ }
+                    }
+                }
+
                 totalFetched += batch.length;
                 if (onBatch && batch.length > 0) {
                     await onBatch(batch);
@@ -185,7 +197,9 @@ export class ArXivAdapter extends BaseAdapter {
             source_url: `https://arxiv.org/abs/${arxivId}`,
             title: cleanTitle(raw.title),
             description: this.truncate(raw.summary, 500),
-            body_content: raw.full_html ? `## Abstract\n${raw.summary}\n\n## Full Paper Semantic Mesh\n${raw.full_html}` : raw.summary || '',
+            body_content: raw.full_html
+                ? `## Abstract\n${raw.summary}\n\n## Full Paper Content\n${raw.full_html}`
+                : raw.summary || '',
             tags: extractTags(raw),
             author: primaryAuthor,
             license_spdx: 'arXiv',

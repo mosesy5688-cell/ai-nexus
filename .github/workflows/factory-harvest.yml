@@ -46,7 +46,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       
@@ -66,6 +66,29 @@ jobs:
           path: data/huggingface_master.ndjson
           key: harvest-raw-huggingface-${{ github.run_id }}
 
+      # V25.8 §2.2: Direct-Stream-to-R2 (dual-write with cache fallback)
+      - name: Stream HuggingFace to R2
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ -f "data/huggingface_master.ndjson" ]; then
+            node -e "
+              import { createR2Client, streamToR2 } from './scripts/factory/lib/r2-helpers.js';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (s3) {
+                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+                const data = fs.readFileSync('data/huggingface_master.ndjson');
+                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/huggingface_master.ndjson', Body: data }));
+                console.log('✅ Streamed huggingface_master.ndjson to R2');
+              } else { console.log('⚠️ R2 credentials not available, cache-only mode'); }
+            " || echo "⚠️ R2 stream skipped (non-fatal)"
+          fi
+
 
 
   # ============================================================
@@ -80,7 +103,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       
@@ -99,6 +122,29 @@ jobs:
           path: data/github_master.ndjson
           key: harvest-raw-github-${{ github.run_id }}
 
+      # V25.8 §2.2: Direct-Stream-to-R2
+      - name: Stream GitHub to R2
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ -f "data/github_master.ndjson" ]; then
+            node -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (s3) {
+                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+                const data = fs.readFileSync('data/github_master.ndjson');
+                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/github_master.ndjson', Body: data }));
+                console.log('✅ Streamed github_master.ndjson to R2');
+              } else { console.log('⚠️ R2 credentials not available'); }
+            " || echo "⚠️ R2 stream skipped (non-fatal)"
+          fi
+
 
 
   # ============================================================
@@ -113,7 +159,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       - name: Harvest ArXiv Papers
@@ -148,6 +194,31 @@ jobs:
           path: data/*_master.ndjson
           key: harvest-raw-academic-${{ github.run_id }}
 
+      # V25.8 §2.2: Direct-Stream-to-R2
+      - name: Stream Academic to R2
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          for f in data/*_master.ndjson; do
+            [ -f "$f" ] || continue
+            BASENAME=$(basename "$f")
+            node -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (s3) {
+                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+                const data = fs.readFileSync('$f');
+                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/$BASENAME', Body: data }));
+                console.log('✅ Streamed $BASENAME to R2');
+              }
+            " || echo "⚠️ R2 stream for $BASENAME skipped"
+          done
+
 
 
   # ============================================================
@@ -162,7 +233,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       
@@ -263,6 +334,31 @@ jobs:
           path: data/*_master.ndjson
           key: harvest-raw-ecosystem-${{ github.run_id }}
 
+      # V25.8 §2.2: Direct-Stream-to-R2
+      - name: Stream Ecosystem to R2
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          for f in data/*_master.ndjson; do
+            [ -f "$f" ] || continue
+            BASENAME=$(basename "$f")
+            node -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (s3) {
+                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+                const data = fs.readFileSync('$f');
+                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/$BASENAME', Body: data }));
+                console.log('✅ Streamed $BASENAME to R2');
+              }
+            " || echo "⚠️ R2 stream for $BASENAME skipped"
+          done
+
 
 
   # ============================================================
@@ -282,7 +378,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       

@@ -5,6 +5,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { execSync } from 'child_process';
 
 async function cleanupCache() {
     const cacheDir = process.env.CACHE_DIR || './cache';
@@ -42,6 +43,35 @@ async function cleanupCache() {
         console.log(`✅ [CLEANUP] Removed ${deletedCount} stale files (~${(deletedSize / 1024 / 1024).toFixed(2)} MB)`);
     } else {
         console.log('⏭️ [CLEANUP] No stale files found. GitHub Cache remains healthy.');
+    }
+
+    await cleanupRemoteCache();
+}
+
+async function cleanupRemoteCache() {
+    try {
+        const output = execSync('gh cache list --json id,key,createdAt --limit 100', {
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        const entries = JSON.parse(output);
+        const now = Date.now();
+        const maxAge = 3 * 24 * 60 * 60 * 1000; // 3 days
+        let remoteDeleted = 0;
+
+        for (const entry of entries) {
+            const createdAt = new Date(entry.createdAt).getTime();
+            if (now - createdAt > maxAge) {
+                execSync(`gh cache delete ${entry.id}`, { stdio: 'pipe' });
+                remoteDeleted++;
+            }
+        }
+
+        if (remoteDeleted > 0) {
+            console.log(`✅ [CLEANUP] Purged ${remoteDeleted} remote GHA cache entries.`);
+        }
+    } catch {
+        // gh CLI not available or not authenticated — skip silently
     }
 }
 

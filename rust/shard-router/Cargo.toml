@@ -1,0 +1,16 @@
+[package]
+name = "shard-router-rust"
+version = "1.0.0"
+edition = "2021"
+description = "V25.8 xxhash64 UMID shard routing — 64-bit precision for JS"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
+
+[build-dependencies]
+napi-build = "2"

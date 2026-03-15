@@ -1,0 +1,112 @@
+name: Rust FFI Build
+on:
+  push:
+    paths:
+      - 'rust/**'
+      - '.github/workflows/rust-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: rust-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Rust N-API Modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      matrix:
+        crate:
+          - shard-router
+          - fni-calc
+          - mesh-engine
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache Cargo Registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: rust-${{ matrix.crate }}-${{ hashFiles('rust/Cargo.lock') }}
+          restore-keys: |
+            rust-${{ matrix.crate }}-
+
+      - name: Install napi-cli
+        run: npm install -g @napi-rs/cli
+
+      - name: Build ${{ matrix.crate }}
+        working-directory: rust/${{ matrix.crate }}
+        run: napi build --release --platform
+
+      - name: Run Rust Tests
+        working-directory: rust
+        run: cargo test -p ${{ matrix.crate }}-rust --release
+
+      - name: Upload .node Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.crate }}-rust-node
+          path: rust/${{ matrix.crate }}/*.node
+          retention-days: 30
+
+  verify:
+    name: Verify N-API Bindings
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: rust/artifacts
+
+      - name: Place .node Files
+        run: |
+          for crate in shard-router fni-calc mesh-engine; do
+            cp rust/artifacts/${crate}-rust-node/*.node rust/${crate}/ 2>/dev/null || true
+          done
+          ls -la rust/*/*.node 2>/dev/null || echo "No .node files found"
+
+      - name: Smoke Test
+        run: |
+          node -e "
+            const { createRequire } = require('module');
+            const req = createRequire(__filename);
+            const crates = ['shard-router', 'fni-calc', 'mesh-engine'];
+            let loaded = 0;
+            for (const c of crates) {
+              try {
+                const mod = req('./rust/' + c + '/' + c + '-rust.node');
+                console.log('✅ ' + c + ': loaded');
+                loaded++;
+              } catch (e) {
+                console.log('⚠️  ' + c + ': not available (' + e.message.slice(0,50) + ')');
+              }
+            }
+            console.log('Loaded: ' + loaded + '/' + crates.length);
+            if (loaded === 0) process.exit(1);
+          "
