@@ -289,6 +289,18 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
+      - name: Restore Rust FFI Binaries
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+            rust/stream-aggregator/stream-aggregator-rust.node
+            rust/satellite-tasks/satellite-tasks-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -297,7 +309,6 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
-      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Search Indices
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -324,6 +335,18 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
+      - name: Restore Rust FFI Binaries
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+            rust/stream-aggregator/stream-aggregator-rust.node
+            rust/satellite-tasks/satellite-tasks-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -332,7 +355,6 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
-      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Rankings
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -363,6 +385,18 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
+      - name: Restore Rust FFI Binaries
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+            rust/stream-aggregator/stream-aggregator-rust.node
+            rust/satellite-tasks/satellite-tasks-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -371,7 +405,6 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
-      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Restore FNI History from Cache
         uses: actions/cache/restore@v4
         with:
@@ -408,6 +441,18 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
+      - name: Restore Rust FFI Binaries
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+            rust/stream-aggregator/stream-aggregator-rust.node
+            rust/satellite-tasks/satellite-tasks-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -416,7 +461,6 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
-      # V22.8: Shards already in output/cache/shards/ from core restore
       - name: Generate Relations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
