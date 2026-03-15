@@ -13,6 +13,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { computeKnowledgeLinksFFI } from './rust-bridge.js';
 
 // Knowledge keywords mapping
 // Maps keywords found in entity data to knowledge article slugs
@@ -130,6 +131,14 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
     const startTime = Date.now();
     const relationsDir = path.join(outputDir, 'cache', 'relations');
     await fs.mkdir(relationsDir, { recursive: true });
+
+    // V25.8.3: Try Rust FFI fast path
+    const rustResult = computeKnowledgeLinksFFI(Buffer.from(JSON.stringify(entities)));
+    if (rustResult) {
+        await fs.writeFile(path.join(relationsDir, 'knowledge-links.json.gz'), Buffer.from(rustResult.output_data));
+        console.log(`  [KNOWLEDGE-LINKER] Rust FFI: ${rustResult.total_links} entities linked, ${rustResult.inverse_hubs} inverse hubs`);
+        return { totalLinks: rustResult.total_links, inverseHubs: rustResult.inverse_hubs, stats: {} };
+    }
 
     const allLinks = [];
     const knowledgeStats = {};

@@ -76,6 +76,8 @@ jobs:
             rust/fni-calc/fni-calc-rust.node
             rust/mesh-engine/mesh-engine-rust.node
             rust/content-extractor/content-extractor-rust.node
+            rust/stream-aggregator/stream-aggregator-rust.node
+            rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
 

@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { buildMeshGraphFFI } from './rust-bridge.js';
 
 const CONFIG = {
     EXPLICIT_PATH: './output/cache/relations/explicit.json.gz',
@@ -13,52 +14,40 @@ const CONFIG = {
     VERSION: '16.2'
 };
 
+/** Load file as raw buffer (for Rust FFI). Tries .gz variant. */
+async function loadJsonBuffer(filePath) {
+    try { return await fs.readFile(filePath + '.gz'); } catch {}
+    try { return await fs.readFile(filePath); } catch {}
+    return null;
+}
 
-
-/**
- * Load JSON file safely
- */
 async function loadJson(filePath) {
     try {
         let content = await fs.readFile(filePath);
         const isGzip = (content.length > 2 && content[0] === 0x1f && content[1] === 0x8b);
         if (filePath.endsWith('.gz') || isGzip) {
             const zlib = await import('zlib');
-            try {
-                content = zlib.gunzipSync(content);
-            } catch (e) {
-                if (!isGzip) {
-                    console.warn(`[MESH-GRAPH] ⚠️ Fake .gz detected: ${filePath}. Parsing raw.`);
-                } else throw e;
-            }
+            try { content = zlib.gunzipSync(content); }
+            catch (e) { if (isGzip) throw e; }
         }
         return JSON.parse(content.toString('utf-8'));
     } catch (e) {
-        // Try .gz fallback if not found
         if (!filePath.endsWith('.gz')) {
             try {
-                let content = await fs.readFile(filePath + '.gz');
                 const zlib = await import('zlib');
-                content = zlib.gunzipSync(content);
-                return JSON.parse(content.toString('utf-8'));
-            } catch (e2) { }
+                return JSON.parse(zlib.gunzipSync(await fs.readFile(filePath + '.gz')).toString('utf-8'));
+            } catch {}
         }
         console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);
         return null;
     }
 }
 
-/**
- * Standardize ID Wrapper
- */
 function standardizeId(id, type) {
     const source = getNodeSource(id, type);
     return normalizeId(id, source, type);
 }
 
-/**
- * Extract node type from ID with v2.1 prefix standard
- */
 function getNodeType(id) {
     if (!id) return 'unknown';
     const cleanId = id.toLowerCase();
@@ -84,14 +73,27 @@ function getNodeType(id) {
     return 'unknown';
 }
 
-/**
- * Generate unified mesh graph
- */
 export async function generateMeshGraph(outputDir = './output') {
     console.log('[MESH-GRAPH V16.2] Generating 8-node mesh graph...');
 
     const meshDir = path.join(outputDir, 'cache', 'mesh');
     await fs.mkdir(meshDir, { recursive: true });
+
+    // V25.8.3: Try Rust FFI fast path — load inputs and delegate
+    try {
+        const explicitBuf = await loadJsonBuffer(path.join(outputDir, 'cache', 'relations', 'explicit.json'));
+        const knowledgeBuf = await loadJsonBuffer(path.join(outputDir, 'cache', 'relations', 'knowledge-links.json'));
+        const reportsBuf = await loadJsonBuffer(path.join(outputDir, 'cache', 'reports', 'index.json'));
+        if (explicitBuf) {
+            const r = buildMeshGraphFFI(explicitBuf, knowledgeBuf || Buffer.alloc(0), reportsBuf || Buffer.alloc(0));
+            if (r) {
+                await fs.writeFile(path.join(meshDir, 'graph.json.gz'), Buffer.from(r.graph_data));
+                await fs.writeFile(path.join(meshDir, 'stats.json.gz'), Buffer.from(r.stats_data));
+                console.log(`[MESH-GRAPH] Rust FFI: ${r.node_count} nodes, ${r.edge_count} edges`);
+                return { nodes: r.node_count, edges: r.edge_count };
+            }
+        }
+    } catch (e) { console.log(`[MESH-GRAPH] Rust FFI skipped: ${e.message}`); }
 
     const nodes = {};
     const edges = {};

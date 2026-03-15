@@ -1,15 +1,5 @@
-/**
- * V25.8 Rust FFI Bridge — Graceful fallback to JS implementations.
- *
- * Attempts to load .node binaries. If unavailable (dev/CI without Rust build),
- * falls back to equivalent JS modules transparently.
- *
- * Spec §5.2: Async N-API Implant Map
- * - shard-router-rust.node       → computeShardSlot, batchComputeShardSlots
- * - fni-calc-rust.node            → batchCalculateFni
- * - mesh-engine-rust.node         → computeHubScores
- * - content-extractor-rust.node   → extractAndClassify, classifyText
- */
+// V25.8 Rust FFI Bridge — Graceful fallback to JS implementations.
+// Loads .node N-API binaries; falls back to JS modules if unavailable.
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -18,6 +8,8 @@ let _shardRouter = null;
 let _fniCalc = null;
 let _meshEngine = null;
 let _contentExtractor = null;
+let _streamAggregator = null;
+let _satelliteTasks = null;
 let _mode = 'js'; // 'rust' or 'js'
 
 function tryLoadNative(name) {
@@ -29,10 +21,7 @@ function tryLoadNative(name) {
     }
 }
 
-/**
- * Initialize Rust bridge. Call once at startup.
- * Returns { mode: 'rust' | 'js', modules: string[] }
- */
+/** Initialize Rust bridge. Call once at startup. */
 export function initRustBridge() {
     const loaded = [];
 
@@ -48,115 +37,65 @@ export function initRustBridge() {
     _contentExtractor = tryLoadNative('content-extractor-rust');
     if (_contentExtractor) loaded.push('content-extractor');
 
+    _streamAggregator = tryLoadNative('stream-aggregator-rust');
+    if (_streamAggregator) loaded.push('stream-aggregator');
+
+    _satelliteTasks = tryLoadNative('satellite-tasks-rust');
+    if (_satelliteTasks) loaded.push('satellite-tasks');
+
     _mode = loaded.length > 0 ? 'rust' : 'js';
     console.log(`[RUST-BRIDGE] Mode: ${_mode} | Loaded: ${loaded.length > 0 ? loaded.join(', ') : 'none (JS fallback)'}`);
     return { mode: _mode, modules: loaded };
 }
 
-/**
- * Compute shard slot via xxhash64 (Rust) or 32-bit approximation (JS).
- */
+/** Compute shard slot via xxhash64 (Rust) or JS fallback. */
 export function computeShardSlotFFI(umid, totalSlots = 4096) {
-    if (_shardRouter) {
-        return _shardRouter.computeShardSlot(umid, totalSlots);
-    }
-    // JS fallback: 32-bit approximation (sync require for non-async context)
+    if (_shardRouter) return _shardRouter.computeShardSlot(umid, totalSlots);
     const { computeShardSlot } = require('./umid-generator.js');
     return computeShardSlot(umid, totalSlots);
 }
 
-/**
- * Batch shard slot computation.
- * @param {string[]} umids - Array of UMID strings
- * @param {number} totalSlots
- * @returns {number[]} Slot IDs
- */
+/** Batch shard slot computation. */
 export function batchComputeShardSlotsFFI(umids, totalSlots = 4096) {
-    if (_shardRouter) {
-        const buffer = Buffer.from(umids.join('\n'));
-        return _shardRouter.batchComputeShardSlots(buffer, totalSlots);
-    }
-    // JS fallback
+    if (_shardRouter) return _shardRouter.batchComputeShardSlots(Buffer.from(umids.join('\n')), totalSlots);
     const { computeShardSlot } = require('./umid-generator.js');
     return umids.map(u => computeShardSlot(u, totalSlots));
 }
 
-/**
- * Batch FNI calculation.
- * @param {Array} entities - Pre-processed entity objects
- * @returns {Array} FNI results
- */
+/** Batch FNI calculation. */
 export function batchCalculateFniFFI(entities) {
     if (_fniCalc) {
         const buffer = Buffer.from(JSON.stringify(entities));
         return _fniCalc.batchCalculateFni(buffer);
     }
-    // JS fallback
     const { calculateFNI } = require('./fni-score.js');
     return entities.map(e => {
-        const result = calculateFNI(e, { includeMetrics: true });
-        return {
-            id: e.id,
-            fni_score: result.score,
-            raw_pop: result.rawPop || 0,
-            sp: result.metrics.p,
-            sf: result.metrics.f,
-            sm: result.metrics.v,
-        };
+        const r = calculateFNI(e, { includeMetrics: true });
+        return { id: e.id, fni_score: r.score, raw_pop: r.rawPop || 0, sp: r.metrics.p, sf: r.metrics.f, sm: r.metrics.v };
     });
 }
 
-/**
- * Compute hub scores via Rust mesh engine.
- * @param {Array} edges - { from, to, source_type }
- * @param {Array} nodes - { id, fni_score, days_since_update }
- * @returns {Array} Hub score results
- */
+/** Compute hub scores via Rust mesh engine. */
 export function computeHubScoresFFI(edges, nodes) {
-    if (_meshEngine) {
-        const edgesBuf = Buffer.from(JSON.stringify(edges));
-        const nodesBuf = Buffer.from(JSON.stringify(nodes));
-        return _meshEngine.computeHubScores(edgesBuf, nodesBuf);
-    }
-    // JS fallback
+    if (_meshEngine) return _meshEngine.computeHubScores(Buffer.from(JSON.stringify(edges)), Buffer.from(JSON.stringify(nodes)));
     const { calculateHubScore } = require('./hub-scorer.js');
-    return nodes.map(n => ({
-        id: n.id,
-        hub_score: calculateHubScore(n, { inDegree: 0, outDegree: 0 }),
-        pagerank: 0,
-        in_degree: 0,
-        out_degree: 0,
-        weighted_citations: 0,
-    }));
+    return nodes.map(n => ({ id: n.id, hub_score: calculateHubScore(n, { inDegree: 0, outDegree: 0 }), pagerank: 0, in_degree: 0, out_degree: 0, weighted_citations: 0 }));
 }
 
-/**
- * V25.8.3: Extract content from ar5iv HTML and classify (4-bucket).
- * Rust: regex-based HTML→Markdown + classification in native code.
- * JS fallback: uses ar5iv-fetcher.js extractMainContent equivalent.
- * @param {string} html - Raw HTML from ar5iv
- * @returns {{ text: string, classification: string, charCount: number, sectionCount: number, hasFulltext: boolean }}
- */
+/** Extract content from ar5iv HTML and classify (4-bucket). */
 export function extractAndClassifyFFI(html) {
     if (_contentExtractor) {
         const r = _contentExtractor.extractAndClassify(html);
-        return { text: r.text, classification: r.classification,
-            charCount: r.charCount, sectionCount: r.sectionCount, hasFulltext: r.hasFulltext };
+        return { text: r.text, classification: r.classification, charCount: r.charCount, sectionCount: r.sectionCount, hasFulltext: r.hasFulltext };
     }
-    // JS fallback: inline extraction + classification
     return _jsFallbackExtract(html);
 }
 
-/**
- * V25.8.3: Classify pre-extracted text (no HTML parsing needed).
- * @param {string} text - Already extracted text
- * @returns {{ text: string, classification: string, charCount: number, sectionCount: number, hasFulltext: boolean }}
- */
+/** Classify pre-extracted text. */
 export function classifyTextFFI(text) {
     if (_contentExtractor) {
         const r = _contentExtractor.classifyText(text);
-        return { text: r.text, classification: r.classification,
-            charCount: r.charCount, sectionCount: r.sectionCount, hasFulltext: r.hasFulltext };
+        return { text: r.text, classification: r.classification, charCount: r.charCount, sectionCount: r.sectionCount, hasFulltext: r.hasFulltext };
     }
     return _jsFallbackClassify(text);
 }
@@ -186,12 +125,7 @@ function _jsFallbackClassify(text) {
     return { text, classification, charCount, sectionCount, hasFulltext };
 }
 
-/**
- * V25.8.3 §3.2: Build enrichment manifest from R2 key list (Rust).
- * Extracts UMID from R2 keys matching enrichment/fulltext/{xx}/{umid}.md.gz.
- * @param {string[]} keys - Array of R2 object keys
- * @returns {Map<string, string>} umid -> R2 key
- */
+/** Build enrichment manifest from R2 key list. */
 export function buildEnrichmentManifestFFI(keys) {
     const manifest = new Map();
     if (_contentExtractor) {
@@ -208,21 +142,50 @@ export function buildEnrichmentManifestFFI(keys) {
     return manifest;
 }
 
-/**
- * V25.8.3 §3.2: Validate fusion content quality (Rust).
- * Ensures injected fulltext passes dual-signal threshold before packing.
- * @param {string} fulltext - Downloaded enriched text
- * @param {string} originalBody - Existing body_content
- * @returns {{ text: string, hasFulltext: boolean, classification: string }}
- */
+/** Validate fusion content quality. */
 export function validateFusionContentFFI(fulltext, originalBody) {
     if (_contentExtractor) {
         const r = _contentExtractor.validateFusionContent(fulltext, originalBody);
         return { text: r.text, hasFulltext: r.hasFulltext, classification: r.classification };
     }
-    // JS fallback
     if (fulltext.length <= originalBody.length) return _jsFallbackClassify(originalBody);
     return _jsFallbackClassify(fulltext);
+}
+
+/** Streaming shard aggregation (Rust). OOM-safe for 400K+ entities. */
+export function streamAggregateFFI(shardDir, outputPath) {
+    if (_streamAggregator) return _streamAggregator.streamAggregate(shardDir, outputPath);
+    return null;
+}
+
+/** V25.8.3: Satellite task FFI — search index builder. */
+export function buildSearchIndexFFI(entitiesJson) {
+    if (_satelliteTasks) return _satelliteTasks.buildSearchIndex(entitiesJson);
+    return null;
+}
+
+/** V25.8.3: Satellite task FFI — relations graph builder. */
+export function buildRelationsGraphFFI(nodesJson, relationsJson) {
+    if (_satelliteTasks) return _satelliteTasks.buildRelationsGraph(nodesJson, relationsJson);
+    return null;
+}
+
+/** V25.8.3: Satellite task FFI — knowledge linker. */
+export function computeKnowledgeLinksFFI(entitiesJson) {
+    if (_satelliteTasks) return _satelliteTasks.computeKnowledgeLinks(entitiesJson);
+    return null;
+}
+
+/** V25.8.3: Satellite task FFI — alt linker (Jaccard similarity). */
+export function computeAltRelationsFFI(entitiesJson) {
+    if (_satelliteTasks) return _satelliteTasks.computeAltRelations(entitiesJson);
+    return null;
+}
+
+/** V25.8.3: Satellite task FFI — mesh graph builder. */
+export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson) {
+    if (_satelliteTasks) return _satelliteTasks.buildMeshGraph(explicitJson, knowledgeLinksJson, reportsJson);
+    return null;
 }
 
 export function getRustMode() {

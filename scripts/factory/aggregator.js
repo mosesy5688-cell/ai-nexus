@@ -25,7 +25,9 @@ import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-i
 import { loadGlobalRegistry } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
-import { initRustBridge } from './lib/rust-bridge.js';
+import { initRustBridge, streamAggregateFFI } from './lib/rust-bridge.js';
+import { createWriteStream, createReadStream } from 'node:fs';
+import { createInterface } from 'node:readline';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
@@ -61,16 +63,12 @@ async function main() {
         }
     }
 
-    // 1. Pass 1: Global FNI Logic (Lightweight)
-    // Extracts scores from all shards to calculate global rankings and registry mapping
+    // Pass 1: Global FNI Logic (Lightweight — scores + registry mapping)
     const needsSlimming = !!taskArg && taskArg !== 'core';
     const { loadRegistryShardsSequentially } = await import('./lib/registry-loader.js');
     const { calculateGlobalStats, preProcessDeltas, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
     const { saveRegistryShard } = await import('./lib/registry-saver.js');
 
-    // V18.12.5.21: Stability Hardening (Art 3.1)
-    // ALWAYS use sharded loader for Pass 1 to prevent Buffer Too Large errors on indexing.
-    // Pass 1 now calculates Mesh Impact (Sm) and Exports FNI Thresholds.
     const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
 
     const { rankingsMap, registryMap, scoreMap } = rankingsAndIndices;
@@ -82,28 +80,37 @@ async function main() {
     // V18.12.5.21: Late-Binding Toggle
     const lateBinding = process.env.FNI_LATE_BINDING !== 'false'; // Default to true
 
-    if (needsSlimming) {
-        // ... (Satellite Fast Path remains same)
-        console.log(`[AGGREGATOR] Satellite Fast Path: Collecting slim entities...`);
-        await loadRegistryShardsSequentially(async (slimEntities, shardIdx) => {
-            for (const e of slimEntities) {
-                e.fni_percentile = rankingsMap.get(e.id) || 0;
-                fullSet.push(e);
-            }
-            successCount++;
-        }, { slim: true });
-    } else if (lateBinding) {
-        // V18.12.5.21: Late-Binding Core Path
-        // Skip Pass 2 (Merge & Overwrite Registry Shards). 
-        // We've already exported the thresholds for Stage 4/4 to use.
-        console.log(`[AGGREGATOR] Late-Binding Mode: Skipping Pass 2 (Registry Overwrite preserved).`);
-        await loadRegistryShardsSequentially(async (slimEntities, shardIdx) => {
-            for (const e of slimEntities) {
-                e.fni_percentile = rankingsMap.get(e.id) || 0;
-                fullSet.push(e);
-            }
-            successCount++;
-        }, { slim: true });
+    if (needsSlimming || lateBinding) {
+        // V25.8.3: OOM fix — Rust streaming aggregator (primary) or JS disk staging (fallback)
+        const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
+        const stagingPath = './output/.staging-fullset.ndjson';
+        await fs.mkdir('./output', { recursive: true });
+        const rustResult = streamAggregateFFI(shardDir, stagingPath);
+        if (rustResult) {
+            console.log(`[AGGREGATOR] Rust stream-aggregate: ${rustResult.entityCount} entities, ${rustResult.shardCount} shards (${rustResult.durationMs}ms)`);
+            successCount = rustResult.shardCount;
+        } else {
+            console.log(`[AGGREGATOR] JS fallback: disk-staged collection...`);
+            const ws = createWriteStream(stagingPath);
+            await loadRegistryShardsSequentially(async (slimEntities) => {
+                const lines = [];
+                for (const e of slimEntities) {
+                    e.fni_percentile = rankingsMap.get(e.id) || 0;
+                    lines.push(JSON.stringify(e));
+                }
+                if (lines.length > 0) {
+                    const ok = ws.write(lines.join('\n') + '\n');
+                    if (!ok) await new Promise(r => ws.once('drain', r));
+                }
+                successCount++;
+            }, { slim: true });
+            ws.end();
+            await new Promise(r => ws.on('finish', r));
+        }
+        const rl = createInterface({ input: createReadStream(stagingPath), crlfDelay: Infinity });
+        for await (const line of rl) { if (line) fullSet.push(JSON.parse(line)); }
+        await fs.unlink(stagingPath).catch(() => {});
+        console.log(`[AGGREGATOR] Loaded ${fullSet.length} entities.`);
     } else {
         // Legacy path (Merge deltas and overwrite shards)
         // 1.5. Pre-process updates (O(1) Streaming)

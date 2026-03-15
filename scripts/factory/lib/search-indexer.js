@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import zlib from 'zlib';
+import { buildSearchIndexFFI } from './rust-bridge.js';
 
 const SEARCH_CORE_SIZE = 5000; // Art 6.3: Top 5000 for core index
 
@@ -19,6 +20,21 @@ export async function generateSearchIndices(entities, outputDir = './output') {
     // V14.4 Fix: Output to cache/ to match frontend paths
     const searchDir = path.join(outputDir, 'cache');
     await fs.mkdir(searchDir, { recursive: true });
+
+    // V25.8.3: Try Rust FFI fast path
+    const rustResult = buildSearchIndexFFI(Buffer.from(JSON.stringify(entities)));
+    if (rustResult) {
+        console.log(`[SEARCH] Rust FFI: ${rustResult.total_entities} entities, ${rustResult.shards.length} shards`);
+        await fs.writeFile(path.join(searchDir, 'search-core.json.gz'), Buffer.from(rustResult.core_data));
+        const shardingDir = path.join(searchDir, 'search');
+        await fs.mkdir(shardingDir, { recursive: true });
+        for (const shard of rustResult.shards) {
+            await fs.writeFile(path.join(shardingDir, `shard-${shard.shard_index}.json.gz`), Buffer.from(shard.compressed_data));
+        }
+        await fs.writeFile(path.join(searchDir, 'search-manifest.json'), rustResult.manifest_json);
+        console.log(`  [SEARCH] ✅ Done (Rust). ${rustResult.shards.length} shards generated.`);
+        return;
+    }
 
     // Core index: Top N by FNI (Art 6.3: < 500KB)
     const coreEntities = entities.slice(0, SEARCH_CORE_SIZE).map(e => ({
