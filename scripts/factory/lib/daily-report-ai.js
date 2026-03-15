@@ -3,7 +3,7 @@
  * Extracted from daily-report.js to comply with CES Art 5.1
  */
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-3.0-pro';
 
 // V25.8 Titan Armor V3: Exponential backoff + circuit breaker
 const TITAN_CONFIG = {

@@ -505,64 +505,18 @@ jobs:
             global-registry-
           # GitHub auto-selects the most recently created match
 
-      # V4.2: R2 Zero-Loss Restoration (Cache-Preservation V1.0)
-      - name: R2 Fail-Safe Restoration
+      # V25.8: R2-Primary Registry Restoration (Dynamic Shard Discovery)
+      # Replaces hardcoded 16-shard loop with S3 ListObjects.
+      # Supports both Binary NXVF (.bin) and legacy JSON.gz formats.
+      - name: R2 Registry Restoration (V25.8)
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          echo "🌐 [V18.2.3] Auditing Registry Context..."
           mkdir -p cache/registry cache/fni-history cache/daily-accum
-          
-          # 1. Monolith Recovery (Additive)
-          if [ ! -s "cache/global-registry.json.gz" ]; then
-             echo "  - Missing local monolith. Fetching from R2..."
-             npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null || true
-          fi
-
-          # 2. Sharded Recovery (Hard Preservation)
-          # RULES: 
-          # - NEVER delete existing cache files.
-          # - ONLY download from R2 if local is missing or empty.
-          # - ABORT if R2 returns a 0B file to prevent corruption.
-          
-          echo "🧩 Auditing Shards (Registry)..."
-          for i in {000..015}; do
-            TARGET="cache/registry/part-$i.json.gz"
-            if [ ! -s "$TARGET" ]; then
-               echo "  - Shard $i missing/empty. Attemping R2 restoration..."
-               npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json.gz --file=$TARGET --remote 2>/dev/null || true
-               
-               # Integrity Guard (V18.2.3): Check magic number (1f 8b)
-               if [ -f "$TARGET" ] && [ -s "$TARGET" ]; then
-                  if ! node -e "const b=require('fs').readFileSync('$TARGET'); if(b[0]!==0x1f || b[1]!==0x8b) process.exit(1)" 2>/dev/null; then
-                     echo "  - ⚠️ Shard $i: Fake .gz detected (missing magic bytes). Purging."
-                     rm "$TARGET"
-                  fi
-               fi
-            else
-               echo "  - ✅ Shard $i: Existing healthy cache found."
-            fi
-          done
-
-          echo "🧩 Auditing Shards (FNI History)..."
-          for i in {000..015}; do
-            TARGET="cache/fni-history/part-$i.json.gz"
-            if [ ! -s "$TARGET" ]; then
-               npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json.gz --file=$TARGET --remote 2>/dev/null || true
-               if [ -f "$TARGET" ] && [ -s "$TARGET" ]; then
-                  node -e "const b=require('fs').readFileSync('$TARGET'); if(b[0]!==0x1f || b[1]!==0x8b) process.exit(1)" 2>/dev/null || rm "$TARGET"
-               fi
-            fi
-          done
-
-          # 3. Critical metadata (Checksums)
-          if [ ! -s "cache/entity-checksums.json.gz" ]; then
-             npx -y wrangler r2 object get $R2_BUCKET/meta/backup/entity-checksums.json.gz --file=cache/entity-checksums.json.gz --remote 2>/dev/null || true
-          fi
+          node scripts/factory/lib/r2-registry-restore.js
 
       - name: Merge Batches
         env:
