@@ -30,8 +30,8 @@ pub fn calculate_rankings(scores: &[(String, f64)]) -> HashMap<String, u8> {
 
     // Calculate percentile for each entity
     let mut rankings = HashMap::with_capacity(count);
-    for (id, &score) in scores {
-        let key = OrderedF64(score);
+    for (id, score) in scores {
+        let key = OrderedF64(*score);
         let rank = *score_to_rank.get(&key).unwrap_or(&0);
         let count_at_score = *score_to_count.get(&key).unwrap_or(&1);
         let effective_rank = rank as f64 + (count_at_score as f64 - 1.0) / 2.0;

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::{BufWriter, Write};
 
-use flate2::read::GzDecoder;
 use napi::Error;
 use napi::Result;
 use serde_json::{json, Value};

@@ -1,8 +1,7 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::BufReader;
 use flate2::read::GzDecoder;
 
 mod percentile;
