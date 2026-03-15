@@ -1,0 +1,11 @@
+{
+  "name": "mesh-engine-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "mesh-engine-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}

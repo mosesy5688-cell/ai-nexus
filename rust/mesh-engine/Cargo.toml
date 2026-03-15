@@ -1,0 +1,17 @@
+[package]
+name = "mesh-engine-rust"
+version = "1.0.0"
+edition = "2021"
+description = "V25.8 Mesh Engine — PageRank centrality and adjacency scoring"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[build-dependencies]
+napi-build = "2"

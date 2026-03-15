@@ -132,7 +132,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
             const { sql: baseSql, params, isFTS } = buildQuery(parsed, type);
             const orderBy = sort === 'likes' ? 'e.stars DESC'
                 : sort === 'last_updated' ? 'e.last_modified DESC'
-                    : isFTS ? 'rank' : 'e.fni_score DESC';
+                    : isFTS ? 'rank' : 'e.fni_score DESC, e.raw_pop DESC, e.slug ASC';
             const offset = (page - 1) * limit;
             finalSql = `${baseSql} ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
             finalParams = params;

@@ -65,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Complete Cycle Output from Cache
         uses: actions/cache/restore@v4
@@ -92,7 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Base Output from Cache
         uses: actions/cache/restore@v4
@@ -137,7 +137,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Base Output (Trending Context)
         uses: actions/cache/restore@v4
@@ -157,6 +157,7 @@ jobs:
       - name: Execute Stable 1.0 Packer
         env:
           CACHE_DIR: ./output/cache
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: node scripts/factory/pack-db.js
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/search.db --out=output
@@ -183,7 +184,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Base Output from Cache
         uses: actions/cache/restore@v4
@@ -207,7 +208,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
+        with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Base Output from Cache
         uses: actions/cache/restore@v4
@@ -338,6 +339,8 @@ jobs:
           # Kept: cache/mesh/graph + cache/mesh/stats (VFS-IN via site_metadata)
           R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/graph,cache/mesh/stats,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/search.db,data/hot-shard.bin,data/vector-core.bin,data/
           CACHE_DIR: output/cache
+          # V25.8 §2.2: Enable S3 Multipart for fused-shard-NNN.bin (>8MB)
+          R2_MULTIPART_ENABLED: 'true'
         run: node scripts/factory/r2-upload-s3.js
       - name: Save Upload Manifest to Cache
         if: success()
@@ -376,29 +379,28 @@ jobs:
           
           echo -e "\n🔥 [V25.1] Commencing Proactive CDN Warming..."
           
-          # Initialize with global configurations, core db, and trending cache
+          # V25.8: Initialize with global configs, core DB, and new V25.8 assets
           WARM_URLS=(
             "https://cdn.free2aitools.com/data/shards_manifest.json"
             "https://cdn.free2aitools.com/data/meta-model-core.db"
+            "https://cdn.free2aitools.com/data/fts.db"
+            "https://cdn.free2aitools.com/data/meta.global.index"
             "https://cdn.free2aitools.com/sitemap.xml"
             "https://cdn.free2aitools.com/cache/trending.json"
           )
-          
-          # V25.1 Compute Shift-Left: Dynamic VFS Shard Warming for all 7 entity types
-          declare -A PARTITIONS=( ["model"]=3 ["paper"]=14 ["dataset"]=8 ["tool"]=2 ["agent"]=1 ["space"]=1 ["prompt"]=1 )
-          
-          for entity in "${!PARTITIONS[@]}"; do
-            count=${PARTITIONS[$entity]}
-            if [ "$count" -eq 1 ]; then
-               WARM_URLS+=("https://cdn.free2aitools.com/data/meta-${entity}.db")
-            else
-               for (( i=1; i<=count; i++ )); do
-                 shard_num=$(printf "%02d" $i)
-                 # Note: model shards are strictly meta-model-shard-XX.db while core is meta-model-core.db
-                 WARM_URLS+=("https://cdn.free2aitools.com/data/meta-${entity}-shard-${shard_num}.db")
-               done
-            fi
+
+          # V25.8: Warm fused-shard binary files (cold payload layer)
+          for i in $(seq -w 0 3); do
+            WARM_URLS+=("https://cdn.free2aitools.com/data/fused-shard-0${i}.bin")
           done
+          
+          # V25.8: Dynamic VFS Shard Warming (discovers actual DB files instead of hardcoding counts)
+          if [ -d "output/data" ]; then
+            for db_file in output/data/meta-*.db; do
+              db_name=$(basename "$db_file")
+              WARM_URLS+=("https://cdn.free2aitools.com/data/${db_name}")
+            done
+          fi
 
           for url in "${WARM_URLS[@]}"; do
             echo "Warming: $url"

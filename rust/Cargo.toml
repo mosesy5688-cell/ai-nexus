@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "shard-router",
+    "fni-calc",
+    "mesh-engine",
+]
+
+[workspace.dependencies]
+napi = { version = "2", features = ["napi8"] }
+napi-derive = "2"

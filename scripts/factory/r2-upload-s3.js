@@ -6,7 +6,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
-import { fetchAllR2ETags, uploadFile, createR2Client, purgeEntropy } from './lib/r2-helpers.js';
+import { fetchAllR2ETags, uploadFile, uploadFileMultipart, createR2Client, purgeEntropy } from './lib/r2-helpers.js';
 
 dotenv.config();
 
@@ -72,8 +72,13 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
 
     for (let i = 0; i < queue.length; i += CONFIG.CONCURRENCY) {
         const batch = queue.slice(i, i + CONFIG.CONCURRENCY);
+        // V25.8 §2.2: Use multipart for fused-shard-*.bin (>8MB) when enabled
+        const useMultipart = process.env.R2_MULTIPART_ENABLED === 'true';
         const results = await Promise.all(batch.map(file => {
             const remotePath = toRemotePath(file.path);
+            if (useMultipart && file.size > 8 * 1024 * 1024 && remotePath.includes('fused-shard')) {
+                return uploadFileMultipart(s3, CONFIG.BUCKET, file.path, remotePath);
+            }
             return uploadFile(s3, CONFIG.BUCKET, file.path, remotePath, r2ETagMap.get(remotePath));
         }));
 
@@ -142,7 +147,8 @@ async function main() {
 
     await saveCheckpoint(checkpoint);
 
-    // V22.8 EMERGENCY: Purge disabled to protect production stability (Zero Deletion Policy)
+    // V25.8: Zero Deletion Policy — Entropy Purge permanently disabled.
+    // R2 storage is append-only. Manual cleanup via wrangler CLI if needed.
     // await purgeEntropy(s3, CONFIG.BUCKET, r2ETagMap);
 
     console.log(`\n✅ Upload Complete! New: ${success}, Locally Skipped: ${locallySkipped}, Unchanged on R2: ${unchanged}, Fail: ${fail}`);

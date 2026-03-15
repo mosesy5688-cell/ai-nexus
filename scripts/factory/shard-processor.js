@@ -14,6 +14,7 @@ import zlib from 'zlib';
 import { processEntity } from './lib/processor-core.js';
 import { loadEntityChecksums, loadDailyAccum, loadFniHistory } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
+import { createR2Client, streamToR2, downloadFromR2 } from './lib/r2-helpers.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -50,12 +51,30 @@ async function saveCheckpoint(shardId, results, lastId) {
     }, null, 2));
 }
 
+// V25.8 §2.3: Pulse Sync interval (every 1000 entities)
+const PULSE_SYNC_INTERVAL = 1000;
+
 // Main (V14.5.2: with artifact-based checksum tracking)
 async function main() {
     const { shardId, totalShards } = parseArgs();
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
 
-    // V16.2.10: Data Safety Guard - 2/4 stage must NEVER write to R2
+    // V25.8: R2 Pulse Sync (state checkpoint, not data writes)
+    const r2 = createR2Client();
+    const r2Bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    const cursorKey = `state/v25.8-cursor-shard-${shardId}.json`;
+
+    // V25.8 §2.3: Check for existing cursor (resume from last checkpoint)
+    let resumeFrom = 0;
+    if (r2) {
+        const cursor = await downloadFromR2(r2, r2Bucket, cursorKey);
+        if (cursor && cursor.shardId === shardId) {
+            resumeFrom = cursor.processedCount || 0;
+            console.log(`[SHARD ${shardId}] Resuming from cursor: ${resumeFrom} entities`);
+        }
+    }
+
+    // V16.2.10: Data Safety Guard - 2/4 stage writes state only (cursor), not shard data
     process.env.ENABLE_R2_BACKUP = 'false';
 
     // V16.11: Load global context
@@ -107,6 +126,9 @@ async function main() {
     const startTime = Date.now();
 
     for (let i = 0; i < shardEntities.length; i++) {
+        // V25.8 §2.3: Skip already-processed entities on resume
+        if (i < resumeFrom) { shardEntities[i] = null; continue; }
+
         const entity = shardEntities[i];
         try {
             const result = await processEntity(entity, globalStats, entityChecksums, fniHistory, CONFIG);
@@ -115,7 +137,7 @@ async function main() {
             processedCount++;
 
             // Write to stream
-            const comma = i === 0 ? '' : ',\n';
+            const comma = (i === 0 || (resumeFrom > 0 && i === resumeFrom)) ? '' : ',\n';
             outStream.write(comma + JSON.stringify(result));
 
             // GC Guard: Periodically clear references
@@ -124,8 +146,15 @@ async function main() {
             if (processedCount % 500 === 0) {
                 const mem = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0);
                 console.log(`[SHARD ${shardId}] Progress: ${processedCount}/${shardEntities.length} (RAM: ${mem}MB)...`);
-                // If --expose-gc is set, we use it
                 if (global.gc) global.gc();
+            }
+
+            // V25.8 §2.3: Pulse Sync — checkpoint to R2 every 1000 entities
+            if (r2 && processedCount % PULSE_SYNC_INTERVAL === 0) {
+                await streamToR2(r2, r2Bucket, cursorKey, {
+                    shardId, processedCount, lastId: entity.id,
+                    timestamp: new Date().toISOString(), total: shardEntities.length
+                });
             }
         } catch (e) {
             console.error(`[SHARD ${shardId}] Error processing ${entity.id}:`, e.message);

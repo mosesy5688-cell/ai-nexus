@@ -27,9 +27,8 @@ export async function updateDailyAccumulator(entities, outputDir = './output') {
         .sort((a, b) => (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0))
         .slice(0, DAILY_TOP_ENTITIES)
         .map(e => {
-            // V25.1.2: Ensure FNI score is prioritized and has fallout protection 
+            // V18.9: FNI Singularity is sole scoring authority
             let score = e.fni_score || e.fni || 0;
-            if (score === 0 && e.quality_score) score = e.quality_score;
 
             return {
                 id: e.id,

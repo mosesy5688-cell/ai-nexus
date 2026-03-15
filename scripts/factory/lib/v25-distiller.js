@@ -34,10 +34,8 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.fni_u ??= e.fni_u ?? fMetrics.u ?? meta.fni?.u ?? 0;
     e.fni_v ??= e.fni_v ?? 0; // Velocity (Growth) reserved for Stage 4/4
 
-    // V25.1.2: Radical FNI Calibration - Use quality_score as fallback for Cold Starts
-    if (!e.fni_score || e.fni_score === 0) {
-        e.fni_score = e.quality_score || 0;
-    }
+    // V18.9: FNI Singularity is sole authority. No quality_score fallback.
+    e.fni_score ??= 0;
 
     // V25.1 Distillation: Goldmine
     e.runtime_hardware = meta.runtime_hardware || meta.hardware || '';

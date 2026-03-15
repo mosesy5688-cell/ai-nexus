@@ -87,7 +87,7 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
 
     // Optimized: Use memory-buffered writes to prevent I/O saturation
     const updateBuffers = new Map(); // shardIdx -> string[]
-    const FLUSH_THRESHOLD = 5000;
+    const FLUSH_THRESHOLD = 1000; // V5.8 §2.3: Pulse Sync every 1000 entities
     let updateCount = 0;
     let totalProcessed = 0;
 

@@ -32,7 +32,7 @@ export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
 }
 
 /**
- * V24.12: Build 38-column entity row for meta.db/search.db
+ * V18.9: Build 54-column entity row for meta.db/search.db (UMID + CDDPP + rawPop)
  */
 export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, summary, bundleKey, offset, size) {
     const s = (v, fallback = '') => {
@@ -53,7 +53,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.id), s(e.umid || e.id), s(e.slug), s(e.name || e.displayName), s(e.type, 'model'),
         s(e.author), s(summary), s(category), s(tags), n(e.fni_score), s(e.fni_percentile),
         n(e.fni_p ?? fniMetrics.p), n(e.fni_f ?? fniMetrics.f), n(e.fni_v ?? fniMetrics.v),
-        n(e.fni_c ?? fniMetrics.c), n(e.fni_u ?? fniMetrics.u),
+        n(e.fni_c ?? fniMetrics.c), n(e.fni_u ?? fniMetrics.u), n(e.raw_pop),
         n(pBillions), s(arch), n(ctxLen), e.is_trending ? 1 : 0,
         n(e.stars || e.likes), n(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
         '', s(e._trend_7d),
@@ -63,6 +63,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.runtime_hardware), n(e.vocab_size), n(e.num_layers), n(e.hidden_size),
         s(e.datasets_used), s(e.quick_start),
         n(e.vram_fp16_gb), n(e.vram_int8_gb), n(e.vram_int4_gb),
-        '', '', s(e.search_vector)
+        '', '', s(e.search_vector),
+        s(e.canonical_url), s(e.citation)
     ];
 }

@@ -48,7 +48,7 @@ const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== '
 let categoryCounts: Record<string, number> = {};
 try {
     await loadManifest(r2Bucket, shouldSimulate);
-    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-model-core.db');
+    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-00.db'); // V5.8: hash sharding
     const rows = await executeSql(engine.sqlite3, engine.db,
         `SELECT category, COUNT(*) as count FROM entities WHERE category != '' GROUP BY category`, []);
     for (const r of rows) {

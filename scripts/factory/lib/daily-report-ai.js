@@ -5,6 +5,68 @@
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
 
+// V25.8 Titan Armor V3: Exponential backoff + circuit breaker
+const TITAN_CONFIG = {
+    STAGGER_DELAY_MS: 35000,    // 35s mandatory delay between AI tasks
+    BACKOFF_BASE_MS: 10000,     // 10s initial backoff
+    BACKOFF_MULTIPLIER: 2,      // Doubles: 10s, 20s, 40s
+    MAX_RETRIES: 3,
+    CIRCUIT_BREAKER_THRESHOLD: 5,
+};
+
+let _consecutiveFailures = 0;
+
+/**
+ * V25.8: Physical staggering delay between AI tasks.
+ */
+export async function enforceStaggerDelay() {
+    console.log(`[AI] V25.8: Enforcing ${TITAN_CONFIG.STAGGER_DELAY_MS / 1000}s stagger delay...`);
+    await new Promise(resolve => setTimeout(resolve, TITAN_CONFIG.STAGGER_DELAY_MS));
+}
+
+/**
+ * V25.8 Titan V3: Retry with exponential backoff.
+ */
+async function fetchWithTitan(url, options, attempt = 0) {
+    if (_consecutiveFailures >= TITAN_CONFIG.CIRCUIT_BREAKER_THRESHOLD) {
+        console.error(`[AI] Circuit breaker OPEN: ${_consecutiveFailures} consecutive failures. Aborting.`);
+        return null;
+    }
+
+    // V25.8 §4.2: Jittered Ingestion — 0-3s random delay on external requests
+    const jitterMs = Math.floor(Math.random() * 3000);
+    if (jitterMs > 0) await new Promise(r => setTimeout(r, jitterMs));
+
+    try {
+        const response = await fetch(url, options);
+
+        if (response.status === 429 && attempt < TITAN_CONFIG.MAX_RETRIES) {
+            const backoffMs = TITAN_CONFIG.BACKOFF_BASE_MS * Math.pow(TITAN_CONFIG.BACKOFF_MULTIPLIER, attempt);
+            console.warn(`[AI] 429 Rate Limited. Backoff ${backoffMs / 1000}s (attempt ${attempt + 1}/${TITAN_CONFIG.MAX_RETRIES})...`);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+            return fetchWithTitan(url, options, attempt + 1);
+        }
+
+        if (response.ok) {
+            _consecutiveFailures = 0;
+            return response;
+        }
+
+        _consecutiveFailures++;
+        console.warn(`[AI] API error: ${response.status} (failures: ${_consecutiveFailures})`);
+        return null;
+    } catch (e) {
+        _consecutiveFailures++;
+        console.warn(`[AI] Network error: ${e.message} (failures: ${_consecutiveFailures})`);
+        if (attempt < TITAN_CONFIG.MAX_RETRIES) {
+            const backoffMs = TITAN_CONFIG.BACKOFF_BASE_MS * Math.pow(TITAN_CONFIG.BACKOFF_MULTIPLIER, attempt);
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+            return fetchWithTitan(url, options, attempt + 1);
+        }
+        return null;
+    }
+}
+
 /**
  * Generate AI content using Gemini
  */
@@ -41,11 +103,10 @@ Return exactly this JSON format:
 {"title": "...", "subtitle": "...", "summary": "..."}`;
 
     try {
-        // Physical Throttle (15 RPM Death Line) -> 4100ms mandatory wait
-        console.log('[AI] Physical Throttle Engaged: Sleeping 4.1s to respect 15 RPM limit.');
-        await new Promise(resolve => setTimeout(resolve, 4100));
+        // V25.8: Titan V3 replaces the old 4.1s throttle with 35s stagger + exponential backoff
+        await enforceStaggerDelay();
 
-        const response = await fetch(
+        const response = await fetchWithTitan(
             `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
             {
                 method: 'POST',
@@ -62,8 +123,7 @@ Return exactly this JSON format:
             }
         );
 
-        if (!response.ok) {
-            console.warn(`[AI] Gemini API error: ${response.status}`);
+        if (!response) {
             return null;
         }
 

@@ -32,73 +32,65 @@ export function getShardIndex(nameStr: string, shardCount: number) {
  *   Phase B (expansion): remaining shards, only if Phase A results < limit
  */
 export function determineTargetDbs(type: string, q: string, page: number, manifest?: any): { priority: string[], expansion: string[] } {
-    const partitions = manifest?.partitions || { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
+    const partitions = manifest?.partitions || {};
 
+    // V5.8: 16-way hash sharding — all types mixed in each meta-NN.db
+    if (partitions.meta_shards) {
+        const count = partitions.meta_shards as number;
+        const all = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
+        if (!q) {
+            // Browse: priority = first 4 shards (SSR loads only 1), no expansion
+            return { priority: all.slice(0, 4), expansion: [] };
+        }
+        // Search: priority = first 4, expansion = rest (loaded if Phase A < limit)
+        return { priority: all.slice(0, 4), expansion: all.slice(4) };
+    }
+
+    // Legacy type-based sharding fallback
+    const legacyPartitions = partitions.model ? partitions : { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
     const formatName = (cat: string, idx: number, total: number) => {
         return total === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
     };
 
-    // No search query: browse/pagination mode
     if (!q) {
-        if (type === 'model') {
-            return { priority: ['meta-model-core.db'], expansion: [] };
-        }
+        if (type === 'model') return { priority: ['meta-model-core.db'], expansion: [] };
         if (type === 'all') {
-            // Cross-type browse: core + one shard per single-shard category
             const priority: string[] = ['meta-model-core.db'];
-            for (const [cat, count] of Object.entries(partitions) as [string, number][]) {
+            for (const [cat, count] of Object.entries(legacyPartitions) as [string, number][]) {
                 if (cat === 'model') continue;
                 priority.push(count === 1 ? `meta-${cat}.db` : formatName(cat, 1, count));
             }
             return { priority, expansion: [] };
         }
-        const count = partitions[type] || 1;
+        const count = legacyPartitions[type] || 1;
         return { priority: [formatName(type, 1, count)], expansion: [] };
     }
 
-    // Keyword search: federated across all shards
-
-    // Phase A: priority DBs (core + single-shard categories)
     const priority: string[] = ['meta-model-core.db'];
-    for (const [cat, count] of Object.entries(partitions) as [string, number][]) {
+    for (const [cat, count] of Object.entries(legacyPartitions) as [string, number][]) {
         if (cat === 'model') continue;
         if (count === 1) priority.push(formatName(cat, 1, 1));
     }
-
-    // Phase B: expansion DBs (all shards of multi-shard categories)
     const expansion: string[] = [];
-
     if (type === 'all') {
-        for (const [cat, count] of Object.entries(partitions) as [string, number][]) {
-            if (count <= 1) continue; // already in priority
+        for (const [cat, count] of Object.entries(legacyPartitions) as [string, number][]) {
+            if (count <= 1) continue;
             for (let i = 1; i <= count; i++) {
-                if (cat === 'model') {
-                    expansion.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
-                } else {
-                    expansion.push(formatName(cat, i, count));
-                }
+                expansion.push(cat === 'model' ? `meta-model-shard-${String(i).padStart(2, '0')}.db` : formatName(cat, i, count));
             }
         }
     } else if (type === 'model') {
-        // Model-specific: core already in priority, add all model shards
-        const mCount = partitions.model || 3;
-        for (let i = 1; i <= mCount; i++) {
-            expansion.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
-        }
+        const mCount = legacyPartitions.model || 3;
+        for (let i = 1; i <= mCount; i++) expansion.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
     } else {
-        // Category-specific: federate all shards of that category
-        const count = partitions[type] || 1;
+        const count = legacyPartitions[type] || 1;
         if (count > 1) {
-            // Remove single-shard entry from priority if present, add all shards
             const singleName = formatName(type, 1, 1);
             const idx = priority.indexOf(singleName);
             if (idx > -1) priority.splice(idx, 1);
-            for (let i = 1; i <= count; i++) {
-                priority.push(formatName(type, i, count));
-            }
+            for (let i = 1; i <= count; i++) priority.push(formatName(type, i, count));
         }
     }
-
     return { priority, expansion };
 }
 
@@ -106,12 +98,20 @@ export function determineTargetDbs(type: string, q: string, page: number, manife
  * Layer 3: Hash-Direct slug lookup (detail pages / hydration only)
  */
 export function getShardForSlug(slug: string, type: string, manifest?: any): string {
-    const partitions = manifest?.partitions || { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
+    const partitions = manifest?.partitions || {};
+    // V5.8: Hash sharding — route via cyrb53 approximation (mirrors computeShardSlot)
+    if (partitions.meta_shards) {
+        const count = partitions.meta_shards as number;
+        const idx = cyrb53(slug || '') % count;
+        return `meta-${String(idx).padStart(2, '0')}.db`;
+    }
+    // Legacy type-based routing
+    const legacy = partitions.model ? partitions : { model: 3, paper: 14, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
     if (type === 'model') {
-        const idx = getShardIndex(slug, partitions.model || 5);
+        const idx = getShardIndex(slug, legacy.model || 5);
         return `meta-model-shard-${String(idx).padStart(2, '0')}.db`;
     }
-    const count = partitions[type] || 1;
+    const count = legacy[type] || 1;
     const idx = getShardIndex(slug, count);
     return count === 1 ? `meta-${type}.db` : `meta-${type}-shard-${String(idx).padStart(2, '0')}.db`;
 }

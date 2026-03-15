@@ -1,0 +1,121 @@
+name: Factory Bootstrap - V25.8 UMID Rebirth
+
+permissions:
+  actions: write
+  contents: read
+  id-token: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Bootstrap phase to execute'
+        required: true
+        type: choice
+        options:
+          - umid-stamping
+          - vault-push
+          - initial-pack
+          - full
+        default: full
+      dry_run:
+        description: 'Dry run (no R2 writes)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_BUCKET: ai-nexus-assets
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  UMID_SALT: ${{ secrets.UMID_SALT }}
+  NODE_OPTIONS: '--max-old-space-size=6144'
+
+jobs:
+  bootstrap:
+    name: V25.8 Bootstrap (${{ inputs.phase }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Restore Global Registry (Cache Primary)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            cache/global-registry.json.gz
+            cache/registry/
+          key: global-registry-
+          restore-keys: global-registry-
+
+      - name: R2 Fallback if Cache Undersized
+        run: |
+          mkdir -p cache/registry
+          DENSITY_FLOOR=100000000  # 100MB
+          FILE_SIZE=0
+          if [ -f cache/global-registry.json.gz ]; then
+            FILE_SIZE=$(stat -c%s cache/global-registry.json.gz 2>/dev/null || echo 0)
+          fi
+          echo "Cache registry size: ${FILE_SIZE} bytes (floor: ${DENSITY_FLOOR})"
+          if [ "$FILE_SIZE" -lt "$DENSITY_FLOOR" ]; then
+            echo "Cache undersized or missing — pulling from R2 meta/backup/..."
+            node --input-type=module -e "
+            import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+            import fs from 'fs/promises';
+            const s3 = new S3Client({
+              region: 'auto',
+              endpoint: 'https://' + process.env.CLOUDFLARE_ACCOUNT_ID + '.r2.cloudflarestorage.com',
+              credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY }
+            });
+            try {
+              const resp = await s3.send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET, Key: 'meta/backup/global-registry.json.gz' }));
+              const chunks = []; for await (const c of resp.Body) chunks.push(c);
+              await fs.writeFile('cache/global-registry.json.gz', Buffer.concat(chunks));
+              console.log('R2 fallback: restored global-registry.json.gz (' + Buffer.concat(chunks).length + ' bytes)');
+            } catch (e) { console.error('R2 fallback FAILED:', e.message); process.exit(1); }
+            "
+          else
+            echo "Cache hit: high-density archive (${FILE_SIZE} bytes) — skipping R2"
+          fi
+
+      - name: Validate UMID_SALT
+        run: |
+          if [ -z "$UMID_SALT" ]; then
+            echo "❌ FATAL: UMID_SALT secret is not configured."
+            echo "Set it in: Settings → Secrets and variables → Actions → UMID_SALT"
+            exit 1
+          fi
+          echo "✅ UMID_SALT is configured (${#UMID_SALT} chars)"
+
+      - name: Execute Bootstrap Phase
+        env:
+          BOOTSTRAP_PHASE: ${{ inputs.phase }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+        run: |
+          if [ "$BOOTSTRAP_PHASE" = "full" ]; then
+            echo "🚀 Executing FULL bootstrap (3 phases)..."
+            node scripts/factory/lib/registry-bootstrap.js --phase=umid-stamping
+            node scripts/factory/lib/registry-bootstrap.js --phase=vault-push
+            node scripts/factory/lib/registry-bootstrap.js --phase=initial-pack
+          else
+            echo "🚀 Executing phase: $BOOTSTRAP_PHASE"
+            node scripts/factory/lib/registry-bootstrap.js --phase=$BOOTSTRAP_PHASE
+          fi
+
+      - name: Upload UMID Mapping Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: umid-mapping-${{ github.run_id }}
+          path: data/umid-mapping.json.gz
+          retention-days: 90

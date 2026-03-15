@@ -1,0 +1,11 @@
+{
+  "name": "fni-calc-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "fni-calc-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}

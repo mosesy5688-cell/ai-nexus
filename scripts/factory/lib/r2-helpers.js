@@ -2,7 +2,11 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
-import { PutObjectCommand, ListObjectsV2Command, S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
+import {
+    PutObjectCommand, ListObjectsV2Command, S3Client, HeadObjectCommand,
+    CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand,
+    GetObjectCommand
+} from '@aws-sdk/client-s3';
 
 /**
  * Shared R2 Client Creator
@@ -178,4 +182,68 @@ export async function purgeEntropy(s3, bucket, etagMap) {
         console.log('✨ R2 Bucket is pristine. No entropy detected.');
     }
     return purged;
+}
+
+/**
+ * V25.8 §2.2: Upload large files via S3 Multipart (>8MB threshold).
+ * Falls back to PutObject for smaller files.
+ */
+const MULTIPART_THRESHOLD = 8 * 1024 * 1024; // 8MB
+const PART_SIZE = 8 * 1024 * 1024;            // 8MB per part
+
+export async function uploadFileMultipart(s3, bucket, localPath, remotePath) {
+    const content = await fs.readFile(localPath);
+    if (content.length < MULTIPART_THRESHOLD) {
+        return uploadFile(s3, bucket, localPath, remotePath);
+    }
+
+    console.log(`[MULTIPART] Uploading ${remotePath} (${(content.length / 1024 / 1024).toFixed(1)}MB)...`);
+    const { UploadId } = await s3.send(new CreateMultipartUploadCommand({
+        Bucket: bucket, Key: remotePath, ContentType: 'application/octet-stream'
+    }));
+
+    const parts = [];
+    for (let i = 0; i < content.length; i += PART_SIZE) {
+        const partNum = Math.floor(i / PART_SIZE) + 1;
+        const chunk = content.subarray(i, i + PART_SIZE);
+        const { ETag } = await s3.send(new UploadPartCommand({
+            Bucket: bucket, Key: remotePath, UploadId,
+            PartNumber: partNum, Body: chunk
+        }));
+        parts.push({ ETag, PartNumber: partNum });
+    }
+
+    await s3.send(new CompleteMultipartUploadCommand({
+        Bucket: bucket, Key: remotePath, UploadId,
+        MultipartUpload: { Parts: parts }
+    }));
+    console.log(`[MULTIPART] ✅ ${remotePath} uploaded in ${parts.length} parts`);
+    return { success: true, path: remotePath, parts: parts.length };
+}
+
+/**
+ * V25.8 §2.2: Stream JSON state directly to R2 (bypass GHA cache).
+ */
+export async function streamToR2(s3, bucket, key, data) {
+    if (!s3) return false;
+    const body = typeof data === 'string' ? data : JSON.stringify(data);
+    await s3.send(new PutObjectCommand({
+        Bucket: bucket, Key: key, Body: body, ContentType: 'application/json'
+    }));
+    return true;
+}
+
+/**
+ * V25.8 §2.2: Download JSON state from R2.
+ */
+export async function downloadFromR2(s3, bucket, key) {
+    if (!s3) return null;
+    try {
+        const { Body } = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        const chunks = [];
+        for await (const chunk of Body) chunks.push(chunk);
+        return JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+    } catch {
+        return null;
+    }
 }

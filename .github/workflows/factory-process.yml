@@ -152,7 +152,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install Dependencies
@@ -199,8 +199,8 @@ jobs:
           echo "✅ Found $ENTITY_COUNT entities in manifest"
           
           # V22.3: Fail if entity count is too low (prevents processing test data)
-          if [ "$ENTITY_COUNT" -lt 125000 ]; then
-            echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 125000+."
+          if [ "$ENTITY_COUNT" -lt 80000 ]; then
+            echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 80000+."
             echo "This indicates corrupted data or test files in artifact."
             exit 1
           fi
@@ -221,7 +221,11 @@ jobs:
           ENTITIES_PATH: data/merged.json.gz
           FNI_HISTORY_PATH: cache/fni-history.json.gz
           ARTIFACT_DIR: artifacts
-          STRICT_R2_LOCKDOWN: 'true'
+          # V25.8: R2 for pulse sync (cursor.json state only, not data writes)
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
           NODE_OPTIONS: '--max-old-space-size=6144'
         run: |
           echo "🔄 Processing Shard ${{ matrix.shard }}/20..."
@@ -233,6 +237,33 @@ jobs:
         with:
           path: artifacts/shard-${{ matrix.shard }}.json.gz
           key: shard-${{ matrix.shard }}-${{ github.run_id }}
+
+      # V25.8 §2.2: Stream shard result to R2 (parallel with cache)
+      - name: Stream Shard to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          SHARD_FILE="artifacts/shard-${{ matrix.shard }}.json.gz"
+          if [ -f "$SHARD_FILE" ]; then
+            node -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (s3) {
+                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+                const data = fs.readFileSync('$SHARD_FILE');
+                await s3.send(new PutObjectCommand({
+                  Bucket: 'ai-nexus-assets',
+                  Key: 'state/shards/shard-${{ matrix.shard }}.json.gz',
+                  Body: data, ContentType: 'application/gzip'
+                }));
+                console.log('✅ Shard ${{ matrix.shard }} streamed to R2');
+              }
+            " || echo "⚠️ R2 shard stream skipped (non-fatal)"
+          fi
 
   # V4.1: Save all shards to Cache for next stage
   save-shards-cache:

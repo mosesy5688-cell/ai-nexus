@@ -7,7 +7,6 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import zlib from 'zlib';
-
 /**
  * Load Trending Context for entity prioritization
  */
@@ -163,13 +162,21 @@ export { buildBundleJson, buildEntityRow } from './row-builders.js';
 
 /**
  * Configure SQLite pragmas for high-density 16KB VFS operations
+ * V5.8 §2.2: WAL mode + explicit checkpoints for atomic reliability
  */
-export function setupDatabasePragmas(db) {
+export function setupDatabasePragmas(db, { wal = false } = {}) {
     db.pragma('page_size = 16384');
     db.pragma('auto_vacuum = 0');
-    db.pragma('journal_mode = DELETE');
+    db.pragma(wal ? 'journal_mode = WAL' : 'journal_mode = DELETE');
     db.pragma('synchronous = OFF');
     db.pragma('encoding = "UTF-8"');
+}
+
+/**
+ * V5.8 §1.1: Configure FTS5-specific pragmas for incremental merge
+ */
+export function setupFtsPragmas(db) {
+    setupDatabasePragmas(db, { wal: true });
 }
 
 /**
@@ -219,7 +226,7 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
         const fileStats = fsSync.statSync(db.name);
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
-        const limitMB = (name === 'full-search') ? 700 : 125;
+        const limitMB = (name === 'full-search') ? 700 : 100; // V5.8 §1.1: < 100MB Edge Worker constraint
         const status = (fileStats.size > limitMB * 1024 * 1024) ? '⚠️ OOM RISK' : '✅ OK';
         console.log(`${name.padEnd(25)} | ${String(count).padEnd(12)} | ${String(sizeMB).padEnd(12)} | ${status}`);
     }
@@ -229,22 +236,5 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
     console.log('='.repeat(70) + '\n');
 }
 
-export const cyrb53 = (str, seed = 0) => {
-    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-    for (let i = 0, ch; i < str.length; i++) {
-        ch = str.charCodeAt(i);
-        h1 = Math.imul(h1 ^ ch, 2654435761);
-        h2 = Math.imul(h2 ^ ch, 1597334677);
-    }
-    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
-};
-
-export function getShardIndex(nameStr, shardCount) {
-    if (!shardCount || shardCount <= 1) return 1;
-    const hash = cyrb53(nameStr || '');
-    return (hash % shardCount) + 1; // Returns 1..shardCount
-}
 
 

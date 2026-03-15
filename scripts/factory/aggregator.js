@@ -24,6 +24,8 @@ import {
 import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-incremental.js';
 import { loadGlobalRegistry } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
+import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
+import { initRustBridge } from './lib/rust-bridge.js';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
@@ -42,6 +44,10 @@ const AGGREGATE_FLOOR = 125000;
 
 // Main
 async function main() {
+    // V25.8: Initialize Rust FFI bridge (graceful JS fallback if .node unavailable)
+    const rustStatus = initRustBridge();
+    console.log(`[AGGREGATOR] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
+
     const startTime = Date.now();
     let entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json.gz';
 
@@ -128,6 +134,21 @@ async function main() {
 
     if (fullSet.length < AGGREGATE_FLOOR) {
         throw new Error(`[CRITICAL] Data Loss Detected! Only ${fullSet.length} entities in full set (Min: ${AGGREGATE_FLOOR}).`);
+    }
+
+    // V25.8 CDDPP Shield: Inject UMID + canonical_url + citation watermarking
+    if (!taskArg || taskArg === 'core') {
+        console.log('[AGGREGATOR] V25.8: Applying UMID + CDDPP watermarking...');
+        let watermarked = 0;
+        for (const e of fullSet) {
+            const id = e.id || e.slug;
+            if (!id) continue;
+            if (!e.umid) e.umid = generateUMID(id);
+            if (!e.canonical_url) e.canonical_url = generateCanonicalUrl(e);
+            if (!e.citation) e.citation = generateCitation(e);
+            watermarked++;
+        }
+        console.log(`[AGGREGATOR] V25.8: Watermarked ${watermarked} entities.`);
     }
 
     if (!taskArg || taskArg === 'health') {

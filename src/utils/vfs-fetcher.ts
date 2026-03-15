@@ -1,4 +1,5 @@
 import { R2_CACHE_URL } from '../config/constants.js';
+import { decompress as zstdDecompress } from 'fzstd';
 
 /**
  * V19.4 VFS Entity Fetcher
@@ -84,7 +85,11 @@ export async function fetchBundleRange(bundleKey: string, offset: number, size: 
         if (!response.ok) throw new Error(`VFS Proxy Error: ${response.status}`);
 
         const buffer = await response.arrayBuffer();
-        const data = JSON.parse(new TextDecoder().decode(buffer));
+        const bytes = new Uint8Array(buffer);
+        // V25.8: Detect Zstd magic bytes (0x28B52FFD) and decompress if needed
+        const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
+        const decoded = isZstd ? new TextDecoder().decode(zstdDecompress(bytes)) : new TextDecoder().decode(bytes);
+        const data = JSON.parse(decoded);
 
         // Save L0
         L0_CACHE.set(cacheKey, data);

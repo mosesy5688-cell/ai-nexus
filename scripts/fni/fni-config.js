@@ -1,17 +1,32 @@
 /**
  * FNI Configuration
- * V14.4 Constitution Art 4.1 Compliant
+ * V18.9 Singularity Spec Compliant
  */
 
 export const CONFIG = {
-    // Weight configuration (must sum to 1.0)
-    // V14.4 Constitution Art 4.1:
-    // FNI = (P × 0.35) + (V × 0.25) + (C × 0.25) + (U × 0.15)
+    // V18.9 Master Formula Weights (sum to 1.0)
+    // FNI = min(99.9, (Sp × 0.45) + (Sf × 0.30) + (Sm × 0.25))
+    // Note: Sc and Su are folded into Sp as Quality Correction Factor
     WEIGHTS: {
-        P: 0.35,  // Popularity (V14.4)
-        V: 0.25,  // Velocity (V14.4)
-        C: 0.25,  // Completeness (V14.4, was Credibility)
-        U: 0.15   // Usability (V14.4)
+        Sp: 0.45,  // Popularity (asymptotic log compressor + quality correction)
+        Sf: 0.30,  // Freshness (3-tier exponential decay)
+        Sm: 0.25   // Mesh Gravity (asymptotic gravity field)
+    },
+
+    // V18.9 Source Parity Coefficients (Ks)
+    SOURCE_COEFFICIENTS: {
+        hf: 1.0,       // Model Forge (HuggingFace) - Baseline
+        gh: 5.0,       // Tool Source (GitHub)
+        arxiv: 30.0,   // Knowledge Roots (ArXiv)
+        s2: 30.0,      // Knowledge Roots (Semantic Scholar)
+        default: 0.2   // Community Market (CivitAI/Others)
+    },
+
+    // V18.9 Decay Tiers (lambda values)
+    DECAY: {
+        FOUNDATIONAL: 0.002,  // Models, Tools, Agents (~346d half-life)
+        STRUCTURAL: 0.005,    // Datasets, Collections, Papers (~138d)
+        TEMPORAL: 0.025       // Prompts, Spaces (~28d)
     },
 
 

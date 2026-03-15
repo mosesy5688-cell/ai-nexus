@@ -84,7 +84,8 @@ const requiredCols = [
     'pipeline_tag', 'image_url', 'vram_estimate_gb', 'source', 'task_categories', 'num_rows', 'primary_language',
     'forks', 'citation_count',
     'runtime_hardware', 'vocab_size', 'num_layers', 'hidden_size', 'datasets_used', 'quick_start',
-    'vram_fp16_gb', 'vram_int8_gb', 'vram_int4_gb', 'readme_html', 'ui_related_mesh', 'search_vector'
+    'vram_fp16_gb', 'vram_int8_gb', 'vram_int4_gb', 'readme_html', 'ui_related_mesh', 'search_vector',
+    'canonical_url', 'citation', 'raw_pop'
 ];
 const hasAllCols = requiredCols.every(c => columns.includes(c));
 check('Schema Completeness', hasAllCols, hasAllCols ? 'All V23.1 columns present' : `Missing: ${requiredCols.filter(c => !columns.includes(c))}`);
