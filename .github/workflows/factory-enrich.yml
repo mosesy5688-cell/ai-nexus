@@ -113,6 +113,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           DEDUP_DB_PATH: ./output/data/dedup.db
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
