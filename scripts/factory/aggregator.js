@@ -86,10 +86,11 @@ async function main() {
         const stagingPath = './output/.staging-fullset.ndjson';
         await fs.mkdir('./output', { recursive: true });
         const rustResult = streamAggregateFFI(shardDir, stagingPath);
-        if (rustResult) {
+        if (rustResult && rustResult.entityCount > 0) {
             console.log(`[AGGREGATOR] Rust stream-aggregate: ${rustResult.entityCount} entities, ${rustResult.shardCount} shards (${rustResult.durationMs}ms)`);
             successCount = rustResult.shardCount;
         } else {
+            if (rustResult) console.log(`[AGGREGATOR] Rust returned 0 entities (no .json.gz shards). Falling back to JS binary reader.`);
             console.log(`[AGGREGATOR] JS fallback: disk-staged collection...`);
             const ws = createWriteStream(stagingPath);
             await loadRegistryShardsSequentially(async (slimEntities) => {
