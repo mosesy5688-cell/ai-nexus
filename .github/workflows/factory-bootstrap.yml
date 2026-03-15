@@ -112,6 +112,27 @@ jobs:
             node scripts/factory/lib/registry-bootstrap.js --phase=$BOOTSTRAP_PHASE
           fi
 
+      - name: Verify Binary Shards (NXVF V4.1)
+        if: success() && (inputs.phase == 'initial-pack' || inputs.phase == 'full')
+        run: |
+          echo "Validating binary shard integrity..."
+          SHARD_DIR="./output/data/v4-shards"
+          if [ -d "$SHARD_DIR" ]; then
+            for f in "$SHARD_DIR"/*.bin; do
+              [ -f "$f" ] || continue
+              MAGIC=$(xxd -l 4 -p "$f" 2>/dev/null || echo "")
+              if [ "$MAGIC" = "4e585334" ] || [ "$MAGIC" = "4e585646" ]; then
+                echo "  OK: $(basename $f) ($(stat -c%s "$f") bytes)"
+              else
+                echo "  FAIL: $(basename $f) — bad magic: $MAGIC"
+                exit 1
+              fi
+            done
+            echo "All binary shards validated."
+          else
+            echo "No v4-shards directory found (expected for umid-stamping/vault-push phases)"
+          fi
+
       - name: Upload UMID Mapping Artifact
         if: success()
         uses: actions/upload-artifact@v4
