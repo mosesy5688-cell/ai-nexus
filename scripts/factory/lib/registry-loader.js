@@ -125,21 +125,25 @@ export async function loadGlobalRegistry(options = {}) {
         } catch { }
     }
 
-    // R2 Recovery (legacy JSON.gz shards only)
+    // R2 Recovery (V25.8: Binary .bin + legacy .json.gz)
     if (process.env.ALLOW_R2_RECOVERY === 'true' || process.env.FORCE_R2_RESTORE === 'true') {
         try {
-            let i = 0;
-            while (i < 1000) {
-                const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
-                const recovered = await loadWithFallback(shardName, null, false);
-                if (recovered && (recovered.entities || Array.isArray(recovered))) {
-                    const entities = recovered.entities || recovered;
-                    for (const e of entities) allEntities.push(projectEntity(e, slim));
-                    i++;
-                } else break;
-            }
-            if (allEntities.length >= REGISTRY_FLOOR) {
-                return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
+            const { restoreRegistryFromR2 } = await import('./r2-registry-restore.js');
+            const result = await restoreRegistryFromR2();
+            if (result.success) {
+                // Re-scan local shards after R2 restore
+                const restoredFiles = await fs.readdir(shardDirPath).catch(() => []);
+                const restoredShards = restoredFiles.filter(f =>
+                    f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.gz') || f.endsWith('.json'))
+                );
+                for (const s of restoredShards.sort()) {
+                    const fullPath = path.join(shardDirPath, s);
+                    const entities = await loadShardAuto(fullPath, s, slim);
+                    for (const e of entities) allEntities.push(e);
+                }
+                if (allEntities.length >= REGISTRY_FLOOR) {
+                    return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
+                }
             }
         } catch (e) {
             console.error(`[CACHE] R2 Restoration failed: ${e.message}`);

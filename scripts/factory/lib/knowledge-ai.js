@@ -4,7 +4,7 @@
  * Extracted from generate-knowledge.js for CES Art 5.1 compliance.
  */
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-3.0-pro';
 const STAGGER_DELAY_MS = 35000; // V25.8 §4.1: 35s mandatory delay between AI tasks
 
 /**

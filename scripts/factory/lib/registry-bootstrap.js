@@ -126,7 +126,8 @@ async function phaseVaultPush() {
         }));
         console.log('  Uploaded: vault/bootstrap/umid-mapping.json.gz');
 
-        // Upload raw registry shards to /vault/legacy/
+        // Upload registry shards to both vault/legacy/ AND meta/backup/
+        // meta/backup/ is the primary source for the regular pipeline
         const registryDir = 'cache/registry';
         try {
             const shards = await fs.readdir(registryDir);
@@ -134,29 +135,39 @@ async function phaseVaultPush() {
             for (const shard of shards) {
                 if (!shard.endsWith('.bin') && !shard.endsWith('.json.gz')) continue;
                 const data = await fs.readFile(path.join(registryDir, shard));
-                await s3.send(new PutObjectCommand({
-                    Bucket: R2_BUCKET,
-                    Key: `vault/legacy/registry/${shard}`,
-                    Body: data,
-                    ContentType: shard.endsWith('.bin') ? 'application/octet-stream' : 'application/gzip'
-                }));
+                const contentType = shard.endsWith('.bin') ? 'application/octet-stream' : 'application/gzip';
+                // Dual-write: vault/legacy (archive) + meta/backup (pipeline source)
+                await Promise.all([
+                    s3.send(new PutObjectCommand({
+                        Bucket: R2_BUCKET, Key: `vault/legacy/registry/${shard}`,
+                        Body: data, ContentType: contentType
+                    })),
+                    s3.send(new PutObjectCommand({
+                        Bucket: R2_BUCKET, Key: `meta/backup/registry/${shard}`,
+                        Body: data, ContentType: contentType
+                    }))
+                ]);
                 uploaded++;
             }
-            console.log(`  Uploaded: ${uploaded} registry shards to vault/legacy/`);
+            console.log(`  Uploaded: ${uploaded} registry shards to vault/legacy/ + meta/backup/`);
         } catch {
             console.warn('  No registry shards found in cache/registry/');
         }
 
-        // Upload monolith backup
+        // Upload monolith backup (dual-write)
         try {
             const monolith = await fs.readFile('cache/global-registry.json.gz');
-            await s3.send(new PutObjectCommand({
-                Bucket: R2_BUCKET,
-                Key: 'vault/legacy/global-registry.json.gz',
-                Body: monolith,
-                ContentType: 'application/gzip'
-            }));
-            console.log('  Uploaded: vault/legacy/global-registry.json.gz');
+            await Promise.all([
+                s3.send(new PutObjectCommand({
+                    Bucket: R2_BUCKET, Key: 'vault/legacy/global-registry.json.gz',
+                    Body: monolith, ContentType: 'application/gzip'
+                })),
+                s3.send(new PutObjectCommand({
+                    Bucket: R2_BUCKET, Key: 'meta/backup/global-registry.json.gz',
+                    Body: monolith, ContentType: 'application/gzip'
+                }))
+            ]);
+            console.log('  Uploaded: global-registry.json.gz to vault/legacy/ + meta/backup/');
         } catch {
             console.warn('  No global-registry.json.gz found');
         }
