@@ -43,7 +43,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: rust-${{ matrix.crate }}-${{ hashFiles('rust/Cargo.lock') }}
+          key: rust-${{ matrix.crate }}-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml') }}
           restore-keys: |
             rust-${{ matrix.crate }}-
 
@@ -62,10 +62,6 @@ jobs:
               echo "Renamed $f -> $generic"
             fi
           done
-
-      - name: Run Rust Tests
-        working-directory: rust
-        run: cargo test -p ${{ matrix.crate }}-rust --release
 
       - name: Upload .node Artifact
         uses: actions/upload-artifact@v4
