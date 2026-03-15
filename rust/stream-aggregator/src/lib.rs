@@ -61,7 +61,13 @@ fn discover_shards(dir: &str) -> Result<Vec<String>> {
 fn extract_scores(files: &[String]) -> Result<Vec<(String, f64)>> {
     let mut scores = Vec::new();
     for file_path in files {
-        let entities = load_shard_entities(file_path)?;
+        let entities = match load_shard_entities(file_path) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("[RUST-STREAM] Skipping corrupted shard {}: {}", file_path, e);
+                continue;
+            }
+        };
         for e in entities {
             let id = e.get("id").and_then(|v| v.as_str()).unwrap_or_default();
             if id.is_empty() {

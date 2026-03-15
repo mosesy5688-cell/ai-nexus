@@ -23,7 +23,13 @@ pub fn project_and_write(
     let mut total = 0usize;
 
     for file_path in shard_files {
-        let entities = super::load_shard_entities(file_path)?;
+        let entities = match super::load_shard_entities(file_path) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("[RUST-STREAM] Skipping corrupted shard {}: {}", file_path, e);
+                continue;
+            }
+        };
         for e in &entities {
             let id = e.get("id").and_then(|v| v.as_str()).unwrap_or_default();
             if id.is_empty() {
