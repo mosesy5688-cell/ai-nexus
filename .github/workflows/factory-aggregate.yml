@@ -81,6 +81,20 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # V25.8.3: Restore Rust FFI binaries for stream-aggregator
+      - name: Restore Rust FFI Binaries
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+            rust/stream-aggregator/stream-aggregator-rust.node
+            rust/satellite-tasks/satellite-tasks-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
+
       # V4.1: Restore Shards from Cache (Not Artifact)
       - name: Restore Shards from Cache
         id: cache-shards
@@ -526,6 +540,22 @@ jobs:
         with:
           path: output/
           key: cycle-${{ github.run_id }}-output
+
+      # V25.8.3: Backup cycle output to R2 (Factory 4/4 fallback)
+      - name: Backup Cycle Output to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node -e "
+            import { backupDirectoryToR2 } from './scripts/factory/lib/r2-handoff.js';
+            const r = await backupDirectoryToR2('output/', 'state/cycle-output/');
+            console.log('R2 backup:', JSON.stringify(r));
+          " || echo '⚠️ R2 cycle-output backup skipped (non-fatal)'
+        continue-on-error: true
+
       - name: Summary
         run: |
           echo "## Factory 3/4 - Aggregator V2.0 Complete 🚀" >> $GITHUB_STEP_SUMMARY

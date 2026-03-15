@@ -68,11 +68,21 @@ jobs:
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Complete Cycle Output from Cache
+        id: cache-output-mesh
         uses: actions/cache/restore@v4
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
           restore-keys: cycle-
+      # V25.8.3: R2 fallback if cache miss
+      - name: R2 Fallback for Cycle Output
+        if: steps.cache-output-mesh.outputs.cache-hit != 'true'
+        run: |
+          node -e "
+            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            const r = await restoreDirectoryFromR2('state/cycle-output/', 'output/');
+            if (!r.count) { console.error('No cycle-output on R2'); process.exit(1); }
+          "
       - name: Bake atomized Mesh Profiles
         env:
           CACHE_DIR: ./output/cache
@@ -95,11 +105,19 @@ jobs:
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Base Output from Cache
+        id: cache-output-fusion
         uses: actions/cache/restore@v4
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
           restore-keys: cycle-
+      - name: R2 Fallback for Base Output
+        if: steps.cache-output-fusion.outputs.cache-hit != 'true'
+        run: |
+          node -e "
+            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            await restoreDirectoryFromR2('state/cycle-output/', 'output/');
+          " || echo '⚠️ R2 fallback skipped'
       - name: Restore Baked Profiles from Cache
         uses: actions/cache/restore@v4
         with:

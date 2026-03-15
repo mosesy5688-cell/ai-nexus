@@ -1,25 +1,10 @@
-/**
- * ALT Linker Module V14.5.2
- * SPEC: SPEC-KNOWLEDGE-V14.5.2
- * 
- * Computes Alternative (ALT) relations using Jaccard similarity.
- * Optimized for compute efficiency:
- * - Groups by category (reduces O(n²) to O(k²) per category)
- * - Uses inverted tag index for candidate filtering
- * - Only processes top 500 entities per category
- * - Runs weekly (every Monday) to minimize CI costs
- */
+// ALT Linker V14.5.2 — Jaccard similarity for alternative relations
 
 import fs from 'fs/promises';
 import path from 'path';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { computeAltRelationsFFI } from './rust-bridge.js';
 
-/**
- * Compute Jaccard similarity between two tag sets
- * @param {string[]} tagsA 
- * @param {string[]} tagsB 
- * @returns {number} 0-1 similarity score
- */
 function jaccardSimilarity(tagsA, tagsB) {
     const arrA = Array.isArray(tagsA) ? tagsA : (typeof tagsA === 'string' ? [tagsA] : []);
     const arrB = Array.isArray(tagsB) ? tagsB : (typeof tagsB === 'string' ? [tagsB] : []);
@@ -176,6 +161,18 @@ export async function computeAltRelations(entities, outputDir = './output') {
     const startTime = Date.now();
     const relationsDir = path.join(outputDir, 'cache', 'relations', 'alt-by-category');
     await fs.mkdir(relationsDir, { recursive: true });
+
+    // V25.8.3: Try Rust FFI fast path
+    const rustResult = computeAltRelationsFFI(Buffer.from(JSON.stringify(entities)));
+    if (rustResult) {
+        for (const cat of rustResult.categories_data) {
+            await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressed_data));
+        }
+        const metaDir = path.join(outputDir, 'cache', 'relations');
+        await fs.writeFile(path.join(metaDir, 'alt-meta.json.gz'), Buffer.from(rustResult.meta_data));
+        console.log(`  [ALT-LINKER] Rust FFI: ${rustResult.total_relations} relations in ${Date.now() - startTime}ms`);
+        return { totalRelations: rustResult.total_relations };
+    }
 
     // Group by category
     const byCategory = groupByCategory(entities);

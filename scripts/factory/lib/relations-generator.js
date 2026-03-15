@@ -12,6 +12,7 @@ import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { extractEntityRelations } from './relation-extractors.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { buildRelationsGraphFFI } from './rust-bridge.js';
 
 // Relation statistics template
 const RELATION_STATS = {
@@ -116,45 +117,29 @@ export async function generateRelations(entities, outputDir = './output') {
         }
     }
 
-    // Build reverse lookup
-    const reverse = {};
-    for (const rel of allRelations) {
-        if (!reverse[rel.target_id]) reverse[rel.target_id] = [];
-        reverse[rel.target_id].push({
-            source_id: rel.source_id,
-            source_type: rel.source_type,
-            relation_type: rel.relation_type,
-            confidence: rel.confidence || 1.0
-        });
-
-        // Ensure target node exists in nodes map
-        if (!nodes[rel.target_id]) {
-            nodes[rel.target_id] = { t: rel.target_type || 'concept', f: 0 };
+    // V25.8.3: Try Rust FFI for graph building + gzip
+    const rustResult = buildRelationsGraphFFI(
+        Buffer.from(JSON.stringify(nodes)),
+        Buffer.from(JSON.stringify(allRelations))
+    );
+    if (rustResult) {
+        await fs.writeFile(path.join(relationsDir, 'explicit.json.gz'), Buffer.from(rustResult.explicit_json));
+        const legacyPath = path.join(cacheDir, 'relations.json.gz');
+        await fs.writeFile(legacyPath, Buffer.from(rustResult.legacy_json));
+        console.log(`  [RELATIONS] Rust FFI: ${rustResult.total_relations} relations`);
+    } else {
+        // JS fallback: build reverse lookup + write
+        const reverse = {};
+        for (const rel of allRelations) {
+            if (!reverse[rel.target_id]) reverse[rel.target_id] = [];
+            reverse[rel.target_id].push({ source_id: rel.source_id, source_type: rel.source_type, relation_type: rel.relation_type, confidence: rel.confidence || 1.0 });
+            if (!nodes[rel.target_id]) nodes[rel.target_id] = { t: rel.target_type || 'concept', f: 0 };
         }
+        const v2Output = { _v: '14.5.2', _ts: new Date().toISOString(), _count: allRelations.length, _stats: counts, nodes, edges };
+        const legacyOutput = { relations: allRelations, reverse_lookup: reverse, stats: counts, _count: allRelations.length, _generated: new Date().toISOString() };
+        await smartWriteWithVersioning('relations/explicit.json', v2Output, cacheDir, { compress: true });
+        await smartWriteWithVersioning('relations.json', legacyOutput, cacheDir, { compress: true });
     }
-
-    // V14.5.2 Output
-    const v2Output = {
-        _v: '14.5.2',
-        _ts: new Date().toISOString(),
-        _count: allRelations.length,
-        _stats: counts,
-        nodes,
-        edges,
-    };
-
-    // Legacy output
-    const legacyOutput = {
-        relations: allRelations,
-        reverse_lookup: reverse,
-        stats: counts,
-        _count: allRelations.length,
-        _generated: new Date().toISOString(),
-    };
-
-    // Write both formats (V16.6: Gzip via SmartWriter)
-    await smartWriteWithVersioning('relations/explicit.json', v2Output, cacheDir, { compress: true });
-    await smartWriteWithVersioning('relations.json', legacyOutput, cacheDir, { compress: true });
 
     console.log(`  [RELATIONS] ${allRelations.length} relations extracted`);
     for (const [type, count] of Object.entries(counts)) {
