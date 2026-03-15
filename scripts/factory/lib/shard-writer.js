@@ -23,14 +23,18 @@ let _zstdCompress = null;
 
 async function loadZstd() {
     if (_zstdCompress) return _zstdCompress;
+    // Try zstd-codec (WASM, has compress+decompress)
     try {
-        const fzstd = await import('fzstd');
-        _zstdCompress = (data) => Buffer.from(fzstd.compress(data));
-        console.log('[SHARD-WRITER] Zstd compression enabled (fzstd)');
-    } catch {
-        _zstdCompress = null;
-        console.log('[SHARD-WRITER] Zstd unavailable, writing raw payloads');
-    }
+        const { ZstdCodec } = await import('zstd-codec');
+        const zstd = await new Promise(resolve => ZstdCodec.run(z => resolve(z)));
+        const simple = new zstd.Simple();
+        _zstdCompress = (data) => Buffer.from(simple.compress(data, 3));
+        console.log('[SHARD-WRITER] Zstd compression enabled (zstd-codec)');
+        return _zstdCompress;
+    } catch { /* zstd-codec not available */ }
+    // fzstd is decompress-only — cannot use for compression
+    _zstdCompress = null;
+    console.log('[SHARD-WRITER] Zstd compression unavailable, writing raw payloads');
     return _zstdCompress;
 }
 
