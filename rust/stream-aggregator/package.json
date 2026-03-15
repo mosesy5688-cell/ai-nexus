@@ -1,0 +1,11 @@
+{
+  "name": "stream-aggregator-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "stream-aggregator-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}

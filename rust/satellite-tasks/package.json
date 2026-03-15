@@ -1,0 +1,11 @@
+{
+  "name": "satellite-tasks-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "satellite-tasks-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}
