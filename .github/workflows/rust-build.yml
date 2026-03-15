@@ -52,7 +52,16 @@ jobs:
 
       - name: Build ${{ matrix.crate }}
         working-directory: rust/${{ matrix.crate }}
-        run: napi build --release --platform
+        run: |
+          napi build --release --platform
+          # Rename platform-suffixed .node to generic name for rust-bridge.js
+          for f in *.node; do
+            generic="${{ matrix.crate }}-rust.node"
+            if [ "$f" != "$generic" ]; then
+              cp "$f" "$generic"
+              echo "Renamed $f -> $generic"
+            fi
+          done
 
       - name: Run Rust Tests
         working-directory: rust
@@ -62,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.crate }}-rust-node
-          path: rust/${{ matrix.crate }}/*.node
+          path: rust/${{ matrix.crate }}/${{ matrix.crate }}-rust.node
           retention-days: 30
 
   verify:

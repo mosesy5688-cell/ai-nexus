@@ -1,0 +1,11 @@
+{
+  "name": "shard-router-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "shard-router-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}
