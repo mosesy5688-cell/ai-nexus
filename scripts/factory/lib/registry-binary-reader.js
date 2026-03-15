@@ -30,6 +30,14 @@ async function ensureDeps() {
     }
 }
 
+/** Detect if decrypted payload is valid (JSON start byte or Zstd magic). */
+function isValidPayload(buf) {
+    if (!buf || buf.length === 0) return false;
+    const b = buf[0];
+    // JSON object '{' (0x7B), array '[' (0x5B), or Zstd magic (0x28)
+    return b === 0x7B || b === 0x5B || (buf.length >= 4 && buf.subarray(0, 4).equals(ZSTD_MAGIC));
+}
+
 /**
  * Check if a file has NXVF magic bytes (non-destructive probe)
  */
@@ -96,8 +104,10 @@ export async function readBinaryShard(filePath) {
         const size = offsetTable.readUInt32LE(i * 8 + 4);
         let payload = Buffer.from(data.subarray(offset, offset + size));
 
-        // AES-CTR decryption (no-op if key not set)
-        payload = decryptPayload(shardName, payload, offset);
+        // AES-CTR decryption — auto-detect encrypted vs plaintext shards
+        const decrypted = decryptPayload(shardName, payload, offset);
+        const looksValid = isValidPayload(decrypted);
+        payload = looksValid ? decrypted : payload;
 
         // Zstd decompression (detect via magic bytes)
         if (payload.length >= 4 && payload.subarray(0, 4).equals(ZSTD_MAGIC)) {
