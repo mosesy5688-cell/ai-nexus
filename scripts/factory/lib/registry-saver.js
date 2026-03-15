@@ -32,6 +32,15 @@ export async function saveRegistryShard(index, entities) {
     }
     writer.finalize();
 
+    // V25.8.3: Purge legacy .json.gz ghost files (replaced by binary .bin)
+    // Old pipeline wrote .json.gz; these persist through GHA cache and cause
+    // Rust stream-aggregator to read stale/corrupted data instead of current .bin.
+    const { unlink } = await import('fs/promises');
+    const legacyGz = path.join(registryDir, `part-${String(index).padStart(3, '0')}.json.gz`);
+    const legacyJson = path.join(registryDir, `part-${String(index).padStart(3, '0')}.json`);
+    await unlink(legacyGz).catch(() => {});
+    await unlink(legacyJson).catch(() => {});
+
     // R2 backup for binary shards
     const shardFile = `part-${String(index).padStart(3, '0')}.bin`;
     if (process.env.ENABLE_R2_BACKUP === 'true') {
@@ -89,13 +98,26 @@ export async function saveGlobalRegistry(input) {
         gzip.on('error', reject);
         output.on('finish', resolve);
 
+        // V25.8.3: Async write with backpressure handling to prevent data truncation.
+        // Old sync loop (gzip.write in tight for-loop) could overflow the internal
+        // buffer, causing truncated \uXXXX escapes in the output JSON.
+        let i = 0;
         gzip.write(`{"entities":[`);
-        for (let i = 0; i < count; i++) {
-            if (i > 0) gzip.write(',');
-            gzip.write(JSON.stringify(inputEntities[i]));
+        function writeNext() {
+            let ok = true;
+            while (i < count && ok) {
+                const chunk = (i > 0 ? ',' : '') + JSON.stringify(inputEntities[i]);
+                i++;
+                ok = gzip.write(chunk);
+            }
+            if (i < count) {
+                gzip.once('drain', writeNext);
+            } else {
+                gzip.write(`],"count":${count},"lastUpdated":"${timestamp}"}`);
+                gzip.end();
+            }
         }
-        gzip.write(`],"count":${count},"lastUpdated":"${timestamp}"}`);
-        gzip.end();
+        writeNext();
     });
 
     console.log(`[CACHE] Registry persisted. Shards: ${shardCount} (Binary), Monolith: OK (JSON.gz).`);
