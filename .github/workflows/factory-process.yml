@@ -66,7 +66,21 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Rust FFI Binaries
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/shard-router/shard-router-rust.node
+            rust/fni-calc/fni-calc-rust.node
+            rust/mesh-engine/mesh-engine-rust.node
+            rust/content-extractor/content-extractor-rust.node
+            rust/stream-aggregator/stream-aggregator-rust.node
+            rust/satellite-tasks/satellite-tasks-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
       - name: Setup Directories
         run: |
           rm -rf data/*.json cache/*.json
