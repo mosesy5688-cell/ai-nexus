@@ -446,11 +446,47 @@ jobs:
           path: data/*_master.ndjson
           key: harvest-raw-ecosystem-${{ github.run_id }}
           
+      # V25.8 §2.2: R2 Fallback for harvest batches (if cache missed)
+      - name: R2 Batch Recovery (Fallback)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          NDJSON_COUNT=$(ls data/*_master.ndjson 2>/dev/null | wc -l)
+          if [ "$NDJSON_COUNT" -gt 0 ]; then
+            echo "✅ $NDJSON_COUNT NDJSON files from cache. Skipping R2 fallback."
+          else
+            echo "⚠️ No NDJSON files from cache. Restoring from R2 ingestion/raw/..."
+            node -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import { ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (!s3) { console.error('No R2 credentials'); process.exit(1); }
+              const bucket = process.env.R2_BUCKET;
+              const resp = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: 'ingestion/raw/', MaxKeys: 100 }));
+              let restored = 0;
+              for (const obj of (resp.Contents || [])) {
+                if (!obj.Key.endsWith('.ndjson') || obj.Size === 0) continue;
+                const filename = obj.Key.split('/').pop();
+                const { Body } = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: obj.Key }));
+                const chunks = []; for await (const c of Body) chunks.push(c);
+                fs.writeFileSync('data/' + filename, Buffer.concat(chunks));
+                console.log('  Restored: ' + filename + ' (' + Buffer.concat(chunks).length + ' bytes)');
+                restored++;
+              }
+              console.log('R2 batch recovery: ' + restored + ' files');
+              if (restored === 0) { console.error('No batch files found on R2'); process.exit(1); }
+            "
+          fi
+
       - name: List Batches (Current or Recovered)
         run: |
           echo "📦 Entity batches ready for merge:"
           ls -la data/
-          
+
           # V22.8: Resilient NDJSON Bridge
           if ls data/*_master.ndjson 1>/dev/null 2>&1; then
             echo "🌉 [Bridge] Consolidating NDJSON streams..."
@@ -459,7 +495,7 @@ jobs:
           else
             echo "⏭️ [Bridge] No NDJSON files found, using pre-existing batch files"
           fi
-          
+
           ls -la data/raw_batch_*.json 2>/dev/null || echo "⚠️ No batch files found in data/"
           
       - name: Restore FNI History

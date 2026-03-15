@@ -271,110 +271,45 @@ jobs:
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
     steps:
-      - name: Restore All Shards from Cache
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+
+      # V25.8 §2.2: R2-Primary shard restoration (each matrix job streamed to R2)
+      - name: Restore Shards from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          mkdir -p output/shards
-          echo "📦 Restoring 20 parallel compressed shards from cache..."
-      - name: Restore Shard 0
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-0.json.gz
-          key: shard-0-${{ github.run_id }}
-      - name: Restore Shard 1
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-1.json.gz
-          key: shard-1-${{ github.run_id }}
-      - name: Restore Shard 2
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-2.json.gz
-          key: shard-2-${{ github.run_id }}
-      - name: Restore Shard 3
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-3.json.gz
-          key: shard-3-${{ github.run_id }}
-      - name: Restore Shard 4
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-4.json.gz
-          key: shard-4-${{ github.run_id }}
-      - name: Restore Shard 5
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-5.json.gz
-          key: shard-5-${{ github.run_id }}
-      - name: Restore Shard 6
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-6.json.gz
-          key: shard-6-${{ github.run_id }}
-      - name: Restore Shard 7
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-7.json.gz
-          key: shard-7-${{ github.run_id }}
-      - name: Restore Shard 8
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-8.json.gz
-          key: shard-8-${{ github.run_id }}
-      - name: Restore Shard 9
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-9.json.gz
-          key: shard-9-${{ github.run_id }}
-      - name: Restore Shard 10
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-10.json.gz
-          key: shard-10-${{ github.run_id }}
-      - name: Restore Shard 11
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-11.json.gz
-          key: shard-11-${{ github.run_id }}
-      - name: Restore Shard 12
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-12.json.gz
-          key: shard-12-${{ github.run_id }}
-      - name: Restore Shard 13
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-13.json.gz
-          key: shard-13-${{ github.run_id }}
-      - name: Restore Shard 14
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-14.json.gz
-          key: shard-14-${{ github.run_id }}
-      - name: Restore Shard 15
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-15.json.gz
-          key: shard-15-${{ github.run_id }}
-      - name: Restore Shard 16
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-16.json.gz
-          key: shard-16-${{ github.run_id }}
-      - name: Restore Shard 17
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-17.json.gz
-          key: shard-17-${{ github.run_id }}
-      - name: Restore Shard 18
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-18.json.gz
-          key: shard-18-${{ github.run_id }}
-      - name: Restore Shard 19
-        uses: actions/cache/restore@v4
-        with:
-          path: artifacts/shard-19.json.gz
-          key: shard-19-${{ github.run_id }}
+          mkdir -p artifacts output/shards
+          echo "📦 Restoring 20 shards from R2 state/shards/..."
+          node -e "
+            import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+            import { GetObjectCommand } from '@aws-sdk/client-s3';
+            import fs from 'fs';
+            const s3 = createR2Client();
+            if (!s3) { console.error('No R2 credentials'); process.exit(1); }
+            let ok = 0;
+            for (let i = 0; i < 20; i++) {
+              try {
+                const { Body } = await s3.send(new GetObjectCommand({
+                  Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-' + i + '.json.gz'
+                }));
+                const chunks = []; for await (const c of Body) chunks.push(c);
+                fs.writeFileSync('artifacts/shard-' + i + '.json.gz', Buffer.concat(chunks));
+                ok++;
+              } catch (e) { console.warn('  shard-' + i + ': ' + e.message); }
+            }
+            console.log('Restored ' + ok + '/20 shards from R2');
+            if (ok < 20) { console.error('Missing shards!'); process.exit(1); }
+          "
 
       - name: Organize Shards
         run: |
