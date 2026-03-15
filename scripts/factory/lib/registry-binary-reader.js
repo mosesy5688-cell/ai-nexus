@@ -109,10 +109,11 @@ export async function readBinaryShard(filePath) {
         const size = offsetTable.readUInt32LE(i * 8 + 4);
         let payload = Buffer.from(data.subarray(offset, offset + size));
 
-        // AES-CTR decryption — auto-detect encrypted vs plaintext shards
-        const decrypted = decryptPayload(shardName, payload, offset);
-        const looksValid = isValidPayload(decrypted);
-        payload = looksValid ? decrypted : payload;
+        // AES-CTR decryption — check raw first, only decrypt if not already valid
+        if (!isValidPayload(payload)) {
+            const decrypted = decryptPayload(shardName, payload, offset);
+            if (isValidPayload(decrypted)) payload = decrypted;
+        }
 
         // Zstd decompression (detect via magic bytes)
         if (payload.length >= 4 && payload.subarray(0, 4).equals(ZSTD_MAGIC)) {
