@@ -13,12 +13,26 @@ const SOURCE_COEFFICIENTS = {
     default: 0.2   // Community Market (CivitAI/Others)
 };
 
-// Section 3: Dynamic Exponential Decay Tiers
+// Section 3: Dynamic Exponential Decay Tiers (content freshness)
 const DECAY_TIERS = [
     { lambda: 0.002, types: ['model', 'tool', 'agent'] },       // Foundational ~346d half-life
     { lambda: 0.005, types: ['dataset', 'collection', 'paper'] }, // Structural ~138d
     { lambda: 0.025, types: ['prompt', 'space'] }                 // Temporal ~28d
 ];
+
+// V25.8 Art 8.2: Staleness decay lambdas (harvest freshness, NOT content age)
+// Applied at read-time based on _last_seen — zero write pressure at 10M scale
+const STALENESS_LAMBDAS = {
+    model: 0.005,   // 30d → 86% retained, 90d → 64%
+    tool: 0.005,
+    agent: 0.005,
+    dataset: 0.003, // 30d → 91%, 90d → 76%
+    collection: 0.003,
+    paper: 0.001,   // 30d → 97%, 90d → 91% (papers rarely change)
+    prompt: 0.008,  // 30d → 79% (volatile, decay faster)
+    space: 0.008,
+    default: 0.005
+};
 
 /**
  * Main FNI V18.9 Entry Point
@@ -64,7 +78,11 @@ export function calculateFNI(entity, options = {}) {
     const Sm = 99.9 * (1 - Math.pow(10, -(Math.log10(meshPoints + 1) / 4)));
 
     // --- Master Formula: FNI = min(99.9, Sp*0.45 + Sf*0.30 + Sm*0.25) ---
-    const fni = Math.min(99.9, (Sp * 0.45) + (Sf * 0.30) + (Sm * 0.25));
+    const baseFni = Math.min(99.9, (Sp * 0.45) + (Sf * 0.30) + (Sm * 0.25));
+
+    // V25.8 Art 8.2: Staleness decay — penalize entities not recently harvested
+    const stalenessFactor = computeStalenessFactor(type, options.lastSeen);
+    const fni = baseFni * stalenessFactor;
     const roundedScore = Math.round(fni * 10) / 10;
 
     if (options.includeMetrics) {
@@ -113,6 +131,21 @@ function getDecayLambda(type) {
         if (tier.types.includes(type)) return tier.lambda;
     }
     return 0.005; // Default: structural
+}
+
+/**
+ * V25.8 Art 8.2: Compute staleness factor based on _last_seen.
+ * Returns 1.0 if recently harvested, decays toward 0 for stale entities.
+ * Read-time computation — zero writes, scales to 10M+ entities.
+ */
+function computeStalenessFactor(type, lastSeen) {
+    if (!lastSeen) return 1.0; // No _last_seen = first run, no penalty
+    const parsed = new Date(lastSeen).getTime();
+    if (isNaN(parsed)) return 1.0;
+    const daysSinceHarvest = Math.max(0, (Date.now() - parsed) / 86400000);
+    if (daysSinceHarvest < 1) return 1.0; // Harvested today
+    const lambda = STALENESS_LAMBDAS[type] || STALENESS_LAMBDAS.default;
+    return Math.exp(-lambda * daysSinceHarvest);
 }
 
 /** Section 4: Estimate mesh gravity points from entity data */
