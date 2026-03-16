@@ -195,6 +195,7 @@ jobs:
         env:
           CACHE_DIR: ./output/cache
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          UMID_SALT: ${{ secrets.UMID_SALT }}
         run: node scripts/factory/pack-db.js
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/search.db --out=output
