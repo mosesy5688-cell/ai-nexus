@@ -176,6 +176,15 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
+            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+          " || true
       - name: Restore Base Output (Trending Context)
         uses: actions/cache/restore@v4
         with:
@@ -225,11 +234,20 @@ jobs:
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Base Output from Cache
+        id: cache-output-rss
         uses: actions/cache/restore@v4
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
           restore-keys: cycle-
+      - name: R2 Fallback for Base Output
+        if: steps.cache-output-rss.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          node --input-type=module -e "
+            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            await restoreDirectoryFromR2('state/cycle-output/', 'output/');
+          " || echo '⚠️ R2 fallback skipped'
       - name: Generate RSS feeds
         run: node scripts/factory/lib/rss-generator.js ./output
       - name: Save RSS Feeds to Cache
@@ -249,11 +267,20 @@ jobs:
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Base Output from Cache
+        id: cache-output-upload
         uses: actions/cache/restore@v4
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
           restore-keys: cycle-
+      - name: R2 Fallback for Base Output
+        if: steps.cache-output-upload.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          node --input-type=module -e "
+            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            await restoreDirectoryFromR2('state/cycle-output/', 'output/');
+          " || echo '⚠️ R2 fallback skipped'
       - name: Restore Upload Manifest from Cache
         uses: actions/cache/restore@v4
         with:

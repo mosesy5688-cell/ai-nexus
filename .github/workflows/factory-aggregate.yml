@@ -94,6 +94,23 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          if [ "$FOUND" -lt 6 ]; then
+            echo "⚠️ Only $FOUND/6 Rust binaries. Restoring from R2 vault..."
+            node --input-type=module -e "
+              import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+              const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+              for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+            " || echo '⚠️ R2 Rust FFI fallback unavailable'
+          fi
 
       # V4.1: Restore Shards from Cache (Not Artifact)
       - name: Restore Shards from Cache
@@ -318,6 +335,20 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
+            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+          " || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -365,6 +396,20 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
+            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+          " || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -416,6 +461,20 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
+            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+          " || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -473,6 +532,20 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
+            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+          " || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
