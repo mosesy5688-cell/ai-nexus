@@ -165,18 +165,30 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>> {
             }
         }
 
-        // JSON parse with sanitization fallback
+        // JSON parse with sanitization fallback + forced-decrypt retry
         match serde_json::from_slice::<serde_json::Value>(&payload) {
             Ok(val) => entities.push(val),
             Err(e) => {
                 let raw_str = String::from_utf8_lossy(&payload);
                 let sanitized = super::sanitize_json_escapes(&raw_str);
-                match serde_json::from_str::<serde_json::Value>(&sanitized) {
-                    Ok(val) => entities.push(val),
-                    Err(_) => {
-                        eprintln!("[RUST-NXVF] Parse error {}[{}]: {}", shard_name, i, e)
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&sanitized) {
+                    entities.push(val);
+                    continue;
+                }
+                // Forced-decrypt retry: isValidPayload false positive where encrypted
+                // bytes randomly start with 0x7B22 ("{"), ~1/65536 chance per entity
+                if let Some(key) = aes_key {
+                    let raw = &data[offset as usize..end];
+                    let mut retry = decrypt_payload(key, shard_name, raw, offset);
+                    if retry.len() >= 4 && retry[0..4] == ZSTD_MAGIC {
+                        if let Ok(d) = zstd::decode_all(retry.as_slice()) { retry = d; }
+                    }
+                    if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&retry) {
+                        entities.push(val);
+                        continue;
                     }
                 }
+                eprintln!("[RUST-NXVF] Parse error {}[{}]: {}", shard_name, i, e);
             }
         }
     }

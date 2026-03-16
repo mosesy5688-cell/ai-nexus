@@ -21,8 +21,10 @@ export async function generateSearchIndices(entities, outputDir = './output') {
     const searchDir = path.join(outputDir, 'cache');
     await fs.mkdir(searchDir, { recursive: true });
 
-    // V25.8.3: Try Rust FFI fast path
-    const rustResult = buildSearchIndexFFI(Buffer.from(JSON.stringify(entities)));
+    // V25.8.3: Try Rust FFI fast path (may fail on 400K+ entities due to V8 string limit)
+    let rustResult = null;
+    try { rustResult = buildSearchIndexFFI(Buffer.from(JSON.stringify(entities))); }
+    catch (e) { console.warn(`[SEARCH] Rust FFI skipped (${e.message}). Using JS path.`); }
     if (rustResult) {
         console.log(`[SEARCH] Rust FFI: ${rustResult.total_entities} entities, ${rustResult.shards.length} shards`);
         await fs.writeFile(path.join(searchDir, 'search-core.json.gz'), Buffer.from(rustResult.core_data));

@@ -162,8 +162,10 @@ export async function computeAltRelations(entities, outputDir = './output') {
     const relationsDir = path.join(outputDir, 'cache', 'relations', 'alt-by-category');
     await fs.mkdir(relationsDir, { recursive: true });
 
-    // V25.8.3: Try Rust FFI fast path
-    const rustResult = computeAltRelationsFFI(Buffer.from(JSON.stringify(entities)));
+    // V25.8.3: Try Rust FFI fast path (may fail on large data sets)
+    let rustResult = null;
+    try { rustResult = computeAltRelationsFFI(Buffer.from(JSON.stringify(entities))); }
+    catch (e) { console.warn(`[ALT-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
     if (rustResult) {
         for (const cat of rustResult.categories_data) {
             await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressed_data));
