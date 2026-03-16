@@ -51,6 +51,7 @@ function getThreshold(category) {
  * meta-dataset.db -> dataset
  */
 const isHashShard = /^meta-\d+\.db$/.test(dbName); // V5.8 hash-shard: meta-00.db ~ meta-15.db
+const isAnchorDb = /^meta-(report|knowledge)\.db$/.test(dbName); // Discovery Anchor DBs (articles table)
 
 function getCategory(name) {
     if (name === 'search.db') return 'search';
@@ -88,11 +89,14 @@ check('Page Size', pageSize === EXPECTED_PAGE_SIZE, `${pageSize} (expected: ${EX
 const fileSizeMB = Math.round(fs.statSync(DB_PATH).size / 1024 / 1024);
 check('Memory Safety Scan', fileSizeMB <= MAX_DB_SIZE_MB, `${fileSizeMB}MB (limit: ${MAX_DB_SIZE_MB}MB)`);
 
-// 4. Schema Completeness (skip for FTS-only databases)
-const hasEntitiesTable = !isFtsDb && !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'").get();
+// 4. Schema Completeness
+const hasEntitiesTable = !isFtsDb && !isAnchorDb && !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'").get();
 if (isFtsDb) {
     const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='search'").get();
     check('FTS5 Table', !!ftsTable, ftsTable ? 'search table present' : 'search table missing');
+} else if (isAnchorDb) {
+    const articlesTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='articles'").get();
+    check('Anchor Schema', !!articlesTable, articlesTable ? 'articles table present' : 'articles table missing');
 } else if (hasEntitiesTable) {
 const columns = db.prepare("PRAGMA table_info(entities)").all().map(c => c.name);
 const requiredCols = [
@@ -106,16 +110,22 @@ const requiredCols = [
 const hasAllCols = requiredCols.every(c => columns.includes(c));
 check('Schema Completeness', hasAllCols, hasAllCols ? 'All V23.1 columns present' : `Missing: ${requiredCols.filter(c => !columns.includes(c))}`);
 } else {
-    check('Schema Completeness', false, 'entities table missing (legacy DB?)');
+    check('Schema Completeness', false, 'entities table missing (unknown DB type)');
 }
 
-// 5. Global Entity Accounting (Universal Sharding Fix — skip for FTS-only DBs and legacy DBs without entities table)
+// 5. Global Entity Accounting
 let totalCount = 0;
 if (isFtsDb) {
     totalCount = db.prepare('SELECT count(*) as c FROM search').get().c;
     check('FTS Entity Count', totalCount > 0, `${totalCount} FTS entries`);
+} else if (isAnchorDb) {
+    const hasArticles = !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='articles'").get();
+    if (hasArticles) {
+        totalCount = db.prepare('SELECT count(*) as c FROM articles').get().c;
+        check('Anchor Article Count', totalCount >= 0, `${totalCount} articles in ${dbName}`);
+    }
 } else if (!hasEntitiesTable) {
-    check('Global Entity Count', false, `no entities table in ${dbName} (legacy DB?)`);
+    check('Global Entity Count', false, `no entities table in ${dbName} (unknown DB type)`);
 } else if (isSearchDb || dbName.includes('core') || isHashShard) {
     totalCount = db.prepare('SELECT count(*) as c FROM entities').get().c;
     check('Global Entity Count', totalCount >= THRESHOLD, `${totalCount} in ${category || dbName} (min: ${THRESHOLD})`);
