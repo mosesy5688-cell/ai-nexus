@@ -145,6 +145,7 @@ jobs:
         env:
           CACHE_DIR: ./output/cache
           ARTIFACT_DIR: ./output/cache/registry
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: node scripts/factory/master-fusion.js
       - name: Tar Fused Entities
         run: tar -cf fused-entities.tar -C output/cache fused

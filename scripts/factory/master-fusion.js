@@ -108,10 +108,6 @@ async function main() {
                 // C. Project for VFS (Partitioned Registry Storage)
                 const projected = projectEntity(entity, false);
                 fusedEntities.push(projected);
-
-                // D. V22.8 EMERGENCY RESTORE: Write individual JSON for Legacy Frontend Support
-                const individualPath = path.join(outDir, `${entity.id}.json.gz`);
-                await fs.writeFile(individualPath, zlib.gzipSync(JSON.stringify(projected)));
             }
 
             // Write Partitioned Registry for VFS Packer support
