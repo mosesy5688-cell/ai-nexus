@@ -129,6 +129,7 @@ export class ShardWriter {
         header.writeUInt16LE(this.embeddingDim, 27);           // [27..28] EmbeddingDim
 
         fsSync.writeSync(this.fd, header, 0, SHARD_HEADER_SIZE, 0);
+        fsSync.fdatasyncSync(this.fd);
         fsSync.closeSync(this.fd);
         this.fd = null;
     }

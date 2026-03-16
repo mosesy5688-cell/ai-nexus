@@ -24,6 +24,12 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
     }
     try {
         const data = await fs.readFile(localPath);
+        // Guard: refuse to overwrite production data with suspiciously small files
+        const minBytes = opts.minSize ?? 1024; // default 1KB minimum
+        if (data.length < minBytes) {
+            console.error(`[R2-HANDOFF] BLOCKED: ${localPath} is only ${data.length}B (min ${minBytes}B). Refusing upload to prevent state wipe.`);
+            return { success: false, reason: 'below_minimum_size' };
+        }
         const ext = path.extname(r2Key).toLowerCase();
         const contentType = {
             '.json': 'application/json', '.gz': 'application/gzip',
