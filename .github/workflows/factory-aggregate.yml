@@ -334,6 +334,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
           STRICT_R2_LOCKDOWN: 'true'
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=search
@@ -380,6 +381,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
           STRICT_R2_LOCKDOWN: 'true'
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=rankings
@@ -437,6 +439,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
           STRICT_R2_LOCKDOWN: 'true'
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
@@ -486,6 +489,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
           STRICT_R2_LOCKDOWN: 'true'
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=7168"
           node scripts/factory/aggregator.js --task=relations
