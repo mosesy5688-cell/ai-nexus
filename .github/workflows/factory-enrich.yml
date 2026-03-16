@@ -80,6 +80,20 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
+            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+          " || true
 
       # Download dedup.db from R2
       - name: Restore Dedup Ledger from R2
