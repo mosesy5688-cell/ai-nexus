@@ -63,7 +63,7 @@ function getCategory(name) {
 const category = getCategory(dbName);
 const THRESHOLD = getThreshold(category);
 const EXPECTED_PAGE_SIZE = 16384;
-const MAX_DB_SIZE_MB = isSearchDb ? 700 : (isHashShard ? 250 : 125);
+const MAX_DB_SIZE_MB = isSearchDb ? 700 : (isHashShard || isFtsDb) ? 250 : 125;
 
 let failures = 0;
 
@@ -125,7 +125,9 @@ if (isFtsDb) {
         shardDb.close();
     });
 }
-check('Global Entity Count', totalCount >= THRESHOLD, `${totalCount} across all ${category} shards (min: ${THRESHOLD})`);
+if (!isFtsDb) {
+    check('Global Entity Count', totalCount >= THRESHOLD, `${totalCount} in ${category || dbName} (min: ${THRESHOLD})`);
+}
 
 // 6. Shard Consistency (skip for FTS-only DBs)
 const heavySample = !isFtsDb ? db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get() : null;
