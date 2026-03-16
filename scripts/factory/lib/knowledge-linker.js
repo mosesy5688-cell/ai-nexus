@@ -132,8 +132,10 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
     const relationsDir = path.join(outputDir, 'cache', 'relations');
     await fs.mkdir(relationsDir, { recursive: true });
 
-    // V25.8.3: Try Rust FFI fast path
-    const rustResult = computeKnowledgeLinksFFI(Buffer.from(JSON.stringify(entities)));
+    // V25.8.3: Try Rust FFI fast path (may fail on large data sets)
+    let rustResult = null;
+    try { rustResult = computeKnowledgeLinksFFI(Buffer.from(JSON.stringify(entities))); }
+    catch (e) { console.warn(`[KNOWLEDGE-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
     if (rustResult) {
         await fs.writeFile(path.join(relationsDir, 'knowledge-links.json.gz'), Buffer.from(rustResult.output_data));
         console.log(`  [KNOWLEDGE-LINKER] Rust FFI: ${rustResult.total_links} entities linked, ${rustResult.inverse_hubs} inverse hubs`);

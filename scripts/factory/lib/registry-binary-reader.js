@@ -128,7 +128,22 @@ export async function readBinaryShard(filePath) {
         try {
             entities.push(JSON.parse(payload.toString('utf-8')));
         } catch (e) {
-            console.warn(`[BINARY-READER] Entity parse error in ${shardName}[${i}]: ${e.message}`);
+            // V25.8.3: Retry with forced decryption — handles isValidPayload false positives
+            // where encrypted bytes randomly start with 0x7B22 ("{"), ~1/65536 chance per entity
+            let recovered = false;
+            if (isEncryptionEnabled()) {
+                try {
+                    let retry = decryptPayload(shardName, Buffer.from(data.subarray(offset, offset + size)), offset);
+                    if (retry.length >= 4 && retry.subarray(0, 4).equals(ZSTD_MAGIC) && _zstdDecompress) {
+                        retry = _zstdDecompress(retry);
+                    }
+                    entities.push(JSON.parse(retry.toString('utf-8')));
+                    recovered = true;
+                } catch { /* forced decrypt also failed */ }
+            }
+            if (!recovered) {
+                console.warn(`[BINARY-READER] Entity parse error in ${shardName}[${i}]: ${e.message}`);
+            }
         }
     }
 

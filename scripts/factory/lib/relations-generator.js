@@ -117,11 +117,10 @@ export async function generateRelations(entities, outputDir = './output') {
         }
     }
 
-    // V25.8.3: Try Rust FFI for graph building + gzip
-    const rustResult = buildRelationsGraphFFI(
-        Buffer.from(JSON.stringify(nodes)),
-        Buffer.from(JSON.stringify(allRelations))
-    );
+    // V25.8.3: Try Rust FFI for graph building + gzip (may fail on large data sets)
+    let rustResult = null;
+    try { rustResult = buildRelationsGraphFFI(Buffer.from(JSON.stringify(nodes)), Buffer.from(JSON.stringify(allRelations))); }
+    catch (e) { console.warn(`[RELATIONS] Rust FFI skipped (${e.message}). Using JS path.`); }
     if (rustResult) {
         await fs.writeFile(path.join(relationsDir, 'explicit.json.gz'), Buffer.from(rustResult.explicit_json));
         const legacyPath = path.join(cacheDir, 'relations.json.gz');
