@@ -25,7 +25,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
     let rustResult = null;
     try { rustResult = buildSearchIndexFFI(Buffer.from(JSON.stringify(entities))); }
     catch (e) { console.warn(`[SEARCH] Rust FFI skipped (${e.message}). Using JS path.`); }
-    if (rustResult) {
+    if (rustResult?.core_data && rustResult?.shards) {
         console.log(`[SEARCH] Rust FFI: ${rustResult.total_entities} entities, ${rustResult.shards.length} shards`);
         await fs.writeFile(path.join(searchDir, 'search-core.json.gz'), Buffer.from(rustResult.core_data));
         const shardingDir = path.join(searchDir, 'search');
