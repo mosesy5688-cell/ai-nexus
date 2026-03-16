@@ -135,10 +135,16 @@ jobs:
             cache/registry/
           key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: global-registry-
+      - name: Align Registry Cache for Fusion
+        run: |
+          mkdir -p output/cache/registry
+          [ -f "cache/global-registry.json.gz" ] && cp cache/global-registry.json.gz output/cache/ || true
+          [ -d "cache/registry" ] && cp -r cache/registry/* output/cache/registry/ 2>/dev/null || true
+          echo "✅ Registry aligned: $(ls output/cache/registry/ 2>/dev/null | wc -l) shards"
       - name: Execute Master Fusion
         env:
           CACHE_DIR: ./output/cache
-          ARTIFACT_DIR: ./cache/registry
+          ARTIFACT_DIR: ./output/cache/registry
         run: node scripts/factory/master-fusion.js
       - name: Tar Fused Entities
         run: tar -cf fused-entities.tar -C output/cache fused

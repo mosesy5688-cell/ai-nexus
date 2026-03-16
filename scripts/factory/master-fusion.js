@@ -36,21 +36,25 @@ async function main() {
         const thresholdPath = path.join(CONFIG.OUTPUT_DIR, 'cache/fni-thresholds.json');
         if (await fs.access(thresholdPath).then(() => true).catch(() => false)) {
             const data = await fs.readFile(thresholdPath, 'utf-8');
-            fniThresholds = JSON.parse(data);
-            const count = Object.keys(fniThresholds.scorePercentiles).length;
-            console.log(`  [OK] Loaded ${count} FNI percentiles and ${Object.keys(fniThresholds.citationCounts).length} citation weights.`);
+            const parsed = JSON.parse(data);
+            fniThresholds.scorePercentiles = parsed.scorePercentiles || {};
+            fniThresholds.citationCounts = parsed.citationCounts || {};
+            console.log(`  [OK] Loaded ${Object.keys(fniThresholds.scorePercentiles).length} FNI percentiles and ${Object.keys(fniThresholds.citationCounts).length} citation weights.`);
         } else {
             console.warn('  [WARN] fni-thresholds.json not found. Rank data will be stale.');
         }
     } catch (e) {
-        console.error('  [ERROR] Failed to load thresholds:', e.message);
+        console.error(`  [WARN] Failed to load thresholds: ${e.message}. Using defaults.`);
     }
 
     // 3. Iterative Shard Merge (Partitioned Output)
     const { projectEntity } = await import('./lib/registry-loader.js');
     // V22.8: Dynamically scan ARTIFACT_DIR for available shards (supports both shard-N and part-NNN naming)
     const artifactFiles = await fs.readdir(CONFIG.ARTIFACT_DIR).catch(() => []);
-    const shardFiles = artifactFiles.filter(f => f.endsWith('.json.gz')).sort();
+    // V25.8.3: Accept .bin (NXVF) + .json.gz + .json, with priority dedup (.bin > .json.gz > .json)
+    const shardFiles = artifactFiles.filter(f =>
+        f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.gz') || f.endsWith('.json'))
+    ).sort();
 
     if (shardFiles.length === 0) {
         console.log('  [WARN] No shard files found in ARTIFACT_DIR. Fusion will produce empty output.');
@@ -60,10 +64,17 @@ async function main() {
         const shardFile = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
 
         try {
-            const raw = await fs.readFile(shardFile);
-            const decompressed = zlib.gunzipSync(raw);
-            const shard = JSON.parse(decompressed.toString('utf-8'));
-            const shardEntities = shard.entities || [];
+            let shardEntities = [];
+            if (shardFiles[i].endsWith('.bin')) {
+                // V25.8.3: NXVF binary shard — delegate to binary reader
+                const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
+                shardEntities = readBinaryShard(shardFile) || [];
+            } else {
+                const raw = await fs.readFile(shardFile);
+                const decompressed = zlib.gunzipSync(raw);
+                const shard = JSON.parse(decompressed.toString('utf-8'));
+                shardEntities = shard.entities || [];
+            }
             let fusedEntities = [];
 
             const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
