@@ -23,7 +23,7 @@ import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
-const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 4 * 1024 * 1024; // V5.8: 4MB hard-cap per spec §1.1
+const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024; // V25.8 §1.1: 8MB hard-cap per spec
 
 async function packDatabase() {
     console.log('[VFS] 💎 Commencing Constitutional V23.1 Shard-DB Packing...');
@@ -118,7 +118,6 @@ async function packDatabase() {
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;
         if (bundleJson.length > THRESHOLD_KB * 1024) {
-            shardWriter.writePadding();
             if (shardWriter.wouldExceed(bundleJson.length, MAX_SHARD_SIZE)) {
                 currentShardName = shardWriter.nextShard();
             }
