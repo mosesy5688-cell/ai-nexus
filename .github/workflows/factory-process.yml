@@ -81,6 +81,28 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      # V25.8 §6.2: R2 fallback for Rust FFI binaries
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          if [ "$FOUND" -lt 6 ]; then
+            echo "⚠️ Only $FOUND/6 Rust binaries from cache. Restoring from R2 vault..."
+            node --input-type=module -e "
+              import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+              const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+              for (const c of crates) {
+                await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node');
+              }
+            " || echo '⚠️ R2 Rust FFI fallback unavailable'
+          else
+            echo "✅ All 6 Rust FFI binaries restored from cache"
+          fi
       - name: Setup Directories
         run: |
           rm -rf data/*.json cache/*.json
@@ -116,9 +138,27 @@ jobs:
             cycle-
           fail-on-cache-miss: false
           
+      # V25.8 §6.1: R2 fallback for harvest data (cross-workflow resilience)
+      - name: R2 Fallback for Harvest Data
+        if: steps.cache-harvest.outputs.cache-hit != 'true'
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          echo "⚠️ Cache miss for harvest data. Restoring from R2..."
+          node --input-type=module -e "
+            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            await restoreDirectoryFromR2('state/cycle-harvest/data/', 'data/');
+            await restoreDirectoryFromR2('state/cycle-harvest/cache/', 'cache/');
+            console.log('✅ Harvest data restored from R2');
+          "
+
       - name: "Diagnostic: Show Workspace State"
         run: |
-          echo "🔍 Diagnostic: Checking file structure after cache restore..."
+          echo "🔍 Diagnostic: Checking file structure after cache/R2 restore..."
           echo "Cache Hit: ${{ steps.cache-harvest.outputs.cache-hit }}"
           echo "--- data/ content ---"
           ls -R data || echo "data is missing"
@@ -185,6 +225,23 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          if [ "$FOUND" -lt 6 ]; then
+            echo "⚠️ Only $FOUND/6 Rust binaries. Restoring from R2 vault..."
+            node --input-type=module -e "
+              import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+              const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
+              for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
+            " || echo '⚠️ R2 Rust FFI fallback unavailable'
+          fi
 
       # V22.8: Restore from cache (replaces download-artifact for privacy)
       - name: Restore Entity Data from Cache

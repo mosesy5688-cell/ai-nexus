@@ -591,6 +591,22 @@ jobs:
             cache/
           key: cycle-${{ github.run_id }}-harvest
 
+      # V25.8 §6.1: Dual-write harvest output to R2 (cross-workflow resilience)
+      - name: Backup Harvest Cycle to R2
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node --input-type=module -e "
+            import { backupDirectoryToR2 } from './scripts/factory/lib/r2-handoff.js';
+            await backupDirectoryToR2('data/', 'state/cycle-harvest/data/', { extensions: ['.json', '.json.gz'] });
+            await backupDirectoryToR2('cache/', 'state/cycle-harvest/cache/');
+            console.log('✅ Harvest cycle backed up to R2 state/cycle-harvest/');
+          "
+
       # Pipeline Summary
       - name: Summary
         run: |
