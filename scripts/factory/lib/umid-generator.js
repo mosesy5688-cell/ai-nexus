@@ -38,8 +38,12 @@ export function generateUMID(canonicalId) {
  * @returns {number} Slot index 0..totalSlots-1
  */
 export function computeShardSlot(umid, totalSlots = 4096) {
-    // Parse first 8 hex chars as uint32 for JS-safe routing
-    const hash32 = parseInt(umid.substring(0, 8), 16) >>> 0;
+    // If input is not a hex UMID (e.g. slug/id fallback), hash it first for uniform distribution
+    let hex = umid;
+    if (!/^[0-9a-f]{8,}$/i.test(umid)) {
+        hex = crypto.createHash('md5').update(umid).digest('hex');
+    }
+    const hash32 = parseInt(hex.substring(0, 8), 16) >>> 0;
     return hash32 % totalSlots;
 }
 
