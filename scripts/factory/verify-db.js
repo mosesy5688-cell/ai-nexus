@@ -50,9 +50,12 @@ function getThreshold(category) {
  * meta-paper-shard-01.db -> paper
  * meta-dataset.db -> dataset
  */
+const isHashShard = /^meta-\d+\.db$/.test(dbName); // V5.8 hash-shard: meta-00.db ~ meta-15.db
+
 function getCategory(name) {
     if (name === 'search.db') return 'search';
     if (name.includes('core')) return 'core';
+    if (/^meta-\d+\.db$/.test(name)) return 'hash-shard';
     const match = name.match(/meta-([a-z]+)/);
     return match ? match[1] : null;
 }
@@ -108,7 +111,7 @@ let totalCount = 0;
 if (isFtsDb) {
     totalCount = db.prepare('SELECT count(*) as c FROM search').get().c;
     check('FTS Entity Count', totalCount > 0, `${totalCount} FTS entries`);
-} else if (isSearchDb || dbName.includes('core')) {
+} else if (isSearchDb || dbName.includes('core') || isHashShard) {
     totalCount = db.prepare('SELECT count(*) as c FROM entities').get().c;
 } else if (category) {
     // Collect all shards for this category
