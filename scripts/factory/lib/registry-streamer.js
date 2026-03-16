@@ -19,13 +19,16 @@ export class RegistryStreamer {
     }
 
     /**
-     * Push a single entity to the stream (O(1) memory)
+     * Push a single entity to the stream (O(1) memory, backpressure-safe)
      */
-    push(entity) {
+    async push(entity) {
         if (this.isClosed) throw new Error('[STREAMER] Cannot push to a closed stream.');
-        if (this.count > 0) this.gzip.write(',');
-        this.gzip.write(JSON.stringify(entity));
+        const chunk = (this.count > 0 ? ',' : '') + JSON.stringify(entity);
+        const ok = this.gzip.write(chunk);
         this.count++;
+        if (!ok) {
+            await new Promise(resolve => this.gzip.once('drain', resolve));
+        }
     }
 
     /**

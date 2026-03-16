@@ -62,19 +62,18 @@ async function loadKnowledgeLinks() {
 // Utility functions extracted to knowledge-utils.js per Art 5.1
 
 /**
- * Count entity references for a knowledge slug
- * V16.5: Fixed to use correct data structure from knowledge-linker
+ * Build slug→count index from knowledge links (O(N) once, O(1) per lookup).
+ * Replaces O(N*M) per-slug scan that would time out at 10M entities.
  */
-function countEntityRefs(knowledgeLinks, slug) {
-    if (!knowledgeLinks?.links) return 0;
-
-    let count = 0;
+function buildSlugCountIndex(knowledgeLinks) {
+    const counts = new Map();
+    if (!knowledgeLinks?.links) return counts;
     for (const link of knowledgeLinks.links) {
-        if (link.knowledge?.some(k => k.slug === slug)) {
-            count++;
+        for (const k of (link.knowledge || [])) {
+            counts.set(k.slug, (counts.get(k.slug) || 0) + 1);
         }
     }
-    return count;
+    return counts;
 }
 
 /**
@@ -88,8 +87,9 @@ export async function generateKnowledgeData(outputDir = './output') {
 
     await fs.mkdir(articlesDir, { recursive: true });
 
-    // Load knowledge links
+    // Load knowledge links + pre-build slug→count index (O(N) once)
     const knowledgeLinks = await loadKnowledgeLinks();
+    const slugCounts = buildSlugCountIndex(knowledgeLinks);
 
     // Scan markdown files
     const articles = [];
@@ -108,7 +108,7 @@ export async function generateKnowledgeData(outputDir = './output') {
                 const frontmatter = parseFrontmatter(content);
                 const sections = extractSections(content);
                 const category = getCategory(slug, CATEGORIES);
-                const refs = countEntityRefs(knowledgeLinks, slug);
+                const refs = slugCounts.get(slug) || 0;
 
                 // Build article JSON
                 const article = {
