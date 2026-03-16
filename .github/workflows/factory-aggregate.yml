@@ -104,7 +104,7 @@ jobs:
             output/shards
           key: cycle-${{ needs.check-upstream.outputs.process-id }}-shards
           restore-keys: |
-            cycle-
+            cycle-${{ github.ref_name }}-
 
       - name: Clean Environment Residue
         run: |
@@ -183,7 +183,7 @@ jobs:
             cache/
           key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
           restore-keys: |
-            cycle-
+            cycle-${{ github.ref_name }}-
 
       - name: Validate Context
         run: |

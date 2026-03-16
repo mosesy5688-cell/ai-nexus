@@ -23,27 +23,26 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
         const cacheDir = process.env.CACHE_DIR || './cache';
         const streamer = new RegistryStreamer(path.join(cacheDir, 'global-registry.json.gz'));
 
+        let shardsPatched = 0, totalShards = 0;
         await loadRegistryShardsSequentially(async (entities, shardIdx) => {
+            totalShards++;
             for (const e of entities) {
-                // Update scores/rankings in the deep (high-fidelity) entity
                 e.fni_percentile = rankingsMap.get(e.id) || 0;
-                
-                // V22.10 FIX: Propagate fresh FNI scores to shards
                 if (scoreMap && scoreMap.has(e.id)) {
                     const finalFni = scoreMap.get(e.id);
                     e.fni_score = finalFni;
                     e.fni = finalFni;
                 }
-
-                // Push slim version to monolith (O(1) memory)
-                // V22.8: Use deep projection (slim=false) to preserve README/long-text in monolith
                 await streamer.push(projectEntity(e, false));
             }
-            // Save the Deep (HF) shard back to disk (in the cache directory)
             await saveRegistryShard(shardIdx, entities);
+            shardsPatched++;
         }, { slim: false });
 
-        // Finalize monolith stream
+        // RISK-H1: Atomic guard — only finalize monolith if ALL shards succeeded
+        if (shardsPatched < totalShards) {
+            throw new Error(`[PERSISTENCE] Split-brain: only ${shardsPatched}/${totalShards} shards patched. Aborting monolith.`);
+        }
         await streamer.end();
         console.log(`[AGGREGATOR] ✅ High-Fidelity Registry Patching Complete.`);
     } else {

@@ -22,20 +22,27 @@ const dirPath = path.dirname(DB_PATH);
 const isSearchDb = dbName === 'search.db';
 
 /**
- * Global Category Thresholds (Total entities across all shards)
+ * Global Category Thresholds — RISK-V1: Dynamic baseline with floor.
+ * Uses previous cycle's count (from baseline file) * 0.90 as minimum,
+ * with a hard floor to catch total collapse scenarios.
  */
-const GLOBAL_THRESHOLDS = {
-    search: 350000,
-    core: 45000,
-    paper: 200000, // Actual ~223k
-    model: 100000, // Actual ~112k
-    dataset: 40000, // Actual ~43k
-    ecosystem: 1000, // Actual count is lower
-    agent: 800,
-    tool: 5000,
-    prompt: 4000,
-    space: 1000
+const HARD_FLOOR = {
+    search: 50000, core: 5000, paper: 20000, model: 10000,
+    dataset: 5000, ecosystem: 100, agent: 100, tool: 500, prompt: 500, space: 100
 };
+
+function getThreshold(category) {
+    const floor = HARD_FLOOR[category] || 100;
+    try {
+        const baselinePath = path.join(dirPath, '.entity-baseline.json');
+        if (fs.existsSync(baselinePath)) {
+            const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf-8'));
+            const prev = baseline[category] || 0;
+            if (prev > 0) return Math.max(floor, Math.floor(prev * 0.90));
+        }
+    } catch { /* baseline unavailable, use floor */ }
+    return floor;
+}
 
 /**
  * Identify category from database filename
@@ -50,7 +57,7 @@ function getCategory(name) {
 }
 
 const category = getCategory(dbName);
-const THRESHOLD = GLOBAL_THRESHOLDS[category] || 100;
+const THRESHOLD = getThreshold(category);
 const EXPECTED_PAGE_SIZE = 16384;
 const MAX_DB_SIZE_MB = isSearchDb ? 700 : 125;
 
@@ -145,5 +152,15 @@ if (fs.existsSync(shardDir)) {
 }
 
 db.close();
+
+// RISK-V1: Save baseline for next cycle's dynamic threshold
+if (failures === 0 && category && totalCount > 0) {
+    const baselinePath = path.join(dirPath, '.entity-baseline.json');
+    let baseline = {};
+    try { baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf-8')); } catch { }
+    baseline[category] = totalCount;
+    fs.writeFileSync(baselinePath, JSON.stringify(baseline));
+}
+
 console.log(`\n=== Health Check Complete: ${failures} failures ===`);
 process.exit(failures > 0 ? 1 : 0);

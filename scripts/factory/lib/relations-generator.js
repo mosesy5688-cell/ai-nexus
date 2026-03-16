@@ -128,16 +128,23 @@ export async function generateRelations(entities, outputDir = './output') {
         console.log(`  [RELATIONS] Rust FFI: ${rustResult.total_relations} relations`);
     } else {
         // JS fallback: build reverse lookup + write
+        // RISK-M2: Skip legacy reverse index if relation count exceeds V8 safe threshold
         const reverse = {};
+        const skipLegacy = allRelations.length > 5_000_000;
+        if (skipLegacy) console.warn(`  [RELATIONS] ${allRelations.length} relations exceeds 5M — skipping legacy reverse index to prevent V8 OOM`);
         for (const rel of allRelations) {
-            if (!reverse[rel.target_id]) reverse[rel.target_id] = [];
-            reverse[rel.target_id].push({ source_id: rel.source_id, source_type: rel.source_type, relation_type: rel.relation_type, confidence: rel.confidence || 1.0 });
+            if (!skipLegacy) {
+                if (!reverse[rel.target_id]) reverse[rel.target_id] = [];
+                reverse[rel.target_id].push({ source_id: rel.source_id, source_type: rel.source_type, relation_type: rel.relation_type, confidence: rel.confidence || 1.0 });
+            }
             if (!nodes[rel.target_id]) nodes[rel.target_id] = { t: rel.target_type || 'concept', f: 0 };
         }
         const v2Output = { _v: '14.5.2', _ts: new Date().toISOString(), _count: allRelations.length, _stats: counts, nodes, edges };
-        const legacyOutput = { relations: allRelations, reverse_lookup: reverse, stats: counts, _count: allRelations.length, _generated: new Date().toISOString() };
         await smartWriteWithVersioning('relations/explicit.json', v2Output, cacheDir, { compress: true });
-        await smartWriteWithVersioning('relations.json', legacyOutput, cacheDir, { compress: true });
+        if (!skipLegacy) {
+            const legacyOutput = { relations: allRelations, reverse_lookup: reverse, stats: counts, _count: allRelations.length, _generated: new Date().toISOString() };
+            await smartWriteWithVersioning('relations.json', legacyOutput, cacheDir, { compress: true });
+        }
     }
 
     console.log(`  [RELATIONS] ${allRelations.length} relations extracted`);
