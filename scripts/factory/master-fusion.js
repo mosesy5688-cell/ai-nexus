@@ -68,7 +68,8 @@ async function main() {
             if (shardFiles[i].endsWith('.bin')) {
                 // V25.8.3: NXVF binary shard — delegate to binary reader
                 const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
-                shardEntities = readBinaryShard(shardFile) || [];
+                const result = await readBinaryShard(shardFile);
+                shardEntities = result?.entities || [];
             } else {
                 const raw = await fs.readFile(shardFile);
                 const decompressed = zlib.gunzipSync(raw);
