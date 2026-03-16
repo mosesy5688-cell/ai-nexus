@@ -13,7 +13,7 @@ import Database from 'better-sqlite3';
 
 const ARGS = process.argv.slice(2);
 const dbArg = ARGS.find(a => a.startsWith('--db='))?.split('=')[1];
-const DB_PATH = dbArg || './output/data/meta-model-core.db';
+const DB_PATH = dbArg || './output/data/search.db';
 const CDN_BASE = 'https://cdn.free2aitools.com';
 
 async function probe() {
