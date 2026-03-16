@@ -132,6 +132,11 @@ Return exactly this JSON format:
         try {
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
             let cleanText = rawText.trim();
+            // RISK-R1: Reject empty, blocked, or non-JSON responses from Gemini
+            if (!cleanText || cleanText.length < 10) {
+                console.warn(`[AI] Empty/blocked response (${cleanText.length} chars). Rejecting.`);
+                return null;
+            }
             if (cleanText.startsWith('```')) {
                 const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
                 if (match) cleanText = match[1];
@@ -139,6 +144,12 @@ Return exactly this JSON format:
             aiContent = JSON.parse(cleanText);
         } catch (parseError) {
             console.warn(`[AI] JSON parse failed: ${parseError.message}`);
+            return null;
+        }
+
+        // RISK-R1: Validate required fields exist and are non-empty
+        if (!aiContent?.title || !aiContent?.summary || aiContent.summary.length < 50) {
+            console.warn(`[AI] Content validation failed: missing or truncated fields. Rejecting.`);
             return null;
         }
 

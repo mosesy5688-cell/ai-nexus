@@ -166,7 +166,7 @@ export async function computeAltRelations(entities, outputDir = './output') {
     let rustResult = null;
     try { rustResult = computeAltRelationsFFI(Buffer.from(JSON.stringify(entities))); }
     catch (e) { console.warn(`[ALT-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
-    if (rustResult) {
+    if (rustResult?.categories_data && rustResult?.meta_data) {
         for (const cat of rustResult.categories_data) {
             await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressed_data));
         }
