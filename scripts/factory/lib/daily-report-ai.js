@@ -3,7 +3,7 @@
  * Extracted from daily-report.js to comply with CES Art 5.1
  */
 
-const GEMINI_MODEL = 'gemini-3.0-pro';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
 
 // V25.8 Titan Armor V3: Exponential backoff + circuit breaker
 const TITAN_CONFIG = {

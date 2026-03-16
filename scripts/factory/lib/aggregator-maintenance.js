@@ -10,6 +10,24 @@ import { loadDailyAccum } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
 
 /**
+ * V25.8.3: Validate AES_CRYPTO_KEY when encrypted .bin shards exist.
+ * Prevents silent data drought that starves all satellite tasks.
+ */
+export async function validateCryptoEnv() {
+    const cacheDir = process.env.CACHE_DIR || './cache';
+    const regDir = path.join(cacheDir, 'registry');
+    try {
+        const files = await fs.readdir(regDir);
+        const hasBinShards = files.some(f => f.startsWith('part-') && f.endsWith('.bin'));
+        if (hasBinShards && (!process.env.AES_CRYPTO_KEY || process.env.AES_CRYPTO_KEY.length < 64)) {
+            console.error('[AGGREGATOR] ⚠ CRITICAL: Encrypted .bin shards detected but AES_CRYPTO_KEY is missing or invalid (<32 bytes).');
+            console.error('[AGGREGATOR] ⚠ Pass 1 will return 0 entities and ALL satellite tasks will fail.');
+            console.error('[AGGREGATOR] ⚠ Set AES_CRYPTO_KEY (64 hex chars / 32 bytes) in your environment.');
+        }
+    } catch { /* registry dir doesn't exist yet */ }
+}
+
+/**
  * Get week number for backup file naming
  */
 export function getWeekNumber() {

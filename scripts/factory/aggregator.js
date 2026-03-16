@@ -4,22 +4,19 @@ import path from 'path';
 import { generateRankings } from './lib/rankings-generator.js';
 import { generateSearchIndices } from './lib/search-indexer.js';
 import { generateTrending } from './lib/trending-generator.js';
-import { generateSitemap } from './lib/sitemap-generator.js';
-import { generateCategoryStats, getV6Category } from './lib/category-stats-generator.js';
+import { generateCategoryStats } from './lib/category-stats-generator.js';
 import { generateRelations } from './lib/relations-generator.js';
 import { generateMeshGraph } from './lib/mesh-graph-generator.js';
 import { computeAltRelations } from './lib/alt-linker.js';
 import { computeKnowledgeLinks } from './lib/knowledge-linker.js';
 import { generateKnowledgeData } from './lib/knowledge-data-generator.js';
 import { generateDailyReport, updateDailyAccumulator, shouldGenerateReport } from './lib/daily-report.js';
-
-import { loadFniHistory, loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
+import { loadFniHistory } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
-import { processShardsIteratively } from './lib/aggregator-utils.js';
-import { calculatePercentiles, updateFniHistory } from './lib/aggregator-metrics.js';
+import { updateFniHistory } from './lib/aggregator-metrics.js';
 import {
-    getWeekNumber, generateHealthReport, backupStateFiles
+    getWeekNumber, generateHealthReport, backupStateFiles, validateCryptoEnv
 } from './lib/aggregator-maintenance.js';
 import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-incremental.js';
 import { loadGlobalRegistry } from './lib/cache-manager.js';
@@ -50,6 +47,9 @@ async function main() {
     const rustStatus = initRustBridge();
     console.log(`[AGGREGATOR] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
 
+    // V25.8.3: Early AES_CRYPTO_KEY validation — detect encrypted .bin shards
+    await validateCryptoEnv();
+
     const startTime = Date.now();
     let entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json.gz';
 
@@ -69,9 +69,11 @@ async function main() {
     const { calculateGlobalStats, preProcessDeltas, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
     const { saveRegistryShard } = await import('./lib/registry-saver.js');
 
-    const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
-
-    const { rankingsMap, registryMap, scoreMap } = rankingsAndIndices;
+    const { rankingsMap, registryMap, scoreMap } = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    // V25.8.3: Fail-fast if Pass 1 produced empty data (AES key missing or shard corruption)
+    if (registryMap.size === 0) {
+        throw new Error('[CRITICAL] Pass 1 returned 0 entities. Check AES_CRYPTO_KEY is set and registry shards exist.');
+    }
     console.log(`✓ Global rankings and registry mapping aligned (including Mesh Impact).`);
 
     let successCount = 0;
@@ -169,7 +171,6 @@ async function main() {
         { name: 'Trending', id: 'trending', fn: () => generateTrending(rankedEntities, CONFIG.OUTPUT_DIR) },
         { name: 'Rankings', id: 'rankings', fn: () => generateRankings(rankedEntities, CONFIG.OUTPUT_DIR) },
         { name: 'Search', id: 'search', fn: () => generateSearchIndices(rankedEntities, CONFIG.OUTPUT_DIR) },
-        // { name: 'Sitemap', id: 'sitemap', fn: () => generateSitemap(rankedEntities, CONFIG.OUTPUT_DIR) }, // V19.2: Offloaded to factory-upload.yml (VFS Streaming)
         { name: 'CategoryStats', id: 'category', fn: () => generateCategoryStats(rankedEntities, CONFIG.OUTPUT_DIR) },
         {
             name: 'Relations', id: 'relations', fn: async () => {

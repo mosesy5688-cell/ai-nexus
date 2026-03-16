@@ -25,13 +25,20 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
         return;
     }
 
-    let validShards = shardFiles
-        .filter(f => f.startsWith('part-'))
-        .filter(f => {
-            const idx = parseInt(f.match(/part-(\d+)/)?.[1] || '-1');
-            return idx >= startShard && idx <= endShard;
-        })
-        .sort();
+    // V25.8.3: Dedup shards — prefer .bin > .json.gz > .json per shard index
+    const shardPriority = new Map(); // index -> { priority, filename }
+    for (const f of shardFiles) {
+        if (!f.startsWith('part-')) continue;
+        const idx = parseInt(f.match(/part-(\d+)/)?.[1] || '-1');
+        if (idx < startShard || idx > endShard) continue;
+        const prio = f.endsWith('.bin') ? 0 : f.endsWith('.json.gz') ? 1 : f.endsWith('.json') ? 2 : 99;
+        if (prio > 2) continue;
+        const existing = shardPriority.get(idx);
+        if (!existing || prio < existing.priority) {
+            shardPriority.set(idx, { priority: prio, filename: f });
+        }
+    }
+    const validShards = Array.from(shardPriority.values()).map(v => v.filename).sort();
 
     const inhibitR2 = process.env.AGGREGATOR_MODE === 'true' && !process.env.AGGREGATOR_FORCE_R2;
 
