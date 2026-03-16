@@ -89,10 +89,11 @@ const fileSizeMB = Math.round(fs.statSync(DB_PATH).size / 1024 / 1024);
 check('Memory Safety Scan', fileSizeMB <= MAX_DB_SIZE_MB, `${fileSizeMB}MB (limit: ${MAX_DB_SIZE_MB}MB)`);
 
 // 4. Schema Completeness (skip for FTS-only databases)
+const hasEntitiesTable = !isFtsDb && !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'").get();
 if (isFtsDb) {
     const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='search'").get();
     check('FTS5 Table', !!ftsTable, ftsTable ? 'search table present' : 'search table missing');
-} else {
+} else if (hasEntitiesTable) {
 const columns = db.prepare("PRAGMA table_info(entities)").all().map(c => c.name);
 const requiredCols = [
     'bundle_offset', 'bundle_size', 'shard_hash', 'is_trending', 'category', 'license', 'source_url',
@@ -104,33 +105,35 @@ const requiredCols = [
 ];
 const hasAllCols = requiredCols.every(c => columns.includes(c));
 check('Schema Completeness', hasAllCols, hasAllCols ? 'All V23.1 columns present' : `Missing: ${requiredCols.filter(c => !columns.includes(c))}`);
+} else {
+    check('Schema Completeness', false, 'entities table missing (legacy DB?)');
 }
 
-// 5. Global Entity Accounting (Universal Sharding Fix — skip for FTS-only DBs)
+// 5. Global Entity Accounting (Universal Sharding Fix — skip for FTS-only DBs and legacy DBs without entities table)
 let totalCount = 0;
 if (isFtsDb) {
     totalCount = db.prepare('SELECT count(*) as c FROM search').get().c;
     check('FTS Entity Count', totalCount > 0, `${totalCount} FTS entries`);
+} else if (!hasEntitiesTable) {
+    check('Global Entity Count', false, `no entities table in ${dbName} (legacy DB?)`);
 } else if (isSearchDb || dbName.includes('core') || isHashShard) {
     totalCount = db.prepare('SELECT count(*) as c FROM entities').get().c;
+    check('Global Entity Count', totalCount >= THRESHOLD, `${totalCount} in ${category || dbName} (min: ${THRESHOLD})`);
 } else if (category) {
-    // Collect all shards for this category
     const shardFiles = fs.readdirSync(dirPath).filter(f =>
         f.startsWith(`meta-${category}`) && f.endsWith('.db')
     );
-
-    shardFiles.forEach(f => {
+    for (const f of shardFiles) {
         const shardDb = new Database(path.join(dirPath, f), { readonly: true });
-        totalCount += shardDb.prepare('SELECT count(*) as c FROM entities').get().c;
+        const hasTable = !!shardDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'").get();
+        if (hasTable) totalCount += shardDb.prepare('SELECT count(*) as c FROM entities').get().c;
         shardDb.close();
-    });
-}
-if (!isFtsDb) {
+    }
     check('Global Entity Count', totalCount >= THRESHOLD, `${totalCount} in ${category || dbName} (min: ${THRESHOLD})`);
 }
 
-// 6. Shard Consistency (skip for FTS-only DBs)
-const heavySample = !isFtsDb ? db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get() : null;
+// 6. Shard Consistency (skip for FTS-only DBs and legacy DBs)
+const heavySample = hasEntitiesTable ? db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get() : null;
 if (heavySample) {
     const isShardFormat = heavySample.bundle_key.startsWith('data/fused-shard-');
     check('Shard Format', isShardFormat, heavySample.bundle_key);
