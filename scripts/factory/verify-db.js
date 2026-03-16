@@ -20,6 +20,7 @@ if (!fs.existsSync(DB_PATH)) {
 const dbName = path.basename(DB_PATH);
 const dirPath = path.dirname(DB_PATH);
 const isSearchDb = dbName === 'search.db';
+const isFtsDb = dbName === 'fts.db';
 
 /**
  * Global Category Thresholds — RISK-V1: Dynamic baseline with floor.
@@ -84,7 +85,11 @@ check('Page Size', pageSize === EXPECTED_PAGE_SIZE, `${pageSize} (expected: ${EX
 const fileSizeMB = Math.round(fs.statSync(DB_PATH).size / 1024 / 1024);
 check('Memory Safety Scan', fileSizeMB <= MAX_DB_SIZE_MB, `${fileSizeMB}MB (limit: ${MAX_DB_SIZE_MB}MB)`);
 
-// 4. Schema Completeness
+// 4. Schema Completeness (skip for FTS-only databases)
+if (isFtsDb) {
+    const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='search'").get();
+    check('FTS5 Table', !!ftsTable, ftsTable ? 'search table present' : 'search table missing');
+} else {
 const columns = db.prepare("PRAGMA table_info(entities)").all().map(c => c.name);
 const requiredCols = [
     'bundle_offset', 'bundle_size', 'shard_hash', 'is_trending', 'category', 'license', 'source_url',
@@ -96,10 +101,14 @@ const requiredCols = [
 ];
 const hasAllCols = requiredCols.every(c => columns.includes(c));
 check('Schema Completeness', hasAllCols, hasAllCols ? 'All V23.1 columns present' : `Missing: ${requiredCols.filter(c => !columns.includes(c))}`);
+}
 
-// 5. Global Entity Accounting (Universal Sharding Fix)
+// 5. Global Entity Accounting (Universal Sharding Fix — skip for FTS-only DBs)
 let totalCount = 0;
-if (isSearchDb || dbName.includes('core')) {
+if (isFtsDb) {
+    totalCount = db.prepare('SELECT count(*) as c FROM search').get().c;
+    check('FTS Entity Count', totalCount > 0, `${totalCount} FTS entries`);
+} else if (isSearchDb || dbName.includes('core')) {
     totalCount = db.prepare('SELECT count(*) as c FROM entities').get().c;
 } else if (category) {
     // Collect all shards for this category
@@ -115,8 +124,8 @@ if (isSearchDb || dbName.includes('core')) {
 }
 check('Global Entity Count', totalCount >= THRESHOLD, `${totalCount} across all ${category} shards (min: ${THRESHOLD})`);
 
-// 6. Shard Consistency
-const heavySample = db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get();
+// 6. Shard Consistency (skip for FTS-only DBs)
+const heavySample = !isFtsDb ? db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get() : null;
 if (heavySample) {
     const isShardFormat = heavySample.bundle_key.startsWith('data/fused-shard-');
     check('Shard Format', isShardFormat, heavySample.bundle_key);
