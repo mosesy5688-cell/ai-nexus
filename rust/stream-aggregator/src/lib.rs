@@ -4,6 +4,7 @@ use std::fs;
 use std::io::{BufReader, Read};
 use flate2::read::GzDecoder;
 
+mod nxvf;
 mod percentile;
 mod project;
 
@@ -40,21 +41,55 @@ pub fn stream_aggregate(shard_dir: String, output_path: String) -> Result<Aggreg
     })
 }
 
+/// Discover shard files with format priority: .bin > .json.gz > .json
+/// Prevents duplicate entities when stale legacy files coexist with binary shards.
 fn discover_shards(dir: &str) -> Result<Vec<String>> {
-    let mut files: Vec<String> = fs::read_dir(dir)
-        .map_err(|e| Error::from_reason(format!("Cannot read shard dir: {}", e)))?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with("part-") && (name.ends_with(".json.gz") || name.ends_with(".json"))
-            {
-                Some(entry.path().to_string_lossy().to_string())
-            } else {
-                None
-            }
-        })
-        .collect();
-    files.sort();
+    use std::collections::BTreeMap;
+
+    // Map shard index (e.g. "part-000") → (priority, full_path)
+    // Lower priority number = preferred format
+    let mut shard_map: BTreeMap<String, (u8, String)> = BTreeMap::new();
+
+    let entries = fs::read_dir(dir)
+        .map_err(|e| Error::from_reason(format!("Cannot read shard dir: {}", e)))?;
+
+    for entry in entries.filter_map(|e| e.ok()) {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("part-") {
+            continue;
+        }
+
+        let priority = if name.ends_with(".bin") {
+            0u8
+        } else if name.ends_with(".json.gz") {
+            1
+        } else if name.ends_with(".json") {
+            2
+        } else {
+            continue;
+        };
+
+        let index = name.split('.').next().unwrap_or("").to_string();
+        let path = entry.path().to_string_lossy().to_string();
+
+        let dominated = match shard_map.get(&index) {
+            Some((existing, _)) => priority < *existing,
+            None => true,
+        };
+        if dominated {
+            shard_map.insert(index, (priority, path));
+        }
+    }
+
+    let files: Vec<String> = shard_map.into_values().map(|(_, p)| p).collect();
+    let bin_count = files.iter().filter(|f| f.ends_with(".bin")).count();
+    let gz_count = files.len() - bin_count;
+    eprintln!(
+        "[RUST-STREAM] Discovered {} shards ({} binary, {} json.gz/json)",
+        files.len(),
+        bin_count,
+        gz_count
+    );
     Ok(files)
 }
 
@@ -85,6 +120,11 @@ fn extract_scores(files: &[String]) -> Result<Vec<(String, f64)>> {
 }
 
 pub(crate) fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>> {
+    // V25.8.3: Route .bin shards to native NXVF decoder (AES-CTR + Zstd)
+    if path.ends_with(".bin") {
+        return nxvf::read_binary_shard(path);
+    }
+
     let file = fs::File::open(path)
         .map_err(|e| Error::from_reason(format!("Cannot open {}: {}", path, e)))?;
 
@@ -117,7 +157,7 @@ pub(crate) fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>> 
 
 /// Fix malformed \uXXXX escape sequences that JS serializers can produce.
 /// Replaces incomplete \u escapes (fewer than 4 hex digits) with \uFFFD (replacement char).
-fn sanitize_json_escapes(input: &str) -> String {
+pub(crate) fn sanitize_json_escapes(input: &str) -> String {
     let bytes = input.as_bytes();
     let len = bytes.len();
     let mut result = Vec::with_capacity(len);
