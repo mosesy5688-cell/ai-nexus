@@ -17,7 +17,7 @@ import { initShardCrypto, encryptPayload } from './shard-crypto.js';
 const SHARD_HEADER_SIZE = 29;
 const SHARD_MAGIC = Buffer.from([0x4E, 0x58, 0x56, 0x46]); // "NXVF" (Nexus VFS)
 const SHARD_VERSION = 0x41; // 0x41 = V4.1 (backward compat: V4.0 was 0x04)
-const MAX_SHARDS = 512;
+const SHARD_WARN_THRESHOLD = 500;
 
 let _zstdCompress = null;
 
@@ -60,7 +60,7 @@ export class ShardWriter {
     }
 
     open() {
-        if (this.shardId >= MAX_SHARDS) { console.error('❌ Shard limit exceeded'); process.exit(1); }
+        if (this.shardId === SHARD_WARN_THRESHOLD) { console.warn(`[SHARD-WRITER] ⚠️ ${SHARD_WARN_THRESHOLD} shards reached — review MAX_SHARD_SIZE or entity density`); }
         if (this.fd) this.finalize();
         this.currentName = `${this.namePrefix}-${String(this.shardId).padStart(3, '0')}.bin`;
         const fullPath = path.join(this.outputDir, this.currentName);
