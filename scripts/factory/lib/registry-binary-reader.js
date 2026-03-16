@@ -6,7 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { initShardCrypto, decryptPayload } from './shard-crypto.js';
+import { initShardCrypto, decryptPayload, isEncryptionEnabled } from './shard-crypto.js';
 
 const HEADER_SIZE = 29;
 const NXVF_MAGIC = Buffer.from([0x4E, 0x58, 0x56, 0x46]);
