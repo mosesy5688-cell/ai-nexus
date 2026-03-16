@@ -420,9 +420,10 @@ jobs:
           # V25.8: Initialize with global configs, core DB, and new V25.8 assets
           WARM_URLS=(
             "https://cdn.free2aitools.com/data/shards_manifest.json"
-            "https://cdn.free2aitools.com/data/meta-model-core.db"
+            "https://cdn.free2aitools.com/data/search.db"
             "https://cdn.free2aitools.com/data/fts.db"
-            "https://cdn.free2aitools.com/data/meta.global.index"
+            "https://cdn.free2aitools.com/data/hot-shard.bin"
+            "https://cdn.free2aitools.com/data/vector-core.bin"
             "https://cdn.free2aitools.com/sitemap.xml"
             "https://cdn.free2aitools.com/cache/trending.json"
           )
