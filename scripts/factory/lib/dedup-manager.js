@@ -9,6 +9,7 @@
  */
 
 import Database from 'better-sqlite3';
+import fsSync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import { setupDatabasePragmas } from './pack-utils.js';
@@ -42,7 +43,6 @@ const DEDUP_SCHEMA = `
  */
 export function openLedger(dbPath = DEDUP_DB_PATH) {
     const dir = path.dirname(dbPath);
-    const fsSync = require('fs');
     if (!fsSync.existsSync(dir)) fsSync.mkdirSync(dir, { recursive: true });
 
     const db = new Database(dbPath);
