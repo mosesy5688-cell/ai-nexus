@@ -45,7 +45,7 @@ async function packDatabase() {
 
     const trendingMap = await loadTrendingMap(CACHE_DIR);
     const trendMap = await loadTrendMap(CACHE_DIR);
-    const metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
+    let metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
     // V5.8 §1.1: 16-way hash-based meta sharding — meta-${SlotID % 16}.db
     const META_SHARD_COUNT = 16;
@@ -170,6 +170,7 @@ async function packDatabase() {
         stats.packed++;
     }
 
+    Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
     searchDb.exec("COMMIT");
     ftsDb.exec("COMMIT");
     shardWriter.finalize(); // V25.8: Patch shard header + write offset table
