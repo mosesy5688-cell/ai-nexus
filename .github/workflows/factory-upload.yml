@@ -38,6 +38,7 @@ jobs:
   check-upstream:
     name: Check Upstream
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       upstream-run-id: ${{ steps.get-id.outputs.id }}
     steps:
@@ -62,6 +63,7 @@ jobs:
     name: Mesh Baking
     needs: check-upstream
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -99,6 +101,7 @@ jobs:
     name: Master Fusion
     needs: [mesh-baking, check-upstream]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -159,6 +162,7 @@ jobs:
     name: VFS Packing (Stable 1.0)
     needs: master-fusion
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -228,6 +232,7 @@ jobs:
     name: RSS Feeds
     needs: check-upstream
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -261,6 +266,7 @@ jobs:
     name: Final Upload to R2
     needs: [mesh-baking, master-fusion, vfs-packing, rss-feeds, check-upstream]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

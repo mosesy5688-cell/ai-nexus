@@ -29,6 +29,7 @@ jobs:
   check-upstream:
     name: Check Upstream Harvest
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       harvest-id: ${{ steps.get-ids.outputs.harvest-id }}
       process-id: ${{ steps.get-ids.outputs.process-id }}
@@ -68,6 +69,7 @@ jobs:
     name: Merge Core Registry
     needs: check-upstream
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
@@ -318,6 +320,7 @@ jobs:
     name: "Agg: Search Index"
     needs: merge-core
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -379,6 +382,7 @@ jobs:
     name: "Agg: Rankings"
     needs: merge-core
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -444,6 +448,7 @@ jobs:
     name: "Agg: Trending"
     needs: merge-core
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -515,6 +520,7 @@ jobs:
     name: "Agg: Knowledge Mesh"
     needs: merge-core
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -580,6 +586,7 @@ jobs:
     name: Finalize Aggregation
     needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
