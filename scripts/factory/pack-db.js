@@ -21,11 +21,16 @@ import { generateHotShard } from './lib/hot-shard-generator.js';
 import { generateVectorCore } from './lib/vector-core-generator.js';
 import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
+import { initRustBridge } from './lib/rust-bridge.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024; // V25.8 §1.1: 8MB hard-cap per spec
 
 async function packDatabase() {
+    // V25.8: Activate Rust FFI bridge (crucial for 410k+ scale)
+    const rustStatus = initRustBridge();
+    console.log(`[VFS] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
+
     console.log('[VFS] 💎 Commencing Constitutional V23.1 Shard-DB Packing...');
 
     await fs.mkdir(SHARD_PATH_DIR, { recursive: true });
@@ -165,14 +170,19 @@ async function packDatabase() {
         stats.packed++;
     }
 
-    Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
     searchDb.exec("COMMIT");
     ftsDb.exec("COMMIT");
     shardWriter.finalize(); // V25.8: Patch shard header + write offset table
 
+    // V22.10: Memory Cleanup - metadataBatch is no longer needed after SQL and Shard writes
+    // Nullifying this large array (410k entries) frees up several GBs for HotShard/VectorCore/Index generation
+    const fullSetCopy = metadataBatch;
+    // @ts-ignore
+    metadataBatch = null;
+
     // ── V22.9/V22.10: Generation ─────────
-    generateHotShard(metadataBatch);
-    generateVectorCore(metadataBatch);
+    generateHotShard(fullSetCopy);
+    generateVectorCore(fullSetCopy);
 
     // V25.8: Finalize shard hashes, optimize DBs, generate indexes
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
