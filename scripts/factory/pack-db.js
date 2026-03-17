@@ -185,8 +185,8 @@ async function packDatabase() {
     console.log('[VFS] Memory: metadataBatch disposed. Triggering Edge-Index...');
 
     // V25.8: Generate Edge Index in a fresh memory context (re-reads from disk)
-    const { generateEdgeIndex } = await import('./edge-index-gen.js');
-    const { generateMetaAnchors } = await import('./meta-anchors.js');
+    const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
+    const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();
     await generateMetaAnchors();
 
