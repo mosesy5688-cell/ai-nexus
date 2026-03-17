@@ -7,6 +7,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
+import { createR2Client, fetchAllR2ETags } from './lib/r2-helpers.js';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 // Configuration
 const CONFIG = {
@@ -47,7 +49,24 @@ async function main() {
         console.error(`  [WARN] Failed to load thresholds: ${e.message}. Using defaults.`);
     }
 
-    // 3. Iterative Shard Merge (Partitioned Output)
+    // 3. V25.8.3 T+1 Enrichment Fusion Sweep (Spec §3.1)
+    let enrichmentMap = new Map();
+    const r2 = createR2Client();
+    if (r2) {
+        console.log('[FUSION] Phase 3: Scanning R2 enrichment/fulltext/ for T+1 fusion...');
+        try {
+            const etags = await fetchAllR2ETags(r2, process.env.R2_BUCKET || 'ai-nexus-assets', ['enrichment/fulltext/']);
+            for (const key of etags.keys()) {
+                const m = key.match(/enrichment\/fulltext\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.gz$/);
+                if (m) enrichmentMap.set(m[1], key);
+            }
+            console.log(`  [OK] ${enrichmentMap.size} enriched papers ready for T+1 fusion`);
+        } catch (e) { console.warn(`  [WARN] Enrichment scan failed: ${e.message}`); }
+    } else {
+        console.log('[FUSION] Phase 3: No R2 credentials — skipping enrichment fusion');
+    }
+
+    // 4. Iterative Shard Merge (Partitioned Output)
     const { projectEntity } = await import('./lib/registry-loader.js');
     // V22.8: Dynamically scan ARTIFACT_DIR for available shards (supports both shard-N and part-NNN naming)
     const artifactFiles = await fs.readdir(CONFIG.ARTIFACT_DIR).catch(() => []);
@@ -106,7 +125,24 @@ async function main() {
                     entity.metrics.sm = Sm;
                 }
 
-                // C. Project for VFS (Partitioned Registry Storage)
+                // C. T+1 Enrichment Fusion (Spec §3.2: inject fulltext from 1.5 Density Booster)
+                if (entity.type === 'paper' && enrichmentMap.has(entity.umid) && r2) {
+                    try {
+                        const { Body } = await r2.send(new GetObjectCommand({
+                            Bucket: process.env.R2_BUCKET || 'ai-nexus-assets',
+                            Key: enrichmentMap.get(entity.umid)
+                        }));
+                        const chunks = []; for await (const c of Body) chunks.push(c);
+                        const fulltext = zlib.gunzipSync(Buffer.concat(chunks)).toString('utf-8');
+                        // Spec §2.2: SUCCESS (>1000 + headers) → has_fulltext=true; PARTIAL (200-1000) → content only
+                        if (fulltext.length > 200) {
+                            entity.body_content = fulltext;
+                            entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
+                        }
+                    } catch { /* non-fatal: keep original content */ }
+                }
+
+                // D. Project for VFS (Partitioned Registry Storage)
                 const projected = projectEntity(entity, false);
                 fusedEntities.push(projected);
             }
