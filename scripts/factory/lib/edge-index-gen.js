@@ -12,7 +12,8 @@ import fsSync from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import crypto from 'crypto';
-import { generateUMID, computeShardSlot } from './umid-generator.js';
+import { generateUMID } from './umid-generator.js';
+import { initRustBridge, computeShardSlotFFI } from './rust-bridge.js';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './output/data';
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
@@ -38,9 +39,12 @@ function bloomHash(key, seed) {
  */
 export async function generateEdgeIndex() {
     console.log('[EDGE-INDEX] Generating meta.global.index...');
+    
+    // Ensure Rust bridge is initialized for FFI acceleration
+    initRustBridge();
+    
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    // Collect all entity IDs from fused shards or registry
     const fusedDir = path.join(CACHE_DIR, 'fused');
     const indexEntries = [];
     const bloomFilter = Buffer.alloc(BLOOM_SIZE_BYTES, 0);
@@ -61,7 +65,8 @@ export async function generateEdgeIndex() {
                 if (!id) continue;
 
                 const umid = entity.umid || generateUMID(id);
-                const slotId = computeShardSlot(umid);
+                // V25.8: Use Rust FFI for shard slot routing
+                const slotId = computeShardSlotFFI(umid);
 
                 indexEntries.push({
                     umid,
@@ -89,24 +94,48 @@ export async function generateEdgeIndex() {
     // Sort by slot for binary search efficiency
     indexEntries.sort((a, b) => a.slot - b.slot || a.umid.localeCompare(b.umid));
 
-    // Write global index (gzipped for edge delivery)
-    const indexData = {
+    // V25.8: STREAMING WRITE to avoid OOM by stringifying 410k entities at once
+    const indexPath = path.join(OUTPUT_DIR, 'meta.global.index');
+    const writeStream = fsSync.createWriteStream(indexPath);
+    
+    // Create Gzip stream for the index
+    const gzip = zlib.createGzip();
+    gzip.pipe(writeStream);
+
+    // Initial Header
+    const header = {
         version: '4.0',
         generated: new Date().toISOString(),
         entityCount,
         slotCount: 4096,
-        entries: indexEntries.map(e => [e.umid, e.slot, e.id, e.type, e.bundleKey, e.bundleOffset, e.bundleSize])
     };
+    
+    gzip.write(JSON.stringify(header).slice(0, -1) + ',"entries":[');
 
-    const indexPath = path.join(OUTPUT_DIR, 'meta.global.index');
-    const compressed = zlib.gzipSync(JSON.stringify(indexData));
-    await fs.writeFile(indexPath, compressed);
+    for (let i = 0; i < indexEntries.length; i++) {
+        const e = indexEntries[i];
+        const entryArray = [e.umid, e.slot, e.id, e.type, e.bundleKey, e.bundleOffset, e.bundleSize];
+        const chunk = (i === 0 ? '' : ',') + JSON.stringify(entryArray);
+        
+        const ok = gzip.write(chunk);
+        if (!ok) {
+            await new Promise(resolve => gzip.once('drain', resolve));
+        }
+    }
+
+    gzip.write(']}');
+    gzip.end();
+
+    await new Promise((resolve, reject) => {
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+    });
 
     // Write Bloom Filter
     const bloomPath = path.join(OUTPUT_DIR, 'bloom-filter.bin');
     await fs.writeFile(bloomPath, bloomFilter);
 
-    const indexSizeMB = (compressed.length / 1024 / 1024).toFixed(2);
+    const indexSizeMB = (fsSync.statSync(indexPath).size / 1024 / 1024).toFixed(2);
     const bloomSizeMB = (BLOOM_SIZE_BYTES / 1024 / 1024).toFixed(0);
 
     console.log(`[EDGE-INDEX] Complete.`);
