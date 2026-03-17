@@ -554,6 +554,20 @@ jobs:
           mkdir -p cache/registry cache/fni-history cache/daily-accum
           node scripts/factory/lib/r2-registry-restore.js
 
+      # V25.8.3: Purge legacy .json.gz ghost files from registry directory to prevent reader collision.
+      - name: Purge Legacy Registry Ghosts
+        run: |
+          if [ -d "cache/registry" ]; then
+            GHOST_COUNT=$(find cache/registry -name 'part-*.json.gz' -o -name 'part-*.json' 2>/dev/null | wc -l)
+            if [ "$GHOST_COUNT" -gt 0 ]; then
+              echo "🧹 Purging $GHOST_COUNT legacy .json.gz ghost files from cache/registry/"
+              find cache/registry -name 'part-*.json.gz' -delete 2>/dev/null || true
+              find cache/registry -name 'part-*.json' -delete 2>/dev/null || true
+            fi
+            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+            echo "✅ Registry: $BIN_COUNT binary shards, 0 legacy ghosts"
+          fi
+
       - name: Merge Batches
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -561,6 +575,8 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          UMID_SALT: ${{ secrets.UMID_SALT }}
           ALLOW_R2_RECOVERY: 'true'
         run: |
           echo "🔄 Merging batches with ID deduplication..."
