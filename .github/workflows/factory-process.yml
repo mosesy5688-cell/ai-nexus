@@ -29,6 +29,7 @@ jobs:
   check-upstream:
     name: Check Upstream
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       upstream-run-id: ${{ steps.get-run-id.outputs.run_id }}
     steps:
@@ -63,6 +64,7 @@ jobs:
     name: Prepare Entity Data
     needs: check-upstream
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -195,6 +197,7 @@ jobs:
     name: Shard ${{ matrix.shard }}
     needs: [check-upstream, prepare-data]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
@@ -356,6 +359,7 @@ jobs:
     name: Save Shards to Cache
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -419,6 +423,7 @@ jobs:
     name: Finalize Processing
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
