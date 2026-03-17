@@ -175,18 +175,22 @@ async function packDatabase() {
     ftsDb.exec("COMMIT");
     shardWriter.finalize(); // V25.8: Patch shard header + write offset table
 
-    // V22.10: Memory Cleanup - metadataBatch is no longer needed after SQL and Shard writes
-    // Nullifying this large array (410k entries) frees up several GBs for HotShard/VectorCore/Index generation
-    const fullSetCopy = metadataBatch;
-    // @ts-ignore
-    metadataBatch = null;
-
-    // ── V22.9/V22.10: Generation ─────────
-    generateHotShard(fullSetCopy);
-    generateVectorCore(fullSetCopy);
-
-    // V25.8: Finalize shard hashes, optimize DBs, generate indexes
+    // V25.8: Finalize shard hashes, optimize DBs
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
+
+    // V22.10: CRITICAL MEMORY DISPOSAL
+    // Destroy the giant 410k entity array BEFORE re-reading it from disk for indexing.
+    // This frees ~5GB of Heap for the next stage.
+    metadataBatch = null;
+    console.log('[VFS] Memory: metadataBatch disposed. Triggering Edge-Index...');
+
+    // V25.8: Generate Edge Index in a fresh memory context (re-reads from disk)
+    const { generateEdgeIndex } = await import('./edge-index-gen.js');
+    const { generateMetaAnchors } = await import('./meta-anchors.js');
+    await generateEdgeIndex();
+    await generateMetaAnchors();
+
+    console.log('[VFS] V25.8 Shard-DB Packing Complete.');
 }
 
 packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });

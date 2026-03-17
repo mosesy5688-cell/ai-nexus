@@ -60,11 +60,5 @@ export async function finalizePack(metaDbs, searchDb, ftsDb, manifest, currentSh
     ftsDb.close();
     console.log('[VFS] V5.8: fts.db decoupled, WAL checkpointed, optimized.');
 
-    // V25.8: Generate Edge Index and Meta Anchors
-    const { generateEdgeIndex } = await import('./edge-index-gen.js');
-    const { generateMetaAnchors } = await import('./meta-anchors.js');
-    await generateEdgeIndex();
-    await generateMetaAnchors();
-
-    console.log('[VFS] V25.8 Shard-DB Packing Complete.');
+    console.log('[VFS] V5.8: fts.db decoupled, WAL checkpointed, optimized.');
 }
