@@ -12,8 +12,8 @@ const EDGE_CACHE_TTL = 3600; // 1 hour edge cache
 export async function GET({ request, locals }) {
     const env = locals.runtime?.env;
 
-    if (!env || !env.R2_FILES) {
-        console.error('[VFS-PROXY] R2_FILES binding missing in runtime env.');
+    if (!env || !env.R2_ASSETS) {
+        console.error('[VFS-PROXY] R2_ASSETS binding missing in runtime env.');
         return new Response('Environment Error', { status: 500 });
     }
 

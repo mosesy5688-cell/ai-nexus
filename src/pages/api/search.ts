@@ -89,7 +89,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
     try {
         const env = (locals as any).runtime?.env || {};
-        const r2Bucket = env?.R2_FILES;
+        const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
         const shouldSimulate = !!env?.SIMULATE_PRODUCTION || (isDev && env?.NODE_ENV !== 'production');
         const manifest = await loadManifest(r2Bucket, shouldSimulate);

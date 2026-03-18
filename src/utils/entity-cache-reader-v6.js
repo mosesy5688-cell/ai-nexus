@@ -41,7 +41,7 @@ export async function getToolFromCache(slug, locals) {
 export async function getRelatedEntities(entityId, locals) {
     if (!entityId) return [];
 
-    const r2 = locals?.runtime?.env?.R2_FILES;
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
     if (!r2) {
         console.warn('[RelationsCache] R2 not available');
         return [];

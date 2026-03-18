@@ -5,7 +5,7 @@ type R2Bucket = import('@cloudflare/workers-types').R2Bucket;
 
 interface Env {
     AI: any;
-    R2_FILES: R2Bucket;
+    R2_ASSETS: R2Bucket;
 }
 
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;

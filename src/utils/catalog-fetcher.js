@@ -30,7 +30,7 @@ export async function fetchCatalogData(type, runtime = null) {
 
 async function _fetchCatalogDataInner(type, runtime, start) {
     const env = (runtime)?.env || (runtime) || {};
-    const r2Bucket = env.R2_FILES;
+    const r2Bucket = env.R2_ASSETS;
 
     // V23.1 Simulation Guard
     const isDev = !!import.meta.env?.DEV;

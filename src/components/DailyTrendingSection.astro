@@ -25,8 +25,8 @@ try {
     const paths = ['cache/trending.json.gz', 'cache/trending.json'];
     
     // TIER 1: R2 Direct
-    if (runtime?.env?.R2_FILES) {
-        const r2 = runtime.env.R2_FILES;
+    if (runtime?.env?.R2_ASSETS) {
+        const r2 = runtime.env.R2_ASSETS;
         for (const p of paths) {
             const file = await r2.get(p);
             if (file) {
