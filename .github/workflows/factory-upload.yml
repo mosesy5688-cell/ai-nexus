@@ -403,6 +403,12 @@ jobs:
           else
             echo "⚠️ No VFS DBs found in output — skipping health check"
           fi
+      # V25.8.3: Feed Density Booster Queue — onboard entities into dedup.db
+      - name: Sync Ledger (Feed 1.5)
+        env:
+          CACHE_DIR: ./output/cache
+          DEDUP_DB_PATH: ./output/data/dedup.db
+        run: node scripts/factory/sync-ledger.js
       - name: Upload to R2 via S3 API
         env:
           # V22.9.6: Removed cache/fused/ (~290K PUTs) and cache/mesh/profiles/ (~10K PUTs)
@@ -485,6 +491,34 @@ jobs:
         run: |
           echo "🏥 Triggering Daily Health Check..."
           gh workflow run global-health-monitor.yml
+        continue-on-error: true
+
+      # V25.8.3: Upload dedup.db to state/ for Factory 1.5 consumption
+      # factory-enrich.yml downloads from state/dedup.db, not data/dedup.db
+      - name: Upload Dedup Ledger to R2 State
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ -f "output/data/dedup.db" ]; then
+            node --input-type=module -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import { PutObjectCommand } from '@aws-sdk/client-s3';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (!s3) process.exit(0);
+              const data = fs.readFileSync('output/data/dedup.db');
+              await s3.send(new PutObjectCommand({
+                Bucket: 'ai-nexus-assets', Key: 'state/dedup.db',
+                Body: data, ContentType: 'application/x-sqlite3'
+              }));
+              console.log('✅ dedup.db uploaded to state/dedup.db for Factory 1.5');
+            "
+          else
+            echo "⚠️ No dedup.db found — Factory 1.5 will have empty queue"
+          fi
         continue-on-error: true
 
       # V25.8.3: Recursion Bypass — workflow_run chain depth limit is 3.

@@ -178,6 +178,11 @@ async function packDatabase() {
     // V25.8: Finalize shard hashes, optimize DBs
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 
+    // V25.8.3: Generate Hot Shard + Vector Core BEFORE disposing metadataBatch
+    // metadataBatch is already sorted by FNI (stable popularity sort) — perfect for top-30k extraction
+    generateHotShard(metadataBatch);
+    generateVectorCore(metadataBatch);
+
     // V22.10: CRITICAL MEMORY DISPOSAL
     // Destroy the giant 410k entity array BEFORE re-reading it from disk for indexing.
     // This frees ~5GB of Heap for the next stage.
