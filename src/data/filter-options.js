@@ -34,7 +34,7 @@ export const sizeOptions = [
 
 export const contextOptions = [
     { value: '', label: 'Any Context' },
-    { value: '0-4096', label: 'â‰¤ 4K' },
+    { value: '0-4096', label: 'â‰?4K' },
     { value: '4096-8192', label: '4K-8K' },
     { value: '8192-32768', label: '8K-32K' },
     { value: '32768-131072', label: '32K-128K' },

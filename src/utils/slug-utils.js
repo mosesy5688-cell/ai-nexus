@@ -31,13 +31,13 @@ export function normalizeSlug(slug) {
     // Rule 2: Trim
     normalized = normalized.trim();
 
-    // Rule 3: Space â†’ dash
+    // Rule 3: Space â†?dash
     normalized = normalized.replace(/\s+/g, '-');
 
-    // Rule 4: Slash â†’ dash
+    // Rule 4: Slash â†?dash
     normalized = normalized.replace(/\//g, '-');
 
-    // Rule 5: Underscore â†’ dash
+    // Rule 5: Underscore â†?dash
     normalized = normalized.replace(/_/g, '-');
 
     // Rule 6: Dot Preservation (V21.0 Standard)

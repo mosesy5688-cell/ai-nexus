@@ -83,15 +83,15 @@ export interface Entity {
  * Entity relation types for graph
  */
 export type EntityRelationType =
-    | 'trained_on'       // Model â†’ Dataset
-    | 'fine_tuned_on'    // Model â†’ Dataset
-    | 'introduced_by'    // Model/Dataset â†’ Paper
-    | 'evaluated_on'     // Model â†’ Benchmark
-    | 'powers'           // Model â†’ Agent
-    | 'runs_on'          // Model â†’ Hardware
-    | 'cites'            // Paper â†’ Paper
-    | 'used_by'          // Dataset â†’ Model
-    | 'published_by';    // Entity â†’ Organization
+    | 'trained_on'       // Model â†?Dataset
+    | 'fine_tuned_on'    // Model â†?Dataset
+    | 'introduced_by'    // Model/Dataset â†?Paper
+    | 'evaluated_on'     // Model â†?Benchmark
+    | 'powers'           // Model â†?Agent
+    | 'runs_on'          // Model â†?Hardware
+    | 'cites'            // Paper â†?Paper
+    | 'used_by'          // Dataset â†?Model
+    | 'published_by';    // Entity â†?Organization
 
 /**
  * Entity relation for internal linking

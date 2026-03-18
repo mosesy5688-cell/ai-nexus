@@ -19,7 +19,7 @@ const {
   maxPreviewLength = 8000
 } = Astro.props;
 
-// V25.1: Prefer pre-compiled html_readme from VFS Bundle â€” zero SSR marked.parse() overhead
+// V25.1: Prefer pre-compiled html_readme from VFS Bundle â€?zero SSR marked.parse() overhead
 const usePrecompiledHtml = !!(htmlReadme && htmlReadme.length > 10);
 const rawContent = usePrecompiledHtml ? '' : (bodyContent || '').replace(/^[\s\n]*---\s*[\s\S]*?---\s*\n*/g, '');
 function getTitle(type: string, manualTitle: string) {
@@ -61,7 +61,7 @@ const hasLongContent = content.length > maxPreviewLength;
       <button id="readme-toggle-top" 
               class="text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-400 transition-colors flex items-center gap-2 group/top">
          <span class="toggle-text">Full Specifications</span>
-         <span class="icon transition-transform group-hover/top:translate-y-0.5">â†“</span>
+         <span class="icon transition-transform group-hover/top:translate-y-0.5">â†?/span>
       </button>
     )}
   </div>
@@ -105,7 +105,7 @@ const hasLongContent = content.length > maxPreviewLength;
         <span class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] group-hover:scale-110 transition-transform toggle-text">Expand full {toggleLabel}</span>
         <div class="flex flex-col items-center">
            <div class="w-px h-8 bg-gradient-to-b from-indigo-500 to-transparent toggle-line transition-all"></div>
-           <span class="text-indigo-500 text-xs mt-1 animate-bounce toggle-icon">â†“</span>
+           <span class="text-indigo-500 text-xs mt-1 animate-bounce toggle-icon">â†?/span>
         </div>
       </button>
     </div>

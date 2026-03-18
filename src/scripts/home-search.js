@@ -2,7 +2,7 @@
 // V22.10: SSR-Unified Search Orchestrator
 // Tier 1: hot-shard.bin (browser memory, 0ms)
 // Tier 2: /api/search (SSR, meta.db FTS5/B-Tree, ~50ms)
-// Browser no longer loads WASM SQLite â€” all SQL runs server-side.
+// Browser no longer loads WASM SQLite â€?all SQL runs server-side.
 
 import {
     loadHotShard,
@@ -13,7 +13,7 @@ import {
 } from "./search-shard-engine.js";
 
 // V22.10: SSR search state (replaces WASM VFS state)
-let isApiReady = true; // SSR API is always ready â€” no WASM to load
+let isApiReady = true; // SSR API is always ready â€?no WASM to load
 
 export async function initSearch() {
     // V22.10: Load hot shard eagerly. No WASM SQLite to initialize.
@@ -27,7 +27,7 @@ export async function loadFullSearchIndex(onProgress) {
 }
 
 /**
- * V22.10: Perform Search via Tier 1 â†’ Tier 2 Cascade
+ * V22.10: Perform Search via Tier 1 â†?Tier 2 Cascade
  * Tier 1: searchShardPool() (browser memory, 0ms)
  * Tier 2: fetch /api/search (SSR, meta.db FTS5/B-Tree)
  */

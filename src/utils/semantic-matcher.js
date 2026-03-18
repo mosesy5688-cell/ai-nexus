@@ -7,7 +7,7 @@
  * Implements circuit breaker pattern for resilience
  * 
  * Thresholds (Constitution V4.3.2):
- * - â‰¥ 0.88: ACCEPT (high confidence match)
+ * - â‰?0.88: ACCEPT (high confidence match)
  * - 0.65-0.88: REVIEW (needs manual verification)
  * - < 0.65: REJECT (no match)
  */

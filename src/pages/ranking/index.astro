@@ -27,7 +27,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
   },
   'automation-workflow': {
     label: 'Automation',
-    icon: 'âš¡',
+    icon: 'âš?,
     description: 'AI agents and autonomous workflow frameworks.',
     href: '/automation-workflow'
   },
@@ -41,7 +41,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
 
 // V23.6: VFS-Only Category Counts (replaces CDN category_stats.json)
 const env = ((Astro as any).locals.runtime)?.env || {};
-const r2Bucket = env.R2_FILES;
+const r2Bucket = env.R2_ASSETS;
 const isDev = !!import.meta.env?.DEV;
 const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== 'production');
 

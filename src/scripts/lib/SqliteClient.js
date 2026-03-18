@@ -26,7 +26,7 @@ class BrowserRangeVFS extends FacadeVFS {
         return ['xOpen', 'xAccess', 'xRead', 'xFileSize'].includes(methodName);
     }
 
-    // V25.1: Zero-Handshake â€” no HEAD request. Size detected lazily from Content-Range.
+    // V25.1: Zero-Handshake â€?no HEAD request. Size detected lazily from Content-Range.
     _ensureState(name) {
         if (!this.fileStates.has(name)) {
             this.fileStates.set(name, { size: 0, etag: 'v25-trust', sizeKnown: false });
@@ -52,7 +52,7 @@ class BrowserRangeVFS extends FacadeVFS {
         const length = pData.byteLength;
         const chunkIndex = Math.floor(iOffset / CHUNK_SIZE);
         const chunkOffset = iOffset % CHUNK_SIZE;
-        const cacheKey = `${fileName}-v25-${chunkIndex}`; // V25.1: Static version key â€” Atomic Purge guarantees freshness
+        const cacheKey = `${fileName}-v25-${chunkIndex}`; // V25.1: Static version key â€?Atomic Purge guarantees freshness
 
         try {
             // --- L0 Cache (In-Memory) ---

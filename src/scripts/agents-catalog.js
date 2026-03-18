@@ -96,7 +96,7 @@ export async function initAgentsCatalog(initialData = []) {
           </span>
           ${item.fni_score > 0 ? `
             <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
-               üõ°Ô∏è ${Math.round(item.fni_score)}
+               üõ°Ô∏?${Math.round(item.fni_score)}
             </span>
           ` : ''}
         </div>
@@ -127,13 +127,13 @@ export async function initAgentsCatalog(initialData = []) {
 
         let html = '';
         // Prev
-        html += `<button class="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'}" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‚Üê Prev</button>`;
+        html += `<button class="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 ${currentPage === 1 ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'}" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‚Ü?Prev</button>`;
 
         // Page Info
         html += `<span class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">Page ${currentPage} of ${totalPages}</span>`;
 
         // Next
-        html += `<button class="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'}" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Next ‚Üí</button>`;
+        html += `<button class="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 ${currentPage === totalPages ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'}" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Next ‚Ü?/button>`;
 
         pagination.innerHTML = html;
 

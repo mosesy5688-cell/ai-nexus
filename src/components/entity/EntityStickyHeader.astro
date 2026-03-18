@@ -8,7 +8,7 @@ const { type, entity, displayId } = Astro.props;
 
 <div id="sticky-header" class="fixed top-0 left-0 right-0 z-50 glass-effect shadow-lg transform -translate-y-full transition-all duration-500 lg:hidden px-4 py-3 flex items-center justify-between border-b border-gray-200/50 dark:border-gray-800/50">
   <div class="flex items-center gap-3 min-w-0">
-    <span class="text-xl">{type === 'model' ? '🧠' : type === 'agent' ? '🤖' : type === 'dataset' ? '📊' : type === 'paper' ? '📄' : type === 'space' ? '🎮' : '🛠️'}</span>
+    <span class="text-xl">{type === 'model' ? '🧠' : type === 'agent' ? '🤖' : type === 'dataset' ? '📊' : type === 'paper' ? '📄' : type === 'space' ? '🎮' : '🛠�?}</span>
     <div class="flex flex-col truncate">
       <span class="font-black text-gray-900 dark:text-gray-100 truncate text-sm leading-tight">{entity.name || entity.title || displayId}</span>
       <span class="text-[10px] text-gray-500 font-bold uppercase tracking-tighter opacity-70">{type} by {entity.author && entity.author !== 'Unknown' ? entity.author : 'Independent / Community'}</span>
@@ -19,7 +19,7 @@ const { type, entity, displayId } = Astro.props;
   <div class="flex items-center gap-3">
     {entity.fni_score && (
       <div class="px-2 py-0.5 bg-indigo-600 text-white rounded shadow-fni-pulse text-[10px] font-black flex items-center gap-1 animate-pulse-subtle">
-         <span class="opacity-80">⭐</span> {entity.fni_score}
+         <span class="opacity-80">�?/span> {entity.fni_score}
       </div>
     )}
     <slot name="actions-mobile" />

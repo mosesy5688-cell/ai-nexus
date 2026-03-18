@@ -7,14 +7,14 @@ export const ARXIV_TAXONOMY = {
     // Computer Science
     'cs.AI': { label: 'Artificial Intelligence', icon: '🤖', color: '#6366f1' },
     'cs.LG': { label: 'Machine Learning', icon: '🧠', color: '#8b5cf6' },
-    'cs.CL': { label: 'Computation and Language', icon: '🗣️', color: '#10b981' },
-    'cs.CV': { label: 'Computer Vision', icon: '👁️', color: '#f59e0b' },
+    'cs.CL': { label: 'Computation and Language', icon: '🗣�?, color: '#10b981' },
+    'cs.CV': { label: 'Computer Vision', icon: '👁�?, color: '#f59e0b' },
     'cs.NE': { label: 'Neural and Evolutionary Computing', icon: '🧬', color: '#ef4444' },
     'cs.RO': { label: 'Robotics', icon: '🦾', color: '#64748b' },
     'cs.IR': { label: 'Information Retrieval', icon: '🔍', color: '#06b6d4' },
     'cs.GT': { label: 'Computer Science and Game Theory', icon: '🎮', color: '#ec4899' },
     'cs.CY': { label: 'Computers and Society', icon: '⚖️', color: '#71717a' },
-    'cs.CR': { label: 'Cryptography and Security', icon: '🛡️', color: '#3f3f46' },
+    'cs.CR': { label: 'Cryptography and Security', icon: '🛡�?, color: '#3f3f46' },
     'cs.DC': { label: 'Distributed, Parallel, and Cluster Computing', icon: '⛓️', color: '#14b8a6' },
     'cs.DS': { label: 'Data Structures and Algorithms', icon: '🧱', color: '#f97316' },
 

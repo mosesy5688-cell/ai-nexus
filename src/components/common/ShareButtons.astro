@@ -105,7 +105,7 @@ const shareLinks = [
     copyBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(copyBtn.dataset.url || window.location.href);
-        copyBtn.textContent = '✓';
+        copyBtn.textContent = '�?;
         setTimeout(() => copyBtn.textContent = '🔗', 1500);
       } catch (e) {
         console.error('Copy failed:', e);

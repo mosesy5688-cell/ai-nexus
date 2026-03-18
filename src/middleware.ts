@@ -25,7 +25,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
             response.headers.set('X-Guardian-Time', `${(performance.now() - startTime).toFixed(2)}ms`);
             response.headers.set('X-Guardian-Version', 'v18.12.5-resilient');
         } catch {
-            // Response has immutable headers (redirects, static assets) â€” return as-is
+            // Response has immutable headers (redirects, static assets) â€?return as-is
         }
 
         return response;

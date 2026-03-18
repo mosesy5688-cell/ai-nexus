@@ -2,7 +2,7 @@
 /**
  * BenchmarkRawTable Component V4.8.1
  * Full benchmark data display per Art.1-E (Content Completeness)
- * "‚ùå No Top Line only" - shows all raw scores with source
+ * "‚ù?No Top Line only" - shows all raw scores with source
  */
 
 interface Props {
@@ -17,8 +17,8 @@ let benchmarkData: any = null;
 
 try {
     const runtime = Astro.locals.runtime;
-    if (runtime?.env?.R2_FILES) {
-        const r2 = runtime.env.R2_FILES;
+    if (runtime?.env?.R2_ASSETS) {
+        const r2 = runtime.env.R2_ASSETS;
         const cacheFile = await r2.get('cache/benchmarks.json');
         if (cacheFile) {
             const cache = await cacheFile.json() as any;

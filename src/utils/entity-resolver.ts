@@ -3,7 +3,7 @@
  * V4.9 Entity-First Architecture
  * 
  * Resolves entity ID/slug to entity type and definition
- * Art.X-Entity: Unknown types â†’ return null (route to Shadow)
+ * Art.X-Entity: Unknown types â†?return null (route to Shadow)
  */
 
 import { deriveEntityType, type EntityType } from '../types/entity';
@@ -22,7 +22,7 @@ export function resolveEntityFromId(
 
     if (!type) {
         console.warn(`[EntityResolver] Unknown entity type for ID: ${id}`);
-        return null; // Art.X-Entity: Unknown â†’ Shadow DB
+        return null; // Art.X-Entity: Unknown â†?Shadow DB
     }
 
     const definition = ENTITY_DEFINITIONS[type];

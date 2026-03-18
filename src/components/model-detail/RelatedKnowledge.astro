@@ -17,13 +17,13 @@ interface Props {
 
 const { tags = [], description = '', metaJson = {}, knowledgeLinks = [] } = Astro.props;
 
-// Knowledge article mapping: keyword → article slug
+// Knowledge article mapping: keyword �?article slug
 const KNOWLEDGE_ARTICLES = [
   { slug: 'gguf', keywords: ['gguf', 'ggml', 'llama.cpp', 'ollama'], title: 'What is GGUF?', icon: '📦' },
-  { slug: 'quantization', keywords: ['quantized', 'quantization', 'awq', 'gptq', 'q4', 'q8', 'int4', 'int8'], title: 'Model Quantization', icon: '⚡' },
-  { slug: 'vram', keywords: ['vram', 'gpu memory', '7b', '13b', '70b'], title: 'VRAM Requirements', icon: '🖥️' },
+  { slug: 'quantization', keywords: ['quantized', 'quantization', 'awq', 'gptq', 'q4', 'q8', 'int4', 'int8'], title: 'Model Quantization', icon: '�? },
+  { slug: 'vram', keywords: ['vram', 'gpu memory', '7b', '13b', '70b'], title: 'VRAM Requirements', icon: '🖥�? },
   { slug: 'transformer', keywords: ['transformer', 'attention', 'bert', 'gpt'], title: 'Transformer Architecture', icon: '🔄' },
-  { slug: 'moe', keywords: ['moe', 'mixture of experts', 'mixtral'], title: 'Mixture of Experts', icon: '🎛️' },
+  { slug: 'moe', keywords: ['moe', 'mixture of experts', 'mixtral'], title: 'Mixture of Experts', icon: '🎛�? },
   { slug: 'local-inference', keywords: ['local', 'inference', 'cpu', 'edge'], title: 'Local Inference', icon: '💻' }
 ];
 

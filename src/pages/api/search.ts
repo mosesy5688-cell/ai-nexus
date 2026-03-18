@@ -3,7 +3,7 @@ import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/searc
 import { searchSemantic } from '../../lib/semantic-engine.js';
 import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
 
-// V24.9: Separate cache policies â€” only cache successful non-empty responses
+// V24.9: Separate cache policies â€?only cache successful non-empty responses
 const CACHE_HEADERS_HIT = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -89,7 +89,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
     try {
         const env = (locals as any).runtime?.env || {};
-        const r2Bucket = env?.R2_FILES;
+        const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
         const shouldSimulate = !!env?.SIMULATE_PRODUCTION || (isDev && env?.NODE_ENV !== 'production');
         const manifest = await loadManifest(r2Bucket, shouldSimulate);

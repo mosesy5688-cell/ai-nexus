@@ -7,7 +7,7 @@ import { EntityCardRenderer } from './EntityCardRenderer.js';
 export class CatalogUIControls {
     static setupInfiniteScroll(instance) {
         if (!instance.grid) {
-            console.error('[CatalogUIControls] âŒ Grid element not found, cannot setup infinite scroll.');
+            console.error('[CatalogUIControls] â?Grid element not found, cannot setup infinite scroll.');
             return;
         }
 
@@ -18,7 +18,7 @@ export class CatalogUIControls {
             instance.sentinel.id = 'catalog-sentinel';
             instance.sentinel.className = 'w-full flex flex-col items-center justify-center py-20 gap-4 border-t border-dashed border-zinc-800 mt-12';
             instance.grid.after(instance.sentinel);
-            console.log('[CatalogUIControls] âœ… Sentinel created and appended.');
+            console.log('[CatalogUIControls] âœ?Sentinel created and appended.');
         }
 
         instance.observer = new IntersectionObserver((entries) => {
@@ -43,7 +43,7 @@ export class CatalogUIControls {
         const start = append ? (instance.currentPage - 1) * instance.itemsPerPage : 0;
         const pageItems = instance.filtered.slice(start, instance.currentPage * instance.itemsPerPage);
 
-        console.log(`[CatalogUIControls] ðŸ–¼ï¸ Rendering grid: append=${append}, page=${instance.currentPage}, items=${pageItems.length}`);
+        console.log(`[CatalogUIControls] ðŸ–¼ï¸?Rendering grid: append=${append}, page=${instance.currentPage}, items=${pageItems.length}`);
 
         const existingIds = append ? new Set(Array.from(instance.grid.children).map(c => c.querySelector('[data-entity-id]')?.getAttribute('data-entity-id'))) : new Set();
         const freshItems = pageItems.filter(i => !existingIds.has(i.id));
@@ -108,7 +108,7 @@ export class CatalogUIControls {
         }
 
         if (instance.hasMore()) {
-            html += `<button id="next-shard-btn" class="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-[10px] font-black uppercase tracking-widest text-zinc-500">Next Shard â†’</button>`;
+            html += `<button id="next-shard-btn" class="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-[10px] font-black uppercase tracking-widest text-zinc-500">Next Shard â†?/button>`;
         }
 
         html += '</div>';

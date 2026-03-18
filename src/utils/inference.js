@@ -10,7 +10,7 @@ export const USE_CASE_MAP = {
     'text-generation': { id: 'chat', label: 'Chat & Dialogue', icon: '💬' },
     'text2text-generation': { id: 'translate', label: 'Translation/Summary', icon: '🔄' },
     'summarization': { id: 'summary', label: 'Summarization', icon: '📝' },
-    'question-answering': { id: 'qa', label: 'Q&A System', icon: '❓' },
+    'question-answering': { id: 'qa', label: 'Q&A System', icon: '�? },
     'translation': { id: 'translate', label: 'Translation', icon: '🌐' },
 
     // Code
@@ -19,11 +19,11 @@ export const USE_CASE_MAP = {
 
     // Vision
     'text-to-image': { id: 'art', label: 'Image Gen', icon: '🎨' },
-    'image-to-text': { id: 'vision', label: 'Visual Und.', icon: '👁️' },
+    'image-to-text': { id: 'vision', label: 'Visual Und.', icon: '👁�? },
     'object-detection': { id: 'vision', label: 'Obj Detection', icon: '🔍' },
 
     // Audio
-    'text-to-speech': { id: 'audio', label: 'TTS', icon: '🗣️' },
+    'text-to-speech': { id: 'audio', label: 'TTS', icon: '🗣�? },
     'automatic-speech-recognition': { id: 'audio', label: 'ASR', icon: '👂' },
 
     // Special

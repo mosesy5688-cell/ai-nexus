@@ -17,7 +17,7 @@ pages_build_output_dir = "dist"
 
 # R2 Bucket Bindings
 [[r2_buckets]]
-binding = "R2_FILES"
+binding = "R2_ASSETS"
 bucket_name = "ai-nexus-assets"
 
 # Triggering a fresh deployment at 2025-11-26

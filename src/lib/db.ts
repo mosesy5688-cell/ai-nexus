@@ -3,7 +3,7 @@ import type { R2Bucket } from '@cloudflare/workers-types';
 import { initShardDecrypt, decryptShardRange } from './shard-decrypt';
 
 /** HARDENED RANGE PROXY: Seat Limit & Alignment Guard */
-export async function handleVfsProxy(request: Request, env: { R2_FILES: R2Bucket }) {
+export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     // V21.11: Search Smoothing - Wait for seat instead of 429 rejection
     await acquireSearchSeat();
     try {
@@ -13,7 +13,7 @@ export async function handleVfsProxy(request: Request, env: { R2_FILES: R2Bucket
     }
 }
 
-async function processVfsProxy(request: Request, env: { R2_FILES: R2Bucket }) {
+async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
     const url = new URL(request.url);
     let filename = url.pathname.split('/').pop();
@@ -61,8 +61,8 @@ async function processVfsProxy(request: Request, env: { R2_FILES: R2Bucket }) {
             } catch (err: any) {
                 return new Response(`CDN Error: ${err.message}`, { status: 502 });
             }
-        } else if (env?.R2_FILES) {
-            const objectHead = await env.R2_FILES.head(`data/${filename}`);
+        } else if (env?.R2_ASSETS) {
+            const objectHead = await env.R2_ASSETS.head(`data/${filename}`);
             if (!objectHead) return new Response('Not Found', { status: 404 });
             totalSize = objectHead.size; etag = objectHead.httpEtag;
         } else {
@@ -104,8 +104,8 @@ async function processVfsProxy(request: Request, env: { R2_FILES: R2Bucket }) {
             const proxyRes = new Response(res.body, res);
             Object.entries(commonHeaders).forEach(([k, v]) => proxyRes.headers.set(k, v));
             return proxyRes;
-        } else if (env?.R2_FILES) {
-            const object = await env.R2_FILES.get(`data/${filename}`);
+        } else if (env?.R2_ASSETS) {
+            const object = await env.R2_ASSETS.get(`data/${filename}`);
             if (!object) return new Response('Not Found', { status: 404 });
             const headersWithMeta = new Headers(commonHeaders as any);
             object.writeHttpMetadata(headersWithMeta as any);
@@ -152,8 +152,8 @@ async function processVfsProxy(request: Request, env: { R2_FILES: R2Bucket }) {
             await handle.close();
             const body = await maybeDecryptBin(filename as string, buffer.subarray(0, bytesRead), start, env);
             return new Response(body, { status: 206, headers });
-        } else if (env?.R2_FILES) {
-            const object = await env.R2_FILES.get(`data/${filename}`, { range: { offset: start, length: responseSize } });
+        } else if (env?.R2_ASSETS) {
+            const object = await env.R2_ASSETS.get(`data/${filename}`, { range: { offset: start, length: responseSize } });
             if (!object) return new Response('Not Found', { status: 404 });
             object.writeHttpMetadata(headers as any);
             const raw = await new Response(object.body as any).arrayBuffer();
@@ -186,7 +186,7 @@ export function buildHardenedQuery(userQuery: string): string {
     return tokens.length === 0 ? '' : tokens.map(t => `"${t}"*`).join(' AND ');
 }
 
-// V22.10: VFS_CONFIG removed â€” browser no longer loads WASM SQLite.
+// V22.10: VFS_CONFIG removed â€?browser no longer loads WASM SQLite.
 // Search now runs server-side via /api/search.ts (wa-sqlite + R2 Range VFS on SSR).
 // The VFS Proxy above is retained for fused-shard detail hydration only.
 

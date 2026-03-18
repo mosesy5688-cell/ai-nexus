@@ -27,7 +27,7 @@ export { normalizeSlug, canonicalizeSlug, isArxivId, parseHuggingFaceId, generat
  * @returns {Promise<{model: object|null, resolution: {source: string, confidence: number}}>}
  */
 export async function resolveToModel(slug, locals) {
-    const r2 = locals?.runtime?.env?.R2_FILES;
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
     const kvCache = locals?.runtime?.env?.KV_CACHE;
 
     if (!slug) {

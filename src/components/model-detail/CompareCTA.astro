@@ -43,7 +43,7 @@ const { modelId, modelName } = Astro.props;
     const alreadyAdded = saved.some((m: any) => m.id === modelId);
     
     if (alreadyAdded) {
-      btn.textContent = 'âœ“ Added to Compare';
+      btn.textContent = 'âœ?Added to Compare';
       btn.classList.add('bg-white/40');
     }
     
@@ -64,7 +64,7 @@ const { modelId, modelName } = Astro.props;
         }
         models.push({ id: modelId, name: modelName });
         localStorage.setItem(STORAGE_KEY, JSON.stringify(models));
-        btn.textContent = 'âœ“ Added to Compare';
+        btn.textContent = 'âœ?Added to Compare';
         btn.classList.add('bg-white/40');
         if (status) { status.textContent = `${models.length}/${MAX_COMPARE} models selected`; status.classList.remove('hidden'); }
       }

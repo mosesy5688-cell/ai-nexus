@@ -142,7 +142,7 @@ export async function initModelsCatalog(initialData = []) {
           (m.fni_percentile === 'top_25%' || (typeof m.fni_percentile === 'number' && m.fni_percentile >= 75)) ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
             'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
         }">
-              üõ°Ô∏è ${(m.fni_percentile || m.percentile)?.startsWith?.('top_') ? (m.fni_percentile || m.percentile).replace('top_', 'Top ') : Math.round(m.fni_score ?? m.fni ?? 0)}
+              üõ°Ô∏?${(m.fni_percentile || m.percentile)?.startsWith?.('top_') ? (m.fni_percentile || m.percentile).replace('top_', 'Top ') : Math.round(m.fni_score ?? m.fni ?? 0)}
             </span>
           ` : ''}
         </div>
@@ -176,7 +176,7 @@ export async function initModelsCatalog(initialData = []) {
     let html = '';
 
     // Prev
-    html += `<button class="px-3 py-2 rounded-lg ${currentPage === 1 ? 'text-gray-400' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‚Üê Prev</button>`;
+    html += `<button class="px-3 py-2 rounded-lg ${currentPage === 1 ? 'text-gray-400' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‚Ü?Prev</button>`;
 
     // Page numbers
     const maxVisible = 5;
@@ -189,7 +189,7 @@ export async function initModelsCatalog(initialData = []) {
     }
 
     // Next
-    html += `<button class="px-3 py-2 rounded-lg ${currentPage === totalPages ? 'text-gray-400' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Next ‚Üí</button>`;
+    html += `<button class="px-3 py-2 rounded-lg ${currentPage === totalPages ? 'text-gray-400' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Next ‚Ü?/button>`;
 
     pagination.innerHTML = html;
 

@@ -47,7 +47,7 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
     {
         id: 'architecture',
         title: 'Model Architecture',
-        icon: '🏗️',
+        icon: '🏗�?,
         description: 'Technical concepts behind AI models',
         articles: [
             { slug: 'what-is-context-length', title: 'What is Context Length?', description: 'Understanding token windows and memory in LLMs', difficulty: 'Beginner', effort: '3 min' },
@@ -106,7 +106,7 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
     {
         id: 'deployment',
         title: 'Local Deployment',
-        icon: '⚡',
+        icon: '�?,
         description: 'Running AI models on your own hardware',
         articles: [
             { slug: 'how-to-run-locally', title: 'How to Run LLMs Locally', description: 'Complete guide to running models on your machine', difficulty: 'Intermediate', effort: '8 min' },

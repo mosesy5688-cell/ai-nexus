@@ -25,6 +25,6 @@ export function applyVramLogic(hydrated) {
         // Formula hint for UI components
         const isLarge = params > 30;
         const kv = ctx <= 8192 ? (isLarge ? 2.0 : 0.8) : (ctx <= 32768 ? (isLarge ? 5.0 : 2.0) : (isLarge ? 12.0 : 4.0));
-        hydrated.vram_formula = `VRAM â‰ˆ (params * 0.75) + ${kv}GB (KV) + 0.5GB (OS)`;
+        hydrated.vram_formula = `VRAM â‰?(params * 0.75) + ${kv}GB (KV) + 0.5GB (OS)`;
     }
 }

@@ -1,5 +1,5 @@
 // src/scripts/home-search-events.js
-// V22.10: Unified Tier 1 ‚Üí Tier 2 cascade (aligned with SearchCommandPalette)
+// V22.10: Unified Tier 1 ‚Ü?Tier 2 cascade (aligned with SearchCommandPalette)
 import {
     initSearch,
     getSearchHistory,
@@ -84,7 +84,7 @@ export function renderResults(results) {
         <div class="text-[10px] text-zinc-500 truncate italic pr-4">
             ${highlightTerms(r.description || '', document.getElementById('search-box')?.value || '')}
         </div>
-        <div class="text-[10px] text-zinc-400 flex-shrink-0">‚≠ê ${r.likes || 0}</div>
+        <div class="text-[10px] text-zinc-400 flex-shrink-0">‚≠?${r.likes || 0}</div>
       </div>
     </a>
   `}).join('');
@@ -97,7 +97,7 @@ export function setupSearchEvents() {
     const dropdown = document.getElementById('search-results-dropdown');
 
     searchBox?.addEventListener('focus', async () => {
-        // V22.10: initSearch() is now instant (no WASM to load ‚Äî just triggers hot shard)
+        // V22.10: initSearch() is now instant (no WASM to load ‚Ä?just triggers hot shard)
         await initSearch();
         if (!searchBox.value.trim()) renderHistory();
     });
@@ -118,7 +118,7 @@ export function setupSearchEvents() {
             return;
         }
 
-        // V22.10: Unified Tier 1 ‚Üí Tier 2 cascade (same as command palette)
+        // V22.10: Unified Tier 1 ‚Ü?Tier 2 cascade (same as command palette)
         // TIER 1: Instant binary shard search (0ms)
         const shardResults = searchShardPool(query, 10, { sort: 'fni', entityType: 'all' });
         if (shardResults.length > 0) {

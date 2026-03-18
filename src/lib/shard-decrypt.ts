@@ -1,5 +1,5 @@
 /**
- * V5.8 Shard AES-CTR Decryption â€” Edge Worker Sovereign Decryption
+ * V5.8 Shard AES-CTR Decryption â€?Edge Worker Sovereign Decryption
  * Mirrors shard-crypto.js IV derivation for range-read compatibility.
  * Uses Web Crypto API (Cloudflare Workers / Browser compatible).
  */

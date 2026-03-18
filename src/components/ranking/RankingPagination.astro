@@ -14,11 +14,11 @@ const { currentPage, totalPages } = Astro.props;
   <div class="mt-12 flex justify-center items-center gap-4">
     {currentPage > 1 ? (
       <a href={`?page=${currentPage - 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-        ‚Üê Previous
+        ‚Ü?Previous
       </a>
     ) : (
       <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
-        ‚Üê Previous
+        ‚Ü?Previous
       </span>
     )}
     
@@ -28,11 +28,11 @@ const { currentPage, totalPages } = Astro.props;
     
     {currentPage < totalPages ? (
       <a href={`?page=${currentPage + 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-        Next ‚Üí
+        Next ‚Ü?
       </a>
     ) : (
       <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
-        Next ‚Üí
+        Next ‚Ü?
       </span>
     )}
   </div>

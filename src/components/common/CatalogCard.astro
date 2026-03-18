@@ -49,9 +49,9 @@ if (type === 'space') typeBadgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue
 const archLabel = (item.architecture || item.pipeline_tag || type).split(/\s+/)[0].replace(/[:/]/g, '');
 const typeLabel = (item.pipeline_tag || item.primary_category || type).split(/\s+/)[0].replace(/[:/]/g, '').replace(/-/g, ' ');
 
-// V24.12 Polymorphic Metrics â€” per-type "one-glance decision" fields
+// V24.12 Polymorphic Metrics â€?per-type "one-glance decision" fields
 const formatCompact = (num) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(num || 0);
-// Unit normalization: raw param count â†’ billions, raw bytes â†’ GB
+// Unit normalization: raw param count â†?billions, raw bytes â†?GB
 let paramsBillions = item.params_billions || 0;
 if (paramsBillions > 1000) paramsBillions = Math.round(paramsBillions / 1e9 * 100) / 100;
 let rawVram = item.vram_estimate_gb || item.vram_est || 0;
@@ -76,7 +76,7 @@ if (type === 'model') {
 } else if (type === 'agent' || type === 'tool') {
     if (item.primary_language) metrics.push({ icon: 'ðŸ’»', value: item.primary_language, label: 'Lang' });
     const stars = item.stars || item.github_stars || 0;
-    if (stars > 0) metrics.push({ icon: 'â­', value: formatCompact(stars), label: 'Stars' });
+    if (stars > 0) metrics.push({ icon: 'â­?, value: formatCompact(stars), label: 'Stars' });
     if (item.forks > 0) metrics.push({ icon: 'ðŸ”€', value: formatCompact(item.forks), label: 'Forks' });
     if (item.downloads > 0) metrics.push({ icon: 'ðŸ“¥', value: formatCompact(item.downloads), label: 'DL' });
 } else if (type === 'paper') {
@@ -102,7 +102,7 @@ if (type === 'model') {
         </h3>
     </div>
     
-    <!-- Column 2: Mission-Critical Specs (55%) â€” Polymorphic by type -->
+    <!-- Column 2: Mission-Critical Specs (55%) â€?Polymorphic by type -->
     <div class="flex-1 hidden md:flex items-center gap-6 px-4 border-l border-white/5 overflow-hidden">
         {archLabel && (
             <div class="flex items-center gap-1.5 shrink-0">

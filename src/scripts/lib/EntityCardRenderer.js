@@ -27,7 +27,7 @@ export class EntityCardRenderer {
         const fniPercentile = item.fni_percentile || item.percentile || '';
         const pipeline_tag = item.pipeline_tag || '';
         const archLabel = (item.architecture || pipeline_tag || type).split(/\s+/)[0].replace(/[:/]/g, '');
-        // Unit normalization: raw param count → billions, raw bytes → GB
+        // Unit normalization: raw param count �?billions, raw bytes �?GB
         let paramsBillions = item.params_billions || 0;
         if (paramsBillions > 1000) paramsBillions = Math.round(paramsBillions / 1e9 * 100) / 100;
         let rawVram = item.vram_estimate_gb || item.vram_est || 0;
@@ -72,7 +72,7 @@ export class EntityCardRenderer {
         } else if (type === 'agent' || type === 'tool') {
             if (item.primary_language) metrics.push({ icon: '💻', value: item.primary_language, label: 'Lang' });
             const stars = item.stars || item.github_stars || 0;
-            if (stars > 0) metrics.push({ icon: '⭐', value: this.formatNumber(stars), label: 'Stars' });
+            if (stars > 0) metrics.push({ icon: '�?, value: this.formatNumber(stars), label: 'Stars' });
             if (item.forks > 0) metrics.push({ icon: '🔀', value: this.formatNumber(item.forks), label: 'Forks' });
             if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'DL' });
         } else if (type === 'paper') {

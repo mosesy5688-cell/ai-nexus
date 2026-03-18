@@ -25,7 +25,7 @@ const { category } = Astro.props;
           <div class="flex items-center justify-between gap-2 mb-1">
             <span class="article-title">{article.title}</span>
             <div class="flex items-center gap-2">
-              <span id={`status-${article.slug}`} class="hidden text-[10px] font-bold text-emerald-500 uppercase">Read âœ“</span>
+              <span id={`status-${article.slug}`} class="hidden text-[10px] font-bold text-emerald-500 uppercase">Read âœ?/span>
               {article.difficulty && (
                 <span class={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
                   article.difficulty === 'Beginner' ? 'bg-emerald-900/30 text-emerald-400' : 

@@ -108,7 +108,7 @@ export async function fetchEntityFromR2(type, slug, locals) {
     const normalized = normalizeEntitySlug(slug, type);
 
     // 1. Try R2 Cache (Production/Preview SSR)
-    const r2 = locals?.runtime?.env?.R2_FILES;
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
     if (r2) {
         const paths = getR2PathCandidates(type, normalized);
         console.log(`[R2Reader] Checking ${paths.length} paths for ${type}/${normalized}`);

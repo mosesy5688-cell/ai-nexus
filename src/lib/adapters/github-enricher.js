@@ -81,7 +81,7 @@ export async function fetchGitHubRepoData(owner, repo) {
             if (error.response?.status === 403 && error.response?.headers['x-ratelimit-remaining'] === '0') {
                 const resetTime = parseInt(error.response.headers['x-ratelimit-reset']) * 1000;
                 const waitTime = Math.max(resetTime - Date.now(), 0) + 1000; // Add 1 second buffer
-                console.warn(`‚è≥ GitHub rate limit exceeded. Waiting ${Math.round(waitTime / 1000)}s...`);
+                console.warn(`‚è?GitHub rate limit exceeded. Waiting ${Math.round(waitTime / 1000)}s...`);
                 await sleep(waitTime);
                 continue;
             }
@@ -101,7 +101,7 @@ export async function fetchGitHubRepoData(owner, repo) {
         }
     }
 
-    console.error(`‚ùå Failed to fetch ${owner}/${repo} after ${MAX_RETRIES} attempts:`, lastError?.message);
+    console.error(`‚ù?Failed to fetch ${owner}/${repo} after ${MAX_RETRIES} attempts:`, lastError?.message);
     return null;
 }
 

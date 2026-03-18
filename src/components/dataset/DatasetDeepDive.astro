@@ -6,7 +6,7 @@ interface Props {
 const { dataset } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 
-// V19: Use REAL data only — no fabricated mock rows
+// V19: Use REAL data only �?no fabricated mock rows
 const features = dataset.features;
 const hasFeatures = features && (
   (Array.isArray(features) && features.length > 0) ||
@@ -73,7 +73,7 @@ const likes = dataset?.likes ? Number(dataset.likes) : null;
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
      <section class="lg:col-span-2 bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)]">
         <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-           <span>👁️</span> Data Preview
+           <span>👁�?/span> Data Preview
         </h2>
         
         {realRows && columns.length > 0 ? (
@@ -113,7 +113,7 @@ const likes = dataset?.likes ? Number(dataset.likes) : null;
             {dataset.source_url && (
               <a href={dataset.source_url} target="_blank" rel="noopener noreferrer"
                  class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-lg hover:scale-105 transition-all">
-                <span>🔗</span> Explore Full Dataset ↗
+                <span>🔗</span> Explore Full Dataset �?
               </a>
             )}
           </div>

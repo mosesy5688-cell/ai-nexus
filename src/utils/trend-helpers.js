@@ -80,7 +80,7 @@ export function drawSparkline(canvas, scores, direction) {
 }
 
 export function updateBadge(el, change, dir) {
-    const arrow = dir === 'up' ? 'â†—' : dir === 'down' ? 'â†˜' : 'â†’';
+    const arrow = dir === 'up' ? 'â†? : dir === 'down' ? 'â†? : 'â†?;
     el.textContent = `${arrow} ${Math.abs(change).toFixed(1)}%`;
     el.className = `mini-trend-badge ${dir}`;
 }

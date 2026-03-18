@@ -36,15 +36,15 @@ function calculateVram(params: number, quantization: string): number {
 
 // Determine deployment difficulty
 function getDifficulty(params: number, hasQuant: boolean): { level: string; color: string; icon: string } {
-  if (params <= 0) return { level: 'Unknown', color: 'gray', icon: '❓' };
+  if (params <= 0) return { level: 'Unknown', color: 'gray', icon: '�? };
   
   if (hasQuant) {
-    if (params <= 3) return { level: 'Easy', color: 'green', icon: '✅' };
-    if (params <= 13) return { level: 'Medium', color: 'yellow', icon: '⚡' };
+    if (params <= 3) return { level: 'Easy', color: 'green', icon: '�? };
+    if (params <= 13) return { level: 'Medium', color: 'yellow', icon: '�? };
     return { level: 'Advanced', color: 'orange', icon: '🔥' };
   } else {
-    if (params <= 1) return { level: 'Easy', color: 'green', icon: '✅' };
-    if (params <= 7) return { level: 'Medium', color: 'yellow', icon: '⚡' };
+    if (params <= 1) return { level: 'Easy', color: 'green', icon: '�? };
+    if (params <= 7) return { level: 'Medium', color: 'yellow', icon: '�? };
     if (params <= 13) return { level: 'Advanced', color: 'orange', icon: '🔥' };
     return { level: 'Expert', color: 'red', icon: '💎' };
   }
@@ -99,8 +99,8 @@ const vramQuant = hasQuant ? calculateVram(paramsB, quantType) : 0;
       <span class="text-xs text-gray-500 dark:text-gray-400">Recommended Hardware</span>
       <div class="mt-1 text-sm text-gray-700 dark:text-gray-300">
         {difficulty.level === 'Easy' && '💻 Any modern laptop/desktop'}
-        {difficulty.level === 'Medium' && '🖥️ Gaming GPU (8-16GB VRAM) or M1/M2 Mac'}
-        {difficulty.level === 'Advanced' && '⚡ High-end GPU (24GB+) or cloud instance'}
+        {difficulty.level === 'Medium' && '🖥�?Gaming GPU (8-16GB VRAM) or M1/M2 Mac'}
+        {difficulty.level === 'Advanced' && '�?High-end GPU (24GB+) or cloud instance'}
         {difficulty.level === 'Expert' && '☁️ Multi-GPU or cloud A100/H100'}
         {difficulty.level === 'Unknown' && 'Check model requirements'}
       </div>

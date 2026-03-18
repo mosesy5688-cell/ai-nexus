@@ -24,7 +24,7 @@ export async function loadCachedJSON(path, options = {}) {
 
     // Strategy 1: R2 Direct (Primary for SSR)
     // locals could be Astro.locals (with runtime) or the environment object itself
-    const r2 = locals?.runtime?.env?.R2_FILES || locals?.R2_FILES || locals?.env?.R2_FILES;
+    const r2 = locals?.runtime?.env?.R2_ASSETS || locals?.R2_ASSETS || locals?.env?.R2_ASSETS;
 
     if (r2) {
         let r2Path = path.startsWith('/') ? path.slice(1) : path;
