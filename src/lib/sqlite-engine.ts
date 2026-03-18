@@ -8,8 +8,9 @@ import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { R2RangeVFS } from './r2-vfs.js';
 // V24.10d: Pre-compiled WASM module for CF Workers
 // wasmModuleImports: true in astro.config.mjs enables this
+// V26.0: Asset-based WASM import for environment compatibility (Node/Worker)
 // @ts-ignore
-import precompiledWasm from '../assets/sqlite/wa-sqlite-async.wasm';
+import wasmUrl from '../assets/sqlite/wa-sqlite-async.wasm?url';
 
 let globalSqlite3: any = null;
 let globalSqliteModule: any = null;
@@ -42,15 +43,20 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
     sqliteInitPromise = (async () => {
         const wasmConfig: any = {};
 
-        // V24.10: Detect CF Workers first — nodejs_compat_v2 polyfills process.versions
-        // so the old `process.versions?.node` check incorrectly takes the Node.js path
+        // V24.10: Detect CF Workers first
         const isCloudflareWorkers = typeof caches !== 'undefined' && 'default' in caches;
 
         if (!isCloudflareWorkers && typeof process !== 'undefined' && process.versions?.node) {
-            // Node.js (dev): read WASM from local filesystem
+            // Node.js (dev/build): read WASM from local filesystem
             const { readFileSync } = await import('fs');
             const { join } = await import('path');
             try {
+                // Vite 7 ?url returns a path like "/src/assets/sqlite/wa-sqlite-async.wasm"
+                const relativePath = wasmUrl.startsWith('/') ? wasmUrl.slice(1) : wasmUrl;
+                const fullPath = join(process.cwd(), relativePath);
+                wasmConfig.wasmBinary = readFileSync(fullPath);
+            } catch (e) {
+                // Fallback to node_modules if SRC path fails
                 const paths = [
                     join(process.cwd(), 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm'),
                     join(process.cwd(), '..', 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm')
@@ -61,18 +67,19 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
                         break;
                     } catch { }
                 }
-            } catch (e) {
-                console.warn('[SQLite] WASM local read failed');
             }
         } else {
-            // V24.10d: CF Workers blocks ALL runtime WASM compilation
-            // Use pre-compiled module from static import (wasmModuleImports: true)
-            wasmConfig.locateFile = (file: string) => `https://cdn.free2aitools.com/wasm/${file}`;
-            wasmConfig.instantiateWasm = (imports: any, successCallback: any) => {
-                const instance = new WebAssembly.Instance(precompiledWasm, imports);
-                successCallback(instance, precompiledWasm);
-                return instance.exports;
-            };
+            // V26.0: Production Runtime (Worker)
+            // Manual fetch avoids build-time ESM WASM import conflict in Vite 7
+            try {
+                const res = await fetch(new URL(wasmUrl, import.meta.url).href);
+                const buffer = await res.arrayBuffer();
+                wasmConfig.wasmBinary = buffer;
+            } catch (e) {
+                console.error('[SQLite] Failed to fetch WASM binary:', e);
+                // Last ditch fallback to CDN
+                wasmConfig.locateFile = (file: string) => `https://cdn.free2aitools.com/wasm/${file}`;
+            }
         }
 
         globalSqliteModule = await SQLiteAsyncESMFactory(wasmConfig);

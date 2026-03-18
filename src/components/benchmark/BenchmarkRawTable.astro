@@ -17,8 +17,8 @@ let benchmarkData: any = null;
 
 try {
     const runtime = Astro.locals.runtime;
-    if (runtime?.env?.R2_ASSETS) {
-        const r2 = runtime.env.R2_ASSETS;
+    if (runtime?.env?.R2_FILES) {
+        const r2 = runtime.env.R2_FILES;
         const cacheFile = await r2.get('cache/benchmarks.json');
         if (cacheFile) {
             const cache = await cacheFile.json() as any;

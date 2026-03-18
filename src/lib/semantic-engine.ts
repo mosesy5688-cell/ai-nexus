@@ -24,8 +24,8 @@ export async function loadVectorCore(env: any): Promise<boolean> {
 
         let arrayBuffer: ArrayBuffer;
 
-        if (env.R2_ASSETS && !isSimulating) {
-            const obj = await env.R2_ASSETS.get('data/vector-core.bin');
+        if (env.R2_FILES && !isSimulating) {
+            const obj = await env.R2_FILES.get('data/vector-core.bin');
             if (!obj) {
                 console.error('[Semantic Engine] Failed to find vector-core.bin in R2');
                 return false;

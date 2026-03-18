@@ -100,6 +100,34 @@ export class ShardWriter {
         return this.shardSize + dataLength > maxSize;
     }
 
+    /**
+     * V25.8.3 P1: Write Int8 quantized embeddings for this shard's entities.
+     * Called after all entities are written but BEFORE finalize().
+     * @param {Array<Float32Array|number[]>} embeddings - One embedding per entity, same order as writeEntity calls
+     * @param {number} dim - Embedding dimension (e.g. 384)
+     */
+    writeEmbeddings(embeddings, dim = 384) {
+        if (!this.fd || !embeddings || embeddings.length === 0) return;
+
+        // Align to 16KB page boundary for clean Range Read
+        this.writePadding();
+        this.embeddingOffset = this.shardSize;
+        this.embeddingDim = dim;
+        this.embeddingCount = embeddings.length;
+
+        // Write Int8 quantized vectors (Float32 → Int8: val * 127, clamped)
+        const vecBuf = Buffer.alloc(embeddings.length * dim);
+        for (let i = 0; i < embeddings.length; i++) {
+            const vec = embeddings[i];
+            for (let d = 0; d < dim; d++) {
+                const val = vec && vec[d] ? Math.round(vec[d] * 127) : 0;
+                vecBuf.writeInt8(Math.max(-128, Math.min(127, val)), i * dim + d);
+            }
+        }
+        fsSync.writeSync(this.fd, vecBuf);
+        this.shardSize += vecBuf.length;
+    }
+
     finalize() {
         if (!this.fd) return;
         const offsetTableOffset = this.shardSize;
@@ -123,7 +151,7 @@ export class ShardWriter {
             checksum ^= offsetTable.readUInt32LE(i);
         }
         header.writeUInt32LE(checksum >>> 0, 15);              // [15..18] Checksum
-        // V4.1 Neural extension fields (reserved for Phase 2 ANN)
+        // V4.1 Neural extension fields
         header.writeUInt32LE(this.embeddingOffset, 19);        // [19..22] EmbeddingOffset
         header.writeUInt32LE(this.embeddingCount, 23);         // [23..26] EmbeddingCount
         header.writeUInt16LE(this.embeddingDim, 27);           // [27..28] EmbeddingDim

@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat_v2"]
 pages_build_output_dir = "dist"
 
 [build]
-watch_paths = ["src/**", "public/**", "astro.config.mjs", "package.json"]
+# V16.0: watch_paths handled by Astro internally, removed from wrangler.toml to fix build warnings.
 
 # V14.2: D1 Database REMOVED per Zero-Cost Constitution Art 2.1
 # D1 FTS5 caused $106/month cost explosion - PERMANENTLY BANNED
@@ -17,11 +17,7 @@ watch_paths = ["src/**", "public/**", "astro.config.mjs", "package.json"]
 
 # R2 Bucket Bindings
 [[r2_buckets]]
-binding = "R2_ASSETS"
+binding = "R2_FILES"
 bucket_name = "ai-nexus-assets"
-
-# AI Binding for Tier 3 Semantic Search
-[ai]
-binding = "AI"
 
 # Triggering a fresh deployment at 2025-11-26

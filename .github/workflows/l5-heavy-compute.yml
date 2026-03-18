@@ -328,7 +328,7 @@ jobs:
       # V14.3: Sanitize JSON before Rust processing
       - uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 24
       
       - name: Sanitize JSON
         run: |

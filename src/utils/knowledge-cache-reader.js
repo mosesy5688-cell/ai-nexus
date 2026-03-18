@@ -23,7 +23,7 @@ export async function fetchCategoryAlts(locals, category) {
 }
 
 export async function fetchMeshRelations(locals, entityId = null, options = { ssrOnly: true }) {
-    const R2 = locals?.runtime?.env?.R2_ASSETS;
+    const R2 = locals?.runtime?.env?.R2_FILES;
 
     const target = stripPrefix(entityId);
     let allRelations = [];
