@@ -86,23 +86,28 @@ export default defineConfig({
                   const config = JSON.parse(content);
                   let changed = false;
 
-                  // Stop deleting ASSETS
+                  // V26.0: DELETING ASSETS (Reserved by Astro)
                   if (config.assets && config.assets.binding === 'ASSETS') {
+                    delete config.assets;
                     changed = true;
                   }
 
-                  // Stop deleting SESSION
-                  if (config.kv_namespaces && config.kv_namespaces.some(kv => kv.binding === 'SESSION')) {
-                    changed = true;
+                  // V26.0: DELETING SESSION (Reserved/Not in Dashboard)
+                  if (config.kv_namespaces) {
+                    const originalLen = config.kv_namespaces.length;
+                    config.kv_namespaces = config.kv_namespaces.filter(kv => kv.binding !== 'SESSION');
+                    if (config.kv_namespaces.length !== originalLen) changed = true;
                   }
 
-                  // V26.0: Precision - Stop deleting bindings. Use ASTRO_SKIP_BINDING_CHECK=true instead.
+                  // V26.0: DELETING IMAGES (Reserved/Not in Dashboard)
                   if (config.images && config.images.binding === 'IMAGES') {
+                    delete config.images;
                     changed = true;
                   }
 
                   if (changed) {
-                    console.log(`[SURGICAL CHECK] Verified: ${path.relative(__dirname, filePath)} (Binding skip active)`);
+                    fs.writeFileSync(filePath, JSON.stringify(config, null, 2), 'utf-8');
+                    console.log(`[SURGICAL CLEANUP] Applied: ${path.relative(__dirname, filePath)} (Bindings removed)`);
                   }
                 } catch (e) {
                   console.error(`Failed to patch ${filePath}:`, e);
