@@ -86,30 +86,23 @@ export default defineConfig({
                   const config = JSON.parse(content);
                   let changed = false;
 
-                  // Fix reserved ASSETS binding
+                  // Stop deleting ASSETS
                   if (config.assets && config.assets.binding === 'ASSETS') {
-                    delete config.assets;
                     changed = true;
                   }
 
-                  // Fix Zero-KV configuration (remove auto-injected SESSION)
-                  if (config.kv_namespaces) {
-                    const filtered = config.kv_namespaces.filter(kv => kv.binding !== 'SESSION');
-                    if (filtered.length !== config.kv_namespaces.length) {
-                      config.kv_namespaces = filtered;
-                      changed = true;
-                    }
+                  // Stop deleting SESSION
+                  if (config.kv_namespaces && config.kv_namespaces.some(kv => kv.binding === 'SESSION')) {
+                    changed = true;
                   }
 
-                  // Fix reserved IMAGES binding (if collision occurs)
+                  // V26.0: Precision - Stop deleting bindings. Use ASTRO_SKIP_BINDING_CHECK=true instead.
                   if (config.images && config.images.binding === 'IMAGES') {
-                    delete config.images;
                     changed = true;
                   }
 
                   if (changed) {
-                    fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
-                    console.log(`[SURGICAL FIX] Patched: ${path.relative(__dirname, filePath)}`);
+                    console.log(`[SURGICAL CHECK] Verified: ${path.relative(__dirname, filePath)} (Binding skip active)`);
                   }
                 } catch (e) {
                   console.error(`Failed to patch ${filePath}:`, e);
