@@ -34,7 +34,7 @@ export function getShardIndex(nameStr: string, shardCount: number) {
 export function determineTargetDbs(type: string, q: string, page: number, manifest?: any): { priority: string[], expansion: string[] } {
     const partitions = manifest?.partitions || {};
 
-    // V5.8: 16-way hash sharding â€?all types mixed in each meta-NN.db
+    // V5.8: 16-way hash sharding â€” all types mixed in each meta-NN.db
     if (partitions.meta_shards) {
         const count = partitions.meta_shards as number;
         const all = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
@@ -99,7 +99,7 @@ export function determineTargetDbs(type: string, q: string, page: number, manife
  */
 export function getShardForSlug(slug: string, type: string, manifest?: any): string {
     const partitions = manifest?.partitions || {};
-    // V5.8: Hash sharding â€?route via cyrb53 approximation (mirrors computeShardSlot)
+    // V5.8: Hash sharding â€” route via cyrb53 approximation (mirrors computeShardSlot)
     if (partitions.meta_shards) {
         const count = partitions.meta_shards as number;
         const idx = cyrb53(slug || '') % count;

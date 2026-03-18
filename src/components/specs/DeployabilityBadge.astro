@@ -48,7 +48,7 @@ const level = getScoreLevel(finalScore);
 
 <div class={`deployability-badge ${compact ? 'compact' : ''}`}>
   <div class="badge-header">
-    <span class="badge-icon">�?/span>
+    <span class="badge-icon">⚡</span>
     <span class="badge-title">Deployability</span>
     <span class={`badge-score ${level.color}`}>{(finalScore * 100).toFixed(0)}%</span>
   </div>
@@ -56,25 +56,25 @@ const level = getScoreLevel(finalScore);
   {!compact && (
     <div class="badge-breakdown">
       <div class={`factor ${has_gguf ? 'active' : ''}`}>
-        <span class="factor-icon">{has_gguf ? '�? : '�?}</span>
+        <span class="factor-icon">{has_gguf ? '✅' : '❌'}</span>
         <span class="factor-label">GGUF</span>
         <span class="factor-score">+{(ggufScore * 100).toFixed(0)}%</span>
       </div>
       
       <div class={`factor ${has_ollama ? 'active' : ''}`}>
-        <span class="factor-icon">{has_ollama ? '�? : '�?}</span>
+        <span class="factor-icon">{has_ollama ? '✅' : '❌'}</span>
         <span class="factor-label">Ollama</span>
         <span class="factor-score">+{(ollamaScore * 100).toFixed(0)}%</span>
       </div>
       
       <div class={`factor ${context_length > 8192 ? 'active' : ''}`}>
-        <span class="factor-icon">{context_length > 8192 ? '�? : '⚠️'}</span>
+        <span class="factor-icon">{context_length > 8192 ? '✅' : '⚠️'}</span>
         <span class="factor-label">Context {context_length > 0 ? `${Math.round(context_length/1000)}K` : ''}</span>
         <span class="factor-score">+{(contextScore * 100).toFixed(0)}%</span>
       </div>
       
       <div class={`factor ${params_billions < 10 ? 'active' : ''}`}>
-        <span class="factor-icon">{params_billions < 10 ? '�? : params_billions < 40 ? '⚠️' : '�?}</span>
+        <span class="factor-icon">{params_billions < 10 ? '✅' : params_billions < 40 ? '⚠️' : '❌'}</span>
         <span class="factor-label">Size {params_billions}B</span>
         <span class="factor-score">+{(sizeScore * 100).toFixed(0)}%</span>
       </div>

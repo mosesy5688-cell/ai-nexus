@@ -20,7 +20,7 @@ const tags = Array.isArray(dataset.tags) ? dataset.tags : (typeof dataset.tags =
         </div>
         <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
             <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
-            <span>🗂�?/span> Structure
+            <span>🗂️</span> Structure
             </dt>
             <dd class="font-medium text-gray-900 dark:text-white">
             {dataset.task_categories ? dataset.task_categories[0] : 'General'}
@@ -46,7 +46,7 @@ const tags = Array.isArray(dataset.tags) ? dataset.tags : (typeof dataset.tags =
     </div>
 
     <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-    <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷�?Tags & Categories</h2>
+    <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags & Categories</h2>
     <div class="flex flex-wrap gap-2">
         {tags.slice(0, 15).map((tag: string) => (
         <a 

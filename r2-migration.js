@@ -27,7 +27,7 @@ files.forEach(file => {
     try {
         let content = fs.readFileSync(file, 'utf8');
         if (content.includes('R2_ASSETS')) {
-            const newContent = content.replace(/R2_ASSETS/g, 'R2_FILES');
+            const newContent = content.replace(/R2_ASSETS/g, 'R2_ASSETS');
             fs.writeFileSync(file, newContent, 'utf8');
             console.log(`Migrated: ${file}`);
         }

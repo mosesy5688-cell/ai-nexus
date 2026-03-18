@@ -71,7 +71,7 @@ export const ENTITY_ID_PREFIXES: Record<string, EntityType> = {
  * @param id - Entity ID (e.g., 'hf-model--meta-llama--llama-3')
  * @returns EntityType or null if unknown
  * 
- * Art.X-Entity: Unknown types â†?Shadow DB
+ * Art.X-Entity: Unknown types â†’ Shadow DB
  */
 export function deriveEntityType(id: string): EntityType | null {
     for (const [prefix, type] of Object.entries(ENTITY_ID_PREFIXES)) {

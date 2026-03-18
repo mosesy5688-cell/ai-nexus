@@ -77,7 +77,7 @@ const codeBoxClass = "p-3 bg-white dark:bg-black/40 border border-gray-100 dark:
         try {
           await navigator.clipboard.writeText(text);
           const original = btn.textContent;
-          btn.textContent = 'âœ?Copied';
+          btn.textContent = 'âœ“ Copied';
           btn.classList.add('text-green-500');
           setTimeout(() => {
             btn.textContent = original;

@@ -62,7 +62,7 @@ if (contentData || configResult) {
 }
 
 // R2 Live Fetch (Constitutional SSOT - R2 is the master source)
-const R2 = Astro.locals?.runtime?.env?.R2_FILES;
+const R2 = Astro.locals?.runtime?.env?.R2_ASSETS;
 let r2Data = null;
 
 if (R2 && slug) {

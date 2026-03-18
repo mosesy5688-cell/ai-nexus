@@ -37,7 +37,7 @@ export const CATEGORY_METADATA = {
     'text-generation': { label: 'Text Generation & Content Creation', icon: '💬', color: '#6366f1' },
     'knowledge-retrieval': { label: 'Knowledge Retrieval & Data Analysis', icon: '🔍', color: '#10b981' },
     'vision-multimedia': { label: 'Vision & Multimedia Processing', icon: '🎨', color: '#f59e0b' },
-    'automation-workflow': { label: 'Automation & Workflow Integration', icon: '�?, color: '#8b5cf6' },
+    'automation-workflow': { label: 'Automation & Workflow Integration', icon: '⚡', color: '#8b5cf6' },
     'infrastructure-ops': { label: 'Infrastructure & Optimization', icon: '🔧', color: '#64748b' },
     'uncategorized': { label: 'Uncategorized', icon: '📦', color: '#9ca3af' }
 };

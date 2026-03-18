@@ -186,7 +186,7 @@ export function buildHardenedQuery(userQuery: string): string {
     return tokens.length === 0 ? '' : tokens.map(t => `"${t}"*`).join(' AND ');
 }
 
-// V22.10: VFS_CONFIG removed â€?browser no longer loads WASM SQLite.
+// V22.10: VFS_CONFIG removed â€” browser no longer loads WASM SQLite.
 // Search now runs server-side via /api/search.ts (wa-sqlite + R2 Range VFS on SSR).
 // The VFS Proxy above is retained for fused-shard detail hydration only.
 

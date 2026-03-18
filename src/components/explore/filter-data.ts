@@ -15,7 +15,7 @@ export const paramRanges = [
 // Quantization types
 export const quantTypes = [
     { id: 'gguf', label: 'GGUF', icon: '📦' },
-    { id: 'awq', label: 'AWQ', icon: '�? },
+    { id: 'awq', label: 'AWQ', icon: '⚡' },
     { id: 'gptq', label: 'GPTQ', icon: '🔧' },
     { id: 'fp16', label: 'FP16', icon: '🎯' },
 ];
@@ -32,7 +32,7 @@ export const licenses = [
 // V3.1 Phase 5: Architecture families
 export const architectures = [
     { id: 'llama', label: 'Llama', icon: '🦙' },
-    { id: 'mistral', label: 'Mistral', icon: '🌬�? },
+    { id: 'mistral', label: 'Mistral', icon: '🌬️' },
     { id: 'qwen', label: 'Qwen', icon: '🔮' },
     { id: 'gpt', label: 'GPT', icon: '🤖' },
     { id: 'gemma', label: 'Gemma', icon: '💎' },
@@ -51,5 +51,5 @@ export const vramRanges = [
 export const taskTypes = [
     { id: 'chat', label: 'Chat', icon: '💬' },
     { id: 'code', label: 'Code', icon: '💻' },
-    { id: 'vision', label: 'Vision', icon: '👁�? },
+    { id: 'vision', label: 'Vision', icon: '👁️' },
 ];

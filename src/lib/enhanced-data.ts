@@ -29,11 +29,11 @@ export async function getModelsWithCache(kv?: KVNamespace) {
     // Try cache first
     const cached = await getCache(kv, cacheKey);
     if (cached) {
-        console.log('‚ú?Cache HIT: models list');
+        console.log('‚úÖ Cache HIT: models list');
         return cached;
     }
 
-    console.log('‚ù?Cache MISS: models list - fetching and caching');
+    console.log('‚ùå Cache MISS: models list - fetching and caching');
 
     // Fetch from static JSON
     const models = await getModels();
@@ -71,11 +71,11 @@ export async function getRelatedModels(
     const cacheKey = getRelatedModelsKey(modelId);
     const cached = await getCache(kv, cacheKey);
     if (cached) {
-        console.log(`‚ú?Cache HIT: related models for ${modelId}`);
+        console.log(`‚úÖ Cache HIT: related models for ${modelId}`);
         return cached;
     }
 
-    console.log(`‚ù?Cache MISS: related models for ${modelId} - computing`);
+    console.log(`‚ùå Cache MISS: related models for ${modelId} - computing`);
 
     // Compute related models
     const related = findRelatedModels(targetModel, allModels, limit);

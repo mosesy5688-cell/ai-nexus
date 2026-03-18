@@ -76,7 +76,7 @@ export function getQuickInsights(entity, type) {
             });
         }
 
-        if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF âœ?, highlight: true, badge: 'Local' });
+        if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF âœ“', highlight: true, badge: 'Local' });
 
         if (entity.license) {
             const licenseStr = String(entity.license).toLowerCase();

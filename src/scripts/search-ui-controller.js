@@ -126,8 +126,8 @@ export function renderResults(items, container, query = '') {
                                 </p>
                                 
                                 <div class="flex items-center gap-2 flex-shrink-0 text-[10px] font-medium opacity-60">
-                                    <span class="flex items-center gap-0.5">‚≠?${item.likes || 0}</span>
-                                    <span class="hidden sm:inline">‚Ä?/span>
+                                    <span class="flex items-center gap-0.5">‚≠ê ${item.likes || 0}</span>
+                                    <span class="hidden sm:inline">‚Ä¢</span>
                                     <span class="hidden sm:inline">${item.last_updated ? new Date(item.last_updated).toLocaleDateString() : 'Active'}</span>
                                 </div>
                             </div>

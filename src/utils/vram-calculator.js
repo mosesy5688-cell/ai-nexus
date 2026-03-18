@@ -64,5 +64,5 @@ export function estimateVRAM(params, quant = 'q4', contextLen = 8192, moeSpecs =
  * @returns {string}
  */
 export function getVRAMFormulaLabel(factor, kv, isMoe = false) {
-    return `VRAM â‰?(Params * ${factor})${isMoe ? ' (MoE Total)' : ''} + ${kv}GB (KV) + 0.5GB (OS)`;
+    return `VRAM â‰ˆ (Params * ${factor})${isMoe ? ' (MoE Total)' : ''} + ${kv}GB (KV) + 0.5GB (OS)`;
 }

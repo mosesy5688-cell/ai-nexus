@@ -4,7 +4,7 @@ import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlit
 export const prerender = false;
 
 /**
- * V24.10 Diagnostic endpoint â€?traces the exact failure point in SSR data pipeline
+ * V24.10 Diagnostic endpoint â€” traces the exact failure point in SSR data pipeline
  */
 export const GET: APIRoute = async ({ locals }) => {
     const steps: { step: string, status: string, detail?: string, ms?: number }[] = [];
@@ -108,7 +108,7 @@ export const GET: APIRoute = async ({ locals }) => {
             steps.push({ step: 'tables', status: 'FAIL', detail: e.message });
         }
 
-        // Step 6: Try a second DB (meta-01.db) â€?V5.8 hash sharding
+        // Step 6: Try a second DB (meta-01.db) â€” V5.8 hash sharding
         try {
             const t6 = Date.now();
             const engine2 = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-01.db');

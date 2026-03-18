@@ -25,11 +25,11 @@ export class CatalogDataSource {
         if (this._manifestLoaded) return;
         try {
             const res = await fetch(`${CDN_BASE}/data/shards_manifest.json`, {
-                signal: AbortSignal.timeout(20000) // V25.1: Safety guardrail â€?103 Early Hints targets <500ms; 20s prevents false "0 entities" on extreme network jitter
+                signal: AbortSignal.timeout(20000) // V25.1: Safety guardrail â€” 103 Early Hints targets <500ms; 20s prevents false "0 entities" on extreme network jitter
             });
             if (res.ok) {
                 this._manifestData = await res.json();
-                // V25.1: Persist partitions to localStorage â€?future fallbacks use last known good values
+                // V25.1: Persist partitions to localStorage â€” future fallbacks use last known good values
                 try { localStorage.setItem('_vfs_partitions', JSON.stringify(this._manifestData.partitions)); } catch (_) { }
             }
         } catch (e) {
@@ -40,13 +40,13 @@ export class CatalogDataSource {
     }
 
     _buildShardQueue() {
-        // V25.1: Dynamic partition resolution â€?manifest â†?localStorage â†?hardcoded safety net
+        // V25.1: Dynamic partition resolution â€” manifest â†’ localStorage â†’ hardcoded safety net
         let partitions = this._manifestData?.partitions;
         if (!partitions) {
             try { partitions = JSON.parse(localStorage.getItem('_vfs_partitions') || ''); } catch (_) { }
         }
 
-        // V5.8: 16-way hash sharding â€?all types mixed in each meta-NN.db
+        // V5.8: 16-way hash sharding â€” all types mixed in each meta-NN.db
         if (partitions?.meta_shards) {
             const count = partitions.meta_shards;
             this.shardQueue = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
@@ -116,7 +116,7 @@ export class CatalogDataSource {
             const rows = await this.dbClient.query(sql, params);
 
             if (rows.length === 0) {
-                // Shard exhausted â€?advance to next
+                // Shard exhausted â€” advance to next
                 this.shardIndex++;
                 this.shardOffset = 0;
                 if (this.shardIndex >= this.shardQueue.length) {

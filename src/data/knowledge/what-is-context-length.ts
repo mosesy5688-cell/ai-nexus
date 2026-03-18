@@ -9,9 +9,9 @@ export const article = {
   
   ## Token Basics
   
-  - 1 token ‚â?4 characters in English
-  - 1 token ‚â?0.75 words
-  - 1000 tokens ‚â?750 words
+  - 1 token ‚âà 4 characters in English
+  - 1 token ‚âà 0.75 words
+  - 1000 tokens ‚âà 750 words
   
   ## Common Context Lengths
   
@@ -35,10 +35,10 @@ export const article = {
   
   | Larger Context | Smaller Context |
   |----------------|-----------------|
-  | ‚ú?More information | ‚ú?Faster inference |
-  | ‚ù?Slower processing | ‚ù?Limited memory |
-  | ‚ù?Higher memory usage | ‚ú?Lower cost |
-  | ‚ù?May lose focus | ‚ú?More focused |
+  | ‚úÖ More information | ‚úÖ Faster inference |
+  | ‚ùå Slower processing | ‚ùå Limited memory |
+  | ‚ùå Higher memory usage | ‚úÖ Lower cost |
+  | ‚ùå May lose focus | ‚úÖ More focused |
   
   ## Models by Context Length
   

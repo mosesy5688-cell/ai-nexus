@@ -69,8 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">${(m.description || '').replace(/<[^>]*>?/gm, '').substring(0, 100)}...</p>
       <div class="flex gap-4 text-xs text-gray-500">
-        <span>‚≠?${(m.likes || 0).toLocaleString()}</span>
-        <span>‚¨?${(m.downloads || 0).toLocaleString()}</span>
+        <span>‚≠ê ${(m.likes || 0).toLocaleString()}</span>
+        <span>‚¨á ${(m.downloads || 0).toLocaleString()}</span>
       </div>
     </a>`;
   }

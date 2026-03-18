@@ -51,7 +51,7 @@ const BENCHMARK_INFO: Record<string, { name: string; icon: string; hint: string 
   },
   truthfulqa: { 
     name: 'TruthfulQA', 
-    icon: 'âœ?, 
+    icon: 'âœ“', 
     hint: 'Factual accuracy and avoiding hallucinations' 
   }
 };
@@ -69,7 +69,7 @@ function formatScore(score: any): string {
 
 // Get confidence badge
 function getConfidenceBadge(confidence?: string): string {
-  if (confidence === 'high') return 'âœ?;
+  if (confidence === 'high') return 'âœ“';
   if (confidence === 'medium') return '~';
   return '?';
 }

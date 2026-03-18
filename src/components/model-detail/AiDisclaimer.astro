@@ -26,7 +26,7 @@ const sourceInfo: Record<string, { name: string; icon: string; color: string; ur
   'arxiv': { name: 'arXiv', icon: '📄', color: 'red', url: 'https://arxiv.org' },
   'civitai': { name: 'CivitAI', icon: '🎨', color: 'purple', url: 'https://civitai.com' },
   'ollama': { name: 'Ollama', icon: '🦙', color: 'green', url: 'https://ollama.ai' },
-  'replicate': { name: 'Replicate', icon: '�?, color: 'blue', url: 'https://replicate.com' },
+  'replicate': { name: 'Replicate', icon: '⚡', color: 'blue', url: 'https://replicate.com' },
   'kaggle': { name: 'Kaggle', icon: '📊', color: 'cyan', url: 'https://kaggle.com' },
 };
 
@@ -65,7 +65,7 @@ const classes = colorClasses[info.color] || colorClasses['gray'];
     ) : (
       <span>Data from {info.name}</span>
     )}
-    {formattedDate && <span class="opacity-70">�?{formattedDate}</span>}
+    {formattedDate && <span class="opacity-70">• {formattedDate}</span>}
   </div>
 ) : (
   <!-- Full version with transparency info -->
@@ -75,7 +75,7 @@ const classes = colorClasses[info.color] || colorClasses['gray'];
         <span class="text-lg">{info.icon}</span>
         {info.url ? (
           <a href={info.url} target="_blank" rel="noopener noreferrer" class="font-medium hover:underline">
-            Data Source: {info.name} �?
+            Data Source: {info.name} ↗
           </a>
         ) : (
           <span class="font-medium">Data Source: {info.name}</span>
@@ -86,7 +86,7 @@ const classes = colorClasses[info.color] || colorClasses['gray'];
     <p class="opacity-80 text-xs">
       <!-- V14.4 Art 7.1: English Default Disclaimer -->
       <span class="font-medium">AI Summary: Based on {info.name} metadata. Not a recommendation.</span>
-      {formattedDate && <span> �?Synced: {formattedDate}</span>}
+      {formattedDate && <span> • Synced: {formattedDate}</span>}
     </p>
     <div class="flex items-center gap-3 mt-2 text-xs opacity-70">
       <a href="/methodology" class="hover:underline flex items-center gap-1">

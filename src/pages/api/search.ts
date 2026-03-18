@@ -3,7 +3,7 @@ import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/searc
 import { searchSemantic } from '../../lib/semantic-engine.js';
 import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
 
-// V24.9: Separate cache policies â€?only cache successful non-empty responses
+// V24.9: Separate cache policies â€” only cache successful non-empty responses
 const CACHE_HEADERS_HIT = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',

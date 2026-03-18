@@ -4,8 +4,8 @@
  * 
  * Art.X-Capability-Gating: UI modules enabled by capability only
  * Art.X-Capability-Naming: Capabilities MUST be nouns only
- *   ‚ù?FORBIDDEN: has_fni, fni_v2
- *   ‚ú?ALLOWED: fni, deploy, benchmark
+ *   ‚ùå FORBIDDEN: has_fni, fni_v2
+ *   ‚úÖ ALLOWED: fni, deploy, benchmark
  */
 
 /**

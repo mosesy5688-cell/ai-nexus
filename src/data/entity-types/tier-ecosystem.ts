@@ -101,7 +101,7 @@ export const TIER_ECOSYSTEM_ENTITIES: Record<string, EntityDefinition> = {
         modules: ['BenchmarkModule', 'IntegrationsModule', 'ArchitectureModule'],
         requiredFields: ['name', 'author', 'source_url'],
         display: {
-            icon: '🛠�?,
+            icon: '🛠️',
             color: 'purple',
             labelSingular: 'Tool',
             labelPlural: 'Tools',

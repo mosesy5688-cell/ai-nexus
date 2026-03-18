@@ -36,7 +36,7 @@ const sortedMembers = [...members].sort((a, b) => {
 const familyIcons: Record<string, string> = {
   'llama': '🦙',
   'qwen': '🤖',
-  'mistral': '🌪�?,
+  'mistral': '🌪️',
   'gemma': '💎',
   'phi': 'Φ',
   'falcon': '🦅',
@@ -66,14 +66,14 @@ const icon = familyIcons[family?.toLowerCase()] || '🤖';
           <li class={`tree-item ${isCurrent ? 'current' : ''} ${isFirst ? 'base' : ''}`}>
             <div class="tree-branch">
               {!isFirst && <span class="branch-line">├──</span>}
-              {isFirst && <span class="branch-line root">�?/span>}
+              {isFirst && <span class="branch-line root">●</span>}
             </div>
             <a href={`/model/${member.umid}`} class="member-link">
               <span class="member-name">{member.name.split('/').pop()}</span>
               {member.params_billions && (
                 <span class="member-params">{member.params_billions}B</span>
               )}
-              {isCurrent && <span class="current-badge">�?You are here</span>}
+              {isCurrent && <span class="current-badge">← You are here</span>}
               {member.isBase && <span class="base-badge">Base</span>}
             </a>
           </li>

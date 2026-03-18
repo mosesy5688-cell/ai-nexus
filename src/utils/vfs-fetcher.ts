@@ -35,7 +35,7 @@ async function getL1Cache() {
     }
 }
 
-// V25.1: Zero-Handshake â€?Atomic Purge guarantees freshness, no HEAD needed
+// V25.1: Zero-Handshake â€” Atomic Purge guarantees freshness, no HEAD needed
 async function resolveEtag(filename: string, _targetUrl: string): Promise<string> {
     if (L0_ETAGS.has(filename)) return L0_ETAGS.get(filename)!;
     // Trust deployment pipeline: purge_everything + proactive warming = consistent data

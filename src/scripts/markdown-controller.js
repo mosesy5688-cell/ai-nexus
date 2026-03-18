@@ -19,7 +19,7 @@ export function initMarkdownCopy() {
             try {
                 await navigator.clipboard.writeText(code);
                 if (text) text.textContent = 'Done!';
-                if (icon) icon.textContent = 'âœ?;
+                if (icon) icon.textContent = 'âœ…';
 
                 b.classList.add('bg-emerald-500/50', 'border-emerald-500/50');
 
@@ -54,7 +54,7 @@ export function initMarkdownCopy() {
         btn.addEventListener('click', async () => {
             try {
                 await navigator.clipboard.writeText(code.textContent || '');
-                btn.innerHTML = '<span class="text-sm">âœ?/span>';
+                btn.innerHTML = '<span class="text-sm">âœ…</span>';
                 btn.classList.add('bg-emerald-500/50');
                 setTimeout(() => {
                     btn.innerHTML = '<span class="text-sm">ðŸ“‹</span>';

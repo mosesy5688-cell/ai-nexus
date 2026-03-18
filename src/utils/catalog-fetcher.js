@@ -14,7 +14,7 @@ const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'pr
 
 export async function fetchCatalogData(type, runtime = null) {
     const start = Date.now();
-    const SSR_TIMEOUT_MS = 15000; // 15s max â€?prevents Cloudflare 524 timeout
+    const SSR_TIMEOUT_MS = 15000; // 15s max â€” prevents Cloudflare 524 timeout
 
     try {
         const result = await Promise.race([
@@ -51,7 +51,7 @@ async function _fetchCatalogDataInner(type, runtime, start) {
         sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE type = ? ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 48`; // V25.1: Aligned with Tabular Density spec
         sqlParams = [type];
         const { priority } = determineTargetDbs(type, '', 1, manifest);
-        // V24.10d: Only query 1 shard for SSR speed â€?client lazy-loads the rest
+        // V24.10d: Only query 1 shard for SSR speed â€” client lazy-loads the rest
         shardList = priority.slice(0, 1);
     }
 
