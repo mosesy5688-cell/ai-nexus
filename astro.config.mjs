@@ -103,8 +103,8 @@ export default defineConfig({
 
                   // Fix reserved IMAGES binding (if collision occurs)
                   if (config.images && config.images.binding === 'IMAGES') {
-                    // delete config.images;
-                    // changed = true;
+                    delete config.images;
+                    changed = true;
                   }
 
                   if (changed) {
@@ -120,7 +120,8 @@ export default defineConfig({
             const targets = [
               path.resolve(__dirname, 'dist/server/wrangler.json'),
               path.resolve(__dirname, 'dist/server/.prerender/wrangler.json'),
-              path.resolve(__dirname, 'dist/wrangler.json')
+              path.resolve(__dirname, 'dist/wrangler.json'),
+              path.resolve(__dirname, 'dist/_worker.js/wrangler.json')
             ];
 
             for (const target of targets) {
