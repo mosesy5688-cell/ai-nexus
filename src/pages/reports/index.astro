@@ -9,14 +9,14 @@ import { getRouteFromId } from '@/utils/mesh-routing-core';
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
 const env = (Astro as any).locals?.runtime?.env;
-const R2_ASSETS = env?.R2_ASSETS;
+const R2_FILES = env?.R2_FILES;
 
 let reports: any[] = [];
 
-if (R2_ASSETS) {
+if (R2_FILES) {
     // V25.3: Real-time Discovery via R2.list()
     try {
-        const list = await R2_ASSETS.list({ prefix: 'cache/reports/daily/' });
+        const list = await R2_FILES.list({ prefix: 'cache/reports/daily/' });
         reports = list.objects
             .filter((obj: any) => obj.key.endsWith('.json.gz') || obj.key.endsWith('.json'))
             .map((obj: any) => {

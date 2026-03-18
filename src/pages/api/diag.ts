@@ -12,7 +12,7 @@ export const GET: APIRoute = async ({ locals }) => {
 
     try {
         const env = (locals as any).runtime?.env || {};
-        const r2Bucket = env.R2_ASSETS;
+        const r2Bucket = env.R2_FILES;
         const isDev = !!import.meta.env?.DEV;
         const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== 'production');
 

@@ -4,7 +4,7 @@ import { R2_CACHE_URL } from '../config/constants.js';
 /**
  * V19.4 Unified Config Loader
  * Strategy:
- * 1. SSR: Fetch from R2_ASSETS binding (if available) or R2_CACHE_URL.
+ * 1. SSR: Fetch from R2_FILES binding (if available) or R2_CACHE_URL.
  * 2. Client: Use window.__SITE_META__ if inlined by Layout.
  */
 
@@ -15,7 +15,7 @@ export async function getGlobalStats(key, locals = null) {
     }
 
     // 2. SSR Check (Priority: R2 Binding)
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const r2 = locals?.runtime?.env?.R2_FILES;
 
     // V19.4: Multi-format candidates for resilience
     const candidates = [

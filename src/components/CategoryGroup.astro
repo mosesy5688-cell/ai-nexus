@@ -10,8 +10,8 @@ let categoryStats: Map<string, { count: number; avgFni: number | null }> = new M
 
 try {
     const runtime = Astro.locals.runtime;
-    if (runtime?.env?.R2_ASSETS) {
-        const r2 = runtime.env.R2_ASSETS;
+    if (runtime?.env?.R2_FILES) {
+        const r2 = runtime.env.R2_FILES;
         const statsFile = await r2.get('cache/category_stats.json');
         if (statsFile) {
             const stats = await statsFile.json() as any;

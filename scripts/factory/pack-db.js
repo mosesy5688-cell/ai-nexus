@@ -22,6 +22,7 @@ import { generateVectorCore } from './lib/vector-core-generator.js';
 import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
 import { initRustBridge } from './lib/rust-bridge.js';
+import { computeEmbeddings } from './lib/embedding-generator.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024; // V25.8 §1.1: 8MB hard-cap per spec
@@ -177,6 +178,11 @@ async function packDatabase() {
 
     // V25.8: Finalize shard hashes, optimize DBs
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
+
+    // V25.8.3 P1: Compute ANN embeddings for all entities (384D, all-MiniLM-L6-v2)
+    // This injects entity.embedding (Float32[384]) into each entity in metadataBatch.
+    // Must run BEFORE generateVectorCore() which quantizes Float32 → Int8.
+    await computeEmbeddings(metadataBatch);
 
     // V25.8.3: Generate Hot Shard + Vector Core BEFORE disposing metadataBatch
     // metadataBatch is already sorted by FNI (stable popularity sort) — perfect for top-30k extraction

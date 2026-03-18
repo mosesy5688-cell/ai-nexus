@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       
       - name: Install Dependencies
@@ -49,15 +49,14 @@ jobs:
             exit 1
           fi
           
-          # Check for CSS files
-          if ! ls dist/assets/*.css 1> /dev/null 2>&1; then
-            echo "❌ No CSS files found in dist/assets/"
+          # V26.0: Use recursive search to accommodate Astro 6 rearranged assets
+          if ! find dist -name "*.css" | grep . 1> /dev/null 2>&1; then
+            echo "❌ No CSS files found in dist directory"
             exit 1
           fi
           
-          # Check for JS files
-          if ! ls dist/assets/*.js 1> /dev/null 2>&1; then
-            echo "❌ No JS files found in dist/assets/"
+          if ! find dist -name "*.js" | grep . 1> /dev/null 2>&1; then
+            echo "❌ No JS files found in dist directory"
             exit 1
           fi
           
@@ -126,7 +125,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       
       - name: Install Dependencies
@@ -235,7 +234,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       
       - name: Install Dependencies
@@ -291,7 +290,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       
       - name: Run npm audit

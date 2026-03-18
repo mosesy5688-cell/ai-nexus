@@ -14,7 +14,7 @@ import { getModelFromCache } from './entity-cache-reader.js';
  * @returns {object|null} Model data from R2 cache or null if not found
  */
 export async function getModelBySlug(slug, locals) {
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const r2 = locals?.runtime?.env?.R2_FILES;
 
     if (!slug) return null;
 

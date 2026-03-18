@@ -31,7 +31,7 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     }
 
     // TIER 1: Server-First Recovery Strategy (Internal R2 Priority)
-    if (!entityResult && locals?.runtime?.env?.R2_ASSETS && typeof window === 'undefined') {
+    if (!entityResult && locals?.runtime?.env?.R2_FILES && typeof window === 'undefined') {
         const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
         if (sequentialResult) {
             entityResult = {

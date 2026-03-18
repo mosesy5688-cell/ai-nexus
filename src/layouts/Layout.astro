@@ -4,7 +4,7 @@ import Header from '@/components/Header.astro';
 import Footer from '@/components/Footer.astro';
 import SearchCommandPalette from '@/components/common/SearchCommandPalette.astro';
 import OnboardingTour from '@/components/common/OnboardingTour.astro';
-import { ViewTransitions } from 'astro:transitions';
+import { ClientRouter } from 'astro:transitions';
 
 // V9.70: Ensure global Tailwind CSS is ALWAYS included
 // This import MUST be at layout level to ensure all pages get Tailwind
@@ -140,7 +140,7 @@ const siteMeta = {
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <ViewTransitions fallback="swap" />
+    <ClientRouter fallback="swap" />
     
     <!-- V18.1: Extreme Prefetching & Visual Stability -->
     <style is:global>

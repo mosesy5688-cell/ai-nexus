@@ -2,7 +2,7 @@ export const prerender = false;
 
 export async function GET({ params, locals }) {
     const path = params.path;
-    const r2 = locals.runtime?.env?.R2_ASSETS;
+    const r2 = locals.runtime?.env?.R2_FILES;
 
     if (!r2) {
         return new Response(JSON.stringify({ error: 'R2 not available' }), { status: 500 });
