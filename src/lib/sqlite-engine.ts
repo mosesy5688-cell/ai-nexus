@@ -40,9 +40,8 @@ async function withLock<T>(fn: () => Promise<T>): Promise<T> {
 async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
     if (sqliteInitPromise) return sqliteInitPromise;
 
+    const wasmConfig: any = {};
     sqliteInitPromise = (async () => {
-        const wasmConfig: any = {};
-
         // V24.10: Detect CF Workers first
         const isCloudflareWorkers = typeof caches !== 'undefined' && 'default' in caches;
 

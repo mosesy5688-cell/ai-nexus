@@ -27,7 +27,20 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(npm list:*)",
+      "Bash(cd:*)",
+      "Bash(npm info:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(nvm.cmd list:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm test:*)",
+      "WebFetch(domain:docs.astro.build)",
+      "WebFetch(domain:github.com)",
+      "Bash(cross-env NODE_ENV=production npx astro build)"
     ]
   }
 }
