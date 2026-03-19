@@ -41,14 +41,53 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ASTRO_SKIP_BINDING_CHECK: true
 
+      - name: Restructure artifacts for Cloudflare Pages _worker.js convention
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+
+            // 1. Promote entry.mjs to the standard _worker.js entry point
+            fs.copyFileSync('dist/server/entry.mjs', 'dist/_worker.js');
+            console.log('Created dist/_worker.js');
+
+            // 2. Move all other server assets (chunks etc.) to dist root
+            //    so relative imports in _worker.js resolve correctly
+            const serverFiles = fs.readdirSync('dist/server');
+            for (const f of serverFiles) {
+              if (f === 'entry.mjs' || f === 'wrangler.json') continue;
+              const src = path.join('dist/server', f);
+              const dest = path.join('dist', f);
+              if (fs.statSync(src).isDirectory()) {
+                fs.cpSync(src, dest, { recursive: true });
+              } else {
+                fs.copyFileSync(src, dest);
+              }
+            }
+            console.log('Moved server assets to dist root');
+
+            // 3. Move all client static assets to dist root
+            //    so CSS/JS are served at the correct URL paths
+            if (fs.existsSync('dist/client')) {
+              fs.cpSync('dist/client', 'dist', { recursive: true });
+              console.log('Moved client assets to dist root');
+            }
+
+            // 4. Remove subdirectories and stale Wrangler cache
+            fs.rmSync('dist/server', { recursive: true, force: true });
+            fs.rmSync('dist/client', { recursive: true, force: true });
+            if (fs.existsSync('.wrangler')) {
+              fs.rmSync('.wrangler', { recursive: true, force: true });
+            }
+
+            console.log('Restructure complete. dist/ is ready for _worker.js deployment.');
+          "
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Pin to Wrangler 3.80.0 to avoid strict schema validation in 4.74.0
-          # which rejects Astro 6 adapter's generated wrangler.json format
-          wranglerVersion: '3.80.0'
           command: pages deploy dist --project-name=ai-nexus --branch=main
         env:
           ASTRO_SKIP_BINDING_CHECK: true
