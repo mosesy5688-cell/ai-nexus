@@ -1,8 +1,11 @@
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
+
 export const prerender = false;
 
-export async function GET({ params, locals }) {
+export async function GET({ params }) {
     const path = params.path;
-    const r2 = locals.runtime?.env?.R2_ASSETS;
+    const r2 = env?.R2_ASSETS;
 
     if (!r2) {
         return new Response(JSON.stringify({ error: 'R2 not available' }), { status: 500 });

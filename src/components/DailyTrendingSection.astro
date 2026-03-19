@@ -5,6 +5,8 @@
  * Real-time data from R2 cache
  */
 import { generateEntityUrl } from '../utils/url-utils.js';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 // Fetch trending data from R2 cache
 let trendingData: {
@@ -21,12 +23,11 @@ let trendingData: {
 } | null = null;
 
 try {
-    const runtime = Astro.locals.runtime;
     const paths = ['cache/trending.json.gz', 'cache/trending.json'];
     
     // TIER 1: R2 Direct
-    if (runtime?.env?.R2_ASSETS) {
-        const r2 = runtime.env.R2_ASSETS;
+    if (env?.R2_ASSETS) {
+        const r2 = env.R2_ASSETS;
         for (const p of paths) {
             const file = await r2.get(p);
             if (file) {

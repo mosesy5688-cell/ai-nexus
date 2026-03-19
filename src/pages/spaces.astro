@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allSpaces = [], totalPages, totalEntities } = await fetchCatalogData('space', (Astro as any).locals.runtime);
+const { items: allSpaces = [], totalPages, totalEntities } = await fetchCatalogData('space');
 const spaces = allSpaces.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Spaces Catalog | Interactive AI Demos";

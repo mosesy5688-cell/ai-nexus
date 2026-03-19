@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/search-query-builder.js';
 import { searchSemantic } from '../../lib/semantic-engine.js';
 import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 // V24.9: Separate cache policies — only cache successful non-empty responses
 const CACHE_HEADERS_HIT = {
@@ -72,7 +74,7 @@ function mergeResults(rows: any[], sort: string, limit: number, semanticScores?:
     return unique;
 }
 
-export const GET: APIRoute = async ({ url, locals }) => {
+export const GET: APIRoute = async ({ url }) => {
     const start = Date.now();
     const q = url.searchParams.get('q') || '';
     const sort = url.searchParams.get('sort') || 'fni';
@@ -88,10 +90,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
     }
 
     try {
-        const env = (locals as any).runtime?.env || {};
+        // V26.0: env imported from cloudflare:workers at module level
         const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
-        const shouldSimulate = !!env?.SIMULATE_PRODUCTION || (isDev && env?.NODE_ENV !== 'production');
+        const shouldSimulate = isDev;
         const manifest = await loadManifest(r2Bucket, shouldSimulate);
 
         // ── S0: Edge Response Cache (caches.default) ──

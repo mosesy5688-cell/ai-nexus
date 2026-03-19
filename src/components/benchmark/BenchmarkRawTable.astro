@@ -11,14 +11,15 @@ interface Props {
 }
 
 const { umid, showSource = true } = Astro.props;
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 // Fetch benchmark data from cache
 let benchmarkData: any = null;
 
 try {
-    const runtime = Astro.locals.runtime;
-    if (runtime?.env?.R2_ASSETS) {
-        const r2 = runtime.env.R2_ASSETS;
+    if (env?.R2_ASSETS) {
+        const r2 = env.R2_ASSETS;
         const cacheFile = await r2.get('cache/benchmarks.json');
         if (cacheFile) {
             const cache = await cacheFile.json() as any;

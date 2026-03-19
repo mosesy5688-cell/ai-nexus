@@ -33,7 +33,7 @@ const seoSchema = buildIndexSEO();
 // V18.2.5: Emergency Protection - Graceful degradation if R2 is saturated by CI
 let hotModels = [];
 try {
-    const { items: hotItems = [] } = await fetchCatalogData('model', (Astro as any).locals.runtime);
+    const { items: hotItems = [] } = await fetchCatalogData('model');
     hotModels = hotItems.slice(0, 12);
 } catch (e) {
     console.error('[Homepage] Critical SSR Fetch Failure:', e.message);

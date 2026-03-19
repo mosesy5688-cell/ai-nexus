@@ -3,15 +3,17 @@
  * CategoryGroup Component V4.8.1
  * Displays category cards with model counts from L8 precomputed stats
  */
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
+
 const { group } = Astro.props;
 
 // Fetch category stats from R2 cache
 let categoryStats: Map<string, { count: number; avgFni: number | null }> = new Map();
 
 try {
-    const runtime = Astro.locals.runtime;
-    if (runtime?.env?.R2_ASSETS) {
-        const r2 = runtime.env.R2_ASSETS;
+    if (env?.R2_ASSETS) {
+        const r2 = env.R2_ASSETS;
         const statsFile = await r2.get('cache/category_stats.json');
         if (statsFile) {
             const stats = await statsFile.json() as any;
