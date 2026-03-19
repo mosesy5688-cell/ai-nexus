@@ -157,24 +157,28 @@ export class CatalogDataSource {
 
         if (q.length < 3) return filtered.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
 
-        // Federated SSR search
+        // V26.3: Federated SSR search (8s timeout for 16-shard expansion)
         try {
             const params = new URLSearchParams({ q, type: this.type, sort: 'fni', limit: '50', page: '1' });
-            const res = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout(5000) });
+            const res = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout(8000) });
             if (res.ok) {
                 const data = await res.json();
                 if (data.results?.length > 0) return DataNormalizer.normalizeCollection(data.results, this.type);
             }
-        } catch (e) { console.warn('[CatalogDataSource] API search fallback:', e); }
+        } catch (e) { console.warn('[CatalogDataSource] API search timeout, falling back to local:', e.message); }
 
-        // Local FTS5 fallback
+        // V26.3: Local FTS5 fallback — query current open shard's search table directly
         try {
             const safeQuery = q.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/).filter(t => t.length > 0).map(t => `"${t}"*`).join(' AND ');
             if (!safeQuery) return filtered;
-            const sql = `SELECT e.* FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ? AND e.type = ? ORDER BY e.fni_score DESC, e.raw_pop DESC, e.slug ASC LIMIT 50`;
-            const rows = await this.dbClient.query(sql, [safeQuery, this.type]);
-            return DataNormalizer.normalizeCollection(rows, this.type);
-        } catch (e) { return filtered; }
+            // Hash-sharded DBs have per-shard `search` FTS5 table — query directly without JOIN
+            const sql = `SELECT e.* FROM entities e WHERE e.rowid IN (SELECT rowid FROM search WHERE search MATCH ?) ORDER BY e.fni_score DESC, e.raw_pop DESC LIMIT 50`;
+            const rows = await this.dbClient.query(sql, [safeQuery]);
+            if (rows.length > 0) return DataNormalizer.normalizeCollection(rows, this.type);
+        } catch (e) { console.warn('[CatalogDataSource] Local FTS5 fallback failed:', e.message); }
+
+        // V26.3: Final fallback — return in-memory filtered results
+        return filtered.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
     }
 
     // Compat methods for UniversalCatalog / CatalogUIControls
