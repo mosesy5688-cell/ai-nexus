@@ -31,7 +31,10 @@ export default defineConfig({
     // V26.0: Manual environment-adaptive WASM loading (Option 2)
     // We disable wasmModuleImports to allow our custom loader in Node/Workerd
     wasmModuleImports: false,
-    // V26.0: Explicitly disable sessions to satisfy Zero-KV Constitution
+    // V26.0: Explicitly disable sessions to prevent SESSION KV binding injection
+    sessions: false,
+    // V26.0: Use passthrough image service to prevent IMAGES binding injection
+    imageService: 'passthrough',
   }),
   build: {
     assets: 'assets',
