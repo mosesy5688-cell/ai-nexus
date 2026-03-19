@@ -18,7 +18,7 @@ export default defineConfig({
             name: 'mock-wasm-imports',
             enforce: 'pre',
             resolveId(source) {
-                if (source.endsWith('.wasm')) return '\0mock-wasm';
+                if (source.endsWith('.wasm') || source.endsWith('.wasm?module')) return '\0mock-wasm';
             },
             load(id) {
                 if (id === '\0mock-wasm') return 'export default {};';

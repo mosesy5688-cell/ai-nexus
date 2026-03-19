@@ -1,14 +1,16 @@
 /**
  * SQLite WASM Engine & Connection Pool (SSR)
- * V26.1: CF Workers WASM fix — two-step compile+instantiate
+ * V26.2: CF Workers WASM fix — use ?module import via @cloudflare/vite-plugin
  */
 import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.mjs';
 // @ts-ignore
 import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { R2RangeVFS } from './r2-vfs.js';
-// V26.1: Use ?url import (Vite-native, no plugins needed)
+// V26.2: ?module import handled natively by @cloudflare/vite-plugin
+// This gives us a pre-compiled WebAssembly.Module at build time,
+// bypassing CF Workers' runtime WASM compilation block.
 // @ts-ignore
-import wasmUrl from '../assets/sqlite/wa-sqlite-async.wasm?url';
+import wasmModule from '../assets/sqlite/wa-sqlite-async.wasm?module';
 
 let globalSqlite3: any = null;
 let globalSqliteModule: any = null;
@@ -60,27 +62,16 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
                 } catch { }
             }
         } else {
-            // V26.1: CF Workers — two-step WASM loading
-            // CF Workers BLOCKS WebAssembly.instantiate(buffer, imports) but
-            // ALLOWS WebAssembly.compile(buffer) + WebAssembly.instantiate(module, imports).
-            // Step 1: Fetch WASM binary via ?url import
-            // Step 2: Compile to WebAssembly.Module (allowed in CF Workers)
-            // Step 3: Use instantiateWasm to instantiate from compiled module (allowed)
-            console.log('[SQLite] CF Workers: fetching and compiling WASM, url=', wasmUrl);
-            // wasmUrl from Vite ?url is a path like "/assets/sqlite/wa-sqlite-async.wasm"
-            // In CF Workers, import.meta.url is invalid, so construct URL manually
-            const wasmFetchUrl = wasmUrl.startsWith('http') ? wasmUrl
-                : `https://free2aitools.com${wasmUrl.startsWith('/') ? '' : '/'}${wasmUrl}`;
-            const res = await fetch(wasmFetchUrl);
-            const buffer = await res.arrayBuffer();
-            const compiledModule = await WebAssembly.compile(buffer);
-            console.log('[SQLite] WASM compiled successfully, size:', buffer.byteLength);
-            
+            // V26.2: CF Workers — pre-compiled WebAssembly.Module
+            // @cloudflare/vite-plugin handles ?module imports at build time,
+            // producing a pre-compiled WebAssembly.Module. CF Workers allows
+            // WebAssembly.instantiate(module, imports) but blocks compile from bytes.
+            console.log('[SQLite] CF Workers: using pre-compiled WASM module');
             wasmConfig.instantiateWasm = (imports: any, successCallback: any) => {
-                WebAssembly.instantiate(compiledModule, imports).then((instance: any) => {
-                    successCallback(instance, compiledModule);
+                WebAssembly.instantiate(wasmModule, imports).then((instance: any) => {
+                    successCallback(instance, wasmModule);
                 });
-                return {}; // Emscripten expects a return value
+                return {}; // Emscripten expects synchronous return
             };
         }
 
