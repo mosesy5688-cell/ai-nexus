@@ -1,8 +1,3 @@
-/**
- * V23.1 Sharded Binary DB Packer (Serverless Search Engine)
- * Architecture: Modular (CES Compliant) Hash-Shard DBs
- */
-
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
@@ -23,9 +18,12 @@ import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
 import { initRustBridge } from './lib/rust-bridge.js';
 import { computeEmbeddings } from './lib/embedding-generator.js';
+import { openCache, validateModel, loadAll, saveBatch, closeCache } from './lib/embedding-cache.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
-const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024; // V25.8 §1.1: 8MB hard-cap per spec
+const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024; 
+const EMBEDDING_CACHE_PATH = path.join(CACHE_DIR, 'embedding-cache.db');
+const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 
 async function packDatabase() {
     // V25.8: Activate Rust FFI bridge (crucial for 410k+ scale)
@@ -48,6 +46,28 @@ async function packDatabase() {
     const trendMap = await loadTrendMap(CACHE_DIR);
     let metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
+    // V25.8.3: Embedding Vault Integration (Breakpoint Resume + Full Injection)
+    console.log('[VFS] 🔐 Opening Embedding Vault...');
+    const cacheDb = openCache(EMBEDDING_CACHE_PATH);
+    validateModel(cacheDb, EMBEDDING_MODEL);
+    const cachedVectors = loadAll(cacheDb);
+
+    // Inject cached vectors into memory objects to enable skipExisting
+    metadataBatch.forEach(e => {
+        const id = e.id || e.slug;
+        if (cachedVectors.has(id)) {
+            e.embedding = Array.from(cachedVectors.get(id));
+        }
+    });
+
+    // V25.8.3 P1: Shift-Left Computation (Before DB packing)
+    // Ensures all vectors are ready for injection into meta-*.db shards.
+    await computeEmbeddings(metadataBatch, {
+        onBatchComplete: async (batch) => {
+            saveBatch(cacheDb, batch);
+        }
+    });
+
     // V5.8 §1.1: 16-way hash-based meta sharding — meta-${SlotID % 16}.db
     const META_SHARD_COUNT = 16;
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
@@ -61,14 +81,12 @@ async function packDatabase() {
     }
 
     const searchDb = new Database(SEARCH_DB_PATH);
-
-    // V25.8: Standalone FTS5 database (decoupled from meta.db)
     const FTS_DB_PATH = path.join(SHARD_PATH_DIR, 'fts.db');
     const ftsDb = new Database(FTS_DB_PATH);
 
     Object.values(metaDbs).forEach(setupDatabasePragmas);
     setupDatabasePragmas(searchDb);
-    setupFtsPragmas(ftsDb); // V5.8 §1.1: WAL mode + incremental merge for FTS5
+    setupFtsPragmas(ftsDb);
 
     Object.values(metaDbs).forEach(db => db.exec(dbSchemas));
     searchDb.exec(searchDbSchema);
@@ -83,13 +101,10 @@ async function packDatabase() {
         prepFts[key] = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
     }
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
-    // V25.8: Decoupled FTS5 insert (umid-keyed for cross-DB joins)
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 
     const stats = { packed: 0, heavy: 0, bytes: 0 };
     const manifest = {};
-
-    // V25.8: Shard Header V4.0 + Zstd via ShardWriter (extracted for CES compliance)
     const shardWriter = new ShardWriter(SHARD_PATH_DIR);
     await shardWriter.init();
     let currentShardName = shardWriter.open();
@@ -101,7 +116,6 @@ async function packDatabase() {
     let rowIds = {};
     Object.keys(metaDbs).forEach(k => rowIds[k] = 1);
 
-    // V25.1 Compute Shift-Left: Initialize Distiller
     configureDistiller();
 
     const entityLookup = new Map();
@@ -118,8 +132,17 @@ async function packDatabase() {
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
         const arch = e.architecture ?? e.technical?.architecture ?? '';
 
-        // V25.1 Distillation Pipeline
         e = distillEntity(e, pBillions, entityLookup);
+        
+        // V25.8.3: Dual Vector Handling (Keywords vs ANN)
+        const keywords = e.search_vector || ''; // Distiller provides keywords here
+        if (e.embedding) {
+            const int8 = new Int8Array(e.embedding.length);
+            for (let i = 0; i < e.embedding.length; i++) {
+                int8[i] = Math.max(-128, Math.min(127, Math.round(e.embedding[i] * 127)));
+            }
+            e.search_vector = Buffer.from(int8.buffer).toString('base64');
+        }
 
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;
@@ -140,7 +163,6 @@ async function packDatabase() {
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
-        // V5.8 §1.1: 16-way hash routing — SlotID = computeShardSlot(UMID, 16)
         const slotId = computeShardSlot(e.umid || e.slug || e.id, META_SHARD_COUNT);
         const targetKey = `slot_${slotId}`;
 
@@ -152,19 +174,18 @@ async function packDatabase() {
             String(e.name || e.displayName || ''),
             String(truncatedSummary),
             Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags + " " + (e.search_vector || '')),
+            String(tags + " " + keywords), 
             String(category)
         ];
         prepFts[targetKey].run(...ftsValues);
 
-        // V25.8: Insert into decoupled fts.db (UMID-keyed)
         insertFts.run(
             stats.packed + 1,
             String(e.umid || e.id),
             String(e.name || e.displayName || ''),
             String(truncatedSummary),
             Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags + ' ' + (e.search_vector || '')),
+            String(tags + ' ' + keywords), 
             String(category)
         );
 
@@ -174,28 +195,17 @@ async function packDatabase() {
     Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
     searchDb.exec("COMMIT");
     ftsDb.exec("COMMIT");
-    shardWriter.finalize(); // V25.8: Patch shard header + write offset table
+    shardWriter.finalize();
+    closeCache(cacheDb); 
 
-    // V25.8: Finalize shard hashes, optimize DBs
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 
-    // V25.8.3 P1: Compute ANN embeddings for all entities (384D, all-MiniLM-L6-v2)
-    // This injects entity.embedding (Float32[384]) into each entity in metadataBatch.
-    // Must run BEFORE generateVectorCore() which quantizes Float32 → Int8.
-    await computeEmbeddings(metadataBatch);
-
-    // V25.8.3: Generate Hot Shard + Vector Core BEFORE disposing metadataBatch
-    // metadataBatch is already sorted by FNI (stable popularity sort) — perfect for top-30k extraction
     generateHotShard(metadataBatch);
     generateVectorCore(metadataBatch);
 
-    // V22.10: CRITICAL MEMORY DISPOSAL
-    // Destroy the giant 410k entity array BEFORE re-reading it from disk for indexing.
-    // This frees ~5GB of Heap for the next stage.
     metadataBatch = null;
     console.log('[VFS] Memory: metadataBatch disposed. Triggering Edge-Index...');
 
-    // V25.8: Generate Edge Index in a fresh memory context (re-reads from disk)
     const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
     const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();

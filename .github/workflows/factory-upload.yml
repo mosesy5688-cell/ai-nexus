@@ -200,6 +200,22 @@ jobs:
         with:
           path: fused-entities.tar
           key: intra-4-4-${{ github.run_id }}-fused-tar
+      - name: Restore Embedding Cache (Vault)
+        id: cache-embedding
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/embedding-cache.db
+          key: embedding-cache-v1-${{ github.run_id }}
+          restore-keys: embedding-cache-v1-
+      - name: R2 Fallback for Embedding Cache
+        if: steps.cache-embedding.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p output/cache
+          node --input-type=module -e "
+            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
+            await restoreFileFromR2('state/embedding-cache.db', 'output/cache/embedding-cache.db');
+          " || echo "⚠️ No embedding cache on R2"
       - name: Extract Fused Entities
         run: |
           mkdir -p output/cache/fused
@@ -210,6 +226,12 @@ jobs:
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           UMID_SALT: ${{ secrets.UMID_SALT }}
         run: node scripts/factory/pack-db.js
+      - name: Save Embedding Cache to Vault
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/embedding-cache.db
+          key: embedding-cache-v1-${{ github.run_id }}
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/search.db --out=output
       - name: V23.1 SQL Health Check
@@ -516,8 +538,23 @@ jobs:
               }));
               console.log('✅ dedup.db uploaded to state/dedup.db for Factory 1.5');
             "
-          else
-            echo "⚠️ No dedup.db found — Factory 1.5 will have empty queue"
+          fi
+          
+          # V25.8.3: Upload Embedding Cache (Vault) to R2 State
+          if [ -f "output/cache/embedding-cache.db" ]; then
+            node --input-type=module -e "
+              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+              import { PutObjectCommand } from '@aws-sdk/client-s3';
+              import fs from 'fs';
+              const s3 = createR2Client();
+              if (!s3) process.exit(0);
+              const data = fs.readFileSync('output/cache/embedding-cache.db');
+              await s3.send(new PutObjectCommand({
+                Bucket: 'ai-nexus-assets', Key: 'state/embedding-cache.db',
+                Body: data, ContentType: 'application/x-sqlite3'
+              }));
+              console.log('✅ embedding-cache.db uploaded to state/embedding-cache.db');
+            "
           fi
         continue-on-error: true
 
