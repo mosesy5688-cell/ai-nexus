@@ -59,6 +59,12 @@ jobs:
                 console.log('Deleted conflicting artifact config:', f);
               }
             });
+
+            // 3. Wipe Wrangler deployment cache to prevent stale config path errors
+            if (fs.existsSync('.wrangler')) {
+              fs.rmSync('.wrangler', { recursive: true, force: true });
+              console.log('Wiped .wrangler cache directory');
+            }
           "
 
       - name: Deploy to Cloudflare Pages
