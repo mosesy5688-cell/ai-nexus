@@ -1,14 +1,12 @@
 /**
  * SQLite WASM Engine & Connection Pool (SSR)
- * V24.10d: CF Workers WASM instantiation fix
+ * V26.1: CF Workers WASM fix — two-step compile+instantiate
  */
 import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.mjs';
 // @ts-ignore
 import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { R2RangeVFS } from './r2-vfs.js';
-// V24.10d: Pre-compiled WASM module for CF Workers
-// wasmModuleImports: true in astro.config.mjs enables this
-// V26.0: Asset-based WASM import for environment compatibility (Node/Worker)
+// V26.1: Use ?url import (Vite-native, no plugins needed)
 // @ts-ignore
 import wasmUrl from '../assets/sqlite/wa-sqlite-async.wasm?url';
 
@@ -42,43 +40,44 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
 
     const wasmConfig: any = {};
     sqliteInitPromise = (async () => {
-        // V24.10: Detect CF Workers first
+        // V26.1: Detect CF Workers first
         const isCloudflareWorkers = typeof caches !== 'undefined' && 'default' in caches;
 
         if (!isCloudflareWorkers && typeof process !== 'undefined' && process.versions?.node) {
             // Node.js (dev/build): read WASM from local filesystem
             const { readFileSync } = await import('fs');
             const { join } = await import('path');
-            try {
-                // Vite 7 ?url returns a path like "/src/assets/sqlite/wa-sqlite-async.wasm"
-                const relativePath = wasmUrl.startsWith('/') ? wasmUrl.slice(1) : wasmUrl;
-                const fullPath = join(process.cwd(), relativePath);
-                wasmConfig.wasmBinary = readFileSync(fullPath);
-            } catch (e) {
-                // Fallback to node_modules if SRC path fails
-                const paths = [
-                    join(process.cwd(), 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm'),
-                    join(process.cwd(), '..', 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm')
-                ];
-                for (const p of paths) {
-                    try {
-                        wasmConfig.wasmBinary = readFileSync(p);
-                        break;
-                    } catch { }
-                }
+            const paths = [
+                join(process.cwd(), 'src', 'assets', 'sqlite', 'wa-sqlite-async.wasm'),
+                join(process.cwd(), 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm'),
+                join(process.cwd(), '..', 'node_modules', '@journeyapps', 'wa-sqlite', 'dist', 'wa-sqlite-async.wasm')
+            ];
+            for (const p of paths) {
+                try {
+                    wasmConfig.wasmBinary = readFileSync(p);
+                    console.log('[SQLite] Loaded WASM from:', p);
+                    break;
+                } catch { }
             }
         } else {
-            // V26.0: Production Runtime (Worker)
-            // Manual fetch avoids build-time ESM WASM import conflict in Vite 7
-            try {
-                const res = await fetch(new URL(wasmUrl, import.meta.url).href);
-                const buffer = await res.arrayBuffer();
-                wasmConfig.wasmBinary = buffer;
-            } catch (e) {
-                console.error('[SQLite] Failed to fetch WASM binary:', e);
-                // Last ditch fallback to CDN
-                wasmConfig.locateFile = (file: string) => `https://cdn.free2aitools.com/wasm/${file}`;
-            }
+            // V26.1: CF Workers — two-step WASM loading
+            // CF Workers BLOCKS WebAssembly.instantiate(buffer, imports) but
+            // ALLOWS WebAssembly.compile(buffer) + WebAssembly.instantiate(module, imports).
+            // Step 1: Fetch WASM binary via ?url import
+            // Step 2: Compile to WebAssembly.Module (allowed in CF Workers)
+            // Step 3: Use instantiateWasm to instantiate from compiled module (allowed)
+            console.log('[SQLite] CF Workers: fetching and compiling WASM...');
+            const res = await fetch(new URL(wasmUrl, import.meta.url).href);
+            const buffer = await res.arrayBuffer();
+            const compiledModule = await WebAssembly.compile(buffer);
+            console.log('[SQLite] WASM compiled successfully, size:', buffer.byteLength);
+            
+            wasmConfig.instantiateWasm = (imports: any, successCallback: any) => {
+                WebAssembly.instantiate(compiledModule, imports).then((instance: any) => {
+                    successCallback(instance, compiledModule);
+                });
+                return {}; // Emscripten expects a return value
+            };
         }
 
         globalSqliteModule = await SQLiteAsyncESMFactory(wasmConfig);
