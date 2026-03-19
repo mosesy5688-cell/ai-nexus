@@ -66,8 +66,12 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
             // Step 1: Fetch WASM binary via ?url import
             // Step 2: Compile to WebAssembly.Module (allowed in CF Workers)
             // Step 3: Use instantiateWasm to instantiate from compiled module (allowed)
-            console.log('[SQLite] CF Workers: fetching and compiling WASM...');
-            const res = await fetch(new URL(wasmUrl, import.meta.url).href);
+            console.log('[SQLite] CF Workers: fetching and compiling WASM, url=', wasmUrl);
+            // wasmUrl from Vite ?url is a path like "/assets/sqlite/wa-sqlite-async.wasm"
+            // In CF Workers, import.meta.url is invalid, so construct URL manually
+            const wasmFetchUrl = wasmUrl.startsWith('http') ? wasmUrl
+                : `https://free2aitools.com${wasmUrl.startsWith('/') ? '' : '/'}${wasmUrl}`;
+            const res = await fetch(wasmFetchUrl);
             const buffer = await res.arrayBuffer();
             const compiledModule = await WebAssembly.compile(buffer);
             console.log('[SQLite] WASM compiled successfully, size:', buffer.byteLength);
