@@ -28,9 +28,11 @@ export default defineConfig({
     // wrangler remote proxy session requirement in CI/GHA builds
     prerenderEnvironment: 'node',
     platformProxy: { enabled: !process.env.CI && process.env.NODE_ENV !== 'production' },
-    // V26.0: Manual environment-adaptive WASM loading (Option 2)
-    // We disable wasmModuleImports to allow our custom loader in Node/Workerd
-    wasmModuleImports: false,
+    // V26.1: Enable WASM module imports — Astro 6 + CF adapter will pre-compile
+    // .wasm imports into WebAssembly.Module at build time, which CF Workers allows.
+    // CF Workers BLOCKS runtime compilation from raw bytes (WebAssembly.instantiate(buffer))
+    // but ALLOWS instantiation from pre-compiled modules.
+    wasmModuleImports: true,
     // V26.0: Explicitly disable sessions to prevent SESSION KV binding injection
     sessions: false,
     // V26.0: Use passthrough image service to prevent IMAGES binding injection
