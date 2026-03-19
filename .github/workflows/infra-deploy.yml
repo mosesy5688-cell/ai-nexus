@@ -41,46 +41,42 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ASTRO_SKIP_BINDING_CHECK: true
 
-      - name: Restructure artifacts for Cloudflare Pages _worker.js convention
+      - name: Restructure artifacts for Cloudflare Pages (Proxy + Client Promotion)
         run: |
           node -e "
             const fs = require('fs');
-            const path = require('path');
 
-            // 1. Promote entry.mjs to the standard _worker.js entry point
-            fs.copyFileSync('dist/server/entry.mjs', 'dist/_worker.js');
-            console.log('Created dist/_worker.js');
+            // 1. Create standard _worker.js proxy at root (Convention-over-Configuration)
+            //    Importing from ./server/entry.mjs preserves its relative imports to ../assets/
+            const workerProxy = \"export { default } from './server/entry.mjs';\";
+            fs.writeFileSync('dist/_worker.js', workerProxy);
+            console.log('Created dist/_worker.js proxy');
 
-            // 2. Move all other server assets (chunks etc.) to dist root
-            //    so relative imports in _worker.js resolve correctly
-            const serverFiles = fs.readdirSync('dist/server');
-            for (const f of serverFiles) {
-              if (f === 'entry.mjs' || f === 'wrangler.json') continue;
-              const src = path.join('dist/server', f);
-              const dest = path.join('dist', f);
-              if (fs.statSync(src).isDirectory()) {
-                fs.cpSync(src, dest, { recursive: true });
-              } else {
-                fs.copyFileSync(src, dest);
-              }
-            }
-            console.log('Moved server assets to dist root');
-
-            // 3. Move all client static assets to dist root
-            //    so CSS/JS are served at the correct URL paths
+            // 2. Promote all client static assets to dist root
+            //    This ensures CSS/JS load at the correct URL paths (e.g. /_astro/...)
             if (fs.existsSync('dist/client')) {
+              console.log('Promoting client assets from dist/client to dist root...');
               fs.cpSync('dist/client', 'dist', { recursive: true });
-              console.log('Moved client assets to dist root');
+              fs.rmSync('dist/client', { recursive: true, force: true });
             }
 
-            // 4. Remove subdirectories and stale Wrangler cache
-            fs.rmSync('dist/server', { recursive: true, force: true });
-            fs.rmSync('dist/client', { recursive: true, force: true });
+            // 3. Delete ONLY conflicting wrangler configs in artifacts
+            //    We KEEP the server folder and entry.mjs to maintain WASM relative paths.
+            const targets = ['dist/wrangler.json', 'dist/server/wrangler.json', 'dist/_worker.js/wrangler.json'];
+            targets.forEach(f => {
+              if (fs.existsSync(f)) {
+                fs.unlinkSync(f);
+                console.log('Deleted conflicting artifact config:', f);
+              }
+            });
+
+            // 4. Wipe stale Wrangler cache
             if (fs.existsSync('.wrangler')) {
               fs.rmSync('.wrangler', { recursive: true, force: true });
+              console.log('Wiped .wrangler cache');
             }
 
-            console.log('Restructure complete. dist/ is ready for _worker.js deployment.');
+            console.log('Restructure complete. Standard Pages Layout + SSR Proxy ready.');
           "
 
       - name: Deploy to Cloudflare Pages
