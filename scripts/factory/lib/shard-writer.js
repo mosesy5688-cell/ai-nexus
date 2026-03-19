@@ -29,12 +29,22 @@ async function loadZstd() {
         const zstd = await new Promise(resolve => ZstdCodec.run(z => resolve(z)));
         const simple = new zstd.Simple();
         _zstdCompress = (data) => Buffer.from(simple.compress(data, 3));
+        _zstdCompress._type = 'zstd';
         console.log('[SHARD-WRITER] Zstd compression enabled (zstd-codec)');
         return _zstdCompress;
-    } catch { /* zstd-codec not available */ }
-    // fzstd is decompress-only — cannot use for compression
+    } catch (e) {
+        console.warn(`[SHARD-WRITER] zstd-codec unavailable: ${e.message}`);
+    }
+    // Fallback: Node.js built-in gzip (always available, ~3-5x compression)
+    try {
+        const zlib = await import('zlib');
+        _zstdCompress = (data) => zlib.gzipSync(data, { level: 6 });
+        _zstdCompress._type = 'gzip';
+        console.log('[SHARD-WRITER] Gzip compression enabled (zlib fallback)');
+        return _zstdCompress;
+    } catch { /* should never happen */ }
     _zstdCompress = null;
-    console.log('[SHARD-WRITER] Zstd compression unavailable, writing raw payloads');
+    console.error('[SHARD-WRITER] ⚠️ NO compression available — raw payloads will cause cache bloat!');
     return _zstdCompress;
 }
 

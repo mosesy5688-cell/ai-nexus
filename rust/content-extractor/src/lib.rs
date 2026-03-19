@@ -17,7 +17,7 @@ use std::sync::LazyLock;
 const MIN_QUALITY_LEN: usize = 200;
 const FULLTEXT_THRESHOLD: usize = 1000;
 const MIN_SECTION_HEADERS: usize = 2;
-const MAX_HTML_SIZE: usize = 500_000;
+const MAX_HTML_SIZE: usize = 2_000_000;
 
 // Pre-compiled regexes for HTML extraction
 static RE_SCRIPT: LazyLock<Regex> =
@@ -62,11 +62,16 @@ fn strip_tags(html: &str) -> String {
 /// Extract article content from ar5iv HTML, converting to Markdown.
 /// Strips nav/header/footer/script/style, preserves section headers.
 fn extract_main_content(html: &str) -> String {
-    // Truncate oversized HTML
+    // Truncate oversized HTML (UTF-8 boundary safe)
     let source = if html.len() > MAX_HTML_SIZE {
-        &html[..MAX_HTML_SIZE]
+        // Walk backward from MAX_HTML_SIZE to find a valid UTF-8 char boundary
+        let mut end = MAX_HTML_SIZE;
+        while end > 0 && !html.is_char_boundary(end) {
+            end -= 1;
+        }
+        &html[..end]
     } else {
-        html
+        &html
     };
 
     // Remove non-content elements

@@ -11,8 +11,10 @@ import { initShardCrypto, decryptPayload, isEncryptionEnabled } from './shard-cr
 const HEADER_SIZE = 29;
 const NXVF_MAGIC = Buffer.from([0x4E, 0x58, 0x56, 0x46]);
 const ZSTD_MAGIC = Buffer.from([0x28, 0xB5, 0x2F, 0xFD]);
+const GZIP_MAGIC = Buffer.from([0x1F, 0x8B]);
 
 let _zstdDecompress = null;
+let _gzipDecompress = null;
 let _cryptoInitialized = false;
 
 async function ensureDeps() {
@@ -22,6 +24,13 @@ async function ensureDeps() {
             _zstdDecompress = (data) => Buffer.from(fzstd.decompress(data));
         } catch {
             _zstdDecompress = false;
+        }
+        // Gzip decompression via Node.js built-in zlib (always available)
+        try {
+            const zlib = await import('zlib');
+            _gzipDecompress = (data) => Buffer.from(zlib.gunzipSync(data));
+        } catch {
+            _gzipDecompress = false;
         }
     }
     if (!_cryptoInitialized) {
@@ -40,6 +49,8 @@ function isValidPayload(buf) {
     if (b0 === 0x5B && (b1 === 0x7B || b1 === 0x5B || b1 === 0x22 || b1 === 0x5D)) return true;
     // Zstd magic (4 bytes: 28 B5 2F FD)
     if (buf.length >= 4 && buf.subarray(0, 4).equals(ZSTD_MAGIC)) return true;
+    // Gzip magic (2 bytes: 1F 8B)
+    if (buf.length >= 2 && buf.subarray(0, 2).equals(GZIP_MAGIC)) return true;
     return false;
 }
 
@@ -121,6 +132,15 @@ export async function readBinaryShard(filePath) {
                 payload = _zstdDecompress(payload);
             } else {
                 console.error(`[BINARY-READER] Zstd payload but fzstd unavailable: ${shardName}`);
+                continue;
+            }
+        }
+        // Gzip decompression (detect via magic bytes 1F 8B)
+        else if (payload.length >= 2 && payload.subarray(0, 2).equals(GZIP_MAGIC)) {
+            if (_gzipDecompress) {
+                payload = _gzipDecompress(payload);
+            } else {
+                console.error(`[BINARY-READER] Gzip payload but zlib unavailable: ${shardName}`);
                 continue;
             }
         }

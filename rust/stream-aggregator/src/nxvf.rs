@@ -1,4 +1,4 @@
-//! NXVF V4.1 Binary Shard Reader — Zstd decompression + AES-256-CTR decryption.
+//! NXVF V4.1 Binary Shard Reader — Zstd/Gzip decompression + AES-256-CTR decryption.
 //! Port of scripts/factory/lib/registry-binary-reader.js for native Rust performance.
 //! Header: Magic(4B) | Version(1B) | SlotID(2B) | OffsetTableOffset(4B) |
 //!         EntityCount(4B) | Checksum(4B) | EmbeddingOffset(4B) |
@@ -14,6 +14,7 @@ use std::sync::OnceLock;
 const HEADER_SIZE: usize = 29;
 const NXVF_MAGIC: [u8; 4] = [0x4E, 0x58, 0x56, 0x46]; // "NXVF"
 const ZSTD_MAGIC: [u8; 4] = [0x28, 0xB5, 0x2F, 0xFD];
+const GZIP_MAGIC: [u8; 2] = [0x1F, 0x8B];
 
 type Aes256Ctr = Ctr128BE<Aes256>;
 
@@ -67,6 +68,10 @@ fn is_valid_payload(buf: &[u8]) -> bool {
     }
     // Zstd magic (4 bytes)
     if buf.len() >= 4 && buf[0..4] == ZSTD_MAGIC {
+        return true;
+    }
+    // Gzip magic (2 bytes)
+    if buf.len() >= 2 && buf[0..2] == GZIP_MAGIC {
         return true;
     }
     false
@@ -164,6 +169,19 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>> {
                 }
             }
         }
+        // Gzip decompression (detect via magic bytes 1F 8B)
+        else if payload.len() >= 2 && payload[0..2] == GZIP_MAGIC {
+            use std::io::Read;
+            let mut decoder = GzDecoder::new(payload.as_slice());
+            let mut decompressed = Vec::new();
+            match decoder.read_to_end(&mut decompressed) {
+                Ok(_) => payload = decompressed,
+                Err(e) => {
+                    eprintln!("[RUST-NXVF] Gzip error in {}[{}]: {}", shard_name, i, e);
+                    continue;
+                }
+            }
+        }
 
         // JSON parse with sanitization fallback + forced-decrypt retry
         match serde_json::from_slice::<serde_json::Value>(&payload) {
@@ -182,6 +200,11 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>> {
                     let mut retry = decrypt_payload(key, shard_name, raw, offset);
                     if retry.len() >= 4 && retry[0..4] == ZSTD_MAGIC {
                         if let Ok(d) = zstd::decode_all(retry.as_slice()) { retry = d; }
+                    } else if retry.len() >= 2 && retry[0..2] == GZIP_MAGIC {
+                        use std::io::Read;
+                        let mut dec = GzDecoder::new(retry.as_slice());
+                        let mut d = Vec::new();
+                        if dec.read_to_end(&mut d).is_ok() { retry = d; }
                     }
                     if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&retry) {
                         entities.push(val);
