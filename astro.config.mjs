@@ -99,11 +99,29 @@ export default defineConfig({
               }
             }
           },
-          generateBundle() {
+          generateBundle(options, bundle) {
             for (const [srcPath, fileName] of wasmFilesToCopy) {
               try {
                 const source = fs.readFileSync(srcPath);
-                this.emitFile({ type: 'asset', fileName, source });
+                // Find chunks that import this WASM file and emit alongside them
+                const dirs = new Set();
+                for (const [chunkName, chunk] of Object.entries(bundle)) {
+                  if (chunk.type === 'chunk' && chunk.code && chunk.code.includes(`./${fileName}`)) {
+                    dirs.add(path.dirname(chunkName));
+                  }
+                }
+                // Emit to each directory where a chunk imports the WASM
+                if (dirs.size > 0) {
+                  for (const dir of dirs) {
+                    const emitPath = dir && dir !== '.' ? `${dir}/${fileName}` : fileName;
+                    this.emitFile({ type: 'asset', fileName: emitPath, source });
+                    console.log(`[cf-wasm] Emitted ${emitPath}`);
+                  }
+                } else {
+                  // Fallback: emit to root
+                  this.emitFile({ type: 'asset', fileName, source });
+                  console.log(`[cf-wasm] Emitted ${fileName} (root fallback)`);
+                }
               } catch (e) { console.warn('[cf-wasm] Failed to copy:', srcPath, e.message); }
             }
           }
