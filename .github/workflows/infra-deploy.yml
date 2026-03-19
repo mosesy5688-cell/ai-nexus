@@ -41,18 +41,22 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ASTRO_SKIP_BINDING_CHECK: true
 
-      - name: Fix wrangler config for Pages deployment
+      - name: Re-align artifacts for Cloudflare Pages SSR
         run: |
           node -e "
             const fs = require('fs');
-            const targets = ['dist/server/wrangler.json', 'dist/wrangler.json', 'dist/_worker.js/wrangler.json'];
+            // 1. Create standard _worker.js proxy to restore SSR entry point (Convention-over-Configuration)
+            const workerProxy = \"export { default } from './server/entry.mjs';\";
+            fs.writeFileSync('dist/_worker.js', workerProxy);
+            console.log('Created dist/_worker.js proxy');
+
+            // 2. Delete ALL conflicting wrangler.json files in dist
+            // This forces Wrangler 4.74.0 to use the root wrangler.toml which is a valid Pages config.
+            const targets = ['dist/wrangler.json', 'dist/server/wrangler.json', 'dist/_worker.js/wrangler.json'];
             targets.forEach(f => {
               if (fs.existsSync(f)) {
-                const c = JSON.parse(fs.readFileSync(f, 'utf8'));
-                delete c.main;
-                delete c.rules;
-                fs.writeFileSync(f, JSON.stringify(c, null, 2));
-                console.log('Fixed:', f);
+                fs.unlinkSync(f);
+                console.log('Deleted conflicting artifact config:', f);
               }
             });
           "
