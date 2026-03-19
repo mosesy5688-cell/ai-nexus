@@ -49,8 +49,9 @@ function isValidPayload(buf) {
     if (b0 === 0x5B && (b1 === 0x7B || b1 === 0x5B || b1 === 0x22 || b1 === 0x5D)) return true;
     // Zstd magic (4 bytes: 28 B5 2F FD)
     if (buf.length >= 4 && buf.subarray(0, 4).equals(ZSTD_MAGIC)) return true;
-    // Gzip magic (2 bytes: 1F 8B)
-    if (buf.length >= 2 && buf.subarray(0, 2).equals(GZIP_MAGIC)) return true;
+    // NOTE: Gzip magic (0x1F 0x8B) is NOT checked here — its 2-byte signature
+    // has a 1/65536 false positive rate on encrypted data, causing decryption
+    // to be skipped. Gzip is detected AFTER decryption in the decompression stage.
     return false;
 }
 

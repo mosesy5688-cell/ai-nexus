@@ -71,10 +71,9 @@ fn is_valid_payload(buf: &[u8]) -> bool {
     if buf.len() >= 4 && buf[0..4] == ZSTD_MAGIC {
         return true;
     }
-    // Gzip magic (2 bytes)
-    if buf.len() >= 2 && buf[0..2] == GZIP_MAGIC {
-        return true;
-    }
+    // NOTE: Gzip magic (0x1F 0x8B) is NOT checked here — its 2-byte signature
+    // has a 1/65536 false positive rate on encrypted data, causing decryption
+    // to be skipped. Gzip is detected AFTER decryption in the decompression stage.
     false
 }
 
