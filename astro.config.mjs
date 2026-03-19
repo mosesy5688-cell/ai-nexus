@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,8 +50,65 @@ export default defineConfig({
   integrations: [],
   vite: {
     plugins: [
-      // V26.1: No vite-plugin-wasm needed — we use ?url imports (Vite-native)
-      // and handle WASM compilation manually in sqlite-engine.ts
+      // V26.2: Custom WASM plugin for CF Workers
+      // Strategy: .wasm?module → bare import (external) → wrangler CompiledWasm rule
+      // 1. Intercept .wasm?module imports and generate bare .wasm import
+      // 2. Mark bare .wasm as Rollup external (don't try to parse binary)
+      // 3. Copy WASM file to output dir so wrangler can find it
+      // 4. Wrangler's CompiledWasm rule makes the import a WebAssembly.Module
+      (() => {
+        const WASM_MODULE_RE = /\.wasm\?module$/;
+        const BARE_WASM_RE = /^\.\/.*\.wasm$/;
+        const wasmFilesToCopy = new Map();
+        let isBuild = false;
+        return {
+          name: 'cf-wasm-module',
+          enforce: 'pre',
+          configResolved(config) {
+            isBuild = config.command === 'build';
+          },
+          resolveId(id, importer) {
+            if (WASM_MODULE_RE.test(id)) {
+              if (importer) {
+                const resolved = path.resolve(path.dirname(importer), id.replace('?module', ''));
+                return resolved + '?module';
+              }
+              return id;
+            }
+            // Only mark bare .wasm as external during build (for wrangler)
+            if (isBuild && BARE_WASM_RE.test(id)) {
+              return { id, external: true };
+            }
+          },
+          load(id) {
+            if (WASM_MODULE_RE.test(id)) {
+              const wasmPath = id.replace('?module', '');
+              const fileName = path.basename(wasmPath);
+              if (isBuild) {
+                // Prod build: bare import → wrangler resolves as CompiledWasm
+                wasmFilesToCopy.set(wasmPath, fileName);
+                return `import wasmModule from './${fileName}';\nexport default wasmModule;`;
+              } else {
+                // Dev/test (Node.js): compile from buffer (allowed in Node)
+                return `
+                  import { readFileSync } from 'fs';
+                  const binary = readFileSync(${JSON.stringify(wasmPath)});
+                  const wasmModule = new WebAssembly.Module(binary);
+                  export default wasmModule;
+                `;
+              }
+            }
+          },
+          generateBundle() {
+            for (const [srcPath, fileName] of wasmFilesToCopy) {
+              try {
+                const source = fs.readFileSync(srcPath);
+                this.emitFile({ type: 'asset', fileName, source });
+              } catch (e) { console.warn('[cf-wasm] Failed to copy:', srcPath, e.message); }
+            }
+          }
+        };
+      })(),
       // V26.0: Fix Vite 7 SSR dep optimization CJS compat issue with cookie module
       {
         name: 'fix-ssr-cookie-compat',
