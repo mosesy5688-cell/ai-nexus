@@ -7,6 +7,7 @@
 use aes::Aes256;
 use cipher::{generic_array::GenericArray, KeyIvInit, StreamCipher};
 use ctr::Ctr128BE;
+use flate2::read::GzDecoder;
 use napi::{Error, Result};
 use sha2::{Digest, Sha256};
 use std::sync::OnceLock;
