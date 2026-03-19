@@ -136,12 +136,23 @@ export async function computeEmbeddings(entities, options = {}) {
             });
 
             // Extract embeddings and inject into entities
+            const batchResults = [];
             for (let k = 0; k < indices.length; k++) {
                 const entityIdx = indices[k];
                 // output.tolist() returns nested arrays: [[dim0, dim1, ...], ...]
                 const vec = output[k].tolist ? output[k].tolist() : Array.from(output[k].data || output[k]);
                 entities[entityIdx].embedding = vec;
                 computed++;
+                batchResults.push({ id: entities[entityIdx].id || entities[entityIdx].slug, embedding: vec });
+            }
+
+            // Incremental Checkpoint: Notify caller to persist this batch
+            if (options.onBatchComplete && typeof options.onBatchComplete === 'function') {
+                try {
+                    await options.onBatchComplete(batchResults);
+                } catch (ce) {
+                    console.warn(`[EMBEDDING] Checkpoint callback failed: ${ce.message}`);
+                }
             }
         } catch (err) {
             console.error(`[EMBEDDING] Batch ${Math.floor(i / BATCH_SIZE)} failed: ${err.message}`);
