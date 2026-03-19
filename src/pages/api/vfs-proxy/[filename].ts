@@ -1,4 +1,6 @@
 import { handleVfsProxy } from '@/lib/db';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
@@ -9,9 +11,7 @@ const EDGE_CACHE_TTL = 3600; // 1 hour edge cache
  * Standardizes access to R2 SQLite shards with 8KB alignment.
  * Uses Cloudflare Cache API to prevent 429 throttling on cold starts.
  */
-export async function GET({ request, locals }) {
-    const env = locals.runtime?.env;
-
+export async function GET({ request }) {
     if (!env || !env.R2_ASSETS) {
         console.error('[VFS-PROXY] R2_ASSETS binding missing in runtime env.');
         return new Response('Environment Error', { status: 500 });

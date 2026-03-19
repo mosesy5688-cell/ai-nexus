@@ -14,7 +14,7 @@ interface Props {
 }
 
 const { modelId, limit = 12 } = Astro.props;
-const kv = Astro.locals.runtime?.env?.KV_CACHE;
+const kv = null; // V26.0: KV_CACHE not configured in dashboard, gracefully degrade
 const relatedModels = await getRelatedModels(modelId, kv, limit);
 ---
 

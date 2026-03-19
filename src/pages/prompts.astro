@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allPrompts = [] } = await fetchCatalogData('prompt', (Astro as any).locals.runtime);
+const { items: allPrompts = [] } = await fetchCatalogData('prompt');
 const prompts = allPrompts.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Prompts & Templates Catalog | Free2AI";

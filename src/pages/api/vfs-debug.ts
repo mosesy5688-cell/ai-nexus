@@ -1,7 +1,9 @@
 import type { APIRoute } from 'astro';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
-export const GET: APIRoute = async ({ locals, url }) => {
-    const r2 = locals.runtime?.env?.R2_ASSETS;
+export const GET: APIRoute = async ({ url }) => {
+    const r2 = env?.R2_ASSETS;
     if (!r2) return new Response('R2 binding missing', { status: 500 });
 
     const path = url.searchParams.get('path') || 'cache/fused/arxiv-paper--2011.05081.json.gz';

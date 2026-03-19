@@ -2,6 +2,8 @@
 // SSR Mode - Server-side rendering for stability
 import Layout from '../../layouts/Layout.astro';
 import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlite-engine';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 const title = "AI Model & Tool Rankings";
 const description = "Explore top-rated AI models, agents, datasets, and tools ranked by the Free2AITools Nexus Index (FNI).";
@@ -40,10 +42,10 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
 };
 
 // V23.6: VFS-Only Category Counts (replaces CDN category_stats.json)
-const env = ((Astro as any).locals.runtime)?.env || {};
-const r2Bucket = env.R2_ASSETS;
+// V26.0: env imported from cloudflare:workers at module level
+const r2Bucket = env?.R2_ASSETS;
 const isDev = !!import.meta.env?.DEV;
-const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== 'production');
+const shouldSimulate = isDev;
 
 let categoryCounts: Record<string, number> = {};
 try {

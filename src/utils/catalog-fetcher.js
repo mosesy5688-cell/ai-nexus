@@ -5,6 +5,8 @@
 import { DataNormalizer } from '../scripts/lib/DataNormalizer.js';
 import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine';
 import { determineTargetDbs } from './search-query-builder';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 /**
  * Fetches catalog data using the Federated VFS Engine (wa-sqlite)
@@ -12,13 +14,13 @@ import { determineTargetDbs } from './search-query-builder';
  */
 const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'prompt'];
 
-export async function fetchCatalogData(type, runtime = null) {
+export async function fetchCatalogData(type) {
     const start = Date.now();
     const SSR_TIMEOUT_MS = 15000; // 15s max — prevents Cloudflare 524 timeout
 
     try {
         const result = await Promise.race([
-            _fetchCatalogDataInner(type, runtime, start),
+            _fetchCatalogDataInner(type, start),
             new Promise((_, reject) => setTimeout(() => reject(new Error('SSR timeout')), SSR_TIMEOUT_MS))
         ]);
         return result;
@@ -28,13 +30,13 @@ export async function fetchCatalogData(type, runtime = null) {
     }
 }
 
-async function _fetchCatalogDataInner(type, runtime, start) {
-    const env = (runtime)?.env || (runtime) || {};
-    const r2Bucket = env.R2_ASSETS;
+async function _fetchCatalogDataInner(type, start) {
+    // V26.0: env imported from cloudflare:workers at module level
+    const r2Bucket = env?.R2_ASSETS;
 
     // V23.1 Simulation Guard
     const isDev = !!import.meta.env?.DEV;
-    const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== 'production');
+    const shouldSimulate = isDev;
 
     // V23.6: Detect category vs entity type
     const isCategory = !ENTITY_TYPES.includes(type);

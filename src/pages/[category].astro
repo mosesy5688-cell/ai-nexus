@@ -27,7 +27,7 @@ const meta = CATEGORY_METADATA[category!] || {
 };
 
 // V16.9.23: Use unified fetcher for fallback and multi-type support
-const { items: rawItems = [], source } = await fetchCatalogData(category, (Astro as any).locals.runtime);
+const { items: rawItems = [], source } = await fetchCatalogData(category);
 const items = (rawItems || []).slice(0, 100).map(truncateListingItem).filter(Boolean);
 
 const pageTitle = `${meta.label} - AI Technical Index | Free2AI`;

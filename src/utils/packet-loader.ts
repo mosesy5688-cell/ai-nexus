@@ -5,6 +5,8 @@ import { promoteEngine2Fields } from './dual-engine-merger.js';
 import { fetchCompressedJSON } from './resilient-fetch.js';
 import { fetchCatalogData } from './catalog-fetcher.js';
 import { resolveVfsMetadata } from './vfs-metadata-provider.js';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 /**
  * V22.8: High-Density VFS Parallel Loader
@@ -31,7 +33,7 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     }
 
     // TIER 1: Server-First Recovery Strategy (Internal R2 Priority)
-    if (!entityResult && locals?.runtime?.env?.R2_ASSETS && typeof window === 'undefined') {
+    if (!entityResult && env?.R2_ASSETS && typeof window === 'undefined') {
         const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
         if (sequentialResult) {
             entityResult = {
@@ -76,7 +78,7 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     // V21.15.10: Catalog Fallback Discovery (Engine 1 Fallback)
     // If the entity profile is missing from R2, try to find a stub in the ranking indices.
     if (!entityResult) {
-        const { items: catalogItems } = await fetchCatalogData(type, locals);
+        const { items: catalogItems } = await fetchCatalogData(type);
         const stub = catalogItems.find(item =>
             normalizeEntitySlug(item.id || item.slug, type) === normalized ||
             (item.id || '').toLowerCase() === normalized

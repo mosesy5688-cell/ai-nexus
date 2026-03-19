@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allModels = [], totalPages, totalEntities, error } = await fetchCatalogData('model', (Astro as any).locals.runtime);
+const { items: allModels = [], totalPages, totalEntities, error } = await fetchCatalogData('model');
 const models = (allModels || []).slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Models Catalog | Explore 70K+ Open-Source Models";
