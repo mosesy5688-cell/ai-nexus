@@ -28,8 +28,8 @@ export default defineConfig({
     // wrangler remote proxy session requirement in CI/GHA builds
     prerenderEnvironment: 'node',
     platformProxy: { enabled: !process.env.CI && process.env.NODE_ENV !== 'production' },
-    // V26.0: Manual environment-adaptive WASM loading (Option 2)
-    // We disable wasmModuleImports to allow our custom loader in Node/Workerd
+    // V26.1: wasmModuleImports disabled — we handle WASM loading manually
+    // via ?url import + WebAssembly.compile() + instantiateWasm callback
     wasmModuleImports: false,
     // V26.0: Explicitly disable sessions to prevent SESSION KV binding injection
     sessions: false,
@@ -49,8 +49,8 @@ export default defineConfig({
   integrations: [],
   vite: {
     plugins: [
-      // V26.0: Removed redundant wasm() and topLevelAwait() plugins.
-      // We now use Vite 7 native ?url imports for environment compatibility.
+      // V26.1: No vite-plugin-wasm needed — we use ?url imports (Vite-native)
+      // and handle WASM compilation manually in sqlite-engine.ts
       // V26.0: Fix Vite 7 SSR dep optimization CJS compat issue with cookie module
       {
         name: 'fix-ssr-cookie-compat',
