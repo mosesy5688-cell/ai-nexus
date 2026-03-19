@@ -41,37 +41,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ASTRO_SKIP_BINDING_CHECK: true
 
-      - name: Re-align artifacts for Cloudflare Pages SSR
-        run: |
-          node -e "
-            const fs = require('fs');
-            // 1. Create standard _worker.js proxy to restore SSR entry point (Convention-over-Configuration)
-            const workerProxy = \"export { default } from './server/entry.mjs';\";
-            fs.writeFileSync('dist/_worker.js', workerProxy);
-            console.log('Created dist/_worker.js proxy');
-
-            // 2. Delete ALL conflicting wrangler.json files in dist
-            // This forces Wrangler 4.74.0 to use the root wrangler.toml which is a valid Pages config.
-            const targets = ['dist/wrangler.json', 'dist/server/wrangler.json', 'dist/_worker.js/wrangler.json'];
-            targets.forEach(f => {
-              if (fs.existsSync(f)) {
-                fs.unlinkSync(f);
-                console.log('Deleted conflicting artifact config:', f);
-              }
-            });
-
-            // 3. Wipe Wrangler deployment cache to prevent stale config path errors
-            if (fs.existsSync('.wrangler')) {
-              fs.rmSync('.wrangler', { recursive: true, force: true });
-              console.log('Wiped .wrangler cache directory');
-            }
-          "
-
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Pin to Wrangler 3.80.0 to avoid strict schema validation in 4.74.0
+          # which rejects Astro 6 adapter's generated wrangler.json format
+          wranglerVersion: '3.80.0'
           command: pages deploy dist --project-name=ai-nexus --branch=main
         env:
           ASTRO_SKIP_BINDING_CHECK: true
