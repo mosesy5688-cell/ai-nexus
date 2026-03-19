@@ -1,4 +1,6 @@
 import { normalizeEntitySlug, getR2PathCandidates } from './entity-cache-reader-core.js';
+// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { env } from 'cloudflare:workers';
 
 /**
  * VFS Metadata Provider (V22.8)
@@ -50,7 +52,8 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
     // Strategy 2: Remote/Production VFS Proxy (SQLite Range Query / site_metadata)
     // Production / Simulation Mode: Attempt remote metadata lookup via R2 binding directly on server
     if (!isDev || isSimulatingRemote) {
-        const r2 = locals?.runtime?.env?.R2_ASSETS || locals?.R2_ASSETS || locals?.env?.R2_ASSETS;
+        // V26.0: env imported from cloudflare:workers at module level
+        const r2 = env?.R2_ASSETS;
         const { R2_CACHE_URL } = await import('../config/constants.js');
         const paths = getR2PathCandidates(type, normalized);
 
