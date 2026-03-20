@@ -18,7 +18,7 @@ import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
 import { initRustBridge } from './lib/rust-bridge.js';
 import { computeEmbeddings } from './lib/embedding-generator.js';
-import { openCache, validateModel, loadAll, saveBatch, closeCache } from './lib/embedding-cache.js';
+import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024; 
@@ -26,7 +26,7 @@ const EMBEDDING_CACHE_PATH = path.join(CACHE_DIR, 'embedding-cache.db');
 const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 
 async function packDatabase() {
-    // V25.8: Activate Rust FFI bridge (crucial for 410k+ scale)
+    // V25.8: Activate Rust FFI bridge
     const rustStatus = initRustBridge();
     console.log(`[VFS] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
 
@@ -46,33 +46,37 @@ async function packDatabase() {
     const trendMap = await loadTrendMap(CACHE_DIR);
     let metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
 
-    // V25.8.3: Embedding Vault Integration (Breakpoint Resume + Full Injection)
-    console.log('[VFS] 🔐 Opening Embedding Vault...');
+    // V25.8.3: Memory-Stable Embedding Vault Integration
+    console.log('[VFS] 🔐 Accessing Embedding Vault...');
     const cacheDb = openCache(EMBEDDING_CACHE_PATH);
     validateModel(cacheDb, EMBEDDING_MODEL);
-    const cachedVectors = loadAll(cacheDb);
-
-    // Inject cached vectors into memory objects to enable skipExisting
+    
+    // Memory Guard: Only load IDs for skip-check, not the actual vectors.
+    const cachedIdSet = loadIds(cacheDb);
     metadataBatch.forEach(e => {
-        const id = e.id || e.slug;
-        if (cachedVectors.has(id)) {
-            e.embedding = Array.from(cachedVectors.get(id));
+        if (cachedIdSet.has(e.id || e.slug)) {
+            // Marker to trigger computeEmbeddings skip (generator updated to support boolean)
+            e.embedding = true; 
         }
     });
 
-    // V25.8.3 P1: Shift-Left Computation (Before DB packing)
-    // Ensures all vectors are ready for injection into meta-*.db shards.
+    // V25.8.3 P1: Compute/Update ANN Vault
     await computeEmbeddings(metadataBatch, {
         onBatchComplete: async (batch) => {
             saveBatch(cacheDb, batch);
         }
     });
 
-    // V5.8 §1.1: 16-way hash-based meta sharding — meta-${SlotID % 16}.db
+    // Memory Guard: Wipe ALL embedding references to free heap before packing.
+    // Includes both boolean markers (cached) AND real arrays (newly computed).
+    // All vectors are safely persisted in cacheDb via onBatchComplete.
+    metadataBatch.forEach(e => { e.embedding = null; });
+    cachedIdSet.clear(); 
+    console.log('[VFS] Memory: Baseline stabilized for shard packing.');
+
     const META_SHARD_COUNT = 16;
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
-
-    console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards (SlotID % ${META_SHARD_COUNT})`);
+    console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards`);
 
     const metaDbs = {};
     for (let i = 0; i < META_SHARD_COUNT; i++) {
@@ -102,6 +106,9 @@ async function packDatabase() {
     }
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    
+    // V25.8.3: Streaming Vector Query
+    const getVecStm = cacheDb.prepare('SELECT vector FROM embeddings WHERE id = ?');
 
     const stats = { packed: 0, heavy: 0, bytes: 0 };
     const manifest = {};
@@ -134,14 +141,11 @@ async function packDatabase() {
 
         e = distillEntity(e, pBillions, entityLookup);
         
-        // V25.8.3: Dual Vector Handling (Keywords vs ANN)
-        const keywords = e.search_vector || ''; // Distiller provides keywords here
-        if (e.embedding) {
-            const int8 = new Int8Array(e.embedding.length);
-            for (let i = 0; i < e.embedding.length; i++) {
-                int8[i] = Math.max(-128, Math.min(127, Math.round(e.embedding[i] * 127)));
-            }
-            e.search_vector = Buffer.from(int8.buffer).toString('base64');
+        // V25.8.3: Streaming Injection
+        const keywords = e.search_vector || '';
+        const vecRow = getVecStm.get(e.id || e.slug);
+        if (vecRow && vecRow.vector) {
+            e.search_vector = Buffer.from(vecRow.vector).toString('base64');
         }
 
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
@@ -162,6 +166,9 @@ async function packDatabase() {
 
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
+
+        // Restore keywords to keep metadataBatch light
+        e.search_vector = keywords;
 
         const slotId = computeShardSlot(e.umid || e.slug || e.id, META_SHARD_COUNT);
         const targetKey = `slot_${slotId}`;
@@ -196,9 +203,24 @@ async function packDatabase() {
     searchDb.exec("COMMIT");
     ftsDb.exec("COMMIT");
     shardWriter.finalize();
-    closeCache(cacheDb); 
 
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
+
+    // V25.8.3: Top-K Vector Recovery for Core Shards
+    console.log('[VFS] 📥 Recovering Top-30k vectors for Core Shards...');
+    const topCount = Math.min(metadataBatch.length, 30000);
+    for (let i = 0; i < topCount; i++) {
+        const e = metadataBatch[i];
+        const vecRow = getVecStm.get(e.id || e.slug);
+        if (vecRow && vecRow.vector) {
+            const int8 = new Int8Array(vecRow.vector.buffer, vecRow.vector.byteOffset, vecRow.vector.byteLength);
+            const float32 = new Float32Array(int8.length);
+            for (let j = 0; j < int8.length; j++) float32[j] = int8[j] / 127.0;
+            e.embedding = Array.from(float32);
+        }
+    }
+
+    closeCache(cacheDb); 
 
     generateHotShard(metadataBatch);
     generateVectorCore(metadataBatch);
