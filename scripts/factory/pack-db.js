@@ -21,7 +21,7 @@ import { computeEmbeddings } from './lib/embedding-generator.js';
 import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
-const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024; 
+const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024;
 const EMBEDDING_CACHE_PATH = path.join(CACHE_DIR, 'embedding-cache.db');
 const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 
@@ -50,13 +50,13 @@ async function packDatabase() {
     console.log('[VFS] 🔐 Accessing Embedding Vault...');
     const cacheDb = openCache(EMBEDDING_CACHE_PATH);
     validateModel(cacheDb, EMBEDDING_MODEL);
-    
+
     // Memory Guard: Only load IDs for skip-check, not the actual vectors.
     const cachedIdSet = loadIds(cacheDb);
     metadataBatch.forEach(e => {
         if (cachedIdSet.has(e.id || e.slug)) {
             // Marker to trigger computeEmbeddings skip (generator updated to support boolean)
-            e.embedding = true; 
+            e.embedding = true;
         }
     });
 
@@ -71,10 +71,10 @@ async function packDatabase() {
     // Includes both boolean markers (cached) AND real arrays (newly computed).
     // All vectors are safely persisted in cacheDb via onBatchComplete.
     metadataBatch.forEach(e => { e.embedding = null; });
-    cachedIdSet.clear(); 
+    cachedIdSet.clear();
     console.log('[VFS] Memory: Baseline stabilized for shard packing.');
 
-    const META_SHARD_COUNT = 16;
+    const META_SHARD_COUNT = 32;
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
     console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards`);
 
@@ -106,7 +106,7 @@ async function packDatabase() {
     }
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    
+
     // V25.8.3: Streaming Vector Query
     const getVecStm = cacheDb.prepare('SELECT vector FROM embeddings WHERE id = ?');
 
@@ -141,12 +141,10 @@ async function packDatabase() {
 
         e = distillEntity(e, pBillions, entityLookup);
         
-        // V25.8.3: Streaming Injection
+        // V25.8.3: Selective Injection (Zero-Heap Persistent Pattern)
         const keywords = e.search_vector || '';
         const vecRow = getVecStm.get(e.id || e.slug);
-        if (vecRow && vecRow.vector) {
-            e.search_vector = Buffer.from(vecRow.vector).toString('base64');
-        }
+        const annVectorBase64 = (vecRow && vecRow.vector) ? Buffer.from(vecRow.vector).toString('base64') : '';
 
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;
@@ -164,10 +162,16 @@ async function packDatabase() {
         const category = getV6Category(e);
         const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
+        // V25.8.3 ARCH SPLIT:
+        // 1. Meta Values (for Slays/Slots): Use original keywords to keep DB < 100MB
+        e.search_vector = keywords; 
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
+        
+        // 2. Search Values (for full-search): Use full ANN Vector for semantic discovery
+        e.search_vector = annVectorBase64 || keywords;
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
-        // Restore keywords to keep metadataBatch light
+        // Cleanup search_vector reference immediately to keep metadataBatch light
         e.search_vector = keywords;
 
         const slotId = computeShardSlot(e.umid || e.slug || e.id, META_SHARD_COUNT);
@@ -181,7 +185,7 @@ async function packDatabase() {
             String(e.name || e.displayName || ''),
             String(truncatedSummary),
             Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags + " " + keywords), 
+            String(tags + " " + keywords),
             String(category)
         ];
         prepFts[targetKey].run(...ftsValues);
@@ -192,7 +196,7 @@ async function packDatabase() {
             String(e.name || e.displayName || ''),
             String(truncatedSummary),
             Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags + ' ' + keywords), 
+            String(tags + ' ' + keywords),
             String(category)
         );
 
@@ -220,7 +224,7 @@ async function packDatabase() {
         }
     }
 
-    closeCache(cacheDb); 
+    closeCache(cacheDb);
 
     generateHotShard(metadataBatch);
     generateVectorCore(metadataBatch);
