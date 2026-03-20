@@ -6,17 +6,14 @@
  *
  * Also generates a 16MB Bloom Filter for 10M-entity collision safety.
  */
-
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import zlib from 'zlib';
-import crypto from 'crypto';
-import { generateUMID } from './umid-generator.js';
-import { initRustBridge, computeShardSlotFFI } from './rust-bridge.js';
+import { initRustBridge } from './rust-bridge.js';
+import Database from 'better-sqlite3';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './output/data';
-const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
 
 // Bloom Filter constants for 10M entities, ~0.1% false positive rate
 const BLOOM_SIZE_BYTES = 16 * 1024 * 1024; // 16MB
@@ -35,92 +32,59 @@ function bloomHash(key, seed) {
 }
 
 /**
- * Generate the global edge index from fused entities.
+ * Generate the global edge index from already built meta-XX.db shards.
+ * V25.8.4: Zero-Heap Strategy — Query DB directly to avoid JSON/Sorting OOM.
  */
 export async function generateEdgeIndex() {
-    console.log('[EDGE-INDEX] Generating meta.global.index...');
+    console.log('[EDGE-INDEX] Generating meta.global.index (Zero-Heap DB Path)...');
     
-    // Ensure Rust bridge is initialized for FFI acceleration
     initRustBridge();
-    
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    const fusedDir = path.join(CACHE_DIR, 'fused');
-    const indexEntries = [];
     const bloomFilter = Buffer.alloc(BLOOM_SIZE_BYTES, 0);
-
-    let entityCount = 0;
-    const fusedFiles = await fs.readdir(fusedDir).catch(() => []);
-
-    for (const file of fusedFiles.filter(f => f.endsWith('.json.gz') || f.endsWith('.json'))) {
-        try {
-            const raw = await fs.readFile(path.join(fusedDir, file));
-            const parsed = file.endsWith('.gz')
-                ? JSON.parse(zlib.gunzipSync(raw))
-                : JSON.parse(raw);
-            const entities = parsed.entities || (parsed.id ? [parsed] : []);
-
-            for (const entity of entities) {
-                const id = entity.id || entity.slug;
-                if (!id) continue;
-
-                const umid = entity.umid || generateUMID(id);
-                // V25.8: Use Rust FFI for shard slot routing
-                const slotId = computeShardSlotFFI(umid);
-
-                indexEntries.push({
-                    umid,
-                    id,
-                    slot: slotId,
-                    type: entity.type || 'model',
-                    bundleKey: entity.bundle_key || '',
-                    bundleOffset: entity.bundle_offset || 0,
-                    bundleSize: entity.bundle_size || 0
-                });
-
-                // Add to Bloom Filter
-                for (let h = 0; h < BLOOM_HASH_COUNT; h++) {
-                    const bit = bloomHash(umid, h * 0x9e3779b9);
-                    bloomFilter[bit >>> 3] |= (1 << (bit & 7));
-                }
-
-                entityCount++;
-            }
-        } catch (e) {
-            console.warn(`  [WARN] Failed to read ${file}: ${e.message}`);
-        }
-    }
-
-    // Sort by slot for binary search efficiency
-    indexEntries.sort((a, b) => a.slot - b.slot || a.umid.localeCompare(b.umid));
-
-    // V25.8: STREAMING WRITE to avoid OOM by stringifying 410k entities at once
     const indexPath = path.join(OUTPUT_DIR, 'meta.global.index');
     const writeStream = fsSync.createWriteStream(indexPath);
-    
-    // Create Gzip stream for the index
     const gzip = zlib.createGzip();
     gzip.pipe(writeStream);
 
+    let totalEntities = 0;
+    const metaShards = fsSync.readdirSync(OUTPUT_DIR).filter(f => f.startsWith('meta-') && f.endsWith('.db'));
+    metaShards.sort(); // Ensure slot-order for binary search stability
+
     // Initial Header
     const header = {
-        version: '4.0',
+        version: '4.1',
         generated: new Date().toISOString(),
-        entityCount,
+        entityCount: 0, // Will be patched if header-first, but we stream entries
         slotCount: 4096,
     };
     
     gzip.write(JSON.stringify(header).slice(0, -1) + ',"entries":[');
 
-    for (let i = 0; i < indexEntries.length; i++) {
-        const e = indexEntries[i];
-        const entryArray = [e.umid, e.slot, e.id, e.type, e.bundleKey, e.bundleOffset, e.bundleSize];
-        const chunk = (i === 0 ? '' : ',') + JSON.stringify(entryArray);
+    for (const shardFile of metaShards) {
+        const slotId = parseInt(shardFile.match(/meta-(\d+)/)[1]);
+        const dbPath = path.join(OUTPUT_DIR, shardFile);
+        const db = new Database(dbPath, { readonly: true });
+
+        // V25.1 Query: Extract routing essentials
+        const rows = db.prepare('SELECT umid, id, type, bundle_key, bundle_offset, bundle_size FROM entities').all();
         
-        const ok = gzip.write(chunk);
-        if (!ok) {
-            await new Promise(resolve => gzip.once('drain', resolve));
+        for (const r of rows) {
+            const entryArray = [r.umid, slotId, r.id, r.type, r.bundle_key, r.bundle_offset, r.bundle_size];
+            const chunk = (totalEntities === 0 ? '' : ',') + JSON.stringify(entryArray);
+            
+            const ok = gzip.write(chunk);
+            if (!ok) await new Promise(resolve => gzip.once('drain', resolve));
+
+            // Populate Bloom Filter (UMID based)
+            for (let h = 0; h < BLOOM_HASH_COUNT; h++) {
+                const bit = bloomHash(r.umid, h * 0x9e3779b9);
+                bloomFilter[bit >>> 3] |= (1 << (bit & 7));
+            }
+            totalEntities++;
         }
+        db.close();
+        console.log(`  [EDGE-INDEX] Processed ${shardFile} (${rows.length} entities)`);
     }
 
     gzip.write(']}');
@@ -139,10 +103,10 @@ export async function generateEdgeIndex() {
     const bloomSizeMB = (BLOOM_SIZE_BYTES / 1024 / 1024).toFixed(0);
 
     console.log(`[EDGE-INDEX] Complete.`);
-    console.log(`  Index: ${indexPath} (${indexSizeMB} MB, ${entityCount} entities)`);
-    console.log(`  Bloom: ${bloomPath} (${bloomSizeMB} MB, ${BLOOM_HASH_COUNT} hashes)`);
+    console.log(`  Index: ${indexPath} (${indexSizeMB} MB, ${totalEntities} entities)`);
+    console.log(`  Bloom: ${bloomPath} (${bloomSizeMB} MB)`);
 
-    return { entityCount, indexSizeMB, bloomSizeMB };
+    return { entityCount: totalEntities, indexSizeMB, bloomSizeMB };
 }
 
 // CLI entry point

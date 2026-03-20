@@ -227,7 +227,13 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
         const limitMB = (name === 'full-search') ? 700 : 100; // V5.8 §1.1: < 100MB Edge Worker constraint
-        const status = (fileStats.size > limitMB * 1024 * 1024) ? '⚠️ OOM RISK' : '✅ OK';
+        const isOver = fileStats.size > limitMB * 1024 * 1024;
+        if (isOver) {
+            console.error(`\n[CRITICAL] 🛑 Shard ${name} (${sizeMB} MB) exceeds ${limitMB}MB safety limit!`);
+            console.error('[CRITICAL] Hard circuit breaker triggered. Build terminated to protect production.');
+            process.exit(1);
+        }
+        const status = '✅ OK';
         console.log(`${name.padEnd(25)} | ${String(count).padEnd(12)} | ${String(sizeMB).padEnd(12)} | ${status}`);
     }
     console.log('='.repeat(70));

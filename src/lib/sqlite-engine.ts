@@ -146,7 +146,7 @@ export async function loadManifest(r2Bucket: any, simulate: boolean) {
             shardManifest._etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '');
         }
     } catch (e) {
-        shardManifest = { partitions: { meta_shards: 16 }, _etag: 'fallback' };
+        shardManifest = { partitions: { meta_shards: 32 }, _etag: 'fallback' };
     }
     return shardManifest;
 }
