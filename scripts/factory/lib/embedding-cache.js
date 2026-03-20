@@ -51,6 +51,19 @@ export function validateModel(db, expectedModel) {
 }
 
 /**
+ * Load all cached IDs into a Set for memory-efficient existence checking.
+ * Returns Set<id> — consumes ~30MB for 413k entities.
+ */
+export function loadIds(db) {
+    console.log('[CACHE] 🔍 Scanning ID records in vault...');
+    const rows = db.prepare('SELECT id FROM embeddings').all();
+    const idSet = new Set();
+    for (const row of rows) idSet.add(row.id);
+    console.log(`[CACHE] ✅ Found ${idSet.size} cached vectors.`);
+    return idSet;
+}
+
+/**
  * Load all cached embeddings into a Map for O(1) memory access.
  * Returns Map<id, Float32Array(384)>
  */

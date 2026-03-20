@@ -117,8 +117,8 @@ export async function computeEmbeddings(entities, options = {}) {
 
         for (let j = 0; j < batch.length; j++) {
             const entity = batch[j];
-            // Skip entities that already have valid embeddings
-            if (skipExisting && entity.embedding && Array.isArray(entity.embedding) && entity.embedding.length === VECTOR_DIM) {
+            // Skip entities that already have valid embeddings or are marked as existing in cache
+            if (skipExisting && entity.embedding && (entity.embedding === true || (Array.isArray(entity.embedding) && entity.embedding.length === VECTOR_DIM))) {
                 skipped++;
                 continue;
             }
