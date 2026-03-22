@@ -141,14 +141,14 @@ jobs:
           mkdir -p artifacts output/cache/shards
           # Copy shards for local aggregator use
           if [ -d "output/shards" ]; then
-            SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
+            SHARD_COUNT=$(find output/shards -name "shard-*.json.zst" | wc -l)
             echo "📦 Preparing $SHARD_COUNT shards from cache..."
 
-            # V18.2.3: Integrity Check (Sniff Magic Bytes)
-            for f in output/shards/shard-*.json.gz; do
+            # V25.9: Integrity Check (Sniff Zstd Magic Bytes: 0x28 0xB5 0x2F 0xFD)
+            for f in output/shards/shard-*.json.zst; do
               [ -e "$f" ] || continue
-              if ! node -e "const b=require('fs').readFileSync('$f'); if(b[0]!==0x1f || b[1]!==0x8b) process.exit(1)" 2>/dev/null; then
-                echo "  - ⚠️ Fake .gz detected: $f. Removing to prevent crash."
+              if ! node -e "const b=require('fs').readFileSync('$f'); if(b[0]!==0x28 || b[1]!==0xb5 || b[2]!==0x2f || b[3]!==0xfd) process.exit(1)" 2>/dev/null; then
+                echo "  - ⚠️ Fake .zst detected: $f. Removing to prevent crash."
                 rm "$f"
               else
                 cp "$f" artifacts/
@@ -157,11 +157,11 @@ jobs:
           fi
 
           # V25.8 §2.2: R2 Fallback — restore missing shards from R2 state/shards/
-          CACHE_COUNT=$(ls artifacts/shard-*.json.gz 2>/dev/null | wc -l)
+          CACHE_COUNT=$(ls artifacts/shard-*.json.zst 2>/dev/null | wc -l)
           if [ "$CACHE_COUNT" -lt 20 ]; then
             echo "⚠️ Only $CACHE_COUNT shards from cache. Attempting R2 restoration..."
             for i in $(seq 0 19); do
-              if [ ! -f "artifacts/shard-${i}.json.gz" ]; then
+              if [ ! -f "artifacts/shard-${i}.json.zst" ]; then
                 echo "  Fetching shard-${i} from R2..."
                 node -e "
                   import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
@@ -170,10 +170,10 @@ jobs:
                   if (s3) {
                     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
                     const { Body } = await s3.send(new GetObjectCommand({
-                      Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-${i}.json.gz'
+                      Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-${i}.json.zst'
                     }));
                     const chunks = []; for await (const c of Body) chunks.push(c);
-                    fs.writeFileSync('artifacts/shard-${i}.json.gz', Buffer.concat(chunks));
+                    fs.writeFileSync('artifacts/shard-${i}.json.zst', Buffer.concat(chunks));
                     console.log('✅ Restored shard-${i} from R2');
                   }
                 " || echo "  ⚠️ shard-${i} not available on R2"
@@ -182,7 +182,7 @@ jobs:
           fi
 
           # Final validation
-          FINAL_COUNT=$(ls artifacts/shard-*.json.gz 2>/dev/null | wc -l)
+          FINAL_COUNT=$(ls artifacts/shard-*.json.zst 2>/dev/null | wc -l)
           echo "✅ Final compressed shards for aggregator: $FINAL_COUNT"
 
           if [ "$FINAL_COUNT" -eq 0 ]; then
@@ -196,8 +196,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/merged.json.gz
-            data/merged_shard_*.json.gz
+            data/merged.json.zst
+            data/merged_shard_*.json.zst
             data/manifest.json
             cache/
           key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
@@ -206,7 +206,7 @@ jobs:
 
       - name: Validate Context
         run: |
-          if [ -f "data/merged.json.gz" ]; then
+          if [ -f "data/merged.json.zst" ]; then
             echo "✅ Harvest context restored from cache."
           else
             echo "⚠️ Harvest context not in cache. Will use shards only."
@@ -287,7 +287,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            cache/global-registry.json.gz
+            cache/global-registry.json.zst
             cache/registry/
           key: global-registry-${{ github.run_id }}
 
@@ -295,7 +295,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            cache/fni-history.json.gz
+            cache/fni-history.json.zst
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
 
@@ -303,7 +303,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            cache/daily-accum.json.gz
+            cache/daily-accum.json.zst
             cache/daily-accum/
           key: daily-accum-${{ github.run_id }}
 
@@ -311,8 +311,8 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            cache/entity-checksums.json.gz
-            cache/task-checksums.json.gz
+            cache/entity-checksums.json.zst
+            cache/task-checksums.json.zst
           key: checksums-${{ github.run_id }}
 
   # Parallel Satellite Jobs (SPEC V2.0)
@@ -440,7 +440,7 @@ jobs:
         with:
           path: |
             output/cache/rankings/
-            output/cache/category_stats.json.gz
+            output/cache/category_stats.json.zst
           key: intra-cycle-${{ github.run_id }}-rankings
 
 
@@ -492,7 +492,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            cache/fni-history.json.gz
+            cache/fni-history.json.zst
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
       - name: Generate Trending & Trends
@@ -512,8 +512,8 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            output/cache/trending.json.gz
-            output/cache/trend-data.json.gz
+            output/cache/trending.json.zst
+            output/cache/trend-data.json.zst
           key: intra-cycle-${{ github.run_id }}-trending
 
   aggregate-relations:
@@ -576,7 +576,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            output/cache/relations.json.gz
+            output/cache/relations.json.zst
             output/cache/relations/
             output/cache/mesh/
             output/cache/knowledge/
@@ -604,20 +604,20 @@ jobs:
         with:
           path: |
             output/cache/rankings/
-            output/cache/category_stats.json.gz
+            output/cache/category_stats.json.zst
           key: intra-cycle-${{ github.run_id }}-rankings
       - name: Restore Trending Results
         uses: actions/cache/restore@v4
         with:
           path: |
-            output/cache/trending.json.gz
-            output/cache/trend-data.json.gz
+            output/cache/trending.json.zst
+            output/cache/trend-data.json.zst
           key: intra-cycle-${{ github.run_id }}-trending
       - name: Restore Relations Results
         uses: actions/cache/restore@v4
         with:
           path: |
-            output/cache/relations.json.gz
+            output/cache/relations.json.zst
             output/cache/relations/
             output/cache/mesh/
             output/cache/knowledge/
@@ -647,22 +647,22 @@ jobs:
           # We just need to ensure directory structure for non-standard satellite outputs
           mkdir -p output/cache
           # Move satellite outputs into cache if needed
-          [ -f "output/trending.json.gz" ] && mv output/trending.json.gz output/cache/ || true
+          [ -f "output/trending.json.zst" ] && mv output/trending.json.zst output/cache/ || true
           [ -f "output/trending.json" ] && mv output/trending.json output/cache/ || true
-          [ -f "output/trend-data.json.gz" ] && mv output/trend-data.json.gz output/cache/ || true
+          [ -f "output/trend-data.json.zst" ] && mv output/trend-data.json.zst output/cache/ || true
           [ -f "output/trend-data.json" ] && mv output/trend-data.json output/cache/ || true
-          [ -f "output/category_stats.json.gz" ] && mv output/category_stats.json.gz output/cache/ || true
+          [ -f "output/category_stats.json.zst" ] && mv output/category_stats.json.zst output/cache/ || true
           [ -f "output/category_stats.json" ] && mv output/category_stats.json output/cache/ || true
-          [ -f "output/relations.json.gz" ] && mv output/relations.json.gz output/cache/ || true
+          [ -f "output/relations.json.zst" ] && mv output/relations.json.zst output/cache/ || true
           [ -f "output/relations.json" ] && mv output/relations.json output/cache/ || true
           # V17.4: Ensure rankings and search indices are nested in cache/
           [ -d "output/rankings" ] && mv output/rankings output/cache/ || true
           [ -d "output/relations" ] && mv output/relations output/cache/ || true
           [ -d "output/mesh" ] && mv output/mesh output/cache/ || true
           [ -d "output/knowledge" ] && mv output/knowledge output/cache/ || true
-          [ -f "output/search-core.json.gz" ] && mv output/search-core.json.gz output/cache/ || true
+          [ -f "output/search-core.json.zst" ] && mv output/search-core.json.zst output/cache/ || true
           [ -f "output/search-core.json" ] && mv output/search-core.json output/cache/ || true
-          [ -f "output/search-full.json.gz" ] && mv output/search-full.json.gz output/cache/ || true
+          [ -f "output/search-full.json.zst" ] && mv output/search-full.json.zst output/cache/ || true
           [ -f "output/search-full.json" ] && mv output/search-full.json output/cache/ || true
           [ -f "output/search-manifest.json" ] && mv output/search-manifest.json output/cache/ || true
           
@@ -672,9 +672,9 @@ jobs:
           [ -f "output/search.db" ] && mv output/search.db output/data/ || true
           [ -d "output/bundles" ] && mv output/bundles output/data/ || true
           
-          # V17.8: Shard Bridge - Shards from agg-shards download will be in output/*.json.gz
+          # V17.8: Shard Bridge - Shards from agg-shards download will be in output/*.json.zst
           mkdir -p output/cache/shards
-          find output -maxdepth 1 -name "shard-*.json.gz" -exec mv {} output/cache/shards/ \; || true
+          find output -maxdepth 1 -name "shard-*.json.zst" -exec mv {} output/cache/shards/ \; || true
           
           # Check legacy and intra-cycle locations
           [ -d "output/shards" ] && mv output/shards/* output/cache/shards/ 2>/dev/null || true

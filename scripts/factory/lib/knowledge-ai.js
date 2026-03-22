@@ -1,11 +1,10 @@
 /**
  * V25.8 Knowledge AI — Gemini Pure Text Mode for knowledge articles.
  * Spec §4: Gemini creates content; Rust builds the mesh.
- * Extracted from generate-knowledge.js for CES Art 5.1 compliance.
+ * V3.1: Uses shared Titan Fetch for hardened retry + shared circuit breaker.
  */
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
-const STAGGER_DELAY_MS = 35000; // V25.8 §4.1: 35s mandatory delay between AI tasks
+import { callGemini, enforceStaggerDelay } from './titan-fetch.js';
 
 /**
  * V25.8 §4: AI-Assisted content generation via Gemini (Pure Text Mode).
@@ -13,11 +12,14 @@ const STAGGER_DELAY_MS = 35000; // V25.8 §4.1: 35s mandatory delay between AI t
  * @returns {object|null} Generated sections or null on failure
  */
 export async function generateWithGemini(topic) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return null;
+    const systemInstruction = `You are a World-class AI Research Scientist. Your mission is to distill complex academic papers and architectures into clear, authoritative, and deeply technical explanatory articles for the free2aitools knowledge base.
 
-    // V25.8 §4.2: Jittered Ingestion (0-3s random delay)
-    await new Promise(r => setTimeout(r, Math.floor(Math.random() * 3000)));
+Rules:
+- Write with the rigor of a peer-reviewed survey paper, but the clarity of a senior engineer's tech talk.
+- Use precise terminology: attention heads, sparse routing, quantization schemes, FLOP counts, perplexity, etc.
+- Include concrete numbers (parameter counts, benchmark scores, latency figures) when the topic warrants them.
+- Acknowledge limitations and open research questions honestly.
+- Return ONLY valid JSON. No markdown, no commentary outside JSON.`;
 
     const prompt = `Write a concise, technical knowledge article about "${topic.title}" for an AI tools directory.
 
@@ -25,44 +27,18 @@ Requirements:
 - Professional, data-driven tone (like Gartner/McKinsey)
 - 400-600 words total
 - Sections: Overview, How It Works, Key Use Cases, Limitations
-- Use industry terminology (RAG, MoE, KV Cache, etc.) where relevant
 - No marketing fluff, focus on technical accuracy
 
 Return ONLY valid JSON: {"overview":"...","howItWorks":"...","useCases":"...","limitations":"..."}`;
 
-    try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.3, maxOutputTokens: 1024, responseMimeType: 'application/json' }
-                })
-            }
-        );
-        if (!response.ok) return null;
-        const data = await response.json();
-        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        let clean = raw.trim();
-        if (clean.startsWith('```')) {
-            const m = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-            if (m) clean = m[1];
-        }
-        return JSON.parse(clean);
-    } catch (e) {
-        console.warn(`[AI-KNOWLEDGE] Gemini failed for ${topic.slug}: ${e.message}`);
-        return null;
-    }
+    return callGemini({ systemInstruction, prompt, temperature: 0.3, maxOutputTokens: 1024 });
 }
 
 /**
- * V25.8 §4.1: Enforce 35s stagger delay between AI tasks.
+ * V25.8 §4.1: Enforce stagger delay between AI tasks.
  */
 export async function enforceKnowledgeStagger() {
-    console.log(`[AI-KNOWLEDGE] V25.8: Enforcing ${STAGGER_DELAY_MS / 1000}s stagger delay...`);
-    await new Promise(r => setTimeout(r, STAGGER_DELAY_MS));
+    await enforceStaggerDelay();
 }
 
 /**

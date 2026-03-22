@@ -32,9 +32,10 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
         }
         const ext = path.extname(r2Key).toLowerCase();
         const contentType = {
-            '.json': 'application/json', '.gz': 'application/gzip',
-            '.db': 'application/x-sqlite3', '.bin': 'application/octet-stream',
-            '.ndjson': 'application/x-ndjson', '.tar': 'application/x-tar',
+            '.json': 'application/json', '.zst': 'application/zstd',
+            '.gz': 'application/gzip', '.db': 'application/x-sqlite3',
+            '.bin': 'application/octet-stream', '.ndjson': 'application/x-ndjson',
+            '.tar': 'application/x-tar',
         }[ext] || 'application/octet-stream';
 
         await s3.send(new PutObjectCommand({

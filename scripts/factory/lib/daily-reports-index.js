@@ -6,6 +6,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { zstdCompress, autoDecompress } from './zstd-helper.js';
 
 const CONFIG = {
     DAILY_DIR: './output/daily',
@@ -29,22 +30,25 @@ export async function generateDailyReportsIndex(outputDir = './output') {
     const reports = [];
     const CDN_BASE = 'https://cdn.free2aitools.com';
 
-    // V25.1.4: Pre-load existing index from CDN to preserve history
-    try {
-        console.log(`  [REPORTS-INDEX] Fetching existing index from ${CDN_BASE}...`);
-        const res = await fetch(`${CDN_BASE}/cache/reports/index.json.gz`);
-        if (res.ok) {
-            const zlib = await import('zlib');
-            const buffer = Buffer.from(await res.arrayBuffer());
-            const content = zlib.gunzipSync(buffer);
-            const existing = JSON.parse(content.toString('utf-8'));
-            if (existing.reports) {
-                reports.push(...existing.reports);
-                console.log(`  [REPORTS-INDEX] Loaded ${existing.reports.length} historical reports from CDN.`);
+    // V25.9: Pre-load existing index from CDN (try .zst first, .gz fallback)
+    for (const ext of ['.zst', '.gz']) {
+        try {
+            const url = `${CDN_BASE}/cache/reports/index.json${ext}`;
+            console.log(`  [REPORTS-INDEX] Fetching existing index from ${url}...`);
+            const res = await fetch(url);
+            if (res.ok) {
+                const buffer = Buffer.from(await res.arrayBuffer());
+                const content = await autoDecompress(buffer);
+                const existing = JSON.parse(content.toString('utf-8'));
+                if (existing.reports) {
+                    reports.push(...existing.reports);
+                    console.log(`  [REPORTS-INDEX] Loaded ${existing.reports.length} historical reports from CDN.`);
+                }
+                break;
             }
+        } catch (e) {
+            console.warn(`  [REPORTS-INDEX] Could not load existing index (${ext}): ${e.message}`);
         }
-    } catch (e) {
-        console.warn(`  [REPORTS-INDEX] Could not load existing index: ${e.message}`);
     }
 
     // Scan directories
@@ -53,19 +57,16 @@ export async function generateDailyReportsIndex(outputDir = './output') {
     for (const dir of dirsToScan) {
         try {
             const files = await fs.readdir(dir);
-            const jsonFiles = files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz'));
+            const jsonFiles = files.filter(f => f.endsWith('.json') || f.endsWith('.json.zst') || f.endsWith('.json.gz'));
 
             for (const file of jsonFiles) {
                 try {
                     const filePath = path.join(dir, file);
                     let content = await fs.readFile(filePath);
-                    if (file.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
-                        const zlib = await import('zlib');
-                        content = zlib.gunzipSync(content);
-                    }
+                    content = await autoDecompress(content);
                     const reportData = JSON.parse(content.toString('utf-8'));
 
-                    const reportId = reportData.id || file.replace(/\.json(\.gz)?$/, '');
+                    const reportId = reportData.id || file.replace(/\.json(\.zst|\.gz)?$/, '');
 
                     // Skip if already processed
                     if (reports.find(r => r.id === reportId)) continue;
@@ -80,13 +81,12 @@ export async function generateDailyReportsIndex(outputDir = './output') {
                         highlights: highlightsCount
                     });
 
-                    // Sync to cache location (V17.9: Direct into reportsDir/daily)
-                    const zlib = await import('zlib');
+                    // V25.9: Sync to cache location (Zstd)
                     const dailyReportsDir = path.join(reportsDir, 'daily');
                     await fs.mkdir(dailyReportsDir, { recursive: true });
 
-                    const newPath = path.join(dailyReportsDir, `${reportId}.json.gz`);
-                    await fs.writeFile(newPath, zlib.gzipSync(JSON.stringify({
+                    const newPath = path.join(dailyReportsDir, `${reportId}.json.zst`);
+                    await fs.writeFile(newPath, await zstdCompress(JSON.stringify({
                         _v: CONFIG.VERSION,
                         ...reportData,
                         id: reportId,
@@ -111,8 +111,7 @@ export async function generateDailyReportsIndex(outputDir = './output') {
         reports
     };
 
-    const zlib = await import('zlib');
-    await fs.writeFile(path.join(reportsDir, 'index.json.gz'), zlib.gzipSync(JSON.stringify(index)));
+    await fs.writeFile(path.join(reportsDir, 'index.json.zst'), await zstdCompress(JSON.stringify(index)));
 
     console.log(`✅ [REPORTS-INDEX] Generated index with ${reports.length} daily reports`);
     return { total: reports.length };

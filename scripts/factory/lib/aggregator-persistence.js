@@ -21,7 +21,8 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
         const { RegistryStreamer } = await import('./registry-streamer.js');
 
         const cacheDir = process.env.CACHE_DIR || './cache';
-        const streamer = new RegistryStreamer(path.join(cacheDir, 'global-registry.json.gz'));
+        await RegistryStreamer.init(); // V25.9: Warm up Zstd codec
+        const streamer = new RegistryStreamer(path.join(cacheDir, 'global-registry.json.zst'));
 
         let shardsPatched = 0, totalShards = 0;
         await loadRegistryShardsSequentially(async (entities, shardIdx) => {
@@ -58,7 +59,7 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
     const backupDir = path.join(outputDir, 'meta', 'backup');
     await fs.mkdir(backupDir, { recursive: true });
 
-    const monoliths = ['global-registry.json.gz', 'fni-history.json.gz', 'daily-accum.json.gz', 'entity-checksums.json.gz'];
+    const monoliths = ['global-registry.json.zst', 'fni-history.json.zst', 'daily-accum.json.zst', 'entity-checksums.json.zst'];
     for (const file of monoliths) {
         const src = path.join(cacheDir, file);
         try {

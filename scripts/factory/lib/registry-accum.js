@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { loadWithFallback, saveWithBackup } from './cache-core.js';
 import { purgeStaleShards } from './registry-utils.js';
+import { zstdCompress, autoDecompress, createZstdCompressStream } from './zstd-helper.js';
 
 const SHARD_SIZE = 25000;
 const REGISTRY_DIR = 'registry';
@@ -22,7 +23,7 @@ export async function loadDailyAccum() {
     try {
         files = await fs.readdir(accumDir);
     } catch (err) { }
-    const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
+    const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.zst') || f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
 
     if (shards.length > 0) {
         try {
@@ -33,10 +34,7 @@ export async function loadDailyAccum() {
 
             for (const shard of shards) {
                 let data = await fs.readFile(path.join(accumDir, shard));
-                const zlib = await import('zlib');
-                if (shard.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
-                    data = zlib.gunzipSync(data);
-                }
+                data = await autoDecompress(data);
                 const parsed = JSON.parse(data.toString('utf-8'));
                 allEntries = allEntries.concat(parsed.entries || []);
                 if (!lastUpdated) {
@@ -69,7 +67,7 @@ export async function saveDailyAccum(accum) {
     const shardCount = Math.ceil(count / SHARD_SIZE);
     for (let i = 0; i < shardCount; i++) {
         const shardEntries = entries.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
-        await saveWithBackup(`daily-accum/part-${String(i).padStart(3, '0')}.json.gz`, {
+        await saveWithBackup(`daily-accum/part-${String(i).padStart(3, '0')}.json.zst`, {
             ...accum,
             entries: shardEntries,
             part: i,
@@ -78,30 +76,27 @@ export async function saveDailyAccum(accum) {
         }, { compress: true });
     }
 
-    // Monolith fallback for small data
-    // V18.2.1: Always save full accum to monolith (Streaming V18.12.5.16)
-    const monolithPath = path.join(cacheDir, 'daily-accum.json.gz');
+    // V25.9: Monolith save with Zstd streaming
+    const monolithPath = path.join(cacheDir, 'daily-accum.json.zst');
+    await zstdCompress(Buffer.from('init')); // Warm up codec
+    const { createWriteStream } = await import('fs');
     await new Promise((resolve, reject) => {
-        const stream = (async () => {
-            const { createWriteStream } = await import('fs');
-            const zlib = await import('zlib');
-            const output = createWriteStream(monolithPath);
-            const gzip = zlib.createGzip();
-            gzip.pipe(output);
+        const output = createWriteStream(monolithPath);
+        const zst = createZstdCompressStream();
+        zst.pipe(output);
 
-            output.on('error', reject);
-            gzip.on('error', reject);
-            output.on('finish', resolve);
+        output.on('error', reject);
+        zst.on('error', reject);
+        output.on('finish', resolve);
 
-            gzip.write(JSON.stringify({ ...accum, entries: [], lastUpdated: timestamp }).replace(']}', ''));
-            gzip.write(`,"entries":[`);
-            for (let i = 0; i < entries.length; i++) {
-                if (i > 0) gzip.write(',');
-                gzip.write(JSON.stringify(entries[i]));
-            }
-            gzip.write(`]}`);
-            gzip.end();
-        })();
+        zst.write(JSON.stringify({ ...accum, entries: [], lastUpdated: timestamp }).replace(']}', ''));
+        zst.write(`,"entries":[`);
+        for (let i = 0; i < entries.length; i++) {
+            if (i > 0) zst.write(',');
+            zst.write(JSON.stringify(entries[i]));
+        }
+        zst.write(`]}`);
+        zst.end();
     });
 
     // Purge stale shards (V18.2.1)

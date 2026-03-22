@@ -12,8 +12,8 @@
 import { promises as fs, createWriteStream } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import zlib from 'zlib';
 import { mergeEntities } from './lib/entity-merger.js';
+import { zstdCompress, createZstdCompressStream } from '../factory/lib/zstd-helper.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { scrubIdentities } from './lib/identity-scrubber.js';
@@ -21,7 +21,7 @@ import { finalizeMerge } from './lib/manifest-helper.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 const DATA_DIR = 'data';
-const OUTPUT_FILE = 'data/merged.json.gz';
+const OUTPUT_FILE = 'data/merged.json.zst';
 const MANIFEST_FILE = 'data/manifest.json';
 const TOTAL_SHARDS = 20;
 
@@ -132,21 +132,24 @@ async function mergeBatches() {
     let compressedSize = 0;
     const hash = crypto.createHash('sha256');
 
+    // V25.9: Init Zstd codec before creating compress stream
+    await zstdCompress(Buffer.from('init'));
+
     await new Promise((resolve, reject) => {
         const output = createWriteStream(OUTPUT_FILE);
-        const gzip = zlib.createGzip();
-        gzip.pipe(output);
+        const zstd = createZstdCompressStream();
+        zstd.pipe(output);
 
         output.on('error', reject);
-        gzip.on('error', reject);
+        zstd.on('error', reject);
         output.on('finish', resolve);
 
-        gzip.on('data', chunk => {
-            compressedSize += chunk.length; // Local tracking
+        zstd.on('data', chunk => {
+            compressedSize += chunk.length;
             hash.update(chunk);
         });
 
-        gzip.write('[');
+        zstd.write('[');
 
         // V19.0: Stream from SQLite sorted by ID (O(1) Memory Use)
         const iterator = registryManager.getStreamingIterator('id ASC');
@@ -162,8 +165,8 @@ async function mergeBatches() {
                 id: newId
             };
 
-            if (exportedCount > 0) gzip.write(',');
-            gzip.write(JSON.stringify(scrubbed));
+            if (exportedCount > 0) zstd.write(',');
+            zstd.write(JSON.stringify(scrubbed));
 
             totalVelocity += (scrubbed.velocity || 0);
             exportedCount++;
@@ -173,8 +176,8 @@ async function mergeBatches() {
             }
         }
 
-        gzip.write(']');
-        gzip.end();
+        zstd.write(']');
+        zstd.end();
     });
 
     const mergedHash = hash.digest('hex');

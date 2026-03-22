@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
 import { createR2Client, fetchAllR2ETags } from './lib/r2-helpers.js';
+import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 // Configuration
@@ -70,9 +71,9 @@ async function main() {
     const { projectEntity } = await import('./lib/registry-loader.js');
     // V22.8: Dynamically scan ARTIFACT_DIR for available shards (supports both shard-N and part-NNN naming)
     const artifactFiles = await fs.readdir(CONFIG.ARTIFACT_DIR).catch(() => []);
-    // V25.8.3: Accept .bin (NXVF) + .json.gz + .json, with priority dedup (.bin > .json.gz > .json)
+    // V25.9: Accept .bin (NXVF) + .json.zst + .json.gz + .json
     const shardFiles = artifactFiles.filter(f =>
-        f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.gz') || f.endsWith('.json'))
+        f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json.gz') || f.endsWith('.json'))
     ).sort();
 
     if (shardFiles.length === 0) {
@@ -91,7 +92,7 @@ async function main() {
                 shardEntities = result?.entities || [];
             } else {
                 const raw = await fs.readFile(shardFile);
-                const decompressed = zlib.gunzipSync(raw);
+                const decompressed = await autoDecompress(raw);
                 const shard = JSON.parse(decompressed.toString('utf-8'));
                 shardEntities = shard.entities || [];
             }
@@ -148,9 +149,9 @@ async function main() {
             }
 
             // Write Partitioned Registry for VFS Packer support
-            const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.gz`);
+            const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.zst`);
 
-            await fs.writeFile(outPath, zlib.gzipSync(JSON.stringify({
+            await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
                 shardId: i,
                 entities: fusedEntities,
                 _ts: new Date().toISOString()

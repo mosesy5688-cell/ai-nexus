@@ -1,11 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
 
 async function main() {
     const outputDir = './output';
     const healthDir = path.join(outputDir, 'meta', 'health');
     const today = new Date().toISOString().split('T')[0];
-    const pulseFile = path.join(healthDir, `pulse-${today}.json.gz`);
+    const pulseFile = path.join(healthDir, `pulse-${today}.json.zst`);
 
     console.log('[HEALTH] Consolidating Factory Pulse...');
 
@@ -20,13 +21,10 @@ async function main() {
             overallStatus: 'healthy'
         };
 
-        const shardHealthPath = path.join(healthDir, `${today}.json.gz`);
+        const shardHealthPath = path.join(healthDir, `${today}.json.zst`);
         try {
             let data = await fs.readFile(shardHealthPath);
-            if (data[0] === 0x1f && data[1] === 0x8b) {
-                const zlib = await import('zlib');
-                data = zlib.gunzipSync(data);
-            }
+            data = await autoDecompress(data);
             const shardData = JSON.parse(data.toString('utf-8'));
             pulse = { ...pulse, ...shardData, tasks: {} };
         } catch {
@@ -51,9 +49,8 @@ async function main() {
             };
         }
 
-        const zlib = await import('zlib');
-        await fs.writeFile(pulseFile, zlib.gzipSync(JSON.stringify(pulse, null, 2)));
-        console.log(`✅ [HEALTH] Factory Pulse generated: ${pulseFile} (Compressed)`);
+        await fs.writeFile(pulseFile, await zstdCompress(JSON.stringify(pulse, null, 2)));
+        console.log(`✅ [HEALTH] Factory Pulse generated: ${pulseFile} (Zstd)`);
     } catch (e) {
         console.error(`❌ [HEALTH] Consolidation failed: ${e.message}`);
     }

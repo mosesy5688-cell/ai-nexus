@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { zstdCompress } from './factory/lib/zstd-helper.js';
 import { generateWithGemini, enforceKnowledgeStagger, getKnownTopics } from './factory/lib/knowledge-ai.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,6 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const CONFIG = {
     KNOWLEDGE_DIR: path.join(__dirname, '../src/pages/knowledge'),
+    FUSED_DIR: path.join(process.env.CACHE_DIR || './output/cache', 'fused'),
     ARTICLES_PER_RUN: 2,
 };
 
@@ -119,9 +121,40 @@ function articleExists(slug) {
     return fs.existsSync(path.join(CONFIG.KNOWLEDGE_DIR, `${slug}.md`));
 }
 
-function saveArticle(slug, content) {
+async function saveArticle(slug, content, topic) {
     fs.writeFileSync(path.join(CONFIG.KNOWLEDGE_DIR, `${slug}.md`), content);
-    console.log(`  [Created] ${slug}.md`);
+    // V25.9: VFS Assimilation — emit Fused Entity for aggregator pipeline ingestion
+    await exportFusedEntity(slug, content, topic);
+    console.log(`  [Created] ${slug}.md + fused entity`);
+}
+
+/**
+ * V25.9: Export knowledge article as Fused Entity Object to cache/fused/.
+ * Enables FTS5 indexing, Sitemap inclusion, and Global Search visibility.
+ */
+async function exportFusedEntity(slug, markdownContent, topic) {
+    const fusedEntity = {
+        id: `kb--${slug}`,
+        slug: `kb--${slug}`,
+        name: topic.title,
+        type: 'knowledge',
+        description: topic.description || '',
+        body_content: markdownContent,
+        summary: topic.description || `Knowledge article about ${topic.title}`,
+        author: 'Free2AI',
+        category: topic.category || 'knowledge',
+        tags: ['AI', 'knowledge', topic.category || 'general'],
+        fni_score: 50,
+        source: 'knowledge-gen',
+        source_platform: 'internal',
+        pipeline_tag: 'knowledge-base',
+        created_at: new Date().toISOString(),
+        last_modified: new Date().toISOString(),
+    };
+
+    fs.mkdirSync(CONFIG.FUSED_DIR, { recursive: true });
+    const fusedPath = path.join(CONFIG.FUSED_DIR, `${fusedEntity.id}.json.zst`);
+    fs.writeFileSync(fusedPath, await zstdCompress(JSON.stringify(fusedEntity)));
 }
 
 function getPendingTopics() {
@@ -159,7 +192,7 @@ async function main() {
             await enforceKnowledgeStagger();
         }
 
-        saveArticle(topic.slug, generateArticleFromTemplate(topic, topic.category));
+        await saveArticle(topic.slug, generateArticleFromTemplate(topic, topic.category), topic);
         generated++;
     }
 

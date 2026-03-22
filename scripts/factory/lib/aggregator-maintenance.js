@@ -5,9 +5,9 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import zlib from 'zlib';
 import { loadDailyAccum } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
+import { zstdCompress } from './zstd-helper.js';
 
 /**
  * V25.8.3: Validate AES_CRYPTO_KEY when encrypted .bin shards exist.
@@ -55,7 +55,7 @@ export async function generateHealthReport(successfulCount, entities, totalShard
 
     const healthDir = path.join(outputDir, 'meta', 'health');
     await fs.mkdir(healthDir, { recursive: true });
-    await fs.writeFile(path.join(healthDir, `${today}.json.gz`), zlib.gzipSync(JSON.stringify(health, null, 2)));
+    await fs.writeFile(path.join(healthDir, `${today}.json.zst`), await zstdCompress(JSON.stringify(health, null, 2)));
     console.log(`[HEALTH] Status: ${health.status}`);
 }
 
@@ -66,17 +66,17 @@ export async function backupStateFiles(outputDir, historyData, weekNumber) {
     const backupBase = path.join(outputDir, 'meta', 'backup');
 
     // FNI Snapshot
-    const fniBackupPath = path.join(backupBase, 'fni-history', `fni-history-${weekNumber}.json.gz`);
+    const fniBackupPath = path.join(backupBase, 'fni-history', `fni-history-${weekNumber}.json.zst`);
     await fs.mkdir(path.dirname(fniBackupPath), { recursive: true });
-    await fs.writeFile(fniBackupPath, zlib.gzipSync(JSON.stringify(historyData, null, 2)));
+    await fs.writeFile(fniBackupPath, await zstdCompress(JSON.stringify(historyData, null, 2)));
 
     await generateTrendData(historyData, path.join(outputDir, 'cache'));
 
     // Daily Accumulator Snapshot
-    const accumBackupPath = path.join(backupBase, 'accum', `accum-${weekNumber}.json.gz`);
+    const accumBackupPath = path.join(backupBase, 'accum', `accum-${weekNumber}.json.zst`);
     await fs.mkdir(path.dirname(accumBackupPath), { recursive: true });
     try {
         const accum = await loadDailyAccum();
-        await fs.writeFile(accumBackupPath, zlib.gzipSync(JSON.stringify(accum, null, 2)));
+        await fs.writeFile(accumBackupPath, await zstdCompress(JSON.stringify(accum, null, 2)));
     } catch (e) { console.warn(`[BACKUP] Accumulator skipped: ${e.message}`); }
 }

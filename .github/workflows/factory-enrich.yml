@@ -173,5 +173,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Partitions: 16 parallel (00-ff)" >> $GITHUB_STEP_SUMMARY
           echo "- Budget: 5000 papers/partition" >> $GITHUB_STEP_SUMMARY
-          echo "- Storage: R2 enrichment/fulltext/{partition}/{umid}.md.gz" >> $GITHUB_STEP_SUMMARY
+          echo "- Storage: R2 enrichment/fulltext/{partition}/{umid}.md.zst" >> $GITHUB_STEP_SUMMARY
           echo "- Next: Fusion in Factory 3/4 Aggregate (T+1)" >> $GITHUB_STEP_SUMMARY

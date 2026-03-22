@@ -3,6 +3,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { zstdCompress } from '../factory/lib/zstd-helper.js';
 
 export async function saveOutput(entities, outputDir, outputFile) {
     // Ensure output directory exists
@@ -58,22 +59,18 @@ export async function saveOutput(entities, outputDir, outputFile) {
     // V18.2.1 GA: Sharded Output Logic (Art 3.1 Compliance)
     // To prevent RangeError: Invalid string length, we MUST shard the 140k+ rich entities.
     const TOTAL_SHARDS = 20;
-    const zlib = await import('zlib');
 
     console.log(`   📦 Sharding ${output.length} entities into ${TOTAL_SHARDS} chunks...`);
 
     for (let s = 0; s < TOTAL_SHARDS; s++) {
         const shardSlice = output.filter((_, idx) => idx % TOTAL_SHARDS === s);
         const shardContent = JSON.stringify(shardSlice);
-        const compressedShard = zlib.gzipSync(shardContent);
-        const shardPath = path.join(outputDir, `merged_shard_${s}.json.gz`);
+        const compressedShard = await zstdCompress(shardContent);
+        const shardPath = path.join(outputDir, `merged_shard_${s}.json.zst`);
         fs.writeFileSync(shardPath, compressedShard);
     }
 
-    // Monolith save DISABLED (V18.2.1 Stability)
-    // fs.writeFileSync(outputFile, JSON.stringify(output, null, 2));
-    console.log(`   ✓ Sharded output saved to ${outputDir}/merged_shard_*.json.gz`);
-    console.log(`   ⚠️ Monolith merged.json skipped to avoid V8 string limit.`);
+    console.log(`   ✓ Sharded output saved to ${outputDir}/merged_shard_*.json.zst (Zstd)`);
 
     console.log(`   ✓ Saved ${output.length} entities (via Sharding)`);
     return output.length;
