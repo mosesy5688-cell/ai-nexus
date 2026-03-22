@@ -152,6 +152,30 @@ export function validateFusionContentFFI(fulltext, originalBody) {
     return _jsFallbackClassify(fulltext);
 }
 
+/** V55.9: Zstd compress file via Rust (replaces WASM zstd-codec). */
+export function zstdCompressFileFFI(inputPath, outputPath, level = 3) {
+    if (_streamAggregator?.zstdCompressFile) {
+        return _streamAggregator.zstdCompressFile(inputPath, outputPath, level);
+    }
+    return null;
+}
+
+/** V55.9: Zstd compress buffer via Rust (replaces WASM zstd-codec). */
+export function zstdCompressBufferFFI(data, level = 3) {
+    if (_streamAggregator?.zstdCompressBuffer) {
+        return _streamAggregator.zstdCompressBuffer(data, level);
+    }
+    return null;
+}
+
+/** V55.9: Zstd decompress buffer via Rust. */
+export function zstdDecompressBufferFFI(data) {
+    if (_streamAggregator?.zstdDecompressBuffer) {
+        return _streamAggregator.zstdDecompressBuffer(data);
+    }
+    return null;
+}
+
 /** Streaming shard aggregation (Rust). OOM-safe for 400K+ entities. */
 export function streamAggregateFFI(shardDir, outputPath) {
     if (_streamAggregator) {

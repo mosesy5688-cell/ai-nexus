@@ -155,6 +155,38 @@ pub(crate) fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>> 
     }
 }
 
+/// Compress a file with Zstd, writing to output path. Removes input file on success.
+/// Used by merge-batches.js to replace WASM zstd-codec (which leaks linear memory).
+#[napi]
+pub fn zstd_compress_file(input_path: String, output_path: String, level: i32) -> Result<u32> {
+    let input = fs::read(&input_path)
+        .map_err(|e| Error::from_reason(format!("Cannot read {}: {}", input_path, e)))?;
+    let compressed = zstd::encode_all(input.as_slice(), level)
+        .map_err(|e| Error::from_reason(format!("Zstd compress failed: {}", e)))?;
+    let size = compressed.len() as u32;
+    fs::write(&output_path, &compressed)
+        .map_err(|e| Error::from_reason(format!("Cannot write {}: {}", output_path, e)))?;
+    fs::remove_file(&input_path).ok(); // Best-effort cleanup
+    Ok(size)
+}
+
+/// Compress a Buffer with Zstd, returning compressed Buffer.
+/// Zero-copy NAPI binding — no WASM, no linear memory leak.
+#[napi]
+pub fn zstd_compress_buffer(data: Buffer, level: i32) -> Result<Buffer> {
+    let compressed = zstd::encode_all(data.as_ref(), level)
+        .map_err(|e| Error::from_reason(format!("Zstd compress failed: {}", e)))?;
+    Ok(Buffer::from(compressed))
+}
+
+/// Decompress a Zstd Buffer, returning decompressed Buffer.
+#[napi]
+pub fn zstd_decompress_buffer(data: Buffer) -> Result<Buffer> {
+    let decompressed = zstd::decode_all(data.as_ref())
+        .map_err(|e| Error::from_reason(format!("Zstd decompress failed: {}", e)))?;
+    Ok(Buffer::from(decompressed))
+}
+
 /// Fix malformed \uXXXX escape sequences that JS serializers can produce.
 /// Replaces incomplete \u escapes (fewer than 4 hex digits) with \uFFFD (replacement char).
 pub(crate) fn sanitize_json_escapes(input: &str) -> String {
