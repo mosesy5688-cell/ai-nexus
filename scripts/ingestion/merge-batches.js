@@ -13,7 +13,7 @@ import { promises as fs, createWriteStream } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { mergeEntities } from './lib/entity-merger.js';
-import { zstdCompress, createZstdCompressStream } from '../factory/lib/zstd-helper.js';
+import { zstdCompress } from '../factory/lib/zstd-helper.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { scrubIdentities } from './lib/identity-scrubber.js';
@@ -28,6 +28,24 @@ const TOTAL_SHARDS = 20;
 // Validation Constants (L1 Logic)
 const MAX_BATCH_SIZE_MB = 50;
 const MAX_ENTITIES_PER_BATCH = 15000;
+
+// V55.9: Content truncation limits (Adapter Hardening §2)
+const ABSTRACT_LIMIT = 500;
+const HEAVY_FIELDS = ['html_readme', 'body_content', 'readme', 'readme_raw', 'readme_html'];
+
+/** V55.9: Strip heavy content fields to prevent OOM in export phase.
+ *  Full text lives in enrichment/fulltext/ on R2, not in the registry. */
+function truncateHeavyFields(entity) {
+    for (const f of HEAVY_FIELDS) {
+        if (entity[f] && typeof entity[f] === 'string' && entity[f].length > ABSTRACT_LIMIT) {
+            entity[f] = entity[f].substring(0, ABSTRACT_LIMIT);
+        }
+    }
+    if (entity.description && entity.description.length > 1000) {
+        entity.description = entity.description.substring(0, 1000);
+    }
+    return entity;
+}
 
 function calculateHash(content) {
     return crypto.createHash('sha256').update(content).digest('hex');
@@ -91,10 +109,11 @@ async function mergeBatches() {
                 }
             }
 
+            // V55.9: Truncate heavy fields before SQLite flush (OOM prevention)
+            const slim = entities.filter(e => e.id).map(truncateHeavyFields);
+
             // Flush this batch directly to SQLite (O(B) memory per batch)
-            registryState = await registryManager.mergeCurrentBatch(
-                entities.filter(e => e.id)
-            );
+            registryState = await registryManager.mergeCurrentBatch(slim);
 
             const sourceName = file.replace('raw_batch_', '').replace('.json', '');
             sourceStats.push({ source: sourceName, count: registryState.added, file });
@@ -123,41 +142,31 @@ async function mergeBatches() {
     let compressedSize = 0;
     const hash = crypto.createHash('sha256');
 
-    // V25.9: Init Zstd codec before creating compress stream
+    // V55.9: Chunked Zstd export — write uncompressed to temp, then compress.
+    // The Zstd WASM codec buffers all data in memory (no true streaming),
+    // so we write uncompressed first (O(1) memory via streaming write),
+    // then compress the entire file in a second pass.
+    const TEMP_FILE = OUTPUT_FILE + '.tmp';
     await zstdCompress(Buffer.from('init'));
 
+    // Pass 1: Stream entities to uncompressed temp file (O(1) memory)
     await new Promise((resolve, reject) => {
-        const output = createWriteStream(OUTPUT_FILE);
-        const zstd = createZstdCompressStream();
-        zstd.pipe(output);
-
+        const output = createWriteStream(TEMP_FILE);
         output.on('error', reject);
-        zstd.on('error', reject);
         output.on('finish', resolve);
 
-        zstd.on('data', chunk => {
-            compressedSize += chunk.length;
-            hash.update(chunk);
-        });
+        output.write('[');
 
-        zstd.write('[');
-
-        // V19.0: Stream from SQLite sorted by ID (O(1) Memory Use)
         const iterator = registryManager.getStreamingIterator('id ASC');
         for (const entity of iterator) {
-            // V25.1: TRUST THE SOURCE FROM ADAPTER (No more guessing)
             const oldId = entity.id;
             const source = entity.source || getNodeSource(oldId, entity.type);
             const newId = normalizeId(oldId, source, entity.type);
 
-            // V22.7: Clean pass-through (already prepared in Phase 1)
-            const scrubbed = {
-                ...entity,
-                id: newId
-            };
+            const scrubbed = { ...entity, id: newId };
 
-            if (exportedCount > 0) zstd.write(',');
-            zstd.write(JSON.stringify(scrubbed));
+            if (exportedCount > 0) output.write(',');
+            output.write(JSON.stringify(scrubbed));
 
             totalVelocity += (scrubbed.velocity || 0);
             exportedCount++;
@@ -167,9 +176,22 @@ async function mergeBatches() {
             }
         }
 
-        zstd.write(']');
-        zstd.end();
+        output.write(']');
+        output.end();
     });
+
+    // Pass 2: Read temp file and compress with Zstd
+    console.log(`   💾 [Merge] Compressing ${exportedCount} entities with Zstd...`);
+    const { readFileSync, unlinkSync } = await import('fs');
+    const raw = readFileSync(TEMP_FILE);
+    const compressed = await zstdCompress(raw);
+    const { writeFileSync } = await import('fs');
+    writeFileSync(OUTPUT_FILE, compressed);
+    hash.update(compressed);
+    compressedSize = compressed.length;
+
+    try { unlinkSync(TEMP_FILE); } catch {}
+    console.log(`   ✅ Compressed: ${(raw.length / 1024 / 1024).toFixed(1)}MB → ${(compressedSize / 1024 / 1024).toFixed(1)}MB`);
 
     const mergedHash = hash.digest('hex');
 
