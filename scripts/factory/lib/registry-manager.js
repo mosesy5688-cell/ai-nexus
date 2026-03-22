@@ -92,8 +92,10 @@ export class RegistryManager {
         let updated = 0;
         let added = 0;
 
-        const transaction = this.db.transaction((batch) => {
-            for (const e of batch) {
+        // V55.9: Chunked transactions to prevent WAL bloat on large batches
+        const CHUNK_SIZE = 5000;
+        const txnChunk = this.db.transaction((chunk) => {
+            for (const e of chunk) {
                 const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
                 const existingRow = select.get(id);
 
@@ -118,7 +120,9 @@ export class RegistryManager {
             }
         });
 
-        transaction(batchEntities);
+        for (let i = 0; i < batchEntities.length; i += CHUNK_SIZE) {
+            txnChunk(batchEntities.slice(i, i + CHUNK_SIZE));
+        }
 
         // V25.8: FNI decay computed at read-time via _last_seen (no destructive mutation)
         console.log(`  [REGISTRY] Stats: ${added} added, ${updated} updated.`);

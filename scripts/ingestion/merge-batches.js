@@ -56,10 +56,14 @@ async function mergeBatches() {
         return { total: 0, sources: [] };
     }
 
-    const allEntities = [];
     const sourceStats = [];
-    const seenIds = new Map();
     const batchManifests = [];
+
+    // V55.9: Iterative Flush — merge each batch directly into SQLite
+    // instead of accumulating all entities in a single heap array (OOM fix).
+    const registryManager = new RegistryManager();
+    await registryManager.load();
+    let registryState;
 
     for (const file of batchFiles) {
         const filePath = path.join(DATA_DIR, file);
@@ -75,49 +79,36 @@ async function mergeBatches() {
                 hash: `sha256:${calculateHash(content)}`
             });
 
-            let added = 0;
-            let mergedCount = 0;
-
+            // V22.7: Apply Deduplication Mapping BEFORE merging
             for (const entity of entities) {
                 if (!entity.id) continue;
-
-                // V22.7: Apply Deduplication Mapping BEFORE merging to ensure persistence
                 const dedupEntry = dedupMap[entity.id] || dedupMap[entity.canonical_id];
                 if (dedupEntry) {
                     entity.canonical_id = dedupEntry.canonical_id;
                 }
-
-                if (seenIds.has(entity.id)) {
-                    seenIds.set(entity.id, mergeEntities(seenIds.get(entity.id), entity));
-                    mergedCount++;
-                } else {
-                    if (entity.source_trail && typeof entity.source_trail !== 'string') {
-                        entity.source_trail = JSON.stringify(entity.source_trail);
-                    }
-                    seenIds.set(entity.id, entity);
-                    allEntities.push(entity);
-                    added++;
+                if (entity.source_trail && typeof entity.source_trail !== 'string') {
+                    entity.source_trail = JSON.stringify(entity.source_trail);
                 }
             }
 
+            // Flush this batch directly to SQLite (O(B) memory per batch)
+            registryState = await registryManager.mergeCurrentBatch(
+                entities.filter(e => e.id)
+            );
+
             const sourceName = file.replace('raw_batch_', '').replace('.json', '');
-            sourceStats.push({ source: sourceName, count: added, file });
-            console.log(`   ✓ ${sourceName}: ${added} new | ${mergedCount} augmented`);
+            sourceStats.push({ source: sourceName, count: registryState.added, file });
+            console.log(`   ✓ ${sourceName}: ${registryState.added} new | ${registryState.updated} augmented`);
+
+            // Explicit GC hint between batches
+            if (global.gc) global.gc();
         } catch (error) {
             console.error(`   ❌ Error reading ${file}: ${error.message}`);
         }
     }
 
-    const registryManager = new RegistryManager();
-    await registryManager.load();
-    const registryState = await registryManager.mergeCurrentBatch(allEntities);
-
     const checksums = await loadEntityChecksums();
     await saveEntityChecksums(checksums);
-
-    // V18.12.5.1: Memory Relief - Clear batch entities from heap
-    console.log(`   💡 [Merge] Disposing batch intermediate objects...`);
-    seenIds.clear();
 
     if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
         throw new Error(`Registry Load Failure - Emergency Abort to Protect 85k Baseline`);
