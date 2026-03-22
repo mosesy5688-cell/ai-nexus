@@ -601,7 +601,6 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            data/merged.json.zst
             data/merged_shard_*.json.zst
             data/manifest.json
             cache/
