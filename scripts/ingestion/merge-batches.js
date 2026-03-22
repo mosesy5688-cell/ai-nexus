@@ -8,11 +8,11 @@
  * Usage: node scripts/ingestion/merge-batches.js
  */
 
-import { promises as fs, createWriteStream } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { mergeEntities } from './lib/entity-merger.js';
-import { zstdCompress, createZstdCompressStream } from '../factory/lib/zstd-helper.js';
+import { zstdCompress } from '../factory/lib/zstd-helper.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
@@ -121,10 +121,11 @@ async function mergeBatches() {
         throw new Error(`CRITICAL: Entity count dropped to ${registryState.count} (Expected >85k).`);
     }
 
-    // V55.9: Natural sharding export — 1000 entities per shard, 100% Zstd.
-    // No monolith. Each shard's Zstd buffer holds ~1000 entities (O(shard) memory).
+    // V55.9: Natural sharding export — 1000 entities/shard, Zstd via Rust FFI.
+    // zstd-helper.js internally uses Rust FFI (native, zero memory leak).
+    // WASM fallback only activates if Rust binary unavailable.
     console.log(`\n🛡️ [Merge] Exporting via natural sharding (${SHARD_SIZE}/shard, Zstd)...`);
-    await zstdCompress(Buffer.from('init'));
+    await zstdCompress(Buffer.from('init')); // Warm up codec (Rust or WASM)
 
     let exportedCount = 0;
     let totalVelocity = 0;
@@ -164,8 +165,6 @@ async function mergeBatches() {
             console.log(`   - Exported ${exportedCount} entities (${shardIndex} shards)...`);
         }
     }
-
-    // Flush remaining
     await flushShard();
 
     const mergedHash = hash.digest('hex');

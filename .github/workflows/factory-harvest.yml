@@ -381,7 +381,16 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      
+
+      # V55.9: Restore Rust FFI binaries for native Zstd compression
+      - name: Restore Rust FFI
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            rust/stream-aggregator/stream-aggregator-rust.node
+          key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          restore-keys: rust-ffi-binaries-
+
       # V16.96.2: Pre-merge Cache Maintenance
       - name: Cache Cleanup
         run: |
