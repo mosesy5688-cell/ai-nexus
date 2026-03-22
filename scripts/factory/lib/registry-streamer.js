@@ -1,21 +1,28 @@
 /**
- * Registry Streamer Utility V18.12.5.21
+ * Registry Streamer Utility V25.9
  * Handles O(1) Memory Monolith Serialization for massive datasets.
+ * V25.9: Zstd streaming replaces Gzip (100% Zstd Constitution).
  */
-import zlib from 'zlib';
 import fs from 'fs';
-import path from 'path';
+import { zstdCompress, createZstdCompressStream } from './zstd-helper.js';
 
 export class RegistryStreamer {
     constructor(filePath) {
         this.filePath = filePath;
         this.writeStream = fs.createWriteStream(filePath);
-        this.gzip = zlib.createGzip();
-        this.gzip.pipe(this.writeStream);
+        this.zst = createZstdCompressStream();
+        this.zst.pipe(this.writeStream);
         this.count = 0;
         this.isClosed = false;
 
-        this.gzip.write(`{"entities":[`);
+        this.zst.write(`{"entities":[`);
+    }
+
+    /**
+     * Initialize Zstd codec (must be called before constructor)
+     */
+    static async init() {
+        await zstdCompress(Buffer.from('init'));
     }
 
     /**
@@ -24,10 +31,10 @@ export class RegistryStreamer {
     async push(entity) {
         if (this.isClosed) throw new Error('[STREAMER] Cannot push to a closed stream.');
         const chunk = (this.count > 0 ? ',' : '') + JSON.stringify(entity);
-        const ok = this.gzip.write(chunk);
+        const ok = this.zst.write(chunk);
         this.count++;
         if (!ok) {
-            await new Promise(resolve => this.gzip.once('drain', resolve));
+            await new Promise(resolve => this.zst.once('drain', resolve));
         }
     }
 
@@ -39,8 +46,8 @@ export class RegistryStreamer {
         this.isClosed = true;
 
         const timestamp = new Date().toISOString();
-        this.gzip.write(`],"count":${this.count},"lastUpdated":"${timestamp}"}`);
-        this.gzip.end();
+        this.zst.write(`],"count":${this.count},"lastUpdated":"${timestamp}"}`);
+        this.zst.end();
 
         return new Promise((resolve, reject) => {
             this.writeStream.on('finish', resolve);

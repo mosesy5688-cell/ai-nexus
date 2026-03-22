@@ -7,13 +7,17 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import { PackAccumulator } from './pack-accumulator.js';
+import { autoDecompress } from './zstd-helper.js';
 /**
  * Load Trending Context for entity prioritization
  */
 export async function loadTrendingMap(cacheDir) {
     // V19.2 Path Fallback: Check both output/cache and output/ (Artifact download target)
     const paths = [
+        path.join(cacheDir, 'trending.json.zst'),
         path.join(cacheDir, 'trending.json.gz'),
+        path.join(path.dirname(cacheDir), 'trending.json.zst'),
         path.join(path.dirname(cacheDir), 'trending.json.gz'),
     ];
 
@@ -23,7 +27,7 @@ export async function loadTrendingMap(cacheDir) {
     for (const trendingPath of paths) {
         try {
             const trendingRaw = await fs.readFile(trendingPath);
-            const trendingData = JSON.parse(zlib.gunzipSync(trendingRaw));
+            const trendingData = JSON.parse(await autoDecompress(trendingRaw));
 
             // V18.2.1: Unified Tiered Structure (models, papers, etc.)
             const items = [
@@ -64,7 +68,9 @@ export async function loadTrendingMap(cacheDir) {
 export async function loadTrendMap(cacheDir) {
     // V19.2 Path Fallback
     const paths = [
+        path.join(cacheDir, 'trend-data.json.zst'),
         path.join(cacheDir, 'trend-data.json.gz'),
+        path.join(path.dirname(cacheDir), 'trend-data.json.zst'),
         path.join(path.dirname(cacheDir), 'trend-data.json.gz'),
     ];
 
@@ -74,7 +80,7 @@ export async function loadTrendMap(cacheDir) {
     for (const trendPath of paths) {
         try {
             const trendRaw = await fs.readFile(trendPath);
-            const trendData = JSON.parse(zlib.gunzipSync(trendRaw));
+            const trendData = JSON.parse(await autoDecompress(trendRaw));
 
             // V18.2.3: Handle object-based structure (id -> { scores: [], ... })
             for (const [id, value] of Object.entries(trendData)) {
@@ -99,60 +105,56 @@ export async function loadTrendMap(cacheDir) {
 }
 
 /**
- * Collect all fused metadata and apply stable sorting
+ * V25.9: Ingest fused entities into SQLite PackAccumulator (O(1) memory).
+ * Replaces collectAndSortMetadata's monolithic in-memory array pattern.
+ * Sorting is handled by SQLite index (fni_score DESC, trending_rank ASC, id ASC).
+ *
+ * @returns {PackAccumulator} Streaming iterator-based entity store.
  */
-export async function collectAndSortMetadata(cacheDir, trendingMap, trendMap) {
+export async function ingestToAccumulator(cacheDir, trendingMap, trendMap) {
+    const accumulator = new PackAccumulator(path.join(cacheDir, 'pack-accumulator.db'));
+    await accumulator.init();
+
     const fusedDir = path.join(cacheDir, 'fused');
     const fusedFiles = (await fs.readdir(fusedDir).catch(() => []))
-        .filter(f => f.endsWith('.json') || f.endsWith('.json.gz'));
+        .filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'));
 
     if (fusedFiles.length === 0) throw new Error(`No fused entities found at ${fusedDir}`);
 
-    const metadataMap = new Map();
+    // Sort: .json first, compressed second — compressed files take priority via INSERT OR REPLACE
+    const compressOrder = (f) => f.endsWith('.json') ? 0 : 1;
+    fusedFiles.sort((a, b) => compressOrder(a) - compressOrder(b));
+
+    accumulator.beginTransaction();
+    let ingested = 0;
+
     for (const file of fusedFiles) {
         const fullPath = path.join(fusedDir, file);
         try {
             const raw = await fs.readFile(fullPath);
-            const parsed = file.endsWith('.gz') ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
+            const decompressed = (file.endsWith('.gz') || file.endsWith('.zst')) ? await autoDecompress(raw) : raw;
+            const parsed = JSON.parse(decompressed);
 
             // V22.8: Fused shards contain { shardId, entities: [...], _ts }
             const entities = parsed.entities || (parsed.id ? [parsed] : [parsed]);
 
             for (const entity of entities) {
-                const id = entity.id || entity.slug;
-                if (!id) continue;
-
-                // Deduplication: Prefer more recent or compressed if collision
-                if (metadataMap.has(id) && file.endsWith('.json')) continue;
-
-                const trendingInfo = trendingMap.get(id) || { rank: 999999, is_trending: false };
-
-                metadataMap.set(id, {
-                    ...entity,
-                    _trending_rank: trendingInfo.rank,
-                    is_trending: trendingInfo.is_trending,
-                    _trend_7d: trendMap.get(id) || ''
-                });
+                const trendingInfo = trendingMap.get(entity.id || entity.slug) || { rank: 999999, is_trending: false };
+                accumulator.ingest(entity, trendingInfo, trendMap.get(entity.id || entity.slug) || '');
+                ingested++;
             }
 
-            if (metadataMap.size % 50000 === 0 && metadataMap.size > 0) console.log(`[VFS] Collected ${metadataMap.size} unique items...`);
+            if (ingested % 50000 < entities.length && ingested > 0) {
+                console.log(`[VFS] Ingested ${ingested} entities...`);
+            }
         } catch (e) {
             console.error(`[VFS] Failed to read ${file}:`, e.message);
         }
     }
 
-    const metadataBatch = Array.from(metadataMap.values());
-    metadataMap.clear();
-
-    // Stable Popularity Sorting
-    console.log(`[VFS] Performing Stable Popularity Sorting for ${metadataBatch.length} entities...`);
-    return metadataBatch.sort((a, b) => {
-        const scoreA = a.fni_score ?? a.fni ?? 0;
-        const scoreB = b.fni_score ?? b.fni ?? 0;
-        if (scoreB !== scoreA) return scoreB - scoreA;
-        if (a._trending_rank !== b._trending_rank) return a._trending_rank - b._trending_rank;
-        return (a.id || '').localeCompare(b.id || '');
-    });
+    accumulator.commitTransaction();
+    console.log(`[VFS] PackAccumulator ready: ${accumulator.count} unique entities (SQLite-backed, O(1) memory).`);
+    return accumulator;
 }
 
 // V23.1: Builders extracted to satisfy CES Art 5.1
@@ -192,12 +194,12 @@ export async function injectMetadata(metaDbs, searchDb, cacheDir) {
 
     for (const meta of metaFiles) {
         try {
-            const possiblePaths = [path.join(cacheDir, meta.file), path.join(cacheDir, `${meta.file}.gz`)];
+            const possiblePaths = [path.join(cacheDir, meta.file), path.join(cacheDir, `${meta.file}.zst`), path.join(cacheDir, `${meta.file}.gz`)];
             let content = null;
             for (const p of possiblePaths) {
                 try {
                     const raw = await fs.readFile(p);
-                    content = (p.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b)) ? zlib.gunzipSync(raw).toString('utf-8') : raw.toString('utf-8');
+                    content = (await autoDecompress(raw)).toString('utf-8');
                     break;
                 } catch (err) { continue; }
             }

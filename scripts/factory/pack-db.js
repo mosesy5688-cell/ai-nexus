@@ -1,15 +1,14 @@
+// V25.9 Streaming Shard-DB Packer — O(1) memory via PackAccumulator (~200MB peak)
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
-import zlib from 'zlib';
 import { configureDistiller, distillEntity } from './lib/v25-distiller.js';
 import {
-    loadTrendingMap, loadTrendMap, collectAndSortMetadata,
+    loadTrendingMap, loadTrendMap, ingestToAccumulator,
     buildBundleJson, buildEntityRow,
     setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary
 } from './lib/pack-utils.js';
-import { computeShardSlot } from './lib/umid-generator.js';
+import { computeMetaShardSlot } from './lib/meta-shard-router.js';
 import { dbSchemas, searchDbSchema, ftsDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
@@ -21,16 +20,43 @@ import { computeEmbeddings } from './lib/embedding-generator.js';
 import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
-const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024;
+const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024, EMBEDDING_STREAM_BATCH = 500;
 const EMBEDDING_CACHE_PATH = path.join(CACHE_DIR, 'embedding-cache.db');
 const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 
+// V25.9: Streaming Embedding — iterate accumulator in small batches, GC after persist
+async function computeEmbeddingsStreaming(accumulator, cacheDb) {
+    console.log('[VFS] 🔐 Streaming Embedding Vault Integration...');
+    validateModel(cacheDb, EMBEDDING_MODEL);
+    const cachedIdSet = loadIds(cacheDb);
+
+    let batch = [];
+    for (const entity of accumulator.iterate()) {
+        const id = entity.id || entity.slug;
+        if (cachedIdSet.has(id)) entity.embedding = true;
+        batch.push(entity);
+
+        if (batch.length >= EMBEDDING_STREAM_BATCH) {
+            await computeEmbeddings(batch, {
+                onBatchComplete: async (results) => saveBatch(cacheDb, results)
+            });
+            batch = [];
+        }
+    }
+    if (batch.length > 0) {
+        await computeEmbeddings(batch, {
+            onBatchComplete: async (results) => saveBatch(cacheDb, results)
+        });
+    }
+
+    cachedIdSet.clear();
+    console.log('[VFS] Memory: Streaming embedding pass complete. No heap residue.');
+}
+
 async function packDatabase() {
-    // V25.8: Activate Rust FFI bridge
     const rustStatus = initRustBridge();
     console.log(`[VFS] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
-
-    console.log('[VFS] 💎 Commencing Constitutional V23.1 Shard-DB Packing...');
+    console.log('[VFS] 💎 Commencing V25.9 Streaming Shard-DB Packing...');
 
     await fs.mkdir(SHARD_PATH_DIR, { recursive: true });
 
@@ -42,51 +68,25 @@ async function packDatabase() {
         }
     }
 
+    // ── Phase 1: Ingest to SQLite Accumulator (replaces in-memory array) ──
     const trendingMap = await loadTrendingMap(CACHE_DIR);
     const trendMap = await loadTrendMap(CACHE_DIR);
-    let metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
+    const accumulator = await ingestToAccumulator(CACHE_DIR, trendingMap, trendMap);
 
-    // V25.8.3: Memory-Stable Embedding Vault Integration
-    console.log('[VFS] 🔐 Accessing Embedding Vault...');
+    // ── Phase 2: Streaming Embedding Computation ──
     const cacheDb = openCache(EMBEDDING_CACHE_PATH);
-    validateModel(cacheDb, EMBEDDING_MODEL);
+    await computeEmbeddingsStreaming(accumulator, cacheDb);
 
-    // Memory Guard: Only load IDs for skip-check, not the actual vectors.
-    const cachedIdSet = loadIds(cacheDb);
-    metadataBatch.forEach(e => {
-        if (cachedIdSet.has(e.id || e.slug)) {
-            // Marker to trigger computeEmbeddings skip (generator updated to support boolean)
-            e.embedding = true;
-        }
-    });
-
-    // V25.8.3 P1: Compute/Update ANN Vault
-    await computeEmbeddings(metadataBatch, {
-        onBatchComplete: async (batch) => {
-            saveBatch(cacheDb, batch);
-        }
-    });
-
-    // Memory Guard: Wipe ALL embedding references to free heap before packing.
-    // Includes both boolean markers (cached) AND real arrays (newly computed).
-    // All vectors are safely persisted in cacheDb via onBatchComplete.
-    metadataBatch.forEach(e => { e.embedding = null; });
-    cachedIdSet.clear();
-    console.log('[VFS] Memory: Baseline stabilized for shard packing.');
-
+    // ── Phase 3: Setup Shard DBs ──
     const META_SHARD_COUNT = 32;
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
     console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards`);
-
     const metaDbs = {};
     for (let i = 0; i < META_SHARD_COUNT; i++) {
-        const key = `slot_${i}`;
-        metaDbs[key] = new Database(path.join(SHARD_PATH_DIR, `meta-${String(i).padStart(2, '0')}.db`));
+        metaDbs[`slot_${i}`] = new Database(path.join(SHARD_PATH_DIR, `meta-${String(i).padStart(2, '0')}.db`));
     }
-
     const searchDb = new Database(SEARCH_DB_PATH);
-    const FTS_DB_PATH = path.join(SHARD_PATH_DIR, 'fts.db');
-    const ftsDb = new Database(FTS_DB_PATH);
+    const ftsDb = new Database(path.join(SHARD_PATH_DIR, 'fts.db'));
 
     Object.values(metaDbs).forEach(setupDatabasePragmas);
     setupDatabasePragmas(searchDb);
@@ -98,16 +98,17 @@ async function packDatabase() {
 
     // Prepare Statements
     const placeholder = Array(54).fill('?').join(', ');
-    const prepInserts = {}, prepFts = {};
+    const prepInserts = {};
 
     for (const [key, db] of Object.entries(metaDbs)) {
         prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
-        prepFts[key] = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
     }
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
+    // V55.9 §FTS5 Collapse: FTS5 co-located in search.db (replaces per-shard FTS5)
+    const insertSearchFts = searchDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 
-    // V25.8.3: Streaming Vector Query
+    // V25.8.3: Streaming Vector Query (from embedding cache)
     const getVecStm = cacheDb.prepare('SELECT vector FROM embeddings WHERE id = ?');
 
     const stats = { packed: 0, heavy: 0, bytes: 0 };
@@ -120,27 +121,22 @@ async function packDatabase() {
     searchDb.exec("BEGIN TRANSACTION");
     ftsDb.exec("BEGIN TRANSACTION");
 
-    let rowIds = {};
-    Object.keys(metaDbs).forEach(k => rowIds[k] = 1);
+    let searchFtsRowId = 1;
 
     configureDistiller();
 
-    const entityLookup = new Map();
-    metadataBatch.forEach(e => {
-        entityLookup.set(e.id || e.slug, {
-            name: e.name || e.displayName || (e.id || e.slug),
-            icon: e.icon || '📦'
-        });
-    });
+    // V25.9: Build entity lookup from accumulator (O(1) per-entity, ~40MB total)
+    const entityLookup = accumulator.getEntityLookup();
 
-    for (let e of metadataBatch) {
+    // ── Phase 4: Streaming Pack Loop — iterate accumulator, never materialize full array ──
+    for (let e of accumulator.iterate()) {
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
         const arch = e.architecture ?? e.technical?.architecture ?? '';
 
         e = distillEntity(e, pBillions, entityLookup);
-        
+
         // V25.8.3: Selective Injection (Zero-Heap Persistent Pattern)
         const keywords = e.search_vector || '';
         const vecRow = getVecStm.get(e.id || e.slug);
@@ -163,32 +159,31 @@ async function packDatabase() {
         const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
         // V25.8.3 ARCH SPLIT:
-        // 1. Meta Values (for Slays/Slots): Use original keywords to keep DB < 100MB
-        e.search_vector = keywords; 
+        // 1. Meta Values (for Slots): Use original keywords to keep DB < 100MB
+        e.search_vector = keywords;
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
-        
+
         // 2. Search Values (for full-search): Use full ANN Vector for semantic discovery
         e.search_vector = annVectorBase64 || keywords;
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
-        // Cleanup search_vector reference immediately to keep metadataBatch light
         e.search_vector = keywords;
 
-        const slotId = computeShardSlot(e.umid || e.slug || e.id, META_SHARD_COUNT);
+        const slotId = computeMetaShardSlot(e.slug || e.id, META_SHARD_COUNT);
         const targetKey = `slot_${slotId}`;
 
         prepInserts[targetKey].run(...metaValues);
         insertEntitySearch.run(...searchValues);
 
-        const ftsValues = [
-            rowIds[targetKey]++,
+        // V55.9 §FTS5 Collapse: FTS5 co-located in search.db (unified, replaces per-shard)
+        insertSearchFts.run(
+            searchFtsRowId++,
             String(e.name || e.displayName || ''),
             String(truncatedSummary),
             Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags + " " + keywords),
+            String(tags + ' ' + keywords),
             String(category)
-        ];
-        prepFts[targetKey].run(...ftsValues);
+        );
 
         insertFts.run(
             stats.packed + 1,
@@ -210,11 +205,10 @@ async function packDatabase() {
 
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 
-    // V25.8.3: Top-K Vector Recovery for Core Shards
+    // ── Phase 5: Top-30k Vector Recovery for Core Shards ──
     console.log('[VFS] 📥 Recovering Top-30k vectors for Core Shards...');
-    const topCount = Math.min(metadataBatch.length, 30000);
-    for (let i = 0; i < topCount; i++) {
-        const e = metadataBatch[i];
+    const top30k = accumulator.getTopK(30000);
+    for (const e of top30k) {
         const vecRow = getVecStm.get(e.id || e.slug);
         if (vecRow && vecRow.vector) {
             const int8 = new Int8Array(vecRow.vector.buffer, vecRow.vector.byteOffset, vecRow.vector.byteLength);
@@ -225,19 +219,32 @@ async function packDatabase() {
     }
 
     closeCache(cacheDb);
+    generateHotShard(top30k);
+    generateVectorCore(top30k);
 
-    generateHotShard(metadataBatch);
-    generateVectorCore(metadataBatch);
+    // ── Phase 6: V55.9 Parquet Analytical Mirror (async, same epoch tag) ──
+    const { exportParquet } = await import('./lib/parquet-exporter.js');
+    await exportParquet(accumulator);
 
-    metadataBatch = null;
-    console.log('[VFS] Memory: metadataBatch disposed. Triggering Edge-Index...');
+    // ── Phase 7: FNI Sanity Check — Constitutional Circuit Breaker ──
+    const { checkFniSanity } = await import('./lib/fni-sanity-check.js');
+    const { passed } = checkFniSanity(accumulator);
+    if (!passed) {
+        await accumulator.close();
+        console.error('[VFS] BUILD HALTED: FNI sanity check failed. Artifacts not safe for deploy.');
+        process.exit(1);
+    }
+
+    // Cleanup
+    await accumulator.close();
+    console.log('[VFS] Memory: Accumulator disposed. Triggering Edge-Index...');
 
     const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
     const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();
     await generateMetaAnchors();
 
-    console.log('[VFS] V25.8 Shard-DB Packing Complete.');
+    console.log('[VFS] ✅ V25.9 Streaming Shard-DB Packing Complete.');
 }
 
 packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });

@@ -6,7 +6,9 @@ import path from 'path';
 import { SHARD_SIZE, purgeStaleShards } from './registry-utils.js';
 import { ShardWriter } from './shard-writer.js';
 
-const MONOLITH_FILE = 'global-registry.json.gz';
+import { zstdCompress, createZstdCompressStream } from './zstd-helper.js';
+
+const MONOLITH_FILE = 'global-registry.json.zst';
 
 /**
  * Save a registry shard as Binary VFS 4.1 (.bin)
@@ -85,42 +87,39 @@ export async function saveGlobalRegistry(input) {
         await saveRegistryShard(i, shardData);
     }
 
-    // 2. Monolith Save (Streaming JSON.gz for SEO/Backup — NOT binary)
-    const zlib = await import('zlib');
+    // 2. Monolith Save (Streaming JSON.zst for Backup — V25.9 Zstd)
+    await zstdCompress(Buffer.from('init')); // Warm up codec
     const { createWriteStream } = await import('fs');
 
     await new Promise((resolve, reject) => {
         const output = createWriteStream(monolithPath);
-        const gzip = zlib.createGzip();
-        gzip.pipe(output);
+        const zst = createZstdCompressStream();
+        zst.pipe(output);
 
         output.on('error', reject);
-        gzip.on('error', reject);
+        zst.on('error', reject);
         output.on('finish', resolve);
 
-        // V25.8.3: Async write with backpressure handling to prevent data truncation.
-        // Old sync loop (gzip.write in tight for-loop) could overflow the internal
-        // buffer, causing truncated \uXXXX escapes in the output JSON.
         let i = 0;
-        gzip.write(`{"entities":[`);
+        zst.write(`{"entities":[`);
         function writeNext() {
             let ok = true;
             while (i < count && ok) {
                 const chunk = (i > 0 ? ',' : '') + JSON.stringify(inputEntities[i]);
                 i++;
-                ok = gzip.write(chunk);
+                ok = zst.write(chunk);
             }
             if (i < count) {
-                gzip.once('drain', writeNext);
+                zst.once('drain', writeNext);
             } else {
-                gzip.write(`],"count":${count},"lastUpdated":"${timestamp}"}`);
-                gzip.end();
+                zst.write(`],"count":${count},"lastUpdated":"${timestamp}"}`);
+                zst.end();
             }
         }
         writeNext();
     });
 
-    console.log(`[CACHE] Registry persisted. Shards: ${shardCount} (Binary), Monolith: OK (JSON.gz).`);
+    console.log(`[CACHE] Registry persisted. Shards: ${shardCount} (Binary), Monolith: OK (Zstd).`);
 
     // 3. Purge stale shards from R2
     await purgeStaleShards('registry', shardCount);

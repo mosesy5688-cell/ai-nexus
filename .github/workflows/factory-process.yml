@@ -131,8 +131,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/merged.json.gz
-            data/merged_shard_*.json.gz
+            data/merged.json.zst
+            data/merged_shard_*.json.zst
             data/manifest.json
             cache/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest
@@ -267,10 +267,10 @@ jobs:
           
           # Handle both flat and nested download structures
           # If files are at root, move them
-          [ -f merged.json.gz ] && mv merged.json.gz data/merged.json.gz
+          [ -f merged.json.zst ] && mv merged.json.zst data/merged.json.zst
           [ -f manifest.json ] && mv manifest.json data/manifest.json
-          [ -f fni-history.json.gz ] && mv fni-history.json.gz cache/fni-history.json.gz
-          [ -f daily-accum.json.gz ] && mv daily-accum.json.gz cache/daily-accum.json.gz
+          [ -f fni-history.json.zst ] && mv fni-history.json.zst cache/fni-history.json.zst
+          [ -f daily-accum.json.zst ] && mv daily-accum.json.zst cache/daily-accum.json.zst
           
           # Files may already be in correct paths from artifact
           echo "📂 Final data structure:"
@@ -297,7 +297,7 @@ jobs:
       - name: Restore Entity Checksums
         uses: actions/cache@v4
         with:
-          path: cache/entity-checksums.json.gz
+          path: cache/entity-checksums.json.zst
           key: entity-checksums-${{ github.run_id }}
           restore-keys: |
             entity-checksums-
@@ -306,8 +306,8 @@ jobs:
       - name: Process Shard ${{ matrix.shard }}
         env:
           CACHE_DIR: data
-          ENTITIES_PATH: data/merged.json.gz
-          FNI_HISTORY_PATH: cache/fni-history.json.gz
+          ENTITIES_PATH: data/merged.json.zst
+          FNI_HISTORY_PATH: cache/fni-history.json.zst
           ARTIFACT_DIR: artifacts
           # V25.8: R2 for pulse sync (cursor.json state only, not data writes)
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -324,7 +324,7 @@ jobs:
       - name: Save Shard to Cache
         uses: actions/cache/save@v4
         with:
-          path: artifacts/shard-${{ matrix.shard }}.json.gz
+          path: artifacts/shard-${{ matrix.shard }}.json.zst
           key: shard-${{ matrix.shard }}-${{ github.run_id }}
 
       # V25.8 §2.2: Stream shard result to R2 (parallel with cache)
@@ -335,7 +335,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          SHARD_FILE="artifacts/shard-${{ matrix.shard }}.json.gz"
+          SHARD_FILE="artifacts/shard-${{ matrix.shard }}.json.zst"
           if [ -f "$SHARD_FILE" ]; then
             node -e "
               import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
@@ -346,8 +346,8 @@ jobs:
                 const data = fs.readFileSync('$SHARD_FILE');
                 await s3.send(new PutObjectCommand({
                   Bucket: 'ai-nexus-assets',
-                  Key: 'state/shards/shard-${{ matrix.shard }}.json.gz',
-                  Body: data, ContentType: 'application/gzip'
+                  Key: 'state/shards/shard-${{ matrix.shard }}.json.zst',
+                  Body: data, ContentType: 'application/zstd'
                 }));
                 console.log('✅ Shard ${{ matrix.shard }} streamed to R2');
               }
@@ -390,10 +390,10 @@ jobs:
             for (let i = 0; i < 20; i++) {
               try {
                 const { Body } = await s3.send(new GetObjectCommand({
-                  Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-' + i + '.json.gz'
+                  Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-' + i + '.json.zst'
                 }));
                 const chunks = []; for await (const c of Body) chunks.push(c);
-                fs.writeFileSync('artifacts/shard-' + i + '.json.gz', Buffer.concat(chunks));
+                fs.writeFileSync('artifacts/shard-' + i + '.json.zst', Buffer.concat(chunks));
                 ok++;
               } catch (e) { console.warn('  shard-' + i + ': ' + e.message); }
             }
@@ -404,8 +404,8 @@ jobs:
       - name: Organize Shards
         run: |
           mkdir -p output/shards
-          find ./artifacts -name "shard-*.json.gz" -exec cp -v {} output/shards/ \;
-          SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
+          find ./artifacts -name "shard-*.json.zst" -exec cp -v {} output/shards/ \;
+          SHARD_COUNT=$(find output/shards -name "shard-*.json.zst" | wc -l)
           echo "✅ Total shards collected: $SHARD_COUNT"
           if [ "$SHARD_COUNT" -lt 20 ]; then
             echo "❌ ERROR: Missing shards! Expected 20, found $SHARD_COUNT."
@@ -432,14 +432,14 @@ jobs:
       - name: Restore Shard 0 from Cache
         uses: actions/cache/restore@v4
         with:
-          path: artifacts/shard-0.json.gz
+          path: artifacts/shard-0.json.zst
           key: shard-0-${{ github.run_id }}
         continue-on-error: true
 
       - name: Setup Shard 0 Data
         run: |
           mkdir -p shard-0
-          cp artifacts/shard-0.json.gz shard-0/ 2>/dev/null || echo "Shard 0 not available"
+          cp artifacts/shard-0.json.zst shard-0/ 2>/dev/null || echo "Shard 0 not available"
 
       # V14.5.2: Checksum saving moved to Aggregator (Phase 3) for atomic consistency
       - name: Notify Aggregate Stage

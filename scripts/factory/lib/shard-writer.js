@@ -19,33 +19,17 @@ const SHARD_MAGIC = Buffer.from([0x4E, 0x58, 0x56, 0x46]); // "NXVF" (Nexus VFS)
 const SHARD_VERSION = 0x41; // 0x41 = V4.1 (backward compat: V4.0 was 0x04)
 const SHARD_WARN_THRESHOLD = 500;
 
-let _zstdCompress = null;
+import { zstdCompress, zstdCompressSync } from './zstd-helper.js';
 
+let _compressFn = null;
+
+// V55.9: Zstd-only. No gzip fallback. Build MUST crash if zstd unavailable.
 async function loadZstd() {
-    if (_zstdCompress) return _zstdCompress;
-    // Try zstd-codec (WASM, has compress+decompress)
-    try {
-        const { ZstdCodec } = await import('zstd-codec');
-        const zstd = await new Promise(resolve => ZstdCodec.run(z => resolve(z)));
-        const simple = new zstd.Simple();
-        _zstdCompress = (data) => Buffer.from(simple.compress(data, 3));
-        _zstdCompress._type = 'zstd';
-        console.log('[SHARD-WRITER] Zstd compression enabled (zstd-codec)');
-        return _zstdCompress;
-    } catch (e) {
-        console.warn(`[SHARD-WRITER] zstd-codec unavailable: ${e.message}`);
-    }
-    // Fallback: Node.js built-in gzip (always available, ~3-5x compression)
-    try {
-        const zlib = await import('zlib');
-        _zstdCompress = (data) => zlib.gzipSync(data, { level: 6 });
-        _zstdCompress._type = 'gzip';
-        console.log('[SHARD-WRITER] Gzip compression enabled (zlib fallback)');
-        return _zstdCompress;
-    } catch { /* should never happen */ }
-    _zstdCompress = null;
-    console.error('[SHARD-WRITER] ⚠️ NO compression available — raw payloads will cause cache bloat!');
-    return _zstdCompress;
+    if (_compressFn) return _compressFn;
+    await zstdCompress(Buffer.from('init')); // warm up codec
+    _compressFn = (data) => zstdCompressSync(data, 3);
+    console.log('[SHARD-WRITER] Zstd compression enabled (V55.9 compliant)');
+    return _compressFn;
 }
 
 export class ShardWriter {

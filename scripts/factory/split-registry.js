@@ -9,15 +9,16 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import zlib from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
+import { zstdCompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
 
 const TOTAL_SHARDS = 20;
 const DATA_DIR = 'data';
-const INPUT_FILE = path.join(DATA_DIR, 'merged.json.gz');
+const INPUT_FILE_ZST = path.join(DATA_DIR, 'merged.json.zst');
+const INPUT_FILE_GZ = path.join(DATA_DIR, 'merged.json.gz');
 const INPUT_FILE_PLAIN = path.join(DATA_DIR, 'merged.json');
 
 // V25.8: Initialize Rust FFI for xxhash64 routing (JS fallback if unavailable)
@@ -98,7 +99,8 @@ class JsonArraySplitter extends Writable {
 async function splitRegistry() {
     console.log(`\n🔪 [Splitter] Starting monolithic registry decomposition (Deterministic ID Hashing)...`);
 
-    const targetFile = fs.existsSync(INPUT_FILE) ? INPUT_FILE : INPUT_FILE_PLAIN;
+    const targetFile = fs.existsSync(INPUT_FILE_ZST) ? INPUT_FILE_ZST
+        : fs.existsSync(INPUT_FILE_GZ) ? INPUT_FILE_GZ : INPUT_FILE_PLAIN;
 
     if (!fs.existsSync(targetFile)) {
         console.error(`❌ [Splitter] ERROR: Monolith ${targetFile} not found!`);
@@ -108,15 +110,18 @@ async function splitRegistry() {
     const startTime = Date.now();
     let totalCount = 0;
 
-    // Initialize Shard Write Streams
-    console.log(`   📂 Initializing ${TOTAL_SHARDS} shard streams...`);
+    // V25.9: Init Zstd codec before creating compress streams
+    await zstdCompress(Buffer.from('init'));
+
+    // Initialize Shard Write Streams (Zstd)
+    console.log(`   📂 Initializing ${TOTAL_SHARDS} shard streams (Zstd)...`);
     const shardCounts = new Array(TOTAL_SHARDS).fill(0);
     const shardStreams = Array.from({ length: TOTAL_SHARDS }, (_, i) => {
-        const gz = zlib.createGzip();
-        const ws = fs.createWriteStream(path.join(DATA_DIR, `merged_shard_${i}.json.gz`));
-        gz.pipe(ws);
-        gz.write('['); // Start JSON array
-        return gz;
+        const zst = createZstdCompressStream();
+        const ws = fs.createWriteStream(path.join(DATA_DIR, `merged_shard_${i}.json.zst`));
+        zst.pipe(ws);
+        zst.write('[');
+        return zst;
     });
 
     const splitter = new JsonArraySplitter((entity) => {
@@ -136,12 +141,12 @@ async function splitRegistry() {
         }
     });
 
-    const isGzip = targetFile.endsWith('.gz');
+    const isCompressed = targetFile.endsWith('.zst') || targetFile.endsWith('.gz');
     const readStream = fs.createReadStream(targetFile);
 
     try {
-        if (isGzip) {
-            await pipeline(readStream, zlib.createGunzip(), splitter);
+        if (isCompressed) {
+            await pipeline(readStream, createAutoDecompressStream(), splitter);
         } else {
             await pipeline(readStream, splitter);
         }

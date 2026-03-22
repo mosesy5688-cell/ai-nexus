@@ -24,8 +24,7 @@ export const entitiesTableSql = `
 
 export const dbSchemas = `
     ${entitiesTableSql}
-    -- V23.1: Strict Contentless FTS5 with porter stemmer
-    CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='porter unicode61 remove_diacritics 2');
+    -- V55.9: Per-shard FTS5 removed — FTS5 now co-located in search.db (unified)
     CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
     CREATE INDEX idx_fni ON entities(fni_score DESC, raw_pop DESC, slug ASC);
     CREATE INDEX idx_type ON entities(type);
@@ -43,6 +42,9 @@ export const ftsDbSchema = `
 
 export const searchDbSchema = `
     ${entitiesTableSql}
+    -- V55.9 §FTS5 Collapse: Unified FTS5 co-located with entities (replaces 32-shard federation)
+    CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='porter unicode61 remove_diacritics 2');
     CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
     CREATE INDEX idx_fni_full ON entities(fni_score DESC, raw_pop DESC, slug ASC);
+    CREATE INDEX idx_type ON entities(type);
 `;

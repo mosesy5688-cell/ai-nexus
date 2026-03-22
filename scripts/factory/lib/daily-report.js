@@ -9,6 +9,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { loadDailyAccum, saveDailyAccum } from './cache-manager.js';
 import { generateAIContent } from './daily-report-ai.js';
+import { zstdCompress, autoDecompress } from './zstd-helper.js';
 
 const DAILY_TOP_ENTITIES = 50;
 
@@ -70,29 +71,20 @@ export async function generateDailyReport(outputDir = './output') {
     const reportPath = path.join(dailyDir, `${reportId}.json`);
 
     let existingReport = null;
-    try {
-        let existingContent = await fs.readFile(reportPath);
-        if (existingContent[0] === 0x1f && existingContent[1] === 0x8b) {
-            const zlib = await import('zlib');
-            existingContent = zlib.gunzipSync(existingContent);
-        }
-        existingReport = JSON.parse(existingContent.toString('utf-8'));
-        console.log(`  [REPORT] Existing report found for ${reportId}. Merging cumulative data...`);
-    } catch (e) {
-        // Try .gz fallback if the primary path didn't work and wasn't already .gz
-        if (!reportPath.endsWith('.gz')) {
-            try {
-                let existingContent = await fs.readFile(reportPath + '.gz');
-                const zlib = await import('zlib');
-                existingContent = zlib.gunzipSync(existingContent);
-                existingReport = JSON.parse(existingContent.toString('utf-8'));
-                console.log(`  [REPORT] Existing report found for ${reportId} (.gz). Merging cumulative data...`);
-            } catch (e2) { }
-        }
+    // V25.9: Try .zst first, then .gz (legacy), then plain JSON
+    const candidatePaths = [reportPath + '.zst', reportPath + '.gz', reportPath];
+    for (const candidate of candidatePaths) {
+        try {
+            const raw = await fs.readFile(candidate);
+            const decompressed = await autoDecompress(raw);
+            existingReport = JSON.parse(decompressed.toString('utf-8'));
+            console.log(`  [REPORT] Existing report found for ${reportId}. Merging cumulative data...`);
+            break;
+        } catch { }
     }
 
-    // V18.2: Standardize reportPath to .gz
-    const finalReportPath = reportPath.endsWith('.gz') ? reportPath : reportPath + '.gz';
+    // V25.9: Standardize reportPath to .zst (V55.9 §73: 100% Zstd)
+    const finalReportPath = reportPath + '.zst';
 
     if ((!accumulator.entries || accumulator.entries.length === 0) && !existingReport) {
         console.warn('[WARN] No daily entries found and no existing report to update');
@@ -147,20 +139,53 @@ export async function generateDailyReport(outputDir = './output') {
         _updated: new Date().toISOString()
     };
 
-    // Save to daily directory
-    const zlib = await import('zlib');
+    // Save to daily directory (V55.9 §73: Zstd only)
     await fs.mkdir(dailyDir, { recursive: true });
-    await fs.writeFile(finalReportPath, zlib.gzipSync(JSON.stringify(report, null, 2)));
+    await fs.writeFile(finalReportPath, await zstdCompress(JSON.stringify(report, null, 2)));
 
     // Archive backup
     const backupDir = path.join(outputDir, 'meta', 'daily-backup');
     await fs.mkdir(backupDir, { recursive: true });
-    await fs.writeFile(path.join(backupDir, `${reportId}.json.gz`), zlib.gzipSync(JSON.stringify(report, null, 2)));
+    await fs.writeFile(path.join(backupDir, `${reportId}.json.zst`), await zstdCompress(JSON.stringify(report, null, 2)));
+
+    // V25.9: VFS Assimilation — emit Fused Entity for aggregator pipeline ingestion
+    await exportReportFusedEntity(report, outputDir);
 
     // Clear accumulator after successful generation
     await saveDailyAccum({ entries: [], lastUpdated: new Date().toISOString() });
 
     console.log(`  [REPORT] Generated/Updated Daily ${reportId}: "${title}" (${combinedHighlights.length} highlights)`);
+}
+
+/**
+ * V25.9: Export daily report as Fused Entity Object to cache/fused/.
+ * Enables FTS5 indexing, Sitemap inclusion, and Global Search visibility.
+ */
+async function exportReportFusedEntity(report, outputDir) {
+    const fusedEntity = {
+        id: `report--${report.id}`,
+        slug: `report--${report.id}`,
+        name: report.title,
+        type: 'report',
+        description: report.summary || '',
+        body_content: JSON.stringify(report.highlights || []),
+        summary: report.subtitle || report.summary || '',
+        author: 'Free2AI',
+        category: 'daily-report',
+        tags: ['AI', 'report', 'daily', 'industry'],
+        fni_score: 30,
+        source: 'daily-report-gen',
+        source_platform: 'internal',
+        pipeline_tag: 'daily-report',
+        created_at: report.datePublished || new Date().toISOString(),
+        last_modified: report._updated || new Date().toISOString(),
+    };
+
+    const fusedDir = path.join(process.env.CACHE_DIR || path.join(outputDir, 'cache'), 'fused');
+    await fs.mkdir(fusedDir, { recursive: true });
+    const fusedPath = path.join(fusedDir, `${fusedEntity.id}.json.zst`);
+    await fs.writeFile(fusedPath, await zstdCompress(JSON.stringify(fusedEntity)));
+    console.log(`  [REPORT] VFS Entity exported: ${fusedEntity.id}`);
 }
 
 function calculateAvgFni(entries) {

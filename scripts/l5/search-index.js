@@ -18,6 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { enforceUpstreamComplete } from './manifest-utils.js';
+import { zstdCompress, autoDecompress } from '../factory/lib/zstd-helper.js';
 
 // V1.1-LOCK: Enforce upstream manifest completeness
 const L1_MANIFEST = 'data/manifest.json';
@@ -32,16 +33,18 @@ const OUTPUT_DIR = process.env.OUTPUT_DIR || './public/data';
 /**
  * Load entities from merged file
  */
-function loadEntities() {
+async function loadEntities() {
     const entitiesPath = path.join(DATA_DIR, 'entities.json');
 
     if (!fs.existsSync(entitiesPath)) {
-        // Try gzipped version
-        const gzPath = path.join(DATA_DIR, 'entities.json.gz');
-        if (fs.existsSync(gzPath)) {
-            const compressed = fs.readFileSync(gzPath);
-            const json = zlib.gunzipSync(compressed).toString('utf-8');
-            return JSON.parse(json);
+        // Try compressed versions (.zst first, .gz fallback)
+        for (const ext of ['.zst', '.gz']) {
+            const compPath = path.join(DATA_DIR, `entities.json${ext}`);
+            if (fs.existsSync(compPath)) {
+                const compressed = fs.readFileSync(compPath);
+                const json = (await autoDecompress(compressed)).toString('utf-8');
+                return JSON.parse(json);
+            }
         }
         console.error('❌ No entities file found');
         return [];
@@ -100,7 +103,7 @@ async function generateSearchIndex() {
     console.log('🔍 [Search Index] Starting generation...\n');
 
     // Load entities
-    const entities = loadEntities();
+    const entities = await loadEntities();
     console.log(`📦 Loaded ${entities.length} entities\n`);
 
     if (entities.length === 0) {
@@ -153,24 +156,24 @@ async function generateSearchIndex() {
     const jsonStr = JSON.stringify(output);
     fs.writeFileSync(jsonPath, jsonStr);
 
-    // Write gzipped version
-    const gzPath = path.join(OUTPUT_DIR, 'search-index.json.gz');
-    const compressed = zlib.gzipSync(jsonStr);
-    fs.writeFileSync(gzPath, compressed);
+    // Write Zstd-compressed version (V25.9)
+    const zstPath = path.join(OUTPUT_DIR, 'search-index.json.zst');
+    const compressed = await zstdCompress(jsonStr);
+    fs.writeFileSync(zstPath, compressed);
 
     // Report
     const jsonSize = (Buffer.byteLength(jsonStr) / 1024).toFixed(1);
-    const gzSize = (compressed.length / 1024).toFixed(1);
+    const zstSize = (compressed.length / 1024).toFixed(1);
 
     console.log(`\n✅ [Search Index] Generated successfully!`);
     console.log(`   📊 Entries: ${searchIndex.length}`);
     console.log(`   📁 JSON: ${jsonSize} KB`);
-    console.log(`   📦 Gzipped: ${gzSize} KB`);
+    console.log(`   📦 Zstd: ${zstSize} KB`);
     console.log(`   📍 Output: ${jsonPath}`);
 
     // Warn if too large
     if (compressed.length > 500 * 1024) {
-        console.warn(`\n⚠️ WARNING: Gzipped size ${gzSize}KB exceeds 500KB limit!`);
+        console.warn(`\n⚠️ WARNING: Compressed size ${zstSize}KB exceeds 500KB limit!`);
         console.warn('   Consider reducing entry fields or truncating descriptions');
     }
 

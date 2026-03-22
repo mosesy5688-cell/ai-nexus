@@ -197,10 +197,10 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
     output.inverseLinks = inverseLinks;
     output._v = '25.8';
 
-    const zlib = await import('zlib');
+    const { zstdCompress } = await import('./zstd-helper.js');
     await fs.writeFile(
-        path.join(relationsDir, 'knowledge-links.json.gz'),
-        zlib.gzipSync(JSON.stringify(output))
+        path.join(relationsDir, 'knowledge-links.json.zst'),
+        await zstdCompress(JSON.stringify(output))
     );
 
     console.log(`  [KNOWLEDGE-LINKER] Linked ${allLinks.length} entities to knowledge articles`);

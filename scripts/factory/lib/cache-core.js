@@ -5,6 +5,7 @@ import os from 'os';
 import crypto from 'crypto';
 import { HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { createR2Client } from './r2-helpers.js';
+import { zstdCompress, autoDecompress } from './zstd-helper.js';
 
 const getCacheDir = () => process.env.CACHE_DIR || './cache';
 const getR2Prefix = () => process.env.R2_BACKUP_PREFIX || 'meta/backup/';
@@ -23,21 +24,13 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
         if (stats.size === 0) throw new Error(`Empty file: ${filepath}`);
 
         let data = await fs.readFile(filepath);
-        // V18.2.3: Gzip Magic Number Sniffing (Reliable detection)
-        const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
-
-        if (filepath.endsWith('.gz') || isGzip) {
-            const zlib = await import('zlib');
+        // V25.9: autoDecompress handles Zstd, Gzip, and raw via magic bytes
+        if (filepath.endsWith('.gz') || filepath.endsWith('.zst') ||
+            (data.length > 2 && (data[0] === 0x1f || data[0] === 0x28))) {
             try {
-                data = zlib.gunzipSync(data);
+                data = await autoDecompress(data);
             } catch (e) {
-                // Defensive: If it failed but wasn't actually a Gzip (sniffing lied or corrupted), 
-                // and it ends with .gz, this is a "Fake .gz" situation.
-                if (!isGzip) {
-                    console.warn(`[CACHE] ⚠️ Fake .gz detected: ${filepath}. Parsing as raw JSON.`);
-                } else {
-                    throw new Error(`Gzip decompression failed for ${filepath}: ${e.message}`);
-                }
+                console.warn(`[CACHE] ⚠️ Decompression failed for ${filepath}. Trying raw JSON.`);
             }
         }
         try {
@@ -53,11 +46,15 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
             try {
                 return await tryLoad(localPath);
             } catch {
-                if (!filename.endsWith('.gz')) {
-                    const gzPath = localPath + '.gz';
-                    const result = await tryLoad(gzPath);
-                    console.log(`[CACHE] ✅ Loaded from local (.gz): ${filename}.gz`);
-                    return result;
+                // V25.9: Try .zst first, then .gz (legacy)
+                for (const ext of ['.zst', '.gz']) {
+                    if (!filename.endsWith(ext)) {
+                        try {
+                            const result = await tryLoad(localPath + ext);
+                            console.log(`[CACHE] ✅ Loaded from local (${ext}): ${filename}${ext}`);
+                            return result;
+                        } catch { }
+                    }
                 }
                 throw new Error('Not found');
             }
@@ -91,13 +88,8 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
         await fs.mkdir(path.dirname(targetFile), { recursive: true });
         await fs.writeFile(targetFile, buffer);
 
-        // Decompress and parse
-        let data = buffer;
-        const isGzipHeader = response.ContentEncoding === 'gzip' || targetKey.endsWith('.gz');
-        if (isGzipHeader || (data[0] === 0x1f && data[1] === 0x8b)) {
-            const zlib = await import('zlib');
-            data = zlib.gunzipSync(data);
-        }
+        // V25.9: autoDecompress handles both Zstd and Gzip via magic bytes
+        const data = await autoDecompress(buffer);
         return JSON.parse(data.toString('utf-8'));
     };
 
@@ -105,12 +97,13 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
         const r2Key = `${getR2Prefix()}${filename}`;
         return await tryR2(localPath, r2Key);
     } catch {
-        if (!filename.endsWith('.gz')) {
-            try {
-                const r2KeyGz = `${getR2Prefix()}${filename}.gz`;
-                const localPathGz = localPath + '.gz';
-                return await tryR2(localPathGz, r2KeyGz);
-            } catch { }
+        // V25.9: Try .zst first, then .gz (legacy)
+        for (const ext of ['.zst', '.gz']) {
+            if (!filename.endsWith(ext)) {
+                try {
+                    return await tryR2(localPath + ext, `${getR2Prefix()}${filename}${ext}`);
+                } catch { }
+            }
         }
     }
 
@@ -128,13 +121,11 @@ export async function saveWithBackup(filename, data, options = {}) {
     const localPath = path.join(getCacheDir(), filename);
     let content = JSON.stringify(data);
 
-    // V18.2.3: Mandatory Compression Check
-    // If filename ends with .gz, we MUST compress to prevent "Fake .gz" artifacts
-    const shouldCompress = options.compress || filename.endsWith('.gz');
+    // V25.9: Zstd for local files, gzip only for R2 HTTP transport
+    const shouldCompress = options.compress || filename.endsWith('.gz') || filename.endsWith('.zst');
 
     if (shouldCompress) {
-        const zlib = await import('zlib');
-        content = zlib.gzipSync(Buffer.from(content));
+        content = await zstdCompress(Buffer.from(content));
     }
 
     const dir = path.dirname(localPath);
@@ -174,8 +165,7 @@ export async function saveWithBackup(filename, data, options = {}) {
                 Bucket: getR2Bucket(),
                 Key: r2Key,
                 Body: content,
-                ContentType: shouldCompress ? 'application/x-gzip' : 'application/json',
-                ContentEncoding: shouldCompress ? 'gzip' : undefined
+                ContentType: shouldCompress ? 'application/zstd' : 'application/json',
             }));
         } catch (err) {
             console.warn(`[CACHE] ⚠️ R2 backup failed: ${err.message}`);

@@ -6,7 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
-import zlib from 'zlib';
+import { zstdCompress } from './zstd-helper.js';
 import { buildSearchIndexFFI } from './rust-bridge.js';
 
 const SEARCH_CORE_SIZE = 5000; // Art 6.3: Top 5000 for core index
@@ -114,9 +114,9 @@ export async function generateSearchIndices(entities, outputDir = './output') {
             _count: shardEntities.length,
             _generated: new Date().toISOString(),
         };
-        const compressedShard = zlib.gzipSync(JSON.stringify(shard));
-        // SPEC-ID-V2.0: Always use .gz for shards
-        await fs.writeFile(path.join(shardingDir, `shard-${s}.json.gz`), compressedShard);
+        const compressedShard = await zstdCompress(JSON.stringify(shard));
+        // V25.9: Zstd for all shards
+        await fs.writeFile(path.join(shardingDir, `shard-${s}.json.zst`), compressedShard);
     }
 
     // Manifest for client-side lazy loading (Keep uncompressed for small size and easy fetch)
@@ -124,7 +124,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         totalEntities: fullEntities.length,
         totalShards,
         shardSize: SHARD_SIZE,
-        extension: '.gz', // Explicitly tell client to use .gz
+        extension: '.zst', // V25.9: Zstd compression
         _generated: new Date().toISOString(),
     };
     await fs.writeFile(path.join(searchDir, 'search-manifest.json'), JSON.stringify(manifest));

@@ -502,7 +502,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            cache/fni-history.json.gz
+            cache/fni-history.json.zst
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
           restore-keys: |
@@ -512,7 +512,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            cache/daily-accum.json.gz
+            cache/daily-accum.json.zst
             cache/daily-accum/
           key: daily-accum-${{ github.run_id }}
           restore-keys: |
@@ -522,19 +522,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            cache/entity-checksums.json.gz
-            cache/task-checksums.json.gz
+            cache/entity-checksums.json.zst
+            cache/task-checksums.json.zst
           key: checksums-${{ github.run_id }}
           restore-keys: |
             checksums-
-          
+
       # V4.1: Restore global registry (Immutable Key + Prefix Match)
       - name: Restore Global Registry (Cache-First)
         id: cache-registry
         uses: actions/cache/restore@v4
         with:
           path: |
-            cache/global-registry.json.gz
+            cache/global-registry.json.zst
             cache/registry/
           key: global-registry-${{ github.run_id }}  # Won't match (not saved yet)
           restore-keys: |
@@ -601,8 +601,8 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            data/merged.json.gz
-            data/merged_shard_*.json.gz
+            data/merged.json.zst
+            data/merged_shard_*.json.zst
             data/manifest.json
             cache/
           key: cycle-${{ github.run_id }}-harvest
@@ -618,7 +618,7 @@ jobs:
         run: |
           node --input-type=module -e "
             import { backupDirectoryToR2 } from './scripts/factory/lib/r2-handoff.js';
-            await backupDirectoryToR2('data/', 'state/cycle-harvest/data/', { extensions: ['.json', '.json.gz'] });
+            await backupDirectoryToR2('data/', 'state/cycle-harvest/data/', { extensions: ['.json', '.json.zst'] });
             await backupDirectoryToR2('cache/', 'state/cycle-harvest/cache/');
             console.log('✅ Harvest cycle backed up to R2 state/cycle-harvest/');
           "

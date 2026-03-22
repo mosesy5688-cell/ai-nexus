@@ -9,9 +9,9 @@
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import zlib from 'zlib';
 import { initRustBridge } from './rust-bridge.js';
 import Database from 'better-sqlite3';
+import { zstdCompress, createZstdCompressStream } from './zstd-helper.js';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './output/data';
 
@@ -40,12 +40,13 @@ export async function generateEdgeIndex() {
     
     initRustBridge();
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
+    await zstdCompress(Buffer.from('init')); // Warm up Zstd codec
 
     const bloomFilter = Buffer.alloc(BLOOM_SIZE_BYTES, 0);
     const indexPath = path.join(OUTPUT_DIR, 'meta.global.index');
     const writeStream = fsSync.createWriteStream(indexPath);
-    const gzip = zlib.createGzip();
-    gzip.pipe(writeStream);
+    const zst = createZstdCompressStream();
+    zst.pipe(writeStream);
 
     let totalEntities = 0;
     const metaShards = fsSync.readdirSync(OUTPUT_DIR).filter(f => f.startsWith('meta-') && f.endsWith('.db'));
@@ -59,7 +60,7 @@ export async function generateEdgeIndex() {
         slotCount: 4096,
     };
     
-    gzip.write(JSON.stringify(header).slice(0, -1) + ',"entries":[');
+    zst.write(JSON.stringify(header).slice(0, -1) + ',"entries":[');
 
     for (const shardFile of metaShards) {
         const slotId = parseInt(shardFile.match(/meta-(\d+)/)[1]);
@@ -73,8 +74,8 @@ export async function generateEdgeIndex() {
             const entryArray = [r.umid, slotId, r.id, r.type, r.bundle_key, r.bundle_offset, r.bundle_size];
             const chunk = (totalEntities === 0 ? '' : ',') + JSON.stringify(entryArray);
             
-            const ok = gzip.write(chunk);
-            if (!ok) await new Promise(resolve => gzip.once('drain', resolve));
+            const ok = zst.write(chunk);
+            if (!ok) await new Promise(resolve => zst.once('drain', resolve));
 
             // Populate Bloom Filter (UMID based)
             for (let h = 0; h < BLOOM_HASH_COUNT; h++) {
@@ -87,8 +88,8 @@ export async function generateEdgeIndex() {
         console.log(`  [EDGE-INDEX] Processed ${shardFile} (${rows.length} entities)`);
     }
 
-    gzip.write(']}');
-    gzip.end();
+    zst.write(']}');
+    zst.end();
 
     await new Promise((resolve, reject) => {
         writeStream.on('finish', resolve);

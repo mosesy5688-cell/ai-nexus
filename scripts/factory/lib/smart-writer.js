@@ -6,7 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import zlib from 'zlib';
+import { zstdCompress } from './zstd-helper.js';
 
 /**
  * Generate MD5 hash of content (Aligned with S3 ETag for Gzip support)
@@ -70,15 +70,15 @@ export async function smartWriteWithVersioning(key, data, outputDir = './output'
     let content = JSON.stringify(data);
     let finalKey = key;
 
-    // V18.2.3: Unified Compression Logic
-    // If extension is .gz OR options.compress is true, we MUST compress.
-    const shouldCompress = options.compress || key.endsWith('.gz');
+    // V25.9: Unified Zstd Compression (V55.9 §73: 100% Zstd)
+    const shouldCompress = options.compress || key.endsWith('.zst') || key.endsWith('.gz');
 
     if (shouldCompress) {
-        // V19.3: Use stable MTIME for deterministic MD5 hashes
-        content = zlib.gzipSync(content, { mtime: 0 });
-        if (!finalKey.endsWith('.gz')) {
-            finalKey += '.gz';
+        content = await zstdCompress(content);
+        // Normalize extension: .gz → .zst for new outputs
+        finalKey = finalKey.replace(/\.gz$/, '.zst');
+        if (!finalKey.endsWith('.zst')) {
+            finalKey += '.zst';
         }
     }
 
@@ -93,8 +93,8 @@ export async function smartWriteWithVersioning(key, data, outputDir = './output'
     const filePath = path.join(outputDir, finalKey);
     const dir = path.dirname(filePath);
 
-    // Determine base name for versioning, stripping either .json or .json.gz
-    const ext = finalKey.endsWith('.gz') ? '.json.gz' : '.json';
+    // Determine base name for versioning, stripping .json, .json.gz, or .json.zst
+    const ext = finalKey.endsWith('.zst') ? '.json.zst' : finalKey.endsWith('.gz') ? '.json.gz' : '.json';
     const base = path.basename(filePath, ext);
 
     await fs.mkdir(dir, { recursive: true });

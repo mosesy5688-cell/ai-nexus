@@ -38,18 +38,27 @@ export async function finalizePack(metaDbs, searchDb, ftsDb, manifest, currentSh
 
     await injectMetadata(metaDbs, searchDb, cacheDir);
     const fullManifest = { shards: manifest, partitions: partitionCounts };
-    await fs.writeFile(path.join(shardDir, 'shards_manifest.json'), JSON.stringify(fullManifest, null, 2));
+    const manifestJson = JSON.stringify(fullManifest, null, 2);
+    const manifestBytes = Buffer.byteLength(manifestJson, 'utf8');
+    const MANIFEST_MAX_BYTES = 5 * 1024 * 1024; // V55.9 §Manifest: Pointer-Only < 5MB
+    if (manifestBytes > MANIFEST_MAX_BYTES) {
+        throw new Error(`[V55.9] Manifest exceeds 5MB limit (${(manifestBytes / 1024 / 1024).toFixed(2)}MB). Strip policy arrays per Pointer-Only doctrine.`);
+    }
+    await fs.writeFile(path.join(shardDir, 'shards_manifest.json'), manifestJson);
+    console.log(`[VFS] Manifest: ${(manifestBytes / 1024).toFixed(1)}KB (limit: 5MB)`);
 
     printBuildSummary(metaDbs, searchDb, stats, currentShardId);
 
     // Optimize all databases
     console.log('[VFS] Optimizing databases...');
     Object.values(metaDbs).forEach(db => {
-        db.exec("INSERT INTO search(search) VALUES('optimize');");
+        // V55.9: Per-shard FTS5 removed — no optimize needed
         db.exec("PRAGMA integrity_check; VACUUM;");
         db.close();
     });
 
+    // V55.9 §FTS5 Collapse: Optimize unified FTS5 in search.db
+    searchDb.exec("INSERT INTO search(search) VALUES('optimize');");
     searchDb.exec("PRAGMA integrity_check; VACUUM;");
     searchDb.close();
 
@@ -58,7 +67,5 @@ export async function finalizePack(metaDbs, searchDb, ftsDb, manifest, currentSh
     ftsDb.pragma('wal_checkpoint(TRUNCATE)'); // Flush WAL to main DB before shipping
     ftsDb.exec("PRAGMA integrity_check; VACUUM;");
     ftsDb.close();
-    console.log('[VFS] V5.8: fts.db decoupled, WAL checkpointed, optimized.');
-
-    console.log('[VFS] V5.8: fts.db decoupled, WAL checkpointed, optimized.');
+    console.log('[VFS] V55.9: search.db unified (entities + FTS5), fts.db legacy checkpointed.');
 }

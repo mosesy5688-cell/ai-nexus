@@ -6,6 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import { zstdCompress, autoDecompress } from './zstd-helper.js';
 
 const TASK_OUTPUT_MAP = {
     'trending': ['output/cache/trending.json.gz'],
@@ -20,7 +21,7 @@ const TASK_OUTPUT_MAP = {
  * Check if a task should be skipped based on data checksum (V2.0 Incremental)
  */
 export async function checkIncrementalProgress(taskId, entities, logicHash = '') {
-    const checksumFile = './cache/task-checksums.json.gz';
+    const checksumFile = './cache/task-checksums.json.zst';
     // V22.8: Include entity count so volume changes trigger rebuild
     const dataHash = crypto.createHash('md5').update(
         JSON.stringify({
@@ -35,12 +36,9 @@ export async function checkIncrementalProgress(taskId, entities, logicHash = '')
     const combinedHash = crypto.createHash('md5').update(dataHash + logicHash).digest('hex');
 
     try {
-        // 1. Check Checksum
+        // 1. Check Checksum (V25.9: autoDecompress handles both Zstd and Gzip)
         let data = await fs.readFile(checksumFile);
-        if (data[0] === 0x1f && data[1] === 0x8b) {
-            const zlib = await import('zlib');
-            data = zlib.gunzipSync(data);
-        }
+        data = await autoDecompress(data);
         const checksums = JSON.parse(data.toString('utf-8'));
 
         if (checksums[taskId] === combinedHash) {
@@ -77,7 +75,7 @@ export async function checkIncrementalProgress(taskId, entities, logicHash = '')
  * Update task checksum after successful processing
  */
 export async function updateTaskChecksum(taskId, entities, logicHash = '') {
-    const checksumFile = './cache/task-checksums.json.gz';
+    const checksumFile = './cache/task-checksums.json.zst';
     // V22.8: Include entity count so volume changes trigger rebuild
     const dataHash = crypto.createHash('md5').update(
         JSON.stringify({
@@ -94,10 +92,7 @@ export async function updateTaskChecksum(taskId, entities, logicHash = '') {
     let checksums = {};
     try {
         let data = await fs.readFile(checksumFile);
-        if (data[0] === 0x1f && data[1] === 0x8b) {
-            const zlib = await import('zlib');
-            data = zlib.gunzipSync(data);
-        }
+        data = await autoDecompress(data);
         checksums = JSON.parse(data.toString('utf-8'));
     } catch {
         // Try legacy fallback
@@ -109,7 +104,6 @@ export async function updateTaskChecksum(taskId, entities, logicHash = '') {
 
     checksums[taskId] = combinedHash;
     await fs.mkdir(path.dirname(checksumFile), { recursive: true });
-    const zlib = await import('zlib');
-    await fs.writeFile(checksumFile, zlib.gzipSync(JSON.stringify(checksums, null, 2)));
-    console.log(`[INCREMENTAL] ✅ Updated combined checksum for ${taskId} (Compressed)`);
+    await fs.writeFile(checksumFile, await zstdCompress(JSON.stringify(checksums, null, 2)));
+    console.log(`[INCREMENTAL] ✅ Updated combined checksum for ${taskId} (Zstd)`);
 }
