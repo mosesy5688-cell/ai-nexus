@@ -31,6 +31,7 @@ export class RegistryManager {
         this.db.pragma('journal_mode = OFF');
         this.db.pragma('synchronous = OFF');
         this.db.pragma('page_size = 16384');
+        this.db.pragma('cache_size = -65536'); // 64MB max page cache (prevents unbounded growth)
 
         this.db.exec(`
             CREATE TABLE registry (
@@ -92,8 +93,9 @@ export class RegistryManager {
         let updated = 0;
         let added = 0;
 
-        // V55.9: Chunked transactions to prevent WAL bloat on large batches
-        const CHUNK_SIZE = 5000;
+        // V55.9: Chunked transactions — small chunks to limit synchronous heap peak
+        // V8 cannot GC during synchronous transaction; 500 entities caps peak at ~375MB
+        const CHUNK_SIZE = 500;
         const txnChunk = this.db.transaction((chunk) => {
             for (const e of chunk) {
                 const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);

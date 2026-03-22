@@ -64,15 +64,18 @@ async function mergeBatches() {
     for (const file of batchFiles) {
         const filePath = path.join(DATA_DIR, file);
         try {
-            const content = await fs.readFile(filePath, 'utf-8');
+            // V55.9: Use let for explicit release after SQLite flush
+            let content = await fs.readFile(filePath, 'utf-8');
             const stats = await fs.stat(filePath);
-            const entities = JSON.parse(content);
+            const batchHash = calculateHash(content);
+            let entities = JSON.parse(content);
+            content = null; // Release raw string immediately
 
             batchManifests.push({
                 name: file,
                 size: stats.size,
                 count: entities.length,
-                hash: `sha256:${calculateHash(content)}`
+                hash: `sha256:${batchHash}`
             });
 
             // V22.7: Apply Deduplication Mapping BEFORE merging
@@ -88,15 +91,20 @@ async function mergeBatches() {
             }
 
             // Flush this batch directly to SQLite (O(B) memory per batch)
-            registryState = await registryManager.mergeCurrentBatch(
-                entities.filter(e => e.id)
-            );
+            const validEntities = entities.filter(e => e.id);
+            entities = null; // Release full array before merge
+            registryState = await registryManager.mergeCurrentBatch(validEntities);
 
             const sourceName = file.replace('raw_batch_', '').replace('.json', '');
             sourceStats.push({ source: sourceName, count: registryState.added, file });
-            console.log(`   ✓ ${sourceName}: ${registryState.added} new | ${registryState.updated} augmented`);
 
-            if (global.gc) global.gc();
+            // V55.9: Memory pressure logging + aggressive GC
+            const mem = process.memoryUsage();
+            const heapMB = Math.round(mem.heapUsed / 1048576);
+            const rssMB = Math.round(mem.rss / 1048576);
+            console.log(`   ✓ ${sourceName}: ${registryState.added} new | ${registryState.updated} augmented [Heap: ${heapMB}MB | RSS: ${rssMB}MB]`);
+
+            if (global.gc) { global.gc(); global.gc(); }
         } catch (error) {
             console.error(`   ❌ Error reading ${file}: ${error.message}`);
         }
