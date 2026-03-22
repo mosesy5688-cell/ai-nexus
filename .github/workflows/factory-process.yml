@@ -131,7 +131,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/merged.json.zst
             data/merged_shard_*.json.zst
             data/manifest.json
             cache/
@@ -267,7 +266,7 @@ jobs:
           
           # Handle both flat and nested download structures
           # If files are at root, move them
-          [ -f merged.json.zst ] && mv merged.json.zst data/merged.json.zst
+          # V55.9: No monolith — shards are the primary artifact
           [ -f manifest.json ] && mv manifest.json data/manifest.json
           [ -f fni-history.json.zst ] && mv fni-history.json.zst cache/fni-history.json.zst
           [ -f daily-accum.json.zst ] && mv daily-accum.json.zst cache/daily-accum.json.zst
@@ -306,7 +305,7 @@ jobs:
       - name: Process Shard ${{ matrix.shard }}
         env:
           CACHE_DIR: data
-          ENTITIES_PATH: data/merged.json.zst
+          ENTITIES_PATH: data/merged_shard_*.json.zst
           FNI_HISTORY_PATH: cache/fni-history.json.zst
           ARTIFACT_DIR: artifacts
           # V25.8: R2 for pulse sync (cursor.json state only, not data writes)

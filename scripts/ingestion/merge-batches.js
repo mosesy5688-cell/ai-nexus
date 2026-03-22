@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 /**
  * merge-batches.js
- * 
+ *
  * Phase A.3: Merge batch files from parallel harvester jobs
- * Combines all raw_batch_*.json files into merged.json
- * V14.5: Adds Manifest Generation (Integrity V1.1) + Pipeline Summary + Validation
- * 
+ * V55.9: Iterative flush + natural sharding (1000 entities/shard, Zstd)
+ *
  * Usage: node scripts/ingestion/merge-batches.js
  */
 
@@ -16,14 +15,12 @@ import { mergeEntities } from './lib/entity-merger.js';
 import { zstdCompress, createZstdCompressStream } from '../factory/lib/zstd-helper.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
-import { scrubIdentities } from './lib/identity-scrubber.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 const DATA_DIR = 'data';
-const OUTPUT_FILE = 'data/merged.json.zst';
 const MANIFEST_FILE = 'data/manifest.json';
-const TOTAL_SHARDS = 20;
+const SHARD_SIZE = 1000;
 
 // Validation Constants (L1 Logic)
 const MAX_BATCH_SIZE_MB = 50;
@@ -60,7 +57,6 @@ async function mergeBatches() {
     const batchManifests = [];
 
     // V55.9: Iterative Flush — merge each batch directly into SQLite
-    // instead of accumulating all entities in a single heap array (OOM fix).
     const registryManager = new RegistryManager();
     await registryManager.load();
     let registryState;
@@ -100,7 +96,6 @@ async function mergeBatches() {
             sourceStats.push({ source: sourceName, count: registryState.added, file });
             console.log(`   ✓ ${sourceName}: ${registryState.added} new | ${registryState.updated} augmented`);
 
-            // Explicit GC hint between batches
             if (global.gc) global.gc();
         } catch (error) {
             console.error(`   ❌ Error reading ${file}: ${error.message}`);
@@ -118,73 +113,66 @@ async function mergeBatches() {
         throw new Error(`CRITICAL: Entity count dropped to ${registryState.count} (Expected >85k).`);
     }
 
+    // V55.9: Natural sharding export — 1000 entities per shard, 100% Zstd.
+    // No monolith. Each shard's Zstd buffer holds ~1000 entities (O(shard) memory).
+    console.log(`\n🛡️ [Merge] Exporting via natural sharding (${SHARD_SIZE}/shard, Zstd)...`);
+    await zstdCompress(Buffer.from('init'));
+
     let exportedCount = 0;
     let totalVelocity = 0;
     let compressedSize = 0;
+    let shardIndex = 0;
+    let shardBuffer = [];
     const hash = crypto.createHash('sha256');
 
-    // V25.9: Init Zstd codec before creating compress stream
-    await zstdCompress(Buffer.from('init'));
+    const flushShard = async () => {
+        if (shardBuffer.length === 0) return;
+        const json = JSON.stringify(shardBuffer);
+        const compressed = await zstdCompress(json);
+        const shardFile = path.join(DATA_DIR, `merged_shard_${shardIndex}.json.zst`);
+        await fs.writeFile(shardFile, compressed);
+        hash.update(compressed);
+        compressedSize += compressed.length;
+        shardIndex++;
+        shardBuffer = [];
+    };
 
-    await new Promise((resolve, reject) => {
-        const output = createWriteStream(OUTPUT_FILE);
-        const zstd = createZstdCompressStream();
-        zstd.pipe(output);
+    const iterator = registryManager.getStreamingIterator('id ASC');
+    for (const entity of iterator) {
+        const oldId = entity.id;
+        const source = entity.source || getNodeSource(oldId, entity.type);
+        const newId = normalizeId(oldId, source, entity.type);
+        const scrubbed = { ...entity, id: newId };
 
-        output.on('error', reject);
-        zstd.on('error', reject);
-        output.on('finish', resolve);
+        shardBuffer.push(scrubbed);
+        totalVelocity += (scrubbed.velocity || 0);
+        exportedCount++;
 
-        zstd.on('data', chunk => {
-            compressedSize += chunk.length;
-            hash.update(chunk);
-        });
-
-        zstd.write('[');
-
-        // V19.0: Stream from SQLite sorted by ID (O(1) Memory Use)
-        const iterator = registryManager.getStreamingIterator('id ASC');
-        for (const entity of iterator) {
-            // V25.1: TRUST THE SOURCE FROM ADAPTER (No more guessing)
-            const oldId = entity.id;
-            const source = entity.source || getNodeSource(oldId, entity.type);
-            const newId = normalizeId(oldId, source, entity.type);
-
-            // V22.7: Clean pass-through (already prepared in Phase 1)
-            const scrubbed = {
-                ...entity,
-                id: newId
-            };
-
-            if (exportedCount > 0) zstd.write(',');
-            zstd.write(JSON.stringify(scrubbed));
-
-            totalVelocity += (scrubbed.velocity || 0);
-            exportedCount++;
-
-            if (exportedCount % 10000 === 0) {
-                console.log(`   - Streamed ${exportedCount} entities...`);
-            }
+        if (shardBuffer.length >= SHARD_SIZE) {
+            await flushShard();
         }
 
-        zstd.write(']');
-        zstd.end();
-    });
+        if (exportedCount % 10000 === 0) {
+            console.log(`   - Exported ${exportedCount} entities (${shardIndex} shards)...`);
+        }
+    }
+
+    // Flush remaining
+    await flushShard();
 
     const mergedHash = hash.digest('hex');
-
-    console.log(`\n✅ [Merge] Complete\n   Total: ${exportedCount} unique entities`);
+    console.log(`\n✅ [Merge] Complete: ${exportedCount} entities → ${shardIndex} shards`);
 
     await finalizeMerge({
         manifestFile: MANIFEST_FILE,
-        outputFile: OUTPUT_FILE,
+        outputFile: `data/merged_shard_*.json.zst`,
         mergedContent: null,
         mergedHash,
         allEntitiesCount: exportedCount,
         batchManifests,
         sourceStats,
         batchFilesCount: batchFiles.length,
-        fullSet: [], // Memory Safety: Pass empty array, velocity handled by aggregate
+        fullSet: [],
         avgVelocityOverride: totalVelocity / (exportedCount || 1),
         MAX_BATCH_SIZE_MB,
         MAX_ENTITIES_PER_BATCH,

@@ -196,7 +196,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/merged.json.zst
             data/merged_shard_*.json.zst
             data/manifest.json
             cache/
@@ -206,10 +205,11 @@ jobs:
 
       - name: Validate Context
         run: |
-          if [ -f "data/merged.json.zst" ]; then
-            echo "✅ Harvest context restored from cache."
+          SHARD_COUNT=$(ls data/merged_shard_*.json.zst 2>/dev/null | wc -l)
+          if [ "$SHARD_COUNT" -gt 0 ]; then
+            echo "✅ Harvest context restored: $SHARD_COUNT shards"
           else
-            echo "⚠️ Harvest context not in cache. Will use shards only."
+            echo "⚠️ No harvest shards in cache."
           fi
 
       # V25.8.3: Purge legacy .json.gz ghost files from registry directory.
