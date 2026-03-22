@@ -6,7 +6,6 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import zlib from 'zlib';
 import { createR2Client, fetchAllR2ETags } from './lib/r2-helpers.js';
 import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
@@ -58,7 +57,7 @@ async function main() {
         try {
             const etags = await fetchAllR2ETags(r2, process.env.R2_BUCKET || 'ai-nexus-assets', ['enrichment/fulltext/']);
             for (const key of etags.keys()) {
-                const m = key.match(/enrichment\/fulltext\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.gz$/);
+                const m = key.match(/enrichment\/fulltext\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.(?:gz|zst)$/);
                 if (m) enrichmentMap.set(m[1], key);
             }
             console.log(`  [OK] ${enrichmentMap.size} enriched papers ready for T+1 fusion`);
@@ -134,7 +133,7 @@ async function main() {
                             Key: enrichmentMap.get(entity.umid)
                         }));
                         const chunks = []; for await (const c of Body) chunks.push(c);
-                        const fulltext = zlib.gunzipSync(Buffer.concat(chunks)).toString('utf-8');
+                        const fulltext = (await autoDecompress(Buffer.concat(chunks))).toString('utf-8');
                         // Spec §2.2: SUCCESS (>1000 + headers) → has_fulltext=true; PARTIAL (200-1000) → content only
                         if (fulltext.length > 200) {
                             entity.body_content = fulltext;

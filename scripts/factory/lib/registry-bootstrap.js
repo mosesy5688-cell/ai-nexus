@@ -13,8 +13,7 @@
 import { S3Client, ListObjectsV2Command, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
 import path from 'path';
-import zlib from 'zlib';
-import { promisify } from 'util';
+import { zstdCompress } from './zstd-helper.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './umid-generator.js';
 import { loadRegistryShardsSequentially } from './registry-loader.js';
 import { saveRegistryShard } from './registry-saver.js';
@@ -24,8 +23,6 @@ import { initShardCrypto } from './shard-crypto.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
-
-const gzip = promisify(zlib.gzip);
 const R2_BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
 const LOCK_KEY = 'vault/lock.json';
 
@@ -94,9 +91,9 @@ async function phaseUmidStamping() {
     }
 
     // Output mapping file
-    const mappingPath = 'data/umid-mapping.json.gz';
+    const mappingPath = 'data/umid-mapping.json.zst';
     await fs.mkdir('data', { recursive: true });
-    const compressed = await gzip(Buffer.from(JSON.stringify(mapping)));
+    const compressed = await zstdCompress(JSON.stringify(mapping));
     await fs.writeFile(mappingPath, compressed);
 
     console.log(`[BOOTSTRAP] Phase A complete.`);
@@ -114,17 +111,17 @@ async function phaseVaultPush() {
     await acquireLock(s3);
 
     try {
-        // Upload umid-mapping.json.gz to R2
-        const mappingPath = 'data/umid-mapping.json.gz';
+        // Upload umid-mapping.json.zst to R2
+        const mappingPath = 'data/umid-mapping.json.zst';
         const mappingData = await fs.readFile(mappingPath);
 
         await s3.send(new PutObjectCommand({
             Bucket: R2_BUCKET,
-            Key: 'vault/bootstrap/umid-mapping.json.gz',
+            Key: 'vault/bootstrap/umid-mapping.json.zst',
             Body: mappingData,
-            ContentType: 'application/gzip'
+            ContentType: 'application/zstd'
         }));
-        console.log('  Uploaded: vault/bootstrap/umid-mapping.json.gz');
+        console.log('  Uploaded: vault/bootstrap/umid-mapping.json.zst');
 
         // Upload registry shards to both vault/legacy/ AND meta/backup/
         // meta/backup/ is the primary source for the regular pipeline

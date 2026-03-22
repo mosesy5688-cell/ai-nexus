@@ -12,10 +12,7 @@ import { createR2Client, fetchAllR2ETags } from './lib/r2-helpers.js';
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI } from './lib/rust-bridge.js';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
-import zlib from 'zlib';
-import { promisify } from 'util';
-
-const gzip = promisify(zlib.gzip);
+import { zstdCompress } from './lib/zstd-helper.js';
 
 // ── Config ──────────────────────────────────────────────
 const AR5IV_BASE = 'https://ar5iv.labs.arxiv.org/html';
@@ -122,7 +119,7 @@ async function buildAlreadyEnrichedSet(s3) {
     }
     const etags = await fetchAllR2ETags(s3, R2_BUCKET, prefixes);
     for (const key of etags.keys()) {
-        const m = key.match(/\/([a-f0-9]+)\.md\.gz$/);
+        const m = key.match(/\/([a-f0-9]+)\.md\.(?:gz|zst)$/);
         if (m) enrichedSet.add(m[1]);
     }
     console.log(`[BOOSTER] Pre-sweep: ${enrichedSet.size} UMIDs already enriched`);
@@ -186,11 +183,11 @@ async function main() {
         // Upload SUCCESS and PARTIAL to R2
         if (result.classification === 'SUCCESS' || result.classification === 'PARTIAL') {
             const partition = paper.umid.substring(0, 2);
-            const key = `enrichment/fulltext/${partition}/${paper.umid}.md.gz`;
-            const compressed = await gzip(Buffer.from(result.text, 'utf-8'));
+            const key = `enrichment/fulltext/${partition}/${paper.umid}.md.zst`;
+            const compressed = await zstdCompress(result.text);
             await s3.send(new PutObjectCommand({
                 Bucket: R2_BUCKET, Key: key, Body: compressed,
-                ContentType: 'application/gzip'
+                ContentType: 'application/zstd'
             }));
 
             if (result.classification === 'SUCCESS') {

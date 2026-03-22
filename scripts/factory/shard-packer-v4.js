@@ -13,6 +13,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
+import { autoDecompress } from './lib/zstd-helper.js';
 import { generateUMID } from './lib/umid-generator.js';
 import { initRustBridge, computeShardSlotFFI, buildEnrichmentManifestFFI, validateFusionContentFFI } from './lib/rust-bridge.js';
 import { ShardWriter } from './lib/shard-writer.js';
@@ -50,14 +51,16 @@ export async function packV4Shards() {
 
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    // Load UMID mapping
+    // Load UMID mapping (V55.9: support both .zst and legacy .gz)
     let umidMapping = {};
     try {
-        const raw = await fs.readFile('data/umid-mapping.json.gz');
-        umidMapping = JSON.parse(zlib.gunzipSync(raw).toString());
+        let raw;
+        try { raw = await fs.readFile('data/umid-mapping.json.zst'); }
+        catch { raw = await fs.readFile('data/umid-mapping.json.gz'); }
+        umidMapping = JSON.parse((await autoDecompress(raw)).toString());
         console.log(`[V4-PACKER] Loaded ${Object.keys(umidMapping).length} UMID mappings`);
     } catch {
-        console.error('[V4-PACKER] FATAL: umid-mapping.json.gz not found. Run --phase=umid-stamping first.');
+        console.error('[V4-PACKER] FATAL: umid-mapping.json.{zst,gz} not found. Run --phase=umid-stamping first.');
         process.exit(1);
     }
 

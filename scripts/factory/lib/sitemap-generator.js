@@ -5,7 +5,7 @@
  * - VFS High-Parity: Queries content.db directly for entity routes.
  * - Memory Efficiency: Uses streaming cursor (O(1) Memory).
  * - Multi-Index Paging: 45,000 URLs per file limit.
- * - Gzip compression.
+ * - Gzip compression (SEO standard for sitemap.xml.gz, not migrated to Zstd).
  */
 
 import fs from 'fs/promises';
