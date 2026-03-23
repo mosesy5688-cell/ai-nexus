@@ -1,19 +1,15 @@
 /**
- * V55.9 Zstd Helper — Unified Compression Utility
- *
- * Priority: Rust FFI (native, zero-leak) → WASM zstd-codec (fallback)
- * V55.9 §73/§75: "100% Zstd" mandate. This module is the SOLE compression
- * entry point for all factory writers. Gzip production is abolished.
- * Readers still accept both formats via magic byte detection (backward compat).
+ * V55.9 Zstd Helper — Unified Compression (Rust FFI → WASM fallback)
+ * Streaming: temp-file + Rust FFI for O(1) memory. No buffer-all-then-compress.
  */
 
 import { Transform } from 'stream';
 import { createRequire } from 'module';
+import { createReadStream, createWriteStream, unlinkSync, mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import zlib from 'zlib';
 
-const ZSTD_MAGIC = Buffer.from([0x28, 0xB5, 0x2F, 0xFD]);
-
-// --- Rust FFI Layer (preferred, zero memory leak) ---
 let _rust = null;
 let _rustProbed = false;
 
@@ -30,7 +26,6 @@ function probeRust() {
     return _rust;
 }
 
-// --- WASM Fallback Layer ---
 let _simple = null;
 
 async function getCodec() {
@@ -42,12 +37,15 @@ async function getCodec() {
     return _simple;
 }
 
-/**
- * Compress data with Zstd. Rust FFI → WASM fallback.
- * @param {Buffer|Uint8Array|string} data - Input data
- * @param {number} level - Compression level (1-22, default 3)
- * @returns {Promise<Buffer>} Zstd-compressed buffer
- */
+let _tmpDir = null;
+function getTmpPath(suffix) {
+    if (!_tmpDir) _tmpDir = mkdtempSync(join(tmpdir(), 'zstd-'));
+    return join(_tmpDir, `${Date.now()}-${Math.random().toString(36).slice(2)}${suffix}`);
+}
+
+function safeUnlink(p) { try { unlinkSync(p); } catch {} }
+
+/** Compress data with Zstd. Rust FFI → WASM fallback. */
 export async function zstdCompress(data, level = 3) {
     const input = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
     const rust = probeRust();
@@ -58,10 +56,7 @@ export async function zstdCompress(data, level = 3) {
     return Buffer.from(codec.compress(input, level));
 }
 
-/**
- * Synchronous compress. Rust FFI → WASM fallback.
- * For WASM path, must call zstdCompress() at least once first to initialize.
- */
+/** Synchronous compress. Rust FFI → WASM fallback. */
 export function zstdCompressSync(data, level = 3) {
     const input = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
     const rust = probeRust();
@@ -72,11 +67,7 @@ export function zstdCompressSync(data, level = 3) {
     return Buffer.from(_simple.compress(input, level));
 }
 
-/**
- * Decompress Zstd data. Rust FFI → WASM fallback.
- * @param {Buffer|Uint8Array} data - Zstd-compressed buffer
- * @returns {Promise<Buffer>} Decompressed buffer
- */
+/** Decompress Zstd data. Rust FFI → WASM fallback. */
 export async function zstdDecompress(data) {
     const rust = probeRust();
     if (rust?.zstdDecompressBuffer) {
@@ -86,11 +77,7 @@ export async function zstdDecompress(data) {
     return Buffer.from(codec.decompress(data));
 }
 
-/**
- * Detect compression format from magic bytes.
- * @param {Buffer|Uint8Array} data
- * @returns {'zstd'|'gzip'|'none'}
- */
+/** Detect compression format from magic bytes. */
 export function detectCompression(data) {
     if (!data || data.length < 4) return 'none';
     if (data[0] === 0x28 && data[1] === 0xB5 && data[2] === 0x2F && data[3] === 0xFD) return 'zstd';
@@ -98,10 +85,7 @@ export function detectCompression(data) {
     return 'none';
 }
 
-/**
- * Auto-decompress: detects format and decompresses accordingly.
- * Supports both Zstd (V55.9) and Gzip (legacy backward compat).
- */
+/** Auto-decompress: detects format and decompresses accordingly. */
 export async function autoDecompress(data) {
     const format = detectCompression(data);
     if (format === 'zstd') return zstdDecompress(data);
@@ -109,13 +93,50 @@ export async function autoDecompress(data) {
     return Buffer.from(data);
 }
 
-/**
- * Zstd compress Transform stream. Buffers all input, compresses on flush.
- * Uses Rust FFI when available. For WASM path, call zstdCompress() first.
- * @param {number} level - Compression level (1-22, default 3)
- * @returns {Transform} Node.js Transform stream
- */
+/** V55.9: True streaming Zstd compress Transform via temp-file + Rust FFI. O(1) memory. */
 export function createZstdCompressStream(level = 3) {
+    const rust = probeRust();
+
+    if (rust?.zstdCompressFile) {
+        const tmpIn = getTmpPath('.json');
+        const tmpOut = getTmpPath('.json.zst');
+        const ws = createWriteStream(tmpIn);
+
+        return new Transform({
+            transform(chunk, encoding, callback) {
+                const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
+                if (!ws.write(buf)) {
+                    ws.once('drain', callback);
+                } else {
+                    callback();
+                }
+            },
+            flush(callback) {
+                ws.end(() => {
+                    try {
+                        rust.zstdCompressFile(tmpIn, tmpOut, level);
+                        // Stream compressed output (O(1) memory)
+                        const rs = createReadStream(tmpOut);
+                        rs.on('data', (d) => this.push(d));
+                        rs.on('end', () => {
+                            safeUnlink(tmpOut);
+                            callback();
+                        });
+                        rs.on('error', (e) => {
+                            safeUnlink(tmpOut);
+                            callback(e);
+                        });
+                    } catch (e) {
+                        safeUnlink(tmpIn);
+                        safeUnlink(tmpOut);
+                        callback(e);
+                    }
+                });
+            }
+        });
+    }
+
+    // WASM fallback: buffer then compress (legacy, OOM risk on large data)
     const chunks = [];
     return new Transform({
         transform(chunk, encoding, callback) {
@@ -125,10 +146,7 @@ export function createZstdCompressStream(level = 3) {
         flush(callback) {
             try {
                 const combined = Buffer.concat(chunks);
-                const rust = probeRust();
-                if (rust?.zstdCompressBuffer) {
-                    this.push(Buffer.from(rust.zstdCompressBuffer(combined, level)));
-                } else if (_simple) {
+                if (_simple) {
                     this.push(Buffer.from(_simple.compress(combined, level)));
                 } else {
                     return callback(new Error('[ZSTD] No codec available'));
@@ -139,14 +157,12 @@ export function createZstdCompressStream(level = 3) {
     });
 }
 
-/**
- * Auto-detect decompress Transform stream.
- * Handles both Zstd and Gzip via magic byte detection.
- */
+/** V55.9: True streaming auto-detect decompress Transform. O(1) memory with Rust FFI. */
 export function createAutoDecompressStream() {
     let mode = null;
     let gunzip = null;
-    const chunks = [];
+    let tmpIn = null;
+    let tmpWs = null;
 
     return new Transform({
         transform(chunk, encoding, callback) {
@@ -159,29 +175,62 @@ export function createAutoDecompressStream() {
                     gunzip.on('error', (e) => this.destroy(e));
                     gunzip.write(chunk);
                 } else if (fmt === 'zstd') {
-                    mode = 'zstd';
-                    chunks.push(chunk);
+                    const rust = probeRust();
+                    if (rust?.zstdDecompressFile) {
+                        mode = 'zstd-rust';
+                        tmpIn = getTmpPath('.zst');
+                        tmpWs = createWriteStream(tmpIn);
+                        tmpWs.write(chunk);
+                    } else {
+                        mode = 'zstd-wasm';
+                        this._chunks = [chunk];
+                    }
                 } else {
                     mode = 'raw';
                     this.push(chunk);
                 }
             } else if (mode === 'gzip') {
                 gunzip.write(chunk);
-            } else if (mode === 'zstd') {
-                chunks.push(chunk);
+            } else if (mode === 'zstd-rust') {
+                if (!tmpWs.write(chunk)) {
+                    tmpWs.once('drain', callback);
+                    return;
+                }
+            } else if (mode === 'zstd-wasm') {
+                this._chunks.push(chunk);
             } else {
                 this.push(chunk);
             }
             callback();
         },
         flush(callback) {
-            if (mode === 'zstd') {
+            if (mode === 'zstd-rust') {
+                tmpWs.end(() => {
+                    const tmpOut = getTmpPath('.json');
+                    try {
+                        const rust = probeRust();
+                        rust.zstdDecompressFile(tmpIn, tmpOut);
+                        safeUnlink(tmpIn);
+                        const rs = createReadStream(tmpOut);
+                        rs.on('data', (d) => this.push(d));
+                        rs.on('end', () => {
+                            safeUnlink(tmpOut);
+                            callback();
+                        });
+                        rs.on('error', (e) => {
+                            safeUnlink(tmpOut);
+                            callback(e);
+                        });
+                    } catch (e) {
+                        safeUnlink(tmpIn);
+                        safeUnlink(tmpOut);
+                        callback(e);
+                    }
+                });
+            } else if (mode === 'zstd-wasm') {
                 try {
-                    const combined = Buffer.concat(chunks);
-                    const rust = probeRust();
-                    if (rust?.zstdDecompressBuffer) {
-                        this.push(Buffer.from(rust.zstdDecompressBuffer(combined)));
-                    } else if (_simple) {
+                    const combined = Buffer.concat(this._chunks);
+                    if (_simple) {
                         this.push(Buffer.from(_simple.decompress(combined)));
                     } else {
                         return callback(new Error('[ZSTD] No codec available'));

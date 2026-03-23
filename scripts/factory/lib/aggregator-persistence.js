@@ -14,15 +14,12 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
     console.log(`[AGGREGATOR] 💾 Persisting sharded registry...`);
 
     if (!rankedEntities && rankingsMap) {
-        // V22.8: High-Fidelity Shard Patching (Preserves READMEs for 4/4 Fusion)
+        // V55.9: High-Fidelity Shard Patching (Binary shards only, no monolith)
+        // Monolith streaming removed — createZstdCompressStream buffers ALL data
+        // in memory before compressing, causing OOM on 416k+ entities with READMEs.
+        // Binary shards (NXVF + AES + Zstd) are the authoritative format.
         const { loadRegistryShardsSequentially } = await import('./registry-loader.js');
         const { saveRegistryShard } = await import('./registry-saver.js');
-        const { projectEntity } = await import('./registry-loader.js');
-        const { RegistryStreamer } = await import('./registry-streamer.js');
-
-        const cacheDir = process.env.CACHE_DIR || './cache';
-        await RegistryStreamer.init(); // V25.9: Warm up Zstd codec
-        const streamer = new RegistryStreamer(path.join(cacheDir, 'global-registry.json.zst'));
 
         let shardsPatched = 0, totalShards = 0;
         await loadRegistryShardsSequentially(async (entities, shardIdx) => {
@@ -34,18 +31,16 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
                     e.fni_score = finalFni;
                     e.fni = finalFni;
                 }
-                await streamer.push(projectEntity(e, false));
             }
             await saveRegistryShard(shardIdx, entities);
             shardsPatched++;
+            if (global.gc && shardsPatched % 50 === 0) global.gc();
         }, { slim: false });
 
-        // RISK-H1: Atomic guard — only finalize monolith if ALL shards succeeded
         if (shardsPatched < totalShards) {
-            throw new Error(`[PERSISTENCE] Split-brain: only ${shardsPatched}/${totalShards} shards patched. Aborting monolith.`);
+            throw new Error(`[PERSISTENCE] Split-brain: only ${shardsPatched}/${totalShards} shards patched.`);
         }
-        await streamer.end();
-        console.log(`[AGGREGATOR] ✅ High-Fidelity Registry Patching Complete.`);
+        console.log(`[AGGREGATOR] ✅ HF Shard Patching Complete (${shardsPatched} shards).`);
     } else {
         // Satellite or Legacy mode: Persistence of provided (usually slim) entities
         await saveGlobalRegistry({

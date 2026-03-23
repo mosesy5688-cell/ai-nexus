@@ -1,7 +1,7 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::fs;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, BufWriter, Read, Write};
 use flate2::read::GzDecoder;
 
 mod nxvf;
@@ -155,18 +155,51 @@ pub(crate) fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>> 
     }
 }
 
-/// Compress a file with Zstd, writing to output path. Removes input file on success.
-/// Used by merge-batches.js to replace WASM zstd-codec (which leaks linear memory).
+/// V55.9: Streaming file compression with O(1) memory via zstd::Encoder.
+/// Replaces buffer-based compress (which OOMs on 2GB+ files).
+/// Removes input file on success.
 #[napi]
 pub fn zstd_compress_file(input_path: String, output_path: String, level: i32) -> Result<u32> {
-    let input = fs::read(&input_path)
-        .map_err(|e| Error::from_reason(format!("Cannot read {}: {}", input_path, e)))?;
-    let compressed = zstd::encode_all(input.as_slice(), level)
-        .map_err(|e| Error::from_reason(format!("Zstd compress failed: {}", e)))?;
-    let size = compressed.len() as u32;
-    fs::write(&output_path, &compressed)
-        .map_err(|e| Error::from_reason(format!("Cannot write {}: {}", output_path, e)))?;
-    fs::remove_file(&input_path).ok(); // Best-effort cleanup
+    let input_file = fs::File::open(&input_path)
+        .map_err(|e| Error::from_reason(format!("Cannot open {}: {}", input_path, e)))?;
+    let output_file = fs::File::create(&output_path)
+        .map_err(|e| Error::from_reason(format!("Cannot create {}: {}", output_path, e)))?;
+
+    let mut encoder = zstd::Encoder::new(BufWriter::new(output_file), level)
+        .map_err(|e| Error::from_reason(format!("Zstd encoder init: {}", e)))?;
+
+    std::io::copy(&mut BufReader::new(input_file), &mut encoder)
+        .map_err(|e| Error::from_reason(format!("Streaming compress: {}", e)))?;
+
+    encoder.finish()
+        .map_err(|e| Error::from_reason(format!("Zstd finalize: {}", e)))?;
+
+    let size = fs::metadata(&output_path)
+        .map_err(|e| Error::from_reason(format!("Stat: {}", e)))?.len() as u32;
+
+    fs::remove_file(&input_path).ok();
+    Ok(size)
+}
+
+/// V55.9: Streaming file decompression with O(1) memory.
+#[napi]
+pub fn zstd_decompress_file(input_path: String, output_path: String) -> Result<u32> {
+    let input_file = fs::File::open(&input_path)
+        .map_err(|e| Error::from_reason(format!("Cannot open {}: {}", input_path, e)))?;
+    let output_file = fs::File::create(&output_path)
+        .map_err(|e| Error::from_reason(format!("Cannot create {}: {}", output_path, e)))?;
+
+    let mut decoder = zstd::Decoder::new(BufReader::new(input_file))
+        .map_err(|e| Error::from_reason(format!("Zstd decoder init: {}", e)))?;
+
+    let mut writer = BufWriter::new(output_file);
+    std::io::copy(&mut decoder, &mut writer)
+        .map_err(|e| Error::from_reason(format!("Streaming decompress: {}", e)))?;
+    writer.flush()
+        .map_err(|e| Error::from_reason(format!("Flush: {}", e)))?;
+
+    let size = fs::metadata(&output_path)
+        .map_err(|e| Error::from_reason(format!("Stat: {}", e)))?.len() as u32;
     Ok(size)
 }
 

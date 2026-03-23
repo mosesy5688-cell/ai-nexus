@@ -69,9 +69,9 @@ jobs:
     name: Merge Core Registry
     needs: check-upstream
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
-      NODE_OPTIONS: "--max-old-space-size=8192"
+      NODE_OPTIONS: "--max-old-space-size=8192 --expose-gc"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -229,6 +229,56 @@ jobs:
             echo "✅ Registry: $BIN_COUNT binary shards, 0 legacy ghosts"
           fi
 
+      # V55.9: Restore FNI history from GHA cache (cross-run continuity)
+      - name: Restore FNI History from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            cache/fni-history.json.zst
+            cache/fni-history/
+          key: fni-history-${{ github.run_id }}
+          restore-keys: |
+            fni-history-
+
+      # V55.9: If GHA cache expired, restore FNI history from R2 (read-only state)
+      - name: R2 Fallback for FNI History
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FNI_COUNT=$(find cache/fni-history -name 'part-*.json.gz' 2>/dev/null | wc -l)
+          if [ "$FNI_COUNT" -gt 0 ]; then
+            echo "✅ FNI history already restored from GHA cache ($FNI_COUNT parts)"
+            exit 0
+          fi
+          echo "⚠️ No FNI history in GHA cache. Restoring from R2..."
+          mkdir -p cache/fni-history
+          node --input-type=module -e "
+            import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
+            import { ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+            import fs from 'fs';
+            const s3 = createR2Client();
+            if (!s3) { console.error('No R2 credentials'); process.exit(1); }
+            const { Contents } = await s3.send(new ListObjectsV2Command({
+              Bucket: 'ai-nexus-assets', Prefix: 'meta/backup/fni-history/part-'
+            }));
+            if (!Contents?.length) { console.log('No FNI history on R2'); process.exit(0); }
+            let ok = 0;
+            for (const obj of Contents) {
+              const name = obj.Key.split('/').pop();
+              const { Body } = await s3.send(new GetObjectCommand({
+                Bucket: 'ai-nexus-assets', Key: obj.Key
+              }));
+              const chunks = []; for await (const c of Body) chunks.push(c);
+              fs.writeFileSync('cache/fni-history/' + name, Buffer.concat(chunks));
+              ok++;
+            }
+            console.log('✅ Restored ' + ok + ' FNI history parts from R2');
+          " || echo '⚠️ R2 FNI history fallback unavailable'
+
       - name: Run Core Merge & Health
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -239,7 +289,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
           UMID_SALT: ${{ secrets.UMID_SALT }}
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
-          STRICT_R2_LOCKDOWN: 'true'
+          ENABLE_R2_BACKUP: 'true'
         run: |
             echo "🔄 Running Merge-Core (V2.0 Sharding)..."
             node scripts/factory/aggregator.js --task=health
@@ -367,7 +417,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
-          STRICT_R2_LOCKDOWN: 'true'
+          ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
@@ -429,7 +479,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
-          STRICT_R2_LOCKDOWN: 'true'
+          ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
@@ -502,7 +552,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
-          STRICT_R2_LOCKDOWN: 'true'
+          ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
@@ -567,7 +617,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: ./cache
-          STRICT_R2_LOCKDOWN: 'true'
+          ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=7168"

@@ -32,7 +32,7 @@ env:
   R2_BUCKET: ai-nexus-assets
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
-  STRICT_R2_LOCKDOWN: 'true'
+  ENABLE_R2_BACKUP: 'true'
 
 jobs:
   check-upstream:
