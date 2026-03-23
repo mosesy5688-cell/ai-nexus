@@ -24,10 +24,11 @@ async function main() {
     const { loadGlobalRegistry } = await import('./lib/cache-manager.js');
     console.log('[FUSION] Phase 1: Building Global ID Map (Closed World)...');
 
-    // We load registry slim to save RAM (190k IDs is ~15MB)
+    // V26.4: Load IDs only — discard full entity objects immediately
     const registry = await loadGlobalRegistry({ slim: true });
-    const entities = registry.entities || [];
-    const allValidIds = new Set(entities.map(e => e.id));
+    const allValidIds = new Set((registry.entities || []).map(e => e.id));
+    registry.entities = null; // Release ~500MB immediately
+    if (global.gc) global.gc();
     console.log(`  [OK] Validated ${allValidIds.size} entities in reference baseline.`);
 
     // 2. Load Late-Binding FNI Metrics (from Stage 3/4)
@@ -96,6 +97,8 @@ async function main() {
                 shardEntities = shard.entities || [];
             }
             let fusedEntities = [];
+            let enrichedInShard = 0;
+            const ENRICH_PER_SHARD = 200; // V26.4: Cap enrichment downloads per shard to prevent OOM
 
             const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
             await fs.mkdir(outDir, { recursive: true });
@@ -126,10 +129,11 @@ async function main() {
                 }
 
                 // C. T+1 Enrichment Fusion (Spec §3.2: inject fulltext from 1.5 Density Booster)
-                if (entity.type === 'paper' && enrichmentMap.has(entity.umid) && r2) {
+                if (entity.type === 'paper' && enrichmentMap.has(entity.umid) && r2 && enrichedInShard < ENRICH_PER_SHARD) {
                     try {
                         const raw = await downloadBufferFromR2FFI(r2, enrichmentMap.get(entity.umid));
                         const fulltext = (await autoDecompress(raw)).toString('utf-8');
+                        enrichedInShard++;
                         // Spec §2.2: SUCCESS (>1000 + headers) → has_fulltext=true; PARTIAL (200-1000) → content only
                         if (fulltext.length > 200) {
                             entity.body_content = fulltext;
@@ -153,6 +157,10 @@ async function main() {
             })));
 
             console.log(`  [OK] Shard ${i}: Fused ${fusedEntities.length} entities.`);
+            // V26.4: Release shard memory before next iteration
+            fusedEntities = null;
+            shardEntities = null;
+            if (global.gc && i % 10 === 9) global.gc();
         } catch (e) {
             console.error(`  [FAIL] Shard ${i} processing error:`, e.message);
         }
