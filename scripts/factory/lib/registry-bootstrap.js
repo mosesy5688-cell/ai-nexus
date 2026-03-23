@@ -130,9 +130,9 @@ async function phaseVaultPush() {
             const shards = await fs.readdir(registryDir);
             let uploaded = 0;
             for (const shard of shards) {
-                if (!shard.endsWith('.bin') && !shard.endsWith('.json.gz')) continue;
+                if (!shard.endsWith('.bin') && !shard.endsWith('.json.zst') && !shard.endsWith('.json.gz')) continue;
                 const data = await fs.readFile(path.join(registryDir, shard));
-                const contentType = shard.endsWith('.bin') ? 'application/octet-stream' : 'application/gzip';
+                const contentType = shard.endsWith('.bin') ? 'application/octet-stream' : shard.endsWith('.zst') ? 'application/zstd' : 'application/gzip';
                 // Dual-write: vault/legacy (archive) + meta/backup (pipeline source)
                 await Promise.all([
                     s3.send(new PutObjectCommand({
@@ -152,21 +152,25 @@ async function phaseVaultPush() {
         }
 
         // Upload monolith backup (dual-write)
-        try {
-            const monolith = await fs.readFile('cache/global-registry.json.gz');
-            await Promise.all([
-                s3.send(new PutObjectCommand({
-                    Bucket: R2_BUCKET, Key: 'vault/legacy/global-registry.json.gz',
-                    Body: monolith, ContentType: 'application/gzip'
-                })),
-                s3.send(new PutObjectCommand({
-                    Bucket: R2_BUCKET, Key: 'meta/backup/global-registry.json.gz',
-                    Body: monolith, ContentType: 'application/gzip'
-                }))
-            ]);
-            console.log('  Uploaded: global-registry.json.gz to vault/legacy/ + meta/backup/');
-        } catch {
-            console.warn('  No global-registry.json.gz found');
+        // Try .zst first, then legacy .gz
+        for (const ext of ['.zst', '.gz']) {
+            try {
+                const monolithName = `global-registry.json${ext}`;
+                const monolith = await fs.readFile(`cache/${monolithName}`);
+                const ct = ext === '.zst' ? 'application/zstd' : 'application/gzip';
+                await Promise.all([
+                    s3.send(new PutObjectCommand({
+                        Bucket: R2_BUCKET, Key: `vault/legacy/${monolithName}`,
+                        Body: monolith, ContentType: ct
+                    })),
+                    s3.send(new PutObjectCommand({
+                        Bucket: R2_BUCKET, Key: `meta/backup/${monolithName}`,
+                        Body: monolith, ContentType: ct
+                    }))
+                ]);
+                console.log(`  Uploaded: ${monolithName} to vault/legacy/ + meta/backup/`);
+                break;
+            } catch { }
         }
 
         console.log('[BOOTSTRAP] Phase B complete. Raw baseline preserved on R2.');

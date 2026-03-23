@@ -156,12 +156,13 @@ export async function generateRelations(entities, outputDir = './output') {
 
 // CLI execution
 if (import.meta.url === `file://${process.argv[1]}`) {
-    const entitiesPath = process.argv[2] || './output/entities.json.gz';
+    const entitiesPath = process.argv[2] || './output/entities.json';
     const outputDir = process.argv[3] || './output';
 
     try {
-        const data = await fs.readFile(entitiesPath);
-        const entities = JSON.parse(data);
+        const { autoDecompress } = await import('./zstd-helper.js');
+        const raw = await fs.readFile(entitiesPath);
+        const entities = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
         await generateRelations(Array.isArray(entities) ? entities : entities.entities || [], outputDir);
     } catch (error) {
         console.error('[RELATIONS] Error:', error.message);
