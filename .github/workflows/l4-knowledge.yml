@@ -37,7 +37,8 @@ jobs:
         run: node scripts/generate-knowledge.js
         env:
           NODE_ENV: production
-      
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
       - name: Run Knowledge Linker
         run: node scripts/knowledge-linker.js
       
