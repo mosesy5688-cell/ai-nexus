@@ -74,7 +74,9 @@ export async function zstdDecompress(data) {
         return Buffer.from(rust.zstdDecompressBuffer(data));
     }
     const codec = await getCodec();
-    return Buffer.from(codec.decompress(data));
+    const result = codec.decompress(data);
+    if (!result) throw new Error(`[ZSTD] WASM decompress returned null (input: ${data.length} bytes). Rust FFI required for large files.`);
+    return Buffer.from(result);
 }
 
 /** Detect compression format from magic bytes. */
