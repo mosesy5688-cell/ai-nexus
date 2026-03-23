@@ -17,8 +17,7 @@ import { autoDecompress } from './lib/zstd-helper.js';
 import { generateUMID } from './lib/umid-generator.js';
 import { initRustBridge, computeShardSlotFFI, buildEnrichmentManifestFFI, validateFusionContentFFI } from './lib/rust-bridge.js';
 import { ShardWriter } from './lib/shard-writer.js';
-import { createR2Client, streamToR2, downloadFromR2, fetchAllR2ETags } from './lib/r2-helpers.js';
-import { ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { initR2Bridge, createR2ClientFFI, streamToR2FFI, downloadFromR2FFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 
 const SHARD_SOFT_LIMIT = 4 * 1024 * 1024;  // 4MB soft (optimized for VFS-mmap)
 const TOTAL_SLOTS = 4096;
@@ -38,12 +37,12 @@ export async function packV4Shards() {
     console.log(`[V4-PACKER] Rust: ${rustStatus.mode}`);
 
     // R2 client for pulse sync
-    const r2 = createR2Client();
-    const r2Bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    initR2Bridge();
+    const r2 = createR2ClientFFI();
 
     // Check for existing cursor (resume support)
     let resumeFromEntity = 0;
-    const cursor = r2 ? await downloadFromR2(r2, r2Bucket, R2_CURSOR_KEY) : null;
+    const cursor = r2 ? await downloadFromR2FFI(r2, R2_CURSOR_KEY) : null;
     if (cursor?.processedCount) {
         resumeFromEntity = cursor.processedCount;
         console.log(`[V4-PACKER] Resuming from cursor: ${resumeFromEntity} entities`);
@@ -97,7 +96,7 @@ export async function packV4Shards() {
     let enrichmentManifest = new Map();
     if (r2) {
         console.log('[V4-PACKER] Fusion Sweep: scanning R2 enrichment/fulltext/...');
-        const etags = await fetchAllR2ETags(r2, r2Bucket, ['enrichment/fulltext/']);
+        const etags = await fetchAllR2ETagsFFI(r2, ['enrichment/fulltext/']);
         enrichmentManifest = buildEnrichmentManifestFFI([...etags.keys()]);
         console.log(`[V4-PACKER] Fusion Sweep: ${enrichmentManifest.size} enriched papers found`);
     }
@@ -126,11 +125,8 @@ export async function packV4Shards() {
             let hasFulltext = entity.has_fulltext || false;
             if (entity.type === 'paper' && enrichmentManifest.has(umid)) {
                 try {
-                    const { Body } = await r2.send(new GetObjectCommand({
-                        Bucket: r2Bucket, Key: enrichmentManifest.get(umid)
-                    }));
-                    const chunks = []; for await (const c of Body) chunks.push(c);
-                    const fulltext = (await autoDecompress(Buffer.concat(chunks))).toString('utf-8');
+                    const raw = await downloadBufferFromR2FFI(r2, enrichmentManifest.get(umid));
+                    const fulltext = (await autoDecompress(raw)).toString('utf-8');
                     // Rust FFI validates quality + prevents downgrade
                     const fusion = validateFusionContentFFI(fulltext, bodyContent);
                     bodyContent = fusion.text;
@@ -154,7 +150,7 @@ export async function packV4Shards() {
             // Pulse Sync — checkpoint every 5000 entities
             if (entityIndex % PULSE_INTERVAL === 0) {
                 const cursorData = { processedCount: entityIndex, lastId: id, timestamp: new Date().toISOString() };
-                if (r2) await streamToR2(r2, r2Bucket, R2_CURSOR_KEY, cursorData);
+                if (r2) await streamToR2FFI(r2, R2_CURSOR_KEY, cursorData);
                 await fs.writeFile(CURSOR_FILE, JSON.stringify(cursorData));
                 console.log(`  [PULSE] Checkpoint at entity ${entityIndex}`);
             }

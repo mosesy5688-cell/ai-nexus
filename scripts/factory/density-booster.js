@@ -8,10 +8,9 @@
  * Budget: 5000 papers / 5 hours per runner (Spec §2.2).
  */
 
-import { createR2Client, fetchAllR2ETags } from './lib/r2-helpers.js';
+import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadBufferToR2FFI } from './lib/r2-bridge.js';
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI } from './lib/rust-bridge.js';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { zstdCompress } from './lib/zstd-helper.js';
 
 // ── Config ──────────────────────────────────────────────
@@ -117,7 +116,7 @@ async function buildAlreadyEnrichedSet(s3) {
     for (let i = start; i <= end; i++) {
         prefixes.push(`enrichment/fulltext/${i.toString(16).padStart(2, '0')}/`);
     }
-    const etags = await fetchAllR2ETags(s3, R2_BUCKET, prefixes);
+    const etags = await fetchAllR2ETagsFFI(s3, prefixes);
     for (const key of etags.keys()) {
         const m = key.match(/\/([a-f0-9]+)\.md\.(?:gz|zst)$/);
         if (m) enrichedSet.add(m[1]);
@@ -134,7 +133,8 @@ async function main() {
     const rustStatus = initRustBridge();
     console.log(`[BOOSTER] Rust: ${rustStatus.mode}`);
 
-    const s3 = createR2Client();
+    initR2Bridge();
+    const s3 = createR2ClientFFI();
     if (!s3) { console.error('[BOOSTER] FATAL: R2 credentials missing'); process.exit(1); }
 
     const alreadyEnriched = await buildAlreadyEnrichedSet(s3);
@@ -185,10 +185,7 @@ async function main() {
             const partition = paper.umid.substring(0, 2);
             const key = `enrichment/fulltext/${partition}/${paper.umid}.md.zst`;
             const compressed = await zstdCompress(result.text);
-            await s3.send(new PutObjectCommand({
-                Bucket: R2_BUCKET, Key: key, Body: compressed,
-                ContentType: 'application/zstd'
-            }));
+            await uploadBufferToR2FFI(s3, key, compressed, 'application/zstd');
 
             if (result.classification === 'SUCCESS') {
                 enrichedUmids.push(paper.umid);

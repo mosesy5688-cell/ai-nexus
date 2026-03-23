@@ -2,11 +2,10 @@
  * R2 Upload with S3 API - V16.8.3 Optimized
  * Modularized for CES Compliance (Art 5.1)
  */
-import { S3Client } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
-import { fetchAllR2ETags, uploadFile, uploadFileMultipart, createR2Client, purgeEntropy } from './lib/r2-helpers.js';
+import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadFileFFI, uploadFileMultipartFFI } from './lib/r2-bridge.js';
 
 dotenv.config();
 
@@ -77,9 +76,9 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
         const results = await Promise.all(batch.map(file => {
             const remotePath = toRemotePath(file.path);
             if (useMultipart && file.size > 8 * 1024 * 1024 && remotePath.includes('fused-shard')) {
-                return uploadFileMultipart(s3, CONFIG.BUCKET, file.path, remotePath);
+                return uploadFileMultipartFFI(s3, file.path, remotePath);
             }
-            return uploadFile(s3, CONFIG.BUCKET, file.path, remotePath, r2ETagMap.get(remotePath));
+            return uploadFileFFI(s3, file.path, remotePath, r2ETagMap.get(remotePath));
         }));
 
         for (const result of results) {
@@ -112,8 +111,9 @@ async function main() {
     const localManifestPath = path.join(process.env.CACHE_DIR || './cache', 'last-upload-manifest.json');
     const localManifest = await loadLocalManifest(localManifestPath);
 
-    const s3 = createR2Client();
-    const r2ETagMap = await fetchAllR2ETags(s3, CONFIG.BUCKET, CONFIG.PREFIX_FILTER);
+    initR2Bridge();
+    const s3 = createR2ClientFFI();
+    const r2ETagMap = await fetchAllR2ETagsFFI(s3, CONFIG.PREFIX_FILTER);
     const checkpoint = await loadCheckpoint();
     const allFiles = await getAllFiles(CONFIG.OUTPUT_DIR);
 
@@ -149,7 +149,7 @@ async function main() {
 
     // V25.8: Zero Deletion Policy — Entropy Purge permanently disabled.
     // R2 storage is append-only. Manual cleanup via wrangler CLI if needed.
-    // await purgeEntropy(s3, CONFIG.BUCKET, r2ETagMap);
+    // await purgeEntropyFFI(s3, r2ETagMap);
 
     console.log(`\n✅ Upload Complete! New: ${success}, Locally Skipped: ${locallySkipped}, Unchanged on R2: ${unchanged}, Fail: ${fail}`);
     if (fail > 0) process.exit(1);

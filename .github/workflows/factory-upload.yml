@@ -80,11 +80,7 @@ jobs:
       - name: R2 Fallback for Cycle Output
         if: steps.cache-output-mesh.outputs.cache-hit != 'true'
         run: |
-          node -e "
-            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            const r = await restoreDirectoryFromR2('state/cycle-output/', 'output/');
-            if (!r.count) { console.error('No cycle-output on R2'); process.exit(1); }
-          "
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ --strict
       - name: Bake atomized Mesh Profiles
         env:
           CACHE_DIR: ./output/cache
@@ -117,10 +113,7 @@ jobs:
       - name: R2 Fallback for Base Output
         if: steps.cache-output-fusion.outputs.cache-hit != 'true'
         run: |
-          node -e "
-            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            await restoreDirectoryFromR2('state/cycle-output/', 'output/');
-          " || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
       - name: Restore Baked Profiles from Cache
         uses: actions/cache/restore@v4
         with:
@@ -185,11 +178,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
-            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-          " || true
+          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output (Trending Context)
         uses: actions/cache/restore@v4
         with:
@@ -213,10 +202,7 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p output/cache
-          node --input-type=module -e "
-            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            await restoreFileFromR2('state/embedding-cache.db', 'output/cache/embedding-cache.db');
-          " || echo "⚠️ No embedding cache on R2"
+          node scripts/factory/r2-workflow-cli.js restore-file state/embedding-cache.db output/cache/embedding-cache.db || echo "⚠️ No embedding cache on R2"
       - name: Extract Fused Entities
         run: |
           mkdir -p output/cache/fused
@@ -272,10 +258,7 @@ jobs:
         if: steps.cache-output-rss.outputs.cache-hit != 'true'
         continue-on-error: true
         run: |
-          node --input-type=module -e "
-            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            await restoreDirectoryFromR2('state/cycle-output/', 'output/');
-          " || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
       - name: Generate RSS feeds
         run: node scripts/factory/lib/rss-generator.js ./output
       - name: Save RSS Feeds to Cache
@@ -306,10 +289,7 @@ jobs:
         if: steps.cache-output-upload.outputs.cache-hit != 'true'
         continue-on-error: true
         run: |
-          node --input-type=module -e "
-            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            await restoreDirectoryFromR2('state/cycle-output/', 'output/');
-          " || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
       - name: Restore Upload Manifest from Cache
         uses: actions/cache/restore@v4
         with:
@@ -526,36 +506,12 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "output/data/dedup.db" ]; then
-            node --input-type=module -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import { PutObjectCommand } from '@aws-sdk/client-s3';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (!s3) process.exit(0);
-              const data = fs.readFileSync('output/data/dedup.db');
-              await s3.send(new PutObjectCommand({
-                Bucket: 'ai-nexus-assets', Key: 'state/dedup.db',
-                Body: data, ContentType: 'application/x-sqlite3'
-              }));
-              console.log('✅ dedup.db uploaded to state/dedup.db for Factory 1.5');
-            "
+            node scripts/factory/r2-workflow-cli.js upload-buffer output/data/dedup.db state/dedup.db --content-type=application/x-sqlite3
           fi
-          
+
           # V25.8.3: Upload Embedding Cache (Vault) to R2 State
           if [ -f "output/cache/embedding-cache.db" ]; then
-            node --input-type=module -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import { PutObjectCommand } from '@aws-sdk/client-s3';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (!s3) process.exit(0);
-              const data = fs.readFileSync('output/cache/embedding-cache.db');
-              await s3.send(new PutObjectCommand({
-                Bucket: 'ai-nexus-assets', Key: 'state/embedding-cache.db',
-                Body: data, ContentType: 'application/x-sqlite3'
-              }));
-              console.log('✅ embedding-cache.db uploaded to state/embedding-cache.db');
-            "
+            node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/embedding-cache.db state/embedding-cache.db --content-type=application/x-sqlite3
           fi
         continue-on-error: true
 

@@ -6,9 +6,8 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { createR2Client, fetchAllR2ETags } from './lib/r2-helpers.js';
+import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
 
 // Configuration
 const CONFIG = {
@@ -51,11 +50,12 @@ async function main() {
 
     // 3. V25.8.3 T+1 Enrichment Fusion Sweep (Spec §3.1)
     let enrichmentMap = new Map();
-    const r2 = createR2Client();
+    initR2Bridge();
+    const r2 = createR2ClientFFI();
     if (r2) {
         console.log('[FUSION] Phase 3: Scanning R2 enrichment/fulltext/ for T+1 fusion...');
         try {
-            const etags = await fetchAllR2ETags(r2, process.env.R2_BUCKET || 'ai-nexus-assets', ['enrichment/fulltext/']);
+            const etags = await fetchAllR2ETagsFFI(r2, ['enrichment/fulltext/']);
             for (const key of etags.keys()) {
                 const m = key.match(/enrichment\/fulltext\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.(?:gz|zst)$/);
                 if (m) enrichmentMap.set(m[1], key);
@@ -128,12 +128,8 @@ async function main() {
                 // C. T+1 Enrichment Fusion (Spec §3.2: inject fulltext from 1.5 Density Booster)
                 if (entity.type === 'paper' && enrichmentMap.has(entity.umid) && r2) {
                     try {
-                        const { Body } = await r2.send(new GetObjectCommand({
-                            Bucket: process.env.R2_BUCKET || 'ai-nexus-assets',
-                            Key: enrichmentMap.get(entity.umid)
-                        }));
-                        const chunks = []; for await (const c of Body) chunks.push(c);
-                        const fulltext = (await autoDecompress(Buffer.concat(chunks))).toString('utf-8');
+                        const raw = await downloadBufferFromR2FFI(r2, enrichmentMap.get(entity.umid));
+                        const fulltext = (await autoDecompress(raw)).toString('utf-8');
                         // Spec §2.2: SUCCESS (>1000 + headers) → has_fulltext=true; PARTIAL (200-1000) → content only
                         if (fulltext.length > 200) {
                             entity.body_content = fulltext;

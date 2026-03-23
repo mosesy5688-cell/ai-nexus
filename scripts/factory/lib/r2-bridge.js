@@ -86,14 +86,37 @@ export async function streamToR2FFI(client, key, data) {
     return streamToR2(client, bucket, key, data);
 }
 
-/** Download from R2. If localPath given, writes to disk. */
+/** Download from R2. Without localPath: returns parsed JSON (always JS). With localPath: writes to disk. */
 export async function downloadFromR2FFI(client, key, localPath) {
-    if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        return _r2Engine.downloadFromR2(client, key, localPath || null);
+    if (localPath && _r2Engine && client?.constructor?.name === 'R2Client') {
+        return _r2Engine.downloadFromR2(client, key, localPath);
     }
     const { downloadFromR2 } = await import('./r2-helpers.js');
     const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    return downloadFromR2(client, bucket, key);
+    const jsClient = client?.constructor?.name === 'R2Client' ? require('./r2-helpers.js').createR2Client() : client;
+    return downloadFromR2(jsClient, bucket, key);
+}
+
+/** Download raw Buffer from R2 (for binary/compressed data). */
+export async function downloadBufferFromR2FFI(client, key) {
+    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    const jsClient = client?.constructor?.name === 'R2Client' ? require('./r2-helpers.js').createR2Client() : client;
+    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    const { Body } = await jsClient.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const chunks = []; for await (const c of Body) chunks.push(c);
+    return Buffer.concat(chunks);
+}
+
+/** Upload a raw buffer to R2. */
+export async function uploadBufferToR2FFI(client, key, buffer, contentType = 'application/octet-stream') {
+    if (_r2Engine && client?.constructor?.name === 'R2Client') {
+        return _r2Engine.streamToR2(client, key, buffer.toString('base64'));
+    }
+    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const jsClient = client?.constructor?.name === 'R2Client' ? require('./r2-helpers.js').createR2Client() : client;
+    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    await jsClient.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: buffer, ContentType: contentType }));
+    return true;
 }
 
 /** Walk directory with parallel MD5 hashing (Rust: 5-10x faster). */
@@ -152,4 +175,38 @@ export async function restoreDirectoryFromR2FFI(client, r2Prefix, localDir, opts
     }
     const { restoreDirectoryFromR2 } = await import('./r2-handoff.js');
     return restoreDirectoryFromR2(r2Prefix, localDir, opts);
+}
+
+/** Backup a single file to R2. */
+export async function backupFileToR2FFI(localPath, r2Key, opts = {}) {
+    const { backupFileToR2 } = await import('./r2-handoff.js');
+    return backupFileToR2(localPath, r2Key, opts);
+}
+
+/** Restore a single file from R2. */
+export async function restoreFileFromR2FFI(r2Key, localPath, opts = {}) {
+    if (_r2Engine) {
+        const client = createR2ClientFFI();
+        if (client) {
+            const result = await _r2Engine.downloadFromR2(client, r2Key, localPath);
+            if (result.success) {
+                console.log(`[R2-BRIDGE] Restored ${r2Key} -> ${localPath}`);
+                return { success: true, size: result.size };
+            }
+            return { success: false };
+        }
+    }
+    const { restoreFileFromR2 } = await import('./r2-handoff.js');
+    return restoreFileFromR2(r2Key, localPath, opts);
+}
+
+/** Purge uncompressed files that have Gzip equivalents (Zero Deletion Policy: disabled by default). */
+export async function purgeEntropyFFI(client, etagMap) {
+    if (_r2Engine && client?.constructor?.name === 'R2Client') {
+        const etagObj = etagMap instanceof Map ? Object.fromEntries(etagMap) : etagMap;
+        return _r2Engine.purgeEntropy(client, JSON.stringify(etagObj));
+    }
+    const { purgeEntropy } = await import('./r2-helpers.js');
+    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    return purgeEntropy(client, bucket, etagMap);
 }
