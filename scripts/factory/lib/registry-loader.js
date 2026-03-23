@@ -161,18 +161,12 @@ export async function loadGlobalRegistry(options = {}) {
 }
 
 async function tryLoadJsonGz(filepath) {
-    const zlib = await import('zlib');
+    const { autoDecompress } = await import('./zstd-helper.js');
     const data = await fs.readFile(filepath);
-    const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
-    if (filepath.endsWith('.gz') || isGzip) {
-        const decompressed = zlib.gunzipSync(data).toString('utf-8');
-        const parsed = JSON.parse(decompressed);
-        const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
-        return { entities, count: entities.length, lastUpdated: parsed.lastUpdated };
-    }
-    const parsed = JSON.parse(data.toString('utf-8'));
+    const decompressed = await autoDecompress(data);
+    const parsed = JSON.parse(decompressed.toString('utf-8'));
     const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
-    return { entities, count: entities.length };
+    return { entities, count: entities.length, lastUpdated: parsed.lastUpdated };
 }
 
 /**

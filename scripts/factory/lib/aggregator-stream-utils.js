@@ -3,16 +3,16 @@
  * O(1) Memory Partitioner for massive JSON monoliths.
  */
 import { createReadStream } from 'fs';
-import zlib from 'zlib';
+import { createAutoDecompressStream } from './zstd-helper.js';
 
 /**
  * Streaming Monolith Partitioner (O(1) Memory)
- * V18.12.5.21: Stability Hardening for 4GB+ Buffers
+ * V55.9: Auto-detect Zstd/Gzip/raw via magic bytes
  */
 export async function partitionMonolithStreamingly(filePath, consumer) {
     return new Promise((resolve, reject) => {
         const input = createReadStream(filePath);
-        const gunzip = zlib.createGunzip();
+        const gunzip = createAutoDecompressStream();
 
         let buffer = '';
         let depth = 0;

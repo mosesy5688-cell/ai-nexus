@@ -11,7 +11,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
-import zlib from 'zlib';
+import { autoDecompress } from './zstd-helper.js';
 import { setupDatabasePragmas } from './pack-utils.js';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './output/data';
@@ -60,12 +60,10 @@ async function buildReportDb() {
         const files = await fs.readdir(reportsDir);
         db.exec('BEGIN TRANSACTION');
 
-        for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz'))) {
+        for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'))) {
             try {
                 const raw = await fs.readFile(path.join(reportsDir, file));
-                const report = file.endsWith('.gz')
-                    ? JSON.parse(zlib.gunzipSync(raw))
-                    : JSON.parse(raw);
+                const report = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
 
                 const id = report.id || `report-${file.replace(/\.(json|json\.gz)$/, '')}`;
                 const slug = id.replace(/[^a-z0-9-]/g, '-');
@@ -115,12 +113,10 @@ async function buildKnowledgeDb() {
         const files = await fs.readdir(knowledgeDir);
         db.exec('BEGIN TRANSACTION');
 
-        for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz'))) {
+        for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'))) {
             try {
                 const raw = await fs.readFile(path.join(knowledgeDir, file));
-                const article = file.endsWith('.gz')
-                    ? JSON.parse(zlib.gunzipSync(raw))
-                    : JSON.parse(raw);
+                const article = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
 
                 const id = article.id || article.slug || file.replace(/\.(json|json\.gz)$/, '');
                 const slug = id.replace(/[^a-z0-9-]/g, '-');

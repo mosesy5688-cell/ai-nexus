@@ -108,7 +108,7 @@ export async function packV4Shards() {
 
     for (const { dir, file } of allSourceFiles) {
         const raw = await fs.readFile(path.join(dir, file));
-        const parsed = file.endsWith('.gz') ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
+        const parsed = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
         const entities = parsed.entities || (parsed.id ? [parsed] : [parsed]);
 
         for (const entity of entities) {
@@ -130,7 +130,7 @@ export async function packV4Shards() {
                         Bucket: r2Bucket, Key: enrichmentManifest.get(umid)
                     }));
                     const chunks = []; for await (const c of Body) chunks.push(c);
-                    const fulltext = zlib.gunzipSync(Buffer.concat(chunks)).toString('utf-8');
+                    const fulltext = (await autoDecompress(Buffer.concat(chunks))).toString('utf-8');
                     // Rust FFI validates quality + prevents downgrade
                     const fusion = validateFusionContentFFI(fulltext, bodyContent);
                     bodyContent = fusion.text;

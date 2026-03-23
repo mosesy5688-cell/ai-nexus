@@ -67,10 +67,10 @@ export async function generateTrendData(fniHistory, outputDir = 'output/cache') 
     skippedCount = Object.keys(entities).length - processedCount;
 
     // Ensure output directory exists
-    const trendPath = path.join(outputDir, 'trend-data.json.gz');
+    const trendPath = path.join(outputDir, 'trend-data.json.zst');
     await fs.mkdir(path.dirname(trendPath), { recursive: true });
 
-    // Write trend data (Gzipped via SmartWriter)
+    // Write trend data (Zstd via SmartWriter)
     await smartWriteWithVersioning('trend-data.json', trendData, outputDir, { compress: true });
 
     const fileSize = (await fs.stat(trendPath)).size;

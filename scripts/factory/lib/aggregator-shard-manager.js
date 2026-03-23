@@ -1,7 +1,7 @@
 /** Aggregator Shard Manager V18.12.5.21 (Split from aggregator-utils) */
 import fs from 'fs/promises';
 import path from 'path';
-import zlib from 'zlib';
+import { autoDecompress } from './zstd-helper.js';
 import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
 
 /** Iterative Shard Processor (V18.12.5.12 OOM Guard) */
@@ -14,18 +14,25 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
         let shardData = null;
         for (const p of searchPaths) {
             try {
-                const gzPath = path.join(p, `shard-${i}.json.gz`);
-                const jsonPath = path.join(p, `shard-${i}.json`);
-                const mergedGzPath = path.join(p, `merged_shard_${i}.json.gz`);
+                const candidates = [
+                    path.join(p, `merged_shard_${i}.json.zst`),
+                    path.join(p, `merged_shard_${i}.json.gz`),
+                    path.join(p, `shard-${i}.json.zst`),
+                    path.join(p, `shard-${i}.json.gz`),
+                    path.join(p, `shard-${i}.json`)
+                ];
 
                 let data;
-                if (await fs.access(mergedGzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(mergedGzPath)).toString('utf-8');
-                } else if (await fs.access(gzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(gzPath)).toString('utf-8');
-                } else if (await fs.access(jsonPath).then(() => true).catch(() => false)) {
-                    data = await fs.readFile(jsonPath, 'utf-8');
-                } else continue;
+                let found = false;
+                for (const candidate of candidates) {
+                    if (await fs.access(candidate).then(() => true).catch(() => false)) {
+                        const raw = await fs.readFile(candidate);
+                        data = (await autoDecompress(raw)).toString('utf-8');
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) continue;
 
                 const parsed = JSON.parse(data);
                 if (slim && parsed.entities) {

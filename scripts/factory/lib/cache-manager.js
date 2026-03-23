@@ -16,9 +16,9 @@ export {
 // (Removed redundant import that caused conflict)
 
 export async function loadEntityChecksums() {
-    return loadWithFallback('entity-checksums.json.gz', {});
+    return loadWithFallback('entity-checksums.json.zst', {});
 }
 
 export async function saveEntityChecksums(checksums) {
-    await saveWithBackup('entity-checksums.json.gz', checksums, { compress: true });
+    await saveWithBackup('entity-checksums.json.zst', checksums, { compress: true });
 }

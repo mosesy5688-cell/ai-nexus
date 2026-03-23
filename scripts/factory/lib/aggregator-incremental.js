@@ -9,12 +9,12 @@ import crypto from 'crypto';
 import { zstdCompress, autoDecompress } from './zstd-helper.js';
 
 const TASK_OUTPUT_MAP = {
-    'trending': ['output/cache/trending.json.gz'],
-    'search': ['output/cache/search-core.json.gz', 'output/cache/search-manifest.json'],
+    'trending': ['output/cache/trending.json.zst'],
+    'search': ['output/cache/search-core.json.zst', 'output/cache/search-manifest.json'],
     'rankings': ['output/cache/rankings', 'output/cache/category_stats.json'],
     'sitemap': ['output/sitemap.xml'],
-    'relations': ['output/cache/relations.json.gz', 'output/cache/mesh/graph.json.gz'],
-    'trend': ['output/cache/trend-data.json.gz']
+    'relations': ['output/cache/relations.json.zst', 'output/cache/mesh/graph.json.zst'],
+    'trend': ['output/cache/trend-data.json.zst']
 };
 
 /**
