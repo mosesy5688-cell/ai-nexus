@@ -31,8 +31,8 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
         if (!f.startsWith('part-')) continue;
         const idx = parseInt(f.match(/part-(\d+)/)?.[1] || '-1');
         if (idx < startShard || idx > endShard) continue;
-        const prio = f.endsWith('.bin') ? 0 : f.endsWith('.json.gz') ? 1 : f.endsWith('.json') ? 2 : 99;
-        if (prio > 2) continue;
+        const prio = f.endsWith('.bin') ? 0 : f.endsWith('.json.zst') ? 1 : f.endsWith('.json.gz') ? 2 : f.endsWith('.json') ? 3 : 99;
+        if (prio > 3) continue;
         const existing = shardPriority.get(idx);
         if (!existing || prio < existing.priority) {
             shardPriority.set(idx, { priority: prio, filename: f });
@@ -161,18 +161,12 @@ export async function loadGlobalRegistry(options = {}) {
 }
 
 async function tryLoadJsonGz(filepath) {
-    const zlib = await import('zlib');
+    const { autoDecompress } = await import('./zstd-helper.js');
     const data = await fs.readFile(filepath);
-    const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
-    if (filepath.endsWith('.gz') || isGzip) {
-        const decompressed = zlib.gunzipSync(data).toString('utf-8');
-        const parsed = JSON.parse(decompressed);
-        const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
-        return { entities, count: entities.length, lastUpdated: parsed.lastUpdated };
-    }
-    const parsed = JSON.parse(data.toString('utf-8'));
+    const decompressed = await autoDecompress(data);
+    const parsed = JSON.parse(decompressed.toString('utf-8'));
     const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
-    return { entities, count: entities.length };
+    return { entities, count: entities.length, lastUpdated: parsed.lastUpdated };
 }
 
 /**

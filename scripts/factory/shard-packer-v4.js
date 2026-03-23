@@ -66,9 +66,9 @@ export async function packV4Shards() {
 
     // Density check — reject dehydrated registries (< 100MB compressed)
     const DENSITY_FLOOR = 100 * 1024 * 1024;
-    const registryPath = process.env.REGISTRY_MONOLITH || './cache/global-registry.json.gz';
+    const registryPath = process.env.REGISTRY_MONOLITH || './cache/global-registry.json.zst';
     try {
-        const stat = await fs.stat(registryPath);
+        const stat = await fs.stat(registryPath).catch(() => fs.stat(registryPath.replace('.zst', '.gz')));
         if (stat.size < DENSITY_FLOOR) {
             console.error(`[V4-PACKER] DENSITY ALERT: ${registryPath} is ${(stat.size / 1024 / 1024).toFixed(1)}MB (floor: 100MB)`);
             console.error('[V4-PACKER] Dehydrated version detected. Aborting to prevent data loss.');
@@ -83,7 +83,7 @@ export async function packV4Shards() {
     const allSourceFiles = [];
     for (const dir of [fusedDir, registryDir]) {
         const files = (await fs.readdir(dir).catch(() => []))
-            .filter(f => f.endsWith('.json') || f.endsWith('.json.gz'));
+            .filter(f => f.endsWith('.json') || f.endsWith('.json.zst') || f.endsWith('.json.gz'));
         for (const f of files) allSourceFiles.push({ dir, file: f });
     }
 
@@ -108,7 +108,7 @@ export async function packV4Shards() {
 
     for (const { dir, file } of allSourceFiles) {
         const raw = await fs.readFile(path.join(dir, file));
-        const parsed = file.endsWith('.gz') ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
+        const parsed = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
         const entities = parsed.entities || (parsed.id ? [parsed] : [parsed]);
 
         for (const entity of entities) {
@@ -130,7 +130,7 @@ export async function packV4Shards() {
                         Bucket: r2Bucket, Key: enrichmentManifest.get(umid)
                     }));
                     const chunks = []; for await (const c of Body) chunks.push(c);
-                    const fulltext = zlib.gunzipSync(Buffer.concat(chunks)).toString('utf-8');
+                    const fulltext = (await autoDecompress(Buffer.concat(chunks))).toString('utf-8');
                     // Rust FFI validates quality + prevents downgrade
                     const fusion = validateFusionContentFFI(fulltext, bodyContent);
                     bodyContent = fusion.text;

@@ -15,8 +15,8 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const CONFIG = {
-    REPORTS_INDEX_PATH: './output/cache/reports/index.json.gz',
-    KNOWLEDGE_INDEX_PATH: './output/cache/knowledge/index.json.gz',
+    REPORTS_INDEX_PATH: './output/cache/reports/index.json',
+    KNOWLEDGE_INDEX_PATH: './output/cache/knowledge/index.json',
     OUTPUT_DIR: './output/rss',
     SITE_URL: 'https://free2aitools.com',
     VERSION: '16.2'
@@ -70,26 +70,20 @@ function escapeXml(str) {
  * Load JSON file safely
  */
 async function loadJson(filePath) {
-    try {
-        let content = await fs.readFile(filePath);
-        if (filePath.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
-            const zlib = await import('zlib');
-            content = zlib.gunzipSync(content);
-        }
-        return JSON.parse(content.toString('utf-8'));
-    } catch (e) {
-        // Try .gz fallback
-        if (!filePath.endsWith('.gz')) {
-            try {
-                let content = await fs.readFile(filePath + '.gz');
-                const zlib = await import('zlib');
-                content = zlib.gunzipSync(content);
-                return JSON.parse(content.toString('utf-8'));
-            } catch (e2) { }
-        }
-        console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);
-        return null;
+    const { autoDecompress } = await import('./zstd-helper.js');
+    const candidates = [filePath];
+    if (!filePath.endsWith('.zst') && !filePath.endsWith('.gz')) {
+        candidates.push(filePath + '.zst', filePath + '.gz');
     }
+    for (const p of candidates) {
+        try {
+            const raw = await fs.readFile(p);
+            const content = await autoDecompress(raw);
+            return JSON.parse(content.toString('utf-8'));
+        } catch {}
+    }
+    console.warn(`  [WARN] Could not load ${filePath}`);
+    return null;
 }
 
 /**

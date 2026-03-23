@@ -182,11 +182,13 @@ export async function restoreRegistryFromR2() {
     // Also restore FNI history and checksums
     await restoreFromPrefix(s3, 'meta/backup/fni-history/', 'FNI History');
 
-    const checksumPath = path.join(CACHE_DIR, 'entity-checksums.json.gz');
+    // V55.9: Try .zst first, then legacy .gz
+    const checksumPath = path.join(CACHE_DIR, 'entity-checksums.json.zst');
     try {
         await fs.stat(checksumPath);
     } catch {
-        await downloadObject(s3, 'meta/backup/entity-checksums.json.gz', checksumPath).catch(() => {});
+        await downloadObject(s3, 'meta/backup/entity-checksums.json.zst', checksumPath)
+            .catch(() => downloadObject(s3, 'meta/backup/entity-checksums.json.gz', path.join(CACHE_DIR, 'entity-checksums.json.gz')).catch(() => {}));
     }
 
     console.log(`[R2-RESTORE] Complete: ${shardCount} registry shards restored`);

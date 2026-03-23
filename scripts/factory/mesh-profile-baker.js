@@ -10,7 +10,7 @@ import { smartWriteWithVersioning } from './lib/smart-writer.js';
 import { getRouteFromId } from '../../src/utils/mesh-routing-core.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
-const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.gz');
+const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.zst');
 
 // URL routing mapping
 const TYPE_TO_ROUTE = {
@@ -27,11 +27,9 @@ async function main() {
     console.log('[BAKER V22.0] Baking atomized Mesh Profiles (ID Sync Level)...');
 
     try {
+        const { autoDecompress } = await import('./lib/zstd-helper.js');
         let graphBuffer = await fs.readFile(GRAPH_PATH);
-        try {
-            const zlib = await import('zlib');
-            graphBuffer = zlib.default.gunzipSync(graphBuffer);
-        } catch (e) { }
+        graphBuffer = await autoDecompress(graphBuffer);
 
         const graph = JSON.parse(graphBuffer.toString('utf-8'));
         const nodeRegistry = graph.nodes || {};

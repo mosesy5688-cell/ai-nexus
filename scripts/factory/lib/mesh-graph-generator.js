@@ -7,40 +7,36 @@ import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { buildMeshGraphFFI } from './rust-bridge.js';
 
 const CONFIG = {
-    EXPLICIT_PATH: './output/cache/relations/explicit.json.gz',
-    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json.gz',
-    REPORTS_INDEX_PATH: './output/cache/reports/index.json.gz',
+    EXPLICIT_PATH: './output/cache/relations/explicit.json',
+    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json',
+    REPORTS_INDEX_PATH: './output/cache/reports/index.json',
     OUTPUT_DIR: './output/cache/mesh',
     VERSION: '16.2'
 };
 
-/** Load file as raw buffer (for Rust FFI). Tries .gz variant. */
+/** Load file as raw buffer (for Rust FFI). Tries .zst/.gz variants. */
 async function loadJsonBuffer(filePath) {
+    try { return await fs.readFile(filePath + '.zst'); } catch {}
     try { return await fs.readFile(filePath + '.gz'); } catch {}
     try { return await fs.readFile(filePath); } catch {}
     return null;
 }
 
 async function loadJson(filePath) {
-    try {
-        let content = await fs.readFile(filePath);
-        const isGzip = (content.length > 2 && content[0] === 0x1f && content[1] === 0x8b);
-        if (filePath.endsWith('.gz') || isGzip) {
-            const zlib = await import('zlib');
-            try { content = zlib.gunzipSync(content); }
-            catch (e) { if (isGzip) throw e; }
-        }
-        return JSON.parse(content.toString('utf-8'));
-    } catch (e) {
-        if (!filePath.endsWith('.gz')) {
-            try {
-                const zlib = await import('zlib');
-                return JSON.parse(zlib.gunzipSync(await fs.readFile(filePath + '.gz')).toString('utf-8'));
-            } catch {}
-        }
-        console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);
-        return null;
+    const { autoDecompress } = await import('./zstd-helper.js');
+    const candidates = [filePath];
+    if (!filePath.endsWith('.zst') && !filePath.endsWith('.gz')) {
+        candidates.push(filePath + '.zst', filePath + '.gz');
     }
+    for (const p of candidates) {
+        try {
+            const raw = await fs.readFile(p);
+            const content = await autoDecompress(raw);
+            return JSON.parse(content.toString('utf-8'));
+        } catch {}
+    }
+    console.warn(`  [WARN] Could not load ${filePath}`);
+    return null;
 }
 
 function standardizeId(id, type) {

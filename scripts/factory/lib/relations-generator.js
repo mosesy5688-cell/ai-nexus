@@ -46,13 +46,11 @@ export async function generateRelations(entities, outputDir = './output') {
     try {
         const dailyDir = path.join(outputDir, 'daily');
         const reportFiles = await fs.readdir(dailyDir).catch(() => []);
+        const { autoDecompress } = await import('./zstd-helper.js');
         for (const file of reportFiles) {
-            if (file.endsWith('.json') || file.endsWith('.json.gz')) {
+            if (file.endsWith('.json') || file.endsWith('.json.gz') || file.endsWith('.json.zst')) {
                 let data = await fs.readFile(path.join(dailyDir, file));
-                if (file.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
-                    const zlib = await import('zlib');
-                    data = zlib.gunzipSync(data);
-                }
+                data = await autoDecompress(data);
                 const reportData = JSON.parse(data.toString('utf-8'));
                 if (reportData.id) {
                     const rId = `report--${reportData.id}`;
@@ -158,12 +156,13 @@ export async function generateRelations(entities, outputDir = './output') {
 
 // CLI execution
 if (import.meta.url === `file://${process.argv[1]}`) {
-    const entitiesPath = process.argv[2] || './output/entities.json.gz';
+    const entitiesPath = process.argv[2] || './output/entities.json';
     const outputDir = process.argv[3] || './output';
 
     try {
-        const data = await fs.readFile(entitiesPath);
-        const entities = JSON.parse(data);
+        const { autoDecompress } = await import('./zstd-helper.js');
+        const raw = await fs.readFile(entitiesPath);
+        const entities = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
         await generateRelations(Array.isArray(entities) ? entities : entities.entities || [], outputDir);
     } catch (error) {
         console.error('[RELATIONS] Error:', error.message);

@@ -18,7 +18,7 @@ import { smartWriteWithVersioning } from './smart-writer.js';
 import { getCategory, parseFrontmatter, extractSections } from './knowledge-utils.js';
 
 const CONFIG = {
-    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json.gz',
+    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json',
     TEMPLATES_DIR: './meta/knowledge-templates',
     MARKDOWN_DIR: './src/pages/knowledge',
     OUTPUT_DIR: './output/cache/knowledge',
@@ -37,26 +37,18 @@ const CATEGORIES = {
  * Load knowledge links from relations
  */
 async function loadKnowledgeLinks() {
-    try {
-        let content = await fs.readFile(CONFIG.KNOWLEDGE_LINKS_PATH);
-        if (CONFIG.KNOWLEDGE_LINKS_PATH.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
-            const zlib = await import('zlib');
-            content = zlib.gunzipSync(content);
-        }
-        return JSON.parse(content.toString('utf-8'));
-    } catch (e) {
-        // Try .gz fallback
-        if (!CONFIG.KNOWLEDGE_LINKS_PATH.endsWith('.gz')) {
-            try {
-                let content = await fs.readFile(CONFIG.KNOWLEDGE_LINKS_PATH + '.gz');
-                const zlib = await import('zlib');
-                content = zlib.gunzipSync(content);
-                return JSON.parse(content.toString('utf-8'));
-            } catch (e2) { }
-        }
-        console.warn(`  [WARN] knowledge-links.json not found: ${e.message}`);
-        return { links: [] };
+    const { autoDecompress } = await import('./zstd-helper.js');
+    const base = CONFIG.KNOWLEDGE_LINKS_PATH.replace(/\.(gz|zst)$/, '');
+    const tryPaths = [base + '.zst', base + '.gz', base];
+    for (const p of tryPaths) {
+        try {
+            const raw = await fs.readFile(p);
+            const content = await autoDecompress(raw);
+            return JSON.parse(content.toString('utf-8'));
+        } catch { }
     }
+    console.warn(`  [WARN] knowledge-links.json not found`);
+    return { links: [] };
 }
 
 // Utility functions extracted to knowledge-utils.js per Art 5.1

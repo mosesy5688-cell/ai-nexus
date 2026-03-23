@@ -249,7 +249,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          FNI_COUNT=$(find cache/fni-history -name 'part-*.json.gz' 2>/dev/null | wc -l)
+          FNI_COUNT=$(find cache/fni-history -name 'part-*.json.zst' -o -name 'part-*.json.gz' 2>/dev/null | wc -l)
           if [ "$FNI_COUNT" -gt 0 ]; then
             echo "✅ FNI history already restored from GHA cache ($FNI_COUNT parts)"
             exit 0

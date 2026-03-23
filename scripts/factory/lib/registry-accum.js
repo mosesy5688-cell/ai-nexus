@@ -50,7 +50,7 @@ export async function loadDailyAccum() {
         }
     }
 
-    return loadWithFallback('daily-accum.json.gz', { entries: [], lastUpdated: null });
+    return loadWithFallback('daily-accum.json.zst', { entries: [], lastUpdated: null });
 }
 
 /**

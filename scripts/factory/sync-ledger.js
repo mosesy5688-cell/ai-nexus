@@ -13,7 +13,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import zlib from 'zlib';
+import { autoDecompress } from './lib/zstd-helper.js';
 import { upsertEntities, openLedger } from './lib/dedup-manager.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
@@ -29,7 +29,7 @@ async function loadFusedEntities() {
     let fusedFiles;
     try {
         fusedFiles = (await fs.readdir(fusedDir))
-            .filter(f => f.endsWith('.json') || f.endsWith('.json.gz'));
+            .filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'));
     } catch {
         console.error(`[SYNC-LEDGER] FATAL: No fused directory at ${fusedDir}`);
         process.exit(1);
@@ -45,9 +45,7 @@ async function loadFusedEntities() {
         const fullPath = path.join(fusedDir, file);
         try {
             const raw = await fs.readFile(fullPath);
-            const parsed = file.endsWith('.gz')
-                ? JSON.parse(zlib.gunzipSync(raw))
-                : JSON.parse(raw);
+            const parsed = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
 
             const batch = parsed.entities || (parsed.id ? [parsed] : [parsed]);
             for (const e of batch) {
