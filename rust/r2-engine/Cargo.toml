@@ -8,7 +8,7 @@ description = "V26.3 Native R2/S3 operations: upload, download, multipart, batch
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = { workspace = true }
+napi = { version = "2", features = ["napi8", "tokio_rt"] }
 napi-derive = { workspace = true }
 aws-sdk-s3 = "1"
 aws-config = "1"
@@ -23,6 +23,3 @@ mime_guess = "2"
 [build-dependencies]
 napi-build = "2"
 
-[profile.release]
-strip = true
-lto = true

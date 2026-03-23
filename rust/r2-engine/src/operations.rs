@@ -1,6 +1,7 @@
 //! Core single-object R2 operations: upload, download, list, stream, purge.
 //! All async functions return Promise to JS via napi-rs tokio runtime.
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use aws_sdk_s3::primitives::ByteStream;
@@ -9,7 +10,7 @@ use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
 use crate::client::R2Client;
-use crate::types::{content_type_for_ext, detect_content_encoding, UploadResult};
+use crate::types::{content_type_for_ext, detect_content_encoding, DownloadResult, UploadResult};
 
 /// Fetch all R2 ETags with optional prefix filtering (paginated).
 /// Returns a HashMap<key, etag> (etag without quotes).
@@ -44,14 +45,12 @@ pub async fn fetch_all_r2_etags(
                 Error::from_reason(format!("ListObjectsV2 failed: {e}"))
             })?;
 
-            if let Some(contents) = resp.contents() {
-                for obj in contents {
-                    if let (Some(key), Some(etag)) = (obj.key(), obj.e_tag()) {
-                        etag_map.insert(
-                            key.to_string(),
-                            etag.trim_matches('"').to_string(),
-                        );
-                    }
+            for obj in resp.contents() {
+                if let (Some(key), Some(etag)) = (obj.key(), obj.e_tag()) {
+                    etag_map.insert(
+                        key.to_string(),
+                        etag.trim_matches('"').to_string(),
+                    );
                 }
             }
 
@@ -147,7 +146,7 @@ async fn upload_file_inner(
             error: None,
             parts: None,
         }),
-        Err(e) if attempt < max_retries => {
+        Err(_e) if attempt < max_retries => {
             let backoff = 1000 * 2u64.pow(attempt);
             tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
             Box::pin(upload_file_inner(
@@ -188,7 +187,6 @@ pub async fn download_from_r2(
     key: String,
     local_path: Option<String>,
 ) -> Result<DownloadResult> {
-    use crate::types::DownloadResult;
     match client.client.get_object().bucket(&client.bucket).key(&key).send().await {
         Ok(resp) => {
             let body = resp.body.collect().await
