@@ -106,13 +106,11 @@ pub async fn restore_directory_from_r2(
                     .bucket(&client.bucket).prefix(&r2_prefix).max_keys(1000);
                 if let Some(t) = &token { req = req.continuation_token(t); }
                 let resp = req.send().await.map_err(|e| Error::from_reason(format!("{e}")))?;
-                if let Some(contents) = resp.contents() {
-                    for obj in contents {
-                        if let Some(key) = obj.key() {
-                            if key.ends_with("_manifest.json") { continue; }
-                            let rel = &key[r2_prefix.len()..];
-                            file_keys.push((key.to_string(), rel.to_string()));
-                        }
+                for obj in resp.contents() {
+                    if let Some(key) = obj.key() {
+                        if key.ends_with("_manifest.json") { continue; }
+                        let rel = &key[r2_prefix.len()..];
+                        file_keys.push((key.to_string(), rel.to_string()));
                     }
                 }
                 if resp.is_truncated() == Some(true) {

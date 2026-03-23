@@ -101,7 +101,6 @@ pub async fn batch_upload(
 
     // Process in batches to avoid spawning too many tasks
     for chunk in files.chunks(conc) {
-        let mut handles = Vec::new();
         for file in chunk {
             let sem = sem.clone();
             let local = file.local_path.clone();
