@@ -175,13 +175,12 @@ jobs:
           ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
           echo "✅ Found $ENTITY_COUNT entities in cache (manifest)"
 
-      # V18.12.5.1: Architectural Split (Decomposition)
-      # Move sharding responsibility from 1/4 (Harvest) to 2/4 (Process)
-      - name: Split Registry for Matrix
+      # V55.9: Consolidate natural shards (418×1000) → 20 hash-routed processing shards
+      - name: Consolidate Shards for Matrix
         env:
-          NODE_OPTIONS: '--max-old-space-size=8192'
+          NODE_OPTIONS: '--max-old-space-size=8192 --expose-gc'
         run: |
-          echo "🔪 Decomposing monolith for parallel processing..."
+          echo "🔪 Consolidating natural shards → 20 processing shards..."
           node scripts/factory/split-registry.js
       - name: Save Prepared Data to Cache
         uses: actions/cache/save@v4
