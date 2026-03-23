@@ -189,6 +189,7 @@ async function main() {
         }
     ];
 
+    let taskFailures = 0;
     for (const task of tasks) {
         if (taskArg && taskArg !== task.id) continue;
         try {
@@ -200,6 +201,7 @@ async function main() {
             if (task.id) await updateTaskChecksum(task.id, rankedEntities, CONFIG.CODE_VERSION);
         } catch (e) {
             console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`);
+            taskFailures++;
             if (taskArg) process.exit(1);
         }
     }
@@ -237,7 +239,14 @@ async function main() {
 
         } catch (e) {
             console.error(`[AGGREGATOR] ❌ Finalization failed: ${e.message}`);
+            console.error(`[AGGREGATOR] FATAL: Finalization is critical. Exiting with error to prevent cache pollution.`);
+            process.exit(1);
         }
+    }
+
+    if (taskFailures > 0) {
+        console.error(`[AGGREGATOR] FATAL: ${taskFailures} task(s) failed. Exiting with error to prevent cache pollution.`);
+        process.exit(1);
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
