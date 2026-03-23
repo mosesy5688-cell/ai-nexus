@@ -1,183 +1,139 @@
 /**
- * Registry Splitter Utility V22.2 (Deterministic Hashing Edition)
- * 
- * Responsibilities:
- * 1. Load the monolithic merged.json.gz (Standard JSON Array).
- * 2. Split it into 20 shards using a streaming parser (Zero-Heap Accumulation).
- * 3. Each entity is deterministically assigned to a shard based on its ID.
+ * Registry Consolidator V55.9
+ *
+ * Consolidates natural shards (1000 entities each, from 1/4 Harvest)
+ * into 20 hash-routed processing shards for the 2/4 matrix pipeline.
+ * Replaces the V22.2 monolith splitter — monolith no longer exists.
+ *
+ * Input:  data/merged_shard_*.json.zst (natural shards from merge-batches)
+ * Output: data/merged_shard_0..19.json.zst (hash-routed processing shards)
  */
 
 import fs from 'node:fs';
+import { promises as fsp } from 'node:fs';
 import path from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { Writable } from 'node:stream';
-import { StringDecoder } from 'node:string_decoder';
 import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
-import { zstdCompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
+import { zstdCompress, autoDecompress, createZstdCompressStream } from './lib/zstd-helper.js';
 
 const TOTAL_SHARDS = 20;
 const DATA_DIR = 'data';
-const INPUT_FILE_ZST = path.join(DATA_DIR, 'merged.json.zst');
-const INPUT_FILE_GZ = path.join(DATA_DIR, 'merged.json.gz');
-const INPUT_FILE_PLAIN = path.join(DATA_DIR, 'merged.json');
 
-// V25.8: Initialize Rust FFI for xxhash64 routing (JS fallback if unavailable)
 const rustStatus = initRustBridge();
-console.log(`[SPLITTER] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
+console.log(`[CONSOLIDATOR] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
 
-/**
- * V25.8: Shard routing via xxhash64 (Rust) or 32-bit fallback (JS).
- * Spec §1.2: xxhash64(id) % totalSlots
- */
 function getShardFromId(id, total) {
     if (!id) return 0;
     return computeShardSlotFFI(id, total);
 }
 
-/**
- * Custom Simple JSON Array Stream Splitter
- * Extracts objects from a standard [{},{},...] stream without full-load.
- */
-class JsonArraySplitter extends Writable {
-    constructor(onObject) {
-        super();
-        this.onObject = onObject;
-        this.decoder = new StringDecoder('utf-8');
-        this.buffer = '';
-        this.depth = 0;
-        this.inString = false;
-        this.escaped = false;
-    }
+async function consolidateShards() {
+    console.log(`\n🔪 [Consolidator] Consolidating natural shards → ${TOTAL_SHARDS} processing shards...`);
 
-    _write(chunk, encoding, callback) {
-        const str = this.decoder.write(chunk);
-        for (let i = 0; i < str.length; i++) {
-            const char = str[i];
+    const allFiles = await fsp.readdir(DATA_DIR);
+    const naturalShards = allFiles
+        .filter(f => f.startsWith('merged_shard_') && f.endsWith('.json.zst'))
+        .sort((a, b) => {
+            const numA = parseInt(a.match(/\d+/)?.[0] || '0');
+            const numB = parseInt(b.match(/\d+/)?.[0] || '0');
+            return numA - numB;
+        });
 
-            if (this.inString) {
-                if (this.escaped) {
-                    this.escaped = false;
-                } else if (char === '\\') {
-                    this.escaped = true;
-                } else if (char === '"') {
-                    this.inString = false;
-                }
-                if (this.depth > 0) this.buffer += char;
-            } else {
-                if (char === '"') {
-                    this.inString = true;
-                    if (this.depth > 0) this.buffer += char;
-                } else if (char === '{') {
-                    this.depth++;
-                    this.buffer += char;
-                } else if (char === '}') {
-                    this.depth--;
-                    this.buffer += char;
-                    if (this.depth === 0) {
-                        try {
-                            const obj = JSON.parse(this.buffer);
-                            this.onObject(obj);
-                        } catch (e) {
-                            // Skip whitespace between objects
-                        }
-                        this.buffer = '';
-                    }
-                } else if (this.depth > 0) {
-                    this.buffer += char;
-                }
-            }
-        }
-        callback();
-    }
-
-    _final(callback) {
-        this.decoder.end();
-        callback();
-    }
-}
-
-async function splitRegistry() {
-    console.log(`\n🔪 [Splitter] Starting monolithic registry decomposition (Deterministic ID Hashing)...`);
-
-    const targetFile = fs.existsSync(INPUT_FILE_ZST) ? INPUT_FILE_ZST
-        : fs.existsSync(INPUT_FILE_GZ) ? INPUT_FILE_GZ : INPUT_FILE_PLAIN;
-
-    if (!fs.existsSync(targetFile)) {
-        console.error(`❌ [Splitter] ERROR: Monolith ${targetFile} not found!`);
+    if (naturalShards.length === 0) {
+        console.error(`❌ [Consolidator] No natural shards (merged_shard_*.json.zst) found in ${DATA_DIR}/`);
         process.exit(1);
     }
 
+    console.log(`   📂 Found ${naturalShards.length} natural shards from 1/4 Harvest`);
     const startTime = Date.now();
-    let totalCount = 0;
 
-    // V25.9: Init Zstd codec before creating compress streams
+    // V55.9: Init Zstd codec (Rust FFI or WASM warmup)
     await zstdCompress(Buffer.from('init'));
 
-    // Initialize Shard Write Streams (Zstd)
-    console.log(`   📂 Initializing ${TOTAL_SHARDS} shard streams (Zstd)...`);
+    // Open 20 output streams — write to temp names to avoid collision with input
     const shardCounts = new Array(TOTAL_SHARDS).fill(0);
-    const shardStreams = Array.from({ length: TOTAL_SHARDS }, (_, i) => {
+    const outStreams = Array.from({ length: TOTAL_SHARDS }, (_, i) => {
         const zst = createZstdCompressStream();
-        const ws = fs.createWriteStream(path.join(DATA_DIR, `merged_shard_${i}.json.zst`));
+        const ws = fs.createWriteStream(path.join(DATA_DIR, `proc_shard_${i}.json.zst`));
         zst.pipe(ws);
         zst.write('[');
-        return zst;
+        return { zst, ws };
     });
 
-    const splitter = new JsonArraySplitter((entity) => {
-        const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
-        const countInShard = shardCounts[shardIdx];
+    let totalCount = 0;
 
-        // Write to respective shard stream immediately
-        const prefix = countInShard === 0 ? '' : ',';
-        shardStreams[shardIdx].write(prefix + JSON.stringify(entity));
-
-        shardCounts[shardIdx]++;
-        totalCount++;
-
-        // Periodic progress log
-        if (totalCount % 5000 === 0) {
-            process.stdout.write(`\r   🔄 Streamed ${totalCount} entities... (Memory Usage: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0)}MB)`);
+    // Process each natural shard: decompress → parse → hash-route → write
+    for (const file of naturalShards) {
+        const filePath = path.join(DATA_DIR, file);
+        const raw = await fsp.readFile(filePath);
+        const decompressed = await autoDecompress(raw);
+        let entities;
+        try {
+            entities = JSON.parse(decompressed.toString('utf-8'));
+        } catch (e) {
+            console.warn(`   ⚠️ Skipping corrupt shard ${file}: ${e.message}`);
+            continue;
         }
-    });
 
-    const isCompressed = targetFile.endsWith('.zst') || targetFile.endsWith('.gz');
-    const readStream = fs.createReadStream(targetFile);
-
-    try {
-        if (isCompressed) {
-            await pipeline(readStream, createAutoDecompressStream(), splitter);
-        } else {
-            await pipeline(readStream, splitter);
+        for (const entity of entities) {
+            const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
+            const prefix = shardCounts[shardIdx] === 0 ? '' : ',';
+            outStreams[shardIdx].zst.write(prefix + JSON.stringify(entity));
+            shardCounts[shardIdx]++;
+            totalCount++;
         }
-    } catch (err) {
-        console.error(`\n❌ [Splitter] Stream Pipeline Failure:`, err);
+
+        if (totalCount % 50000 === 0 || file === naturalShards[naturalShards.length - 1]) {
+            const mem = Math.round(process.memoryUsage().heapUsed / 1048576);
+            console.log(`   - ${totalCount} entities routed (${file}) [Heap: ${mem}MB]`);
+        }
+    }
+
+    // Close all output streams
+    for (let i = 0; i < TOTAL_SHARDS; i++) {
+        outStreams[i].zst.write(']');
+        outStreams[i].zst.end();
+    }
+
+    // Wait for all file streams to finish
+    await Promise.all(outStreams.map(s =>
+        new Promise(resolve => s.ws.on('finish', resolve))
+    ));
+
+    // Remove natural shards, rename proc shards to final names
+    for (const file of naturalShards) {
+        await fsp.unlink(path.join(DATA_DIR, file)).catch(() => {});
+    }
+    for (let i = 0; i < TOTAL_SHARDS; i++) {
+        await fsp.rename(
+            path.join(DATA_DIR, `proc_shard_${i}.json.zst`),
+            path.join(DATA_DIR, `merged_shard_${i}.json.zst`)
+        );
+    }
+
+    // Integrity check
+    const sumCount = shardCounts.reduce((a, b) => a + b, 0);
+    console.log(`\n⚖️ [Consolidator] Integrity Verification:`);
+    console.log(`   - Input: ${naturalShards.length} natural shards`);
+    console.log(`   - Total entities routed: ${totalCount}`);
+    console.log(`   - Output: ${TOTAL_SHARDS} processing shards`);
+
+    if (sumCount !== totalCount || totalCount === 0) {
+        console.error(`   ❌ CRITICAL: Integrity Violation! Routed ${sumCount} vs processed ${totalCount}`);
         process.exit(1);
     }
 
-    // Close all shard streams
-    console.log(`\n   ✓ Finalizing shard streams...`);
-    for (let i = 0; i < TOTAL_SHARDS; i++) {
-        shardStreams[i].write(']'); // End JSON array
-        shardStreams[i].end();
-    }
-
-    // Wait for all streams to finish writing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Final Integrity Check
-    const sumCount = shardCounts.reduce((a, b) => a + b, 0);
-    console.log(`\n⚖️ [Splitter] Integrity Verification:`);
-    console.log(`   - Total Entities Processed: ${totalCount}`);
-    console.log(`   - Total Entities Sharded: ${sumCount}`);
-
-    if (sumCount !== totalCount || totalCount === 0) {
-        console.error(`   ❌ CRITICAL: Integrity Violation or Zero Load!`);
+    if (totalCount < 85000) {
+        console.error(`   ❌ CRITICAL: Entity count ${totalCount} below 85k baseline!`);
         process.exit(1);
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`✅ [Splitter] Decomposition complete in ${duration}s. Shards are ready for Factory 2/4.`);
+    const dist = shardCounts.map((c, i) => `s${i}:${c}`).join(' ');
+    console.log(`   Distribution: ${dist}`);
+    console.log(`✅ [Consolidator] Complete in ${duration}s. ${totalCount} entities → ${TOTAL_SHARDS} shards.`);
 }
 
-splitRegistry();
+consolidateShards().catch(err => {
+    console.error(`\n❌ [FATAL] ${err.message}`);
+    process.exit(1);
+});
