@@ -81,6 +81,7 @@ jobs:
             rust/content-extractor/content-extractor-rust.node
             rust/stream-aggregator/stream-aggregator-rust.node
             rust/satellite-tasks/satellite-tasks-rust.node
+            rust/r2-engine/r2-engine-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
       # V25.8 §6.2: R2 fallback for Rust FFI binaries
@@ -224,6 +225,7 @@ jobs:
             rust/content-extractor/content-extractor-rust.node
             rust/stream-aggregator/stream-aggregator-rust.node
             rust/satellite-tasks/satellite-tasks-rust.node
+            rust/r2-engine/r2-engine-rust.node
           key: rust-ffi-binaries-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: rust-ffi-binaries-
       - name: R2 Fallback for Rust FFI

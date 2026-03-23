@@ -1,19 +1,10 @@
 import 'dotenv/config';
 import fs from 'fs/promises';
 import path from 'path';
-import { generateRankings } from './lib/rankings-generator.js';
-import { generateSearchIndices } from './lib/search-indexer.js';
-import { generateTrending } from './lib/trending-generator.js';
-import { generateCategoryStats } from './lib/category-stats-generator.js';
-import { generateRelations } from './lib/relations-generator.js';
-import { generateMeshGraph } from './lib/mesh-graph-generator.js';
-import { computeAltRelations } from './lib/alt-linker.js';
-import { computeKnowledgeLinks } from './lib/knowledge-linker.js';
-import { generateKnowledgeData } from './lib/knowledge-data-generator.js';
 import { generateDailyReport, updateDailyAccumulator, shouldGenerateReport } from './lib/daily-report.js';
 import { loadFniHistory } from './lib/cache-manager.js';
-import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
+import { buildTaskList } from './lib/aggregator-tasks.js';
 import { updateFniHistory } from './lib/aggregator-metrics.js';
 import {
     getWeekNumber, generateHealthReport, backupStateFiles, validateCryptoEnv
@@ -165,29 +156,8 @@ async function main() {
         await generateHealthReport(successCount, fullSet, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
     }
 
-    const rankedEntities = fullSet; // fullSet is already slimmed if needsSlimming, and contains rankings
-
-    const tasks = [
-        { name: 'Trending', id: 'trending', fn: () => generateTrending(rankedEntities, CONFIG.OUTPUT_DIR) },
-        { name: 'Rankings', id: 'rankings', fn: () => generateRankings(rankedEntities, CONFIG.OUTPUT_DIR) },
-        { name: 'Search', id: 'search', fn: () => generateSearchIndices(rankedEntities, CONFIG.OUTPUT_DIR) },
-        { name: 'CategoryStats', id: 'category', fn: () => generateCategoryStats(rankedEntities, CONFIG.OUTPUT_DIR) },
-        {
-            name: 'Relations', id: 'relations', fn: async () => {
-                await generateRelations(rankedEntities, CONFIG.OUTPUT_DIR);
-                await computeAltRelations(rankedEntities, CONFIG.OUTPUT_DIR);
-                await computeKnowledgeLinks(rankedEntities, CONFIG.OUTPUT_DIR);
-                await generateKnowledgeData(CONFIG.OUTPUT_DIR);
-                await generateMeshGraph(CONFIG.OUTPUT_DIR);
-            }
-        },
-        {
-            name: 'TrendData', id: 'trend', fn: async () => {
-                const history = await loadFniHistory();
-                await generateTrendData(history, path.join(CONFIG.OUTPUT_DIR, 'cache'));
-            }
-        }
-    ];
+    const rankedEntities = fullSet;
+    const tasks = buildTaskList(rankedEntities, CONFIG.OUTPUT_DIR);
 
     let taskFailures = 0;
     for (const task of tasks) {

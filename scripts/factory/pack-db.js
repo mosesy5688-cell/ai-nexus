@@ -219,8 +219,8 @@ async function packDatabase() {
     }
 
     closeCache(cacheDb);
-    generateHotShard(top30k);
-    generateVectorCore(top30k);
+    await generateHotShard(top30k);
+    await generateVectorCore(top30k);
 
     // ── Phase 6: V55.9 Parquet Analytical Mirror (async, same epoch tag) ──
     const { exportParquet } = await import('./lib/parquet-exporter.js');
