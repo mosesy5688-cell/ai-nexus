@@ -1,0 +1,11 @@
+{
+  "name": "r2-engine-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "r2-engine-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}

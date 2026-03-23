@@ -119,5 +119,5 @@ export async function generateDailyReportsIndex(outputDir = './output') {
 
 // CLI
 if (import.meta.url === `file://${process.argv[1]}`) {
-    generateDailyReportsIndex(process.argv[2] || './output').catch(console.error);
+    generateDailyReportsIndex(process.argv[2] || './output').catch(err => { console.error('❌ [REPORTS-INDEX] Fatal:', err); process.exit(1); });
 }

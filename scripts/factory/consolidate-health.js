@@ -53,7 +53,8 @@ async function main() {
         console.log(`✅ [HEALTH] Factory Pulse generated: ${pulseFile} (Zstd)`);
     } catch (e) {
         console.error(`❌ [HEALTH] Consolidation failed: ${e.message}`);
+        process.exit(1);
     }
 }
 
-main().catch(console.error);
+main().catch(err => { console.error('❌ [HEALTH] Fatal:', err); process.exit(1); });

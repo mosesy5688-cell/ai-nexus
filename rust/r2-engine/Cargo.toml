@@ -1,0 +1,28 @@
+[package]
+name = "r2-engine-rust"
+version = "1.0.0"
+edition = "2021"
+description = "V26.3 Native R2/S3 operations: upload, download, multipart, batch walk+hash"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+aws-sdk-s3 = "1"
+aws-config = "1"
+aws-credential-types = "1"
+tokio = { version = "1", features = ["full"] }
+md-5 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+walkdir = "2"
+mime_guess = "2"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+strip = true
+lto = true
