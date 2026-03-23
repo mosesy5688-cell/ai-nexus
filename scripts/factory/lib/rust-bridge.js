@@ -176,6 +176,14 @@ export function zstdDecompressBufferFFI(data) {
     return null;
 }
 
+/** V55.9: Streaming file decompression via Rust. O(1) memory. */
+export function zstdDecompressFileFFI(inputPath, outputPath) {
+    if (_streamAggregator?.zstdDecompressFile) {
+        return _streamAggregator.zstdDecompressFile(inputPath, outputPath);
+    }
+    return null;
+}
+
 /** Streaming shard aggregation (Rust). OOM-safe for 400K+ entities. */
 export function streamAggregateFFI(shardDir, outputPath) {
     if (_streamAggregator) {
