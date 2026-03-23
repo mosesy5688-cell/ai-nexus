@@ -96,13 +96,7 @@ jobs:
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           if [ "$FOUND" -lt 6 ]; then
             echo "⚠️ Only $FOUND/6 Rust binaries from cache. Restoring from R2 vault..."
-            node --input-type=module -e "
-              import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-              const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-              for (const c of crates) {
-                await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node');
-              }
-            " || echo '⚠️ R2 Rust FFI fallback unavailable'
+            node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           else
             echo "✅ All 6 Rust FFI binaries restored from cache"
           fi
@@ -151,12 +145,9 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           echo "⚠️ Cache miss for harvest data. Restoring from R2..."
-          node --input-type=module -e "
-            import { restoreDirectoryFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            await restoreDirectoryFromR2('state/cycle-harvest/data/', 'data/');
-            await restoreDirectoryFromR2('state/cycle-harvest/cache/', 'cache/');
-            console.log('✅ Harvest data restored from R2');
-          "
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-harvest/data/ data/
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-harvest/cache/ cache/
+          echo "✅ Harvest data restored from R2"
 
       - name: "Diagnostic: Show Workspace State"
         run: |
@@ -239,11 +230,7 @@ jobs:
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           if [ "$FOUND" -lt 6 ]; then
             echo "⚠️ Only $FOUND/6 Rust binaries. Restoring from R2 vault..."
-            node --input-type=module -e "
-              import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-              const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-              for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-            " || echo '⚠️ R2 Rust FFI fallback unavailable'
+            node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           fi
 
       # V22.8: Restore from cache (replaces download-artifact for privacy)
@@ -337,21 +324,7 @@ jobs:
         run: |
           SHARD_FILE="artifacts/shard-${{ matrix.shard }}.json.zst"
           if [ -f "$SHARD_FILE" ]; then
-            node -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (s3) {
-                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-                const data = fs.readFileSync('$SHARD_FILE');
-                await s3.send(new PutObjectCommand({
-                  Bucket: 'ai-nexus-assets',
-                  Key: 'state/shards/shard-${{ matrix.shard }}.json.zst',
-                  Body: data, ContentType: 'application/zstd'
-                }));
-                console.log('✅ Shard ${{ matrix.shard }} streamed to R2');
-              }
-            " || echo "⚠️ R2 shard stream skipped (non-fatal)"
+            node scripts/factory/r2-workflow-cli.js upload-buffer "$SHARD_FILE" "state/shards/shard-${{ matrix.shard }}.json.zst" --content-type=application/zstd || echo "⚠️ R2 shard stream skipped (non-fatal)"
           fi
 
   # V4.1: Save all shards to Cache for next stage
@@ -380,26 +353,7 @@ jobs:
         run: |
           mkdir -p artifacts output/shards
           echo "📦 Restoring 20 shards from R2 state/shards/..."
-          node -e "
-            import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-            import { GetObjectCommand } from '@aws-sdk/client-s3';
-            import fs from 'fs';
-            const s3 = createR2Client();
-            if (!s3) { console.error('No R2 credentials'); process.exit(1); }
-            let ok = 0;
-            for (let i = 0; i < 20; i++) {
-              try {
-                const { Body } = await s3.send(new GetObjectCommand({
-                  Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-' + i + '.json.zst'
-                }));
-                const chunks = []; for await (const c of Body) chunks.push(c);
-                fs.writeFileSync('artifacts/shard-' + i + '.json.zst', Buffer.concat(chunks));
-                ok++;
-              } catch (e) { console.warn('  shard-' + i + ': ' + e.message); }
-            }
-            console.log('Restored ' + ok + '/20 shards from R2');
-            if (ok < 20) { console.error('Missing shards!'); process.exit(1); }
-          "
+          node scripts/factory/r2-workflow-cli.js restore-dir state/shards/ artifacts/ --strict
 
       - name: Organize Shards
         run: |

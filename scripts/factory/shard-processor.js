@@ -14,7 +14,7 @@ import { processEntity } from './lib/processor-core.js';
 import { zstdCompress, autoDecompress, createZstdCompressStream } from './lib/zstd-helper.js';
 import { loadEntityChecksums, loadDailyAccum, loadFniHistory } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
-import { createR2Client, streamToR2, downloadFromR2 } from './lib/r2-helpers.js';
+import { initR2Bridge, createR2ClientFFI, streamToR2FFI, downloadFromR2FFI } from './lib/r2-bridge.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -60,14 +60,14 @@ async function main() {
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
 
     // V25.8: R2 Pulse Sync (state checkpoint, not data writes)
-    const r2 = createR2Client();
-    const r2Bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    initR2Bridge();
+    const r2 = createR2ClientFFI();
     const cursorKey = `state/v25.8-cursor-shard-${shardId}.json`;
 
     // V25.8 §2.3: Check for existing cursor (resume from last checkpoint)
     let resumeFrom = 0;
     if (r2) {
-        const cursor = await downloadFromR2(r2, r2Bucket, cursorKey);
+        const cursor = await downloadFromR2FFI(r2, cursorKey);
         if (cursor && cursor.shardId === shardId) {
             resumeFrom = cursor.processedCount || 0;
             console.log(`[SHARD ${shardId}] Resuming from cursor: ${resumeFrom} entities`);
@@ -155,7 +155,7 @@ async function main() {
 
             // V25.8 §2.3: Pulse Sync — checkpoint to R2 every 1000 entities
             if (r2 && processedCount % PULSE_SYNC_INTERVAL === 0) {
-                await streamToR2(r2, r2Bucket, cursorKey, {
+                await streamToR2FFI(r2, cursorKey, {
                     shardId, processedCount, lastId: entity.id,
                     timestamp: new Date().toISOString(), total: shardEntities.length
                 });

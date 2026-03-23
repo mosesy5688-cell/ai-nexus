@@ -76,17 +76,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "data/huggingface_master.ndjson" ]; then
-            node -e "
-              import { createR2Client, streamToR2 } from './scripts/factory/lib/r2-helpers.js';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (s3) {
-                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-                const data = fs.readFileSync('data/huggingface_master.ndjson');
-                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/huggingface_master.ndjson', Body: data }));
-                console.log('✅ Streamed huggingface_master.ndjson to R2');
-              } else { console.log('⚠️ R2 credentials not available, cache-only mode'); }
-            " || echo "⚠️ R2 stream skipped (non-fatal)"
+            node scripts/factory/r2-workflow-cli.js upload-buffer data/huggingface_master.ndjson ingestion/raw/huggingface_master.ndjson || echo "⚠️ R2 stream skipped (non-fatal)"
           fi
 
 
@@ -132,17 +122,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "data/github_master.ndjson" ]; then
-            node -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (s3) {
-                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-                const data = fs.readFileSync('data/github_master.ndjson');
-                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/github_master.ndjson', Body: data }));
-                console.log('✅ Streamed github_master.ndjson to R2');
-              } else { console.log('⚠️ R2 credentials not available'); }
-            " || echo "⚠️ R2 stream skipped (non-fatal)"
+            node scripts/factory/r2-workflow-cli.js upload-buffer data/github_master.ndjson ingestion/raw/github_master.ndjson || echo "⚠️ R2 stream skipped (non-fatal)"
           fi
 
 
@@ -206,17 +186,7 @@ jobs:
           for f in data/*_master.ndjson; do
             [ -f "$f" ] || continue
             BASENAME=$(basename "$f")
-            node -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (s3) {
-                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-                const data = fs.readFileSync('$f');
-                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/$BASENAME', Body: data }));
-                console.log('✅ Streamed $BASENAME to R2');
-              }
-            " || echo "⚠️ R2 stream for $BASENAME skipped"
+            node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || echo "⚠️ R2 stream for $BASENAME skipped"
           done
 
 
@@ -346,17 +316,7 @@ jobs:
           for f in data/*_master.ndjson; do
             [ -f "$f" ] || continue
             BASENAME=$(basename "$f")
-            node -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (s3) {
-                const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-                const data = fs.readFileSync('$f');
-                await s3.send(new PutObjectCommand({ Bucket: 'ai-nexus-assets', Key: 'ingestion/raw/$BASENAME', Body: data }));
-                console.log('✅ Streamed $BASENAME to R2');
-              }
-            " || echo "⚠️ R2 stream for $BASENAME skipped"
+            node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || echo "⚠️ R2 stream for $BASENAME skipped"
           done
 
 
@@ -474,27 +434,7 @@ jobs:
             echo "✅ $NDJSON_COUNT NDJSON files from cache. Skipping R2 fallback."
           else
             echo "⚠️ No NDJSON files from cache. Restoring from R2 ingestion/raw/..."
-            node -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import { ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (!s3) { console.error('No R2 credentials'); process.exit(1); }
-              const bucket = process.env.R2_BUCKET;
-              const resp = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: 'ingestion/raw/', MaxKeys: 100 }));
-              let restored = 0;
-              for (const obj of (resp.Contents || [])) {
-                if (!obj.Key.endsWith('.ndjson') || obj.Size === 0) continue;
-                const filename = obj.Key.split('/').pop();
-                const { Body } = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: obj.Key }));
-                const chunks = []; for await (const c of Body) chunks.push(c);
-                fs.writeFileSync('data/' + filename, Buffer.concat(chunks));
-                console.log('  Restored: ' + filename + ' (' + Buffer.concat(chunks).length + ' bytes)');
-                restored++;
-              }
-              console.log('R2 batch recovery: ' + restored + ' files');
-              if (restored === 0) { console.error('No batch files found on R2'); process.exit(1); }
-            "
+            node scripts/factory/r2-workflow-cli.js restore-dir ingestion/raw/ data/ --strict
           fi
 
       - name: List Batches (Current or Recovered)
@@ -630,12 +570,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node --input-type=module -e "
-            import { backupDirectoryToR2 } from './scripts/factory/lib/r2-handoff.js';
-            await backupDirectoryToR2('data/', 'state/cycle-harvest/data/', { extensions: ['.json', '.json.zst'] });
-            await backupDirectoryToR2('cache/', 'state/cycle-harvest/cache/');
-            console.log('✅ Harvest cycle backed up to R2 state/cycle-harvest/');
-          "
+          node scripts/factory/r2-workflow-cli.js backup-dir data/ state/cycle-harvest/data/ --extensions=.json,.json.zst
+          node scripts/factory/r2-workflow-cli.js backup-dir cache/ state/cycle-harvest/cache/
+          echo "✅ Harvest cycle backed up to R2 state/cycle-harvest/"
 
       # Pipeline Summary
       - name: Summary

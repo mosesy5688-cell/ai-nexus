@@ -90,11 +90,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
-            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-          " || true
+          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
 
       # Download dedup.db from R2
       - name: Restore Dedup Ledger from R2
@@ -105,21 +101,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           mkdir -p output/data
-          node -e "
-            import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-            import { GetObjectCommand } from '@aws-sdk/client-s3';
-            import fs from 'fs';
-            const s3 = createR2Client();
-            if (!s3) { console.error('No R2 creds'); process.exit(1); }
-            try {
-              const { Body } = await s3.send(new GetObjectCommand({
-                Bucket: 'ai-nexus-assets', Key: 'state/dedup.db'
-              }));
-              const chunks = []; for await (const c of Body) chunks.push(c);
-              fs.writeFileSync('output/data/dedup.db', Buffer.concat(chunks));
-              console.log('✅ dedup.db restored from R2');
-            } catch (e) { console.warn('⚠️ dedup.db not found on R2:', e.message); }
-          "
+          node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || echo "⚠️ dedup.db not found on R2"
 
       # Run Density Booster
       - name: Run Booster [${{ matrix.partition.start }}..${{ matrix.partition.end }}]
@@ -146,19 +128,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "output/data/dedup.db" ]; then
-            node -e "
-              import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-              import { PutObjectCommand } from '@aws-sdk/client-s3';
-              import fs from 'fs';
-              const s3 = createR2Client();
-              if (!s3) process.exit(0);
-              const data = fs.readFileSync('output/data/dedup.db');
-              await s3.send(new PutObjectCommand({
-                Bucket: 'ai-nexus-assets', Key: 'state/dedup.db',
-                Body: data, ContentType: 'application/x-sqlite3'
-              }));
-              console.log('✅ dedup.db synced to R2');
-            "
+            node scripts/factory/r2-workflow-cli.js upload-buffer output/data/dedup.db state/dedup.db --content-type=application/x-sqlite3
           fi
 
   summary:

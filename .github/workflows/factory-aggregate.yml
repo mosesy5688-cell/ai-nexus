@@ -108,11 +108,7 @@ jobs:
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           if [ "$FOUND" -lt 6 ]; then
             echo "⚠️ Only $FOUND/6 Rust binaries. Restoring from R2 vault..."
-            node --input-type=module -e "
-              import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-              const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-              for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-            " || echo '⚠️ R2 Rust FFI fallback unavailable'
+            node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           fi
 
       # V4.1: Restore Shards from Cache (Not Artifact)
@@ -164,20 +160,7 @@ jobs:
             for i in $(seq 0 19); do
               if [ ! -f "artifacts/shard-${i}.json.zst" ]; then
                 echo "  Fetching shard-${i} from R2..."
-                node -e "
-                  import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-                  import fs from 'fs';
-                  const s3 = createR2Client();
-                  if (s3) {
-                    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-                    const { Body } = await s3.send(new GetObjectCommand({
-                      Bucket: 'ai-nexus-assets', Key: 'state/shards/shard-${i}.json.zst'
-                    }));
-                    const chunks = []; for await (const c of Body) chunks.push(c);
-                    fs.writeFileSync('artifacts/shard-${i}.json.zst', Buffer.concat(chunks));
-                    console.log('✅ Restored shard-${i} from R2');
-                  }
-                " || echo "  ⚠️ shard-${i} not available on R2"
+                node scripts/factory/r2-workflow-cli.js restore-file "state/shards/shard-${i}.json.zst" "artifacts/shard-${i}.json.zst" || echo "  ⚠️ shard-${i} not available on R2"
               fi
             done
           fi
@@ -257,28 +240,7 @@ jobs:
           fi
           echo "⚠️ No FNI history in GHA cache. Restoring from R2..."
           mkdir -p cache/fni-history
-          node --input-type=module -e "
-            import { createR2Client } from './scripts/factory/lib/r2-helpers.js';
-            import { ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
-            import fs from 'fs';
-            const s3 = createR2Client();
-            if (!s3) { console.error('No R2 credentials'); process.exit(1); }
-            const { Contents } = await s3.send(new ListObjectsV2Command({
-              Bucket: 'ai-nexus-assets', Prefix: 'meta/backup/fni-history/part-'
-            }));
-            if (!Contents?.length) { console.log('No FNI history on R2'); process.exit(0); }
-            let ok = 0;
-            for (const obj of Contents) {
-              const name = obj.Key.split('/').pop();
-              const { Body } = await s3.send(new GetObjectCommand({
-                Bucket: 'ai-nexus-assets', Key: obj.Key
-              }));
-              const chunks = []; for await (const c of Body) chunks.push(c);
-              fs.writeFileSync('cache/fni-history/' + name, Buffer.concat(chunks));
-              ok++;
-            }
-            console.log('✅ Restored ' + ok + ' FNI history parts from R2');
-          " || echo '⚠️ R2 FNI history fallback unavailable'
+          node scripts/factory/r2-workflow-cli.js restore-dir meta/backup/fni-history/ cache/fni-history/ || echo '⚠️ R2 FNI history fallback unavailable'
 
       - name: Run Core Merge & Health
         env:
@@ -399,11 +361,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
-            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-          " || true
+          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -462,11 +420,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
-            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-          " || true
+          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -529,11 +483,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
-            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-          " || true
+          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -602,11 +552,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node --input-type=module -e "
-            import { restoreFileFromR2 } from './scripts/factory/lib/r2-handoff.js';
-            const crates = ['shard-router','fni-calc','mesh-engine','content-extractor','stream-aggregator','satellite-tasks'];
-            for (const c of crates) { await restoreFileFromR2('vault/rust-ffi/' + c + '-rust.node', 'rust/' + c + '/' + c + '-rust.node'); }
-          " || true
+          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -753,11 +699,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node -e "
-            import { backupDirectoryToR2 } from './scripts/factory/lib/r2-handoff.js';
-            const r = await backupDirectoryToR2('output/', 'state/cycle-output/');
-            console.log('R2 backup:', JSON.stringify(r));
-          " || echo '⚠️ R2 cycle-output backup skipped (non-fatal)'
+          node scripts/factory/r2-workflow-cli.js backup-dir output/ state/cycle-output/ || echo '⚠️ R2 cycle-output backup skipped (non-fatal)'
         continue-on-error: true
 
       - name: Summary
