@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
-import { fuseShardFFI } from './lib/rust-bridge.js';
+import { initRustBridge, fuseShardFFI } from './lib/rust-bridge.js';
 
 const CONFIG = {
     CACHE_DIR: process.env.CACHE_DIR || './cache',
@@ -93,6 +93,7 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
 
 async function main() {
     console.log('[FUSION V26.5] Starting Mesh Fusion...');
+    initRustBridge();
 
     // Phase 1: Build Valid ID Set (Closed World)
     const { loadGlobalRegistry } = await import('./lib/cache-manager.js');
