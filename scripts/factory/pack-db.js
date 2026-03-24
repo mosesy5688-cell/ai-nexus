@@ -59,15 +59,10 @@ async function packDatabase() {
     console.log('[VFS] 💎 Commencing V25.9 Streaming Shard-DB Packing...');
 
     await fs.mkdir(SHARD_PATH_DIR, { recursive: true });
-
-    // Cleanup old DBs
     const oldFiles = await fs.readdir(SHARD_PATH_DIR);
     for (const f of oldFiles) {
-        if (f.endsWith('.db') || f.endsWith('.db-journal') || f === 'meta.db') {
-            await fs.unlink(path.join(SHARD_PATH_DIR, f));
-        }
+        if (f.endsWith('.db') || f.endsWith('.db-journal') || f === 'meta.db') await fs.unlink(path.join(SHARD_PATH_DIR, f));
     }
-
     // ── Phase 1: Ingest to SQLite Accumulator (replaces in-memory array) ──
     const trendingMap = await loadTrendingMap(CACHE_DIR);
     const trendMap = await loadTrendMap(CACHE_DIR);
@@ -205,28 +200,9 @@ async function packDatabase() {
 
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 
-    // ── Phase 5: Top-30k Vector Recovery for Core Shards ──
-    console.log('[VFS] 📥 Recovering Top-30k vectors for Core Shards...');
-    const top30k = accumulator.getTopK(30000);
-    for (const e of top30k) {
-        const vecRow = getVecStm.get(e.id || e.slug);
-        if (vecRow && vecRow.vector) {
-            const int8 = new Int8Array(vecRow.vector.buffer, vecRow.vector.byteOffset, vecRow.vector.byteLength);
-            const float32 = new Float32Array(int8.length);
-            for (let j = 0; j < int8.length; j++) float32[j] = int8[j] / 127.0;
-            e.embedding = Array.from(float32);
-        }
-    }
-
-    closeCache(cacheDb);
-    await generateHotShard(top30k);
-    await generateVectorCore(top30k);
-
-    // ── Phase 6: V55.9 Parquet Analytical Mirror (async, same epoch tag) ──
+    // ── Phase 5: Parquet + FNI (before accumulator close) ──
     const { exportParquet } = await import('./lib/parquet-exporter.js');
     await exportParquet(accumulator);
-
-    // ── Phase 7: FNI Sanity Check — Constitutional Circuit Breaker ──
     const { checkFniSanity } = await import('./lib/fni-sanity-check.js');
     const { passed } = checkFniSanity(accumulator);
     if (!passed) {
@@ -234,16 +210,39 @@ async function packDatabase() {
         console.error('[VFS] BUILD HALTED: FNI sanity check failed. Artifacts not safe for deploy.');
         process.exit(1);
     }
-
-    // Cleanup
     await accumulator.close();
-    console.log('[VFS] Memory: Accumulator disposed. Triggering Edge-Index...');
+    entityLookup.clear();
+    if (global.gc) global.gc();
+    console.log('[VFS] Memory: Accumulator disposed. Heap released.');
+
+    // ── Phase 6: Top-30k from search.db (structured columns, no JSON blob parsing) ──
+    console.log('[VFS] 📥 Recovering Top-30k vectors from search.db...');
+    const readDb = new Database(SEARCH_DB_PATH, { readonly: true });
+    const top30kStmt = readDb.prepare(
+        `SELECT id, slug, name, type, author, license, pipeline_tag, category, fni_score,
+         downloads, stars, params_billions, context_length, last_modified, is_trending
+         FROM entities ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 30000`
+    );
+    const top30k = [];
+    for (const row of top30kStmt.iterate()) {
+        const vecRow = getVecStm.get(row.id || row.slug);
+        if (vecRow?.vector) {
+            const int8 = new Int8Array(vecRow.vector.buffer, vecRow.vector.byteOffset, vecRow.vector.byteLength);
+            const float32 = new Float32Array(int8.length);
+            for (let j = 0; j < int8.length; j++) float32[j] = int8[j] / 127.0;
+            row.embedding = Array.from(float32);
+        }
+        top30k.push(row);
+    }
+    readDb.close();
+    closeCache(cacheDb);
+    await generateHotShard(top30k);
+    await generateVectorCore(top30k);
 
     const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
     const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();
     await generateMetaAnchors();
-
     console.log('[VFS] ✅ V25.9 Streaming Shard-DB Packing Complete.');
 }
 
