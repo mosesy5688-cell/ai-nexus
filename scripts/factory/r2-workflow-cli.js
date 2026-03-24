@@ -54,10 +54,13 @@ async function main() {
             break;
         }
         case 'restore-file': {
-            const [r2Key, localPath] = rest;
+            const positional = rest.filter(a => !a.startsWith('--'));
+            const [r2Key, localPath] = positional;
             if (!r2Key || !localPath) { console.error('Usage: restore-file <r2Key> <localPath>'); process.exit(1); }
+            const strict = rest.includes('--strict');
             const result = await restoreFileFromR2FFI(r2Key, localPath);
             console.log(`[R2-CLI] restore-file: ${result?.success ? 'OK' : 'MISS'} ${r2Key} -> ${localPath}`);
+            if (strict && !result?.success) { console.error('[R2-CLI] FATAL: restore-file failed (strict mode)'); process.exit(1); }
             break;
         }
         case 'restore-dir': {
