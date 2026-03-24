@@ -47,7 +47,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             rust/target
-          key: rust-${{ matrix.crate }}-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml') }}
+          key: rust-${{ matrix.crate }}-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: |
             rust-${{ matrix.crate }}-
 
