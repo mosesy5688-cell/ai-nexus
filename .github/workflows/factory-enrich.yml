@@ -19,6 +19,11 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      continuation_round:
+        description: 'Auto-continuation round (0=initial, max 3)'
+        required: false
+        default: '0'
 
 jobs:
   check-upstream:
@@ -168,10 +173,13 @@ jobs:
             const c = db.prepare(\"SELECT COUNT(*) as c FROM ledger WHERE type='paper' AND has_fulltext=0 AND status='active'\").get().c;
             db.close(); console.log(c);
           " 2>/dev/null || echo "0")
-          echo "📊 Papers still needing enrichment: $REMAINING"
-          if [ "$REMAINING" -gt 1000 ]; then
-            echo "🔄 Dispatching continuation run..."
-            gh workflow run "Factory 1.5 - Density Booster" && echo "✅ Continuation dispatched" || echo "⚠️ Dispatch failed"
+          ROUND=${{ inputs.continuation_round || 0 }}
+          MAX_ROUNDS=3
+          echo "📊 Papers still needing enrichment: $REMAINING (round $ROUND/$MAX_ROUNDS)"
+          if [ "$REMAINING" -gt 1000 ] && [ "$ROUND" -lt "$MAX_ROUNDS" ]; then
+            NEXT=$((ROUND + 1))
+            echo "🔄 Dispatching continuation round $NEXT..."
+            gh workflow run "Factory 1.5 - Density Booster" -f continuation_round=$NEXT && echo "✅ Round $NEXT dispatched" || echo "⚠️ Dispatch failed"
           else
-            echo "✅ Enrichment substantially complete. No continuation needed."
+            echo "✅ Enrichment complete (remaining: $REMAINING, round: $ROUND)."
           fi
