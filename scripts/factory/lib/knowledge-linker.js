@@ -13,7 +13,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
-import { computeKnowledgeLinksFFI } from './rust-bridge.js';
+import { computeKnowledgeLinksFromDirFFI, computeKnowledgeLinksFFI } from './rust-bridge.js';
 
 // Knowledge keywords mapping
 // Maps keywords found in entity data to knowledge article slugs
@@ -125,19 +125,24 @@ function extractKnowledgeLinks(entity) {
  * @param {Array} entities All entities
  * @param {string} outputDir Output directory
  */
-export async function computeKnowledgeLinks(entities, outputDir = './output') {
+export async function computeKnowledgeLinks(entities, outputDir = './output', opts = {}) {
     console.log('[KNOWLEDGE-LINKER V14.5.2] Computing knowledge links...');
 
     const startTime = Date.now();
     const relationsDir = path.join(outputDir, 'cache', 'relations');
     await fs.mkdir(relationsDir, { recursive: true });
 
-    // V25.8.3: Try Rust FFI fast path (may fail on large data sets)
+    // V26.5: Try Rust direct shard reading first
     let rustResult = null;
-    try { rustResult = computeKnowledgeLinksFFI(Buffer.from(JSON.stringify(entities))); }
-    catch (e) { console.warn(`[KNOWLEDGE-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
+    if (opts.shardDir) {
+        rustResult = computeKnowledgeLinksFromDirFFI(opts.shardDir, relationsDir);
+    }
+    if (!rustResult) {
+        try { rustResult = computeKnowledgeLinksFFI(Buffer.from(JSON.stringify(entities))); }
+        catch (e) { console.warn(`[KNOWLEDGE-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
+    }
     if (rustResult?.output_data) {
-        await fs.writeFile(path.join(relationsDir, 'knowledge-links.json.gz'), Buffer.from(rustResult.output_data));
+        await fs.writeFile(path.join(relationsDir, 'knowledge-links.json.zst'), Buffer.from(rustResult.output_data));
         console.log(`  [KNOWLEDGE-LINKER] Rust FFI: ${rustResult.total_links} entities linked, ${rustResult.inverse_hubs} inverse hubs`);
         return { totalLinks: rustResult.total_links, inverseHubs: rustResult.inverse_hubs, stats: {} };
     }

@@ -116,32 +116,53 @@ fn pagerank(
     scores
 }
 
-/// Compute hub scores for all nodes given an edge list.
-/// Input: JSON array of { from, to, source_type } edges.
-/// Also requires a JSON array of { id, fni_score, days_since_update } node data.
+#[derive(Deserialize)]
+struct NodeInput {
+    id: String,
+    #[serde(default)]
+    fni_score: f64,
+    #[serde(default)]
+    days_since_update: f64,
+}
+
+/// V26.5: Compute hub scores by reading edges/nodes from files.
+#[napi]
+pub fn compute_hub_scores_from_files(
+    edges_path: String,
+    nodes_path: String,
+) -> Result<Vec<HubScoreResult>> {
+    let edges_data = nxvf_core::load_json_file(&edges_path)
+        .map_err(|e| Error::from_reason(e))?;
+    let nodes_data = nxvf_core::load_json_file(&nodes_path)
+        .map_err(|e| Error::from_reason(e))?;
+    let edges: Vec<EdgeInput> = serde_json::from_value(edges_data)
+        .map_err(|e| Error::from_reason(format!("Edges parse error: {}", e)))?;
+    let nodes: Vec<NodeInput> = serde_json::from_value(nodes_data)
+        .map_err(|e| Error::from_reason(format!("Nodes parse error: {}", e)))?;
+    eprintln!("[RUST-MESH] compute_hub_scores_from_files: {} edges, {} nodes", edges.len(), nodes.len());
+    compute_hub_scores_inner(edges, nodes)
+}
+
+/// Compute hub scores for all nodes given an edge list (legacy Buffer API).
 #[napi]
 pub fn compute_hub_scores(
     edges_json: Buffer,
     nodes_json: Buffer,
 ) -> Result<Vec<HubScoreResult>> {
-    let edges_str = std::str::from_utf8(&edges_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8 edges: {}", e)))?;
-    let edges: Vec<EdgeInput> = serde_json::from_str(edges_str)
+    let edges_raw = String::from_utf8_lossy(&edges_json);
+    let edges_str = nxvf_core::sanitize_json_escapes(&edges_raw);
+    let edges: Vec<EdgeInput> = serde_json::from_str(&edges_str)
         .map_err(|e| Error::from_reason(format!("Edges JSON error: {}", e)))?;
 
-    #[derive(Deserialize)]
-    struct NodeInput {
-        id: String,
-        #[serde(default)]
-        fni_score: f64,
-        #[serde(default)]
-        days_since_update: f64,
-    }
-
-    let nodes_str = std::str::from_utf8(&nodes_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8 nodes: {}", e)))?;
-    let nodes: Vec<NodeInput> = serde_json::from_str(nodes_str)
+    let nodes_raw = String::from_utf8_lossy(&nodes_json);
+    let nodes_str = nxvf_core::sanitize_json_escapes(&nodes_raw);
+    let nodes: Vec<NodeInput> = serde_json::from_str(&nodes_str)
         .map_err(|e| Error::from_reason(format!("Nodes JSON error: {}", e)))?;
+
+    compute_hub_scores_inner(edges, nodes)
+}
+
+fn compute_hub_scores_inner(edges: Vec<EdgeInput>, nodes: Vec<NodeInput>) -> Result<Vec<HubScoreResult>> {
 
     // Build adjacency and in-edge maps
     let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
@@ -168,7 +189,7 @@ pub fn compute_hub_scores(
     let pr_scores = pagerank(&node_ids, &adjacency);
 
     // Build node lookup
-    let node_map: HashMap<&str, &NodeInput> =
+    let _node_map: HashMap<&str, &NodeInput> =
         nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 
     // Compute hub scores

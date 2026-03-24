@@ -128,6 +128,40 @@ pub fn batch_calculate_fni(json_buffer: Buffer) -> Result<Vec<FniResult>> {
     Ok(entities.iter().map(compute_fni).collect())
 }
 
+/// V26.5: Streaming FNI from shard directory — O(shard_size) memory.
+/// Reads shards one at a time, computes FNI, streams results to zstd NDJSON.
+#[napi]
+pub fn batch_calculate_fni_from_dir(shard_dir: String, output_dir: String) -> Result<u32> {
+    use std::io::{BufWriter, Write};
+
+    let out_path = std::path::Path::new(&output_dir).join("fni-scores.json.zst");
+    if let Some(parent) = out_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let file = std::fs::File::create(&out_path)
+        .map_err(|e| Error::from_reason(format!("create output: {e}")))?;
+    let mut encoder = zstd::Encoder::new(BufWriter::new(file), 3)
+        .map_err(|e| Error::from_reason(format!("zstd init: {e}")))?;
+
+    let mut count = 0u32;
+    nxvf_core::for_each_shard(&shard_dir, |entities| {
+        for e in &entities {
+            if let Ok(input) = serde_json::from_value::<EntityInput>(e.clone()) {
+                let result = compute_fni(&input);
+                serde_json::to_writer(&mut encoder, &result)
+                    .map_err(|e| format!("write: {e}"))?;
+                encoder.write_all(b"\n").map_err(|e| format!("write: {e}"))?;
+                count += 1;
+            }
+        }
+        Ok(())
+    })
+    .map_err(|e| Error::from_reason(e))?;
+
+    encoder.finish().map_err(|e| Error::from_reason(format!("zstd finish: {e}")))?;
+    Ok(count)
+}
+
 /// Single entity FNI calculation.
 #[napi]
 pub fn calculate_fni_single(

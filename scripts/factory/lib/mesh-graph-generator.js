@@ -3,16 +3,9 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
-import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
-import { buildMeshGraphFFI } from './rust-bridge.js';
+import { buildMeshGraphFromFilesFFI, buildMeshGraphFFI } from './rust-bridge.js';
 
-const CONFIG = {
-    EXPLICIT_PATH: './output/cache/relations/explicit.json',
-    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json',
-    REPORTS_INDEX_PATH: './output/cache/reports/index.json',
-    OUTPUT_DIR: './output/cache/mesh',
-    VERSION: '16.2'
-};
+const VERSION = '16.2';
 
 /** Load file as raw buffer (for Rust FFI). Tries .zst/.gz variants. */
 async function loadJsonBuffer(filePath) {
@@ -37,11 +30,6 @@ async function loadJson(filePath) {
     }
     console.warn(`  [WARN] Could not load ${filePath}`);
     return null;
-}
-
-function standardizeId(id, type) {
-    const source = getNodeSource(id, type);
-    return normalizeId(id, source, type);
 }
 
 function getNodeType(id) {
@@ -75,21 +63,37 @@ export async function generateMeshGraph(outputDir = './output') {
     const meshDir = path.join(outputDir, 'cache', 'mesh');
     await fs.mkdir(meshDir, { recursive: true });
 
-    // V25.8.3: Try Rust FFI fast path — load inputs and delegate
+    // V26.5: Try Rust file-based FFI first (no V8 string limit)
+    const relDir = path.join(outputDir, 'cache', 'relations');
+    const reportsDir = path.join(outputDir, 'cache', 'reports');
     try {
-        const explicitBuf = await loadJsonBuffer(path.join(outputDir, 'cache', 'relations', 'explicit.json'));
-        const knowledgeBuf = await loadJsonBuffer(path.join(outputDir, 'cache', 'relations', 'knowledge-links.json'));
-        const reportsBuf = await loadJsonBuffer(path.join(outputDir, 'cache', 'reports', 'index.json'));
+        const r = buildMeshGraphFromFilesFFI(
+            path.join(relDir, 'explicit.json'), path.join(relDir, 'knowledge-links.json'),
+            path.join(reportsDir, 'index.json'), meshDir
+        );
+        if (r) {
+            await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graph_data));
+            await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.stats_data));
+            console.log(`[MESH-GRAPH] Rust file FFI: ${r.node_count} nodes, ${r.edge_count} edges`);
+            return { nodes: r.node_count, edges: r.edge_count };
+        }
+    } catch (e) { console.log(`[MESH-GRAPH] Rust file FFI skipped: ${e.message}`); }
+
+    // V25.8.3: Fallback — Rust Buffer FFI
+    try {
+        const explicitBuf = await loadJsonBuffer(path.join(relDir, 'explicit.json'));
+        const knowledgeBuf = await loadJsonBuffer(path.join(relDir, 'knowledge-links.json'));
+        const reportsBuf = await loadJsonBuffer(path.join(reportsDir, 'index.json'));
         if (explicitBuf) {
             const r = buildMeshGraphFFI(explicitBuf, knowledgeBuf || Buffer.alloc(0), reportsBuf || Buffer.alloc(0));
             if (r) {
-                await fs.writeFile(path.join(meshDir, 'graph.json.gz'), Buffer.from(r.graph_data));
-                await fs.writeFile(path.join(meshDir, 'stats.json.gz'), Buffer.from(r.stats_data));
-                console.log(`[MESH-GRAPH] Rust FFI: ${r.node_count} nodes, ${r.edge_count} edges`);
+                await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graph_data));
+                await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.stats_data));
+                console.log(`[MESH-GRAPH] Rust Buffer FFI: ${r.node_count} nodes, ${r.edge_count} edges`);
                 return { nodes: r.node_count, edges: r.edge_count };
             }
         }
-    } catch (e) { console.log(`[MESH-GRAPH] Rust FFI skipped: ${e.message}`); }
+    } catch (e) { console.log(`[MESH-GRAPH] Rust Buffer FFI skipped: ${e.message}`); }
 
     const nodes = {};
     const edges = {};
@@ -206,24 +210,9 @@ export async function generateMeshGraph(outputDir = './output') {
         stats.by_type[node.t] = (stats.by_type[node.t] || 0) + 1;
     }
 
-    // Generate graph.json (V16.6: Gzip via SmartWriter)
-    const graph = {
-        _v: CONFIG.VERSION,
-        _ts: new Date().toISOString(),
-        nodes,
-        edges,
-        stats
-    };
-    await smartWriteWithVersioning('graph.json', graph, meshDir, { compress: true });
-
-    // Generate stats.json
-    const statsOutput = {
-        _v: CONFIG.VERSION,
-        _ts: new Date().toISOString(),
-        ...stats
-    };
-
-    await smartWriteWithVersioning('stats.json', statsOutput, meshDir, { compress: true });
+    const ts = new Date().toISOString();
+    await smartWriteWithVersioning('graph.json', { _v: VERSION, _ts: ts, nodes, edges, stats }, meshDir, { compress: true });
+    await smartWriteWithVersioning('stats.json', { _v: VERSION, _ts: ts, ...stats }, meshDir, { compress: true });
 
     console.log(`[MESH-GRAPH] Generated graph with ${stats.nodes} nodes, ${stats.edges} edges`);
     console.log(`  By type: ${JSON.stringify(stats.by_type)}`);

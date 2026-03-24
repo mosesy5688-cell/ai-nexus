@@ -3,7 +3,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
-import { computeAltRelationsFFI } from './rust-bridge.js';
+import { computeAltRelationsFromDirFFI, computeAltRelationsFFI } from './rust-bridge.js';
 
 function jaccardSimilarity(tagsA, tagsB) {
     const arrA = Array.isArray(tagsA) ? tagsA : (typeof tagsA === 'string' ? [tagsA] : []);
@@ -92,15 +92,7 @@ function groupByCategory(entities) {
     return groups;
 }
 
-/**
- * Compute ALT relations for a category
- * @param {Array} entities Entities in the category
- * @param {string} category Category name
- * @param {number} maxEntities Max entities to process
- * @param {number} maxAlts Max ALT relations per entity
- * @param {number} minScore Minimum similarity score
- * @returns {Array} ALT relations
- */
+/** Compute ALT relations for a category */
 function computeCategoryAlts(entities, category, maxEntities = 500, maxAlts = 10, minScore = 0.3) {
     const relations = [];
 
@@ -155,23 +147,28 @@ function computeCategoryAlts(entities, category, maxEntities = 500, maxAlts = 10
  * @param {Array} entities All entities
  * @param {string} outputDir Output directory
  */
-export async function computeAltRelations(entities, outputDir = './output') {
+export async function computeAltRelations(entities, outputDir = './output', opts = {}) {
     console.log('[ALT-LINKER V14.5.2] Computing alternative relations...');
 
     const startTime = Date.now();
     const relationsDir = path.join(outputDir, 'cache', 'relations', 'alt-by-category');
     await fs.mkdir(relationsDir, { recursive: true });
 
-    // V25.8.3: Try Rust FFI fast path (may fail on large data sets)
+    // V26.5: Try Rust direct shard reading first
     let rustResult = null;
-    try { rustResult = computeAltRelationsFFI(Buffer.from(JSON.stringify(entities))); }
-    catch (e) { console.warn(`[ALT-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
+    if (opts.shardDir) {
+        rustResult = computeAltRelationsFromDirFFI(opts.shardDir, relationsDir);
+    }
+    if (!rustResult) {
+        try { rustResult = computeAltRelationsFFI(Buffer.from(JSON.stringify(entities))); }
+        catch (e) { console.warn(`[ALT-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
+    }
     if (rustResult?.categories_data && rustResult?.meta_data) {
         for (const cat of rustResult.categories_data) {
             await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressed_data));
         }
         const metaDir = path.join(outputDir, 'cache', 'relations');
-        await fs.writeFile(path.join(metaDir, 'alt-meta.json.gz'), Buffer.from(rustResult.meta_data));
+        await fs.writeFile(path.join(metaDir, 'alt-meta.json.zst'), Buffer.from(rustResult.meta_data));
         console.log(`  [ALT-LINKER] Rust FFI: ${rustResult.total_relations} relations in ${Date.now() - startTime}ms`);
         return { totalRelations: rustResult.total_relations };
     }

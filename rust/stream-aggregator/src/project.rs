@@ -56,7 +56,7 @@ pub fn project_and_write(
 }
 
 /// Port of registry-loader.js projectEntity (slim mode)
-fn project_entity(e: &Value, fni_percentile: u8) -> Value {
+pub(crate) fn project_entity(e: &Value, fni_percentile: u8) -> Value {
     let description = get_description(e);
 
     json!({
@@ -126,6 +126,22 @@ fn nested_f64(e: &Value, direct: &[&str], nested_path: &[&str; 2]) -> f64 {
         .and_then(|v| v.get(nested_path[1]))
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0)
+}
+
+/// Full-mode projection for fusion — includes body_content and has_fulltext.
+pub(crate) fn project_entity_for_fusion(e: &Value, fni_percentile: u8) -> Value {
+    let mut base = project_entity(e, fni_percentile);
+    if let Some(bc) = e.get("body_content") {
+        base["body_content"] = bc.clone();
+    }
+    if let Some(hf) = e.get("has_fulltext") {
+        base["has_fulltext"] = hf.clone();
+    }
+    // Keep relations for downstream mesh building
+    if let Some(rels) = e.get("relations") {
+        base["relations"] = rels.clone();
+    }
+    base
 }
 
 /// Build description with fallback from readme/content/html_readme/body_content
