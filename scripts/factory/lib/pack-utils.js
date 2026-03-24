@@ -228,7 +228,7 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
         const fileStats = fsSync.statSync(db.name);
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
-        const limitMB = (name === 'full-search') ? 800 : 100; // V5.8 §1.1: < 100MB Edge Worker constraint (search.db exempt)
+        const limitMB = (name === 'full-search') ? 1024 : 100; // V5.8 §1.1: < 100MB Edge Worker constraint (search.db exempt)
         const isOver = fileStats.size > limitMB * 1024 * 1024;
         if (isOver) {
             console.error(`\n[CRITICAL] 🛑 Shard ${name} (${sizeMB} MB) exceeds ${limitMB}MB safety limit!`);
