@@ -19,12 +19,17 @@ const CONFIG = {
 /** Per-shard enrichment: download only what this shard needs (streaming). */
 async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPath) {
     // Read shard to find paper UMIDs that have enrichment
-    const { autoDecompress: ad } = await import('./lib/zstd-helper.js');
     let entities;
     try {
-        const raw = await fs.readFile(shardPath);
-        const parsed = JSON.parse((await ad(raw)).toString('utf-8'));
-        entities = parsed.entities || parsed || [];
+        if (shardPath.endsWith('.bin')) {
+            const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
+            entities = (await readBinaryShard(shardPath))?.entities || [];
+        } else {
+            const { autoDecompress: ad } = await import('./lib/zstd-helper.js');
+            const raw = await fs.readFile(shardPath);
+            const parsed = JSON.parse((await ad(raw)).toString('utf-8'));
+            entities = parsed.entities || parsed || [];
+        }
     } catch { return 0; }
     const needed = entities.filter(e => e.type === 'paper' && e.umid && enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
     if (!needed.length) return 0;
