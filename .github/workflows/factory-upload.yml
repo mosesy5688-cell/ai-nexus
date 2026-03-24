@@ -263,7 +263,7 @@ jobs:
           CACHE_DIR: ./output/cache
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           UMID_SALT: ${{ secrets.UMID_SALT }}
-          NODE_OPTIONS: '--max-old-space-size=8192 --expose-gc'
+          NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
         run: node scripts/factory/pack-db.js
       - name: Save Embedding Cache to Vault
         if: always()
