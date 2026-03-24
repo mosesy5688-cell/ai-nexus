@@ -16,17 +16,34 @@ const CONFIG = {
     OUTPUT_DIR: './output'
 };
 
-/** Pre-download enrichment files from R2 to local dir for Rust consumption. */
-async function preDownloadEnrichment(r2, enrichmentMap, enrichmentDir) {
-    let count = 0;
-    for (const [umid, key] of enrichmentMap) {
-        try {
+/** Per-shard enrichment: download only what this shard needs (streaming). */
+async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPath) {
+    // Read shard to find paper UMIDs that have enrichment
+    let entities;
+    try {
+        if (shardPath.endsWith('.bin')) {
+            const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
+            entities = (await readBinaryShard(shardPath))?.entities || [];
+        } else {
+            const { autoDecompress: ad } = await import('./lib/zstd-helper.js');
+            const raw = await fs.readFile(shardPath);
+            const parsed = JSON.parse((await ad(raw)).toString('utf-8'));
+            entities = parsed.entities || parsed || [];
+        }
+    } catch { return 0; }
+    const needed = entities.filter(e => e.type === 'paper' && e.umid && enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
+    if (!needed.length) return 0;
+    const CONCURRENCY = 20;
+    let ok = 0;
+    for (let i = 0; i < needed.length; i += CONCURRENCY) {
+        const batch = needed.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(batch.map(async ([umid, key]) => {
             const raw = await downloadBufferFromR2FFI(r2, key);
             await fs.writeFile(path.join(enrichmentDir, `${umid}.md.gz`), raw);
-            count++;
-        } catch { /* non-fatal: skip failed downloads */ }
+        }));
+        ok += results.filter(r => r.status === 'fulfilled').length;
     }
-    return count;
+    return ok;
 }
 
 /** JS fallback: process shard when Rust is unavailable. */
@@ -102,23 +119,21 @@ async function main() {
         }
     } catch { /* use defaults */ }
 
-    // Phase 3: Enrichment — scan R2 + pre-download for Rust
+    // Phase 3: Enrichment — scan R2 index only (download is per-shard in Phase 4)
     const enrichmentDir = path.join(CONFIG.CACHE_DIR, 'enrichment-local');
     await fs.mkdir(enrichmentDir, { recursive: true });
     let enrichmentMap = new Map();
     initR2Bridge();
     const r2 = createR2ClientFFI();
     if (r2) {
-        console.log('[FUSION] Phase 3: Scanning R2 enrichment...');
+        console.log('[FUSION] Phase 3: Scanning R2 enrichment index...');
         try {
             const etags = await fetchAllR2ETagsFFI(r2, ['enrichment/fulltext/']);
             for (const key of etags.keys()) {
                 const m = key.match(/enrichment\/fulltext\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.(?:gz|zst)$/);
                 if (m) enrichmentMap.set(m[1], key);
             }
-            console.log(`  [OK] ${enrichmentMap.size} enrichment files found`);
-            const dlCount = await preDownloadEnrichment(r2, enrichmentMap, enrichmentDir);
-            console.log(`  [OK] Pre-downloaded ${dlCount} for Rust fusion`);
+            console.log(`  [OK] ${enrichmentMap.size} enrichment files indexed (download deferred to per-shard)`);
         } catch (e) { console.warn(`  [WARN] Enrichment: ${e.message}`); }
     } else {
         console.log('[FUSION] Phase 3: No R2 credentials — skipping enrichment');
@@ -133,26 +148,38 @@ async function main() {
     const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
     await fs.mkdir(outDir, { recursive: true });
 
+    console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards...`);
+    let totalEnriched = 0;
     for (let i = 0; i < shardFiles.length; i++) {
         const shardPath = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
         const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.zst`);
+
+        // Per-shard enrichment download (streaming — only papers in this shard)
+        let dlCount = 0;
+        if (r2 && enrichmentMap.size > 0) {
+            dlCount = await downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPath);
+        }
 
         try {
             // V26.5: Rust fast path
             const result = fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outPath);
             if (result) {
-                console.log(`  [OK] Shard ${i}: ${result.entityCount} entities (Rust, ${result.enrichedCount} enriched)`);
-                continue;
+                totalEnriched += result.enrichedCount;
+                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${result.enrichedCount} enriched)`);
+            } else {
+                // JS fallback
+                const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, r2, i);
+                await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
+                    shardId: i, entities: fused, _ts: new Date().toISOString()
+                })));
+                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${fused.length} entities (JS)`);
             }
-            // JS fallback
-            const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, r2, i);
-            await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
-                shardId: i, entities: fused, _ts: new Date().toISOString()
-            })));
-            console.log(`  [OK] Shard ${i}: ${fused.length} entities (JS)`);
         } catch (e) {
             console.error(`  [FAIL] Shard ${i}: ${e.message}`);
         }
+        // Cleanup per-shard enrichment to avoid disk bloat
+        const files = await fs.readdir(enrichmentDir).catch(() => []);
+        await Promise.all(files.map(f => fs.unlink(path.join(enrichmentDir, f)).catch(() => {})));
         if (global.gc && i % 10 === 9) global.gc();
     }
 
