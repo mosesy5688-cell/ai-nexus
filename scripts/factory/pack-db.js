@@ -219,7 +219,7 @@ async function packDatabase() {
     console.log('[VFS] 📥 Recovering Top-30k vectors from search.db...');
     const readDb = new Database(SEARCH_DB_PATH, { readonly: true });
     const top30kStmt = readDb.prepare(
-        `SELECT id, slug, name, type, author, license, pipeline_tag, fni_score,
+        `SELECT id, slug, name, type, author, license, pipeline_tag, category, fni_score,
          downloads, stars, params_billions, context_length, last_modified, is_trending
          FROM entities ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 30000`
     );
