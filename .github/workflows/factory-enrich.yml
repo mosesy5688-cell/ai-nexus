@@ -14,11 +14,16 @@
 name: Factory 1.5 - Density Booster
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 on:
   workflow_dispatch:
+    inputs:
+      continuation_round:
+        description: 'Auto-continuation round (0=initial, max 3)'
+        required: false
+        default: '0'
 
 jobs:
   check-upstream:
@@ -118,31 +123,51 @@ jobs:
             --partition-start=${{ matrix.partition.start }} \
             --partition-end=${{ matrix.partition.end }}
 
-      # Upload updated dedup.db back to R2
-      - name: Sync Dedup Ledger to R2
+      - name: Upload Booster Stats
         if: always()
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: |
-          if [ -f "output/data/dedup.db" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-file output/data/dedup.db state/dedup.db
-          fi
+        uses: actions/upload-artifact@v4
+        with:
+          name: booster-stats-${{ matrix.partition.start }}
+          path: output/booster-stats-*.json
+          if-no-files-found: ignore
 
   summary:
     name: Enrichment Summary
     needs: enrich
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     if: always()
     steps:
-      - name: Summary
+      - uses: actions/checkout@v4
+      - name: Download All Stats
+        uses: actions/download-artifact@v4
+        with:
+          pattern: booster-stats-*
+          path: stats/
+          merge-multiple: true
+      - name: Aggregate and Decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "## Factory 1.5 - Density Booster Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Partitions: 16 parallel (00-ff)" >> $GITHUB_STEP_SUMMARY
-          echo "- Budget: 5000 papers/partition" >> $GITHUB_STEP_SUMMARY
-          echo "- Storage: R2 enrichment/fulltext/{partition}/{umid}.md.zst" >> $GITHUB_STEP_SUMMARY
-          echo "- Next: Fusion in Factory 3/4 Aggregate (T+1)" >> $GITHUB_STEP_SUMMARY
+          TOTAL_SUCCESS=0
+          TOTAL_REMAINING=0
+          for f in stats/booster-stats-*.json; do
+            [ -f "$f" ] || continue
+            S=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$f','utf-8')).success||0)")
+            R=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$f','utf-8')).remaining||0)")
+            TOTAL_SUCCESS=$((TOTAL_SUCCESS + S))
+            TOTAL_REMAINING=$((TOTAL_REMAINING + R))
+          done
+          ROUND=${{ inputs.continuation_round || 0 }}
+          MAX_ROUNDS=3
+          echo "## Factory 1.5 - Round $ROUND Complete" >> $GITHUB_STEP_SUMMARY
+          echo "- Total SUCCESS: $TOTAL_SUCCESS" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Remaining: $TOTAL_REMAINING" >> $GITHUB_STEP_SUMMARY
+          echo "📊 Round $ROUND/$MAX_ROUNDS | SUCCESS: $TOTAL_SUCCESS | Remaining: $TOTAL_REMAINING"
+          if [ "$TOTAL_SUCCESS" -gt 0 ] && [ "$ROUND" -lt "$MAX_ROUNDS" ]; then
+            NEXT=$((ROUND + 1))
+            echo "🔄 Round $ROUND had $TOTAL_SUCCESS successes. Dispatching round $NEXT..."
+            gh workflow run "Factory 1.5 - Density Booster" -f continuation_round=$NEXT && echo "✅ Round $NEXT dispatched" || echo "⚠️ Dispatch failed"
+          else
+            [ "$TOTAL_SUCCESS" -eq 0 ] && echo "✅ No new successes — all reachable papers collected." || echo "✅ Max rounds reached."
+          fi
