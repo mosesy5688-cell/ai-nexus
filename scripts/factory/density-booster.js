@@ -16,8 +16,9 @@ import { zstdCompress } from './lib/zstd-helper.js';
 // ── Config ──────────────────────────────────────────────
 const AR5IV_BASE = 'https://ar5iv.labs.arxiv.org/html';
 const S2_API = 'https://api.semanticscholar.org/graph/v1/paper';
-const RATE_LIMIT_MS = 5000;
+const RATE_LIMIT_MS = 3000;
 const FETCH_TIMEOUT_MS = 15000;
+const AR5IV_RETRY_DELAY_MS = 8000;
 const BUDGET = 5000;
 const MAX_RUNTIME_MS = 5 * 60 * 60 * 1000; // 5 hours
 const R2_BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
@@ -86,13 +87,12 @@ async function fetchAr5iv(arxivId) {
     }
 }
 
-let s2CallCount = 0;
+let s2CallCount = 0, s2QuotaWarned = false;
 
 async function fetchS2Fulltext(arxivId) {
     if (!arxivId) return null;
-    // V25.8.3 §2.1: Local quota guard — hard cap per runner
     if (s2CallCount >= S2_RUNNER_BUDGET) {
-        console.warn(`[BOOSTER] S2 quota exhausted (${s2CallCount}/${S2_RUNNER_BUDGET}). Skipping S2 fallback.`);
+        if (!s2QuotaWarned) { console.warn(`[BOOSTER] S2 quota exhausted (${S2_RUNNER_BUDGET}). Remaining papers rely on ar5iv only.`); s2QuotaWarned = true; }
         return null;
     }
     s2CallCount++;
@@ -156,8 +156,12 @@ async function main() {
 
         await rateLimitPause();
 
-        // Primary: ar5iv
-        const ar5ivResult = await fetchAr5iv(arxivId);
+        // Primary: ar5iv (with single retry on transient failure)
+        let ar5ivResult = await fetchAr5iv(arxivId);
+        if (ar5ivResult.type === 'FAILURE') {
+            await new Promise(r => setTimeout(r, AR5IV_RETRY_DELAY_MS));
+            ar5ivResult = await fetchAr5iv(arxivId);
+        }
         let result;
 
         if (ar5ivResult.type === 'HTML' && ar5ivResult.html) {
@@ -208,8 +212,9 @@ async function main() {
     // Mark enriched UMIDs in dedup ledger
     if (enrichedUmids.length > 0) markEnriched(enrichedUmids);
 
+    const remaining = workQueue.length - processed;
     console.log(`[BOOSTER] Complete: ${processed} processed | SUCCESS:${success} PARTIAL:${partial} SKIP:${skipped} FAIL:${failed}`);
-    console.log(`[BOOSTER] Runtime: ${((Date.now() - startTime) / 60000).toFixed(1)} minutes`);
+    console.log(`[BOOSTER] Runtime: ${((Date.now() - startTime) / 60000).toFixed(1)} minutes | Remaining: ${remaining}`);
 }
 
 main().catch(err => { console.error('[BOOSTER] Fatal:', err); process.exit(1); });

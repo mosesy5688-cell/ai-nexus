@@ -14,7 +14,7 @@
 name: Factory 1.5 - Density Booster
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 on:
@@ -146,3 +146,32 @@ jobs:
           echo "- Budget: 5000 papers/partition" >> $GITHUB_STEP_SUMMARY
           echo "- Storage: R2 enrichment/fulltext/{partition}/{umid}.md.zst" >> $GITHUB_STEP_SUMMARY
           echo "- Next: Fusion in Factory 3/4 Aggregate (T+1)" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm' }
+      - run: npm ci
+      - name: Auto-Continue (if work remains)
+        if: needs.enrich.result == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          DEDUP_DB_PATH: ./output/data/dedup.db
+        run: |
+          mkdir -p output/data
+          node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || exit 0
+          REMAINING=$(node --input-type=module -e "
+            import Database from 'better-sqlite3';
+            const db = new Database('./output/data/dedup.db', {readonly:true});
+            const c = db.prepare(\"SELECT COUNT(*) as c FROM ledger WHERE type='paper' AND has_fulltext=0 AND status='active'\").get().c;
+            db.close(); console.log(c);
+          " 2>/dev/null || echo "0")
+          echo "📊 Papers still needing enrichment: $REMAINING"
+          if [ "$REMAINING" -gt 1000 ]; then
+            echo "🔄 Dispatching continuation run..."
+            gh workflow run "Factory 1.5 - Density Booster" && echo "✅ Continuation dispatched" || echo "⚠️ Dispatch failed"
+          else
+            echo "✅ Enrichment substantially complete. No continuation needed."
+          fi
