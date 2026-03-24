@@ -215,6 +215,12 @@ async function main() {
     const remaining = workQueue.length - processed;
     console.log(`[BOOSTER] Complete: ${processed} processed | SUCCESS:${success} PARTIAL:${partial} SKIP:${skipped} FAIL:${failed}`);
     console.log(`[BOOSTER] Runtime: ${((Date.now() - startTime) / 60000).toFixed(1)} minutes | Remaining: ${remaining}`);
+
+    // Write stats for summary job aggregation
+    const statsPath = `output/booster-stats-${PARTITION_START}.json`;
+    const fsSync = await import('fs');
+    fsSync.default.mkdirSync('output', { recursive: true });
+    fsSync.default.writeFileSync(statsPath, JSON.stringify({ success, partial, skipped, failed, remaining }));
 }
 
 main().catch(err => { console.error('[BOOSTER] Fatal:', err); process.exit(1); });
