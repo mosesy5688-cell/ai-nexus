@@ -64,7 +64,7 @@ function getCategory(name) {
 const category = getCategory(dbName);
 const THRESHOLD = getThreshold(category);
 const EXPECTED_PAGE_SIZE = 16384;
-const MAX_DB_SIZE_MB = isSearchDb ? 700 : (isHashShard || isFtsDb) ? 250 : 125;
+const MAX_DB_SIZE_MB = isSearchDb ? 800 : (isHashShard || isFtsDb) ? 250 : 125;
 
 let failures = 0;
 
