@@ -72,10 +72,10 @@ async function main() {
 
     // V18.12.5.21: Late-Binding Toggle
     const lateBinding = process.env.FNI_LATE_BINDING !== 'false'; // Default to true
+    const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
 
     if (needsSlimming || lateBinding) {
         // V25.8.3: OOM fix — Rust streaming aggregator (primary) or JS disk staging (fallback)
-        const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
         const stagingPath = './output/.staging-fullset.ndjson';
         await fs.mkdir('./output', { recursive: true });
         const rustResult = streamAggregateFFI(shardDir, stagingPath);
@@ -157,7 +157,7 @@ async function main() {
     }
 
     const rankedEntities = fullSet;
-    const tasks = buildTaskList(rankedEntities, CONFIG.OUTPUT_DIR);
+    const tasks = buildTaskList(rankedEntities, CONFIG.OUTPUT_DIR, { shardDir });
 
     let taskFailures = 0;
     for (const task of tasks) {

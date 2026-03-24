@@ -1,4 +1,4 @@
-//! V25.8.3 Satellite Task Engines (Rust FFI)
+//! V26.5 Satellite Task Engines (Rust FFI)
 //!
 //! Five satellite task core computations via N-API:
 //! - Search indexing (core + sharded full index)
@@ -6,9 +6,9 @@
 //! - Knowledge linker (keyword matching)
 //! - Alt linker (Jaccard similarity)
 //! - Mesh graph (unified graph construction)
-
-use napi::bindgen_prelude::*;
-use napi_derive::napi;
+//!
+//! V26.5: Each function has a `_from_dir` variant that reads shard files
+//! directly via nxvf-core, eliminating JS Buffer transfer bottleneck.
 
 mod search_indexer;
 mod relations;

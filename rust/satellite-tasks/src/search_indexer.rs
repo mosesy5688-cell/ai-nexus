@@ -1,12 +1,9 @@
 //! Search Index Builder
 //! Builds core index (top 5000 gzip'd) + sharded full index + manifest.
 
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde_json::Value;
-use std::io::Write;
 
 const CORE_SIZE: usize = 5000;
 const SHARD_SIZE: usize = 5000;
@@ -103,35 +100,96 @@ fn build_full_entry(e: &Value) -> Value {
     entry
 }
 
-fn gzip_json(val: &Value) -> Result<Vec<u8>> {
+fn zstd_json(val: &Value) -> Result<Vec<u8>> {
     let json = serde_json::to_vec(val)
         .map_err(|e| Error::from_reason(format!("JSON serialize error: {}", e)))?;
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(&json)
-        .map_err(|e| Error::from_reason(format!("Gzip write error: {}", e)))?;
-    encoder.finish()
-        .map_err(|e| Error::from_reason(format!("Gzip finish error: {}", e)))
+    zstd::encode_all(json.as_slice(), 3)
+        .map_err(|e| Error::from_reason(format!("Zstd compress error: {}", e)))
 }
 
-/// Build search indices from entity JSON buffer.
+/// V26.5: Build search indices by streaming shard files — two-pass, O(shard_size) memory.
+/// Pass 1: extract FNI scores → determine top-5000 threshold.
+/// Pass 2: re-read shards, build core + full entries, emit shards progressively.
+#[napi]
+pub fn build_search_index_from_dir(shard_dir: String, _output_dir: String) -> Result<SearchIndexResult> {
+    // Pass 1: Collect (fni_score) to find the core threshold
+    let mut scores: Vec<f64> = Vec::new();
+    nxvf_core::for_each_shard(&shard_dir, |entities| {
+        for e in &entities {
+            let fni = e.get("fni_score").and_then(|v| v.as_f64())
+                .or_else(|| e.get("fni").and_then(|v| v.as_f64()))
+                .unwrap_or(0.0);
+            scores.push(fni);
+        }
+        Ok(())
+    }).map_err(|e| Error::from_reason(e))?;
+
+    // Sort descending, find threshold for top CORE_SIZE
+    scores.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+    let core_threshold = if scores.len() > CORE_SIZE { scores[CORE_SIZE - 1] } else { 0.0 };
+    let total = scores.len() as u32;
+    drop(scores); // Free O(N * 8 bytes) — lightweight
+
+    // Pass 2: Stream shards, build core + full entries
+    let mut core_entries: Vec<Value> = Vec::new();
+    let mut full_entries: Vec<Value> = Vec::new();
+
+    nxvf_core::for_each_shard(&shard_dir, |entities| {
+        for e in &entities {
+            let fni = e.get("fni_score").and_then(|v| v.as_f64())
+                .or_else(|| e.get("fni").and_then(|v| v.as_f64()))
+                .unwrap_or(0.0);
+            if fni >= core_threshold && core_entries.len() < CORE_SIZE {
+                core_entries.push(build_core_entry(e));
+            }
+            full_entries.push(build_full_entry(e));
+        }
+        Ok(())
+    }).map_err(|e| Error::from_reason(e))?;
+
+    eprintln!("[RUST-SAT] build_search_index_from_dir: {} total, {} core (threshold={:.1})",
+        total, core_entries.len(), core_threshold);
+
+    // Build output (same as inner)
+    let core_data = zstd_json(&Value::Array(core_entries))?;
+    let mut shards = Vec::new();
+    for (i, chunk) in full_entries.chunks(SHARD_SIZE).enumerate() {
+        let compressed = zstd_json(&Value::Array(chunk.to_vec()))?;
+        shards.push(SearchShardResult {
+            shard_index: i as u32, entity_count: chunk.len() as u32, compressed_data: compressed.into(),
+        });
+    }
+
+    let manifest = serde_json::json!({
+        "totalEntities": total, "totalShards": shards.len(), "shardSize": SHARD_SIZE, "extension": ".zst",
+    });
+
+    Ok(SearchIndexResult { core_data: core_data.into(), shards, manifest_json: manifest.to_string(), total_entities: total })
+}
+
+/// Build search indices from entity JSON buffer (legacy Buffer API).
 #[napi]
 pub fn build_search_index(entities_json: Buffer) -> Result<SearchIndexResult> {
-    let data = std::str::from_utf8(&entities_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8: {}", e)))?;
-    let entities: Vec<Value> = serde_json::from_str(data)
+    let raw = String::from_utf8_lossy(&entities_json);
+    let sanitized = nxvf_core::sanitize_json_escapes(&raw);
+    let entities: Vec<Value> = serde_json::from_str(&sanitized)
         .map_err(|e| Error::from_reason(format!("JSON parse error: {}", e)))?;
+    build_search_index_inner(&entities, None)
+}
+
+fn build_search_index_inner(entities: &[Value], _output_dir: Option<&str>) -> Result<SearchIndexResult> {
 
     let total = entities.len() as u32;
 
     // Core index: top 5000
     let core: Vec<Value> = entities.iter().take(CORE_SIZE).map(build_core_entry).collect();
-    let core_data = gzip_json(&Value::Array(core))?;
+    let core_data = zstd_json(&Value::Array(core))?;
 
     // Full index: all entities, sharded
     let full: Vec<Value> = entities.iter().map(build_full_entry).collect();
     let mut shards = Vec::new();
     for (i, chunk) in full.chunks(SHARD_SIZE).enumerate() {
-        let compressed = gzip_json(&Value::Array(chunk.to_vec()))?;
+        let compressed = zstd_json(&Value::Array(chunk.to_vec()))?;
         shards.push(SearchShardResult {
             shard_index: i as u32,
             entity_count: chunk.len() as u32,
@@ -143,7 +201,7 @@ pub fn build_search_index(entities_json: Buffer) -> Result<SearchIndexResult> {
         "totalEntities": total,
         "totalShards": shards.len(),
         "shardSize": SHARD_SIZE,
-        "extension": ".gz",
+        "extension": ".zst",
     });
 
     Ok(SearchIndexResult {

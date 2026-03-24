@@ -1,13 +1,10 @@
 //! Knowledge Linker V25.8
 //! Links entities to knowledge articles via keyword matching.
 
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::io::Write;
 
 #[napi(object)]
 pub struct KnowledgeLinkerResult {
@@ -122,18 +119,54 @@ fn extract_knowledge_links(entity: &Value) -> Vec<(String, i64)> {
         .collect()
 }
 
-/// Link entities to knowledge articles via keyword matching.
+/// V26.5: Compute knowledge links by streaming shard files — O(shard_size) memory.
 #[napi]
-pub fn compute_knowledge_links(entities_json: Buffer) -> Result<KnowledgeLinkerResult> {
-    let data = std::str::from_utf8(&entities_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8: {}", e)))?;
-    let entities: Vec<Value> = serde_json::from_str(data)
-        .map_err(|e| Error::from_reason(format!("JSON parse error: {}", e)))?;
-
+pub fn compute_knowledge_links_from_dir(shard_dir: String, _output_dir: String) -> Result<KnowledgeLinkerResult> {
+    // Accumulate only the lightweight link results, not the full entities
     let mut all_links: Vec<Value> = Vec::new();
     let mut stats: HashMap<String, u32> = HashMap::new();
 
-    for entity in &entities {
+    let total = nxvf_core::for_each_shard(&shard_dir, |entities| {
+        for entity in &entities {
+            let id = str_val(entity, "id");
+            let etype = {
+                let t = str_val(entity, "type");
+                if t.is_empty() { "model".to_string() } else { t }
+            };
+            let links = extract_knowledge_links(entity);
+            if links.is_empty() { continue; }
+
+            let knowledge: Vec<Value> = links.iter().map(|(slug, conf)| {
+                *stats.entry(slug.clone()).or_insert(0) += 1;
+                serde_json::json!({ "slug": slug, "confidence": conf })
+            }).collect();
+
+            all_links.push(serde_json::json!({
+                "entity_id": id, "entity_type": etype, "knowledge": knowledge,
+            }));
+        }
+        Ok(())
+    }).map_err(|e| Error::from_reason(e))?;
+
+    eprintln!("[RUST-SAT] compute_knowledge_links_from_dir: streamed {} entities, {} links", total, all_links.len());
+    build_knowledge_output(all_links, stats)
+}
+
+/// Link entities to knowledge articles via keyword matching (legacy Buffer API).
+#[napi]
+pub fn compute_knowledge_links(entities_json: Buffer) -> Result<KnowledgeLinkerResult> {
+    let raw = String::from_utf8_lossy(&entities_json);
+    let sanitized = nxvf_core::sanitize_json_escapes(&raw);
+    let entities: Vec<Value> = serde_json::from_str(&sanitized)
+        .map_err(|e| Error::from_reason(format!("JSON parse error: {}", e)))?;
+    compute_knowledge_links_inner(&entities)
+}
+
+fn compute_knowledge_links_inner(entities: &[Value]) -> Result<KnowledgeLinkerResult> {
+    let mut all_links: Vec<Value> = Vec::new();
+    let mut stats: HashMap<String, u32> = HashMap::new();
+
+    for entity in entities {
         let id = str_val(entity, "id");
         let etype = {
             let t = str_val(entity, "type");
@@ -148,12 +181,13 @@ pub fn compute_knowledge_links(entities_json: Buffer) -> Result<KnowledgeLinkerR
         }).collect();
 
         all_links.push(serde_json::json!({
-            "entity_id": id,
-            "entity_type": etype,
-            "knowledge": knowledge,
+            "entity_id": id, "entity_type": etype, "knowledge": knowledge,
         }));
     }
+    build_knowledge_output(all_links, stats)
+}
 
+fn build_knowledge_output(all_links: Vec<Value>, stats: HashMap<String, u32>) -> Result<KnowledgeLinkerResult> {
     // Build inverse links (max 20 per knowledge node, sorted by confidence desc)
     let mut inverse: HashMap<String, Vec<Value>> = HashMap::new();
     for link in &all_links {
@@ -166,47 +200,30 @@ pub fn compute_knowledge_links(entities_json: Buffer) -> Result<KnowledgeLinkerR
                 let entries = inverse.entry(slug.to_string()).or_default();
                 if entries.len() < 20 {
                     entries.push(serde_json::json!({
-                        "entity_id": eid,
-                        "entity_type": etype,
-                        "confidence": conf,
+                        "entity_id": eid, "entity_type": etype, "confidence": conf,
                     }));
                 }
             }
         }
     }
-    // Sort each inverse list by confidence desc
     for entries in inverse.values_mut() {
         entries.sort_by(|a, b| {
-            let ca = a["confidence"].as_i64().unwrap_or(0);
-            let cb = b["confidence"].as_i64().unwrap_or(0);
-            cb.cmp(&ca)
+            b["confidence"].as_i64().unwrap_or(0).cmp(&a["confidence"].as_i64().unwrap_or(0))
         });
     }
 
     let inverse_hubs = inverse.len() as u32;
     let total_links = all_links.len() as u32;
-
     let output = serde_json::json!({
-        "_v": "25.8",
-        "_ts": "auto",
-        "_count": total_links,
+        "_v": "25.8", "_ts": "auto", "_count": total_links,
         "_keywords": KNOWLEDGE_KEYWORDS.len(),
-        "stats": stats,
-        "links": all_links,
-        "inverseLinks": inverse,
+        "stats": stats, "links": all_links, "inverseLinks": inverse,
     });
 
     let json_bytes = serde_json::to_vec(&output)
         .map_err(|e| Error::from_reason(format!("Serialize error: {}", e)))?;
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(&json_bytes)
-        .map_err(|e| Error::from_reason(format!("Gzip write error: {}", e)))?;
-    let compressed = encoder.finish()
-        .map_err(|e| Error::from_reason(format!("Gzip finish error: {}", e)))?;
+    let compressed = zstd::encode_all(json_bytes.as_slice(), 3)
+        .map_err(|e| Error::from_reason(format!("Zstd compress error: {}", e)))?;
 
-    Ok(KnowledgeLinkerResult {
-        output_data: compressed.into(),
-        total_links,
-        inverse_hubs,
-    })
+    Ok(KnowledgeLinkerResult { output_data: compressed.into(), total_links, inverse_hubs })
 }

@@ -1,13 +1,10 @@
 //! Mesh Graph Builder
 //! Builds unified mesh graph from relations + knowledge links + reports.
 
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 
 #[napi(object)]
 pub struct MeshGraphResult {
@@ -30,20 +27,72 @@ fn get_node_type(id: &str) -> &str {
     "unknown"
 }
 
-fn gzip_bytes(data: &[u8]) -> Result<Vec<u8>> {
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(data)
-        .map_err(|e| Error::from_reason(format!("Gzip write error: {}", e)))?;
-    encoder.finish()
-        .map_err(|e| Error::from_reason(format!("Gzip finish error: {}", e)))
+fn zstd_bytes(data: &[u8]) -> Result<Vec<u8>> {
+    zstd::encode_all(data, 3)
+        .map_err(|e| Error::from_reason(format!("Zstd compress error: {}", e)))
 }
 
-/// Build unified mesh graph from relations + knowledge links.
+/// V26.5: Build mesh graph by reading input files directly from disk.
+#[napi]
+pub fn build_mesh_graph_from_files(
+    explicit_path: String,
+    knowledge_links_path: String,
+    reports_path: String,
+    output_dir: String,
+) -> Result<MeshGraphResult> {
+    let explicit_val = nxvf_core::load_json_file(&explicit_path).ok();
+    let kl_val = nxvf_core::load_json_file(&knowledge_links_path).ok();
+    let rep_val = nxvf_core::load_json_file(&reports_path).ok();
+
+    eprintln!("[RUST-SAT] build_mesh_graph_from_files: explicit={}, knowledge={}, reports={}",
+        explicit_val.is_some(), kl_val.is_some(), rep_val.is_some());
+
+    build_mesh_graph_inner(
+        explicit_val.as_ref(),
+        kl_val.as_ref(),
+        rep_val.as_ref(),
+        Some(&output_dir),
+    )
+}
+
+/// Build unified mesh graph from relations + knowledge links (legacy Buffer API).
 #[napi]
 pub fn build_mesh_graph(
     explicit_json: Buffer,
     knowledge_links_json: Buffer,
     reports_json: Buffer,
+) -> Result<MeshGraphResult> {
+    let explicit_val = if !explicit_json.is_empty() {
+        let raw = String::from_utf8_lossy(&explicit_json);
+        let sanitized = nxvf_core::sanitize_json_escapes(&raw);
+        serde_json::from_str(&sanitized).ok()
+    } else { None };
+
+    let kl_val = if !knowledge_links_json.is_empty() {
+        let raw = String::from_utf8_lossy(&knowledge_links_json);
+        let sanitized = nxvf_core::sanitize_json_escapes(&raw);
+        serde_json::from_str(&sanitized).ok()
+    } else { None };
+
+    let rep_val = if !reports_json.is_empty() {
+        let raw = String::from_utf8_lossy(&reports_json);
+        let sanitized = nxvf_core::sanitize_json_escapes(&raw);
+        serde_json::from_str(&sanitized).ok()
+    } else { None };
+
+    build_mesh_graph_inner(
+        explicit_val.as_ref(),
+        kl_val.as_ref(),
+        rep_val.as_ref(),
+        None,
+    )
+}
+
+fn build_mesh_graph_inner(
+    explicit_val: Option<&Value>,
+    kl_val: Option<&Value>,
+    rep_val: Option<&Value>,
+    _output_dir: Option<&str>,
 ) -> Result<MeshGraphResult> {
     let mut nodes: HashMap<String, Value> = HashMap::new();
     let mut edges: HashMap<String, Vec<Value>> = HashMap::new();
@@ -52,11 +101,7 @@ pub fn build_mesh_graph(
     let mut node_type_counts: HashMap<String, u32> = HashMap::new();
 
     // 1. Parse explicit relations
-    let explicit_str = std::str::from_utf8(&explicit_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8 explicit: {}", e)))?;
-    if !explicit_str.is_empty() {
-        let explicit: Value = serde_json::from_str(explicit_str)
-            .map_err(|e| Error::from_reason(format!("Explicit JSON parse error: {}", e)))?;
+    if let Some(explicit) = explicit_val {
 
         // Import nodes
         if let Some(n) = explicit.get("nodes").and_then(|v| v.as_object()) {
@@ -89,12 +134,7 @@ pub fn build_mesh_graph(
     }
 
     // 2. Parse knowledge links -> add EXPLAINS edges
-    let kl_str = std::str::from_utf8(&knowledge_links_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8 knowledge: {}", e)))?;
-    if !kl_str.is_empty() {
-        let kl: Value = serde_json::from_str(kl_str)
-            .map_err(|e| Error::from_reason(format!("Knowledge JSON parse error: {}", e)))?;
-
+    if let Some(kl) = kl_val {
         if let Some(links) = kl.get("links").and_then(|v| v.as_array()) {
             for link in links {
                 let entity_id = link.get("entity_id").and_then(|v| v.as_str()).unwrap_or("");
@@ -131,37 +171,33 @@ pub fn build_mesh_graph(
     }
 
     // 3. Parse reports -> add FEATURED_IN edges
-    let rep_str = std::str::from_utf8(&reports_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8 reports: {}", e)))?;
-    if !rep_str.is_empty() {
-        if let Ok(reports) = serde_json::from_str::<Value>(rep_str) {
-            if let Some(items) = reports.as_array() {
-                for report in items {
-                    let report_id = report.get("id").and_then(|v| v.as_str())
-                        .or_else(|| report.get("slug").and_then(|v| v.as_str()));
-                    let report_id = match report_id {
-                        Some(id) => format!("report--{}", id),
-                        None => continue,
-                    };
-                    nodes.entry(report_id.clone()).or_insert_with(|| {
-                        serde_json::json!({ "t": "report", "f": 0.0 })
-                    });
-                    if let Some(featured) = report.get("entities").and_then(|v| v.as_array()) {
-                        for eid in featured {
-                            let eid = match eid.as_str() { Some(s) => s, None => continue };
-                            let key = (eid.to_string(), report_id.clone());
-                            if seen_edges.insert(key) {
-                                nodes.entry(eid.to_string()).or_insert_with(|| {
-                                    serde_json::json!({
-                                        "t": get_node_type(eid),
-                                        "f": 0.0,
-                                    })
-                                });
-                                let edge = serde_json::json!([report_id, "FEATURED_IN", 80]);
-                                edges.entry(eid.to_string()).or_default().push(edge);
-                                *edge_type_counts.entry("FEATURED_IN".to_string())
-                                    .or_insert(0) += 1;
-                            }
+    if let Some(reports) = rep_val {
+        if let Some(items) = reports.as_array() {
+            for report in items {
+                let report_id = report.get("id").and_then(|v| v.as_str())
+                    .or_else(|| report.get("slug").and_then(|v| v.as_str()));
+                let report_id = match report_id {
+                    Some(id) => format!("report--{}", id),
+                    None => continue,
+                };
+                nodes.entry(report_id.clone()).or_insert_with(|| {
+                    serde_json::json!({ "t": "report", "f": 0.0 })
+                });
+                if let Some(featured) = report.get("entities").and_then(|v| v.as_array()) {
+                    for eid in featured {
+                        let eid = match eid.as_str() { Some(s) => s, None => continue };
+                        let key = (eid.to_string(), report_id.clone());
+                        if seen_edges.insert(key) {
+                            nodes.entry(eid.to_string()).or_insert_with(|| {
+                                serde_json::json!({
+                                    "t": get_node_type(eid),
+                                    "f": 0.0,
+                                })
+                            });
+                            let edge = serde_json::json!([report_id, "FEATURED_IN", 80]);
+                            edges.entry(eid.to_string()).or_default().push(edge);
+                            *edge_type_counts.entry("FEATURED_IN".to_string())
+                                .or_insert(0) += 1;
                         }
                     }
                 }
@@ -196,8 +232,8 @@ pub fn build_mesh_graph(
         .map_err(|e| Error::from_reason(format!("Serialize error: {}", e)))?;
 
     Ok(MeshGraphResult {
-        graph_data: gzip_bytes(&graph_bytes)?.into(),
-        stats_data: gzip_bytes(&stats_bytes)?.into(),
+        graph_data: zstd_bytes(&graph_bytes)?.into(),
+        stats_data: zstd_bytes(&stats_bytes)?.into(),
         node_count,
         edge_count: total_edges,
     })

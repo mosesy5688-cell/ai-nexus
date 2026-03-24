@@ -1,14 +1,11 @@
 //! Relations Graph Builder
 //! Builds V14.5.2 adjacency format from pre-extracted nodes and relations.
 
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::io::Write;
 
 #[napi(object)]
 pub struct RelationsResult {
@@ -33,30 +30,55 @@ struct RawRelation {
     confidence: f64,
 }
 
-fn gzip_bytes(data: &[u8]) -> Result<Vec<u8>> {
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(data)
-        .map_err(|e| Error::from_reason(format!("Gzip write error: {}", e)))?;
-    encoder.finish()
-        .map_err(|e| Error::from_reason(format!("Gzip finish error: {}", e)))
+fn zstd_bytes(data: &[u8]) -> Result<Vec<u8>> {
+    zstd::encode_all(data, 3)
+        .map_err(|e| Error::from_reason(format!("Zstd compress error: {}", e)))
 }
 
-/// Build relations graph from pre-extracted nodes and relations.
+/// V26.5: Build relations graph by reading pre-built nodes/relations from files.
+/// The JS side still extracts relations (as it loads daily reports etc.),
+/// but writes them to disk so Rust can read them without Buffer transfer.
+#[napi]
+pub fn build_relations_graph_from_files(
+    nodes_path: String,
+    relations_path: String,
+    _output_dir: String,
+) -> Result<RelationsResult> {
+    let nodes_data = nxvf_core::load_json_file(&nodes_path)
+        .map_err(|e| Error::from_reason(e))?;
+    let rels_data = nxvf_core::load_json_file(&relations_path)
+        .map_err(|e| Error::from_reason(e))?;
+
+    let nodes: HashMap<String, NodeInfo> = serde_json::from_value(nodes_data)
+        .map_err(|e| Error::from_reason(format!("Nodes parse error: {}", e)))?;
+    let relations: Vec<RawRelation> = serde_json::from_value(rels_data)
+        .map_err(|e| Error::from_reason(format!("Relations parse error: {}", e)))?;
+
+    eprintln!("[RUST-SAT] build_relations_graph_from_files: {} nodes, {} relations", nodes.len(), relations.len());
+    build_relations_inner(nodes, relations)
+}
+
+/// Build relations graph from pre-extracted nodes and relations (legacy Buffer API).
 /// JS handles extractEntityRelations(); Rust builds the graph + gzip.
 #[napi]
 pub fn build_relations_graph(
     nodes_json: Buffer,
     relations_json: Buffer,
 ) -> Result<RelationsResult> {
-    let nodes_str = std::str::from_utf8(&nodes_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8 nodes: {}", e)))?;
-    let rels_str = std::str::from_utf8(&relations_json)
-        .map_err(|e| Error::from_reason(format!("Invalid UTF-8 relations: {}", e)))?;
+    let nodes_raw = String::from_utf8_lossy(&nodes_json);
+    let nodes_str = nxvf_core::sanitize_json_escapes(&nodes_raw);
+    let rels_raw = String::from_utf8_lossy(&relations_json);
+    let rels_str = nxvf_core::sanitize_json_escapes(&rels_raw);
 
-    let nodes: HashMap<String, NodeInfo> = serde_json::from_str(nodes_str)
+    let nodes: HashMap<String, NodeInfo> = serde_json::from_str(&nodes_str)
         .map_err(|e| Error::from_reason(format!("Nodes JSON parse error: {}", e)))?;
-    let relations: Vec<RawRelation> = serde_json::from_str(rels_str)
+    let relations: Vec<RawRelation> = serde_json::from_str(&rels_str)
         .map_err(|e| Error::from_reason(format!("Relations JSON parse error: {}", e)))?;
+
+    build_relations_inner(nodes, relations)
+}
+
+fn build_relations_inner(nodes: HashMap<String, NodeInfo>, relations: Vec<RawRelation>) -> Result<RelationsResult> {
 
     // Build V14.5.2 explicit adjacency format
     // nodes: { id: { t, f } }
@@ -148,8 +170,8 @@ pub fn build_relations_graph(
         .map_err(|e| Error::from_reason(format!("Serialize error: {}", e)))?;
 
     Ok(RelationsResult {
-        explicit_json: gzip_bytes(&explicit_bytes)?.into(),
-        legacy_json: gzip_bytes(&legacy_bytes)?.into(),
+        explicit_json: zstd_bytes(&explicit_bytes)?.into(),
+        legacy_json: zstd_bytes(&legacy_bytes)?.into(),
         total_relations,
     })
 }

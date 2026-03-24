@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "nxvf-core",
     "shard-router",
     "fni-calc",
     "mesh-engine",

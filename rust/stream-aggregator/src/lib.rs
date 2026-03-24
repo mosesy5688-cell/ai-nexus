@@ -1,10 +1,9 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::fs;
-use std::io::{BufReader, BufWriter, Read, Write};
-use flate2::read::GzDecoder;
+use std::io::{BufReader, BufWriter, Write};
 
-mod nxvf;
+mod fusion;
 mod percentile;
 mod project;
 
@@ -41,56 +40,9 @@ pub fn stream_aggregate(shard_dir: String, output_path: String) -> Result<Aggreg
     })
 }
 
-/// Discover shard files with format priority: .bin > .json.gz > .json
-/// Prevents duplicate entities when stale legacy files coexist with binary shards.
+/// Discover shard files — delegates to nxvf-core.
 fn discover_shards(dir: &str) -> Result<Vec<String>> {
-    use std::collections::BTreeMap;
-
-    // Map shard index (e.g. "part-000") → (priority, full_path)
-    // Lower priority number = preferred format
-    let mut shard_map: BTreeMap<String, (u8, String)> = BTreeMap::new();
-
-    let entries = fs::read_dir(dir)
-        .map_err(|e| Error::from_reason(format!("Cannot read shard dir: {}", e)))?;
-
-    for entry in entries.filter_map(|e| e.ok()) {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if !name.starts_with("part-") {
-            continue;
-        }
-
-        let priority = if name.ends_with(".bin") {
-            0u8
-        } else if name.ends_with(".json.gz") {
-            1
-        } else if name.ends_with(".json") {
-            2
-        } else {
-            continue;
-        };
-
-        let index = name.split('.').next().unwrap_or("").to_string();
-        let path = entry.path().to_string_lossy().to_string();
-
-        let dominated = match shard_map.get(&index) {
-            Some((existing, _)) => priority < *existing,
-            None => true,
-        };
-        if dominated {
-            shard_map.insert(index, (priority, path));
-        }
-    }
-
-    let files: Vec<String> = shard_map.into_values().map(|(_, p)| p).collect();
-    let bin_count = files.iter().filter(|f| f.ends_with(".bin")).count();
-    let gz_count = files.len() - bin_count;
-    eprintln!(
-        "[RUST-STREAM] Discovered {} shards ({} binary, {} json.gz/json)",
-        files.len(),
-        bin_count,
-        gz_count
-    );
-    Ok(files)
+    nxvf_core::discover_shards(dir).map_err(|e| Error::from_reason(e))
 }
 
 fn extract_scores(files: &[String]) -> Result<Vec<(String, f64)>> {
@@ -120,39 +72,7 @@ fn extract_scores(files: &[String]) -> Result<Vec<(String, f64)>> {
 }
 
 pub(crate) fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>> {
-    // V25.8.3: Route .bin shards to native NXVF decoder (AES-CTR + Zstd)
-    if path.ends_with(".bin") {
-        return nxvf::read_binary_shard(path);
-    }
-
-    let file = fs::File::open(path)
-        .map_err(|e| Error::from_reason(format!("Cannot open {}: {}", path, e)))?;
-
-    // Read entire file to string, then sanitize malformed \u escapes before parsing.
-    // JS JSON.stringify can produce \uXXXX sequences that serde_json rejects
-    // (e.g. lone surrogates \uD800-\uDFFF, or truncated escapes near buffer boundaries).
-    let mut raw = String::new();
-    if path.ends_with(".gz") {
-        let mut decoder = GzDecoder::new(BufReader::new(file));
-        decoder.read_to_string(&mut raw)
-            .map_err(|e| Error::from_reason(format!("Decompress error in {}: {}", path, e)))?;
-    } else {
-        BufReader::new(file).read_to_string(&mut raw)
-            .map_err(|e| Error::from_reason(format!("Read error in {}: {}", path, e)))?;
-    }
-
-    let sanitized = sanitize_json_escapes(&raw);
-    let data: serde_json::Value = serde_json::from_str(&sanitized)
-        .map_err(|e| Error::from_reason(format!("JSON parse error in {}: {}", path, e)))?;
-
-    // Handle both { "entities": [...] } and [...] formats
-    if let Some(arr) = data.as_array() {
-        Ok(arr.clone())
-    } else if let Some(entities) = data.get("entities").and_then(|v| v.as_array()) {
-        Ok(entities.clone())
-    } else {
-        Ok(vec![data])
-    }
+    nxvf_core::load_shard_entities(path).map_err(|e| Error::from_reason(e))
 }
 
 /// V55.9: Streaming file compression with O(1) memory via zstd::Encoder.
@@ -220,58 +140,3 @@ pub fn zstd_decompress_buffer(data: Buffer) -> Result<Buffer> {
     Ok(Buffer::from(decompressed))
 }
 
-/// Fix malformed \uXXXX escape sequences that JS serializers can produce.
-/// Replaces incomplete \u escapes (fewer than 4 hex digits) with \uFFFD (replacement char).
-pub(crate) fn sanitize_json_escapes(input: &str) -> String {
-    let bytes = input.as_bytes();
-    let len = bytes.len();
-    let mut result = Vec::with_capacity(len);
-    let mut i = 0;
-
-    let mut in_string = false;
-    let mut escaped = false;
-
-    while i < len {
-        let b = bytes[i];
-        if escaped {
-            // Previous char was \, this char is the escape type
-            result.push(b);
-            if b == b'u' && in_string {
-                // \u found inside string — check for 4 hex digits
-                if i + 4 < len && bytes[i + 1..i + 5].iter().all(|c| c.is_ascii_hexdigit()) {
-                    result.extend_from_slice(&bytes[i + 1..i + 5]);
-                    i += 5;
-                } else {
-                    // Malformed — replace: overwrite the 'u' with uFFFD
-                    let u_pos = result.len() - 1;
-                    result[u_pos] = b'u';
-                    result.extend_from_slice(b"FFFD");
-                    // Skip any partial hex digits
-                    i += 1;
-                    while i < len && bytes[i].is_ascii_hexdigit() {
-                        i += 1;
-                    }
-                }
-            } else {
-                i += 1;
-            }
-            escaped = false;
-            continue;
-        }
-        if b == b'"' && in_string {
-            in_string = false;
-        } else if b == b'"' {
-            in_string = true;
-        } else if b == b'\\' && in_string {
-            escaped = true;
-            result.push(b);
-            i += 1;
-            continue;
-        }
-        result.push(b);
-        i += 1;
-    }
-
-    // Safe: we only replaced ASCII sequences, preserving valid UTF-8
-    String::from_utf8(result).unwrap_or_else(|_| input.to_string())
-}

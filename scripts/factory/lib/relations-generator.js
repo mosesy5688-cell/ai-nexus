@@ -12,7 +12,7 @@ import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { extractEntityRelations } from './relation-extractors.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
-import { buildRelationsGraphFFI } from './rust-bridge.js';
+import { buildRelationsGraphFromFilesFFI, buildRelationsGraphFFI } from './rust-bridge.js';
 
 // Relation statistics template
 const RELATION_STATS = {
@@ -115,13 +115,25 @@ export async function generateRelations(entities, outputDir = './output') {
         }
     }
 
-    // V25.8.3: Try Rust FFI for graph building + gzip (may fail on large data sets)
+    // V26.5: Try Rust file-based graph building first (no V8 string limit)
     let rustResult = null;
-    try { rustResult = buildRelationsGraphFFI(Buffer.from(JSON.stringify(nodes)), Buffer.from(JSON.stringify(allRelations))); }
-    catch (e) { console.warn(`[RELATIONS] Rust FFI skipped (${e.message}). Using JS path.`); }
+    try {
+        const { zstdCompress } = await import('./zstd-helper.js');
+        const nodesPath = path.join(relationsDir, '_tmp-nodes.json.zst');
+        const relsPath = path.join(relationsDir, '_tmp-relations.json.zst');
+        await fs.writeFile(nodesPath, await zstdCompress(JSON.stringify(nodes)));
+        await fs.writeFile(relsPath, await zstdCompress(JSON.stringify(allRelations)));
+        rustResult = buildRelationsGraphFromFilesFFI(nodesPath, relsPath, relationsDir);
+        await fs.unlink(nodesPath).catch(() => {});
+        await fs.unlink(relsPath).catch(() => {});
+    } catch (e) { console.warn(`[RELATIONS] Rust file FFI skipped (${e.message}).`); }
+    if (!rustResult) {
+        try { rustResult = buildRelationsGraphFFI(Buffer.from(JSON.stringify(nodes)), Buffer.from(JSON.stringify(allRelations))); }
+        catch (e) { console.warn(`[RELATIONS] Rust Buffer FFI skipped (${e.message}). Using JS path.`); }
+    }
     if (rustResult?.explicit_json && rustResult?.legacy_json) {
-        await fs.writeFile(path.join(relationsDir, 'explicit.json.gz'), Buffer.from(rustResult.explicit_json));
-        const legacyPath = path.join(cacheDir, 'relations.json.gz');
+        await fs.writeFile(path.join(relationsDir, 'explicit.json.zst'), Buffer.from(rustResult.explicit_json));
+        const legacyPath = path.join(cacheDir, 'relations.json.zst');
         await fs.writeFile(legacyPath, Buffer.from(rustResult.legacy_json));
         console.log(`  [RELATIONS] Rust FFI: ${rustResult.total_relations} relations`);
     } else {
