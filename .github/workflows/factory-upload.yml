@@ -271,6 +271,20 @@ jobs:
         with:
           path: output/cache/embedding-cache.db
           key: embedding-cache-v1-${{ github.run_id }}
+      - name: Backup Embedding Cache to R2
+        if: always()
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ -f "output/cache/embedding-cache.db" ]; then
+            node scripts/factory/r2-workflow-cli.js upload-file output/cache/embedding-cache.db state/embedding-cache.db
+            echo "[R2] Embedding cache backed up to R2 state"
+          else
+            echo "::warning::No embedding-cache.db to back up to R2"
+          fi
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/search.db --out=output
       - name: V23.1 SQL Health Check
@@ -594,23 +608,10 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "output/data/dedup.db" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-buffer output/data/dedup.db state/dedup.db --content-type=application/x-sqlite3
+            node scripts/factory/r2-workflow-cli.js upload-file output/data/dedup.db state/dedup.db
           fi
         continue-on-error: true
-      - name: Upload Embedding Cache to R2 State
-        if: always()
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: |
-          if [ -f "output/cache/embedding-cache.db" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/embedding-cache.db state/embedding-cache.db --content-type=application/x-sqlite3
-            echo "[R2] Embedding cache backed up to R2 state"
-          else
-            echo "::warning::No embedding-cache.db to back up"
-          fi
+      # Embedding cache R2 backup moved to vfs-packing job (file only exists there)
 
       # V25.8.3: Recursion Bypass — workflow_run chain depth limit is 3.
       # Factory 4/4 is Level 3, so Factory 1.5 cannot be triggered via workflow_run.

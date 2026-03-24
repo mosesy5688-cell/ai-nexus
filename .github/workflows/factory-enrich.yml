@@ -128,7 +128,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "output/data/dedup.db" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-buffer output/data/dedup.db state/dedup.db --content-type=application/x-sqlite3
+            node scripts/factory/r2-workflow-cli.js upload-file output/data/dedup.db state/dedup.db
           fi
 
   summary:
