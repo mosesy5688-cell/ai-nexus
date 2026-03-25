@@ -138,7 +138,7 @@ export function createZstdCompressStream(level = 3) {
         });
     }
 
-    // WASM fallback: buffer then compress (legacy, OOM risk on large data)
+    // WASM fallback: buffer then compress (OOM risk on large data)
     const chunks = [];
     return new Transform({
         transform(chunk, encoding, callback) {
@@ -146,15 +146,10 @@ export function createZstdCompressStream(level = 3) {
             callback();
         },
         flush(callback) {
-            try {
-                const combined = Buffer.concat(chunks);
-                if (_simple) {
-                    this.push(Buffer.from(_simple.compress(combined, level)));
-                } else {
-                    return callback(new Error('[ZSTD] No codec available'));
-                }
-            } catch (e) { return callback(e); }
-            callback();
+            getCodec().then(codec => {
+                this.push(Buffer.from(codec.compress(Buffer.concat(chunks), level)));
+                callback();
+            }).catch(callback);
         }
     });
 }

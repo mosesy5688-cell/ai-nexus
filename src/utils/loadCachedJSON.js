@@ -11,6 +11,31 @@
 
 import { R2_CACHE_URL } from '../config/constants.js';
 
+/** V55.9: Decode ArrayBuffer with Zstd/Gzip auto-detection via magic bytes */
+async function _decodeBuffer(buffer) {
+    const bytes = new Uint8Array(buffer);
+    if (bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD) {
+        const { decompress } = await import('fzstd');
+        return JSON.parse(new TextDecoder().decode(decompress(bytes)));
+    }
+    if (bytes.length >= 2 && bytes[0] === 0x1F && bytes[1] === 0x8B) {
+        const ds = new DecompressionStream('gzip');
+        return await new Response(new Response(buffer).body.pipeThrough(ds)).json();
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+/** V55.9: Decode R2 file object with compression auto-detection */
+async function _decodeR2File(file, r2Path) {
+    try {
+        const buf = await file.arrayBuffer();
+        return await _decodeBuffer(buf);
+    } catch (e) {
+        console.warn(`[loadCachedJSON] Decode failed for ${r2Path}:`, e.message);
+        return null;
+    }
+}
+
 /**
  * Load JSON data from cache with fallback support
  * @template T
@@ -28,36 +53,23 @@ export async function loadCachedJSON(path, options = {}) {
 
     if (r2) {
         let r2Path = path.startsWith('/') ? path.slice(1) : path;
-        // Prevent double prefixing if path already includes 'cache/'
         if (r2Path.startsWith('cache/')) r2Path = r2Path.slice(6);
 
         try {
             let file = await r2.get(r2Path);
 
-            // V18.2.7: R2 .gz Fallback
+            // V55.9: Try .zst first, then .gz fallback
+            if (!file && !r2Path.endsWith('.zst') && !r2Path.endsWith('.gz')) {
+                file = await r2.get(r2Path + '.zst');
+                if (file) r2Path = r2Path + '.zst';
+            }
             if (!file && !r2Path.endsWith('.gz')) {
-                r2Path = r2Path + '.gz';
-                file = await r2.get(r2Path);
+                file = await r2.get(r2Path + '.gz');
+                if (file) r2Path = r2Path + '.gz';
             }
 
             if (file) {
-                // V18.2: Handle Gzip decompression in Worker environment
-                let data;
-                if (r2Path.endsWith('.gz')) {
-                    try {
-                        const ds = new DecompressionStream('gzip');
-                        const decompressedStream = file.body.pipeThrough(ds);
-                        const response = new Response(decompressedStream);
-                        data = await response.json();
-                    } catch (decompressError) {
-                        console.warn(`[loadCachedJSON] R2 Gzip failed for ${r2Path}, falling back to plain text.`);
-                        const text = await file.text();
-                        data = JSON.parse(text);
-                    }
-                } else {
-                    data = await file.json();
-                }
-
+                const data = await _decodeR2File(file, r2Path);
                 return {
                     data,
                     source: 'r2-internal',
@@ -83,45 +95,21 @@ export async function loadCachedJSON(path, options = {}) {
             fetchUrl = `${R2_CACHE_URL}/${cleanPath}`;
         }
 
-        let res = await fetch(fetchUrl, {
-            headers: { 'Accept': 'application/json' }
-        });
+        let res = await fetch(fetchUrl, { headers: { 'Accept': 'application/json' } });
 
-        let isGzip = fetchUrl.endsWith('.gz');
-
-        // V18.2: Transparent .gz fallback for CDN
-        if (!res.ok && !isGzip) {
-            const gzUrl = fetchUrl + '.gz';
-            const gzRes = await fetch(gzUrl);
-            if (gzRes.ok) {
-                res = gzRes;
-                isGzip = true;
+        // V55.9: Transparent .zst fallback, then .gz
+        if (!res.ok && !fetchUrl.endsWith('.zst') && !fetchUrl.endsWith('.gz')) {
+            const zstRes = await fetch(fetchUrl + '.zst');
+            if (zstRes.ok) { res = zstRes; }
+            else {
+                const gzRes = await fetch(fetchUrl + '.gz');
+                if (gzRes.ok) res = gzRes;
             }
         }
 
         if (res.ok) {
-            let data;
             const buffer = await res.arrayBuffer();
-            const uint8 = new Uint8Array(buffer);
-
-            // Magic byte check (0x1f 0x8b) for gzip
-            const isTrueGzip = isGzip && uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
-
-            if (isTrueGzip) {
-                // V18.12.0: Resilient client-side decompression for Gzip/Fake-Gzip assets
-                try {
-                    const ds = new DecompressionStream('gzip');
-                    const decompressedStream = new Response(buffer).body.pipeThrough(ds);
-                    const decompressedRes = new Response(decompressedStream);
-                    data = await decompressedRes.json();
-                } catch (decompressError) {
-                    console.warn(`[loadCachedJSON] Gzip failed for ${fetchUrl}, falling back to plain JSON.`);
-                    data = JSON.parse(new TextDecoder().decode(buffer));
-                }
-            } else {
-                data = JSON.parse(new TextDecoder().decode(buffer));
-            }
-
+            const data = await _decodeBuffer(buffer);
             return {
                 data,
                 source: 'cdn',
