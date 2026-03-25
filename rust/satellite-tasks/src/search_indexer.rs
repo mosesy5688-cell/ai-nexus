@@ -24,7 +24,11 @@ pub struct SearchIndexResult {
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max { s.to_string() } else { s[..max].to_string() }
+    if s.len() <= max { return s.to_string(); }
+    // Find a valid UTF-8 char boundary at or before `max`
+    let mut end = max;
+    while end > 0 && !s.is_char_boundary(end) { end -= 1; }
+    s[..end].to_string()
 }
 
 fn str_val(v: &Value, key: &str) -> String {
