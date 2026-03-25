@@ -4,6 +4,7 @@ import { decompress as zstdDecompress } from 'fzstd';
 let hotResults = [];
 let vfsDecoder = null;
 let isHotLoaded = false;
+let loadingPromise = null;
 let fallBackResults = [];
 let isFallingBack = false;
 let totalShards = 0;
@@ -58,6 +59,12 @@ export function compareNumeric(val, matchStr) {
  */
 export async function loadHotShard() {
     if (isHotLoaded) return;
+    if (loadingPromise) return loadingPromise;
+    loadingPromise = _loadHotShardInner();
+    return loadingPromise;
+}
+
+async function _loadHotShardInner() {
 
     // Priority 1: Zero-Copy Binary (hot-shard.bin)
     // Priority 1: Zero-Copy Binary (hot-shard.bin)
