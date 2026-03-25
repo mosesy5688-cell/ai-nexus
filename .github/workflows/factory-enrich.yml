@@ -7,9 +7,10 @@
 # so Level 4 would be silently dropped. Factory 4/4 uses `gh workflow run`
 # to dispatch this workflow, which resets the depth counter.
 #
-# Architecture: 16 parallel runners, each assigned a UMID partition range
-# Budget: 5000 papers / 5h per runner (80K papers/cycle max)
-# Core: Rust content-extractor FFI for HTML extraction + classification
+# V25.8.4: PDF-first strategy to bypass ar5iv IP blocking.
+# Architecture: 4 parallel runners (reduced from 16 to respect ArXiv rate limits)
+# Budget: 5000 papers / 5h per runner (20K papers/cycle max)
+# Priority: arxiv.org PDF → S2 fullText API → ar5iv HTML (last resort)
 
 name: Factory 1.5 - Density Booster
 
@@ -42,22 +43,10 @@ jobs:
     strategy:
       matrix:
         partition:
-          - { start: '00', end: '0f' }
-          - { start: '10', end: '1f' }
-          - { start: '20', end: '2f' }
-          - { start: '30', end: '3f' }
-          - { start: '40', end: '4f' }
-          - { start: '50', end: '5f' }
-          - { start: '60', end: '6f' }
-          - { start: '70', end: '7f' }
-          - { start: '80', end: '8f' }
-          - { start: '90', end: '9f' }
-          - { start: 'a0', end: 'af' }
-          - { start: 'b0', end: 'bf' }
-          - { start: 'c0', end: 'cf' }
-          - { start: 'd0', end: 'df' }
-          - { start: 'e0', end: 'ef' }
-          - { start: 'f0', end: 'ff' }
+          - { start: '00', end: '3f' }
+          - { start: '40', end: '7f' }
+          - { start: '80', end: 'bf' }
+          - { start: 'c0', end: 'ff' }
       fail-fast: false
     steps:
       - name: Checkout Repository
