@@ -46,35 +46,9 @@ export class CatalogDataSource {
             try { partitions = JSON.parse(localStorage.getItem('_vfs_partitions') || ''); } catch (_) { }
         }
 
-        // V5.8: 16-way hash sharding — all types mixed in each meta-NN.db
-        if (partitions?.meta_shards) {
-            const count = partitions.meta_shards;
-            this.shardQueue = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
-        } else {
-            // Legacy type-based sharding fallback
-            const p = partitions || { model: 3, paper: 15, dataset: 8, tool: 2, agent: 1, space: 1, prompt: 1 };
-            const fmt = (cat, idx, count) =>
-                count === 1 ? `meta-${cat}.db` : `meta-${cat}-shard-${String(idx).padStart(2, '0')}.db`;
-            const type = this.type;
-            if (this.categoryFilter || type === 'all') {
-                this.shardQueue = ['meta-model-core.db'];
-                for (const [cat, count] of Object.entries(p)) {
-                    if (cat === 'model') {
-                        for (let i = 1; i <= count; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
-                    } else {
-                        for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(cat, i, count));
-                    }
-                }
-            } else if (type === 'model') {
-                this.shardQueue = ['meta-model-core.db'];
-                const mc = p.model || 5;
-                for (let i = 1; i <= mc; i++) this.shardQueue.push(`meta-model-shard-${String(i).padStart(2, '0')}.db`);
-            } else {
-                const count = p[type] || 1;
-                this.shardQueue = [];
-                for (let i = 1; i <= count; i++) this.shardQueue.push(fmt(type, i, count));
-            }
-        }
+        // V25.9: Unified 32-way hash sharding — all types mixed in each meta-NN.db
+        const count = partitions?.meta_shards || 32;
+        this.shardQueue = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
         console.log(`[CatalogDataSource] Shard queue (${this.type}): ${this.shardQueue.length} shards`);
     }
 

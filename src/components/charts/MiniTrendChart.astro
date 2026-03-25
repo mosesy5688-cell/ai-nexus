@@ -112,32 +112,26 @@ async function loadTrendData(): Promise<Record<string, any>> {
     if (_trendCache) return _trendCache;
     if (_loadPromise) return _loadPromise;
     
-    _loadPromise = fetch(`${R2_CACHE_URL}/cache/trend-data.json.gz`)
-        .then(async (res) => {
-            if (!res.ok) {
-                const fallback = await fetch(`${R2_CACHE_URL}/cache/trend-data.json`);
-                return fallback.ok ? fallback : null;
-            }
-            return res;
-        })
-        .then(async (res) => {
-            if (!res) return {};
-            const url = res.url;
-            if (url.endsWith('.gz')) {
-                try {
-                    const resClone = res.clone();
-                    const ds = new DecompressionStream('gzip');
-                    const stream = resClone.body.pipeThrough(ds);
-                    return await new Response(stream).json();
-                } catch (decompressError) {
-                    console.warn(`[MiniTrendChart] Gzip failed for ${url}, falling back to plain JSON.`);
-                    return await res.json();
+    const urls = [`${R2_CACHE_URL}/cache/trend-data.json.zst`, `${R2_CACHE_URL}/cache/trend-data.json`];
+    _loadPromise = (async () => {
+        for (const url of urls) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) continue;
+                const buffer = await res.arrayBuffer();
+                const bytes = new Uint8Array(buffer);
+                const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
+                if (isZstd) {
+                    const { decompress } = await import('fzstd');
+                    _trendCache = JSON.parse(new TextDecoder().decode(decompress(bytes)));
+                } else {
+                    _trendCache = JSON.parse(new TextDecoder().decode(bytes));
                 }
-            }
-            return await res.json();
-        })
-        .then(data => { _trendCache = data; return data; })
-        .catch(() => ({}));
+                return _trendCache;
+            } catch { continue; }
+        }
+        return {};
+    })();
     
     return _loadPromise;
 }
