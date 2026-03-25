@@ -57,7 +57,7 @@ export async function loadTrendingMap(cacheDir) {
     }
 
     if (!loaded) {
-        console.warn(`[VFS] ⚠️ No trending.json.gz found in ${cacheDir} or parent. Proceeding without trending flags.`);
+        console.warn(`[VFS] ⚠️ No trending.json.zst found in ${cacheDir} or parent. Proceeding without trending flags.`);
     }
     return trendingMap;
 }
