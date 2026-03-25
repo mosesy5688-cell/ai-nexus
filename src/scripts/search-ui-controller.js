@@ -1,16 +1,25 @@
 // src/scripts/search-ui-controller.js
-// V16.8.20: UI Controller for Search Results & Lazy Hydration
+// V55.9: UI Controller for Search Results & Lazy Hydration
 // Handles DOM orchestration, result rendering, and IntersectionObserver-based hydration.
 
 import { initSearch, performSearch, getSearchStatus } from './home-search.js';
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
+import { decompress as zstdDecompress } from 'fzstd';
 
 export function setupSearchUI(dom) {
     if (!dom) return;
 
     const { form, box, title, results, loading, empty } = dom;
+    let debounceTimer = null;
 
     async function handleSearch() {
+        clearTimeout(debounceTimer);
+        return new Promise(resolve => {
+            debounceTimer = setTimeout(() => resolve(executeSearch()), 250);
+        });
+    }
+
+    async function executeSearch() {
         const query = box.value.trim();
         const type = form.querySelector('input[name="type"]:checked')?.value || 'all';
 
@@ -50,7 +59,7 @@ export function setupSearchUI(dom) {
         if (title) title.textContent = `Search Results for "${query}"`;
     }
 
-    return { handleSearch };
+    return { handleSearch, executeSearch };
 }
 
 export function highlightTerms(text, query) {
@@ -165,9 +174,9 @@ export async function hydrateSearchResult(el) {
     try {
         const cleanId = id.replace(/[:/]/g, '--').toLowerCase();
 
-        // V19.2: Enforce Gzip checks to avoid 404s in R2 (Search Hydration)
+        // V55.9: Zstd-first hydration with magic byte detection
         const paths = [
-            `https://cdn.free2aitools.com/cache/fused/${cleanId}.json.gz`,
+            `https://cdn.free2aitools.com/cache/fused/${cleanId}.json.zst`,
             `https://cdn.free2aitools.com/cache/fused/${cleanId}.json`
         ];
 
@@ -177,15 +186,13 @@ export async function hydrateSearchResult(el) {
             if (!res.ok) continue;
 
             const buffer = await res.arrayBuffer();
-            const uint8 = new Uint8Array(buffer);
-            const isGzip = uint8[0] === 0x1f && uint8[1] === 0x8b;
+            const bytes = new Uint8Array(buffer);
+            const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
 
-            if (isGzip) {
-                const ds = new DecompressionStream('gzip');
-                const decompressedStream = new Response(buffer).body.pipeThrough(ds);
-                data = await new Response(decompressedStream).json();
+            if (isZstd) {
+                data = JSON.parse(new TextDecoder().decode(zstdDecompress(bytes)));
             } else {
-                data = JSON.parse(new TextDecoder().decode(buffer));
+                data = JSON.parse(new TextDecoder().decode(bytes));
             }
             if (data) break;
         }
