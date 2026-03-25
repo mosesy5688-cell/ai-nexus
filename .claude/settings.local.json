@@ -40,7 +40,9 @@
       "Bash(npm test:*)",
       "WebFetch(domain:docs.astro.build)",
       "WebFetch(domain:github.com)",
-      "Bash(cross-env NODE_ENV=production npx astro build)"
+      "Bash(cross-env NODE_ENV=production npx astro build)",
+      "Bash(PYTHONIOENCODING=utf-8 npm run ces-check)",
+      "Bash(cargo check:*)"
     ]
   }
 }
