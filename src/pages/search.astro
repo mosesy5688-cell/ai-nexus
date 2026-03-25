@@ -23,6 +23,7 @@ const entityTypes = [
 
 <Layout title="Search AI Index - Free2AI">
     <meta slot="head" name="robots" content="noindex, follow" />
+    <link slot="head" rel="preload" href="/api/vfs-proxy/hot-shard.bin" as="fetch" crossorigin />
     
     <main class="max-w-4xl mx-auto min-h-screen py-4">
         <!-- Search Header -->
@@ -106,7 +107,7 @@ const entityTypes = [
 
         if (!dom.form) return;
 
-        const { handleSearch } = setupSearchUI(dom);
+        const { handleSearch, executeSearch } = setupSearchUI(dom);
 
         const urlParams = new URLSearchParams(window.location.search);
         const q = urlParams.get('q');
@@ -116,7 +117,7 @@ const entityTypes = [
             dom.box.value = q;
             const radio = dom.form.querySelector(`input[value="${t}"]`);
             if (radio) radio.checked = true;
-            await handleSearch();
+            await executeSearch();
         }
 
         dom.form.addEventListener('submit', (e) => {

@@ -1,4 +1,5 @@
 import { VfsDecoder } from '../lib/vfs-decoder.ts';
+import { decompress as zstdDecompress } from 'fzstd';
 
 let hotResults = [];
 let vfsDecoder = null;
@@ -81,10 +82,10 @@ export async function loadHotShard() {
         }
     }
 
-    // Priority 2: Legacy JSON Fallback (search-core.json)
+    // Priority 2: V55.9 Zstd JSON Fallback (search-core.json.zst)
     const jsonPaths = [
-        '/api/vfs-proxy/cache/search-core.json.gz',
-        `${CDN_BASE}/cache/search-core.json.gz`
+        '/api/vfs-proxy/cache/search-core.json.zst',
+        `${CDN_BASE}/cache/search-core.json.zst`
     ];
 
     for (const path of jsonPaths) {
@@ -93,14 +94,14 @@ export async function loadHotShard() {
             if (!res.ok) continue;
 
             let data;
-            const etag = res.headers.get('etag') || 'unknown'; // V22.10.1 ETag validation
-
-            const ds = new DecompressionStream('gzip');
-            const decompressedRes = new Response(res.body.pipeThrough(ds));
+            const buffer = await res.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
             try {
-                data = await decompressedRes.json();
+                const decoded = isZstd ? zstdDecompress(bytes) : bytes;
+                data = JSON.parse(new TextDecoder().decode(decoded));
             } catch {
-                data = await (await fetch(path)).json();
+                data = JSON.parse(new TextDecoder().decode(bytes));
             }
 
             const entities = data?.entities || data || [];
