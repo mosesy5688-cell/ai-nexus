@@ -131,7 +131,7 @@ async function buildAlreadyEnrichedSet(s3) {
 
 // ── Main ────────────────────────────────────────────────
 async function main() {
-    console.log(`[BOOSTER] V25.8.3 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
+    console.log(`[BOOSTER] V25.8.4 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
     const startTime = Date.now();
 
     const rustStatus = initRustBridge();

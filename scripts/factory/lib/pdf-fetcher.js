@@ -10,7 +10,13 @@ import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+let pdfParse = require('pdf-parse');
+// Handle ESM/CJS wrapping if necessary
+if (typeof pdfParse !== 'function' && pdfParse.default) {
+    pdfParse = pdfParse.default;
+}
+
+console.log('[PDF] Engine V25.8.4 Ready');
 
 const ARXIV_PDF_BASE = 'https://arxiv.org/pdf';
 const PDF_TMP_DIR = process.env.RUNNER_TEMP || '/tmp';
