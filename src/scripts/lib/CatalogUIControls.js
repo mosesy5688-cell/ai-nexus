@@ -22,13 +22,17 @@ export class CatalogUIControls {
         }
 
         instance.observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                console.log('[CatalogUIControls] 👀 Sentinel in view.');
-                if (!instance.source.isLoadingShard && instance.hasMore()) {
-                    console.log('[CatalogUIControls] 📥 Triggering loadMore...');
+            if (entries[0].isIntersecting && instance.hasMore()) {
+                if (!instance.source.isLoadingShard) {
                     instance.loadMore();
                 } else {
-                    console.log(`[CatalogUIControls] ⏭️ Skipping loadMore: loading=${instance.source.isLoadingShard}, hasMore=${instance.hasMore()}`);
+                    // Loading in progress — poll until ready, then load
+                    const retry = () => {
+                        if (!instance.hasMore()) return;
+                        if (instance.source.isLoadingShard) return setTimeout(retry, 300);
+                        instance.loadMore();
+                    };
+                    setTimeout(retry, 300);
                 }
             }
         }, { rootMargin: '600px', threshold: 0.01 });

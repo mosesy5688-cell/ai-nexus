@@ -12,13 +12,25 @@ import CatalogCard from '../components/common/CatalogCard.astro';
 import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
 import { CATEGORY_METADATA } from '../utils/category-mapping.js';
 
-const { category } = Astro.params;
+const { category: rawCategory } = Astro.params;
 
 // V18.12.5.10: Route Guard - Prevent collision with system routes
 const RESERVED_ROUTES = ['models', 'ranking', 'agents', 'spaces', 'datasets', 'papers', 'tools', 'search', 'about', 'compliance'];
-if (RESERVED_ROUTES.includes(category!)) {
-    return Astro.redirect('/404?source=routing-clash&id=' + category);
+if (RESERVED_ROUTES.includes(rawCategory!)) {
+    return Astro.redirect('/404?source=routing-clash&id=' + rawCategory);
 }
+
+// V55.9: Legacy category alias redirect — map common names to V6 slugs
+const CATEGORY_ALIASES: Record<string, string> = {
+    'image-generation': 'vision-multimedia', 'image': 'vision-multimedia', 'audio': 'vision-multimedia',
+    'video': 'vision-multimedia', 'multimodal': 'vision-multimedia', 'speech': 'vision-multimedia',
+    'nlp': 'text-generation', 'llm': 'text-generation', 'chatbot': 'text-generation',
+    'rag': 'knowledge-retrieval', 'embeddings': 'knowledge-retrieval', 'search': 'knowledge-retrieval',
+    'agents': 'automation-workflow', 'robotics': 'automation-workflow',
+    'quantization': 'infrastructure-ops', 'deployment': 'infrastructure-ops',
+};
+const category = CATEGORY_ALIASES[rawCategory!] || rawCategory!;
+if (category !== rawCategory) return Astro.redirect(`/${category}`, 301);
 
 const meta = CATEGORY_METADATA[category!] || {
   label: category!.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
