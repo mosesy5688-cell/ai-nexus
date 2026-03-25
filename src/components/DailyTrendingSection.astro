@@ -5,65 +5,43 @@
  * Real-time data from R2 cache
  */
 import { generateEntityUrl } from '../utils/url-utils.js';
+import { decompress as zstdDecompress } from 'fzstd';
 // V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
 import { env } from 'cloudflare:workers';
 
-// Fetch trending data from R2 cache
+// V55.9: Zstd-first trending data fetch
+function decodeBuffer(buf: ArrayBuffer): any {
+    const bytes = new Uint8Array(buf);
+    const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
+    return JSON.parse(new TextDecoder().decode(isZstd ? zstdDecompress(bytes) : bytes));
+}
+
 let trendingData: {
     generated_at: string;
-    results: { 
-        id: string; 
-        name: string; 
-        author: string;
-        downloads: number;
-        likes: number;
-        fni_score: number;
-        trending_score: number;
-    }[];
+    results: { id: string; name: string; author: string; downloads: number; likes: number; fni_score: number; trending_score: number; }[];
 } | null = null;
 
 try {
-    const paths = ['cache/trending.json.gz', 'cache/trending.json'];
-    
+    const paths = ['cache/trending.json.zst', 'cache/trending.json'];
+
     // TIER 1: R2 Direct
     if (env?.R2_ASSETS) {
-        const r2 = env.R2_ASSETS;
         for (const p of paths) {
-            const file = await r2.get(p);
+            const file = await env.R2_ASSETS.get(p);
             if (file) {
-                if (p.endsWith('.gz')) {
-                    const ds = new DecompressionStream('gzip');
-                    const decompressedStream = file.body.pipeThrough(ds);
-                    const response = new Response(decompressedStream);
-                    trendingData = await response.json();
-                } else {
-                    trendingData = await file.json() as any;
-                }
+                trendingData = decodeBuffer(await new Response(file.body as any).arrayBuffer());
                 if (trendingData) break;
             }
         }
     }
 
-    // TIER 2: CDN Fallback (Art 5.2 Recovery)
+    // TIER 2: CDN Fallback
     if (!trendingData) {
         const CDN_BASE = 'https://cdn.free2aitools.com';
         for (const p of paths) {
             const res = await fetch(`${CDN_BASE}/${p}`);
             if (res.ok) {
-                if (p.endsWith('.gz')) {
-                    try {
-                        const resClone = res.clone();
-                        const ds = new DecompressionStream('gzip');
-                        const decompressedStream = resClone.body.pipeThrough(ds);
-                        const response = new Response(decompressedStream);
-                        trendingData = await response.json();
-                    } catch (decompressError) {
-                        console.warn(`[DailyTrendingSection] Gzip failed for ${res.url}, falling back to plain JSON.`);
-                        trendingData = await res.json();
-                    }
-                } else {
-                    trendingData = await res.json();
-                }
+                trendingData = decodeBuffer(await res.arrayBuffer());
                 if (trendingData) break;
             }
         }

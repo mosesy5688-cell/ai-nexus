@@ -95,11 +95,13 @@ async function packDatabase() {
     const placeholder = Array(54).fill('?').join(', ');
     const prepInserts = {};
 
+    const prepFts = {};
     for (const [key, db] of Object.entries(metaDbs)) {
         prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
+        prepFts[key] = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
     }
+    const shardFtsRowIds = Object.fromEntries(Object.keys(metaDbs).map(k => [k, 1]));
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
-    // V55.9 §FTS5 Collapse: FTS5 co-located in search.db (replaces per-shard FTS5)
     const insertSearchFts = searchDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 
@@ -170,25 +172,15 @@ async function packDatabase() {
         prepInserts[targetKey].run(...metaValues);
         insertEntitySearch.run(...searchValues);
 
-        // V55.9 §FTS5 Collapse: FTS5 co-located in search.db (unified, replaces per-shard)
-        insertSearchFts.run(
-            searchFtsRowId++,
-            String(e.name || e.displayName || ''),
-            String(truncatedSummary),
-            Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags + ' ' + keywords),
-            String(category)
-        );
+        const authorStr = Array.isArray(e.author) ? e.author.join(', ') : String(e.author || '');
+        const nameStr = String(e.name || e.displayName || '');
+        const ftsTagStr = String(tags + ' ' + keywords);
+        const catStr = String(category);
 
-        insertFts.run(
-            stats.packed + 1,
-            String(e.umid || e.id),
-            String(e.name || e.displayName || ''),
-            String(truncatedSummary),
-            Array.isArray(e.author) ? e.author.join(', ') : String(e.author || ''),
-            String(tags + ' ' + keywords),
-            String(category)
-        );
+        // Per-shard FTS5 (SSR federated search) + unified search.db FTS5 + standalone fts.db
+        prepFts[targetKey].run(shardFtsRowIds[targetKey]++, nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
+        insertSearchFts.run(searchFtsRowId++, nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
+        insertFts.run(stats.packed + 1, String(e.umid || e.id), nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
 
         stats.packed++;
     }

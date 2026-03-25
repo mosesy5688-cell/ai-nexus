@@ -25,22 +25,17 @@ export async function initModelsCatalog(initialData = []) {
 
     try {
       // V18.2: Support compressed trending-data
-      const paths = ['https://cdn.free2aitools.com/cache/trending.json.gz', 'https://cdn.free2aitools.com/cache/trending.json'];
+      const { decompress: zstdDecompress } = await import('fzstd');
+      const paths = ['https://cdn.free2aitools.com/cache/trending.json.zst', 'https://cdn.free2aitools.com/cache/trending.json'];
       let data = null;
       for (const p of paths) {
         const res = await fetch(p);
-        if (res.ok) {
-          const isGzip = p.endsWith('.gz');
-          if (isGzip) {
-            const ds = new DecompressionStream('gzip');
-            const decompressedStream = res.body.pipeThrough(ds);
-            const response = new Response(decompressedStream);
-            data = await response.json();
-          } else {
-            data = await res.json();
-          }
-          break;
-        }
+        if (!res.ok) continue;
+        const buffer = await res.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
+        data = JSON.parse(new TextDecoder().decode(isZstd ? zstdDecompress(bytes) : bytes));
+        break;
       }
       if (!data) throw new Error('Failed to fetch');
       allModels = data.models || [];

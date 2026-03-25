@@ -33,6 +33,7 @@ const {
 <script>
   import Chart from 'chart.js/auto';
   import { R2_CACHE_URL } from '../../config/constants.ts';
+  import { decompress as zstdDecompress } from 'fzstd';
   
   async function initChart() {
     const container = document.querySelector('.trend-chart-container') as HTMLElement;
@@ -49,47 +50,34 @@ const {
       let rawData = (window as any).__SITE_META__?.[metaKey];
 
       if (!rawData) {
-          const paths = type === 'line' 
-            ? [`${R2_CACHE_URL}/cache/trend-data.json.gz`, `${R2_CACHE_URL}/cache/trend-data.json`]
-            : [`${R2_CACHE_URL}/cache/trending.json.gz`, `${R2_CACHE_URL}/cache/trending.json`];
-          
-          let res = null;
+          const paths = type === 'line'
+            ? [`${R2_CACHE_URL}/cache/trend-data.json.zst`, `${R2_CACHE_URL}/cache/trend-data.json`]
+            : [`${R2_CACHE_URL}/cache/trending.json.zst`, `${R2_CACHE_URL}/cache/trending.json`];
 
           for (const p of paths) {
-              res = await fetch(p);
-              if (res.ok) {
-                  const isGzip = p.endsWith('.gz');
-                  const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip';
-                  
-                  if (isGzip && !isAlreadyDecompressed) {
-                      try {
-                          const resClone = res.clone();
-                          const ds = new (window as any).DecompressionStream('gzip');
-                          const decompressedStream = resClone.body.pipeThrough(ds);
-                          const response = new Response(decompressedStream);
-                          rawData = await response.json();
-                      } catch (e) {
-                          console.warn('[TrendChart] Manual decompression failed, falling back to plain JSON:', e);
-                          rawData = await res.json();
-                      }
-                  } else {
-                      rawData = await res.json();
-                  }
-                  if (rawData) break;
-              }
+              const res = await fetch(p);
+              if (!res.ok) continue;
+              const buffer = await res.arrayBuffer();
+              const bytes = new Uint8Array(buffer);
+              const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
+              try {
+                  rawData = JSON.parse(new TextDecoder().decode(isZstd ? zstdDecompress(bytes) : bytes));
+              } catch { rawData = null; }
+              if (rawData) break;
           }
       }
 
       if (!rawData) {
-          console.warn(`[TrendChart] Fetch failed for ${type}, trying local fallback...`);
           const CDN = 'https://cdn.free2aitools.com';
-          const localPaths = type === 'line' ? [`${CDN}/cache/trend-data.json.gz`, `${CDN}/cache/trend-data.json`] : [`${CDN}/cache/trending.json.gz`, `${CDN}/cache/trending.json`];
+          const localPaths = type === 'line' ? [`${CDN}/cache/trend-data.json.zst`, `${CDN}/cache/trend-data.json`] : [`${CDN}/cache/trending.json.zst`, `${CDN}/cache/trending.json`];
           for (const lp of localPaths) {
               const res2 = await fetch(lp);
-              if (res2.ok) {
-                  rawData = await res2.json();
-                  if (rawData) break;
-              }
+              if (!res2.ok) continue;
+              const buf = await res2.arrayBuffer();
+              const b = new Uint8Array(buf);
+              const zst = b.length >= 4 && b[0] === 0x28 && b[1] === 0xB5 && b[2] === 0x2F && b[3] === 0xFD;
+              try { rawData = JSON.parse(new TextDecoder().decode(zst ? zstdDecompress(b) : b)); } catch { rawData = null; }
+              if (rawData) break;
           }
       }
 
