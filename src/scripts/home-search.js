@@ -16,8 +16,8 @@ import {
 let isApiReady = true; // SSR API is always ready — no WASM to load
 
 export async function initSearch() {
-    // V22.10: Load hot shard eagerly. No WASM SQLite to initialize.
-    loadHotShard();
+    // V55.9: Await hot shard load to guarantee Tier 1 readiness before search.
+    await loadHotShard();
     return true;
 }
 
