@@ -202,11 +202,15 @@ async function main() {
             handleSuccess();
         } else {
             skipped++;
-            // console.log(`   ⏭️ [SKIP] ${arxivId} | ${htmlResult.type}`);
+            if (htmlResult.type === 'SKIP') {
+                console.log(`   ⏭️ [SKIP] ${arxivId} | No HTML5 yet (pre-2023?)`);
+            } else {
+                console.log(`   ❌ [FAIL] ${arxivId} | ${htmlResult.type}`);
+            }
         }
 
         processed++;
-        if (processed === 1 || processed % 20 === 0) {
+        if (processed === 1 || processed % 10 === 0) {
             const elapsed = ((Date.now() - startTime) / 60000).toFixed(1);
             console.log(`[BOOSTER] Progress: ${processed}/${workQueue.length} | S:${success} P:${partial} K:${skipped} F:${failed} | ${elapsed}min`);
         }
