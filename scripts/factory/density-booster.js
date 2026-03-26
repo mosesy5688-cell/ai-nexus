@@ -1,24 +1,23 @@
 /**
- * V25.8.4 Density Booster — Asynchronous Paper Enrichment Worker
+ * V25.8.5 Density Booster — Asynchronous Paper Enrichment Worker
  *
- * Factory 1.5: Fetches full-text for papers via PDF (primary) + S2 + ar5iv.
+ * Factory 1.5: Fetches full-text for papers via Official HTML5 (primary) + S2.
  * Core extraction/classification delegated to Rust content-extractor FFI.
  *
- * V25.8.4: PDF-first strategy to bypass ar5iv IP blocking.
- *   Priority: arxiv.org PDF → S2 fullText API → ar5iv HTML (last resort)
+ * V25.8.5: Official HTML5 strategy to bypass IP blocking.
+ *   Priority: export.arxiv.org/html → S2 fullText API
  *
  * Usage: node density-booster.js --partition-start=00 --partition-end=0f
- * Budget: 5000 papers / 5 hours per runner (Spec §2.2).
+ * Budget: 20000 papers / 5 hours per runner.
  */
 
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadBufferToR2FFI } from './lib/r2-bridge.js';
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
-import { fetchArxivPdf } from './lib/pdf-fetcher.js';
 
 // ── Config ──────────────────────────────────────────────
-const AR5IV_BASE = 'https://ar5iv.labs.arxiv.org/html';
+const ARXIV_HTML_BASE = 'https://export.arxiv.org/html';
 const S2_API = 'https://api.semanticscholar.org/graph/v1/paper';
 const RATE_LIMIT_MS = 3000;
 const FETCH_TIMEOUT_MS = 15000;
@@ -71,8 +70,8 @@ function extractArxivId(canonicalId) {
     return m ? m[1].replace(/v\d+$/, '') : null;
 }
 
-async function fetchAr5iv(arxivId) {
-    const url = `${AR5IV_BASE}/${arxivId}`;
+async function fetchOfficialHtml(arxivId) {
+    const url = `${ARXIV_HTML_BASE}/${arxivId}`;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
@@ -131,7 +130,7 @@ async function buildAlreadyEnrichedSet(s3) {
 
 // ── Main ────────────────────────────────────────────────
 async function main() {
-    console.log(`[BOOSTER] V25.8.4 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
+    console.log(`[BOOSTER] V25.8.5 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
     const startTime = Date.now();
 
     const rustStatus = initRustBridge();
@@ -162,31 +161,26 @@ async function main() {
 
         let result;
 
-        // V25.8.4: Priority chain — PDF → S2 → ar5iv
-        // 1. Primary: arxiv.org PDF (bypasses ar5iv IP blocking)
-        const pdfText = await fetchArxivPdf(arxivId);
-        if (pdfText && pdfText.length >= 200) {
-            result = classifyTextFFI(pdfText);
+        // V25.8.5: Priority chain — Official HTML5 → S2 Fallback
+        // 1. Primary: export.arxiv.org (Dedicated robot endpoint)
+        let htmlResult = await fetchOfficialHtml(arxivId);
+        if (htmlResult.type === 'FAILURE') {
+            await new Promise(r => setTimeout(r, AR5IV_RETRY_DELAY_MS));
+            htmlResult = await fetchOfficialHtml(arxivId);
+        }
+
+        if (htmlResult.type === 'HTML' && htmlResult.html) {
+            result = extractAndClassifyFFI(htmlResult.html);
         } else {
-            // 2. Fallback: S2 Full-Text API
+            // 2. Fallback: S2 Full-Text API (only if HTML fails or is SKIP)
             const s2Text = await fetchS2Fulltext(arxivId);
             if (s2Text && s2Text.length >= 200) {
                 result = classifyTextFFI(s2Text);
             } else {
-                // 3. Last resort: ar5iv HTML
-                let ar5ivResult = await fetchAr5iv(arxivId);
-                if (ar5ivResult.type === 'FAILURE') {
-                    await new Promise(r => setTimeout(r, AR5IV_RETRY_DELAY_MS));
-                    ar5ivResult = await fetchAr5iv(arxivId);
-                }
-                if (ar5ivResult.type === 'HTML' && ar5ivResult.html) {
-                    result = extractAndClassifyFFI(ar5ivResult.html);
-                } else {
-                    await handleFailure();
-                    failed++;
-                    processed++;
-                    continue;
-                }
+                if (htmlResult.type === 'FAILURE') await handleFailure();
+                failed++;
+                processed++;
+                continue;
             }
         }
 
