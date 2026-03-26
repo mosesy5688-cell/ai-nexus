@@ -19,7 +19,7 @@ import { zstdCompress } from './lib/zstd-helper.js';
 // ── Config ──────────────────────────────────────────────
 const ARXIV_HTML_BASE = 'https://export.arxiv.org/html';
 const S2_API = 'https://api.semanticscholar.org/graph/v1/paper';
-const RATE_LIMIT_MS = 3000;
+const RATE_LIMIT_MS = 10000;
 const FETCH_TIMEOUT_MS = 15000;
 const AR5IV_RETRY_DELAY_MS = 8000;
 const BUDGET = 20000; // V25.8.4: 4x scale for 4-partition mode (was 5000 for 16 partitions)
