@@ -148,15 +148,13 @@ jobs:
             TOTAL_REMAINING=$((TOTAL_REMAINING + R))
           done
           ROUND=${{ inputs.continuation_round || 0 }}
-          MAX_ROUNDS=3
-          echo "## Factory 1.5 - Round $ROUND Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## Factory 1.5 - Density Booster Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Total SUCCESS: $TOTAL_SUCCESS" >> $GITHUB_STEP_SUMMARY
           echo "- Total Remaining: $TOTAL_REMAINING" >> $GITHUB_STEP_SUMMARY
-          echo "📊 Round $ROUND/$MAX_ROUNDS | SUCCESS: $TOTAL_SUCCESS | Remaining: $TOTAL_REMAINING"
-          if [ "$TOTAL_SUCCESS" -gt 0 ] && [ "$ROUND" -lt "$MAX_ROUNDS" ]; then
-            NEXT=$((ROUND + 1))
-            echo "🔄 Round $ROUND had $TOTAL_SUCCESS successes. Dispatching round $NEXT..."
-            gh workflow run "Factory 1.5 - Density Booster" -f continuation_round=$NEXT && echo "✅ Round $NEXT dispatched" || echo "⚠️ Dispatch failed"
+          echo "📊 Enrichment Complete | SUCCESS: $TOTAL_SUCCESS | Remaining: $TOTAL_REMAINING"
+          
+          if [ "$TOTAL_REMAINING" -eq 0 ]; then
+            echo "✅ All reachable papers successfully enriched."
           else
-            [ "$TOTAL_SUCCESS" -eq 0 ] && echo "✅ No new successes — all reachable papers collected." || echo "✅ Max rounds reached."
+            echo "✅ Round complete. Remaining papers can be processed in the next manual run."
           fi

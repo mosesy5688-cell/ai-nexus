@@ -194,16 +194,19 @@ async function main() {
             if (result.classification === 'SUCCESS') {
                 enrichedUmids.push(paper.umid);
                 success++;
+                console.log(`   ✅ [SUCCESS] ${arxivId} | ${result.status || 'Extracted'}`);
             } else {
                 partial++;
+                console.log(`   ⚠️ [PARTIAL] ${arxivId} | ${result.status || 'Snippet only'}`);
             }
             handleSuccess();
         } else {
             skipped++;
+            // console.log(`   ⏭️ [SKIP] ${arxivId} | ${htmlResult.type}`);
         }
 
         processed++;
-        if (processed % 100 === 0) {
+        if (processed === 1 || processed % 20 === 0) {
             const elapsed = ((Date.now() - startTime) / 60000).toFixed(1);
             console.log(`[BOOSTER] Progress: ${processed}/${workQueue.length} | S:${success} P:${partial} K:${skipped} F:${failed} | ${elapsed}min`);
         }
