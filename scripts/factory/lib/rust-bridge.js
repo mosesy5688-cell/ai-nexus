@@ -91,8 +91,16 @@ function _jsFallbackExtract(html) {
     let t = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
         .replace(/<nav[\s\S]*?<\/nav>/gi, '').replace(/<header[\s\S]*?<\/header>/gi, '')
         .replace(/<footer[\s\S]*?<\/footer>/gi, '');
+    
+    // V25.8.6: Support ArXiv/ar5iv specialized classes (ltx_*)
+    // 1. Convert headers
+    t = t.replace(/<(?:h[1-6]|span|div)[^>]*class=["'][^"']*ltx_title[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi, '\n## $1\n');
     t = t.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, l, c) => `\n${'#'.repeat(parseInt(l))} ${c.replace(/<[^>]+>/g, '').trim()}\n`);
+    
+    // 2. Convert paragraphs (including ltx_p)
+    t = t.replace(/<(?:p|div)[^>]*class=["'][^"']*ltx_p[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi, '$1\n\n');
     t = t.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_, c) => c.replace(/<[^>]+>/g, '').trim() + '\n\n');
+    
     return _jsFallbackClassify(t.replace(/<[^>]+>/g, ' ').replace(/\n{3,}/g, '\n\n').trim());
 }
 

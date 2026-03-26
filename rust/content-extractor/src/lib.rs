@@ -31,9 +31,9 @@ static RE_HEADER: LazyLock<Regex> =
 static RE_FOOTER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?is)<footer[\s\S]*?</footer>").unwrap());
 static RE_HEADING: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<h([1-6])[^>]*>([\s\S]*?)</h[1-6]>").unwrap());
+    LazyLock::new(|| Regex::new(r"(?is)<(?:h[1-6]|span|div)[^>]*class=[^>]*ltx_title[^>]*>([\s\S]*?)</(?:h[1-6]|span|div)>|<h([1-6])[^>]*>([\s\S]*?)</h[1-6]>").unwrap());
 static RE_PARAGRAPH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<p[^>]*>([\s\S]*?)</p>").unwrap());
+    LazyLock::new(|| Regex::new(r"(?is)<(?:p|div)[^>]*class=[^>]*ltx_p[^>]*>([\s\S]*?)</(?:p|div)>|<p[^>]*>([\s\S]*?)</p>").unwrap());
 static RE_TAGS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]+>").unwrap());
 static RE_MULTI_NL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\n{3,}").unwrap());
 static RE_MD_HEADING: LazyLock<Regex> =
