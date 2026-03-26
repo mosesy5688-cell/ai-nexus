@@ -149,6 +149,12 @@ async function main() {
     const enrichedUmids = [];
 
     for (const paper of workQueue) {
+        processed++;
+        if (processed === 1 || processed % 10 === 0) {
+            const elapsed = ((Date.now() - startTime) / 60000).toFixed(1);
+            console.log(`[BOOSTER] Progress: ${processed}/${workQueue.length} | S:${success} P:${partial} K:${skipped} F:${failed} | ${elapsed}min`);
+        }
+
         if (Date.now() - startTime > MAX_RUNTIME_MS) {
             console.log('[BOOSTER] Budget timeout reached. Exiting gracefully.');
             break;
@@ -209,11 +215,6 @@ async function main() {
             }
         }
 
-        processed++;
-        if (processed === 1 || processed % 10 === 0) {
-            const elapsed = ((Date.now() - startTime) / 60000).toFixed(1);
-            console.log(`[BOOSTER] Progress: ${processed}/${workQueue.length} | S:${success} P:${partial} K:${skipped} F:${failed} | ${elapsed}min`);
-        }
     }
 
     // Mark enriched UMIDs in dedup ledger
