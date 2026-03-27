@@ -112,8 +112,14 @@ async function main() {
             if (s2Text && s2Text.length >= 200) {
                 result = classifyTextFFI(s2Text);
             } else {
-                if (htmlResult.type === 'FAILURE') await handleFailure();
-                failed++;
+                if (htmlResult.type === 'FAILURE') {
+                    console.log(`   ❌ [FAIL] ${arxivId} | HTTP ${htmlResult.status || 'ERR'}`);
+                    await handleFailure();
+                    failed++;
+                } else {
+                    console.log(`   ⏭️ [SKIP] ${arxivId} | No HTML5 (HTTP ${htmlResult.status || '404'})`);
+                    skipped++;
+                }
                 continue;
             }
         }
