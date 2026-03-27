@@ -48,13 +48,13 @@ export async function fetchOfficialHtml(arxivId) {
             signal: ctrl.signal 
         });
         clearTimeout(timer);
-        if (res.status === 404) return { type: 'SKIP', html: null };
-        if (res.status === 429) return { type: 'FAILURE', html: null };
-        if (!res.ok) return { type: 'FAILURE', html: null };
-        return { type: 'HTML', html: await res.text() };
+        if (res.status === 404) return { type: 'SKIP', html: null, status: 404 };
+        if (res.status === 429) return { type: 'FAILURE', html: null, status: 429 };
+        if (!res.ok) return { type: 'FAILURE', html: null, status: res.status };
+        return { type: 'HTML', html: await res.text(), status: 200 };
     } catch (e) {
         clearTimeout(timer);
-        return { type: 'FAILURE', html: null };
+        return { type: 'FAILURE', html: null, status: e.name === 'AbortError' ? 408 : 0 };
     }
 }
 
