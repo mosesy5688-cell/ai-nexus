@@ -22,9 +22,14 @@ def load_marker():
     """Load Marker model once."""
     try:
         from marker.converters.pdf import PdfConverter
+        from marker.models import create_model_dict
         from marker.config.parser import ConfigParser
         config = ConfigParser({})
-        converter = PdfConverter(config=config.generate_config_dict())
+        artifact_dict = create_model_dict()
+        converter = PdfConverter(
+            config=config.generate_config_dict(),
+            artifact_dict=artifact_dict,
+        )
         sys.stderr.write("[MARKER] Model loaded successfully.\n")
         sys.stderr.flush()
         return converter
