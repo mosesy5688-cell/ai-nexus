@@ -2,7 +2,7 @@ import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadBufferToR2FF
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
-import { primeSession, extractArxivId, fetchOfficialHtml, fetchS2Fulltext } from './lib/arxiv-fetchers.js';
+import { primeSession, extractArxivId, fetchOfficialHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
 
 // ── Config ──────────────────────────────────────────────
 const RATE_LIMIT_MS = 10000;
@@ -66,11 +66,14 @@ async function buildAlreadyEnrichedSet(s3) {
 
 // ── Main ────────────────────────────────────────────────
 async function main() {
-    console.log(`[BOOSTER] V25.8.6.5 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
+    console.log(`[BOOSTER] V25.8.7 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
     const startTime = Date.now();
 
     const rustStatus = initRustBridge();
     await primeSession();
+    const markerReady = await initMarkerSidecar();
+    if (markerReady) console.log('[BOOSTER] Marker PDF sidecar ready.');
+    else console.warn('[BOOSTER] Marker unavailable. PDF fallback disabled.');
 
     initR2Bridge();
     const s3 = createR2ClientFFI();
@@ -112,15 +115,22 @@ async function main() {
             if (s2Text && s2Text.length >= 200) {
                 result = classifyTextFFI(s2Text);
             } else {
-                if (htmlResult.type === 'FAILURE') {
-                    console.log(`   ❌ [FAIL] ${arxivId} | HTTP ${htmlResult.status || 'ERR'}`);
-                    await handleFailure();
-                    failed++;
+                // PDF fallback (Marker sidecar)
+                const pdfText = markerReady ? await fetchArxivPdf(arxivId) : null;
+                if (pdfText && pdfText.length >= 200) {
+                    result = classifyTextFFI(pdfText);
+                    console.log(`   📄 [PDF] ${arxivId}`);
                 } else {
-                    console.log(`   ⏭️ [SKIP] ${arxivId} | No HTML5 (HTTP ${htmlResult.status || '404'})`);
-                    skipped++;
+                    if (htmlResult.type === 'FAILURE') {
+                        console.log(`   ❌ [FAIL] ${arxivId} | HTTP ${htmlResult.status || 'ERR'}`);
+                        await handleFailure();
+                        failed++;
+                    } else {
+                        console.log(`   ⏭️ [SKIP] ${arxivId} | No data from any source`);
+                        skipped++;
+                    }
+                    continue;
                 }
-                continue;
             }
         }
 
@@ -145,6 +155,7 @@ async function main() {
     }
 
     if (enrichedUmids.length > 0) markEnriched(enrichedUmids);
+    shutdownMarkerSidecar();
 }
 
 main().catch(err => { console.error('[BOOSTER] Fatal:', err); process.exit(1); });
