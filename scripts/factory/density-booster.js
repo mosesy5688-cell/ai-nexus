@@ -17,10 +17,10 @@ import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/ru
 import { zstdCompress } from './lib/zstd-helper.js';
 
 // ── Config ──────────────────────────────────────────────
-const ARXIV_HTML_BASE = 'https://export.arxiv.org/html';
+const ARXIV_HTML_BASE = 'https://arxiv.org/html';
 const S2_API = 'https://api.semanticscholar.org/graph/v1/paper';
 const RATE_LIMIT_MS = 10000;
-const FETCH_TIMEOUT_MS = 15000;
+const FETCH_TIMEOUT_MS = 30000; // V25.8.6.4: Extended for cold-start ar5iv rendering
 const AR5IV_RETRY_DELAY_MS = 8000;
 const BUDGET = 20000; // V25.8.4: 4x scale for 4-partition mode (was 5000 for 16 partitions)
 const MAX_RUNTIME_MS = 5 * 60 * 60 * 1000; // 5 hours
@@ -75,14 +75,15 @@ async function fetchOfficialHtml(arxivId) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
-        // V25.8.6.3: 'Special Ops' Spoofing to bypass ArXiv GitHub-IP Tarpitting
         const res = await fetch(url, { 
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer': 'https://arxiv.org/html/',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Cache-Control': 'no-cache',
             },
-            signal: ctrl.signal 
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) 
         });
         clearTimeout(timer);
         if (res.status === 404) return { type: 'SKIP', html: null };
