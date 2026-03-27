@@ -75,3 +75,6 @@ export async function fetchS2Fulltext(arxivId, budget) {
         return data.fullText || null;
     } catch { return null; }
 }
+
+// ── PDF Fallback (Marker Sidecar) ───────────────────────
+export { initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './pdf-fetcher.js';
