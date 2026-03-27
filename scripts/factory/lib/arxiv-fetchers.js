@@ -30,7 +30,13 @@ export async function primeSession() {
 
 export function extractArxivId(canonicalId) {
     const m = canonicalId.match(/arxiv[_-](?:paper--)?(.+)/i);
-    return m ? m[1].replace(/v\d+$/, '') : null;
+    if (!m) return null;
+    let id = m[1].replace(/v\d+$/, '');
+    // Strip accidental prefixes like "unknown--"
+    id = id.replace(/^unknown--/, '');
+    // Validate: must look like ArXiv ID (YYMM.NNNNN or old-style cat/NNNNNNN)
+    if (/^\d{4}\.\d{4,5}$/.test(id) || /^[a-z-]+\/\d{7}$/i.test(id)) return id;
+    return null;
 }
 
 export async function fetchOfficialHtml(arxivId) {
