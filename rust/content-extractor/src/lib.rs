@@ -82,16 +82,33 @@ fn extract_main_content(html: &str) -> String {
     let text = RE_FOOTER.replace_all(&text, "");
 
     // Convert headings to markdown
+    // Alt 1: ltx_title class → group 1 = content (level defaults to 2)
+    // Alt 2: standard <hN>   → group 2 = level, group 3 = content
     let text = RE_HEADING.replace_all(&text, |caps: &regex::Captures| {
-        let level: usize = caps[1].parse().unwrap_or(2);
-        let hashes = "#".repeat(level);
-        let content = strip_tags(&caps[2]).trim().to_string();
-        format!("\n{} {}\n", hashes, content)
+        if let Some(ltx_content) = caps.get(1) {
+            // ArXiv ltx_title match — default to ## (level 2)
+            let content = strip_tags(ltx_content.as_str()).trim().to_string();
+            format!("\n## {}\n", content)
+        } else if let (Some(level_match), Some(content_match)) = (caps.get(2), caps.get(3)) {
+            // Standard <hN> match
+            let level: usize = level_match.as_str().parse().unwrap_or(2);
+            let hashes = "#".repeat(level);
+            let content = strip_tags(content_match.as_str()).trim().to_string();
+            format!("\n{} {}\n", hashes, content)
+        } else {
+            String::new()
+        }
     });
 
     // Convert paragraphs
+    // Alt 1: ltx_p class → group 1 = content
+    // Alt 2: standard <p> → group 2 = content
     let text = RE_PARAGRAPH.replace_all(&text, |caps: &regex::Captures| {
-        let content = strip_tags(&caps[1]).trim().to_string();
+        let raw = caps.get(1)
+            .or_else(|| caps.get(2))
+            .map(|m| m.as_str())
+            .unwrap_or("");
+        let content = strip_tags(raw).trim().to_string();
         format!("{}\n\n", content)
     });
 
