@@ -20,7 +20,7 @@ const ARXIV_PDF_BASE = 'https://arxiv.org/pdf';
 const PDF_TMP_DIR = process.env.RUNNER_TEMP || '/tmp';
 const PDF_MAX_SIZE = 50 * 1024 * 1024; // 50MB cap
 const PDF_TIMEOUT_MS = 60000;
-const MARKER_TIMEOUT_MS = 120000; // 120s per conversion
+const MARKER_TIMEOUT_MS = 20 * 60 * 1000; // 20 min — large PDFs (500+ pages) need this
 
 let sidecar = null;
 let rl = null;
@@ -56,7 +56,7 @@ export function initMarkerSidecar() {
         rl = createInterface({ input: sidecar.stdout });
         rl.on('line', (line) => {
             lineBuffer.push(line);
-            if (line === '<MARKER_END>' || line === '<MARKER_ERROR>') {
+            if (line.startsWith('<MARKER_END:') || line.startsWith('<MARKER_ERROR:')) {
                 if (waitingResolve) {
                     const cb = waitingResolve;
                     waitingResolve = null;
@@ -86,7 +86,7 @@ function waitForMarkerResponse() {
         setTimeout(() => {
             if (waitingResolve) {
                 waitingResolve = null;
-                resolve(['<MARKER_ERROR>']);
+                resolve(['<MARKER_TIMEOUT>']);
             }
         }, MARKER_TIMEOUT_MS);
     });
@@ -120,12 +120,39 @@ export async function fetchArxivPdf(arxivId) {
         // 3. Wait for response
         const lines = await waitForMarkerResponse();
 
-        if (lines[lines.length - 1] === '<MARKER_ERROR>') return null;
+        // Timeout — sidecar may still be processing; drain buffer on next call
+        if (lines[0] === '<MARKER_TIMEOUT>') {
+            console.warn(`[PDF] Marker timeout (${MARKER_TIMEOUT_MS/1000}s) for ${arxivId}`);
+            return null;
+        }
 
-        // Extract markdown between delimiters
-        const startIdx = lines.indexOf('<MARKER_START>');
-        if (startIdx === -1) return null;
-        const markdown = lines.slice(startIdx + 1, -1).join('\n');
+        const lastLine = lines[lines.length - 1] || '';
+
+        // 4. Validate paper ID — prevent data corruption from protocol desync
+        if (lastLine.startsWith('<MARKER_ERROR:')) {
+            // Check if error belongs to this paper
+            if (!lastLine.includes(tmpPath)) {
+                console.warn(`[PDF] Protocol desync: expected ${tmpPath}, got ${lastLine}. Discarding.`);
+                lineBuffer = [];
+                return null;
+            }
+            return null;
+        }
+
+        // Find start delimiter with matching path
+        const startIdx = lines.findIndex(l => l === `<MARKER_START:${tmpPath}>`);
+        const endIdx = lines.findIndex(l => l === `<MARKER_END:${tmpPath}>`);
+
+        if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+            // Response belongs to a different paper — protocol is desynced
+            if (lines.some(l => l.startsWith('<MARKER_START:'))) {
+                console.warn(`[PDF] Protocol desync for ${arxivId}. Discarding stale response.`);
+            }
+            lineBuffer = [];
+            return null;
+        }
+
+        const markdown = lines.slice(startIdx + 1, endIdx).join('\n');
         return markdown.length >= 200 ? markdown : null;
 
     } catch (e) {
