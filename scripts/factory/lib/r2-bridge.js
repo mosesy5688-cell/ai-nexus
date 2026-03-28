@@ -161,11 +161,42 @@ export async function batchUploadFFI(client, files, etagMap, concurrency) {
 
 /** Backup directory to R2 with manifest. */
 export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = {}) {
+    // Resolve to absolute path to avoid cwd issues in Rust WalkDir
+    const path = await import('path');
+    const fs = await import('fs');
+    const absDir = path.resolve(localDir);
+
+    if (!fs.existsSync(absDir)) {
+        console.warn(`[R2-BRIDGE] backup-dir: directory '${absDir}' does not exist`);
+        return { count: 0 };
+    }
+
+    // List files for diagnostics
+    const entries = fs.readdirSync(absDir);
+    console.log(`[R2-BRIDGE] backup-dir: found ${entries.length} entries in ${absDir}`);
+
     if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        return _r2Engine.backupDirectoryToR2(client, localDir, r2Prefix, opts.concurrency, opts.minSize);
+        // Walk with extensions filter, then upload
+        const extFilter = opts.extensions || null;
+        const walkResult = await _r2Engine.walkDirWithMd5(absDir, extFilter);
+        console.log(`[R2-BRIDGE] backup-dir: ${walkResult.length} files matched filter`);
+
+        let count = 0;
+        for (const entry of walkResult) {
+            const localPath = `${absDir}/${entry.relPath}`;
+            const r2Key = `${r2Prefix}${entry.relPath}`;
+            try {
+                const data = fs.readFileSync(localPath);
+                await _r2Engine.streamToR2(client, r2Key, data.toString('base64'));
+                count++;
+            } catch (e) {
+                console.warn(`[R2-BRIDGE] backup-dir: failed to upload ${entry.relPath}: ${e.message}`);
+            }
+        }
+        return { count };
     }
     const { backupDirectoryToR2 } = await import('./r2-handoff.js');
-    return backupDirectoryToR2(localDir, r2Prefix, opts);
+    return backupDirectoryToR2(absDir, r2Prefix, opts);
 }
 
 /** Restore directory from R2 (manifest-first, prefix-listing fallback). */
