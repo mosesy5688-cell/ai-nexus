@@ -74,13 +74,13 @@ def main():
         markdown = convert_pdf(converter, pdf_path)
 
         if markdown:
-            sys.stdout.write("<MARKER_START>\n")
+            sys.stdout.write(f"<MARKER_START:{pdf_path}>\n")
             sys.stdout.write(markdown)
             if not markdown.endswith("\n"):
                 sys.stdout.write("\n")
-            sys.stdout.write("<MARKER_END>\n")
+            sys.stdout.write(f"<MARKER_END:{pdf_path}>\n")
         else:
-            sys.stdout.write("<MARKER_ERROR>\n")
+            sys.stdout.write(f"<MARKER_ERROR:{pdf_path}>\n")
 
         sys.stdout.flush()
 
