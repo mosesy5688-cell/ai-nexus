@@ -2,7 +2,7 @@ import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadBufferToR2FF
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
-import { primeSession, extractArxivId, fetchOfficialHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
+import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
 
 // ── Config ──────────────────────────────────────────────
 const RATE_LIMIT_MS = 10000;
@@ -107,10 +107,25 @@ async function main() {
             htmlResult = await fetchOfficialHtml(arxivId);
         }
 
+        if (htmlResult.type !== 'HTML') {
+            htmlResult = await fetchAr5ivHtml(arxivId);
+            if (htmlResult.type === 'FAILURE') {
+                await new Promise(r => setTimeout(r, AR5IV_RETRY_DELAY_MS));
+                htmlResult = await fetchAr5ivHtml(arxivId);
+            }
+        }
+
         let result;
         if (htmlResult.type === 'HTML' && htmlResult.html) {
             result = extractAndClassifyFFI(htmlResult.html);
-        } else {
+            if (result.classification === 'SKIP') {
+                htmlResult.type = 'SKIP'; // fallback to S2/PDF due to poor extraction
+            } else if (htmlResult.source === 'ar5iv') {
+                console.log(`   🌐 [AR5IV] ${arxivId}`);
+            }
+        }
+
+        if (htmlResult.type !== 'HTML') {
             const s2Text = await fetchS2Fulltext(arxivId, S2_RUNNER_BUDGET);
             if (s2Text && s2Text.length >= 200) {
                 result = classifyTextFFI(s2Text);

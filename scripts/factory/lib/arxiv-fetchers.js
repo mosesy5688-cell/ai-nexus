@@ -41,8 +41,6 @@ export function extractArxivId(canonicalId) {
 
 export async function fetchOfficialHtml(arxivId) {
     const url = `${ARXIV_HTML_BASE}/${arxivId}`;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
     try {
         const res = await fetch(url, { 
             headers: {
@@ -51,29 +49,56 @@ export async function fetchOfficialHtml(arxivId) {
                 'Cookie': sessionCookie,
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             },
-            signal: ctrl.signal 
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
         });
-        clearTimeout(timer);
         if (res.status === 404) return { type: 'SKIP', html: null, status: 404 };
         if (res.status === 429) return { type: 'FAILURE', html: null, status: 429 };
         if (!res.ok) return { type: 'FAILURE', html: null, status: res.status };
-        return { type: 'HTML', html: await res.text(), status: 200 };
+        return { type: 'HTML', html: await res.text(), status: 200, source: 'official' };
     } catch (e) {
-        clearTimeout(timer);
-        return { type: 'FAILURE', html: null, status: e.name === 'AbortError' ? 408 : 0 };
+        return { type: 'FAILURE', html: null, status: e.name === 'TimeoutError' || e.name === 'AbortError' ? 408 : 0 };
+    }
+}
+
+export async function fetchAr5ivHtml(arxivId) {
+    const url = `https://ar5iv.labs.arxiv.org/html/${arxivId}`;
+    try {
+        const res = await fetch(url, { 
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            },
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+        });
+        if (res.status === 404) return { type: 'SKIP', html: null, status: 404 };
+        if (res.status === 429) return { type: 'FAILURE', html: null, status: 429 };
+        if (!res.ok) return { type: 'FAILURE', html: null, status: res.status };
+        return { type: 'HTML', html: await res.text(), status: 200, source: 'ar5iv' };
+    } catch (e) {
+        return { type: 'FAILURE', html: null, status: e.name === 'TimeoutError' || e.name === 'AbortError' ? 408 : 0 };
     }
 }
 
 let s2CallCount = 0;
 export async function fetchS2Fulltext(arxivId, budget) {
     if (!arxivId) return null;
-    if (s2CallCount >= budget) return null;
-    s2CallCount++;
+
+    const apiKey = process.env.S2_API_KEY;
+    if (!apiKey) {
+        if (s2CallCount >= budget) return null;
+        s2CallCount++;
+    }
+
     try {
+        const headers = { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36' 
+        };
+        if (apiKey) {
+            headers['x-api-key'] = apiKey;
+        }
+
         const res = await fetch(`${S2_API}/ArXiv:${arxivId}?fields=title,abstract,fullText`, {
-            headers: { 
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36' 
-            },
+            headers,
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
         });
         if (!res.ok) return null;
