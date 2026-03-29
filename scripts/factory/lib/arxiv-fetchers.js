@@ -29,17 +29,22 @@ export async function primeSession() {
 }
 
 export function extractArxivId(canonicalId) {
-    const m = canonicalId.match(/arxiv[_-](?:paper--)?(.+)/i);
-    if (!m) return null;
-    let id = m[1].replace(/v\d+$/, '');
-    // Strip accidental prefixes like "unknown--"
-    id = id.replace(/^unknown--/, '');
-    // Validate: must look like ArXiv ID (YYMM.NNNNN or old-style cat/NNNNNNN)
-    if (/^\d{4}\.\d{4,5}$/.test(id) || /^[a-z-]+\/\d{7}$/i.test(id)) return id;
+    if (!canonicalId) return null;
+    
+    // 1. Try to find a standard ArXiv ID pattern anywhere
+    const arxivMatch = canonicalId.match(/(\d{4}\.\d{4,5}|[a-z-]+\/\d{7})/i);
+    if (arxivMatch) return arxivMatch[1].replace(/v\d+$/, '');
+    
+    // 2. Fallback for S2 IDs (e.g. unknown--649... or semantic_scholar...)
+    let id = canonicalId.replace(/^(?:arxiv|unknown|semantic_scholar|s2)[_-]+(?:paper--)?/i, '');
+    if (/^[a-f0-9]{40}$/i.test(id) || /^\d+$/.test(id)) return id;
+    
     return null;
 }
 
 export async function fetchOfficialHtml(arxivId) {
+    const isArxiv = /^\d{4}\.\d{4,5}$/.test(arxivId) || /^[a-z-]+\/\d{7}$/i.test(arxivId);
+    if (!isArxiv) return { type: 'SKIP', html: null, status: 400 };
     const url = `${ARXIV_HTML_BASE}/${arxivId}`;
     try {
         const res = await fetch(url, { 
@@ -61,6 +66,8 @@ export async function fetchOfficialHtml(arxivId) {
 }
 
 export async function fetchAr5ivHtml(arxivId) {
+    const isArxiv = /^\d{4}\.\d{4,5}$/.test(arxivId) || /^[a-z-]+\/\d{7}$/i.test(arxivId);
+    if (!isArxiv) return { type: 'SKIP', html: null, status: 400 };
     const url = `https://ar5iv.labs.arxiv.org/html/${arxivId}`;
     try {
         const res = await fetch(url, { 
@@ -97,7 +104,10 @@ export async function fetchS2Fulltext(arxivId, budget) {
             headers['x-api-key'] = apiKey;
         }
 
-        const res = await fetch(`${S2_API}/ArXiv:${arxivId}?fields=title,abstract,fullText`, {
+        const isArxiv = /^\d{4}\.\d{4,5}$/.test(arxivId) || /^[a-z-]+\/\d{7}$/i.test(arxivId);
+        const endpointId = isArxiv ? `ArXiv:${arxivId}` : arxivId;
+
+        const res = await fetch(`${S2_API}/${endpointId}?fields=title,abstract,fullText`, {
             headers,
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
         });
