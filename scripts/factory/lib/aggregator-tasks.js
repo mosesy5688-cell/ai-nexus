@@ -12,8 +12,10 @@ import { generateMeshGraph } from './mesh-graph-generator.js';
 import { computeAltRelations } from './alt-linker.js';
 import { computeKnowledgeLinks } from './knowledge-linker.js';
 import { generateKnowledgeData } from './knowledge-data-generator.js';
+import { generateWithGemini, getKnownTopics } from './knowledge-ai.js';
 import { loadFniHistory } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
+import { smartWriteWithVersioning } from './smart-writer.js';
 import path from 'path';
 
 /**
@@ -39,6 +41,26 @@ export function buildTaskList(rankedEntities, outputDir, opts = {}) {
             name: 'TrendData', id: 'trend', fn: async () => {
                 const history = await loadFniHistory();
                 await generateTrendData(history, path.join(outputDir, 'cache'));
+            }
+        },
+        {
+            name: 'KnowledgeAI', id: 'knowledge-ai', fn: async () => {
+                const knowledgeDir = path.join(outputDir, 'cache', 'knowledge', 'ai');
+                const topicMap = getKnownTopics();
+                const topics = Object.values(topicMap).flat();
+                let generated = 0;
+                for (const topic of topics) {
+                    try {
+                        const result = await generateWithGemini(topic);
+                        if (result) {
+                            await smartWriteWithVersioning(`${topic.slug}.json`, { ...result, _topic: topic.slug, _ts: new Date().toISOString() }, knowledgeDir, { compress: true });
+                            generated++;
+                        }
+                    } catch (e) {
+                        console.warn(`[KnowledgeAI] Skipping ${topic.slug}: ${e.message}`);
+                    }
+                }
+                console.log(`[KnowledgeAI] Generated ${generated}/${topics.length} articles`);
             }
         }
     ];

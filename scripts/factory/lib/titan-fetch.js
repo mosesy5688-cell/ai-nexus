@@ -6,15 +6,16 @@
  * response body error logging, shared circuit breaker, safety settings.
  */
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_FALLBACK_MODEL = 'gemini-2.0-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const TITAN_CONFIG = {
-    STAGGER_DELAY_MS: 35000,
+    STAGGER_DELAY_MS: 60000,
     BACKOFF_BASE_MS: 10000,
     MAX_RETRIES: 3,
-    CIRCUIT_BREAKER_THRESHOLD: 5,
-    FETCH_TIMEOUT_MS: 30000,
+    CIRCUIT_BREAKER_THRESHOLD: 10,
+    FETCH_TIMEOUT_MS: 60000,
 };
 
 // Shared circuit breaker (singleton across daily-report-ai + knowledge-ai)
@@ -131,10 +132,20 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
         body.systemInstruction = { parts: [{ text: systemInstruction }] };
     }
 
-    const response = await fetchWithTitan(
-        `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    const fetchOpts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+
+    // Try primary model, fallback on failure
+    let response = await fetchWithTitan(
+        `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`, fetchOpts
     );
+
+    if (!response && GEMINI_FALLBACK_MODEL && GEMINI_FALLBACK_MODEL !== GEMINI_MODEL) {
+        console.warn(`[TITAN] Primary model ${GEMINI_MODEL} failed. Trying fallback: ${GEMINI_FALLBACK_MODEL}`);
+        _consecutiveFailures = Math.max(0, _consecutiveFailures - 1); // Give fallback a chance
+        response = await fetchWithTitan(
+            `${GEMINI_BASE}/${GEMINI_FALLBACK_MODEL}:generateContent?key=${apiKey}`, fetchOpts
+        );
+    }
 
     if (!response) return null;
 

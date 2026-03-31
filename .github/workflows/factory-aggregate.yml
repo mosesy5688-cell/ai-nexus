@@ -573,6 +573,14 @@ jobs:
         run: |
           export NODE_OPTIONS="--max-old-space-size=7168"
           node scripts/factory/aggregator.js --task=relations
+      - name: Generate Knowledge AI Articles
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CACHE_DIR: ./cache
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          node scripts/factory/aggregator.js --task=knowledge-ai
       - name: Save Relations Results to Cache
         uses: actions/cache/save@v4
         with:
