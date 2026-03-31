@@ -577,6 +577,9 @@ jobs:
             WARM_URLS+=("https://cdn.free2aitools.com/data/fused-shard-0${i}.bin")
           done
           
+          # V∞ Phase 1A-β: Warm inverted index manifest
+          WARM_URLS+=("https://cdn.free2aitools.com/data/term_index/_manifest.json.zst")
+
           # V25.8: Dynamic VFS Shard Warming (discovers actual DB files instead of hardcoding counts)
           if [ -d "output/data" ]; then
             for db_file in output/data/meta-*.db; do

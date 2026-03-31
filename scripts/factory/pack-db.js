@@ -235,6 +235,12 @@ async function packDatabase() {
     const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();
     await generateMetaAnchors();
+
+    // ── Phase 7: Static Inverted Index (V∞ Phase 1A-β) ──
+    const { buildInvertedIndex } = await import('./lib/inverted-index-builder.js');
+    const termIndexDir = path.join(SHARD_PATH_DIR, 'term_index');
+    await buildInvertedIndex(SEARCH_DB_PATH, termIndexDir);
+
     console.log('[VFS] ✅ V25.9 Streaming Shard-DB Packing Complete.');
 }
 
