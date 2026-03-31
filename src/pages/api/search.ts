@@ -1,11 +1,13 @@
 import type { APIRoute } from 'astro';
 import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/search-query-builder.js';
-import { searchSemantic } from '../../lib/semantic-engine.js';
+import { searchSemantic, embedQuery, annRerankCandidates } from '../../lib/semantic-engine.js';
 import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
 // V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
 import { env } from 'cloudflare:workers';
 
-// V24.9: Separate cache policies — only cache successful non-empty responses
+// V∞ Phase 1A: FTS5 candidate hard limit — non-negotiable (spec §5.1)
+const FTS5_RERANK_LIMIT = 200;
+
 const CACHE_HEADERS_HIT = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -20,7 +22,7 @@ const CACHE_HEADERS_MISS = {
 /** Query a batch of shards with concurrency throttle + retry-on-failure */
 async function queryShardBatch(
     dbs: string[], sql: string, params: any[],
-    r2Bucket: any, shouldSimulate: boolean, semanticScores?: Map<number, number>
+    r2Bucket: any, shouldSimulate: boolean
 ): Promise<any[]> {
     const CONCURRENCY_LIMIT = 4;
     let results: any[] = [];
@@ -29,14 +31,13 @@ async function queryShardBatch(
         const chunkResults = await Promise.all(chunk.map(async (dbName) => {
             try {
                 const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-                return await executeSql(engine.sqlite3, engine.db, sql, params, semanticScores);
+                return await executeSql(engine.sqlite3, engine.db, sql, params);
             } catch (err: any) {
-                // Retry once: evict stale connection, re-fetch from R2
                 console.warn(`[SSR Search] Shard ${dbName} failed (${err.message}), retrying…`);
                 try {
                     await evictCachedDb(dbName);
                     const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-                    return await executeSql(engine.sqlite3, engine.db, sql, params, semanticScores);
+                    return await executeSql(engine.sqlite3, engine.db, sql, params);
                 } catch (retryErr: any) {
                     console.error(`[SSR Search] Shard ${dbName} retry failed: ${retryErr.message}`);
                     return [];
@@ -48,30 +49,35 @@ async function queryShardBatch(
     return results;
 }
 
-/** Deduplicate and sort federated results */
-function mergeResults(rows: any[], sort: string, limit: number, semanticScores?: Map<number, number> | null) {
-    if (semanticScores) {
-        rows.sort((a, b) => b._semanticScore - a._semanticScore);
-    } else if (sort === 'likes') {
+/** Deduplicate and sort federated browse results */
+function mergeBrowseResults(rows: any[], sort: string, limit: number) {
+    if (sort === 'likes') {
         rows.sort((a, b) => (b.likes || 0) - (a.likes || 0));
     } else if (sort === 'last_updated') {
         rows.sort((a, b) => new Date(b.last_updated || 0).getTime() - new Date(a.last_updated || 0).getTime());
     } else {
         rows.sort((a, b) => a._dbSort - b._dbSort);
     }
-
     const unique: any[] = [];
     const seen = new Set<string>();
     for (const r of rows) {
-        if (!seen.has(r.id)) {
-            seen.add(r.id);
-            delete r._semanticScore;
-            delete r._dbSort;
-            unique.push(r);
-        }
+        if (!seen.has(r.id)) { seen.add(r.id); delete r._dbSort; unique.push(r); }
         if (unique.length >= limit) break;
     }
     return unique;
+}
+
+function buildResponse(results: any[], tier: string, startMs: number, headers: Record<string, string>) {
+    return new Response(JSON.stringify({ results, tier, elapsed_ms: Date.now() - startMs }), { headers });
+}
+
+/** Clean internal fields before returning to client */
+function cleanRows(rows: any[]) {
+    for (const r of rows) {
+        delete r.search_vector; delete r._annScore; delete r._dbSort;
+        delete r._semanticScore; delete r._rowid;
+    }
+    return rows;
 }
 
 export const GET: APIRoute = async ({ url }) => {
@@ -79,26 +85,22 @@ export const GET: APIRoute = async ({ url }) => {
     const q = url.searchParams.get('q') || '';
     const sort = url.searchParams.get('sort') || 'fni';
     const type = url.searchParams.get('type') || 'all';
-    const mode = url.searchParams.get('mode') || 'fts5';
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '12'), 50);
     const page = Math.max(parseInt(url.searchParams.get('page') || '1'), 1);
 
     if (!q && type === 'all') {
-        return new Response(JSON.stringify({ results: [], tier: 'empty', elapsed_ms: 0 }), {
-            headers: CACHE_HEADERS_MISS
-        });
+        return buildResponse([], 'empty', start, CACHE_HEADERS_MISS);
     }
 
     try {
-        // V26.0: env imported from cloudflare:workers at module level
         const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
         const shouldSimulate = isDev;
         const manifest = await loadManifest(r2Bucket, shouldSimulate);
 
-        // ── S0: Edge Response Cache (caches.default) ──
+        // ── S0: Edge Response Cache ──
         const manifestEtag = manifest?._etag || 'v23';
-        const cacheKeyUrl = `https://search-cache.internal/${manifestEtag}/q=${encodeURIComponent(q)}&type=${type}&sort=${sort}&mode=${mode}&limit=${limit}&page=${page}`;
+        const cacheKeyUrl = `https://search-cache.internal/${manifestEtag}/q=${encodeURIComponent(q)}&type=${type}&sort=${sort}&limit=${limit}&page=${page}`;
         const cacheKeyReq = new Request(cacheKeyUrl);
         // @ts-ignore - Cloudflare Workers extends CacheStorage with .default
         const edgeCache = (typeof caches !== 'undefined' && caches.default) ? caches.default : null;
@@ -111,66 +113,81 @@ export const GET: APIRoute = async ({ url }) => {
             }
         }
 
-        // ── S0 Miss: Execute federated query ──
-        // Note: WASM serialization handled by withLock() in sqlite-engine.ts
-        const parsed = parseCommands(q);
+        let response: Response;
 
-        // Build SQL
-        let finalSql = '';
-        let finalParams: any[] = [];
-        let semanticScores: Map<number, number> | null = null;
+        if (q) {
+            // ══════════════════════════════════════════════════════════════
+            // V∞ Phase 1A: Tier 3 → Tier 2 Cascade (spec §5.1, §5.2)
+            // Tier 3: FTS5 on unified search.db + ANN rerank
+            // Tier 2: Semantic fallback (vector-core.bin) — ONLY if 0 FTS5 results
+            // ══════════════════════════════════════════════════════════════
+            const parsed = parseCommands(q);
+            const fts5Query = buildFTS5Query(parsed, type);
 
-        if (mode === 'semantic' && env.AI) {
-            const ranked = await searchSemantic(q, limit, env);
-            if (ranked.length > 0) {
-                semanticScores = new Map(ranked.map(r => [r.rowid, r.score]));
-                const placeholders = ranked.map(() => '?').join(',');
-                finalSql = `SELECT *, rowid as _rowid FROM entities e WHERE e.rowid IN (${placeholders})`;
-                finalParams = ranked.map(r => r.rowid);
+            if (fts5Query) {
+                const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'search.db');
+                const ftsRows = await executeSql(engine.sqlite3, engine.db, fts5Query.sql, fts5Query.params);
+
+                if (ftsRows.length > 0) {
+                    // FTS5 → ANN rerank → FNI final sort → TOP K
+                    let reranked = ftsRows;
+                    if (env?.AI) {
+                        const queryEmb = await embedQuery(q, env);
+                        if (queryEmb) reranked = annRerankCandidates(ftsRows, queryEmb);
+                    }
+                    const offset = (page - 1) * limit;
+                    const results = cleanRows(reranked.slice(offset, offset + limit));
+                    response = buildResponse(results, 'fts5_ann', start, results.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS);
+                    if (edgeCache && results.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
+                    return response;
+                    // ── HARD RETURN — Tier 3 satisfied, Tier 2 never reached ──
+                }
             }
+
+            // ── Tier 2: Semantic fallback (vector-core.bin) — last resort ──
+            if (env?.AI) {
+                const ranked = await searchSemantic(q, limit, env);
+                if (ranked.length > 0) {
+                    const semanticScores = new Map(ranked.map(r => [r.rowid, r.score]));
+                    const placeholders = ranked.map(() => '?').join(',');
+                    const hydrateSql = `SELECT *, rowid as _rowid FROM entities e WHERE e.rowid IN (${placeholders})`;
+                    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'search.db');
+                    const hydrated = await executeSql(engine.sqlite3, engine.db, hydrateSql, ranked.map(r => r.rowid), semanticScores);
+                    hydrated.sort((a: any, b: any) => (b._semanticScore || 0) - (a._semanticScore || 0));
+                    const unique: any[] = []; const seen = new Set<string>();
+                    for (const r of hydrated) {
+                        if (!seen.has(r.id)) { seen.add(r.id); r._source = 'fallback_only'; unique.push(r); }
+                        if (unique.length >= limit) break;
+                    }
+                    const results = cleanRows(unique);
+                    response = buildResponse(results, 'semantic_fallback', start, results.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS);
+                    if (edgeCache && results.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
+                    return response;
+                }
+            }
+
+            return buildResponse([], 'empty', start, CACHE_HEADERS_MISS);
         }
 
-        if (finalSql === '') {
-            const { sql: baseSql, params, isFTS } = buildQuery(parsed, type);
-            const orderBy = sort === 'likes' ? 'e.stars DESC'
-                : sort === 'last_updated' ? 'e.last_modified DESC'
-                    : isFTS ? 'rank' : 'e.fni_score DESC, e.raw_pop DESC, e.slug ASC';
-            const offset = (page - 1) * limit;
-            finalSql = `${baseSql} ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
-            finalParams = params;
-        }
+        // ── Browse mode (no query) — existing meta-shard federation ──
+        const parsed = parseCommands(q);
+        const { sql: baseSql, params, isFTS } = buildQuery(parsed, type);
+        const orderBy = sort === 'likes' ? 'e.stars DESC'
+            : sort === 'last_updated' ? 'e.last_modified DESC'
+            : isFTS ? 'rank' : 'e.fni_score DESC, e.raw_pop DESC, e.slug ASC';
+        const offset = (page - 1) * limit;
+        const finalSql = `${baseSql} ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
 
-        // ── Two-Phase Federated Query ──
         const { priority, expansion } = determineTargetDbs(type, q, page, manifest);
-
-        // Phase A: Priority shards (core + single-shard categories)
-        let allRows = await queryShardBatch(
-            priority, finalSql, finalParams, r2Bucket, shouldSimulate, semanticScores || undefined
-        );
-
-        // Phase B: Expansion shards (only if Phase A results insufficient)
+        let allRows = await queryShardBatch(priority, finalSql, params, r2Bucket, shouldSimulate);
         if (allRows.length < limit && expansion.length > 0) {
-            const expansionRows = await queryShardBatch(
-                expansion, finalSql, finalParams, r2Bucket, shouldSimulate, semanticScores || undefined
-            );
+            const expansionRows = await queryShardBatch(expansion, finalSql, params, r2Bucket, shouldSimulate);
             allRows = allRows.concat(expansionRows);
         }
-
-        const finalResults = mergeResults(allRows, sort, limit, semanticScores);
-        const elapsed = Date.now() - start;
-        const tier = semanticScores ? 'semantic' : 'db';
-
-        const headers = finalResults.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
-        const response = new Response(
-            JSON.stringify({ results: finalResults, tier, elapsed_ms: elapsed }),
-            { headers }
-        );
-
-        // ── Write back to S0 edge cache (non-blocking) ──
-        if (edgeCache && finalResults.length > 0) {
-            edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
-        }
-
+        const results = mergeBrowseResults(allRows, sort, limit);
+        const headers = results.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
+        response = buildResponse(results, 'browse', start, headers);
+        if (edgeCache && results.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
         return response;
     } catch (e: any) {
         console.error('[SSR Search] Error:', e.message);
@@ -179,3 +196,33 @@ export const GET: APIRoute = async ({ url }) => {
         });
     }
 };
+
+/**
+ * Build FTS5 SQL for search.db with search_vector included for ANN rerank.
+ * Returns null if query is too short or empty.
+ */
+function buildFTS5Query(parsed: { query: string; filters: Record<string, string> }, type: string) {
+    const q = parsed.query;
+    if (!q || q.length < 2) return null;
+
+    const safeQuery = q.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/)
+        .filter((t: string) => t.length > 0).map((t: string) => `"${t}"*`).join(' AND ');
+    if (!safeQuery) return null;
+
+    const columns = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length, e.search_vector`;
+    let sql = `SELECT s.rank as rank, ${columns} FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ?`;
+    const params: any[] = [safeQuery];
+
+    if (parsed.filters.author) { sql += ` AND e.author LIKE ?`; params.push(`%${parsed.filters.author}%`); }
+    if (parsed.filters.license) { sql += ` AND e.license LIKE ?`; params.push(`%${parsed.filters.license}%`); }
+    if (parsed.filters.task) { sql += ` AND e.pipeline_tag LIKE ?`; params.push(`%${parsed.filters.task}%`); }
+    if (parsed.filters.fni) {
+        const op = parsed.filters.fni.match(/[><=]+/)?.[0] || '>=';
+        const val = parseFloat(parsed.filters.fni.replace(/[^\d.]/g, ''));
+        if (!isNaN(val)) { sql += ` AND e.fni_score ${op} ?`; params.push(val); }
+    }
+    if (type && type !== 'all') { sql += ` AND e.type = ?`; params.push(type); }
+
+    sql += ` ORDER BY rank LIMIT ${FTS5_RERANK_LIMIT}`;
+    return { sql, params };
+}
