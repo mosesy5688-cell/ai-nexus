@@ -137,10 +137,10 @@ export async function searchSemantic(query: string, limit: number, env: any): Pr
 }
 
 /**
- * V∞ Phase 1A: ANN Rerank — score FTS5 candidates by cosine similarity.
+ * V∞ Phase 1A: ANN Rerank — score search candidates by cosine similarity.
  * Decodes Base64-encoded Int8 search_vector from each candidate row,
  * computes cosine similarity with the query embedding, and sorts descending.
- * Candidates without a valid vector retain FTS5 rank as tiebreaker.
+ * NOTE: Not currently called — reserved for Phase 1A-γ (Static Inverted Index).
  */
 export function annRerankCandidates(
     candidates: any[],
