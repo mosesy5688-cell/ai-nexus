@@ -135,3 +135,43 @@ export async function searchSemantic(query: string, limit: number, env: any): Pr
         score: scores[index]
     }));
 }
+
+/**
+ * V∞ Phase 1A: ANN Rerank — score search candidates by cosine similarity.
+ * Decodes Base64-encoded Int8 search_vector from each candidate row,
+ * computes cosine similarity with the query embedding, and sorts descending.
+ * NOTE: Not currently called — reserved for Phase 1A-γ (Static Inverted Index).
+ */
+export function annRerankCandidates(
+    candidates: any[],
+    queryEmbedding: number[]
+): any[] {
+    if (!candidates.length || !queryEmbedding.length) return candidates;
+
+    let queryMag = 0;
+    for (let d = 0; d < queryEmbedding.length; d++) {
+        queryMag += queryEmbedding[d] * queryEmbedding[d];
+    }
+    queryMag = Math.sqrt(queryMag);
+    if (queryMag === 0) return candidates;
+
+    for (const c of candidates) {
+        const b64 = c.search_vector;
+        if (!b64 || typeof b64 !== 'string' || b64.length < 50) {
+            c._annScore = -1;
+            continue;
+        }
+        const raw = atob(b64);
+        const dim = Math.min(raw.length, queryEmbedding.length);
+        let dot = 0, dbMag = 0;
+        for (let d = 0; d < dim; d++) {
+            const unsigned = raw.charCodeAt(d);
+            const val = unsigned > 127 ? unsigned - 256 : unsigned;
+            dot += queryEmbedding[d] * val;
+            dbMag += val * val;
+        }
+        c._annScore = dbMag > 0 ? dot / (queryMag * Math.sqrt(dbMag)) : -1;
+    }
+
+    return candidates.sort((a, b) => b._annScore - a._annScore);
+}
