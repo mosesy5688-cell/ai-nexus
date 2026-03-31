@@ -60,8 +60,8 @@ export function tokenizeQuery(text: string): string[] {
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9\s]/g, ' ')
         .split(/\s+/)
-        .filter(t => t.length >= 2 && !STOP_WORDS.has(t));
-    return [...new Set(raw.map(porterStem).filter(t => t.length >= 2))];
+        .filter(t => t.length >= 2 && t.length <= 40 && !STOP_WORDS.has(t));
+    return [...new Set(raw.map(porterStem).filter(t => t.length >= 2 && t.length <= 40))];
 }
 
 /** Get the 2-char prefix bucket for a term (matches builder bucketing) */
