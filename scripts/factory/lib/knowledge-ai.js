@@ -48,15 +48,12 @@ export function getKnownTopics() {
     return {
         benchmark: [
             { slug: 'mmlu', title: 'MMLU Benchmark', description: 'Massive Multitask Language Understanding', category: 'benchmark' },
-            { slug: 'humaneval', title: 'HumanEval', description: 'Code generation benchmark by OpenAI', category: 'benchmark' },
         ],
         architecture: [
             { slug: 'mixture-of-experts', title: 'Mixture of Experts (MoE)', description: 'Sparse expert routing architecture', category: 'architecture' },
-            { slug: 'kv-cache', title: 'KV Cache Optimization', description: 'Key-Value cache for transformer inference', category: 'architecture' },
         ],
         'model-family': [
             { slug: 'llama-family', title: 'Llama Model Family', description: 'Meta open-source LLM family', category: 'model-family' },
-            { slug: 'qwen-family', title: 'Qwen Model Family', description: 'Alibaba multilingual LLM series', category: 'model-family' },
         ]
     };
 }
