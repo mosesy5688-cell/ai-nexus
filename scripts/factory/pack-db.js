@@ -193,8 +193,9 @@ async function packDatabase() {
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 
     // ── Phase 5: Parquet + FNI (before accumulator close) ──
-    const { exportParquet } = await import('./lib/parquet-exporter.js');
+    const { exportParquet, exportLiteParquet } = await import('./lib/parquet-exporter.js');
     await exportParquet(accumulator);
+    await exportLiteParquet(accumulator);
     const { checkFniSanity } = await import('./lib/fni-sanity-check.js');
     const { passed } = checkFniSanity(accumulator);
     if (!passed) {
