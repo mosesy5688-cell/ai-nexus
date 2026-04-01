@@ -4,8 +4,8 @@
  * CDN cached (1h), zero cost. Spec §6.9.
  */
 import type { APIRoute } from 'astro';
-import { getCachedDbConnection, executeSql } from '../../../../lib/sqlite-engine.js';
-import { xxhash64Mod } from '../../../../utils/xxhash64.js';
+import { getCachedDbConnection, executeSql } from '../../../../../lib/sqlite-engine.js';
+import { xxhash64Mod } from '../../../../../utils/xxhash64.js';
 import { env } from 'cloudflare:workers';
 
 const META_SHARDS = 32;
