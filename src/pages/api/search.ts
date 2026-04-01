@@ -130,10 +130,10 @@ export const GET: APIRoute = async ({ url }) => {
             // Step 1: Tokenize → Step 2: Parallel R2 fetch term files
             // Step 3: Merge postings → Step 4: Shard hydration
             // ═══════════════════════════════════════════════════════════
-            const { terms, results: termResults } = await fetchAllTermPostings(q, r2Bucket, isDev);
+            const { terms, results: termResults, manifest: termManifest } = await fetchAllTermPostings(q, r2Bucket, isDev);
 
             if (termResults.size > 0) {
-                let candidates = mergePostings(termResults, terms.length, 200);
+                let candidates = mergePostings(termResults, terms.length, 200, termManifest);
 
                 // Type filter: apply post-merge via shard hydration filtering
                 if (candidates.length > 0) {
