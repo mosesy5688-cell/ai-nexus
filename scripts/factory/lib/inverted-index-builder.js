@@ -104,7 +104,7 @@ export async function buildInvertedIndex(searchDbPath, outputDir) {
         for (const term of terms) {
             let entry = termMap.get(term);
             if (!entry) { entry = []; termMap.set(term, entry); }
-            entry.push([row.id, Math.round((row.fni_score || 0) * 100) / 100, shard]);
+            entry.push([row.id, Math.round(row.fni_score || 0), shard]);
         }
     }
     db.close();
@@ -112,23 +112,11 @@ export async function buildInvertedIndex(searchDbPath, outputDir) {
     const avgDl = totalDocs > 0 ? totalLen / totalDocs : 1;
     console.log(`[InvIdx] ${totalDocs} docs, ${termMap.size} unique terms, avgDl=${avgDl.toFixed(1)}`);
 
-    // ── Pass 2: BM25 scoring + write term files ──
-    const k1 = 1.2, b = 0.75;
+    // ── Pass 2: Write term files (pure FNI scores — BM25 computed at query time) ──
     let filesWritten = 0, totalBytes = 0;
 
     for (const [term, postings] of termMap) {
         const df = postings.length;
-        const idf = Math.log((totalDocs - df + 0.5) / (df + 0.5) + 1);
-
-        // BM25 score = idf * (tf * (k1+1)) / (tf + k1*(1 - b + b*dl/avgDl))
-        // tf=1 per doc (presence), dl approximated by fni_score rank proximity
-        for (const p of postings) {
-            const tf = 1;
-            const dl = 1; // normalized — each doc tokenized once
-            const bm25 = idf * (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * dl / avgDl));
-            p[1] = Math.round((p[1] * 0.6 + bm25 * 40 * 0.4) * 100) / 100; // blend FNI + BM25
-        }
-
         postings.sort((a, b) => b[1] - a[1]);
 
         // Prefix bucket: 2-char prefix directory
