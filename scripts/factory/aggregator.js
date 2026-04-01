@@ -157,6 +157,13 @@ async function main() {
     }
 
     const rankedEntities = fullSet;
+
+    // Daily report runs FIRST — its Gemini call has highest priority before knowledge AI
+    if (!taskArg || taskArg === 'core') {
+        await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
+        if (shouldGenerateReport()) await generateDailyReport(CONFIG.OUTPUT_DIR);
+    }
+
     const tasks = buildTaskList(rankedEntities, CONFIG.OUTPUT_DIR, { shardDir });
 
     let taskFailures = 0;
@@ -204,8 +211,6 @@ async function main() {
             await persistRegistry(persistRankings ? null : rankedEntities, CONFIG.OUTPUT_DIR, './cache', persistRankings, scoreMap);
 
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
-            await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
-            if (shouldGenerateReport()) await generateDailyReport(CONFIG.OUTPUT_DIR);
 
         } catch (e) {
             console.error(`[AGGREGATOR] ❌ Finalization failed: ${e.message}`);
