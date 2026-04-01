@@ -8,6 +8,7 @@
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
 const GEMINI_FALLBACK_MODEL = 'gemini-2.5-pro';
+const GEMINI_FLASH_FALLBACK = 'gemini-2.5-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const TITAN_CONFIG = {
@@ -77,11 +78,19 @@ async function fetchWithTitan(url, options, attempt = 0) {
 
         // Retryable status codes: 429 (rate limit), 500, 502, 503 (transient server errors)
         const retryable = [429, 500, 502, 503];
-        if (retryable.includes(response.status) && attempt < TITAN_CONFIG.MAX_RETRIES) {
+        if (retryable.includes(response.status)) {
             let errorDetail = '';
             try { errorDetail = await response.text(); } catch { }
-            console.warn(`[TITAN] ${response.status} (retryable). Detail: ${errorDetail.substring(0, 200)}`);
-            return fetchWithTitan(url, options, attempt + 1);
+            // Quota exceeded = daily/monthly limit → retrying is pointless, fail fast to fallback
+            if (response.status === 429 && errorDetail.includes('exceeded your current quota')) {
+                _consecutiveFailures++;
+                console.warn(`[TITAN] Quota exceeded (not retryable). Failing fast to next model.`);
+                return null;
+            }
+            if (attempt < TITAN_CONFIG.MAX_RETRIES) {
+                console.warn(`[TITAN] ${response.status} (retryable). Detail: ${errorDetail.substring(0, 200)}`);
+                return fetchWithTitan(url, options, attempt + 1);
+            }
         }
 
         if (response.ok) {
@@ -141,9 +150,17 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
 
     if (!response && GEMINI_FALLBACK_MODEL && GEMINI_FALLBACK_MODEL !== GEMINI_MODEL) {
         console.warn(`[TITAN] Primary model ${GEMINI_MODEL} failed. Trying fallback: ${GEMINI_FALLBACK_MODEL}`);
-        _consecutiveFailures = Math.max(0, _consecutiveFailures - 1); // Give fallback a chance
+        _consecutiveFailures = Math.max(0, _consecutiveFailures - 1);
         response = await fetchWithTitan(
             `${GEMINI_BASE}/${GEMINI_FALLBACK_MODEL}:generateContent?key=${apiKey}`, fetchOpts
+        );
+    }
+
+    if (!response && GEMINI_FLASH_FALLBACK) {
+        console.warn(`[TITAN] Pro models exhausted. Trying flash fallback: ${GEMINI_FLASH_FALLBACK}`);
+        _consecutiveFailures = Math.max(0, _consecutiveFailures - 1);
+        response = await fetchWithTitan(
+            `${GEMINI_BASE}/${GEMINI_FLASH_FALLBACK}:generateContent?key=${apiKey}`, fetchOpts
         );
     }
 
