@@ -13,7 +13,9 @@ import fsSync from 'fs';
 import path from 'path';
 
 const PARQUET_DIR = './output/parquet';
+const DATASETS_DIR = './output/datasets';
 const MAX_EPOCHS_RETAINED = 5;
+const FNI_VERSION = 'v18.9';
 
 /**
  * Build the Parquet schema for analytical columns.
@@ -157,4 +159,66 @@ async function updateEpochManifest(epoch, fileName, entityCount, fileSize) {
 
     await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
     console.log(`[Parquet] Epoch manifest updated. Retained: ${manifest.epochs.length}/${MAX_EPOCHS_RETAINED}`);
+}
+
+/** Strip Markdown/HTML noise for clean plaintext abstract */
+function cleanAbstract(raw) {
+    return raw
+        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')   // [text](url) → text, ![alt](img) → alt
+        .replace(/<[^>]+>/g, '')                       // <html tags>
+        .replace(/^#{1,6}\s+/gm, '')                   // ### headings
+        .replace(/[*_~`]{1,3}/g, '')                   // bold/italic/strike/code markers
+        .replace(/\|[^\n]*\|/g, '')                    // table rows
+        .replace(/[-=]{3,}/g, '')                      // horizontal rules / heading underlines
+        .replace(/\n{2,}/g, '\n')                      // collapse blank lines
+        .trim();
+}
+
+/**
+ * V∞ Phase 4 — Spec §7.1 Lite Tier: Public fni_lite.parquet
+ * Fields: id, title, abstract_300, fni_score, fni_version
+ * Output: datasets/fni_lite_{date}.parquet + fni_lite_latest.parquet
+ */
+export async function exportLiteParquet(accumulator) {
+    const parquet = await import('@dsnp/parquetjs');
+    const schema = new parquet.ParquetSchema({
+        id:           { type: 'UTF8' },
+        title:        { type: 'UTF8' },
+        abstract_300: { type: 'UTF8' },
+        fni_score:    { type: 'FLOAT' },
+        fni_version:  { type: 'UTF8' },
+    });
+
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '_');
+    const fileName = `fni_lite_${date}.parquet`;
+    const filePath = path.join(DATASETS_DIR, fileName);
+    const latestPath = path.join(DATASETS_DIR, 'fni_lite_latest.parquet');
+
+    await fs.mkdir(DATASETS_DIR, { recursive: true });
+    console.log(`[Parquet-Lite] 📊 Exporting Spec §7.1 Lite tier (${date})...`);
+
+    const writer = await parquet.ParquetWriter.openFile(schema, filePath, {
+        compression: 'SNAPPY', rowGroupSize: 10000,
+    });
+
+    let count = 0;
+    for (const e of accumulator.iterate()) {
+        const raw = String(e.body_content || e.readme_content || e.description || '');
+        await writer.appendRow({
+            id:           String(e.id || e.slug || ''),
+            title:        String(e.name || e.displayName || ''),
+            abstract_300: cleanAbstract(raw).slice(0, 300),
+            fni_score:    Number(e.fni_score ?? 0),
+            fni_version:  FNI_VERSION,
+        });
+        count++;
+    }
+    await writer.close();
+
+    // Copy as _latest (cross-platform, no symlink needed)
+    await fs.copyFile(filePath, latestPath);
+
+    const fileSize = fsSync.statSync(filePath).size;
+    console.log(`[Parquet-Lite] ✅ ${fileName} — ${count} entities, ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
+    return { file: filePath, latest: latestPath, count };
 }
