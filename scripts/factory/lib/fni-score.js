@@ -1,3 +1,10 @@
+// ═══════════════════════════════════════════
+// FNI V18.9 — FROZEN (2026-04-01)
+// Formula: FNI = min(99.9, Sp*0.45 + Sf*0.30 + Sm*0.25)
+// Next: V2.0 canonical (Phase 6, requires 768-dim embeddings)
+// See: V∞ Spec §3.1 for V2.0 target formula
+// ═══════════════════════════════════════════
+
 /**
  * FNI V18.9: Ultimate Singularity Ranking Algorithm
  * Spec: FNI_ALGO_V18.1_ULTIMATE_SINGULARITY (V18.9 Hardened)
@@ -54,11 +61,13 @@ export function calculateFNI(entity, options = {}) {
     const Sc = calcCompleteness(entity);
     const Su = calcUtility(entity);
 
+    // [V2.0-INTERFACE] Sp → splits into P (Popularity) + Q (Quality) + A (Authority partial)
     // --- Sp: Asymptotic Log Compressor (base 8) with Quality Correction ---
     const logCompressed = 99.9 * (1 - Math.pow(10, -(Math.log10(rawPop + 1) / 8)));
     const qualityFactor = 1 + (Sc + Su) / 500;
     const Sp_base = Math.min(99.9, logCompressed * qualityFactor);
 
+    // [V2.0-INTERFACE] Sf → maps to R (Recency), formula: exp(-Δdays/180)
     // --- Section 3: Sf - Dynamic Exponential Decay ---
     const lambda = getDecayLambda(type);
     const dateStr = entity.last_modified || entity.pushed_at || entity.published_at || entity.updated_at || entity._updated;
@@ -73,10 +82,13 @@ export function calculateFNI(entity, options = {}) {
     // Sp with lightweight freshness boost
     const Sp = Math.min(99.9, Sp_base * (1 + Sf / 500));
 
+    // [V2.0-INTERFACE] Sm → maps to A (Authority partial, mesh gravity)
     // --- Section 4: Sm - Asymptotic Gravity Field ---
     const meshPoints = options.meshPoints ?? entity._mesh_points ?? estimateMeshPoints(entity, sourcePrefix);
     const Sm = 99.9 * (1 - Math.pow(10, -(Math.log10(meshPoints + 1) / 4)));
 
+    // [V2.0-INTERFACE] New factor: S (Semantic, 0.35 weight) — requires Phase 6 embeddings
+    // V2.0: FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q
     // --- Master Formula: FNI = min(99.9, Sp*0.45 + Sf*0.30 + Sm*0.25) ---
     const baseFni = Math.min(99.9, (Sp * 0.45) + (Sf * 0.30) + (Sm * 0.25));
 
