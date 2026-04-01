@@ -47,24 +47,40 @@ export class DatasetsAdapter extends BaseAdapter {
 
         console.log(`🔄 [HF Datasets] Fetching full details...`);
         const fullDatasets = [];
-        const batchSize = this.hfToken ? 5 : 2;
-        const batchDelay = this.hfToken ? 500 : 1000;
+        const baseBatch = this.hfToken ? 3 : 2;
+        const baseDelay = this.hfToken ? 800 : 1500;
+        let curBatch = baseBatch, curDelay = baseDelay, cleanRuns = 0;
+        this._batchHit429 = false;
 
-        for (let i = 0; i < datasets.length; i += batchSize) {
-            const batch = datasets.slice(i, i + batchSize);
+        for (let i = 0; i < datasets.length; i += curBatch) {
+            const batch = datasets.slice(i, i + curBatch);
             const safeBatch = batch.filter(d => this.isSafeForWork(d));
-            if (safeBatch.length === 0) { console.log(`   ⏭️ Skipping batch ${i / batchSize} (No safe datasets)`); continue; }
+            if (safeBatch.length === 0) { console.log(`   ⏭️ Skipping batch ${i / curBatch} (No safe datasets)`); continue; }
 
+            this._batchHit429 = false;
             const batchResults = await Promise.all(
                 safeBatch.map(d => this.fetchFullDataset(d.id, 0, d, options.registryManager))
             );
             const validResults = batchResults.filter(d => d !== null);
             if (options.onBatch) { await options.onBatch(validResults); } else { fullDatasets.push(...validResults); }
 
-            if ((i + batchSize) % 50 === 0 || i + batchSize >= datasets.length) {
-                console.log(`   Progress: ${Math.min(i + batchSize, datasets.length)}/${datasets.length}`);
+            // Adaptive throttle: slow down on 429, recover after clean batches
+            if (this._batchHit429) {
+                curBatch = Math.max(1, Math.floor(curBatch / 2));
+                curDelay = Math.min(curDelay * 2, 15000);
+                cleanRuns = 0;
+                console.log(`   🔻 Throttle: batch=${curBatch}, delay=${curDelay}ms`);
+            } else if (++cleanRuns >= 5 && (curBatch < baseBatch || curDelay > baseDelay)) {
+                curBatch = Math.min(curBatch + 1, baseBatch);
+                curDelay = Math.max(Math.floor(curDelay * 0.7), baseDelay);
+                cleanRuns = 0;
+                console.log(`   🔺 Recover: batch=${curBatch}, delay=${curDelay}ms`);
             }
-            if (i + batchSize < datasets.length) await this.delay(batchDelay);
+
+            if ((i + curBatch) % 50 === 0 || i + curBatch >= datasets.length) {
+                console.log(`   Progress: ${Math.min(i + curBatch, datasets.length)}/${datasets.length}`);
+            }
+            if (i + curBatch < datasets.length) await this.delay(curDelay);
         }
 
         console.log(`✅ [HF Datasets] Fetched ${options.onBatch ? datasets.length : fullDatasets.length} complete datasets`);
@@ -77,7 +93,7 @@ export class DatasetsAdapter extends BaseAdapter {
      * V14.5: 429 retry with exponential backoff preserved.
      */
     async fetchFullDataset(datasetId, retryCount = 0, expandedData = null, registryManager = null) {
-        const MAX_RETRIES = 3;
+        const MAX_RETRIES = 5;
         try {
             if (registryManager && expandedData && expandedData.lastModified) {
                 const normId = this.generateId(null, datasetId, 'dataset');
@@ -98,11 +114,12 @@ export class DatasetsAdapter extends BaseAdapter {
             } else {
                 const apiResponse = await fetch(`${HF_API_BASE}/datasets/${datasetId}`);
                 if (apiResponse.status === 429) {
+                    this._batchHit429 = true;
                     if (retryCount < MAX_RETRIES) {
-                        const backoff = Math.min(2000 * Math.pow(2, retryCount), 30000);
+                        const backoff = Math.min(3000 * Math.pow(2, retryCount), 60000);
                         console.log(`   ⚠️ Rate limited (429) for ${datasetId}, retry ${retryCount + 1}/${MAX_RETRIES} after ${backoff}ms...`);
                         await this.delay(backoff);
-                        return this.fetchFullDataset(datasetId, retryCount + 1);
+                        return this.fetchFullDataset(datasetId, retryCount + 1, expandedData, registryManager);
                     }
                     console.warn(`   ❌ Max retries exceeded for ${datasetId}`);
                     return null;
