@@ -8,11 +8,10 @@
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
 const GEMINI_FALLBACK_MODEL = 'gemini-2.5-pro';
-const GEMINI_FLASH_FALLBACK = 'gemini-2.5-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const TITAN_CONFIG = {
-    STAGGER_DELAY_MS: 60000,
+    STAGGER_DELAY_MS: 30000,
     BACKOFF_BASE_MS: 10000,
     MAX_RETRIES: 3,
     CIRCUIT_BREAKER_THRESHOLD: 10,
@@ -153,14 +152,6 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
         _consecutiveFailures = Math.max(0, _consecutiveFailures - 1);
         response = await fetchWithTitan(
             `${GEMINI_BASE}/${GEMINI_FALLBACK_MODEL}:generateContent?key=${apiKey}`, fetchOpts
-        );
-    }
-
-    if (!response && GEMINI_FLASH_FALLBACK) {
-        console.warn(`[TITAN] Pro models exhausted. Trying flash fallback: ${GEMINI_FLASH_FALLBACK}`);
-        _consecutiveFailures = Math.max(0, _consecutiveFailures - 1);
-        response = await fetchWithTitan(
-            `${GEMINI_BASE}/${GEMINI_FLASH_FALLBACK}:generateContent?key=${apiKey}`, fetchOpts
         );
     }
 
