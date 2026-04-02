@@ -11,21 +11,23 @@
 interface Props {
   fniScore: number;
   fniPercentile: number;
+  fniS?: number;
+  fniA?: number;
   fniP?: number;
-  fniV?: number;
-  fniC?: number;
-  fniU?: number;  // V3.3: Utility dimension
+  fniR?: number;
+  fniQ?: number;
   size?: 'sm' | 'md' | 'lg';
 }
 
-const { 
-  fniScore = 0, 
-  fniPercentile = 0, 
-  fniP = 0, 
-  fniV = 0, 
-  fniC = 0,
-  fniU = 0,  // V3.3: Utility dimension
-  size = 'md' 
+const {
+  fniScore = 0,
+  fniPercentile = 0,
+  fniS = 50,
+  fniA = 0,
+  fniP = 0,
+  fniR = 0,
+  fniQ = 0,
+  size = 'md'
 } = Astro.props;
 
 // Determine badge color based on percentile
@@ -97,22 +99,26 @@ const sizeClasses = {
       <div class="font-bold text-center mb-2 border-b border-gray-700 pb-1">
         FNI Score: {fniScore.toFixed(1)}
       </div>
-      <div class="grid grid-cols-4 gap-2 text-center">
+      <div class="grid grid-cols-5 gap-1.5 text-center">
+        <div>
+          <div class="text-cyan-400 font-semibold">{fniS.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">Sem</div>
+        </div>
+        <div>
+          <div class="text-green-400 font-semibold">{fniA.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">Auth</div>
+        </div>
         <div>
           <div class="text-blue-400 font-semibold">{fniP.toFixed(0)}</div>
           <div class="text-gray-400 text-[10px]">Pop</div>
         </div>
         <div>
-          <div class="text-green-400 font-semibold">{fniV.toFixed(0)}</div>
-          <div class="text-gray-400 text-[10px]">Vel</div>
+          <div class="text-purple-400 font-semibold">{fniR.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">Rec</div>
         </div>
         <div>
-          <div class="text-purple-400 font-semibold">{fniC.toFixed(0)}</div>
-          <div class="text-gray-400 text-[10px]">Cred</div>
-        </div>
-        <div>
-          <div class="text-orange-400 font-semibold">{fniU.toFixed(0)}</div>
-          <div class="text-gray-400 text-[10px]">Util</div>
+          <div class="text-orange-400 font-semibold">{fniQ.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">Qual</div>
         </div>
       </div>
       <div class="text-center mt-2 text-[10px] text-gray-400">

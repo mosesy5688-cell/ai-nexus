@@ -6,10 +6,11 @@
  */
 
 export interface FNIComponents {
-    p: number;
-    v: number;
-    c: number;
-    u: number;
+    s: number; // Semantic
+    a: number; // Authority
+    p: number; // Popularity
+    r: number; // Recency
+    q: number; // Quality
 }
 
 export interface RankableModel {
@@ -24,17 +25,18 @@ export interface RankableModel {
 /**
  * Sort models by FNI dimension
  * @param models Array of models to sort
- * @param dim Dimension to sort by: 'fni' | 'p' | 'v' | 'c' | 'u'
+ * @param dim Dimension to sort by: 'fni' | 's' | 'a' | 'p' | 'r' | 'q'
  */
 export function sortByDimension(models: RankableModel[], dim: string): RankableModel[] {
     return [...models].sort((a, b) => {
-        const aComp = a.fni_components || { p: 0, v: 0, c: 0, u: 0 };
-        const bComp = b.fni_components || { p: 0, v: 0, c: 0, u: 0 };
+        const aComp = a.fni_components || { s: 50, a: 0, p: 0, r: 0, q: 0 };
+        const bComp = b.fni_components || { s: 50, a: 0, p: 0, r: 0, q: 0 };
         switch (dim) {
+            case 's': return bComp.s - aComp.s;
+            case 'a': return bComp.a - aComp.a;
             case 'p': return bComp.p - aComp.p;
-            case 'v': return bComp.v - aComp.v;
-            case 'c': return bComp.c - aComp.c;
-            case 'u': return bComp.u - aComp.u;
+            case 'r': return bComp.r - aComp.r;
+            case 'q': return bComp.q - aComp.q;
             default: return (b.fni_score ?? b.fni ?? 0) - (a.fni_score ?? a.fni ?? 0);
         }
     });

@@ -3,7 +3,7 @@
  * FNIDimensionFilter.astro
  * 
  * B.14 P2: FNI Dimension Filter
- * Sort by: [FNI Overall] -> P: Popularity | V: Velocity | C: Credibility | U: Utility
+ * Sort by: [FNI Overall] -> S: Semantic | A: Authority | P: Popularity | R: Recency | Q: Quality
  * 
  * Allows users to sort ranking by individual FNI dimensions
  */
@@ -17,10 +17,11 @@ const { activeDimension = 'fni', className = '' } = Astro.props;
 
 const dimensions = [
   { id: 'fni', label: 'FNI Overall', icon: '⚖️', color: 'indigo' },
+  { id: 's', label: 'Semantic', icon: '🧠', color: 'cyan', description: 'Semantic relevance' },
+  { id: 'a', label: 'Authority', icon: '🏛️', color: 'emerald', description: 'Citation & mesh authority' },
   { id: 'p', label: 'Popularity', icon: '🔥', color: 'blue', description: 'Community popularity' },
-  { id: 'v', label: 'Velocity', icon: '🚀', color: 'emerald', description: 'Growth speed' },
-  { id: 'c', label: 'Credibility', icon: '✅', color: 'amber', description: 'Credibility score' },
-  { id: 'u', label: 'Utility', icon: '⚡', color: 'violet', description: 'Practical utility' }
+  { id: 'r', label: 'Recency', icon: '⏱️', color: 'amber', description: 'Content freshness' },
+  { id: 'q', label: 'Quality', icon: '✅', color: 'violet', description: 'Completeness & utility' }
 ];
 ---
 
@@ -106,6 +107,7 @@ const dimensions = [
   }
 
   /* Color accents for active state */
+  .dimension-btn.active[data-color="cyan"] { border-left: 3px solid #06b6d4; }
   .dimension-btn.active[data-color="blue"] { border-left: 3px solid #3b82f6; }
   .dimension-btn.active[data-color="emerald"] { border-left: 3px solid #10b981; }
   .dimension-btn.active[data-color="amber"] { border-left: 3px solid #f59e0b; }

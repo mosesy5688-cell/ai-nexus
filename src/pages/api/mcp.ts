@@ -101,10 +101,12 @@ async function handleToolCall(context: any, toolName: string, args: any) {
                 id: entity.id, name: entity.name, type: entity.type,
                 fni_score: entity.fni_score, author: entity.author,
                 factors: {
-                    note: 'FNI V18.9 = min(99.9, Sp*0.45 + Sf*0.30 + Sm*0.25)',
-                    Sp: 'Popularity (log-compressed metrics × source coefficient × quality)',
-                    Sf: 'Freshness (exponential decay from last_modified)',
-                    Sm: 'Mesh gravity (citation/relation network weight)'
+                    note: 'FNI V2.0 = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q)',
+                    S: 'Semantic (ANN cosine similarity, query-time)',
+                    A: 'Authority (mesh gravity)',
+                    P: 'Popularity (log-compressed metrics)',
+                    R: 'Recency (exponential decay)',
+                    Q: 'Quality (completeness + utility)'
                 },
                 detail_url: `https://free2aitools.com/${entity.type}s/${entity.slug || entity.id}`
             };

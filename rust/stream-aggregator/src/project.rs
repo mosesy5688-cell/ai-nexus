@@ -85,10 +85,11 @@ pub(crate) fn project_entity(e: &Value, fni_percentile: u8) -> Value {
             .or_else(|| e.get("fni").and_then(|v| v.as_f64()))
             .unwrap_or(0.0),
         "fni_percentile": fni_percentile,
+        "fni_s": nested_f64(e, &["fni_s"], &["fni_metrics", "s"]),
+        "fni_a": nested_f64(e, &["fni_a"], &["fni_metrics", "a"]),
         "fni_p": nested_f64(e, &["fni_p"], &["fni_metrics", "p"]),
-        "fni_v": nested_f64(e, &["fni_v"], &["fni_metrics", "f"]),
-        "fni_c": nested_f64(e, &["fni_c"], &["fni_metrics", "c"]),
-        "fni_u": nested_f64(e, &["fni_u"], &["fni_metrics", "u"]),
+        "fni_r": nested_f64(e, &["fni_r"], &["fni_metrics", "r"]),
+        "fni_q": nested_f64(e, &["fni_q"], &["fni_metrics", "q"]),
         "primary_category": str_field(e, "primary_category"),
         "pipeline_tag": str_field(e, "pipeline_tag"),
         "last_modified": e.get("last_modified")

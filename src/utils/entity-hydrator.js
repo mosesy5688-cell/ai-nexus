@@ -24,14 +24,14 @@ export function hydrateEntity(data, type, summaryData) {
     const fScore = computed.fni ?? entity.fni_score ?? entity.fni ?? 0;
     const fMetrics = computed.fni_metrics || entity.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
 
+    let fs_ = computed.fni_s ?? entity.fni_s ?? fMetrics.s ?? 50.0;
+    let fa = computed.fni_a ?? entity.fni_a ?? fMetrics.a ?? meta.fni?.a ?? 0;
     let fp = computed.fni_p ?? entity.fni_p ?? entity.fniP ?? fMetrics.p ?? meta.fni?.p ?? meta.p ?? 0;
-    let ff = computed.fni_f ?? entity.fni_f ?? fMetrics.f ?? meta.fni?.f ?? 0; 
-    let fv = computed.fni_v ?? entity.fni_v ?? entity.fniV ?? fMetrics.v ?? meta.fni?.v ?? meta.v ?? 0;
-    let fc = computed.fni_c ?? entity.fni_c ?? entity.fniC ?? fMetrics.c ?? meta.fni?.c ?? meta.c ?? 0;
-    let fu = computed.fni_u ?? entity.fni_u ?? entity.fniU ?? fMetrics.u ?? meta.fni?.u ?? meta.u ?? 0;
+    let fr = computed.fni_r ?? entity.fni_r ?? fMetrics.r ?? meta.fni?.r ?? 0;
+    let fq = computed.fni_q ?? entity.fni_q ?? fMetrics.q ?? meta.fni?.q ?? 0;
 
     // V23.6: Mark pillars as synthesized when no real data exists (D5 fix)
-    const pillarsSynthesized = (fScore > 0 && fp === 0 && fv === 0 && fc === 0 && fu === 0);
+    const pillarsSynthesized = (fScore > 0 && fp === 0 && fa === 0 && fq === 0);
 
     const hydrated = {
         ...entity,
@@ -41,11 +41,11 @@ export function hydrateEntity(data, type, summaryData) {
         fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile ?? 0,
         fni_commentary: computed.fni_commentary || entity.fni_commentary || meta.fni?.commentary || null,
         fni_metrics: fMetrics,
+        fni_s: fs_,
+        fni_a: fa,
         fni_p: fp,
-        fni_f: ff,
-        fni_v: fv,
-        fni_c: fc,
-        fni_u: fu,
+        fni_r: fr,
+        fni_q: fq,
         fni_pillars_synthesized: pillarsSynthesized,
         name: derivedName,
         relations: computed.relations || entity.relations || meta.extended?.relations || meta.relations || {},

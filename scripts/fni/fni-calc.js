@@ -135,16 +135,17 @@ export function calculateFNI(model, allModels) {
     const anomalyFlags = detectAnomalies(model, allModels);
     const anomalyMultiplier = getAnomalyMultiplier(anomalyFlags);
 
-    const rawScore = (P * CONFIG.WEIGHTS.P) + (V * CONFIG.WEIGHTS.V) + (C * CONFIG.WEIGHTS.C) + (U * CONFIG.WEIGHTS.U);
+    const rawScore = (P * (CONFIG.WEIGHTS.P || 0.15)) + (V * (CONFIG.WEIGHTS.A || 0.25)) + (C * (CONFIG.WEIGHTS.Q || 0.10)) + (U * (CONFIG.WEIGHTS.R || 0.15));
     const finalScore = rawScore * anomalyMultiplier;
 
     return {
         fni_score: Math.round(finalScore * 10) / 10,
-        fni_p: P,
-        fni_v: V,
-        fni_c: C,
-        fni_u: U,  // V3.3 Data Expansion
+        fni_s: 50.0, // Semantic (query-time only)
+        fni_a: V,     // Authority (was velocity)
+        fni_p: P,     // Popularity
+        fni_r: U,     // Recency (placeholder)
+        fni_q: C,     // Quality (was credibility)
         fni_anomaly_flags: anomalyFlags,
-        fni_raw_score: rawScore  // Before penalty
+        fni_raw_score: rawScore
     };
 }

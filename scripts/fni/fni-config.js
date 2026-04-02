@@ -1,16 +1,17 @@
 /**
  * FNI Configuration
- * V18.9 Singularity Spec Compliant
+ * V2.0 Canonical (Phase 6)
  */
 
 export const CONFIG = {
-    // V18.9 Master Formula Weights (sum to 1.0)
-    // FNI = min(99.9, (Sp × 0.45) + (Sf × 0.30) + (Sm × 0.25))
-    // Note: Sc and Su are folded into Sp as Quality Correction Factor
+    // V2.0 Master Formula Weights (sum to 1.0)
+    // FNI = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q)
     WEIGHTS: {
-        Sp: 0.45,  // Popularity (asymptotic log compressor + quality correction)
-        Sf: 0.30,  // Freshness (3-tier exponential decay)
-        Sm: 0.25   // Mesh Gravity (asymptotic gravity field)
+        S: 0.35,   // Semantic (ANN cosine similarity, query-time)
+        A: 0.25,   // Authority (mesh gravity)
+        P: 0.15,   // Popularity (asymptotic log compressor)
+        R: 0.15,   // Recency (exponential decay)
+        Q: 0.10    // Quality (completeness + utility)
     },
 
     // V18.9 Source Parity Coefficients (Ks)

@@ -7,7 +7,7 @@ import type { APIRoute } from 'astro';
 import { GET as internalSearch } from '../search.js';
 
 const FREE_TIER_MAX = 5;
-const API_VERSION = 'fni_v18.9';
+const API_VERSION = 'fni_v2.0';
 
 export const GET: APIRoute = async (context) => {
     // Hard-cap limit for free tier

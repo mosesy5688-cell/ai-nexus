@@ -3,8 +3,8 @@ import path from 'path';
 
 const VECTOR_CORE_PATH = './output/data/vector-core.bin';
 const HOT_SHARD_LIMIT = 30000;
-// Using a standard 384-dimensional embedding for minilm-l6-v2 semantic search (adjust as needed contextually later)
-const VECTOR_DIMENSIONS = 384;
+// V2.0: 768-dimensional embedding for bge-base-en-v1.5 semantic search
+const VECTOR_DIMENSIONS = 768;
 
 /**
  * V22.10 Semantic Engine (Tier 3) — Vector Core Generator

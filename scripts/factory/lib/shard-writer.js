@@ -98,9 +98,9 @@ export class ShardWriter {
      * V25.8.3 P1: Write Int8 quantized embeddings for this shard's entities.
      * Called after all entities are written but BEFORE finalize().
      * @param {Array<Float32Array|number[]>} embeddings - One embedding per entity, same order as writeEntity calls
-     * @param {number} dim - Embedding dimension (e.g. 384)
+     * @param {number} dim - Embedding dimension (e.g. 768)
      */
-    writeEmbeddings(embeddings, dim = 384) {
+    writeEmbeddings(embeddings, dim = 768) {
         if (!this.fd || !embeddings || embeddings.length === 0) return;
 
         // Align to 16KB page boundary for clean Range Read

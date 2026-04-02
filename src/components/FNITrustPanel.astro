@@ -7,11 +7,11 @@
 interface Props {
   fniScore: number;
   fniPercentile: number;
+  fniS?: number;
+  fniA?: number;
   fniP: number;
-  fniF: number;
-  fniV?: number;
-  fniC: number;
-  fniU?: number;
+  fniR?: number;
+  fniQ?: number;
   fniPillarsSynthesized?: boolean;
   fniCommentary?: string;
   fniCalculatedAt?: string;
@@ -19,14 +19,14 @@ interface Props {
   modelId?: string;
 }
 
-const { 
-  fniScore = 0, 
-  fniPercentile = 0, 
-  fniP = 0, 
-  fniF = 0,
-  fniV = 0, 
-  fniC = 0,
-  fniU = 0,
+const {
+  fniScore = 0,
+  fniPercentile = 0,
+  fniS = 50,
+  fniA = 0,
+  fniP = 0,
+  fniR = 0,
+  fniQ = 0,
   fniPillarsSynthesized = false,
   fniCommentary = '',
   fniCalculatedAt = '',
@@ -36,11 +36,11 @@ const {
 
 // Calculate bar chart percentages
 const maxScore = 100;
+const sPercent = (fniS / maxScore) * 100;
+const aPercent = (fniA / maxScore) * 100;
 const pPercent = (fniP / maxScore) * 100;
-const fPercent = (fniF / maxScore) * 100;
-const vPercent = (fniV / maxScore) * 100;
-const cPercent = (fniC / maxScore) * 100;
-const uPercent = (fniU / maxScore) * 100;
+const rPercent = (fniR / maxScore) * 100;
+const qPercent = (fniQ / maxScore) * 100;
 
 // Format date
 const formattedDate = fniCalculatedAt 
@@ -53,7 +53,7 @@ const formattedDate = fniCalculatedAt
   <div class="flex items-center justify-between mb-6">
     <h3 class="text-sm font-black text-white flex items-center gap-2 uppercase tracking-tighter">
       <span class="opacity-60">⚖️</span>
-      Nexus Index <span class="text-[10px] font-bold text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded ml-1">V16.5</span>
+      Nexus Index <span class="text-[10px] font-bold text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded ml-1">V2.0</span>
     </h3>
     <div class="flex items-center gap-4">
       <a href="/methodology" class="text-[9px] font-black text-[#bdc3ff] hover:underline uppercase tracking-widest">
@@ -78,9 +78,26 @@ const formattedDate = fniCalculatedAt
         </div>
       </div>
 
-      <!-- Simple Bar Chart -->
+      <!-- V2.0 Bar Chart: S/A/P/R/Q -->
       <div class="space-y-4 text-left">
-        <!-- Popularity -->
+        <div>
+          <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
+            <span class="text-zinc-500">Semantic (S)</span>
+            <span class="text-white tabular-nums">{fniS.toFixed(0)}</span>
+          </div>
+          <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
+            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${sPercent}%`}></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
+            <span class="text-zinc-500">Authority (A)</span>
+            <span class="text-white tabular-nums">{fniA.toFixed(0)}</span>
+          </div>
+          <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
+            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${aPercent}%`}></div>
+          </div>
+        </div>
         <div>
           <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
             <span class="text-zinc-500">Popularity (P)</span>
@@ -90,37 +107,22 @@ const formattedDate = fniCalculatedAt
             <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${pPercent}%`}></div>
           </div>
         </div>
-
-        <!-- Freshness -->
         <div>
           <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
-            <span class="text-zinc-500">Freshness (F)</span>
-            <span class="text-white tabular-nums">{fniF.toFixed(0)}</span>
+            <span class="text-zinc-500">Recency (R)</span>
+            <span class="text-white tabular-nums">{fniR.toFixed(0)}</span>
           </div>
           <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
-            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${fPercent}%`}></div>
+            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${rPercent}%`}></div>
           </div>
         </div>
-
-        <!-- Completeness -->
         <div>
           <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
-            <span class="text-zinc-500">Completeness (C)</span>
-            <span class="text-white tabular-nums">{fniC.toFixed(0)}</span>
+            <span class="text-zinc-500">Quality (Q)</span>
+            <span class="text-white tabular-nums">{fniQ.toFixed(0)}</span>
           </div>
           <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
-            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${cPercent}%`}></div>
-          </div>
-        </div>
-
-        <!-- Utility -->
-        <div>
-          <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
-            <span class="text-zinc-500">Utility (U)</span>
-            <span class="text-white tabular-nums">{fniU.toFixed(0)}</span>
-          </div>
-          <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
-            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${uPercent}%`}></div>
+            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${qPercent}%`}></div>
           </div>
         </div>
       </div>
@@ -133,7 +135,7 @@ const formattedDate = fniCalculatedAt
           <span>💬</span> Index Insight
         </h4>
         <p class="text-[11px] text-zinc-400 leading-relaxed font-medium tracking-tight">
-          {fniCommentary || `The Free2AITools Nexus Index for ${modelName} aggregates Popularity (P:${fniP.toFixed(0)}), Freshness (F:${fniF.toFixed(0)}), and Completeness (C:${fniC.toFixed(0)}). The Utility score (U:${fniU.toFixed(0)}) represents deployment readiness and ecosystem adoption.`}
+          {fniCommentary || `FNI V2.0 for ${modelName}: Semantic (S:${fniS.toFixed(0)}), Authority (A:${fniA.toFixed(0)}), Popularity (P:${fniP.toFixed(0)}), Recency (R:${fniR.toFixed(0)}), Quality (Q:${fniQ.toFixed(0)}).`}
         </p>
       </div>
 

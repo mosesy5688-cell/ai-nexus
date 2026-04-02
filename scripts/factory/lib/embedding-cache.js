@@ -4,7 +4,7 @@ import path from 'path';
 
 /**
  * V25.8.3 Embedding Cache Vault
- * Persistence for 384D ANN vectors via Int8-quantized SQLite BLOBs.
+ * Persistence for 768D ANN vectors via Int8-quantized SQLite BLOBs.
  */
 
 const SCHEMA = `
@@ -65,7 +65,7 @@ export function loadIds(db) {
 
 /**
  * Load all cached embeddings into a Map for O(1) memory access.
- * Returns Map<id, Float32Array(384)>
+ * Returns Map<id, Float32Array(768)>
  */
 export function loadAll(db) {
     console.log('[CACHE] 📥 Loading embeddings into memory...');

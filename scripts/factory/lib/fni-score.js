@@ -1,14 +1,16 @@
 // ═══════════════════════════════════════════
-// FNI V18.9 — FROZEN (2026-04-01)
-// Formula: FNI = min(99.9, Sp*0.45 + Sf*0.30 + Sm*0.25)
-// Next: V2.0 canonical (Phase 6, requires 768-dim embeddings)
-// See: V∞ Spec §3.1 for V2.0 target formula
+// FNI V2.0 — Canonical (2026-04-02)
+// Formula: FNI = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q)
+// Upgraded from V18.9 (Phase 6, 768-dim bge-base-en-v1.5)
+// S = Semantic (query-time ANN, factory default 50.0)
+// A = Authority (mesh gravity), P = Popularity (log metrics)
+// R = Recency (exp decay), Q = Quality (completeness + utility)
 // ═══════════════════════════════════════════
 
 /**
- * FNI V18.9: Ultimate Singularity Ranking Algorithm
- * Spec: FNI_ALGO_V18.1_ULTIMATE_SINGULARITY (V18.9 Hardened)
- * Formula: FNI = min(99.9, (Sp * 0.45) + (Sf * 0.30) + (Sm * 0.25))
+ * FNI V2.0: Canonical Ranking Algorithm
+ * Spec: V∞ §3.1
+ * Formula: FNI = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q)
  */
 
 // Section 2: Source Parity Coefficients (Ks)
@@ -42,57 +44,50 @@ const STALENESS_LAMBDAS = {
 };
 
 /**
- * Main FNI V18.9 Entry Point
+ * Main FNI V2.0 Entry Point
  * @param {Object} entity
- * @param {Object} options - { includeMetrics, meshPoints }
+ * @param {Object} options - { includeMetrics, meshPoints, semanticScore }
  */
 export function calculateFNI(entity, options = {}) {
     const id = entity.id || entity.slug || '';
     const stats = entity.stats || entity;
     const type = entity.type || entity.entity_type || 'model';
 
-    // --- Section 2: rawPop = Metrics * Ks ---
+    // --- S: Semantic Factor (query-time ANN cosine similarity) ---
+    // At factory time, S defaults to 50.0 (neutral). At query time, SSR
+    // replaces this with real cosine similarity × 100 from cluster ANN.
+    const S = Math.min(99.9, options.semanticScore ?? 50.0);
+
+    // --- P: Popularity (Asymptotic Log Compressor, base 8) ---
     const sourcePrefix = getSourcePrefix(id);
     const Ks = SOURCE_COEFFICIENTS[sourcePrefix] || SOURCE_COEFFICIENTS.default;
     const rawMetrics = extractRawMetrics(stats, sourcePrefix);
     const rawPop = rawMetrics * Ks;
+    const P = Math.min(99.9, 99.9 * (1 - Math.pow(10, -(Math.log10(rawPop + 1) / 8))));
 
-    // --- Quality Correction Factor (Q): Sc + Su folded into Sp ---
-    const Sc = calcCompleteness(entity);
-    const Su = calcUtility(entity);
-
-    // [V2.0-INTERFACE] Sp → splits into P (Popularity) + Q (Quality) + A (Authority partial)
-    // --- Sp: Asymptotic Log Compressor (base 8) with Quality Correction ---
-    const logCompressed = 99.9 * (1 - Math.pow(10, -(Math.log10(rawPop + 1) / 8)));
-    const qualityFactor = 1 + (Sc + Su) / 500;
-    const Sp_base = Math.min(99.9, logCompressed * qualityFactor);
-
-    // [V2.0-INTERFACE] Sf → maps to R (Recency), formula: exp(-Δdays/180)
-    // --- Section 3: Sf - Dynamic Exponential Decay ---
+    // --- R: Recency (Dynamic Exponential Decay) ---
     const lambda = getDecayLambda(type);
     const dateStr = entity.last_modified || entity.pushed_at || entity.published_at || entity.updated_at || entity._updated;
-    // Null-Time Trap: Force 365-day penalty if missing/invalid (never 0)
-    let days = 365;
+    let days = 365; // Null-Time Trap: 365-day penalty if missing
     if (dateStr) {
         const parsed = new Date(dateStr).getTime();
         if (!isNaN(parsed)) days = Math.max(0, (Date.now() - parsed) / 86400000);
     }
-    const Sf = 100 * Math.exp(-lambda * days);
+    const R = Math.min(99.9, 100 * Math.exp(-lambda * days));
 
-    // Sp with lightweight freshness boost
-    const Sp = Math.min(99.9, Sp_base * (1 + Sf / 500));
-
-    // [V2.0-INTERFACE] Sm → maps to A (Authority partial, mesh gravity)
-    // --- Section 4: Sm - Asymptotic Gravity Field ---
+    // --- A: Authority (Asymptotic Gravity Field from mesh/citations) ---
     const meshPoints = options.meshPoints ?? entity._mesh_points ?? estimateMeshPoints(entity, sourcePrefix);
-    const Sm = 99.9 * (1 - Math.pow(10, -(Math.log10(meshPoints + 1) / 4)));
+    const A = Math.min(99.9, 99.9 * (1 - Math.pow(10, -(Math.log10(meshPoints + 1) / 4))));
 
-    // [V2.0-INTERFACE] New factor: S (Semantic, 0.35 weight) — requires Phase 6 embeddings
-    // V2.0: FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q
-    // --- Master Formula: FNI = min(99.9, Sp*0.45 + Sf*0.30 + Sm*0.25) ---
-    const baseFni = Math.min(99.9, (Sp * 0.45) + (Sf * 0.30) + (Sm * 0.25));
+    // --- Q: Quality (Completeness + Utility, normalized to 0-99.9) ---
+    const Sc = calcCompleteness(entity);
+    const Su = calcUtility(entity);
+    const Q = Math.min(99.9, (Sc + Su) / 2);
 
-    // V25.8 Art 8.2: Staleness decay — penalize entities not recently harvested
+    // --- Master Formula: FNI = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q) ---
+    const baseFni = Math.min(99.9, (0.35 * S) + (0.25 * A) + (0.15 * P) + (0.15 * R) + (0.10 * Q));
+
+    // Staleness decay — penalize entities not recently harvested
     const stalenessFactor = computeStalenessFactor(type, options.lastSeen);
     const fni = baseFni * stalenessFactor;
     const roundedScore = Math.round(fni * 10) / 10;
@@ -102,11 +97,11 @@ export function calculateFNI(entity, options = {}) {
             score: roundedScore,
             rawPop: Math.round(rawPop),
             metrics: {
-                p: Math.round(Math.min(99.9, Sp) * 10) / 10,
-                f: Math.round(Sf * 10) / 10,
-                v: Math.round(Sm * 10) / 10, // v slot stores Mesh (Sm) in V18.9
-                c: Math.round(Sc),
-                u: Math.round(Su)
+                s: Math.round(S * 10) / 10,
+                a: Math.round(A * 10) / 10,
+                p: Math.round(P * 10) / 10,
+                r: Math.round(R * 10) / 10,
+                q: Math.round(Q * 10) / 10
             }
         };
     }
