@@ -102,13 +102,15 @@ async function main() {
     let processed = 0, success = 0, partial = 0, skipped = 0, failed = 0;
     const enrichedUmids = [];
 
-    // ── Phase A: Model README enrichment (HF API, fast) ──
-    for (const model of models) {
+    // ── Phase A: Model README enrichment (HF models only) ──
+    const hfModels = models.filter(m => m.canonical_id.startsWith('hf-model--'));
+    console.log(`[BOOSTER] HF models: ${hfModels.length}/${models.length} (non-HF skipped)`);
+    for (const model of hfModels) {
         processed++;
-        if (processed % 50 === 0) console.log(`[BOOSTER] Models: ${processed}/${models.length} | S:${success}`);
+        if (processed % 100 === 0) console.log(`[BOOSTER] Models: ${processed}/${hfModels.length} | S:${success}`);
         if (Date.now() - startTime > MAX_RUNTIME_MS) break;
-        // canonical_id format: hf-model--author--name → author/name
-        const hfId = model.canonical_id.replace(/^hf-\w+--/, '').replace(/--/, '/');
+        // hf-model--author--name → author/name
+        const hfId = model.canonical_id.slice('hf-model--'.length).replace('--', '/');
         const readme = await fetchHfReadme(hfId);
         if (readme) {
             const partition = model.umid.substring(0, 2);
