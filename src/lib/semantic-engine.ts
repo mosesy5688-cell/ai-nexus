@@ -2,14 +2,14 @@
 // V2.0 Tier 3: Semantic Engine (768D bge-base-en-v1.5)
 // Fast In-Memory Int8 Quantized Cosine Similarity Search via Cloudflare Workers AI
 
-const VECTOR_DIMENSIONS = 768;
+const EXPECTED_DIMENSIONS = 768;
 const HEADER_SIZE = 16;
-const RECORD_SIZE = VECTOR_DIMENSIONS; // 1 byte per dimension (Int8)
 
 // In-Memory L0 Cache Strategy: Retain the vector core in isolate RAM
-// Size: ~11.5 MB, easily fits within 128MB worker limit
 let VECTOR_CORE_BUFFER: Uint8Array | null = null;
 let VECTOR_COUNT = 0;
+let VECTOR_DIMENSIONS = EXPECTED_DIMENSIONS; // Read from header at load time
+let RECORD_SIZE = EXPECTED_DIMENSIONS;
 
 /**
  * Downloads and caches the Int8 vector core from R2.
@@ -43,11 +43,16 @@ export async function loadVectorCore(env: any): Promise<boolean> {
 
         VECTOR_CORE_BUFFER = new Uint8Array(arrayBuffer);
 
-        // Parse Header (Offset 6: Uint32 count)
+        // Parse Header: Magic(4) | Version(2) | Count(4) | Dimensions(4) | Reserved(2)
         const dv = new DataView(arrayBuffer);
         VECTOR_COUNT = dv.getUint32(6, true);
+        const headerDim = dv.getUint32(10, true);
+        if (headerDim > 0 && headerDim <= 2048) {
+            VECTOR_DIMENSIONS = headerDim;
+            RECORD_SIZE = headerDim;
+        }
 
-        console.log(`[Semantic Engine] Loaded ${VECTOR_COUNT} vectors in ${Date.now() - start}ms`);
+        console.log(`[Semantic Engine] Loaded ${VECTOR_COUNT} vectors (${VECTOR_DIMENSIONS}D) in ${Date.now() - start}ms`);
         return true;
     } catch (e) {
         console.error('[Semantic Engine] Error loading vector core:', e);
@@ -82,13 +87,17 @@ export async function searchSemantic(query: string, limit: number, env: any): Pr
     if (!await loadVectorCore(env)) return [];
 
     const queryEmbedding = await embedQuery(query, env);
-    if (!queryEmbedding || queryEmbedding.length !== VECTOR_DIMENSIONS) return [];
+    if (!queryEmbedding || queryEmbedding.length === 0) return [];
+
+    // Transition safety: query dim (from Workers AI) may differ from stored vectors
+    // Use the smaller of the two for comparison (truncated cosine similarity)
+    const scanDim = Math.min(queryEmbedding.length, VECTOR_DIMENSIONS);
 
     const start = Date.now();
 
     // Normalize query vector for cosine similarity optimization
     let queryMag = 0;
-    for (let d = 0; d < VECTOR_DIMENSIONS; d++) {
+    for (let d = 0; d < scanDim; d++) {
         queryMag += queryEmbedding[d] * queryEmbedding[d];
     }
     queryMag = Math.sqrt(queryMag);
@@ -102,7 +111,7 @@ export async function searchSemantic(query: string, limit: number, env: any): Pr
         let dotProduct = 0;
         let dbMag = 0;
 
-        for (let d = 0; d < VECTOR_DIMENSIONS; d++) {
+        for (let d = 0; d < scanDim; d++) {
             // Int8 range [-128, 127]
             const dbVal = dv.getInt8(offset + d);
             dotProduct += queryEmbedding[d] * dbVal;
