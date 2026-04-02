@@ -4,6 +4,19 @@ import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/ru
 import { zstdCompress } from './lib/zstd-helper.js';
 import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
 
+// ── HF README Fetcher (for model enrichment) ───────────
+const HF_TOKEN = process.env.HF_TOKEN || '';
+const HF_HEADERS = HF_TOKEN ? { Authorization: `Bearer ${HF_TOKEN}` } : {};
+async function fetchHfReadme(modelId) {
+    try {
+        const url = `https://huggingface.co/${modelId}/raw/main/README.md`;
+        const res = await fetch(url, { headers: HF_HEADERS, signal: AbortSignal.timeout(15000) });
+        if (!res.ok) return null;
+        const text = await res.text();
+        return text.length >= 200 ? text : null;
+    } catch { return null; }
+}
+
 // ── Config ──────────────────────────────────────────────
 const RATE_LIMIT_MS = 10000;
 const AR5IV_RETRY_DELAY_MS = 8000;
@@ -82,15 +95,39 @@ async function main() {
     const alreadyEnriched = await buildAlreadyEnrichedSet(s3);
     const queue = getEnrichmentQueue(PARTITION_START, PARTITION_END, BUDGET);
     const workQueue = queue.filter(p => !alreadyEnriched.has(p.umid));
-    console.log(`[BOOSTER] Work queue: ${workQueue.length} papers`);
+    const papers = workQueue.filter(e => e.type === 'paper');
+    const models = workQueue.filter(e => e.type === 'model');
+    console.log(`[BOOSTER] Work queue: ${workQueue.length} (papers: ${papers.length}, models: ${models.length})`);
 
     let processed = 0, success = 0, partial = 0, skipped = 0, failed = 0;
     const enrichedUmids = [];
 
-    for (const paper of workQueue) {
+    // ── Phase A: Model README enrichment (HF API, fast) ──
+    for (const model of models) {
         processed++;
-        if (processed % 10 === 0) {
-            console.log(`[BOOSTER] Progress: ${processed}/${workQueue.length} | S:${success} F:${failed}`);
+        if (processed % 50 === 0) console.log(`[BOOSTER] Models: ${processed}/${models.length} | S:${success}`);
+        if (Date.now() - startTime > MAX_RUNTIME_MS) break;
+        const hfId = model.canonical_id.replace(/^hf-/, '');
+        const readme = await fetchHfReadme(hfId);
+        if (readme) {
+            const partition = model.umid.substring(0, 2);
+            const key = `enrichment/fulltext/${partition}/${model.umid}.md.zst`;
+            const compressed = await zstdCompress(readme);
+            await uploadBufferToR2FFI(s3, key, compressed, 'application/zstd');
+            enrichedUmids.push(model.umid);
+            success++;
+        } else { skipped++; }
+        await new Promise(r => setTimeout(r, 500 + Math.floor(Math.random() * 500)));
+    }
+    console.log(`[BOOSTER] Models done: ${success} enriched, ${skipped} skipped`);
+
+    // ── Phase B: Paper enrichment (arXiv waterfall, slow) ──
+    const paperStart = { processed: 0, success, skipped, failed };
+    for (const paper of papers) {
+        processed++;
+        paperStart.processed++;
+        if (paperStart.processed % 10 === 0) {
+            console.log(`[BOOSTER] Papers: ${paperStart.processed}/${papers.length} | S:${success} F:${failed}`);
         }
 
         if (Date.now() - startTime > MAX_RUNTIME_MS) break;

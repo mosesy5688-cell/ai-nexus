@@ -130,6 +130,7 @@ export class LangChainAdapter extends BaseAdapter {
             name: raw.full_name || handle,
             author: owner,
             description: raw.description || '',
+            body_content: raw.description || '',
             source: 'langchain',
             source_url: `https://smith.langchain.com/hub/${owner}/${handle}`,
 

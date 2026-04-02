@@ -100,7 +100,7 @@ export class OllamaAdapter extends BaseAdapter {
             // Content
             title: raw.name || ollamaId,
             description: this.truncate(raw.description || `Ollama model: ${ollamaId}. Run locally with: ollama run ${ollamaId}`, 500),
-            body_content: `${modelfileText}${paramsText}`,
+            body_content: `${raw.description || ''}\n${modelfileText}${paramsText}`.trim(),
             tags: ['ollama', 'local-deployment'],
 
             // V6.0: Pipeline tag for category assignment (all Ollama models are text-generation LLMs)

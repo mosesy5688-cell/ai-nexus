@@ -211,7 +211,7 @@ export class CivitAIAdapter extends BaseAdapter {
             name: raw.name,
             author: creator.username || 'unknown',
             description,
-            body_content: (raw.description || '') + wordsMd,
+            body_content: (raw.description || '').replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim() + wordsMd,
             tags: JSON.stringify(tags),
             pipeline_tag: 'text-to-image',
 
