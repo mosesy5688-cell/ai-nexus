@@ -107,7 +107,8 @@ async function main() {
         processed++;
         if (processed % 50 === 0) console.log(`[BOOSTER] Models: ${processed}/${models.length} | S:${success}`);
         if (Date.now() - startTime > MAX_RUNTIME_MS) break;
-        const hfId = model.canonical_id.replace(/^hf-/, '');
+        // canonical_id format: hf-model--author--name → author/name
+        const hfId = model.canonical_id.replace(/^hf-\w+--/, '').replace(/--/, '/');
         const readme = await fetchHfReadme(hfId);
         if (readme) {
             const partition = model.umid.substring(0, 2);
