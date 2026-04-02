@@ -60,6 +60,7 @@ function toRemotePath(localPath) {
 
 async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
     let success = 0, fail = 0, unchanged = 0;
+    const changedPaths = [];
     const queue = files.filter(f => {
         const remotePath = toRemotePath(f.path);
         if (CONFIG.PREFIX_FILTER.length > 0 && !CONFIG.PREFIX_FILTER.some(p => remotePath.startsWith(p))) return false;
@@ -87,7 +88,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
                 if (result.skipped) {
                     unchanged++;
                 } else {
-                    // Removed verbose per-file log to keep progress bar visible
+                    changedPaths.push(result.path);
                     success++;
                 }
             } else {
@@ -103,7 +104,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
         if ((success + unchanged) % 1000 === 0) await saveCheckpoint(checkpoint);
     }
     console.log(''); // New line after progress
-    return { success, fail, skipped: files.length - queue.length, unchanged };
+    return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths };
 }
 
 async function main() {
@@ -136,7 +137,7 @@ async function main() {
 
     console.log(`[LOCAL-SYNC] Locally skipped: ${locallySkipped} files (MD5 matched manifest)`);
 
-    const { success, fail, skipped, unchanged } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
+    const { success, fail, skipped, unchanged, changedPaths } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
 
     // Update local manifest with new successful hashes
     for (const file of filesToUpload) {
@@ -150,6 +151,11 @@ async function main() {
     // V25.8: Zero Deletion Policy — Entropy Purge permanently disabled.
     // R2 storage is append-only. Manual cleanup via wrangler CLI if needed.
     // await purgeEntropyFFI(s3, r2ETagMap);
+
+    // V25.9: Output purge-list.json for targeted CDN invalidation
+    const purgeListPath = path.join(process.env.CACHE_DIR || './cache', 'purge-list.json');
+    await fs.writeFile(purgeListPath, JSON.stringify({ changed: changedPaths, ts: new Date().toISOString() }));
+    console.log(`[PURGE-LIST] ${changedPaths.length} changed paths → ${purgeListPath}`);
 
     console.log(`\n✅ Upload Complete! New: ${success}, Locally Skipped: ${locallySkipped}, Unchanged on R2: ${unchanged}, Fail: ${fail}`);
     if (fail > 0) process.exit(1);
