@@ -549,15 +549,35 @@ jobs:
             echo "⚠️ [PURGE] Skipping CDN purge: CLOUDFLARE_ZONE_ID/TOKEN missing"
             exit 0
           fi
-          echo "📡 [V25.1] Executing Atomic Purge (purge_everything)..."
-          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-            --data '{"purge_everything":true}' > purge_res.json
-            
-          if grep -q '"code":10000' purge_res.json; then
-            echo "❌ [PURGE ERROR] Authentication failed. Please ensure your CLOUDFLARE_API_TOKEN has 'Zone.Cache Purge' permissions."
+
+          PURGE_LIST="output/cache/purge-list.json"
+          CDN_BASE="https://cdn.free2aitools.com"
+
+          if [ -f "$PURGE_LIST" ]; then
+            TOTAL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$PURGE_LIST','utf-8')).changed.length)")
+            echo "📡 [V25.9] Targeted CDN Purge: $TOTAL changed files (batch=30)"
+            # Extract URLs, batch 30 per API call
+            node -e "
+              const list = JSON.parse(require('fs').readFileSync('$PURGE_LIST','utf-8')).changed;
+              const urls = list.map(p => '${CDN_BASE}/' + p);
+              for (let i = 0; i < urls.length; i += 30) {
+                const batch = urls.slice(i, i + 30);
+                console.log(JSON.stringify(batch));
+              }
+            " | while IFS= read -r batch; do
+              curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+                --data "{\"files\":$batch}" > purge_res.json
+              SUCCESS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('purge_res.json','utf-8')).success||false)")
+              echo "  Batch purged: $SUCCESS"
+            done
+          else
+            echo "⚠️ [PURGE] purge-list.json not found. Falling back to prefix purge..."
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
+              --data '{"prefixes":["data/","cache/"]}' > purge_res.json
+            cat purge_res.json
           fi
-          cat purge_res.json
           
           echo -e "\n🔥 [V25.1] Commencing Proactive CDN Warming..."
           
