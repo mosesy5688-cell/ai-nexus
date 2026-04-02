@@ -1,0 +1,93 @@
+---
+/**
+ * Open Data — V∞ Phase 4 Parquet Export Landing
+ * Public download page for FNI-scored datasets in Parquet format.
+ */
+import Layout from '../layouts/Layout.astro';
+
+const CDN_BASE = 'https://cdn.free2aitools.com';
+const pageTitle = 'Open Data — FNI Rankings Dataset | Free2AI';
+const pageDescription = 'Download FNI-scored AI entity rankings as Parquet files. Open data for researchers, developers, and AI agents.';
+
+const files = [
+    {
+        id: 'fni_lite_latest',
+        name: 'FNI Lite',
+        description: 'Core ranking data: entity ID, title, 300-char abstract, FNI score, and FNI version. Ideal for search indices, RAG pipelines, and quick analysis.',
+        tier: 'Free',
+        format: 'Apache Parquet (Snappy)',
+        fields: ['id', 'title', 'abstract_300', 'fni_score', 'fni_version'],
+        path: 'datasets/fni_lite_latest.parquet',
+    },
+];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+    <main class="min-h-screen py-4">
+        <header class="mb-8 border-b border-[var(--border-hairline)] pb-6">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Data Products</span>
+                <span class="w-1 h-1 bg-indigo-500 rounded-full"></span>
+                <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Open Access</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-black text-white tracking-tighter uppercase">Open Data</h1>
+            <p class="mt-3 text-sm text-zinc-400 max-w-2xl leading-relaxed">
+                FNI-ranked AI entity datasets in Apache Parquet format. Updated every factory cycle.
+                Use with DuckDB, Polars, pandas, or Spark.
+            </p>
+        </header>
+
+        <section class="space-y-6">
+            {files.map(file => (
+                <div class="border border-[var(--border-hairline)] rounded-sm bg-[var(--bg-surface)] p-6">
+                    <div class="flex items-start justify-between gap-4 flex-wrap">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h2 class="text-lg font-black text-white uppercase tracking-tight">{file.name}</h2>
+                                <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-green-500/10 text-green-400 border border-green-500/20 rounded">
+                                    {file.tier}
+                                </span>
+                            </div>
+                            <p class="text-[13px] text-zinc-400 leading-relaxed mb-4">{file.description}</p>
+                            <div class="flex flex-wrap gap-4 text-[11px] text-zinc-500 font-mono">
+                                <span>Format: {file.format}</span>
+                                <span>Fields: {file.fields.length}</span>
+                                <span>Version: FNI V2.0</span>
+                            </div>
+                        </div>
+                        <a
+                            href={`${CDN_BASE}/${file.path}`}
+                            class="flex-shrink-0 px-5 py-2.5 bg-white text-black rounded font-bold text-xs hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                            download
+                        >
+                            Download .parquet
+                        </a>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-[var(--border-hairline)]">
+                        <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Schema</span>
+                        <div class="flex flex-wrap gap-2">
+                            {file.fields.map(f => (
+                                <code class="px-2 py-1 text-[11px] font-mono text-zinc-300 bg-black/30 rounded border border-[var(--border-hairline)]">
+                                    {f}
+                                </code>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-[var(--border-hairline)]">
+                        <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Quick Start</span>
+                        <pre class="text-[11px] font-mono text-zinc-400 bg-black/30 p-3 rounded border border-[var(--border-hairline)] overflow-x-auto"><code>import duckdb{'\n'}db = duckdb.connect(){'\n'}df = db.sql("SELECT * FROM '{CDN_BASE}/{file.path}' ORDER BY fni_score DESC LIMIT 20").df(){'\n'}print(df)</code></pre>
+                    </div>
+                </div>
+            ))}
+        </section>
+
+        <section class="mt-12 border-t border-[var(--border-hairline)] pt-8">
+            <h2 class="text-sm font-black text-zinc-500 uppercase tracking-widest mb-4">API Access</h2>
+            <div class="bg-black/30 p-4 rounded border border-[var(--border-hairline)]">
+                <pre class="text-[11px] font-mono text-zinc-400 overflow-x-auto"><code>GET /api/v1/datasets              # List available files{'\n'}GET /api/v1/datasets?file=fni_lite_latest  # Redirect to download</code></pre>
+            </div>
+        </section>
+    </main>
+</Layout>
