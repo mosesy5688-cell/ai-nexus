@@ -1,4 +1,4 @@
-// V25.9 Streaming Shard-DB Packer — O(1) memory via PackAccumulator (~200MB peak)
+// V2.0 Streaming Shard-DB Packer — O(1) memory via PackAccumulator
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
@@ -22,7 +22,7 @@ import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024, EMBEDDING_STREAM_BATCH = 500;
 const EMBEDDING_CACHE_PATH = path.join(CACHE_DIR, 'embedding-cache.db');
-const EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
+const EMBEDDING_MODEL = 'Xenova/bge-base-en-v1.5';
 
 // V25.9: Streaming Embedding — iterate accumulator in small batches, GC after persist
 async function computeEmbeddingsStreaming(accumulator, cacheDb) {
@@ -232,6 +232,9 @@ async function packDatabase() {
     await generateHotShard(top30k);
     await generateVectorCore(top30k);
 
+    const { buildClusterAnnIndex } = await import('./lib/cluster-ann-builder.js');
+    await buildClusterAnnIndex(EMBEDDING_CACHE_PATH);
+
     const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
     const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();
@@ -241,8 +244,6 @@ async function packDatabase() {
     const { buildInvertedIndex } = await import('./lib/inverted-index-builder.js');
     const termIndexDir = path.join(SHARD_PATH_DIR, 'term_index');
     await buildInvertedIndex(SEARCH_DB_PATH, termIndexDir);
-
-    console.log('[VFS] ✅ V25.9 Streaming Shard-DB Packing Complete.');
+    console.log('[VFS] ✅ V2.0 Streaming Shard-DB Packing Complete.');
 }
-
 packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });

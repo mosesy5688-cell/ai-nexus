@@ -26,13 +26,13 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.citation_count ??= meta.citation_count || 0;
     e.stars ??= meta.stars || 0;
 
-    // V25.1.2: FNI Pillar Promotion (Strict P-F-C-U Alignment)
+    // V2.0: FNI Pillar Promotion (S-A-P-R-Q Alignment)
     const fMetrics = e.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
-    e.fni_p ??= e.fni_p ?? fMetrics.p ?? meta.fni?.p ?? 0;
-    e.fni_f ??= e.fni_f ?? fMetrics.f ?? meta.fni?.f ?? 0;
-    e.fni_c ??= e.fni_c ?? fMetrics.c ?? meta.fni?.c ?? 0;
-    e.fni_u ??= e.fni_u ?? fMetrics.u ?? meta.fni?.u ?? 0;
-    e.fni_v ??= e.fni_v ?? 0; // Velocity (Growth) reserved for Stage 4/4
+    e.fni_s ??= fMetrics.s ?? 50.0; // Semantic (factory default 50.0, query-time override)
+    e.fni_a ??= fMetrics.a ?? fMetrics.v ?? meta.fni?.v ?? 0; // Authority (was mesh/velocity)
+    e.fni_p ??= fMetrics.p ?? meta.fni?.p ?? 0; // Popularity
+    e.fni_r ??= fMetrics.r ?? fMetrics.f ?? meta.fni?.f ?? 0; // Recency (was freshness)
+    e.fni_q ??= fMetrics.q ?? 0; // Quality (completeness + utility merged)
 
     // V18.9: FNI Singularity is sole authority. No quality_score fallback.
     e.fni_score ??= 0;

@@ -44,9 +44,10 @@ export function parseSpecs(model) {
 export function buildFNI(model) {
     return {
         fni_score: safeNumber(model.fni_score ?? model.fni),
+        fni_semantic: safeNumber(model.fni_semantic ?? model.fni_s ?? 50),
+        fni_authority: safeNumber(model.fni_authority ?? model.fni_a),
         fni_popularity: safeNumber(model.fni_popularity ?? model.fni_p),
-        fni_velocity: safeNumber(model.fni_velocity ?? model.fni_v),
-        fni_credibility: safeNumber(model.fni_credibility ?? model.fni_c),
-        fni_utility: safeNumber(model.fni_utility ?? model.fni_u)
+        fni_recency: safeNumber(model.fni_recency ?? model.fni_r),
+        fni_quality: safeNumber(model.fni_quality ?? model.fni_q)
     };
 }

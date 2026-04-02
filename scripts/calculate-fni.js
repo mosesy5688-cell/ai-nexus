@@ -5,7 +5,7 @@
  * Constitution V3.3 Pillar VII: Fair Index Standard
  * V3.3 Data Expansion: Runtime Ecosystem Integration
  * 
- * FNI = P(25%) + V(25%) + C(30%) + U(20%)
+ * FNI V2.0 = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q
  * 
  * @module scripts/calculate-fni
  */
@@ -48,7 +48,7 @@ async function main() {
     console.log('  Constitution V3.3 - Pillar VII: Fair Index Standard');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('');
-    console.log('⚖️  Weights: P=' + (CONFIG.WEIGHTS.P * 100) + '% V=' + (CONFIG.WEIGHTS.V * 100) + '% C=' + (CONFIG.WEIGHTS.C * 100) + '% U=' + (CONFIG.WEIGHTS.U * 100) + '%');
+    console.log('⚖️  Weights: S=' + (CONFIG.WEIGHTS.S * 100) + '% A=' + (CONFIG.WEIGHTS.A * 100) + '% P=' + (CONFIG.WEIGHTS.P * 100) + '% R=' + (CONFIG.WEIGHTS.R * 100) + '% Q=' + (CONFIG.WEIGHTS.Q * 100) + '%');
     console.log('');
 
     const modelsPath = path.join(__dirname, '../data/raw.json');
@@ -75,10 +75,10 @@ async function main() {
         ...model,
         fni_commentary: generateCommentary(
             model,
-            model.fni_p,
-            model.fni_v,
-            model.fni_c,
-            model.fni_u,  // V3.3 Data Expansion
+            model.fni_p ?? 0,
+            model.fni_a ?? 0,
+            model.fni_q ?? 0,
+            model.fni_r ?? 0,
             model.fni_score,
             model.fni_percentile,
             model.fni_anomaly_flags
@@ -114,7 +114,7 @@ async function main() {
     console.log('🏆 FNI Top 10:');
     const top10 = final.sort((a, b) => b.fni_score - a.fni_score).slice(0, 10);
     top10.forEach((m, i) => {
-        console.log(`   ${i + 1}. ${m.name || m.id} - FNI: ${m.fni_score.toFixed(1)} (P:${m.fni_p.toFixed(0)} V:${m.fni_v.toFixed(0)} C:${m.fni_c.toFixed(0)} U:${m.fni_u.toFixed(0)})`);
+        console.log(`   ${i + 1}. ${m.name || m.id} - FNI: ${m.fni_score.toFixed(1)} (S:${(m.fni_s ?? 50).toFixed(0)} A:${(m.fni_a ?? 0).toFixed(0)} P:${(m.fni_p ?? 0).toFixed(0)} R:${(m.fni_r ?? 0).toFixed(0)} Q:${(m.fni_q ?? 0).toFixed(0)})`);
     });
 
     // Save output

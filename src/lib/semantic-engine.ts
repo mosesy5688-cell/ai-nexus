@@ -1,8 +1,8 @@
 // src/lib/semantic-engine.ts
-// V22.10 Tier 3: Semantic Engine
+// V2.0 Tier 3: Semantic Engine (768D bge-base-en-v1.5)
 // Fast In-Memory Int8 Quantized Cosine Similarity Search via Cloudflare Workers AI
 
-const VECTOR_DIMENSIONS = 384;
+const VECTOR_DIMENSIONS = 768;
 const HEADER_SIZE = 16;
 const RECORD_SIZE = VECTOR_DIMENSIONS; // 1 byte per dimension (Int8)
 
@@ -63,10 +63,10 @@ export async function embedQuery(query: string, env: any): Promise<number[] | nu
         const start = Date.now();
         // Uses the same model standard we ingest against (e.g., bge-small-en-v1.5 or minilm)
         // Ensure that ai binding "AI" exists in wrangler.toml
-        const response = await env.AI.run('@cf/baai/bge-small-en-v1.5', { text: [query] });
+        const response = await env.AI.run('@cf/baai/bge-base-en-v1.5', { text: [query] });
 
         const embedding = response.data[0];
-        console.log(`[Semantic Engine] Generated 384D float embedding via AI in ${Date.now() - start}ms`);
+        console.log(`[Semantic Engine] Generated 768D float embedding via AI in ${Date.now() - start}ms`);
         return embedding;
     } catch (e) {
         console.error('[Semantic Engine] Cloudflare AI Embedding Error:', e);

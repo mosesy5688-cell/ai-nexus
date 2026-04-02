@@ -15,7 +15,7 @@ import path from 'path';
 const PARQUET_DIR = './output/parquet';
 const DATASETS_DIR = './output/datasets';
 const MAX_EPOCHS_RETAINED = 5;
-const FNI_VERSION = 'v18.9';
+const FNI_VERSION = 'v2.0';
 
 /**
  * Build the Parquet schema for analytical columns.
@@ -32,10 +32,11 @@ async function getParquetSchema() {
         category:        { type: 'UTF8' },
         tags:            { type: 'UTF8' },
         fni_score:       { type: 'FLOAT' },
+        fni_s:           { type: 'FLOAT' },
+        fni_a:           { type: 'FLOAT' },
         fni_p:           { type: 'FLOAT' },
-        fni_f:           { type: 'FLOAT' },
-        fni_c:           { type: 'FLOAT' },
-        fni_u:           { type: 'FLOAT' },
+        fni_r:           { type: 'FLOAT' },
+        fni_q:           { type: 'FLOAT' },
         downloads:       { type: 'INT64' },
         stars:           { type: 'INT32' },
         params_billions: { type: 'FLOAT' },
@@ -68,10 +69,11 @@ function entityToRow(e) {
         category:        str(e.category),
         tags:            Array.isArray(e.tags) ? e.tags.join(', ') : str(e.tags),
         fni_score:       Number(e.fni_score ?? e.fni ?? 0),
+        fni_s:           Number(e.fni_s ?? 50.0),
+        fni_a:           Number(e.fni_a ?? 0),
         fni_p:           Number(e.fni_p ?? 0),
-        fni_f:           Number(e.fni_f ?? 0),
-        fni_c:           Number(e.fni_c ?? 0),
-        fni_u:           Number(e.fni_u ?? 0),
+        fni_r:           Number(e.fni_r ?? 0),
+        fni_q:           Number(e.fni_q ?? 0),
         downloads:       Number(e.downloads ?? 0),
         stars:           Number(e.stars ?? e.likes ?? 0),
         params_billions: Number(e.params_billions ?? e.params ?? 0),

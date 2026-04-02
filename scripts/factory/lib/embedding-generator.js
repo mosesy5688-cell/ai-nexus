@@ -1,12 +1,12 @@
 /**
- * V25.8.3 Embedding Generator — Batch ANN Vector Computation
+ * V2.0 Embedding Generator — Batch ANN Vector Computation
  *
- * Computes 384D embeddings for all entities using @xenova/transformers (ONNX Runtime).
- * Model: all-MiniLM-L6-v2 (sentence-transformers)
+ * Computes 768D embeddings for all entities using @xenova/transformers (ONNX Runtime).
+ * Model: bge-base-en-v1.5 (BAAI) — Phase 6 upgrade from MiniLM-L6-v2
  *
  * Design:
  * - Processes entities in configurable batches (default: 64)
- * - Generates text from name + description + body_content (truncated to 256 tokens)
+ * - Generates text from name + description + body_content (truncated to 512 chars)
  * - Injects Float32 `embedding` field into each entity object
  * - Downstream consumers (vector-core-generator.js, shard-packer-v4.js) handle Int8 quantization
  *
@@ -19,13 +19,13 @@
  *
  * Environment:
  *   EMBEDDING_BATCH_SIZE — batch size (default: 64)
- *   EMBEDDING_MODEL — model name (default: Xenova/all-MiniLM-L6-v2)
+ *   EMBEDDING_MODEL — model name (default: Xenova/bge-base-en-v1.5)
  *   EMBEDDING_SKIP — set to 'true' to skip embedding computation
  */
 
 const BATCH_SIZE = parseInt(process.env.EMBEDDING_BATCH_SIZE || '64');
-const MODEL_NAME = process.env.EMBEDDING_MODEL || 'Xenova/all-MiniLM-L6-v2';
-const VECTOR_DIM = 384;
+const MODEL_NAME = process.env.EMBEDDING_MODEL || 'Xenova/bge-base-en-v1.5';
+const VECTOR_DIM = 768;
 const MAX_TEXT_LENGTH = 512; // Characters to truncate input text
 
 let _pipeline = null;
@@ -86,7 +86,7 @@ function buildEntityText(entity) {
 
 /**
  * Compute embeddings for a batch of entities.
- * Injects `embedding` (Float32 array of length 384) into each entity.
+ * Injects `embedding` (Float32 array of length 768) into each entity.
  *
  * @param {Array} entities - Entity array (mutated in-place)
  * @param {Object} options

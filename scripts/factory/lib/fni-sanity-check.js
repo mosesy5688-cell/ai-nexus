@@ -1,21 +1,21 @@
 /**
- * V25.9 FNI Sanity Check — Constitutional Circuit Breaker
+ * V2.0 FNI Sanity Check — Constitutional Circuit Breaker
  *
  * Validates FNI score distribution BEFORE artifacts leave the factory.
- * If FNI is corrupted at Ingest time, this prevents bad DBs from reaching
- * production where the 200-candidate ANN rerank ceiling would amplify errors.
+ * V2.0: Semantic factor S=50.0 default means baseline FNI ≈ 17.5+ for all entities.
+ * Zero-FNI should be near-impossible unless the formula is broken.
  *
  * Runs post-finalize, pre-deploy. Failure = exit(1) = GHA build halts.
  */
 
 const THRESHOLDS = {
-    // 416k catalog: ~95% of entities lack activity metrics (stars/downloads/citations)
-    // Only flag if virtually ALL entities are zero (total FNI pipeline failure)
-    MAX_ZERO_RATIO: 0.97,
+    // V2.0: S=50.0 default means nearly all entities get FNI > 0.
+    // Flag if > 5% are zero (indicates formula regression or broken S-factor)
+    MAX_ZERO_RATIO: 0.05,
     // No single entity should exceed this (prevents runaway normalization)
-    MAX_FNI_VALUE: 2000,
-    // Disabled: median is legitimately 0 for large catalogs with long-tail distribution
-    MIN_MEDIAN_FNI: 0,
+    MAX_FNI_VALUE: 99.9,
+    // V2.0: With S=50.0 base, median should be at least ~17 (0.35*50)
+    MIN_MEDIAN_FNI: 10,
     // Minimum entities required for check to be meaningful
     MIN_ENTITY_COUNT: 1000,
 };
