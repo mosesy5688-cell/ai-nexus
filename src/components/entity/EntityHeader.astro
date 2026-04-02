@@ -19,10 +19,11 @@ interface Props {
   fniScore?: number;
   fniPercentile?: number;
   fniCommentary?: string;
+  fniS?: number;
+  fniA?: number;
   fniP?: number;
-  fniV?: number;
-  fniC?: number;
-  fniU?: number;
+  fniR?: number;
+  fniQ?: number;
   fniPillarsSynthesized?: boolean;
   paramsB?: number;
   sourceUrl?: string;
@@ -45,10 +46,11 @@ const {
   description,
   fniScore = 0,
   fniPercentile = 0,
+  fniS = 50,
+  fniA = 0,
   fniP = 0,
-  fniV = 0,
-  fniC = 0,
-  fniU = 0,
+  fniR = 0,
+  fniQ = 0,
   fniPillarsSynthesized = false,
   paramsB,
   sourceUrl,
@@ -142,10 +144,11 @@ const relativeTime = formatRelativeTime(lastUpdated);
     <EntityMetricGrid 
       fniScore={fniScore}
       fniPercentile={fniPercentile}
+      fniS={fniS}
+      fniA={fniA}
       fniP={fniP}
-      fniV={fniV}
-      fniC={fniC}
-      fniU={fniU}
+      fniR={fniR}
+      fniQ={fniQ}
       fniPillarsSynthesized={fniPillarsSynthesized}
       paramsB={paramsB}
       contextLength={contextLength}

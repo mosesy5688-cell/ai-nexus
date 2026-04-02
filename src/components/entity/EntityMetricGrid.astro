@@ -6,10 +6,11 @@
 interface Props {
   fniScore: number;
   fniPercentile: number;
+  fniS?: number;
+  fniA?: number;
   fniP: number;
-  fniV: number;
-  fniC: number;
-  fniU: number;
+  fniR?: number;
+  fniQ?: number;
   fniPillarsSynthesized: boolean;
   paramsB?: number;
   contextLength?: number;
@@ -22,10 +23,11 @@ interface Props {
 const {
   fniScore,
   fniPercentile,
+  fniS = 50,
+  fniA = 0,
   fniP,
-  fniV,
-  fniC,
-  fniU,
+  fniR = 0,
+  fniQ = 0,
   fniPillarsSynthesized,
   paramsB,
   contextLength,
@@ -46,10 +48,10 @@ const {
     </div>
   </div>
 
-  <!-- FNI Pillars (P/V/C/U) -->
+  <!-- FNI Pillars (S/A/P/R/Q) -->
   {fniPillarsSynthesized ? (
     <div class="bg-[var(--bg-surface)] p-2 col-span-2 flex flex-col items-center justify-center gap-1">
-      <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">P / V / C / U Breakdown</span>
+      <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">S / A / P / R / Q Breakdown</span>
       <span class="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Calibration Pending</span>
       <p class="text-[8px] text-zinc-600 mt-1">Pillar scores are computed during the next indexing cycle.</p>
     </div>
@@ -57,34 +59,34 @@ const {
     <Fragment>
       <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
         <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>P: Popularity</span>
-           <span class="text-white font-mono tabular-nums">{fniP.toFixed(0)}</span>
+           <span>S: Semantic</span>
+           <span class="text-white font-mono tabular-nums">{fniS.toFixed(0)}</span>
         </div>
         <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniP}%`}></div>
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniS}%`}></div>
         </div>
         <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>F: Freshness</span>
-           <span class="text-white font-mono tabular-nums">{fniV.toFixed(0)}</span>
+           <span>A: Authority</span>
+           <span class="text-white font-mono tabular-nums">{fniA.toFixed(0)}</span>
         </div>
         <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniV}%`}></div>
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniA}%`}></div>
         </div>
       </div>
       <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
         <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>C: Completeness</span>
-           <span class="text-white font-mono tabular-nums">{fniC.toFixed(0)}</span>
+           <span>R: Recency</span>
+           <span class="text-white font-mono tabular-nums">{fniR.toFixed(0)}</span>
         </div>
         <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniC}%`}></div>
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniR}%`}></div>
         </div>
         <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>U: Utility</span>
-           <span class="text-white font-mono tabular-nums">{fniU.toFixed(0)}</span>
+           <span>Q: Quality</span>
+           <span class="text-white font-mono tabular-nums">{fniQ.toFixed(0)}</span>
         </div>
         <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniU}%`}></div>
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniQ}%`}></div>
         </div>
       </div>
     </Fragment>
