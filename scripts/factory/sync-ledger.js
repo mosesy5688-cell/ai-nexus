@@ -84,14 +84,15 @@ async function main() {
     // Verify final state
     const db = openLedger(DEDUP_DB_PATH);
     const totalActive = db.prepare('SELECT COUNT(*) as c FROM ledger WHERE status = ?').get('active').c;
-    const paperCount = db.prepare("SELECT COUNT(*) as c FROM ledger WHERE type = 'paper' AND status = 'active'").get().c;
-    const needEnrichment = db.prepare("SELECT COUNT(*) as c FROM ledger WHERE type = 'paper' AND has_fulltext = 0 AND status = 'active'").get().c;
+    const enrichStats = db.prepare("SELECT type, COUNT(*) as c FROM ledger WHERE has_fulltext = 0 AND status = 'active' GROUP BY type").all();
+    const needEnrichment = enrichStats.reduce((sum, r) => sum + r.c, 0);
     db.close();
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[SYNC-LEDGER] ✅ Complete in ${elapsed}s`);
     console.log(`[SYNC-LEDGER]   Inserted: ${totalInserted} | Refreshed: ${totalRefreshed}`);
-    console.log(`[SYNC-LEDGER]   Active: ${totalActive} | Papers: ${paperCount} | Need Enrichment: ${needEnrichment}`);
+    console.log(`[SYNC-LEDGER]   Active: ${totalActive} | Need Enrichment: ${needEnrichment}`);
+    for (const r of enrichStats) console.log(`[SYNC-LEDGER]     ${r.type}: ${r.c} need fulltext`);
 }
 
 main().catch(err => { console.error('[SYNC-LEDGER] Fatal:', err); process.exit(1); });

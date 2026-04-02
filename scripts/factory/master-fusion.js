@@ -31,7 +31,7 @@ async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPa
             entities = parsed.entities || parsed || [];
         }
     } catch { return 0; }
-    const needed = entities.filter(e => e.type === 'paper' && e.umid && enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
+    const needed = entities.filter(e => e.umid && enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
     if (!needed.length) return 0;
     const CONCURRENCY = 20;
     let ok = 0;
@@ -75,7 +75,7 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
         entity.fni_percentile = fniThresholds.scorePercentiles?.[entity.fni_score] || 0;
         if (entity.metrics) entity.metrics.sm = Sm;
 
-        if (entity.type === 'paper' && enrichmentMap.has(entity.umid) && r2 && enrichedInShard < 200) {
+        if (enrichmentMap.has(entity.umid) && r2 && enrichedInShard < 200) {
             try {
                 const raw = await downloadBufferFromR2FFI(r2, enrichmentMap.get(entity.umid));
                 const fulltext = (await autoDecompress(raw)).toString('utf-8');

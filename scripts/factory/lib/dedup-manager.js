@@ -136,26 +136,28 @@ export function getRefreshCandidates(limit = 15000, dbPath = DEDUP_DB_PATH) {
 }
 
 /**
- * V25.8.3: Get papers needing fulltext enrichment (Density Booster queue).
+ * V25.8.3→V25.9: Get entities needing fulltext enrichment (Density Booster queue).
  * Filters by UMID hex prefix range for partition-parallel workers.
  * @param {string} prefixStart - Hex prefix start (e.g. '00')
  * @param {string} prefixEnd - Hex prefix end (e.g. '0f')
- * @param {number} limit - Max papers to return
+ * @param {number} limit - Max entities to return
  * @param {string} dbPath - Path to dedup.db
- * @returns {Array<{umid: string, canonical_id: string, source: string}>}
+ * @param {string[]} types - Entity types to enrich (default: paper + model)
+ * @returns {Array<{umid: string, canonical_id: string, source: string, type: string}>}
  */
-export function getEnrichmentQueue(prefixStart, prefixEnd, limit = 5000, dbPath = DEDUP_DB_PATH) {
+export function getEnrichmentQueue(prefixStart, prefixEnd, limit = 5000, dbPath = DEDUP_DB_PATH, types = ['paper', 'model']) {
     const db = openLedger(dbPath);
+    const placeholders = types.map(() => '?').join(',');
     const queue = db.prepare(`
-        SELECT umid, canonical_id, source
+        SELECT umid, canonical_id, source, type
         FROM ledger
-        WHERE type = 'paper' AND has_fulltext = 0 AND status = 'active'
+        WHERE type IN (${placeholders}) AND has_fulltext = 0 AND status = 'active'
           AND umid >= ? AND umid < ?
         ORDER BY fni_score DESC
         LIMIT ?
-    `).all(prefixStart, prefixEnd + 'g', limit);
+    `).all(...types, prefixStart, prefixEnd + 'g', limit);
     db.close();
-    console.log(`[DEDUP] Enrichment queue: ${queue.length} papers in [${prefixStart}..${prefixEnd}]`);
+    console.log(`[DEDUP] Enrichment queue: ${queue.length} entities (${types.join(',')}) in [${prefixStart}..${prefixEnd}]`);
     return queue;
 }
 
