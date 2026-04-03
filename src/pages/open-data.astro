@@ -18,8 +18,14 @@ const files = [
         format: 'Apache Parquet (Snappy)',
         fields: ['id', 'title', 'abstract_300', 'fni_score', 'fni_version'],
         path: 'datasets/fni_lite_latest.parquet',
+        quickstart: '',
     },
 ];
+// Pre-compute quickstart snippets (avoids nested braces in JSX template)
+for (const f of files) {
+    const url = `${CDN_BASE}/${f.path}`;
+    f.quickstart = `import duckdb\ndb = duckdb.connect()\ndf = db.sql("SELECT * FROM '${url}' ORDER BY fni_score DESC LIMIT 20").df()\nprint(df)`;
+}
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -77,7 +83,7 @@ const files = [
 
                     <div class="mt-4 pt-4 border-t border-[var(--border-hairline)]">
                         <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Quick Start</span>
-                        <pre class="text-[11px] font-mono text-zinc-400 bg-black/30 p-3 rounded border border-[var(--border-hairline)] overflow-x-auto"><code>import duckdb{'\n'}db = duckdb.connect(){'\n'}df = db.sql("SELECT * FROM '{CDN_BASE}/{file.path}' ORDER BY fni_score DESC LIMIT 20").df(){'\n'}print(df)</code></pre>
+                        <pre class="text-[11px] font-mono text-zinc-400 bg-black/30 p-3 rounded border border-[var(--border-hairline)] overflow-x-auto whitespace-pre-wrap"><code>{file.quickstart}</code></pre>
                     </div>
                 </div>
             ))}
@@ -86,7 +92,7 @@ const files = [
         <section class="mt-12 border-t border-[var(--border-hairline)] pt-8">
             <h2 class="text-sm font-black text-zinc-500 uppercase tracking-widest mb-4">API Access</h2>
             <div class="bg-black/30 p-4 rounded border border-[var(--border-hairline)]">
-                <pre class="text-[11px] font-mono text-zinc-400 overflow-x-auto"><code>GET /api/v1/datasets              # List available files{'\n'}GET /api/v1/datasets?file=fni_lite_latest  # Redirect to download</code></pre>
+                <pre class="text-[11px] font-mono text-zinc-400 overflow-x-auto whitespace-pre-wrap"><code>{"GET /api/v1/datasets              # List available files\nGET /api/v1/datasets?file=fni_lite_latest  # Redirect to download"}</code></pre>
             </div>
         </section>
     </main>
