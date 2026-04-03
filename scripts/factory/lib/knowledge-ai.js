@@ -24,7 +24,7 @@ Rules:
     const prompt = `Write a concise, technical knowledge article about "${topic.title}" for an AI tools directory.
 
 Requirements:
-- Professional, data-driven tone (like Gartner/McKinsey)
+- Rigorous, data-driven tone (like a technical survey paper)
 - 400-600 words total
 - Sections: Overview, How It Works, Key Use Cases, Limitations
 - No marketing fluff, focus on technical accuracy
