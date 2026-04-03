@@ -72,6 +72,13 @@ const {
         <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
            <div class="h-full bg-[#bdc3ff]" style={`width: ${fniA}%`}></div>
         </div>
+        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+           <span>P: Popularity</span>
+           <span class="text-white font-mono tabular-nums">{fniP.toFixed(0)}</span>
+        </div>
+        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniP}%`}></div>
+        </div>
       </div>
       <div class="bg-[var(--bg-surface)] p-2 flex flex-col gap-2 justify-center">
         <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
