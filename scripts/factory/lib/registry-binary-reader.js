@@ -137,9 +137,16 @@ export async function readBinaryShard(filePath) {
             }
         }
         // Gzip decompression (detect via magic bytes 1F 8B)
+        // Note: encrypted payloads may randomly start with 0x1F8B (1/65536 chance),
+        // so wrap in try/catch to survive false-positive gzip detection.
         else if (payload.length >= 2 && payload.subarray(0, 2).equals(GZIP_MAGIC)) {
             if (_gzipDecompress) {
-                payload = _gzipDecompress(payload);
+                try {
+                    payload = _gzipDecompress(payload);
+                } catch {
+                    // False positive: encrypted data starting with gzip magic bytes
+                    // Fall through to JSON parse (will fail) → retry with forced decrypt
+                }
             } else {
                 console.error(`[BINARY-READER] Gzip payload but zlib unavailable: ${shardName}`);
                 continue;

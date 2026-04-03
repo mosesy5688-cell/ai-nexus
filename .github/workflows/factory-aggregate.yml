@@ -577,6 +577,7 @@ jobs:
         continue-on-error: true
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           CACHE_DIR: ./cache
         run: |
           export NODE_OPTIONS="--max-old-space-size=4096"
