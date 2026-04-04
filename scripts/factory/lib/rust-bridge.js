@@ -21,8 +21,12 @@ export function initRustBridge() {
     _shardRouter = tryLoadNative('shard-router-rust');
     if (_shardRouter) loaded.push('shard-router');
 
-    _fniCalc = tryLoadNative('fni-calc-rust');
-    if (_fniCalc) loaded.push('fni-calc');
+    // V2.0: Rust fni-calc disabled — still V18.9 formula (Sp/Sf/Sm).
+    // JS fni-score.js is V2.0 (S/A/P/R/Q with S=50 baseline). Re-enable
+    // after Rust crate is upgraded to V2.0.
+    // _fniCalc = tryLoadNative('fni-calc-rust');
+    // if (_fniCalc) loaded.push('fni-calc');
+    _fniCalc = null;
 
     _meshEngine = tryLoadNative('mesh-engine-rust');
     if (_meshEngine) loaded.push('mesh-engine');
@@ -64,7 +68,7 @@ export function batchCalculateFniFFI(entities) {
     const { calculateFNI } = require('./fni-score.js');
     return entities.map(e => {
         const r = calculateFNI(e, { includeMetrics: true });
-        return { id: e.id, fni_score: r.score, raw_pop: r.rawPop || 0, sp: r.metrics.p, sf: r.metrics.f, sm: r.metrics.v };
+        return { id: e.id, fni_score: r.score, raw_pop: r.rawPop || 0, s: r.metrics.s, a: r.metrics.a, p: r.metrics.p, r: r.metrics.r, q: r.metrics.q };
     });
 }
 
