@@ -60,6 +60,21 @@ async function main() {
     const { calculateGlobalStats, preProcessDeltas, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
     const { saveRegistryShard } = await import('./lib/registry-saver.js');
 
+    // V25.8.5: Knowledge-AI fast path — skip heavy entity loading (OOM fix for 436K+ entities)
+    const LIGHTWEIGHT_TASKS = new Set(['knowledge-ai']);
+    if (taskArg && LIGHTWEIGHT_TASKS.has(taskArg)) {
+        console.log(`[AGGREGATOR] Lightweight task '${taskArg}' — skipping entity loading.`);
+        const tasks = buildTaskList([], CONFIG.OUTPUT_DIR, { shardDir: path.join(process.env.CACHE_DIR || './cache', 'registry') });
+        for (const task of tasks) {
+            if (task.id !== taskArg) continue;
+            console.log(`[AGGREGATOR] Task: ${task.name}...`);
+            await task.fn();
+        }
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[AGGREGATOR V18.12.5.15] Lightweight task '${taskArg}' complete! (${duration}s)`);
+        return;
+    }
+
     const { rankingsMap, registryMap, scoreMap } = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
     // V25.8.3: Fail-fast if Pass 1 produced empty data (AES key missing or shard corruption)
     if (registryMap.size === 0) {
