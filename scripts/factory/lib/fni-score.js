@@ -108,6 +108,38 @@ export function calculateFNI(entity, options = {}) {
     return roundedScore;
 }
 
+/**
+ * Extract pre-computed fields from raw entity for Rust FFI consumption.
+ * Keeps extraction logic in one place (JS + Rust share the same field mapping).
+ */
+export function extractFniInput(entity, options = {}) {
+    const id = entity.id || entity.slug || '';
+    const stats = entity.stats || entity;
+    const type = entity.type || entity.entity_type || 'model';
+    const sourcePrefix = getSourcePrefix(id);
+    const rawMetrics = extractRawMetrics(stats, sourcePrefix);
+    const meshPoints = options.meshPoints ?? entity._mesh_points ?? estimateMeshPoints(entity, sourcePrefix);
+    const dateStr = entity.last_modified || entity.pushed_at || entity.published_at || entity.updated_at || entity._updated;
+    let daysSinceUpdate = 365;
+    let dateValid = false;
+    if (dateStr) {
+        const parsed = new Date(dateStr).getTime();
+        if (!isNaN(parsed)) { daysSinceUpdate = Math.max(0, (Date.now() - parsed) / 86400000); dateValid = true; }
+    }
+    let daysSinceHarvest = null;
+    if (options.lastSeen) {
+        const p = new Date(options.lastSeen).getTime();
+        if (!isNaN(p)) daysSinceHarvest = Math.max(0, (Date.now() - p) / 86400000);
+    }
+    return {
+        id, entity_type: type, raw_metrics: rawMetrics,
+        completeness: calcCompleteness(entity), utility: calcUtility(entity),
+        days_since_update: daysSinceUpdate, date_valid: dateValid,
+        mesh_points: meshPoints, semantic_score: options.semanticScore ?? null,
+        days_since_harvest: daysSinceHarvest,
+    };
+}
+
 function getSourcePrefix(id) {
     if (id.startsWith('hf-')) return 'hf';
     if (id.startsWith('gh-')) return 'gh';

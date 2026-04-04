@@ -5,7 +5,7 @@
 
 import crypto from 'crypto';
 import { marked } from 'marked';
-import { calculateFNI } from './fni-score.js';
+import { calculateFniFFI } from './rust-bridge.js';
 import { hasValidCachePath } from '../../l5/entity-validator.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { estimateVRAM } from '../../../src/utils/vram-calculator.js';
@@ -45,7 +45,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         entity.runtime_status = entity.runtime_status || entity.running_status || meta.runtime_stage || meta.runtime_status || '';
 
         // 2. Core Score Calculation (V25.8: pass _last_seen for staleness decay)
-        const fniResult = calculateFNI(entity, { includeMetrics: true, lastSeen: entity._last_seen });
+        const fniResult = calculateFniFFI(entity, { includeMetrics: true, lastSeen: entity._last_seen });
         const finalType = entity.type || entity.entity_type || 'model';
         const finalFni = fniResult.score;
         const fniMetrics = fniResult.metrics;
