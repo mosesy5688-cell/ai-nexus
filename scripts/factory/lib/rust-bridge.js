@@ -65,9 +65,11 @@ export function batchCalculateFniFFI(entities) {
     });
 }
 
+let _fniModeLogged = false;
 /** Single entity FNI: Rust FFI (primary) or JS (fallback). Per-entity, no batching — safe for streaming. */
 export function calculateFniFFI(entity, options = {}) {
     const { extractFniInput, calculateFNI } = require('./fni-score.js');
+    if (!_fniModeLogged) { console.log(`[FNI-CALC] Mode: ${_fniCalc ? 'Rust V2.0' : 'JS V2.0 (fallback)'}`); _fniModeLogged = true; }
     if (_fniCalc) {
         const i = extractFniInput(entity, options);
         const r = _fniCalc.calculateFniSingle(i.id, i.entity_type, i.raw_metrics, i.completeness, i.utility, i.days_since_update, i.date_valid, i.mesh_points);
