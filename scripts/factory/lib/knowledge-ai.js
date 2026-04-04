@@ -31,7 +31,7 @@ Requirements:
 
 Return ONLY valid JSON: {"overview":"...","howItWorks":"...","useCases":"...","limitations":"..."}`;
 
-    return callGemini({ systemInstruction, prompt, temperature: 0.3, maxOutputTokens: 1024 });
+    return callGemini({ systemInstruction, prompt, temperature: 0.3, maxOutputTokens: 1536 });
 }
 
 /**
