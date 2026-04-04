@@ -196,7 +196,7 @@ jobs:
     name: VFS Packing (Stable 1.0)
     needs: master-fusion
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
