@@ -64,7 +64,7 @@ export function batchCalculateFniFFI(entities) {
     const { calculateFNI } = require('./fni-score.js');
     return entities.map(e => {
         const r = calculateFNI(e, { includeMetrics: true });
-        return { id: e.id, fni_score: r.score, raw_pop: r.rawPop || 0, sp: r.metrics.p, sf: r.metrics.f, sm: r.metrics.v };
+        return { id: e.id, fni_score: r.score, raw_pop: r.rawPop || 0, s: r.metrics.s, a: r.metrics.a, p: r.metrics.p, r: r.metrics.r, q: r.metrics.q };
     });
 }
 

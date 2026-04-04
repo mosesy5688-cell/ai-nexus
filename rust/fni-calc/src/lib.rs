@@ -1,25 +1,33 @@
-//! V18.9 FNI Singularity Scoring Engine (Rust FFI)
+//! FNI V2.0 — Canonical Scoring Engine (Rust FFI)
 //!
-//! Master Formula: FNI = min(99.9, (Sp * 0.45) + (Sf * 0.30) + (Sm * 0.25))
+//! Formula: FNI = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q) × staleness
+//! Upgraded from V18.9 (Phase 6, 768-dim bge-base-en-v1.5)
 //! Processes 10k entity batches via N-API Buffer protocol (Spec §5.1).
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 
-// V18.9 Source Coefficients (Ks)
-const KS_HF: f64 = 1.0;
-const KS_GH: f64 = 5.0;
-const KS_ARXIV: f64 = 30.0;
-const KS_DEFAULT: f64 = 0.2;
+// V2.0 Source Coefficients (Ks) — Spec §3.2
+const KS_HF: f64 = 1.0;       // Model Forge (HuggingFace) - Baseline
+const KS_GH: f64 = 5.0;       // Tool Source (GitHub)
+const KS_ARXIV: f64 = 30.0;   // Knowledge Roots (ArXiv/S2)
+const KS_DEFAULT: f64 = 0.2;  // Community Market
 
-// V18.9 Decay Lambdas
+// V2.0 Decay Lambdas — Spec §3.2 R factor
 const LAMBDA_FOUNDATIONAL: f64 = 0.002; // Models, Tools, Agents
 const LAMBDA_STRUCTURAL: f64 = 0.005;   // Datasets, Collections, Papers
 const LAMBDA_TEMPORAL: f64 = 0.025;     // Prompts, Spaces
 
+// V25.8 Art 8.2: Staleness decay lambdas (harvest freshness)
+const STALENESS_LAMBDA_DEFAULT: f64 = 0.005;
+const STALENESS_LAMBDA_PAPER: f64 = 0.001;
+const STALENESS_LAMBDA_PROMPT: f64 = 0.008;
+const STALENESS_LAMBDA_DATASET: f64 = 0.003;
+
 const LOG10_E: f64 = std::f64::consts::LOG10_E;
 const NULL_TIME_DAYS: f64 = 365.0;
+const DEFAULT_SEMANTIC_SCORE: f64 = 50.0;
 
 #[derive(Deserialize)]
 struct EntityInput {
@@ -35,10 +43,15 @@ struct EntityInput {
     #[serde(default)]
     days_since_update: f64,
     #[serde(default)]
-    mesh_points: f64,
-    /// -1.0 signals missing date (apply 365-day penalty)
-    #[serde(default)]
     date_valid: bool,
+    #[serde(default)]
+    mesh_points: f64,
+    /// Optional semantic score override (default: 50.0)
+    #[serde(default)]
+    semantic_score: Option<f64>,
+    /// Days since last harvest (_last_seen), for staleness decay
+    #[serde(default)]
+    days_since_harvest: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -47,9 +60,11 @@ pub struct FniResult {
     pub id: String,
     pub fni_score: f64,
     pub raw_pop: f64,
-    pub sp: f64,
-    pub sf: f64,
-    pub sm: f64,
+    pub s: f64,
+    pub a: f64,
+    pub p: f64,
+    pub r: f64,
+    pub q: f64,
 }
 
 fn get_ks(id: &str) -> f64 {
@@ -64,12 +79,21 @@ fn get_ks(id: &str) -> f64 {
     }
 }
 
-fn get_lambda(entity_type: &str) -> f64 {
+fn get_decay_lambda(entity_type: &str) -> f64 {
     match entity_type {
         "model" | "tool" | "agent" => LAMBDA_FOUNDATIONAL,
         "dataset" | "collection" | "paper" => LAMBDA_STRUCTURAL,
         "prompt" | "space" => LAMBDA_TEMPORAL,
         _ => LAMBDA_STRUCTURAL,
+    }
+}
+
+fn get_staleness_lambda(entity_type: &str) -> f64 {
+    match entity_type {
+        "paper" => STALENESS_LAMBDA_PAPER,
+        "prompt" | "space" => STALENESS_LAMBDA_PROMPT,
+        "dataset" | "collection" => STALENESS_LAMBDA_DATASET,
+        _ => STALENESS_LAMBDA_DEFAULT,
     }
 }
 
@@ -81,43 +105,55 @@ fn compute_fni(e: &EntityInput) -> FniResult {
     let ks = get_ks(&e.id);
     let raw_pop = e.raw_metrics * ks;
 
-    // Sp: Asymptotic Log Compressor (base 8) + Quality Correction
-    let log_compressed = 99.9 * (1.0 - f64::powf(10.0, -(log10(raw_pop + 1.0) / 8.0)));
-    let quality_factor = 1.0 + (e.completeness + e.utility) / 500.0;
-    let sp_base = f64::min(99.9, log_compressed * quality_factor);
+    // S: Semantic (query-time ANN cosine similarity, factory default 50.0)
+    let s = f64::min(99.9, e.semantic_score.unwrap_or(DEFAULT_SEMANTIC_SCORE));
 
-    // Sf: Dynamic Exponential Decay
-    let lambda = get_lambda(&e.entity_type);
+    // P: Popularity (Asymptotic Log Compressor, base 8)
+    let p = f64::min(99.9, 99.9 * (1.0 - f64::powf(10.0, -(log10(raw_pop + 1.0) / 8.0))));
+
+    // R: Recency (Dynamic Exponential Decay)
+    let lambda = get_decay_lambda(&e.entity_type);
     let days = if e.date_valid {
         f64::max(0.0, e.days_since_update)
     } else {
         NULL_TIME_DAYS
     };
-    let sf = 100.0 * f64::exp(-lambda * days);
+    let r = f64::min(99.9, 100.0 * f64::exp(-lambda * days));
 
-    // Sp with freshness boost
-    let sp = f64::min(99.9, sp_base * (1.0 + sf / 500.0));
+    // A: Authority (Asymptotic Gravity Field, base 4)
+    let a = f64::min(99.9, 99.9 * (1.0 - f64::powf(10.0, -(log10(e.mesh_points + 1.0) / 4.0))));
 
-    // Sm: Asymptotic Gravity Field (base 4)
-    let sm = 99.9 * (1.0 - f64::powf(10.0, -(log10(e.mesh_points + 1.0) / 4.0)));
+    // Q: Quality (Completeness + Utility, normalized)
+    let q = f64::min(99.9, (e.completeness + e.utility) / 2.0);
 
-    // Master Formula
-    let fni = f64::min(99.9, (sp * 0.45) + (sf * 0.30) + (sm * 0.25));
+    // Master Formula V2.0: FNI = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q)
+    let base_fni = f64::min(99.9, (0.35 * s) + (0.25 * a) + (0.15 * p) + (0.15 * r) + (0.10 * q));
+
+    // Staleness decay — penalize entities not recently harvested
+    let staleness_factor = match e.days_since_harvest {
+        Some(d) if d >= 1.0 => {
+            let sl = get_staleness_lambda(&e.entity_type);
+            f64::exp(-sl * d)
+        }
+        _ => 1.0, // No _last_seen or harvested today → no penalty
+    };
+
+    let fni = base_fni * staleness_factor;
     let rounded = (fni * 10.0).round() / 10.0;
 
     FniResult {
         id: e.id.clone(),
         fni_score: rounded,
         raw_pop: raw_pop.round(),
-        sp: (sp * 10.0).round() / 10.0,
-        sf: (sf * 10.0).round() / 10.0,
-        sm: (sm * 10.0).round() / 10.0,
+        s: (s * 10.0).round() / 10.0,
+        a: (a * 10.0).round() / 10.0,
+        p: (p * 10.0).round() / 10.0,
+        r: (r * 10.0).round() / 10.0,
+        q: (q * 10.0).round() / 10.0,
     }
 }
 
 /// Batch FNI calculation from JSON array buffer.
-/// Input: JSON array of EntityInput objects.
-/// Returns: Vec<FniResult> in same order.
 #[napi]
 pub fn batch_calculate_fni(json_buffer: Buffer) -> Result<Vec<FniResult>> {
     let data = std::str::from_utf8(&json_buffer)
@@ -129,7 +165,6 @@ pub fn batch_calculate_fni(json_buffer: Buffer) -> Result<Vec<FniResult>> {
 }
 
 /// V26.5: Streaming FNI from shard directory — O(shard_size) memory.
-/// Reads shards one at a time, computes FNI, streams results to zstd NDJSON.
 #[napi]
 pub fn batch_calculate_fni_from_dir(shard_dir: String, output_dir: String) -> Result<u32> {
     use std::io::{BufWriter, Write};
@@ -183,6 +218,8 @@ pub fn calculate_fni_single(
         days_since_update,
         date_valid,
         mesh_points,
+        semantic_score: None,
+        days_since_harvest: None,
     })
 }
 
@@ -201,8 +238,30 @@ mod tests {
             days_since_update: 0.0,
             date_valid: true,
             mesh_points: 1e6,
+            semantic_score: Some(99.0),
+            days_since_harvest: None,
         });
         assert!(result.fni_score <= 99.9);
+    }
+
+    #[test]
+    fn test_semantic_baseline() {
+        let result = compute_fni(&EntityInput {
+            id: "hf-model--test".to_string(),
+            entity_type: "model".to_string(),
+            raw_metrics: 0.0,
+            completeness: 0.0,
+            utility: 0.0,
+            days_since_update: 0.0,
+            date_valid: false,
+            mesh_points: 0.0,
+            semantic_score: None, // Should default to 50.0
+            days_since_harvest: None,
+        });
+        // S=50, A=0, P=0, R=exp(-0.002*365)≈48, Q=0
+        // baseFNI = 0.35*50 + 0.15*48 = 17.5 + 7.2 = 24.7
+        assert!(result.fni_score > 17.0, "S=50 baseline should give FNI > 17, got {}", result.fni_score);
+        assert!(result.s >= 49.0, "S should be ~50, got {}", result.s);
     }
 
     #[test]
@@ -214,11 +273,13 @@ mod tests {
             completeness: 50.0,
             utility: 50.0,
             days_since_update: 0.0,
-            date_valid: false, // Missing date
+            date_valid: false,
             mesh_points: 0.0,
+            semantic_score: None,
+            days_since_harvest: None,
         });
-        // With 365-day decay at lambda=0.002, Sf should be ~48
-        assert!(result.sf < 50.0);
+        // With 365-day decay at lambda=0.002, R should be ~48
+        assert!(result.r < 50.0);
     }
 
     #[test]
@@ -226,23 +287,27 @@ mod tests {
         let arxiv = compute_fni(&EntityInput {
             id: "arxiv-paper--test".to_string(),
             entity_type: "paper".to_string(),
-            raw_metrics: 100.0, // 100 citations * 30 = 3000 rawPop
+            raw_metrics: 100.0,
             completeness: 50.0,
             utility: 30.0,
             days_since_update: 30.0,
             date_valid: true,
             mesh_points: 0.0,
+            semantic_score: None,
+            days_since_harvest: None,
         });
         let hf = compute_fni(&EntityInput {
             id: "hf-model--test".to_string(),
             entity_type: "model".to_string(),
-            raw_metrics: 100.0, // 100 * 1.0 = 100 rawPop
+            raw_metrics: 100.0,
             completeness: 50.0,
             utility: 30.0,
             days_since_update: 30.0,
             date_valid: true,
             mesh_points: 0.0,
+            semantic_score: None,
+            days_since_harvest: None,
         });
-        assert!(arxiv.sp > hf.sp, "ArXiv Ks=30 should produce higher Sp");
+        assert!(arxiv.p > hf.p, "ArXiv Ks=30 should produce higher P");
     }
 }
