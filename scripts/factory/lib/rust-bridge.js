@@ -55,17 +55,25 @@ export function batchComputeShardSlotsFFI(umids, totalSlots = 4096) {
     return umids.map(u => computeShardSlot(u, totalSlots));
 }
 
-/** Batch FNI calculation. */
+/** Batch FNI calculation (pre-extracted inputs). */
 export function batchCalculateFniFFI(entities) {
-    if (_fniCalc) {
-        const buffer = Buffer.from(JSON.stringify(entities));
-        return _fniCalc.batchCalculateFni(buffer);
-    }
+    if (_fniCalc) return _fniCalc.batchCalculateFni(Buffer.from(JSON.stringify(entities)));
     const { calculateFNI } = require('./fni-score.js');
     return entities.map(e => {
         const r = calculateFNI(e, { includeMetrics: true });
         return { id: e.id, fni_score: r.score, raw_pop: r.rawPop || 0, s: r.metrics.s, a: r.metrics.a, p: r.metrics.p, r: r.metrics.r, q: r.metrics.q };
     });
+}
+
+/** Single entity FNI: Rust FFI (primary) or JS (fallback). Per-entity, no batching — safe for streaming. */
+export function calculateFniFFI(entity, options = {}) {
+    const { extractFniInput, calculateFNI } = require('./fni-score.js');
+    if (_fniCalc) {
+        const i = extractFniInput(entity, options);
+        const r = _fniCalc.calculateFniSingle(i.id, i.entity_type, i.raw_metrics, i.completeness, i.utility, i.days_since_update, i.date_valid, i.mesh_points);
+        return { score: r.fni_score, rawPop: r.raw_pop, metrics: { s: r.s, a: r.a, p: r.p, r: r.r, q: r.q } };
+    }
+    return calculateFNI(entity, options);
 }
 
 /** Compute hub scores via Rust mesh engine. */
@@ -89,18 +97,11 @@ export function classifyTextFFI(text) {
 
 function _jsFallbackExtract(html) {
     let t = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<nav[\s\S]*?<\/nav>/gi, '').replace(/<header[\s\S]*?<\/header>/gi, '')
-        .replace(/<footer[\s\S]*?<\/footer>/gi, '');
-    
-    // V25.8.6: Support ArXiv/ar5iv specialized classes (ltx_*)
-    // 1. Convert headers
+        .replace(/<nav[\s\S]*?<\/nav>/gi, '').replace(/<header[\s\S]*?<\/header>/gi, '').replace(/<footer[\s\S]*?<\/footer>/gi, '');
     t = t.replace(/<(?:h[1-6]|span|div)[^>]*class=["'][^"']*ltx_title[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi, '\n## $1\n');
     t = t.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, l, c) => `\n${'#'.repeat(parseInt(l))} ${c.replace(/<[^>]+>/g, '').trim()}\n`);
-    
-    // 2. Convert paragraphs (including ltx_p)
     t = t.replace(/<(?:p|div)[^>]*class=["'][^"']*ltx_p[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi, '$1\n\n');
     t = t.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_, c) => c.replace(/<[^>]+>/g, '').trim() + '\n\n');
-    
     return _jsFallbackClassify(t.replace(/<[^>]+>/g, ' ').replace(/\n{3,}/g, '\n\n').trim());
 }
 
