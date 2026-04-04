@@ -160,11 +160,11 @@ async function packDatabase() {
         e.search_vector = keywords;
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
 
-        // 2. Search Values (for full-search): Use full ANN Vector for semantic discovery
-        e.search_vector = annVectorBase64 || keywords;
-        const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
-
+        // 2. Search Values (for full-search): ANN vectors removed — semantic search
+        //    now served by vector-core.bin (hot 30K) + Cluster ANN (full 436K).
+        //    Keeping keywords only to reduce search.db size (~1166MB → ~700MB).
         e.search_vector = keywords;
+        const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
 
         const slotId = computeMetaShardSlot(e.slug || e.id, META_SHARD_COUNT);
         const targetKey = `slot_${slotId}`;
