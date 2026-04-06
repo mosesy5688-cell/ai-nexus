@@ -211,18 +211,8 @@ async function main() {
             await updateFniHistory(rankedEntities);
             await fs.mkdir('./cache', { recursive: true });
 
-            // V22.8 Authoritative Aggregation (Safeguard 5.1)
-            // This is the SINGLE SOURCE OF TRUTH for the global registry monolith and fragments.
-            // If and only if in Core/Late-Binding mode, we patch shards to preserve READMEs.
-            const persistRankings = (lateBinding && !needsSlimming) ? rankingsMap : null;
-
-            // NULLIFY pointers to free up GC pressure for the patching phase
-            if (persistRankings) {
-                fullSet = null;
-                // Note: we'll pass persistRankings instead of rankedEntities
-            }
-
-            await persistRegistry(persistRankings ? null : rankedEntities, CONFIG.OUTPUT_DIR, './cache', persistRankings, scoreMap);
+            // V25.8.6: Pass overlay-patched entities to persistence (FNI scores live in fullSet)
+            await persistRegistry(rankedEntities, CONFIG.OUTPUT_DIR, './cache', null, scoreMap);
 
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
 
