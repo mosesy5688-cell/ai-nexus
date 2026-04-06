@@ -126,8 +126,10 @@ async function runStreamingCore(loadShards, saveShard, _calcStats,
             // Bounded top-50 tracking for daily report
             const score = e.fni_score || 0;
             if (topN.length < DAILY_TOP || score > topN[topN.length - 1].fni_score) {
-                topN.push({ id: e.id, name: e.name || e.slug, type: e.type || 'model',
-                    fni_score: score, pipeline_tag: e.pipeline_tag || '', author: e.author || 'Community' });
+                topN.push({
+                    id: e.id, name: e.name || e.slug, type: e.type || 'model',
+                    fni_score: score, pipeline_tag: e.pipeline_tag || '', author: e.author || 'Community'
+                });
                 topN.sort((a, b) => b.fni_score - a.fni_score);
                 if (topN.length > DAILY_TOP) topN.length = DAILY_TOP;
             }
@@ -221,7 +223,7 @@ async function runSatelliteTask(loadShards, rankingsMap, scoreMap, shardDir, sta
     const fullSet = [];
     const rl = createInterface({ input: createReadStream(stagingPath), crlfDelay: Infinity });
     for await (const line of rl) { if (line) fullSet.push(JSON.parse(line)); }
-    await fs.unlink(stagingPath).catch(() => {});
+    await fs.unlink(stagingPath).catch(() => { });
     console.log(`[AGGREGATOR] Loaded ${fullSet.length} slim entities for satellite task.`);
 
     const tasks = buildTaskList(fullSet, CONFIG.OUTPUT_DIR, { shardDir });
