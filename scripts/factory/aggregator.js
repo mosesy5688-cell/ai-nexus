@@ -17,7 +17,6 @@ import { initRustBridge, streamAggregateFFI } from './lib/rust-bridge.js';
 import { createWriteStream, createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 
-// Config (Art 3.1, 3.3)
 const CONFIG = {
     TOTAL_SHARDS: 20,
     MIN_SUCCESS_RATE: 0.8,
@@ -26,12 +25,10 @@ const CONFIG = {
     CODE_VERSION: 'v18.12.5.15', // Increment this to bust incremental task cache
 };
 
-// Configuration & Argument Parsing
 const args = process.argv.slice(2);
 const taskArg = args.find(a => a.startsWith('--task=') || a.startsWith('-t='))?.split('=')[1];
 const AGGREGATE_FLOOR = 125000;
 
-// Main
 async function main() {
     // V25.8: Initialize Rust FFI bridge (graceful JS fallback if .node unavailable)
     const rustStatus = initRustBridge();
@@ -53,7 +50,6 @@ async function main() {
         }
     }
 
-    // Pass 1: Global FNI Logic (Lightweight — scores + registry mapping)
     const needsSlimming = !!taskArg && taskArg !== 'core';
     const { loadRegistryShardsSequentially } = await import('./lib/registry-loader.js');
     const { calculateGlobalStats, preProcessDeltas, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
@@ -84,14 +80,10 @@ async function main() {
     let successCount = 0;
     let fullSet = [];
 
-    // V18.12.5.21: Late-Binding Toggle
     const lateBinding = process.env.FNI_LATE_BINDING !== 'false';
     const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
-    // V25.8.6: Core/full pipeline always uses merge path to propagate 2/4 FNI scores.
-    // Satellite tasks use late-binding (fast, read-only).
     const skipMerge = needsSlimming || (lateBinding && !!taskArg && taskArg !== 'core');
     if (skipMerge) {
-        // V25.8.3: OOM fix — Rust streaming aggregator (primary) or JS disk staging (fallback)
         const stagingPath = './output/.staging-fullset.ndjson';
         await fs.mkdir('./output', { recursive: true });
         const rustResult = streamAggregateFFI(shardDir, stagingPath);
@@ -151,6 +143,12 @@ async function main() {
 
     if (fullSet.length < AGGREGATE_FLOOR) {
         throw new Error(`[CRITICAL] Data Loss Detected! Only ${fullSet.length} entities in full set (Min: ${AGGREGATE_FLOOR}).`);
+    }
+
+    // V25.8.6: Direct FNI overlay from 2/4 artifacts (bypasses fragile merge path)
+    if (!taskArg || taskArg === 'core') {
+        const { overlayFniFromArtifacts } = await import('./lib/aggregator-shard-manager.js');
+        await overlayFniFromArtifacts(fullSet, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
     }
 
     // V25.8 CDDPP Shield: Inject UMID + canonical_url + citation watermarking
