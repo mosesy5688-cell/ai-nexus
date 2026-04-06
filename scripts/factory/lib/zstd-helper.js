@@ -98,6 +98,9 @@ export async function autoDecompress(data) {
 /** V55.9: True streaming Zstd compress Transform via temp-file + Rust FFI. O(1) memory. */
 export function createZstdCompressStream(level = 3) {
     const rust = probeRust();
+    if (!rust?.zstdCompressFile) {
+        console.warn('[ZSTD] ⚠️ Rust zstdCompressFile unavailable — WASM fallback produces non-standard frames');
+    }
 
     if (rust?.zstdCompressFile) {
         const tmpIn = getTmpPath('.json');
