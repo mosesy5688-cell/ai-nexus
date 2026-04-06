@@ -188,6 +188,32 @@ async function exportReportFusedEntity(report, outputDir) {
     console.log(`  [REPORT] VFS Entity exported: ${fusedEntity.id}`);
 }
 
+/**
+ * V25.9: Streaming-compatible daily accumulator update.
+ * Accepts pre-sorted top-N entities (bounded array) from streaming pass.
+ */
+export async function updateDailyAccumulatorFromTopN(topEntities, outputDir = './output') {
+    console.log('[DAILY] Updating daily accumulator from streaming top-N...');
+    const accumulator = await loadDailyAccum();
+
+    const entries = topEntities.map(e => ({
+        id: e.id,
+        name: e.name || e.slug,
+        type: e.type || 'model',
+        fni_score: Math.round(e.fni_score || e.fni || 0),
+        date: new Date().toISOString().split('T')[0],
+        pipeline_tag: e.pipeline_tag || '',
+        author: e.author || 'Community'
+    }));
+
+    accumulator.entries = accumulator.entries || [];
+    accumulator.entries.push(...entries);
+    accumulator._updated = new Date().toISOString();
+
+    await saveDailyAccum(accumulator);
+    console.log(`  [DAILY] Accumulated ${accumulator.entries.length} entries total (streaming).`);
+}
+
 function calculateAvgFni(entries) {
     if (!entries.length) return 0;
     const sum = entries.reduce((acc, e) => acc + (e.fni_score || 0), 0);
