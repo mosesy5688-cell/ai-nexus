@@ -175,15 +175,24 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
 
         // V25.8.5: Repair common Gemini JSON malformations before parsing
         try { return JSON.parse(clean); } catch (_firstErr) {
-            const repaired = clean
+            let repaired = clean
                 .replace(/"\s*\n\s*"/g, '", "')                   // missing commas between properties
                 .replace(/\r?\n/g, ' ')                            // collapse raw newlines (unterminated strings)
+                .replace(/[\x00-\x1f]/g, ' ')                     // strip control chars (tab, etc.)
                 .replace(/,\s*([}\]])/g, '$1')                     // trailing commas
                 .replace(/(['"])?(\w+)(['"])?\s*:/g, '"$2":')      // unquoted/single-quoted keys
                 .replace(/:\s*'([^']*)'/g, ': "$1"')               // single-quoted values
                 .replace(/\/\/.*/g, '')                             // line comments
                 .replace(/\/\*[\s\S]*?\*\//g, '');                 // block comments
-            return JSON.parse(repaired);
+            // V25.8.7: Close truncated JSON (Gemini cut off mid-response)
+            try { return JSON.parse(repaired); } catch (_secondErr) {
+                const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+                const braces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+                if (repaired.match(/"[^"]*$/)) repaired += '"';    // close unterminated string
+                for (let i = 0; i < braces; i++) repaired += '}';
+                for (let i = 0; i < open; i++) repaired += ']';
+                return JSON.parse(repaired);
+            }
         }
     } catch (e) {
         console.warn(`[TITAN] Response parse failed: ${e.message}`);
