@@ -13,7 +13,11 @@ import { saveGlobalRegistry, syncCacheState } from './cache-manager.js';
 export async function persistRegistry(rankedEntities, outputDir, cacheDir, rankingsMap, scoreMap) {
     console.log(`[AGGREGATOR] 💾 Persisting sharded registry...`);
 
-    if (!rankedEntities && rankingsMap) {
+    if (!rankedEntities && !rankingsMap) {
+        // V25.9: Streaming mode — shards already saved during streaming finalization pass.
+        // Skip entity serialization, proceed to mirroring/backup only.
+        console.log(`[AGGREGATOR] 💾 Streaming mode: shards already persisted. Mirroring only.`);
+    } else if (!rankedEntities && rankingsMap) {
         // V55.9: High-Fidelity Shard Patching (Binary shards only, no monolith)
         // Monolith streaming removed — createZstdCompressStream buffers ALL data
         // in memory before compressing, causing OOM on 416k+ entities with READMEs.

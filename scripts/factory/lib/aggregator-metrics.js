@@ -40,3 +40,22 @@ export async function updateFniHistory(entities) {
 
     await saveFniHistory({ entities: history });
 }
+
+/**
+ * V25.9: Streaming-compatible FNI history update.
+ * Accepts a pre-built Map<normalizedId, score> instead of an entity array.
+ */
+export async function updateFniHistoryFromBatch(historyBatch) {
+    const historyData = await loadFniHistory();
+    const history = historyData.entities || {};
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const [normalizedId, score] of historyBatch) {
+        if (!history[normalizedId]) history[normalizedId] = [];
+        history[normalizedId].push({ date: today, score });
+        history[normalizedId] = history[normalizedId].slice(-7);
+    }
+
+    await saveFniHistory({ entities: history });
+    console.log(`[FNI-HISTORY] Updated ${historyBatch.size} entries (streaming batch).`);
+}

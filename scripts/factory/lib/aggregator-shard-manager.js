@@ -4,8 +4,8 @@ import path from 'path';
 import { autoDecompress, zstdDecompress } from './zstd-helper.js';
 import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
 
-/** V25.8.6: Direct FNI overlay from 2/4 artifacts onto fullSet. Bypasses merge path. */
-export async function overlayFniFromArtifacts(fullSet, artifactDir, totalShards) {
+/** V25.9: Build id→fni_score Map from 2/4 artifacts (lightweight, ~13MB for 436K entries). */
+export async function buildFniMap(artifactDir, totalShards) {
     const fniMap = new Map();
     for (let i = 0; i < totalShards; i++) {
         const p = path.join(artifactDir, `shard-${i}.json.zst`);
@@ -17,17 +17,11 @@ export async function overlayFniFromArtifacts(fullSet, artifactDir, totalShards)
                 if (e.id && e.fni_score != null) fniMap.set(e.id, e.fni_score);
             }
         } catch (err) {
-            console.warn(`[FNI-OVERLAY] Shard ${i}: ${err.message}`);
+            console.warn(`[FNI-MAP] Shard ${i}: ${err.message}`);
         }
     }
-    if (fniMap.size === 0) { console.warn('[FNI-OVERLAY] No FNI scores found in artifacts.'); return 0; }
-    let patched = 0;
-    for (const e of fullSet) {
-        const score = fniMap.get(e.id);
-        if (score !== undefined) { e.fni_score = score; e.fni = score; patched++; }
-    }
-    console.log(`[FNI-OVERLAY] Patched ${patched}/${fullSet.length} entities (${fniMap.size} scores from artifacts).`);
-    return patched;
+    console.log(`[FNI-MAP] Built ${fniMap.size} scores from ${totalShards} artifact shards.`);
+    return fniMap;
 }
 
 /** Iterative Shard Processor (V18.12.5.12 OOM Guard) */
