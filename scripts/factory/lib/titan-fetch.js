@@ -176,12 +176,13 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
         // V25.8.5: Repair common Gemini JSON malformations before parsing
         try { return JSON.parse(clean); } catch (_firstErr) {
             const repaired = clean
-                .replace(/,\s*([}\]])/g, '$1')                   // trailing commas
-                .replace(/(['"])?(\w+)(['"])?\s*:/g, '"$2":')     // unquoted/single-quoted keys
-                .replace(/:\s*'([^']*)'/g, ': "$1"')              // single-quoted values
-                .replace(/"\s*\n\s*"/g, '",\n"')                  // missing commas between properties
-                .replace(/\/\/[^\n]*/g, '')                       // line comments
-                .replace(/\/\*[\s\S]*?\*\//g, '');                // block comments
+                .replace(/"\s*\n\s*"/g, '", "')                   // missing commas between properties
+                .replace(/\r?\n/g, ' ')                            // collapse raw newlines (unterminated strings)
+                .replace(/,\s*([}\]])/g, '$1')                     // trailing commas
+                .replace(/(['"])?(\w+)(['"])?\s*:/g, '"$2":')      // unquoted/single-quoted keys
+                .replace(/:\s*'([^']*)'/g, ': "$1"')               // single-quoted values
+                .replace(/\/\/.*/g, '')                             // line comments
+                .replace(/\/\*[\s\S]*?\*\//g, '');                 // block comments
             return JSON.parse(repaired);
         }
     } catch (e) {
