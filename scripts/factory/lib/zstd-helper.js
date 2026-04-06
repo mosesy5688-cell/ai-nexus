@@ -67,11 +67,11 @@ export function zstdCompressSync(data, level = 3) {
     return Buffer.from(_simple.compress(input, level));
 }
 
-/** Decompress Zstd data. Rust FFI → WASM fallback. */
+/** Decompress Zstd data. Rust FFI → WASM fallback (handles non-standard frames). */
 export async function zstdDecompress(data) {
     const rust = probeRust();
     if (rust?.zstdDecompressBuffer) {
-        return Buffer.from(rust.zstdDecompressBuffer(data));
+        try { return Buffer.from(rust.zstdDecompressBuffer(data)); } catch { /* fall through to WASM */ }
     }
     const codec = await getCodec();
     const result = codec.decompress(data);
