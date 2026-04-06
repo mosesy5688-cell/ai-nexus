@@ -1,8 +1,34 @@
-/** Aggregator Shard Manager V18.12.5.21 (Split from aggregator-utils) */
+/** Aggregator Shard Manager V25.8.6 (Split from aggregator-utils) */
 import fs from 'fs/promises';
 import path from 'path';
 import { autoDecompress } from './zstd-helper.js';
 import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
+
+/** V25.8.6: Direct FNI overlay from 2/4 artifacts onto fullSet. Bypasses merge path. */
+export async function overlayFniFromArtifacts(fullSet, artifactDir, totalShards) {
+    const fniMap = new Map();
+    for (let i = 0; i < totalShards; i++) {
+        const p = path.join(artifactDir, `shard-${i}.json.zst`);
+        try {
+            const raw = await fs.readFile(p);
+            const json = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
+            for (const r of (json.entities || [])) {
+                const e = r.enriched || r;
+                if (e.id && e.fni_score != null) fniMap.set(e.id, e.fni_score);
+            }
+        } catch (err) {
+            console.warn(`[FNI-OVERLAY] Shard ${i}: ${err.message}`);
+        }
+    }
+    if (fniMap.size === 0) { console.warn('[FNI-OVERLAY] No FNI scores found in artifacts.'); return 0; }
+    let patched = 0;
+    for (const e of fullSet) {
+        const score = fniMap.get(e.id);
+        if (score !== undefined) { e.fni_score = score; e.fni = score; patched++; }
+    }
+    console.log(`[FNI-OVERLAY] Patched ${patched}/${fullSet.length} entities (${fniMap.size} scores from artifacts).`);
+    return patched;
+}
 
 /** Iterative Shard Processor (V18.12.5.12 OOM Guard) */
 export async function processShardsIteratively(defaultArtifactDir, totalShards, options = {}, callback, startShard = 0, endShard = null) {
