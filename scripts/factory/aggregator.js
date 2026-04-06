@@ -29,7 +29,6 @@ const CONFIG = {
 // Configuration & Argument Parsing
 const args = process.argv.slice(2);
 const taskArg = args.find(a => a.startsWith('--task=') || a.startsWith('-t='))?.split('=')[1];
-const CHECKPOINT_THRESHOLD = 5.5 * 3600; // 5.5 hours in seconds
 const AGGREGATE_FLOOR = 125000;
 
 // Main
@@ -86,10 +85,12 @@ async function main() {
     let fullSet = [];
 
     // V18.12.5.21: Late-Binding Toggle
-    const lateBinding = process.env.FNI_LATE_BINDING !== 'false'; // Default to true
+    const lateBinding = process.env.FNI_LATE_BINDING !== 'false';
     const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
+    // V25.8.5: Force merge path when 2/4 artifacts exist (propagate FNI to registry)
+    const hasArtifacts = !needsSlimming && await fs.readdir(CONFIG.ARTIFACT_DIR).then(f => f.some(n => /^shard-\d+/.test(n))).catch(() => false);
 
-    if (needsSlimming || lateBinding) {
+    if ((needsSlimming || lateBinding) && !hasArtifacts) {
         // V25.8.3: OOM fix — Rust streaming aggregator (primary) or JS disk staging (fallback)
         const stagingPath = './output/.staging-fullset.ndjson';
         await fs.mkdir('./output', { recursive: true });
