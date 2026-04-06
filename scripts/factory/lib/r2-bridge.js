@@ -109,11 +109,12 @@ export async function downloadBufferFromR2FFI(client, key) {
 
 /** Upload a raw buffer to R2. */
 export async function uploadBufferToR2FFI(client, key, buffer, contentType = 'application/octet-stream') {
-    if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        return _r2Engine.streamToR2(client, key, buffer.toString('base64'));
-    }
+    // V25.8.7: Always use S3 SDK for binary uploads.
+    // Rust streamToR2 accepts String (base64) but uploads without decoding,
+    // corrupting binary data (Zstd shards stored as base64 text on R2).
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
-    const jsClient = client?.constructor?.name === 'R2Client' ? require('./r2-helpers.js').createR2Client() : client;
+    const jsClient = (client?.constructor?.name === 'R2Client')
+        ? require('./r2-helpers.js').createR2Client() : client;
     const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
     await jsClient.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: buffer, ContentType: contentType }));
     return true;
