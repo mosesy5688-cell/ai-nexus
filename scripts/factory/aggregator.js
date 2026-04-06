@@ -87,10 +87,10 @@ async function main() {
     // V18.12.5.21: Late-Binding Toggle
     const lateBinding = process.env.FNI_LATE_BINDING !== 'false';
     const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
-    // V25.8.5: Force merge path when 2/4 artifacts exist (propagate FNI to registry)
-    const hasArtifacts = !needsSlimming && await fs.readdir(CONFIG.ARTIFACT_DIR).then(f => f.some(n => /^shard-\d+/.test(n))).catch(() => false);
-
-    if ((needsSlimming || lateBinding) && !hasArtifacts) {
+    // V25.8.6: Core/full pipeline always uses merge path to propagate 2/4 FNI scores.
+    // Satellite tasks use late-binding (fast, read-only).
+    const skipMerge = needsSlimming || (lateBinding && !!taskArg && taskArg !== 'core');
+    if (skipMerge) {
         // V25.8.3: OOM fix — Rust streaming aggregator (primary) or JS disk staging (fallback)
         const stagingPath = './output/.staging-fullset.ndjson';
         await fs.mkdir('./output', { recursive: true });
@@ -122,8 +122,8 @@ async function main() {
         await fs.unlink(stagingPath).catch(() => {});
         console.log(`[AGGREGATOR] Loaded ${fullSet.length} entities.`);
     } else {
-        // Legacy path (Merge deltas and overwrite shards)
-        // 1.5. Pre-process updates (O(1) Streaming)
+        // Merge path: reads 2/4 artifacts and propagates FNI scores into registry
+        console.log(`[AGGREGATOR] Merge path: propagating 2/4 FNI scores into registry...`);
         const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
         await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
 
