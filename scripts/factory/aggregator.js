@@ -36,7 +36,6 @@ async function main() {
 
     const startTime = Date.now();
     let entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json.gz';
-
     if (!await fs.access(entitiesInputPath).then(() => true).catch(() => false)) {
         if (!entitiesInputPath.endsWith('.gz')) {
             const gzPath = entitiesInputPath + '.gz';
@@ -70,10 +69,8 @@ async function main() {
         throw new Error('[CRITICAL] Pass 1 returned 0 entities. Check AES_CRYPTO_KEY is set and registry shards exist.');
     }
     console.log(`✓ Global rankings and registry mapping aligned (including Mesh Impact).`);
-
     const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
     const isCoreTask = !taskArg || taskArg === 'core';
-
     if (isCoreTask) {
         await runStreamingCore(loadRegistryShardsSequentially, saveRegistryShard, calculateGlobalStats,
             preProcessDeltas, mergePartitionedShard, rankingsMap, registryMap, scoreMap,
@@ -85,11 +82,8 @@ async function main() {
 }
 
 /** V25.9: Streaming core — zero fullSet accumulation. ~530MB peak vs ~7GB+ before. */
-async function runStreamingCore(loadShards, saveShard, _calcStats,
-    preProcessDeltas, mergePartitionedShard, rankingsMap, registryMap, scoreMap,
-    entitiesInputPath, shardDir, startTime) {
-
-    // Pass 1.5: Delta alignment + Pass 2: Shard-Centric Merge
+async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDeltas,
+    mergePartitionedShard, rankingsMap, registryMap, scoreMap, entitiesInputPath, shardDir, startTime) {
     const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
     await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
     console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge...`);
@@ -100,7 +94,6 @@ async function runStreamingCore(loadShards, saveShard, _calcStats,
         mergeCount++;
         mergedShard.entities = null;
     }, { slim: false });
-
     // Build lightweight FNI Map from 2/4 artifacts (~13MB for 436K entries)
     const { buildFniMap } = await import('./lib/aggregator-shard-manager.js');
     const fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
@@ -143,7 +136,6 @@ async function runStreamingCore(loadShards, saveShard, _calcStats,
         await saveShard(shardIdx, entities);
         if (global.gc && entityCount % 100000 === 0) global.gc();
     }, { slim: false });
-
     fniMap.clear();
     console.log(`[AGGREGATOR] Streaming finalization: ${entityCount} entities, ${watermarked} watermarked.`);
 
