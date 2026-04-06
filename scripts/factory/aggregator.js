@@ -134,6 +134,10 @@ async function main() {
         }, { slim: false });
     }
 
+    // V25.8.7: Release Pass 1 Maps before loading fullSet (OOM prevention)
+    rankingsMap.clear(); registryMap.clear(); scoreMap.clear();
+    if (global.gc) global.gc();
+
     if (fullSet.length === 0 && !needsSlimming) {
         // If we didn't accumulate fullSet, we need to load it slimly for health/final stats
         // This is safe because slim mode is OOM-resistant
