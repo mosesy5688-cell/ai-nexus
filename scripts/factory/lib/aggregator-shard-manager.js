@@ -1,7 +1,7 @@
 /** Aggregator Shard Manager V25.8.6 (Split from aggregator-utils) */
 import fs from 'fs/promises';
 import path from 'path';
-import { autoDecompress } from './zstd-helper.js';
+import { autoDecompress, zstdDecompress } from './zstd-helper.js';
 import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
 
 /** V25.8.6: Direct FNI overlay from 2/4 artifacts onto fullSet. Bypasses merge path. */
@@ -11,7 +11,7 @@ export async function overlayFniFromArtifacts(fullSet, artifactDir, totalShards)
         const p = path.join(artifactDir, `shard-${i}.json.zst`);
         try {
             const raw = await fs.readFile(p);
-            const json = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
+            const json = JSON.parse((await zstdDecompress(raw)).toString('utf-8'));
             for (const r of (json.entities || [])) {
                 const e = r.enriched || r;
                 if (e.id && e.fni_score != null) fniMap.set(e.id, e.fni_score);
