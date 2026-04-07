@@ -68,10 +68,10 @@ export async function generateMeshGraph(outputDir = './output') {
     const reportsDir = path.join(outputDir, 'cache', 'reports');
     try {
         const r = buildMeshGraphFromFilesFFI(
-            path.join(relDir, 'explicit.json'), path.join(relDir, 'knowledge-links.json'),
+            path.join(relDir, 'explicit.json.zst'), path.join(relDir, 'knowledge-links.json.zst'),
             path.join(reportsDir, 'index.json'), meshDir
         );
-        if (r) {
+        if (r?.nodeCount > 0) {
             await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graphData));
             await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.statsData));
             console.log(`[MESH-GRAPH] Rust file FFI: ${r.nodeCount} nodes, ${r.edgeCount} edges`);
@@ -86,7 +86,7 @@ export async function generateMeshGraph(outputDir = './output') {
         const reportsBuf = await loadJsonBuffer(path.join(reportsDir, 'index.json'));
         if (explicitBuf) {
             const r = buildMeshGraphFFI(explicitBuf, knowledgeBuf || Buffer.alloc(0), reportsBuf || Buffer.alloc(0));
-            if (r) {
+            if (r?.nodeCount > 0) {
                 await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graphData));
                 await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.statsData));
                 console.log(`[MESH-GRAPH] Rust Buffer FFI: ${r.nodeCount} nodes, ${r.edgeCount} edges`);
