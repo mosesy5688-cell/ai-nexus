@@ -147,7 +147,7 @@ function computeCategoryAlts(entities, category, maxEntities = 500, maxAlts = 10
  * @param {Array} entities All entities
  * @param {string} outputDir Output directory
  */
-export async function computeAltRelations(entities, outputDir = './output', opts = {}) {
+export async function computeAltRelations(shardReader, outputDir = './output', opts = {}) {
     console.log('[ALT-LINKER V14.5.2] Computing alternative relations...');
 
     const startTime = Date.now();
@@ -159,10 +159,6 @@ export async function computeAltRelations(entities, outputDir = './output', opts
     if (opts.shardDir) {
         rustResult = computeAltRelationsFromDirFFI(opts.shardDir, relationsDir);
     }
-    if (!rustResult) {
-        try { rustResult = computeAltRelationsFFI(Buffer.from(JSON.stringify(entities))); }
-        catch (e) { console.warn(`[ALT-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
-    }
     if (rustResult?.categories_data && rustResult?.meta_data) {
         for (const cat of rustResult.categories_data) {
             await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressed_data));
@@ -173,8 +169,15 @@ export async function computeAltRelations(entities, outputDir = './output', opts
         return { totalRelations: rustResult.total_relations };
     }
 
-    // Group by category
-    const byCategory = groupByCategory(entities);
+    // V25.9: Streaming JS fallback — group by category via shardReader
+    const byCategory = {};
+    await shardReader(async (entities) => {
+        for (const entity of entities) {
+            const category = entity.primary_category || entity.pipeline_tag || 'other';
+            if (!byCategory[category]) byCategory[category] = [];
+            byCategory[category].push(entity);
+        }
+    }, { slim: true });
     const categories = Object.keys(byCategory);
     console.log(`  Found ${categories.length} categories`);
 

@@ -115,80 +115,65 @@ export function getV6Category(entity) {
 }
 
 /**
- * Generate category statistics from entities
+ * V25.9: Generate category statistics via streaming shard reader.
+ * Streaming counters + per-category bounded top-5.
  */
-export async function generateCategoryStats(entities, outputDir = './output') {
-    console.log('[CATEGORY] Generating category_stats.json...');
+export async function generateCategoryStats(shardReader, outputDir = './output') {
+    console.log('[CATEGORY] Generating category_stats.json (streaming)...');
 
     const cacheDir = path.join(outputDir, 'cache');
     await fs.mkdir(cacheDir, { recursive: true });
 
-    // Initialize counters
     const stats = {};
     for (const [key, label] of Object.entries(CATEGORY_MAP)) {
-        stats[key] = {
-            id: key,
-            label: label,
-            count: 0,
-            top_models: [],
-        };
+        stats[key] = { id: key, label, count: 0, top_models: [] };
     }
 
-    // Count entities by category
-    const modelsByCategory = {};
-    for (const entity of entities) {
-        // Track models for top-level stats and top_models
-        if (entity.type === 'model' || entity.type === undefined) {
+    // Per-category bounded top-5 + type counters
+    const topByCategory = {};
+    const typeCounts = { model: 0, paper: 0, agent: 0, space: 0, dataset: 0, tool: 0, prompt: 0 };
 
-            const category = getV6Category(entity);
+    await shardReader(async (entities) => {
+        for (const e of entities) {
+            const type = e.type || 'model';
+            if (typeCounts[type] !== undefined) typeCounts[type]++;
 
-            if (stats[category]) {
-                stats[category].count++;
-
-                // Track for top models
-                if (!modelsByCategory[category]) {
-                    modelsByCategory[category] = [];
+            if (type === 'model' || !e.type) {
+                const category = getV6Category(e);
+                if (stats[category]) {
+                    stats[category].count++;
+                    if (!topByCategory[category]) topByCategory[category] = [];
+                    const arr = topByCategory[category];
+                    const score = e.fni_score || e.fni || 0;
+                    if (arr.length < 5) {
+                        arr.push({ id: e.id, name: e.name, fni: score });
+                    } else if (score > arr[arr.length - 1].fni) {
+                        arr[arr.length - 1] = { id: e.id, name: e.name, fni: score };
+                        arr.sort((a, b) => b.fni - a.fni);
+                    }
                 }
-                modelsByCategory[category].push({
-                    ...entity, // V18.2.1 GA: Inclusive Top Models
-                    fni: entity.fni || entity.fni_score || 0,
-                });
             }
         }
+    }, { slim: true });
+
+    for (const [category, models] of Object.entries(topByCategory)) {
+        models.sort((a, b) => b.fni - a.fni);
+        stats[category].top_models = models.map(m => ({ id: m.id, name: m.name }));
     }
 
-    // Add top 5 models per category
-    for (const [category, models] of Object.entries(modelsByCategory)) {
-        const sorted = models.sort((a, b) => (b.fni || 0) - (a.fni || 0));
-        stats[category].top_models = sorted.slice(0, 5).map(m => ({
-            id: m.id,
-            name: m.name,
-        }));
-    }
-
-    // Output format
     const output = {
         categories: Object.values(stats),
-        total_models: entities.filter(e => !e.type || e.type === 'model').length,
-        total_papers: entities.filter(e => e.type === 'paper').length,
-        total_agents: entities.filter(e => e.type === 'agent').length,
-        total_spaces: entities.filter(e => e.type === 'space').length,
-        total_datasets: entities.filter(e => e.type === 'dataset').length,
-        total_tools: entities.filter(e => e.type === 'tool').length,
-        total_prompts: entities.filter(e => e.type === 'prompt').length,
+        total_models: typeCounts.model, total_papers: typeCounts.paper,
+        total_agents: typeCounts.agent, total_spaces: typeCounts.space,
+        total_datasets: typeCounts.dataset, total_tools: typeCounts.tool,
+        total_prompts: typeCounts.prompt,
         _generated: new Date().toISOString(),
     };
 
-
-
-    // V16.6 Gzip fix: Use standard smart writer
-    const targetKey = 'category_stats.json';
-    await smartWriteWithVersioning(targetKey, output, cacheDir, { compress: true });
+    await smartWriteWithVersioning('category_stats.json', output, cacheDir, { compress: true });
 
     console.log(`  [CATEGORY] ${Object.keys(stats).length} categories, ${output.total_models} models`);
     for (const [key, data] of Object.entries(stats)) {
-        if (data.count > 0) {
-            console.log(`    - ${key}: ${data.count} models`);
-        }
+        if (data.count > 0) console.log(`    - ${key}: ${data.count} models`);
     }
 }

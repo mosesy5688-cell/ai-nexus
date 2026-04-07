@@ -1,6 +1,7 @@
 /**
- * Search Indexer Module V16.4.3
+ * Search Indexer Module V25.9
  * Constitution Reference: Art 6.3 (Dual Search Index)
+ * V25.9: Streaming — Rust FFI primary, JS bounded core + streaming shards.
  */
 
 import fs from 'fs/promises';
@@ -9,28 +10,22 @@ import { smartWriteWithVersioning } from './smart-writer.js';
 import { zstdCompress } from './zstd-helper.js';
 import { buildSearchIndexFromDirFFI, buildSearchIndexFFI } from './rust-bridge.js';
 
-const SEARCH_CORE_SIZE = 5000; // Art 6.3: Top 5000 for core index
+const SEARCH_CORE_SIZE = 5000;
+const SHARD_SIZE = 5000;
 
 /**
- * Generate dual search indices (Art 6.3)
+ * Generate dual search indices via streaming shard reader (Art 6.3)
  */
-export async function generateSearchIndices(entities, outputDir = './output', opts = {}) {
-    console.log('[SEARCH] Generating search indices...');
+export async function generateSearchIndices(shardReader, outputDir = './output', opts = {}) {
+    console.log('[SEARCH] Generating search indices (streaming)...');
 
-    // V14.4 Fix: Output to cache/ to match frontend paths
     const searchDir = path.join(outputDir, 'cache');
     await fs.mkdir(searchDir, { recursive: true });
 
     // V26.5: Try Rust direct shard reading first (no V8 string limit)
-    let rustResult = null;
     const shardDir = opts?.shardDir;
-    if (shardDir) {
-        rustResult = buildSearchIndexFromDirFFI(shardDir, searchDir);
-    }
-    if (!rustResult) {
-        try { rustResult = buildSearchIndexFFI(Buffer.from(JSON.stringify(entities))); }
-        catch (e) { console.warn(`[SEARCH] Rust FFI skipped (${e.message}). Using JS path.`); }
-    }
+    let rustResult = null;
+    if (shardDir) rustResult = buildSearchIndexFromDirFFI(shardDir, searchDir);
     if (rustResult?.core_data && rustResult?.shards) {
         console.log(`[SEARCH] Rust FFI: ${rustResult.total_entities} entities, ${rustResult.shards.length} shards`);
         await fs.writeFile(path.join(searchDir, 'search-core.json.zst'), Buffer.from(rustResult.core_data));
@@ -44,100 +39,76 @@ export async function generateSearchIndices(entities, outputDir = './output', op
         return;
     }
 
-    // Core index: Top N by FNI (Art 6.3: < 500KB)
-    const coreEntities = entities.slice(0, SEARCH_CORE_SIZE).map(e => ({
-        id: e.id,
-        name: e.name || e.slug || 'Unknown',
-        type: e.type || 'model',
-        author: e.author || '',
-        description: (e.description || e.summary || '').substring(0, 150), // Truncated for size
-        slug: e.slug || e.id?.split(/[:/]/).pop(),
-        params_billions: e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0,
-        context_length: e.context_length ?? e.technical?.context_length ?? 0,
-        stars: e.stars || 0,
-        downloads: e.downloads || 0,
-        fni_s: e.fni_s ?? e.fni_metrics?.s ?? 50.0,
-        fni_a: e.fni_a ?? e.fni_metrics?.a ?? 0,
-        fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
-        fni_r: e.fni_r ?? e.fni_metrics?.r ?? 0,
-        fni_q: e.fni_q ?? e.fni_metrics?.q ?? 0,
-        // V22.8: VFS Binary Shard Routing
-        bundle_key: e.bundle_key || '',
-        bundle_offset: e.bundle_offset ?? 0,
-        bundle_size: e.bundle_size ?? 0
-    }));
-
-
-    const coreIndex = {
-        entities: coreEntities,
-        _count: coreEntities.length,
-        _generated: new Date().toISOString(),
-    };
-
-    // Write indices (V16.6: Use fixed SmartWriter for Core)
-    const targetCoreKey = 'search-core.json';
-    await smartWriteWithVersioning(targetCoreKey, coreEntities, searchDir, { compress: true });
-
-    console.log(`  [SEARCH] Core index generated: ${coreEntities.length} entities`);
-
-    // Full index: All entities (V14.5.3 Sharding)
-    const fullEntities = entities.map(e => ({
-        id: e.id,
-        name: e.name || e.slug || 'Unknown',
-        type: e.type || 'model',
-        author: e.author || '',
-        description: (e.description || e.summary || '').substring(0, 150),
-        tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? (() => { try { const p = JSON.parse(e.tags); return Array.isArray(p) ? p.slice(0, 5) : []; } catch { return []; } })() : []),
-        fni_score: Math.round(e.fni_score || 0),
-        image_url: e.image_url || null,
-        slug: e.slug || e.id?.split(/[:/]/).pop(),
-        params_billions: e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0,
-        context_length: e.context_length ?? e.technical?.context_length ?? 0,
-        stars: e.stars || 0,
-        downloads: e.downloads || 0,
-        fni_s: e.fni_s ?? e.fni_metrics?.s ?? 50.0,
-        fni_a: e.fni_a ?? e.fni_metrics?.a ?? 0,
-        fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
-        fni_r: e.fni_r ?? e.fni_metrics?.r ?? 0,
-        fni_q: e.fni_q ?? e.fni_metrics?.q ?? 0,
-        // V22.8: VFS Binary Shard Routing
-        bundle_key: e.bundle_key || '',
-        bundle_offset: e.bundle_offset ?? 0,
-        bundle_size: e.bundle_size ?? 0
-    }));
-    const SHARD_SIZE = 5000;
-    const totalShards = Math.ceil(fullEntities.length / SHARD_SIZE);
-
-    console.log(`  [SEARCH] Full index sharding: ${fullEntities.length} entities into ${totalShards} shards`);
-
+    // JS streaming fallback: single pass — bounded core + streaming shard writes
     const shardingDir = path.join(searchDir, 'search');
     await fs.mkdir(shardingDir, { recursive: true });
 
-    for (let s = 0; s < totalShards; s++) {
-        const shardEntities = fullEntities.slice(s * SHARD_SIZE, (s + 1) * SHARD_SIZE);
-        const shard = {
-            shard: s,
-            totalShards,
-            entities: shardEntities,
-            _count: shardEntities.length,
-            _generated: new Date().toISOString(),
-        };
-        const compressedShard = await zstdCompress(JSON.stringify(shard));
-        // V25.9: Zstd for all shards
-        await fs.writeFile(path.join(shardingDir, `shard-${s}.json.zst`), compressedShard);
-    }
+    const coreAccum = [];
+    let shardBuffer = [];
+    let shardIdx = 0;
+    let totalEntities = 0;
 
-    // Manifest for client-side lazy loading (Keep uncompressed for small size and easy fetch)
-    const manifest = {
-        totalEntities: fullEntities.length,
-        totalShards,
-        shardSize: SHARD_SIZE,
-        extension: '.zst', // V25.9: Zstd compression
-        _generated: new Date().toISOString(),
-    };
-    await fs.writeFile(path.join(searchDir, 'search-manifest.json'), JSON.stringify(manifest));
+    await shardReader(async (entities) => {
+        for (const e of entities) {
+            totalEntities++;
+            const projected = projectForSearch(e);
 
-    // V18.2: Legacy search-full removed per Art 6.2 (Strict Compression)
-    // and explicitly requested by user to optimize browser memory.
-    console.log(`  [SEARCH] ✅ Done. Manifest and ${totalShards} shards generated.`);
+            // Core: bounded top-5000 by FNI
+            if (coreAccum.length < SEARCH_CORE_SIZE) {
+                coreAccum.push(projected);
+                if (coreAccum.length === SEARCH_CORE_SIZE) coreAccum.sort(byFniDesc);
+            } else if ((projected.fni_score || 0) > (coreAccum[coreAccum.length - 1].fni_score || 0)) {
+                coreAccum[coreAccum.length - 1] = projected;
+                coreAccum.sort(byFniDesc);
+            }
+
+            // Full index: stream-write shards at SHARD_SIZE boundary
+            shardBuffer.push(projected);
+            if (shardBuffer.length >= SHARD_SIZE) {
+                await writeSearchShard(shardIdx++, shardBuffer, shardingDir);
+                shardBuffer = [];
+            }
+        }
+    }, { slim: true });
+
+    // Flush remaining shard buffer
+    if (shardBuffer.length > 0) await writeSearchShard(shardIdx++, shardBuffer, shardingDir);
+    const totalShards = shardIdx;
+
+    // Write core index
+    coreAccum.sort(byFniDesc);
+    await smartWriteWithVersioning('search-core.json', coreAccum, searchDir, { compress: true });
+    console.log(`  [SEARCH] Core index: ${coreAccum.length} entities`);
+
+    // Manifest
+    await fs.writeFile(path.join(searchDir, 'search-manifest.json'), JSON.stringify({
+        totalEntities, totalShards, shardSize: SHARD_SIZE,
+        extension: '.zst', _generated: new Date().toISOString(),
+    }));
+
+    console.log(`  [SEARCH] ✅ Done. ${totalShards} shards, ${totalEntities} entities.`);
 }
+
+function projectForSearch(e) {
+    return {
+        id: e.id, name: e.name || e.slug || 'Unknown', type: e.type || 'model',
+        author: e.author || '', description: (e.description || e.summary || '').substring(0, 150),
+        tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : [],
+        fni_score: Math.round(e.fni_score || 0), image_url: e.image_url || null,
+        slug: e.slug || e.id?.split(/[:/]/).pop(),
+        params_billions: e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0,
+        context_length: e.context_length ?? e.technical?.context_length ?? 0,
+        stars: e.stars || 0, downloads: e.downloads || 0,
+        fni_s: e.fni_s ?? e.fni_metrics?.s ?? 50.0, fni_a: e.fni_a ?? e.fni_metrics?.a ?? 0,
+        fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0, fni_r: e.fni_r ?? e.fni_metrics?.r ?? 0,
+        fni_q: e.fni_q ?? e.fni_metrics?.q ?? 0,
+        bundle_key: e.bundle_key || '', bundle_offset: e.bundle_offset ?? 0, bundle_size: e.bundle_size ?? 0
+    };
+}
+
+async function writeSearchShard(idx, entities, dir) {
+    const shard = { shard: idx, entities, _count: entities.length, _generated: new Date().toISOString() };
+    await fs.writeFile(path.join(dir, `shard-${idx}.json.zst`), await zstdCompress(JSON.stringify(shard)));
+}
+
+function byFniDesc(a, b) { return (b.fni_score || 0) - (a.fni_score || 0); }

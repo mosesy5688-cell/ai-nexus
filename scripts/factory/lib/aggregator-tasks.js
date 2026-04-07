@@ -1,6 +1,6 @@
 /**
- * Aggregator Task Registry V25.8.4
- * Defines satellite tasks and their execution logic.
+ * Aggregator Task Registry V25.9
+ * V25.9: All generators accept shardReader (streaming) instead of entity arrays.
  */
 
 import { generateRankings } from './rankings-generator.js';
@@ -20,19 +20,20 @@ import path from 'path';
 
 /**
  * Build the list of satellite tasks for the aggregator.
+ * @param {Function} shardReader - async (consumer, opts) => {} streaming shard reader
  */
-export function buildTaskList(rankedEntities, outputDir, opts = {}) {
+export function buildTaskList(shardReader, outputDir, opts = {}) {
     const shardDir = opts.shardDir || null;
     return [
-        { name: 'Trending', id: 'trending', fn: () => generateTrending(rankedEntities, outputDir) },
-        { name: 'Rankings', id: 'rankings', fn: () => generateRankings(rankedEntities, outputDir) },
-        { name: 'Search', id: 'search', fn: () => generateSearchIndices(rankedEntities, outputDir, { shardDir }) },
-        { name: 'CategoryStats', id: 'category', fn: () => generateCategoryStats(rankedEntities, outputDir) },
+        { name: 'Trending', id: 'trending', fn: () => generateTrending(shardReader, outputDir) },
+        { name: 'Rankings', id: 'rankings', fn: () => generateRankings(shardReader, outputDir) },
+        { name: 'Search', id: 'search', fn: () => generateSearchIndices(shardReader, outputDir, { shardDir }) },
+        { name: 'CategoryStats', id: 'category', fn: () => generateCategoryStats(shardReader, outputDir) },
         {
             name: 'Relations', id: 'relations', fn: async () => {
-                await generateRelations(rankedEntities, outputDir);
-                await computeAltRelations(rankedEntities, outputDir, { shardDir });
-                await computeKnowledgeLinks(rankedEntities, outputDir, { shardDir });
+                await generateRelations(shardReader, outputDir);
+                await computeAltRelations(shardReader, outputDir, { shardDir });
+                await computeKnowledgeLinks(shardReader, outputDir, { shardDir });
                 await generateKnowledgeData(outputDir);
                 await generateMeshGraph(outputDir);
             }

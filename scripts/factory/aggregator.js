@@ -9,12 +9,9 @@ import { updateFniHistoryFromBatch } from './lib/aggregator-metrics.js';
 import {
     getWeekNumber, generateHealthReport, backupStateFiles, validateCryptoEnv
 } from './lib/aggregator-maintenance.js';
-import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-incremental.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
-import { initRustBridge, streamAggregateFFI } from './lib/rust-bridge.js';
-import { createWriteStream, createReadStream } from 'node:fs';
-import { createInterface } from 'node:readline';
+import { initRustBridge } from './lib/rust-bridge.js';
 
 const CONFIG = {
     TOTAL_SHARDS: 20,
@@ -52,7 +49,8 @@ async function main() {
     if (taskArg && LIGHTWEIGHT_TASKS.has(taskArg)) {
         console.log(`[AGGREGATOR] Lightweight task '${taskArg}' — skipping entity loading.`);
         const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
-        const tasks = buildTaskList([], CONFIG.OUTPUT_DIR, { shardDir });
+        const noopReader = async () => {};
+        const tasks = buildTaskList(noopReader, CONFIG.OUTPUT_DIR, { shardDir });
         for (const task of tasks) {
             if (task.id !== taskArg) continue;
             console.log(`[AGGREGATOR] Task: ${task.name}...`);
@@ -168,15 +166,11 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
     console.log(`[AGGREGATOR V25.9.0] Streaming Core Complete! (${duration}s)`);
 }
 
-/** Satellite tasks: slim disk-staged loading for trending/rankings/search/etc. */
+/** V25.9: Satellite tasks — zero fullSet. Each generator streams via shardReader. */
 async function runSatelliteTask(loadShards, rankingsMap, scoreMap, shardDir, startTime) {
-    const isHealthTask = taskArg === 'health';
-
-    // Streaming entity count for health (no fullSet needed)
-    if (isHealthTask) {
+    if (taskArg === 'health') {
         let entityCount = 0, shardCount = 0;
         await loadShards(async (entities) => { entityCount += entities.length; shardCount++; }, { slim: true });
-
         if (entityCount < AGGREGATE_FLOOR) {
             throw new Error(`[CRITICAL] Data Loss Detected! Only ${entityCount} entities (Min: ${AGGREGATE_FLOOR}).`);
         }
@@ -186,48 +180,22 @@ async function runSatelliteTask(loadShards, rankingsMap, scoreMap, shardDir, sta
         return;
     }
 
-    // Other satellite tasks: disk-staged slim loading
-    const stagingPath = './output/.staging-fullset.ndjson';
-    await fs.mkdir('./output', { recursive: true });
-    let successCount = 0;
-    const rustResult = streamAggregateFFI(shardDir, stagingPath);
-    if (rustResult && rustResult.entityCount > 0) {
-        successCount = rustResult.shardCount;
-    } else {
-        console.log(`[AGGREGATOR] JS fallback: disk-staged collection...`);
-        const ws = createWriteStream(stagingPath);
-        await loadShards(async (slimEntities) => {
-            const lines = [];
-            for (const e of slimEntities) {
-                e.fni_percentile = rankingsMap.get(e.id) || 0;
-                lines.push(JSON.stringify(e));
-            }
-            if (lines.length > 0) {
-                const ok = ws.write(lines.join('\n') + '\n');
-                if (!ok) await new Promise(r => ws.once('drain', r));
-            }
-            successCount++;
-        }, { slim: true });
-        ws.end();
-        await new Promise(r => ws.on('finish', r));
-    }
+    // Percentile-injecting shard reader — Rust binary reader (AES+Zstd) remains primary
+    const satelliteReader = async (consumer, opts = {}) => {
+        await loadShards(async (entities, shardIdx) => {
+            for (const e of entities) e.fni_percentile = rankingsMap.get(e.id) || 0;
+            await consumer(entities, shardIdx);
+        }, { slim: true, ...opts });
+    };
 
-    const fullSet = [];
-    const rl = createInterface({ input: createReadStream(stagingPath), crlfDelay: Infinity });
-    for await (const line of rl) { if (line) fullSet.push(JSON.parse(line)); }
-    await fs.unlink(stagingPath).catch(() => { });
-    console.log(`[AGGREGATOR] Loaded ${fullSet.length} slim entities for satellite task.`);
-
-    const tasks = buildTaskList(fullSet, CONFIG.OUTPUT_DIR, { shardDir });
+    const tasks = buildTaskList(satelliteReader, CONFIG.OUTPUT_DIR, { shardDir });
     for (const task of tasks) {
         if (taskArg !== task.id) continue;
+        console.log(`[AGGREGATOR] Task: ${task.name}...`);
+        process.env.AGGREGATOR_MODE = 'true';
+        process.env.CACHE_DIR = './cache';
         try {
-            if (task.id && await checkIncrementalProgress(task.id, fullSet, CONFIG.CODE_VERSION)) continue;
-            console.log(`[AGGREGATOR] Task: ${task.name}...`);
-            process.env.AGGREGATOR_MODE = 'true';
-            process.env.CACHE_DIR = './cache';
             await (task.fn() || Promise.resolve());
-            if (task.id) await updateTaskChecksum(task.id, fullSet, CONFIG.CODE_VERSION);
         } catch (e) {
             console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`);
             process.exit(1);

@@ -25,7 +25,7 @@ const RELATION_STATS = {
  * Generate relations.json for frontend knowledge linking
  * Outputs both V14.5.2 adjacency list and legacy format
  */
-export async function generateRelations(entities, outputDir = './output') {
+export async function generateRelations(shardReader, outputDir = './output') {
     console.log('[RELATIONS V14.5.2] Extracting entity relations...');
 
     const cacheDir = path.join(outputDir, 'cache');
@@ -93,27 +93,27 @@ export async function generateRelations(entities, outputDir = './output') {
         console.warn('  [RELATIONS] Could not inject daily reports into graph:', e.message);
     }
 
-    // Extract relations from each entity
-    for (const entity of entities) {
-        const id = entity.id || entity.slug;
-        const type = entity.type || 'model';
+    // V25.9: Streaming entity relation extraction
+    await shardReader(async (entities) => {
+        for (const entity of entities) {
+            const id = entity.id || entity.slug;
+            const type = entity.type || 'model';
 
-        nodes[id] = { t: type, f: Math.round((entity.fni_score || 0) * 10) / 10 };
+            nodes[id] = { t: type, f: Math.round((entity.fni_score || 0) * 10) / 10 };
 
-        const relations = extractEntityRelations(entity);
-        for (const rel of relations) {
-            allRelations.push(rel);
-            counts[rel.relation_type] = (counts[rel.relation_type] || 0) + 1;
+            const relations = extractEntityRelations(entity);
+            for (const rel of relations) {
+                allRelations.push(rel);
+                counts[rel.relation_type] = (counts[rel.relation_type] || 0) + 1;
 
-            // Build adjacency list
-            if (!edges[rel.source_id]) edges[rel.source_id] = [];
-            edges[rel.source_id].push([
-                rel.target_id,
-                rel.relation_type,
-                Math.round((rel.confidence || 1) * 100)
-            ]);
+                if (!edges[rel.source_id]) edges[rel.source_id] = [];
+                edges[rel.source_id].push([
+                    rel.target_id, rel.relation_type,
+                    Math.round((rel.confidence || 1) * 100)
+                ]);
+            }
         }
-    }
+    }, { slim: true });
 
     // V26.5: Try Rust file-based graph building first (no V8 string limit)
     let rustResult = null;

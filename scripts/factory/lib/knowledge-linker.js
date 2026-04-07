@@ -125,7 +125,7 @@ function extractKnowledgeLinks(entity) {
  * @param {Array} entities All entities
  * @param {string} outputDir Output directory
  */
-export async function computeKnowledgeLinks(entities, outputDir = './output', opts = {}) {
+export async function computeKnowledgeLinks(shardReader, outputDir = './output', opts = {}) {
     console.log('[KNOWLEDGE-LINKER V14.5.2] Computing knowledge links...');
 
     const startTime = Date.now();
@@ -137,36 +137,34 @@ export async function computeKnowledgeLinks(entities, outputDir = './output', op
     if (opts.shardDir) {
         rustResult = computeKnowledgeLinksFromDirFFI(opts.shardDir, relationsDir);
     }
-    if (!rustResult) {
-        try { rustResult = computeKnowledgeLinksFFI(Buffer.from(JSON.stringify(entities))); }
-        catch (e) { console.warn(`[KNOWLEDGE-LINKER] Rust FFI skipped (${e.message}). Using JS path.`); }
-    }
     if (rustResult?.output_data) {
         await fs.writeFile(path.join(relationsDir, 'knowledge-links.json.zst'), Buffer.from(rustResult.output_data));
         console.log(`  [KNOWLEDGE-LINKER] Rust FFI: ${rustResult.total_links} entities linked, ${rustResult.inverse_hubs} inverse hubs`);
         return { totalLinks: rustResult.total_links, inverseHubs: rustResult.inverse_hubs, stats: {} };
     }
 
+    // V25.9: Streaming JS fallback
     const allLinks = [];
     const knowledgeStats = {};
 
-    for (const entity of entities) {
-        const id = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
-        const links = extractKnowledgeLinks(entity);
+    await shardReader(async (entities) => {
+        for (const entity of entities) {
+            const id = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
+            const links = extractKnowledgeLinks(entity);
 
-        if (links.length > 0) {
-            allLinks.push({
-                entity_id: id,
-                entity_type: entity.type || 'model',
-                knowledge: links,
-            });
+            if (links.length > 0) {
+                allLinks.push({
+                    entity_id: id,
+                    entity_type: entity.type || 'model',
+                    knowledge: links,
+                });
 
-            // Track stats
-            for (const link of links) {
-                knowledgeStats[link.slug] = (knowledgeStats[link.slug] || 0) + 1;
+                for (const link of links) {
+                    knowledgeStats[link.slug] = (knowledgeStats[link.slug] || 0) + 1;
+                }
             }
         }
-    }
+    }, { slim: true });
 
     // V14.5.2 Output format
     const output = {

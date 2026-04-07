@@ -1,31 +1,39 @@
 /**
- * Trending Generator Module V16.7.1
+ * Trending Generator Module V25.9
  * Constitution Reference: Art 3.1 (Aggregator)
- * 
- * Generates trending.json for homepage display with V2.0 IDs
+ * V25.9: Streaming — bounded top-1000 accumulator, zero fullSet.
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
-import { stripPrefix } from '../../../src/utils/mesh-routing-core.js';
 
-const TRENDING_LIMIT = 1000; // Top 1000 by FNI
+const TRENDING_LIMIT = 1000;
 
 /**
- * Generate trending.json (CRITICAL for homepage)
+ * Generate trending.json via streaming shard reader (bounded top-1000)
  */
-export async function generateTrending(entities, outputDir = './output') {
-    console.log('[TRENDING] Generating trending.json...');
+export async function generateTrending(shardReader, outputDir = './output') {
+    console.log('[TRENDING] Generating trending.json (streaming)...');
 
     const cacheDir = path.join(outputDir, 'cache');
     await fs.mkdir(cacheDir, { recursive: true });
 
-    // Sort by FNI descending
-    const sorted = [...entities].sort((a, b) => (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0));
+    const topN = [];
+    await shardReader(async (entities) => {
+        for (const e of entities) {
+            const score = e.fni_score || e.fni || 0;
+            if (topN.length < TRENDING_LIMIT) {
+                topN.push(e);
+                if (topN.length === TRENDING_LIMIT) topN.sort(byFniDesc);
+            } else if (score > (topN[topN.length - 1].fni_score || 0)) {
+                topN[topN.length - 1] = e;
+                topN.sort(byFniDesc);
+            }
+        }
+    }, { slim: true });
 
-    // Take top N
-    const topEntities = sorted.slice(0, TRENDING_LIMIT);
+    topN.sort(byFniDesc);
 
     const formatPruned = (e) => ({
         id: e.id,
@@ -48,20 +56,20 @@ export async function generateTrending(entities, outputDir = './output') {
     });
 
     const output = {
-        models: topEntities.filter(e => e.type === 'model' || !e.type).map(formatPruned),
-        papers: topEntities.filter(e => e.type === 'paper').map(formatPruned),
-        agents: topEntities.filter(e => e.type === 'agent').map(formatPruned),
-        spaces: topEntities.filter(e => e.type === 'space').map(formatPruned),
-        datasets: topEntities.filter(e => e.type === 'dataset').map(formatPruned),
-        tools: topEntities.filter(e => e.type === 'tool').map(formatPruned),
-        prompts: topEntities.filter(e => e.type === 'prompt').map(formatPruned),
-        count: topEntities.length,
+        models: topN.filter(e => e.type === 'model' || !e.type).map(formatPruned),
+        papers: topN.filter(e => e.type === 'paper').map(formatPruned),
+        agents: topN.filter(e => e.type === 'agent').map(formatPruned),
+        spaces: topN.filter(e => e.type === 'space').map(formatPruned),
+        datasets: topN.filter(e => e.type === 'dataset').map(formatPruned),
+        tools: topN.filter(e => e.type === 'tool').map(formatPruned),
+        prompts: topN.filter(e => e.type === 'prompt').map(formatPruned),
+        count: topN.length,
         generated_at: new Date().toISOString(),
-        version: 'V16.6'
+        version: 'V25.9'
     };
 
-    // V16.6 Gzip fix: Use standard smart-writer for consistency and rotation
     await smartWriteWithVersioning('trending.json', output, cacheDir, { compress: true });
-
-    console.log(`  [TRENDING] ✅ Done. Trending dashboard updated.`);
+    console.log(`  [TRENDING] ✅ Done. ${topN.length} trending entities.`);
 }
+
+function byFniDesc(a, b) { return (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0); }
