@@ -15,6 +15,7 @@ import { zstdCompress, autoDecompress, createZstdCompressStream } from './lib/zs
 import { loadEntityChecksums, loadDailyAccum, loadFniHistory } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { initR2Bridge, createR2ClientFFI, streamToR2FFI, downloadFromR2FFI } from './lib/r2-bridge.js';
+import { initRustBridge } from './lib/rust-bridge.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -61,6 +62,7 @@ async function main() {
 
     // V25.8: R2 Pulse Sync (state checkpoint, not data writes)
     initR2Bridge();
+    initRustBridge();
     const r2 = createR2ClientFFI();
     const cursorKey = `state/v25.8-cursor-shard-${shardId}.json`;
 
