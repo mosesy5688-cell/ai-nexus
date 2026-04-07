@@ -42,6 +42,7 @@ async function main() {
         for (let nodeId of nodeIds) {
             // V22.0 Phase 3: Synchronize all entity IDs with V2.1 prefixes
             const node = nodeRegistry[nodeId];
+            if (!node) continue;
             const typeValue = node.type || node.t || 'model';
 
             // Ensure ID is normalized per SPEC-V2.1
