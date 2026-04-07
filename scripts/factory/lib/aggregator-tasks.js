@@ -29,11 +29,11 @@ export function buildTaskList(shardReader, outputDir, opts = {}) {
         { name: 'Rankings', id: 'rankings', fn: () => generateRankings(shardReader, outputDir) },
         { name: 'Search', id: 'search', fn: () => generateSearchIndices(shardReader, outputDir, { shardDir }) },
         { name: 'CategoryStats', id: 'category', fn: () => generateCategoryStats(shardReader, outputDir) },
+        { name: 'Relations', id: 'relations', fn: () => generateRelations(shardReader, outputDir) },
+        { name: 'AltLinker', id: 'alt', fn: () => computeAltRelations(shardReader, outputDir, { shardDir }) },
+        { name: 'KnowledgeLinks', id: 'knowledge-links', fn: () => computeKnowledgeLinks(shardReader, outputDir, { shardDir }) },
         {
-            name: 'Relations', id: 'relations', fn: async () => {
-                await generateRelations(shardReader, outputDir);
-                await computeAltRelations(shardReader, outputDir, { shardDir });
-                await computeKnowledgeLinks(shardReader, outputDir, { shardDir });
+            name: 'MeshGraph', id: 'mesh', fn: async () => {
                 await generateKnowledgeData(outputDir);
                 await generateMeshGraph(outputDir);
             }

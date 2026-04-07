@@ -561,7 +561,7 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
-      - name: Generate Relations
+      - name: Generate Relations & Knowledge Mesh
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -571,8 +571,11 @@ jobs:
           ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
-          export NODE_OPTIONS="--max-old-space-size=7168"
+          export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=relations
+          node scripts/factory/aggregator.js --task=alt
+          node scripts/factory/aggregator.js --task=knowledge-links
+          node scripts/factory/aggregator.js --task=mesh
       - name: Generate Knowledge AI Articles
         continue-on-error: true
         env:

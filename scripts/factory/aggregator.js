@@ -45,7 +45,7 @@ async function main() {
     const { saveRegistryShard } = await import('./lib/registry-saver.js');
 
     // V25.8.5: Knowledge-AI fast path — skip heavy entity loading
-    const LIGHTWEIGHT_TASKS = new Set(['knowledge-ai']);
+    const LIGHTWEIGHT_TASKS = new Set(['knowledge-ai', 'mesh']);
     if (taskArg && LIGHTWEIGHT_TASKS.has(taskArg)) {
         console.log(`[AGGREGATOR] Lightweight task '${taskArg}' — skipping entity loading.`);
         const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
