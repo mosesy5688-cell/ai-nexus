@@ -73,7 +73,7 @@ export function calculateFniFFI(entity, options = {}) {
     if (_fniCalc) {
         const i = extractFniInput(entity, options);
         const r = _fniCalc.calculateFniSingle(i.id, i.entity_type, i.raw_metrics, i.completeness, i.utility, i.days_since_update, i.date_valid, i.mesh_points);
-        return { score: r.fni_score, rawPop: r.raw_pop, metrics: { s: r.s, a: r.a, p: r.p, r: r.r, q: r.q } };
+        return { score: r.fniScore, rawPop: r.rawPop, metrics: { s: r.s, a: r.a, p: r.p, r: r.r, q: r.q } };
     }
     return calculateFNI(entity, options);
 }
