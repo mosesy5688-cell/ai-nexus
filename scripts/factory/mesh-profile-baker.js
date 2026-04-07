@@ -42,10 +42,12 @@ async function main() {
         for (let nodeId of nodeIds) {
             // V22.0 Phase 3: Synchronize all entity IDs with V2.1 prefixes
             const node = nodeRegistry[nodeId];
+            if (!node) continue;
             const typeValue = node.type || node.t || 'model';
 
             // Ensure ID is normalized per SPEC-V2.1
             const syncedId = normalizeId(nodeId, getNodeSource(nodeId, typeValue), typeValue);
+            if (!syncedId) continue; // Skip nodes with invalid IDs
 
             const entityRelations = edgeRegistry[nodeId] || [];
             const canonUrl = getRouteFromId(syncedId, typeValue);
@@ -58,13 +60,13 @@ async function main() {
 
                 // V25.1 Compute Shift-Left: Zero-Placeholder Registry Lookup
                 const registryNode = nodeRegistry[targetIdRaw] || nodeRegistry[syncedTargetId] || {};
-                const finalTargetName = rel.name || rel.target_name || registryNode.name || registryNode.displayName || (syncedTargetId.split('--').pop());
+                const finalTargetName = rel.name || rel.target_name || registryNode.name || registryNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown');
                 const finalTargetIcon = rel.icon || registryNode.icon || '📦';
 
                 return {
                     ...rel,
                     url: bakedUrl,
-                    target_id: syncedTargetId,
+                    target_id: syncedTargetId || targetIdRaw,
                     target_name: finalTargetName,
                     icon: finalTargetIcon
                 };
@@ -73,7 +75,7 @@ async function main() {
             // V25.1 Compute Shift-Left: Enforce High-Fidelity Naming
             const profile = {
                 id: syncedId,
-                name: node.name || node.displayName || (syncedId.split('--').pop()),
+                name: node.name || node.displayName || syncedId.split('--').pop(),
                 type: typeValue,
                 url: canonUrl,
                 icon: node.icon || '📦',
