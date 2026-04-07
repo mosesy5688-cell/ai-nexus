@@ -128,82 +128,81 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
         return null;
     }
 
-    await enforceStaggerDelay();
-
     const body = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature, maxOutputTokens, responseMimeType: 'application/json' },
         safetySettings: getSafetySettings(),
     };
-
-    if (systemInstruction) {
-        body.systemInstruction = { parts: [{ text: systemInstruction }] };
-    }
-
+    if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] };
     const fetchOpts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    const primaryUrl = `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const fallbackUrl = (GEMINI_FALLBACK_MODEL && GEMINI_FALLBACK_MODEL !== GEMINI_MODEL)
+        ? `${GEMINI_BASE}/${GEMINI_FALLBACK_MODEL}:generateContent?key=${apiKey}` : null;
 
-    // Try primary model, fallback on failure
-    let response = await fetchWithTitan(
-        `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`, fetchOpts
-    );
-
-    if (!response && GEMINI_FALLBACK_MODEL && GEMINI_FALLBACK_MODEL !== GEMINI_MODEL) {
-        console.warn(`[TITAN] Primary model ${GEMINI_MODEL} failed. Trying fallback: ${GEMINI_FALLBACK_MODEL}`);
-        _consecutiveFailures = Math.max(0, _consecutiveFailures - 1);
-        response = await fetchWithTitan(
-            `${GEMINI_BASE}/${GEMINI_FALLBACK_MODEL}:generateContent?key=${apiKey}`, fetchOpts
-        );
-    }
-
-    if (!response) return null;
-
-    try {
-        const data = await response.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        let clean = rawText.trim();
-
-        if (!clean || clean.length < 10) {
-            console.warn(`[TITAN] Empty/blocked response (${clean.length} chars). Rejecting.`);
-            return null;
+    // V25.9.2: Retry loop — retries once on truncation (MAX_TOKENS) or parse failure
+    for (let attempt = 0; attempt < 2; attempt++) {
+        await enforceStaggerDelay();
+        let response = await fetchWithTitan(primaryUrl, fetchOpts);
+        if (!response && fallbackUrl) {
+            console.warn(`[TITAN] Primary model failed. Trying fallback: ${GEMINI_FALLBACK_MODEL}`);
+            _consecutiveFailures = Math.max(0, _consecutiveFailures - 1);
+            response = await fetchWithTitan(fallbackUrl, fetchOpts);
         }
+        if (!response) return null;
 
-        // Strip markdown code fences if present (defense-in-depth)
-        if (clean.startsWith('```')) {
-            const match = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-            if (match) clean = match[1];
-        }
+        try {
+            const data = await response.json();
+            const finishReason = data.candidates?.[0]?.finishReason;
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            let clean = rawText.trim();
 
-        // V25.8.5: Repair common Gemini JSON malformations before parsing
-        try { return JSON.parse(clean); } catch (_firstErr) {
-            let repaired = clean
-                .replace(/\r?\n/g, ' ')                            // collapse raw newlines first
-                .replace(/[\x00-\x1f]/g, ' ')                     // strip control chars (tab, etc.)
-                .replace(/\/\*[\s\S]*?\*\//g, '')                  // block comments (line comments skipped: destroys URLs)
-                .replace(/:\s*'([^']*)'/g, ': "$1"')               // single-quoted values → double
-                .replace(/(?<=[:,\[{])\s*'(\w+)'\s*:/g, ' "$1":')  // single-quoted keys → double
-                .replace(/(?<=[{,])\s*(\w+)\s*:/g, ' "$1":')       // unquoted keys → double
-                .replace(/(["}\]\w])\s+("(?=\s*"?\w+"?\s*:))/g, '$1, $2') // missing commas before keys
-                .replace(/,\s*([}\]])/g, '$1');                    // trailing commas
-            // V25.8.7: Close truncated JSON (Gemini cut off mid-response)
-            try { return JSON.parse(repaired); } catch (_secondErr) {
-                // V25.8.8: Missing colons — "key" "value" → "key": "value"
-                repaired = repaired.replace(/(?<=[{,]\s*"[^"]*")\s+(?=")/g, ': ');
-                try { return JSON.parse(repaired); } catch (_thirdErr) {
-                    // V25.9.1: Quote parity — odd count means unterminated string
-                    if ((repaired.match(/"/g) || []).length % 2 !== 0) repaired += '"';
-                    repaired = repaired.replace(/,\s*"[^"]*"?\s*$/, ''); // strip trailing partial kv
-                    const braces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
-                    const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
-                    for (let i = 0; i < braces; i++) repaired += '}';
-                    for (let i = 0; i < open; i++) repaired += ']';
-                    return JSON.parse(repaired);
+            if (!clean || clean.length < 10) {
+                console.warn(`[TITAN] Empty/blocked response (${clean.length} chars).${attempt === 0 ? ' Retrying...' : ' Rejecting.'}`);
+                if (attempt === 0) continue;
+                return null;
+            }
+            if (finishReason === 'MAX_TOKENS' && attempt === 0) {
+                console.warn(`[TITAN] Truncated (MAX_TOKENS, ${clean.length} chars). Retrying...`);
+                continue;
+            }
+
+            // Strip markdown code fences if present (defense-in-depth)
+            if (clean.startsWith('```')) {
+                const match = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                if (match) clean = match[1];
+            }
+
+            // V25.8.5: Repair common Gemini JSON malformations before parsing
+            try { return JSON.parse(clean); } catch (_firstErr) {
+                let repaired = clean
+                    .replace(/\r?\n/g, ' ')                            // collapse raw newlines first
+                    .replace(/[\x00-\x1f]/g, ' ')                     // strip control chars (tab, etc.)
+                    .replace(/\/\*[\s\S]*?\*\//g, '')                  // block comments (line comments skipped: destroys URLs)
+                    .replace(/:\s*'([^']*)'/g, ': "$1"')               // single-quoted values → double
+                    .replace(/(?<=[:,\[{])\s*'(\w+)'\s*:/g, ' "$1":')  // single-quoted keys → double
+                    .replace(/(?<=[{,"\]}])\s*([\w-]+)\s*:/g, ' "$1":')  // unquoted keys → double (wide context)
+                    .replace(/(["}\]\w])\s+("(?=\s*"?\w+"?\s*:))/g, '$1, $2') // missing commas before keys
+                    .replace(/,\s*([}\]])/g, '$1');                    // trailing commas
+                try { return JSON.parse(repaired); } catch (_secondErr) {
+                    repaired = repaired.replace(/(?<=[{,]\s*"[^"]*")\s+(?=")/g, ': ');
+                    try { return JSON.parse(repaired); } catch (_thirdErr) {
+                        if ((repaired.match(/"/g) || []).length % 2 !== 0) repaired += '"';
+                        repaired = repaired.replace(/,\s*"[^"]*"?\s*$/, '');
+                        const braces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+                        const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+                        for (let i = 0; i < braces; i++) repaired += '}';
+                        for (let i = 0; i < open; i++) repaired += ']';
+                        return JSON.parse(repaired);
+                    }
                 }
             }
+        } catch (e) {
+            console.warn(`[TITAN] Response parse failed: ${e.message}${attempt === 0 ? ' Retrying...' : ''}`);
+            if (attempt === 0) continue;
+            return null;
         }
-    } catch (e) {
-        console.warn(`[TITAN] Response parse failed: ${e.message}`);
-        return null;
     }
+    return null;
 }
 
 /** Reset circuit breaker (for testing) */
