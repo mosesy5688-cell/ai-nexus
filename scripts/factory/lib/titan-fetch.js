@@ -181,7 +181,7 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
                 .replace(/\/\*[\s\S]*?\*\//g, '')                  // block comments (line comments skipped: destroys URLs)
                 .replace(/:\s*'([^']*)'/g, ': "$1"')               // single-quoted values → double
                 .replace(/(?<=[:,\[{])\s*'(\w+)'\s*:/g, ' "$1":')  // single-quoted keys → double
-                .replace(/(?<=[{,])\s*(\w+)\s*:/g, ' "$1":')       // unquoted keys → double
+                .replace(/(?<=[{,"\]}])\s*([\w-]+)\s*:/g, ' "$1":')  // unquoted keys → double (wide context)
                 .replace(/(["}\]\w])\s+("(?=\s*"?\w+"?\s*:))/g, '$1, $2') // missing commas before keys
                 .replace(/,\s*([}\]])/g, '$1');                    // trailing commas
             // V25.8.7: Close truncated JSON (Gemini cut off mid-response)
