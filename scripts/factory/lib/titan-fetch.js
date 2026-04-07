@@ -176,14 +176,14 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
         // V25.8.5: Repair common Gemini JSON malformations before parsing
         try { return JSON.parse(clean); } catch (_firstErr) {
             let repaired = clean
-                .replace(/"\s*\n\s*"/g, '", "')                   // missing commas between properties
-                .replace(/\r?\n/g, ' ')                            // collapse raw newlines (unterminated strings)
+                .replace(/\r?\n/g, ' ')                            // collapse raw newlines first
                 .replace(/[\x00-\x1f]/g, ' ')                     // strip control chars (tab, etc.)
-                .replace(/,\s*([}\]])/g, '$1')                     // trailing commas
-                .replace(/(['"])?(\w+)(['"])?\s*:/g, '"$2":')      // unquoted/single-quoted keys
-                .replace(/:\s*'([^']*)'/g, ': "$1"')               // single-quoted values
-                .replace(/\/\/.*/g, '')                             // line comments
-                .replace(/\/\*[\s\S]*?\*\//g, '');                 // block comments
+                .replace(/\/\*[\s\S]*?\*\//g, '')                  // block comments (line comments skipped: destroys URLs)
+                .replace(/:\s*'([^']*)'/g, ': "$1"')               // single-quoted values → double
+                .replace(/(?<=[:,\[{])\s*'(\w+)'\s*:/g, ' "$1":')  // single-quoted keys → double
+                .replace(/(?<=[{,])\s*(\w+)\s*:/g, ' "$1":')       // unquoted keys → double
+                .replace(/(["}\]\w])\s+("(?=\s*"?\w+"?\s*:))/g, '$1, $2') // missing commas before keys
+                .replace(/,\s*([}\]])/g, '$1');                    // trailing commas
             // V25.8.7: Close truncated JSON (Gemini cut off mid-response)
             try { return JSON.parse(repaired); } catch (_secondErr) {
                 const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
