@@ -69,7 +69,7 @@ export async function generateMeshGraph(outputDir = './output') {
     try {
         const r = buildMeshGraphFromFilesFFI(
             path.join(relDir, 'explicit.json.zst'), path.join(relDir, 'knowledge-links.json.zst'),
-            path.join(reportsDir, 'index.json'), meshDir
+            path.join(reportsDir, 'index.json.zst'), meshDir
         );
         if (r?.nodeCount > 0) {
             await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graphData));
