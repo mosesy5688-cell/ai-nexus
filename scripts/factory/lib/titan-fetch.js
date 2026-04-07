@@ -186,12 +186,16 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
                 .replace(/,\s*([}\]])/g, '$1');                    // trailing commas
             // V25.8.7: Close truncated JSON (Gemini cut off mid-response)
             try { return JSON.parse(repaired); } catch (_secondErr) {
-                const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
-                const braces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
-                if (repaired.match(/"[^"]*$/)) repaired += '"';    // close unterminated string
-                for (let i = 0; i < braces; i++) repaired += '}';
-                for (let i = 0; i < open; i++) repaired += ']';
-                return JSON.parse(repaired);
+                // V25.8.8: Missing colons — "key" "value" → "key": "value"
+                repaired = repaired.replace(/(?<=[{,]\s*"[^"]*")\s+(?=")/g, ': ');
+                try { return JSON.parse(repaired); } catch (_thirdErr) {
+                    const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+                    const braces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+                    if (repaired.match(/"[^"]*$/)) repaired += '"';
+                    for (let i = 0; i < braces; i++) repaired += '}';
+                    for (let i = 0; i < open; i++) repaired += ']';
+                    return JSON.parse(repaired);
+                }
             }
         }
     } catch (e) {
