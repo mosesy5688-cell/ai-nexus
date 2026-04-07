@@ -111,10 +111,10 @@ export async function generateRelations(shardReader, outputDir = './output') {
         const r = buildRelationsGraphFromFilesFFI(nodesPath, relsPath, relationsDir);
         await fs.unlink(nodesPath).catch(() => {});
         await fs.unlink(relsPath).catch(() => {});
-        if (r?.explicit_json && r?.legacy_json) {
-            await fs.writeFile(path.join(relationsDir, 'explicit.json.zst'), Buffer.from(r.explicit_json));
-            await fs.writeFile(path.join(cacheDir, 'relations.json.zst'), Buffer.from(r.legacy_json));
-            console.log(`  [RELATIONS] Rust FFI: ${r.total_relations} relations`);
+        if (r?.explicitJson && r?.legacyJson) {
+            await fs.writeFile(path.join(relationsDir, 'explicit.json.zst'), Buffer.from(r.explicitJson));
+            await fs.writeFile(path.join(cacheDir, 'relations.json.zst'), Buffer.from(r.legacyJson));
+            console.log(`  [RELATIONS] Rust FFI: ${r.totalRelations} relations`);
             rustDone = true;
         }
     } catch (e) { console.warn(`[RELATIONS] Rust FFI skipped (${e.message}).`); }

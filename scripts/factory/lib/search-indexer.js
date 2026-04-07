@@ -26,15 +26,15 @@ export async function generateSearchIndices(shardReader, outputDir = './output',
     const shardDir = opts?.shardDir;
     let rustResult = null;
     if (shardDir) rustResult = buildSearchIndexFromDirFFI(shardDir, searchDir);
-    if (rustResult?.core_data && rustResult?.shards) {
-        console.log(`[SEARCH] Rust FFI: ${rustResult.total_entities} entities, ${rustResult.shards.length} shards`);
-        await fs.writeFile(path.join(searchDir, 'search-core.json.zst'), Buffer.from(rustResult.core_data));
+    if (rustResult?.coreData && rustResult?.shards) {
+        console.log(`[SEARCH] Rust FFI: ${rustResult.totalEntities} entities, ${rustResult.shards.length} shards`);
+        await fs.writeFile(path.join(searchDir, 'search-core.json.zst'), Buffer.from(rustResult.coreData));
         const shardingDir = path.join(searchDir, 'search');
         await fs.mkdir(shardingDir, { recursive: true });
         for (const shard of rustResult.shards) {
-            await fs.writeFile(path.join(shardingDir, `shard-${shard.shard_index}.json.zst`), Buffer.from(shard.compressed_data));
+            await fs.writeFile(path.join(shardingDir, `shard-${shard.shardIndex}.json.zst`), Buffer.from(shard.compressedData));
         }
-        await fs.writeFile(path.join(searchDir, 'search-manifest.json'), rustResult.manifest_json);
+        await fs.writeFile(path.join(searchDir, 'search-manifest.json'), rustResult.manifestJson);
         console.log(`  [SEARCH] ✅ Done (Rust). ${rustResult.shards.length} shards generated.`);
         return;
     }

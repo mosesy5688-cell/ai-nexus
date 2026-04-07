@@ -72,10 +72,10 @@ export async function generateMeshGraph(outputDir = './output') {
             path.join(reportsDir, 'index.json'), meshDir
         );
         if (r) {
-            await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graph_data));
-            await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.stats_data));
-            console.log(`[MESH-GRAPH] Rust file FFI: ${r.node_count} nodes, ${r.edge_count} edges`);
-            return { nodes: r.node_count, edges: r.edge_count };
+            await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graphData));
+            await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.statsData));
+            console.log(`[MESH-GRAPH] Rust file FFI: ${r.nodeCount} nodes, ${r.edgeCount} edges`);
+            return { nodes: r.nodeCount, edges: r.edgeCount };
         }
     } catch (e) { console.log(`[MESH-GRAPH] Rust file FFI skipped: ${e.message}`); }
 
@@ -87,10 +87,10 @@ export async function generateMeshGraph(outputDir = './output') {
         if (explicitBuf) {
             const r = buildMeshGraphFFI(explicitBuf, knowledgeBuf || Buffer.alloc(0), reportsBuf || Buffer.alloc(0));
             if (r) {
-                await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graph_data));
-                await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.stats_data));
-                console.log(`[MESH-GRAPH] Rust Buffer FFI: ${r.node_count} nodes, ${r.edge_count} edges`);
-                return { nodes: r.node_count, edges: r.edge_count };
+                await fs.writeFile(path.join(meshDir, 'graph.json.zst'), Buffer.from(r.graphData));
+                await fs.writeFile(path.join(meshDir, 'stats.json.zst'), Buffer.from(r.statsData));
+                console.log(`[MESH-GRAPH] Rust Buffer FFI: ${r.nodeCount} nodes, ${r.edgeCount} edges`);
+                return { nodes: r.nodeCount, edges: r.edgeCount };
             }
         }
     } catch (e) { console.log(`[MESH-GRAPH] Rust Buffer FFI skipped: ${e.message}`); }

@@ -159,14 +159,14 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
     if (opts.shardDir) {
         rustResult = computeAltRelationsFromDirFFI(opts.shardDir, relationsDir);
     }
-    if (rustResult?.categories_data && rustResult?.meta_data) {
-        for (const cat of rustResult.categories_data) {
-            await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressed_data));
+    if (rustResult?.categoriesData && rustResult?.metaData) {
+        for (const cat of rustResult.categoriesData) {
+            await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressedData));
         }
         const metaDir = path.join(outputDir, 'cache', 'relations');
-        await fs.writeFile(path.join(metaDir, 'alt-meta.json.zst'), Buffer.from(rustResult.meta_data));
-        console.log(`  [ALT-LINKER] Rust FFI: ${rustResult.total_relations} relations in ${Date.now() - startTime}ms`);
-        return { totalRelations: rustResult.total_relations };
+        await fs.writeFile(path.join(metaDir, 'alt-meta.json.zst'), Buffer.from(rustResult.metaData));
+        console.log(`  [ALT-LINKER] Rust FFI: ${rustResult.totalRelations} relations in ${Date.now() - startTime}ms`);
+        return { totalRelations: rustResult.totalRelations };
     }
 
     // V25.9: Streaming JS fallback — group by category via shardReader

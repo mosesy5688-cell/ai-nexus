@@ -137,10 +137,10 @@ export async function computeKnowledgeLinks(shardReader, outputDir = './output',
     if (opts.shardDir) {
         rustResult = computeKnowledgeLinksFromDirFFI(opts.shardDir, relationsDir);
     }
-    if (rustResult?.output_data) {
-        await fs.writeFile(path.join(relationsDir, 'knowledge-links.json.zst'), Buffer.from(rustResult.output_data));
-        console.log(`  [KNOWLEDGE-LINKER] Rust FFI: ${rustResult.total_links} entities linked, ${rustResult.inverse_hubs} inverse hubs`);
-        return { totalLinks: rustResult.total_links, inverseHubs: rustResult.inverse_hubs, stats: {} };
+    if (rustResult?.outputData) {
+        await fs.writeFile(path.join(relationsDir, 'knowledge-links.json.zst'), Buffer.from(rustResult.outputData));
+        console.log(`  [KNOWLEDGE-LINKER] Rust FFI: ${rustResult.totalLinks} entities linked, ${rustResult.inverseHubs} inverse hubs`);
+        return { totalLinks: rustResult.totalLinks, inverseHubs: rustResult.inverseHubs, stats: {} };
     }
 
     // V25.9: Streaming JS fallback
