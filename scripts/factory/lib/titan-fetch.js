@@ -189,9 +189,11 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
                 // V25.8.8: Missing colons — "key" "value" → "key": "value"
                 repaired = repaired.replace(/(?<=[{,]\s*"[^"]*")\s+(?=")/g, ': ');
                 try { return JSON.parse(repaired); } catch (_thirdErr) {
-                    const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+                    // V25.9.1: Quote parity — odd count means unterminated string
+                    if ((repaired.match(/"/g) || []).length % 2 !== 0) repaired += '"';
+                    repaired = repaired.replace(/,\s*"[^"]*"?\s*$/, ''); // strip trailing partial kv
                     const braces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
-                    if (repaired.match(/"[^"]*$/)) repaired += '"';
+                    const open = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
                     for (let i = 0; i < braces; i++) repaired += '}';
                     for (let i = 0; i < open; i++) repaired += ']';
                     return JSON.parse(repaired);
