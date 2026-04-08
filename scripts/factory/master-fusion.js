@@ -36,10 +36,20 @@ async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPa
         return 0;
     }
     // Stamp umid on-the-fly for entities that lack it (pre-aggregator shards)
+    let stamped = 0;
     for (const e of entities) {
-        if (!e.umid && e.id) e.umid = generateUMID(e.id);
+        if (!e.umid && e.id) { e.umid = generateUMID(e.id); stamped++; }
     }
-    const needed = entities.filter(e => e.umid && enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
+    const withUmid = entities.filter(e => e.umid);
+    const needed = withUmid.filter(e => enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
+    // First-shard diagnostic
+    if (shardPath.includes('part-000')) {
+        const sample = withUmid.slice(0, 3).map(e => e.umid);
+        const mapSample = [...enrichmentMap.keys()].slice(0, 3);
+        console.log(`  [ENRICH-DIAG] shard=${path.basename(shardPath)} entities=${entities.length} withUmid=${withUmid.length} stamped=${stamped} needed=${needed.length}`);
+        console.log(`  [ENRICH-DIAG] entity umids: ${sample.join(', ')}`);
+        console.log(`  [ENRICH-DIAG] enrichMap keys: ${mapSample.join(', ')}`);
+    }
     if (!needed.length) return 0;
     // Write ID→umid manifest so Rust fusion can look up enrichment files
     const manifest = {};
