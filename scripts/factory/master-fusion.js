@@ -9,6 +9,7 @@ import path from 'path';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
 import { initRustBridge, fuseShardFFI } from './lib/rust-bridge.js';
+import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
 
 const CONFIG = {
     CACHE_DIR: process.env.CACHE_DIR || './cache',
@@ -47,7 +48,7 @@ async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPa
 }
 
 /** JS fallback: process shard when Rust is unavailable. */
-async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, r2, outIdx) {
+async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, enrichmentDir, r2, outIdx) {
     let shardEntities = [];
     if (shardPath.endsWith('.bin')) {
         const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
@@ -75,14 +76,20 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
         entity.fni_percentile = fniThresholds.scorePercentiles?.[entity.fni_score] || 0;
         if (entity.metrics) entity.metrics.sm = Sm;
 
-        if (enrichmentMap.has(entity.umid) && r2 && enrichedInShard < 200) {
+        if (enrichmentMap.has(entity.umid) && enrichedInShard < 200) {
             try {
-                const raw = await downloadBufferFromR2FFI(r2, enrichmentMap.get(entity.umid));
-                const fulltext = (await autoDecompress(raw)).toString('utf-8');
-                enrichedInShard++;
-                if (fulltext.length > 200) {
-                    entity.body_content = fulltext;
-                    entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
+                const localPath = path.join(enrichmentDir, `${entity.umid}.md.gz`);
+                let raw;
+                try { raw = await fs.readFile(localPath); } catch {
+                    if (r2) raw = await downloadBufferFromR2FFI(r2, enrichmentMap.get(entity.umid));
+                }
+                if (raw) {
+                    const fulltext = (await autoDecompress(raw)).toString('utf-8');
+                    enrichedInShard++;
+                    if (fulltext.length > 200) {
+                        entity.body_content = fulltext;
+                        entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
+                    }
                 }
             } catch { /* non-fatal */ }
         }
@@ -95,19 +102,21 @@ async function main() {
     console.log('[FUSION V26.5] Starting Mesh Fusion...');
     initRustBridge();
 
-    // Phase 1: Build Valid ID Set (Closed World)
-    const { loadGlobalRegistry } = await import('./lib/cache-manager.js');
-    const registry = await loadGlobalRegistry({ slim: true });
-    const validIdsList = (registry.entities || []).map(e => e.id);
-    const allValidIds = new Set(validIdsList);
-    registry.entities = null;
-    if (global.gc) global.gc();
+    // Phase 1: Build Valid ID Set (Closed World) — streaming, O(1) heap per shard
+    const allValidIds = new Set();
+    await loadRegistryShardsSequentially(async (entities) => {
+        for (const e of entities) allValidIds.add(e.id);
+    }, { slim: true });
     console.log(`  [OK] ${allValidIds.size} valid entities`);
 
-    // Write valid IDs to temp file for Rust
+    // Write valid IDs to temp file for Rust fuseShardFFI
     const validIdsPath = path.join(CONFIG.OUTPUT_DIR, '.valid-ids.json.zst');
     await fs.mkdir(CONFIG.OUTPUT_DIR, { recursive: true });
-    await fs.writeFile(validIdsPath, await zstdCompress(JSON.stringify(validIdsList)));
+    try {
+        await fs.writeFile(validIdsPath, await zstdCompress(JSON.stringify([...allValidIds])));
+    } catch (e) {
+        console.warn(`  [WARN] Valid IDs file write failed (JS fallback will use in-memory Set): ${e.message}`);
+    }
 
     // Phase 2: FNI Thresholds
     let fniThresholds = { scorePercentiles: {}, citationCounts: {} };
@@ -169,7 +178,7 @@ async function main() {
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${result.enrichedCount} enriched)`);
             } else {
                 // JS fallback
-                const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, r2, i);
+                const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, enrichmentDir, r2, i);
                 await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
                     shardId: i, entities: fused, _ts: new Date().toISOString()
                 })));
