@@ -178,6 +178,7 @@ jobs:
           CACHE_DIR: ./output/cache
           ARTIFACT_DIR: ./output/cache/registry
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          UMID_SALT: ${{ secrets.UMID_SALT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
