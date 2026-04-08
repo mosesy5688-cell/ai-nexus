@@ -11,7 +11,7 @@ import {
 } from './lib/aggregator-maintenance.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
-import { initRustBridge } from './lib/rust-bridge.js';
+import { initRustBridge, calculateFniFFI } from './lib/rust-bridge.js';
 
 const CONFIG = {
     TOTAL_SHARDS: 20,
@@ -97,14 +97,23 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
     const fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
     registryMap.clear();
     console.log('[AGGREGATOR] Streaming finalization: FNI overlay + CDDPP watermarking...');
-    let entityCount = 0, watermarked = 0;
+    let entityCount = 0, watermarked = 0, fniHits = 0, fniRecomputed = 0;
     const topN = [];
     const historyBatch = new Map();
 
     await loadShards(async (entities, shardIdx) => {
         for (const e of entities) {
             const artifactFni = fniMap.get(e.id);
-            if (artifactFni != null) { e.fni_score = artifactFni; e.fni = artifactFni; }
+            if (artifactFni != null) {
+                e.fni_score = artifactFni; e.fni = artifactFni;
+                fniHits++;
+            } else if (!e.fni_score) {
+                // V26.9: Real-time FNI computation for entities missing from 2/4 artifacts.
+                // Uses the same calculateFniFFI as 2/4 — no floor values, full accuracy.
+                const result = calculateFniFFI(e, { includeMetrics: true, lastSeen: e._last_seen });
+                e.fni_score = result.score; e.fni = result.score;
+                fniRecomputed++;
+            }
 
             const id = e.id || e.slug;
             if (id) {
@@ -135,7 +144,9 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
         if (global.gc && entityCount % 100000 === 0) global.gc();
     }, { slim: false });
     fniMap.clear();
+    const fniMissNoScore = entityCount - fniHits - fniRecomputed;
     console.log(`[AGGREGATOR] Streaming finalization: ${entityCount} entities, ${watermarked} watermarked.`);
+    console.log(`[FNI-OVERLAY] hits=${fniHits}, recomputed=${fniRecomputed}, kept_existing=${fniMissNoScore}`);
 
     if (entityCount < AGGREGATE_FLOOR) {
         throw new Error(`[CRITICAL] Data Loss Detected! Only ${entityCount} entities (Min: ${AGGREGATE_FLOOR}).`);
