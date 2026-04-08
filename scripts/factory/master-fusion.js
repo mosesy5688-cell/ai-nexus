@@ -1,7 +1,8 @@
 /**
- * Master Fusion Orchestrator V26.7
+ * Master Fusion Orchestrator V26.8
  * Architecture: Late-Binding FNI & Closed-World Integrity
- * V26.7: Dual-salt enrichment lookup (production + legacy dev-salt backward compat)
+ * V26.8: Zero double-read enrichment — Phase 1 captures shard→IDs,
+ *         Phase 3 builds global entity→R2 mapping, Phase 4 downloads per-shard O(1) disk.
  */
 
 import fs from 'fs/promises';
@@ -18,73 +19,8 @@ const CONFIG = {
     OUTPUT_DIR: './output'
 };
 
-/** Per-shard enrichment: download only what this shard needs from R2 (streaming). */
-async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPath) {
-    let entities;
-    try {
-        if (shardPath.endsWith('.bin')) {
-            const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
-            entities = (await readBinaryShard(shardPath))?.entities || [];
-        } else {
-            const { autoDecompress: ad } = await import('./lib/zstd-helper.js');
-            const raw = await fs.readFile(shardPath);
-            const parsed = JSON.parse((await ad(raw)).toString('utf-8'));
-            entities = parsed.entities || parsed || [];
-        }
-    } catch (err) {
-        console.warn(`  [ENRICH] Failed to read shard ${path.basename(shardPath)}: ${err.message}`);
-        return 0;
-    }
-    // Stamp umid on-the-fly for entities that lack it (pre-aggregator shards)
-    let stamped = 0;
-    for (const e of entities) {
-        if (!e.umid && e.id) { e.umid = generateUMID(e.id); stamped++; }
-    }
-    const withUmid = entities.filter(e => e.umid);
-    // V26.7: Dual-salt lookup — R2 enrichment files may use legacy dev-salt umids
-    const needed = [];
-    let devHits = 0;
-    for (const e of withUmid) {
-        if (enrichmentMap.has(e.umid)) {
-            needed.push([e.umid, enrichmentMap.get(e.umid)]);
-        } else if (e.id) {
-            const devUmid = generateDevUMID(e.id);
-            if (devUmid !== e.umid && enrichmentMap.has(devUmid)) {
-                needed.push([e.umid, enrichmentMap.get(devUmid)]);
-                devHits++;
-            }
-        }
-    }
-    // First-shard diagnostic
-    if (shardPath.includes('part-000')) {
-        const sample = withUmid.slice(0, 3).map(e => e.umid);
-        const devSample = withUmid.slice(0, 3).filter(e => e.id).map(e => generateDevUMID(e.id));
-        const mapSample = [...enrichmentMap.keys()].slice(0, 3);
-        console.log(`  [ENRICH-DIAG] shard=${path.basename(shardPath)} entities=${entities.length} withUmid=${withUmid.length} stamped=${stamped} needed=${needed.length} devHits=${devHits}`);
-        console.log(`  [ENRICH-DIAG] entity umids (prod): ${sample.join(', ')}`);
-        console.log(`  [ENRICH-DIAG] entity umids (dev):  ${devSample.join(', ')}`);
-        console.log(`  [ENRICH-DIAG] enrichMap keys:      ${mapSample.join(', ')}`);
-    }
-    if (!needed.length) return 0;
-    // Write ID→umid manifest so Rust fusion can look up enrichment files
-    const manifest = {};
-    for (const e of entities) { if (e.id && e.umid) manifest[e.id] = e.umid; }
-    await fs.writeFile(path.join(enrichmentDir, 'manifest.json'), JSON.stringify(manifest));
-    const CONCURRENCY = 20;
-    let ok = 0;
-    for (let i = 0; i < needed.length; i += CONCURRENCY) {
-        const batch = needed.slice(i, i + CONCURRENCY);
-        const results = await Promise.allSettled(batch.map(async ([umid, key]) => {
-            const raw = await downloadBufferFromR2FFI(r2, key);
-            await fs.writeFile(path.join(enrichmentDir, `${umid}.md.gz`), raw);
-        }));
-        ok += results.filter(r => r.status === 'fulfilled').length;
-    }
-    return ok;
-}
-
 /** JS fallback: process shard when Rust is unavailable. */
-async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, enrichmentDir, r2, outIdx) {
+async function fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir, r2, outIdx) {
     let shardEntities = [];
     if (shardPath.endsWith('.bin')) {
         const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
@@ -99,7 +35,6 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
 
     for (const result of shardEntities) {
         const entity = { ...result, ...(result.enriched || {}) };
-        // Stamp umid on-the-fly if missing (pre-aggregator shards)
         if (!entity.umid && entity.id) entity.umid = generateUMID(entity.id);
         if (entity.relations) {
             entity.relations = entity.relations.filter(r => {
@@ -107,31 +42,22 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
                 return allValidIds.has(nt);
             });
         }
-        // FNI V2.0: Preserve 2/4 computed score — no recalculation in fusion
         entity.fni_pScore = entity.fni_score ?? entity.fni ?? 0;
         entity.fni_percentile = fniThresholds.scorePercentiles?.[entity.fni_pScore] || 0;
 
-        // V26.7: Dual-salt enrichment lookup (production umid first, then legacy dev-salt)
-        const enrichKey = enrichmentMap.get(entity.umid)
-            || (entity.id ? enrichmentMap.get(generateDevUMID(entity.id)) : undefined);
-        if (entity.umid && enrichKey) {
+        // V26.8: Enrichment from pre-downloaded local files (no R2 per-entity)
+        const localUmid = entityEnrichMap.get(entity.id);
+        if (localUmid) {
             try {
-                const localPath = path.join(enrichmentDir, `${entity.umid}.md.gz`);
-                let raw;
-                try { raw = await fs.readFile(localPath); } catch {
-                    if (r2) raw = await downloadBufferFromR2FFI(r2, enrichKey);
+                const localPath = path.join(enrichmentDir, `${localUmid}.md.gz`);
+                const raw = await fs.readFile(localPath);
+                const fulltext = (await autoDecompress(raw)).toString('utf-8');
+                if (fulltext.length > 200) {
+                    entity.body_content = fulltext;
+                    entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
+                    enrichedInShard++;
                 }
-                if (raw) {
-                    const fulltext = (await autoDecompress(raw)).toString('utf-8');
-                    if (fulltext.length > 200) {
-                        entity.body_content = fulltext;
-                        entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
-                        enrichedInShard++;
-                    }
-                }
-            } catch (err) {
-                console.warn(`  [ENRICH-JS] ${entity.umid}: ${err.message}`);
-            }
+            } catch { /* file not downloaded for this shard — skip */ }
         }
         fusedEntities.push(projectEntity(entity, false));
     }
@@ -139,15 +65,18 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
 }
 
 async function main() {
-    console.log('[FUSION V26.7] Starting Mesh Fusion...');
+    console.log('[FUSION V26.8] Starting Mesh Fusion...');
     initRustBridge();
 
-    // Phase 1: Build Valid ID Set (Closed World) — streaming, O(1) heap per shard
+    // Phase 1: Build Valid ID Set + Shard→IDs index (single read, no double-read in Phase 4)
     const allValidIds = new Set();
-    await loadRegistryShardsSequentially(async (entities) => {
-        for (const e of entities) allValidIds.add(e.id);
+    const shardEntityIds = new Map(); // shardIdx → [entity_id, ...]
+    await loadRegistryShardsSequentially(async (entities, shardIdx) => {
+        const ids = [];
+        for (const e of entities) { allValidIds.add(e.id); ids.push(e.id); }
+        shardEntityIds.set(shardIdx, ids);
     }, { slim: true });
-    console.log(`  [OK] ${allValidIds.size} valid entities`);
+    console.log(`  [OK] ${allValidIds.size} valid entities across ${shardEntityIds.size} shards`);
 
     // Write valid IDs to temp file for Rust fuseShardFFI
     const validIdsPath = path.join(CONFIG.OUTPUT_DIR, '.valid-ids.json.zst');
@@ -169,10 +98,11 @@ async function main() {
         }
     } catch { /* use defaults */ }
 
-    // Phase 3: Enrichment — scan R2 index only (download is per-shard in Phase 4)
+    // Phase 3: Enrichment — scan R2 + build global entity→enrichment mapping (memory only)
     const enrichmentDir = path.join(CONFIG.CACHE_DIR, 'enrichment-local');
     await fs.mkdir(enrichmentDir, { recursive: true });
-    let enrichmentMap = new Map();
+    let enrichmentMap = new Map(); // r2_umid → r2_key
+    let entityEnrichMap = new Map(); // entity_id → r2_umid (for local file lookup)
     initR2Bridge();
     const r2 = createR2ClientFFI();
     if (r2) {
@@ -183,13 +113,30 @@ async function main() {
                 const m = key.match(/enrichment\/fulltext\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.(?:gz|zst)$/);
                 if (m) enrichmentMap.set(m[1], key);
             }
-            console.log(`  [OK] ${enrichmentMap.size} enrichment files indexed (download deferred to per-shard)`);
+            console.log(`  [OK] ${enrichmentMap.size} enrichment files indexed`);
         } catch (e) { console.warn(`  [WARN] Enrichment: ${e.message}`); }
+
+        // V26.8: Build global entity→enrichment mapping (dual-salt, no shard reads needed)
+        if (enrichmentMap.size > 0) {
+            let prodHits = 0, devHits = 0;
+            for (const id of allValidIds) {
+                const prodUmid = generateUMID(id);
+                if (enrichmentMap.has(prodUmid)) {
+                    entityEnrichMap.set(id, prodUmid); prodHits++;
+                } else {
+                    const devUmid = generateDevUMID(id);
+                    if (enrichmentMap.has(devUmid)) {
+                        entityEnrichMap.set(id, devUmid); devHits++;
+                    }
+                }
+            }
+            console.log(`  [OK] ${entityEnrichMap.size} entities have enrichment (prod=${prodHits}, devSalt=${devHits})`);
+        }
     } else {
         console.log('[FUSION] Phase 3: No R2 credentials — skipping enrichment');
     }
 
-    // Phase 4: Per-shard fusion
+    // Phase 4: Per-shard fusion (single shard read, per-shard download O(1) disk)
     const artifactFiles = await fs.readdir(CONFIG.ARTIFACT_DIR).catch(() => []);
     const shardFiles = artifactFiles.filter(f =>
         f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json.gz') || f.endsWith('.json'))
@@ -200,26 +147,52 @@ async function main() {
 
     console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards...`);
     let totalEnriched = 0, totalDl = 0;
+    const DL_CONCURRENCY = 100;
+
     for (let i = 0; i < shardFiles.length; i++) {
         const shardPath = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
         const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.zst`);
+        const shardIdx = parseInt(shardFiles[i].match(/part-(\d+)/)[1]);
 
-        // Per-shard enrichment: download from R2 only what this shard needs
+        // V26.8: Per-shard download using pre-built mapping (no shard read needed)
         let dlCount = 0;
-        if (r2 && enrichmentMap.size > 0) {
-            dlCount = await downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPath);
-            totalDl += dlCount;
+        if (r2 && entityEnrichMap.size > 0) {
+            const entityIds = shardEntityIds.get(shardIdx) || [];
+            const needed = [];
+            for (const id of entityIds) {
+                const localUmid = entityEnrichMap.get(id);
+                if (localUmid && enrichmentMap.has(localUmid)) {
+                    needed.push([localUmid, enrichmentMap.get(localUmid)]);
+                }
+            }
+            if (needed.length > 0) {
+                // Write manifest for Rust fusion
+                const manifest = {};
+                for (const id of entityIds) {
+                    const u = entityEnrichMap.get(id);
+                    if (u) manifest[id] = u;
+                }
+                await fs.writeFile(path.join(enrichmentDir, 'manifest.json'), JSON.stringify(manifest));
+
+                for (let j = 0; j < needed.length; j += DL_CONCURRENCY) {
+                    const batch = needed.slice(j, j + DL_CONCURRENCY);
+                    const results = await Promise.allSettled(batch.map(async ([umid, key]) => {
+                        const raw = await downloadBufferFromR2FFI(r2, key);
+                        await fs.writeFile(path.join(enrichmentDir, `${umid}.md.gz`), raw);
+                    }));
+                    dlCount += results.filter(r => r.status === 'fulfilled').length;
+                }
+                totalDl += dlCount;
+            }
         }
 
         try {
-            // V26.5: Rust fast path
             const result = fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outPath);
             if (result) {
                 totalEnriched += result.enrichedCount;
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${result.enrichedCount} enriched)`);
             } else {
-                // JS fallback
-                const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap, enrichmentDir, r2, i);
+                const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir, r2, i);
                 await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
                     shardId: i, entities: fused, _ts: new Date().toISOString()
                 })));
@@ -228,16 +201,19 @@ async function main() {
         } catch (e) {
             console.error(`  [FAIL] Shard ${i}: ${e.message}`);
         }
-        // Cleanup per-shard enrichment to avoid disk bloat
+        // Cleanup per-shard enrichment to avoid disk bloat (O(1) disk)
         const files = await fs.readdir(enrichmentDir).catch(() => []);
         await Promise.all(files.map(f => fs.unlink(path.join(enrichmentDir, f)).catch(() => {})));
         if (global.gc && i % 10 === 9) global.gc();
     }
 
     // Cleanup
+    shardEntityIds.clear();
+    entityEnrichMap.clear();
+    enrichmentMap.clear();
     await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
-    console.log(`[FUSION V26.7] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched)`);
+    console.log(`[FUSION V26.8] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched)`);
 }
 
 main().catch(err => { console.error('[CRITICAL] Fusion:', err); process.exit(1); });
