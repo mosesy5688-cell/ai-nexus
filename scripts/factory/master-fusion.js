@@ -10,6 +10,7 @@ import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFrom
 import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
 import { initRustBridge, fuseShardFFI } from './lib/rust-bridge.js';
 import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
+import { generateUMID } from './lib/umid-generator.js';
 
 const CONFIG = {
     CACHE_DIR: process.env.CACHE_DIR || './cache',
@@ -34,9 +35,16 @@ async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPa
         console.warn(`  [ENRICH] Failed to read shard ${path.basename(shardPath)}: ${err.message}`);
         return 0;
     }
-    const withUmid = entities.filter(e => e.umid);
-    const needed = withUmid.filter(e => enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
+    // Stamp umid on-the-fly for entities that lack it (pre-aggregator shards)
+    for (const e of entities) {
+        if (!e.umid && e.id) e.umid = generateUMID(e.id);
+    }
+    const needed = entities.filter(e => e.umid && enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
     if (!needed.length) return 0;
+    // Write ID→umid manifest so Rust fusion can look up enrichment files
+    const manifest = {};
+    for (const e of entities) { if (e.id && e.umid) manifest[e.id] = e.umid; }
+    await fs.writeFile(path.join(enrichmentDir, 'manifest.json'), JSON.stringify(manifest));
     const CONCURRENCY = 20;
     let ok = 0;
     for (let i = 0; i < needed.length; i += CONCURRENCY) {
@@ -66,6 +74,8 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
 
     for (const result of shardEntities) {
         const entity = { ...result, ...(result.enriched || {}) };
+        // Stamp umid on-the-fly if missing (pre-aggregator shards)
+        if (!entity.umid && entity.id) entity.umid = generateUMID(entity.id);
         if (entity.relations) {
             entity.relations = entity.relations.filter(r => {
                 const nt = normalizeId(r.target_id, r.target_source || getNodeSource(r.target_id, r.target_type));

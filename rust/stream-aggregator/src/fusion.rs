@@ -54,6 +54,17 @@ pub fn fuse_shard(
     let mut enriched = 0u32;
     let do_enrich = !enrichment_dir.is_empty();
 
+    // Load ID→umid manifest written by JS downloadShardEnrichment
+    let umid_manifest: std::collections::HashMap<String, String> = if do_enrich {
+        let manifest_path = format!("{}/manifest.json", enrichment_dir);
+        std::fs::read_to_string(&manifest_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        Default::default()
+    };
+
     for mut entity in entities {
         let id = entity
             .get("id")
@@ -96,7 +107,12 @@ pub fn fuse_shard(
 
         // C. Enrichment from pre-downloaded local files
         if do_enrich {
-            let umid = entity.get("umid").and_then(|v| v.as_str()).unwrap_or("");
+            let entity_umid = entity.get("umid").and_then(|v| v.as_str()).unwrap_or("");
+            let umid = if entity_umid.is_empty() {
+                umid_manifest.get(&id).map(|s| s.as_str()).unwrap_or("")
+            } else {
+                entity_umid
+            };
             if !umid.is_empty() {
                 if let Some(text) = try_load_enrichment(&enrichment_dir, umid) {
                     if text.len() > 200 {
