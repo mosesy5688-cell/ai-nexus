@@ -9,6 +9,7 @@ import path from 'path';
 import zlib from 'zlib';
 import { PackAccumulator } from './pack-accumulator.js';
 import { autoDecompress } from './zstd-helper.js';
+import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
 /**
  * Load Trending Context for entity prioritization
  */
@@ -131,20 +132,16 @@ export async function ingestToAccumulator(cacheDir, trendingMap, trendMap) {
     for (const file of fusedFiles) {
         const fullPath = path.join(fusedDir, file);
         try {
-            const raw = await fs.readFile(fullPath);
-            const decompressed = (file.endsWith('.gz') || file.endsWith('.zst')) ? await autoDecompress(raw) : raw;
-            const parsed = JSON.parse(decompressed);
-
-            // V22.8: Fused shards contain { shardId, entities: [...], _ts }
-            const entities = parsed.entities || (parsed.id ? [parsed] : [parsed]);
-
-            for (const entity of entities) {
+            // V26.6: O(1) streaming — bypasses V8 512MB string limit on large shards
+            const prevIngested = ingested;
+            await partitionMonolithStreamingly(fullPath, (entity) => {
                 const trendingInfo = trendingMap.get(entity.id || entity.slug) || { rank: 999999, is_trending: false };
                 accumulator.ingest(entity, trendingInfo, trendMap.get(entity.id || entity.slug) || '');
                 ingested++;
-            }
+            });
 
-            if (ingested % 50000 < entities.length && ingested > 0) {
+            const shardCount = ingested - prevIngested;
+            if (ingested % 50000 < shardCount && ingested > 0) {
                 console.log(`[VFS] Ingested ${ingested} entities...`);
             }
         } catch (e) {

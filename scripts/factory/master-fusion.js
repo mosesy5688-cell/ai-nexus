@@ -1,7 +1,7 @@
 /**
- * Master Fusion Orchestrator V26.5
+ * Master Fusion Orchestrator V26.6
  * Architecture: Late-Binding FNI & Closed-World Integrity
- * V26.5: Rust fuse_shard fast path with JS fallback
+ * V26.6: FNI V2.0 passthrough (no Sm recalc) + enrichment diagnostics
  */
 
 import fs from 'fs/promises';
@@ -17,9 +17,8 @@ const CONFIG = {
     OUTPUT_DIR: './output'
 };
 
-/** Per-shard enrichment: download only what this shard needs (streaming). */
+/** Per-shard enrichment: download only what this shard needs from R2 (streaming). */
 async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPath) {
-    // Read shard to find paper UMIDs that have enrichment
     let entities;
     try {
         if (shardPath.endsWith('.bin')) {
@@ -31,8 +30,12 @@ async function downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPa
             const parsed = JSON.parse((await ad(raw)).toString('utf-8'));
             entities = parsed.entities || parsed || [];
         }
-    } catch { return 0; }
-    const needed = entities.filter(e => e.umid && enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
+    } catch (err) {
+        console.warn(`  [ENRICH] Failed to read shard ${path.basename(shardPath)}: ${err.message}`);
+        return 0;
+    }
+    const withUmid = entities.filter(e => e.umid);
+    const needed = withUmid.filter(e => enrichmentMap.has(e.umid)).map(e => [e.umid, enrichmentMap.get(e.umid)]);
     if (!needed.length) return 0;
     const CONCURRENCY = 20;
     let ok = 0;
@@ -69,29 +72,29 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
                 return allValidIds.has(nt);
             });
         }
-        const baseScore = entity.fni_score ?? entity.fni ?? 0;
-        const Sm = Math.min(100, fniThresholds.citationCounts?.[entity.id] || 0);
-        entity.fni_score = Math.round((baseScore * 0.75) + (Sm * 0.25));
-        entity.fni_pScore = entity.fni_score;
-        entity.fni_percentile = fniThresholds.scorePercentiles?.[entity.fni_score] || 0;
-        if (entity.metrics) entity.metrics.sm = Sm;
+        // FNI V2.0: Preserve 2/4 computed score — no recalculation in fusion
+        entity.fni_pScore = entity.fni_score ?? entity.fni ?? 0;
+        entity.fni_percentile = fniThresholds.scorePercentiles?.[entity.fni_pScore] || 0;
 
-        if (enrichmentMap.has(entity.umid) && enrichedInShard < 200) {
+        if (entity.umid && enrichmentMap.has(entity.umid)) {
             try {
                 const localPath = path.join(enrichmentDir, `${entity.umid}.md.gz`);
                 let raw;
                 try { raw = await fs.readFile(localPath); } catch {
+                    // Direct R2 fallback — local pre-download may have missed this entity
                     if (r2) raw = await downloadBufferFromR2FFI(r2, enrichmentMap.get(entity.umid));
                 }
                 if (raw) {
                     const fulltext = (await autoDecompress(raw)).toString('utf-8');
-                    enrichedInShard++;
                     if (fulltext.length > 200) {
                         entity.body_content = fulltext;
                         entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
+                        enrichedInShard++;
                     }
                 }
-            } catch { /* non-fatal */ }
+            } catch (err) {
+                console.warn(`  [ENRICH-JS] ${entity.umid}: ${err.message}`);
+            }
         }
         fusedEntities.push(projectEntity(entity, false));
     }
@@ -99,7 +102,7 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, enrichmentMap,
 }
 
 async function main() {
-    console.log('[FUSION V26.5] Starting Mesh Fusion...');
+    console.log('[FUSION V26.6] Starting Mesh Fusion...');
     initRustBridge();
 
     // Phase 1: Build Valid ID Set (Closed World) — streaming, O(1) heap per shard
@@ -159,15 +162,16 @@ async function main() {
     await fs.mkdir(outDir, { recursive: true });
 
     console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards...`);
-    let totalEnriched = 0;
+    let totalEnriched = 0, totalDl = 0;
     for (let i = 0; i < shardFiles.length; i++) {
         const shardPath = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
         const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.zst`);
 
-        // Per-shard enrichment download (streaming — only papers in this shard)
+        // Per-shard enrichment: download from R2 only what this shard needs
         let dlCount = 0;
         if (r2 && enrichmentMap.size > 0) {
             dlCount = await downloadShardEnrichment(r2, enrichmentMap, enrichmentDir, shardPath);
+            totalDl += dlCount;
         }
 
         try {
@@ -196,7 +200,7 @@ async function main() {
     // Cleanup
     await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
-    console.log(`[FUSION V26.5] Complete! Fused to ${outDir}`);
+    console.log(`[FUSION V26.6] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched)`);
 }
 
 main().catch(err => { console.error('[CRITICAL] Fusion:', err); process.exit(1); });

@@ -44,9 +44,6 @@ pub fn fuse_shard(
     let score_pcts = thresholds
         .get("scorePercentiles")
         .and_then(|v| v.as_object());
-    let cite_counts = thresholds
-        .get("citationCounts")
-        .and_then(|v| v.as_object());
 
     // 3. Read shard
     let entities = nxvf_core::load_shard_entities(&shard_path)
@@ -82,36 +79,25 @@ pub fn fuse_shard(
             filtered_rels += (before - rels.len()) as u32;
         }
 
-        // B. Late-binding FNI
-        let base = entity
+        // B. FNI V2.0: Preserve 2/4 computed score — no recalculation in fusion
+        let fni_score = entity
             .get("fni_score")
             .and_then(|v| v.as_f64())
             .or_else(|| entity.get("fni").and_then(|v| v.as_f64()))
             .unwrap_or(0.0);
-        let sm = cite_counts
-            .and_then(|m| m.get(&id))
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0)
-            .min(100.0);
-        let final_fni = ((base * 0.75) + (sm * 0.25)).round();
-        let pct_key = (final_fni as i64).to_string();
+        let pct_key = (fni_score.round() as i64).to_string();
         let percentile = score_pcts
             .and_then(|m| m.get(&pct_key))
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0);
 
-        entity["fni_score"] = json!(final_fni);
-        entity["fni_pScore"] = json!(final_fni);
+        entity["fni_pScore"] = json!(fni_score);
         entity["fni_percentile"] = json!(percentile);
-        if let Some(metrics) = entity.get_mut("metrics").and_then(|v| v.as_object_mut()) {
-            metrics.insert("sm".to_string(), json!(sm));
-        }
 
         // C. Enrichment from pre-downloaded local files
         if do_enrich {
-            let etype = entity.get("type").and_then(|v| v.as_str()).unwrap_or("");
             let umid = entity.get("umid").and_then(|v| v.as_str()).unwrap_or("");
-            if etype == "paper" && !umid.is_empty() {
+            if !umid.is_empty() {
                 if let Some(text) = try_load_enrichment(&enrichment_dir, umid) {
                     if text.len() > 200 {
                         let has_ft = text.len() > 1000;

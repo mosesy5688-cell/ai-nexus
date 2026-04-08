@@ -14,6 +14,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { autoDecompress } from './lib/zstd-helper.js';
+import { partitionMonolithStreamingly } from './lib/aggregator-stream-utils.js';
 import { upsertEntities, openLedger } from './lib/dedup-manager.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
@@ -44,14 +45,11 @@ async function loadFusedEntities() {
     for (const file of fusedFiles) {
         const fullPath = path.join(fusedDir, file);
         try {
-            const raw = await fs.readFile(fullPath);
-            const parsed = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
-
-            const batch = parsed.entities || (parsed.id ? [parsed] : [parsed]);
-            for (const e of batch) {
-                if (!e.id && !e.slug) continue;
+            // V26.6: O(1) streaming — bypasses V8 512MB string limit
+            await partitionMonolithStreamingly(fullPath, (e) => {
+                if (!e.id && !e.slug) return;
                 entities.push(e);
-            }
+            });
         } catch (e) {
             console.warn(`[SYNC-LEDGER] Skipping ${file}: ${e.message}`);
         }
