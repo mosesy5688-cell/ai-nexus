@@ -514,6 +514,7 @@ jobs:
         env:
           CACHE_DIR: ./output/cache
           DEDUP_DB_PATH: ./output/data/dedup.db
+          UMID_SALT: ${{ secrets.UMID_SALT }}
         run: node scripts/factory/sync-ledger.js
       - name: Upload to R2 via S3 API
         env:

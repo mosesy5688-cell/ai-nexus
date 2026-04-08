@@ -30,6 +30,21 @@ export function generateUMID(canonicalId) {
     return hmac.digest('hex').substring(0, UMID_LENGTH);
 }
 
+const DEV_FALLBACK_SALT = 'nexus-dev-salt-v25.8';
+
+/**
+ * Generate UMID using the legacy dev-salt (for backward-compatible enrichment lookup).
+ * Only differs from generateUMID when production UMID_SALT is set.
+ * @param {string} canonicalId
+ * @returns {string} 16-char hex UMID using dev salt
+ */
+export function generateDevUMID(canonicalId) {
+    if (!canonicalId) return '';
+    const hmac = crypto.createHmac('sha256', DEV_FALLBACK_SALT);
+    hmac.update(canonicalId);
+    return hmac.digest('hex').substring(0, UMID_LENGTH);
+}
+
 /**
  * Compute shard slot from UMID (Phase 1: JS-based routing).
  * Will be replaced by Rust FFI xxhash64 in Phase 3.
