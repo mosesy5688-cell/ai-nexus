@@ -45,11 +45,10 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMa
         entity.fni_pScore = entity.fni_score ?? entity.fni ?? 0;
         entity.fni_percentile = fniThresholds.scorePercentiles?.[entity.fni_pScore] || 0;
 
-        // V26.8: Enrichment from pre-downloaded local files (no R2 per-entity)
-        const localUmid = entityEnrichMap.get(entity.id);
-        if (localUmid) {
+        // V26.8: Enrichment from pre-downloaded local files (saved as prod umid)
+        if (entityEnrichMap.has(entity.id)) {
             try {
-                const localPath = path.join(enrichmentDir, `${localUmid}.md.gz`);
+                const localPath = path.join(enrichmentDir, `${entity.umid}.md.gz`);
                 const raw = await fs.readFile(localPath);
                 const fulltext = (await autoDecompress(raw)).toString('utf-8');
                 if (fulltext.length > 200) {
@@ -158,19 +157,19 @@ async function main() {
         let dlCount = 0;
         if (r2 && entityEnrichMap.size > 0) {
             const entityIds = shardEntityIds.get(shardIdx) || [];
-            const needed = [];
+            const needed = []; // [prodUmid, r2Key] — save as prod umid so Rust can find via entity.umid
             for (const id of entityIds) {
-                const localUmid = entityEnrichMap.get(id);
-                if (localUmid && enrichmentMap.has(localUmid)) {
-                    needed.push([localUmid, enrichmentMap.get(localUmid)]);
+                const r2Umid = entityEnrichMap.get(id);
+                if (r2Umid && enrichmentMap.has(r2Umid)) {
+                    const prodUmid = generateUMID(id);
+                    needed.push([prodUmid, enrichmentMap.get(r2Umid)]);
                 }
             }
             if (needed.length > 0) {
-                // Write manifest for Rust fusion
+                // Write manifest for Rust fusion (entity_id → prod umid)
                 const manifest = {};
                 for (const id of entityIds) {
-                    const u = entityEnrichMap.get(id);
-                    if (u) manifest[id] = u;
+                    if (entityEnrichMap.has(id)) manifest[id] = generateUMID(id);
                 }
                 await fs.writeFile(path.join(enrichmentDir, 'manifest.json'), JSON.stringify(manifest));
 
