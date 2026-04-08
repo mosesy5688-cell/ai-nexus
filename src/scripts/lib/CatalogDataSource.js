@@ -46,8 +46,8 @@ export class CatalogDataSource {
             try { partitions = JSON.parse(localStorage.getItem('_vfs_partitions') || ''); } catch (_) { }
         }
 
-        // V25.9: Unified 32-way hash sharding — all types mixed in each meta-NN.db
-        const count = partitions?.meta_shards || 32;
+        // V25.9: Unified hash sharding — all types mixed in each meta-NN.db
+        const count = partitions?.meta_shards || 40;
         this.shardQueue = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
         console.log(`[CatalogDataSource] Shard queue (${this.type}): ${this.shardQueue.length} shards`);
     }

@@ -9,7 +9,7 @@ import { join } from 'path';
 import { zstdCompress } from './zstd-helper.js';
 import { computeMetaShardSlot } from './meta-shard-router.js';
 
-const SHARD_COUNT = 32;
+const SHARD_COUNT = 40;
 const HIGH_FREQ_THRESHOLD = 10000;
 const HIGH_FREQ_CHUNK_SIZE = 5000;
 const STOP_WORDS = new Set([

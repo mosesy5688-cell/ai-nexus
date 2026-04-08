@@ -73,7 +73,7 @@ async function packDatabase() {
     await computeEmbeddingsStreaming(accumulator, cacheDb);
 
     // ── Phase 3: Setup Shard DBs ──
-    const META_SHARD_COUNT = 32;
+    const META_SHARD_COUNT = 40;
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
     console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards`);
     const metaDbs = {};
