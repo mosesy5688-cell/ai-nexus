@@ -7,20 +7,25 @@ import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
 /** V25.9: Build id→fni_score Map from 2/4 artifacts (lightweight, ~13MB for 436K entries). */
 export async function buildFniMap(artifactDir, totalShards) {
     const fniMap = new Map();
+    let totalEntities = 0, skippedNoScore = 0, missedShards = 0;
     for (let i = 0; i < totalShards; i++) {
         const p = path.join(artifactDir, `shard-${i}.json.zst`);
         try {
             const raw = await fs.readFile(p);
             const json = JSON.parse((await zstdDecompress(raw)).toString('utf-8'));
-            for (const r of (json.entities || [])) {
+            const entities = json.entities || [];
+            totalEntities += entities.length;
+            for (const r of entities) {
                 const e = r.enriched || r;
                 if (e.id && e.fni_score != null) fniMap.set(e.id, e.fni_score);
+                else skippedNoScore++;
             }
         } catch (err) {
             console.warn(`[FNI-MAP] Shard ${i}: ${err.message}`);
+            missedShards++;
         }
     }
-    console.log(`[FNI-MAP] Built ${fniMap.size} scores from ${totalShards} artifact shards.`);
+    console.log(`[FNI-MAP] Built ${fniMap.size} scores from ${totalShards} artifact shards (${totalEntities} total entities, ${skippedNoScore} skipped/no-score, ${missedShards} missed shards).`);
     return fniMap;
 }
 
