@@ -196,6 +196,24 @@ jobs:
             echo "⚠️ No harvest shards in cache."
           fi
 
+      # V26.9: R2 fallback for registry when harvest cache misses (e.g. re-run 3/4 only)
+      - name: R2 Registry Fallback
+        if: ${{ !cancelled() }}
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+          if [ "$BIN_COUNT" -gt 0 ]; then
+            echo "✅ Registry already present: $BIN_COUNT binary shards"
+          else
+            echo "⚠️ No registry in cache. Restoring from R2..."
+            mkdir -p cache/registry
+            node scripts/factory/lib/r2-registry-restore.js
+          fi
+
       # V25.8.3: Purge legacy .json.gz ghost files from registry directory.
       # These are stale files from pre-V25.8 pipeline runs, persisted through GHA cache.
       # Current pipeline writes binary .bin (NXVF). Ghost .json.gz files cause Rust
