@@ -73,7 +73,8 @@ export function upsertEntities(entities, dbPath = DEDUP_DB_PATH) {
     const upsert = db.prepare(`
         INSERT INTO ledger (umid, canonical_id, type, source, name, author, first_seen_at, last_refresh_at, refresh_count, fni_score, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'active')
-        ON CONFLICT(umid) DO UPDATE SET
+        ON CONFLICT(canonical_id) DO UPDATE SET
+            umid = excluded.umid,
             last_refresh_at = excluded.last_refresh_at,
             refresh_count = refresh_count + 1,
             fni_score = excluded.fni_score,
