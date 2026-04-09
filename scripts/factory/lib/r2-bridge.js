@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 
 let _r2Engine = null;
 let _mode = 'js';
+let _cachedJsClient = null;
 
 function tryLoadR2Engine() {
     if (process.env.R2_FORCE_JS === 'true') return null;
@@ -97,12 +98,15 @@ export async function downloadFromR2FFI(client, key, localPath) {
     return downloadFromR2(jsClient, bucket, key);
 }
 
-/** Download raw Buffer from R2 (for binary/compressed data). */
+/** Download raw Buffer from R2 (binary/compressed). Caches JS S3Client for connection reuse. */
 export async function downloadBufferFromR2FFI(client, key) {
     const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-    const jsClient = client?.constructor?.name === 'R2Client' ? require('./r2-helpers.js').createR2Client() : client;
+    if (client?.constructor?.name === 'R2Client') {
+        if (!_cachedJsClient) _cachedJsClient = require('./r2-helpers.js').createR2Client();
+        client = _cachedJsClient;
+    }
     const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    const { Body } = await jsClient.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+    const { Body } = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
     const chunks = []; for await (const c of Body) chunks.push(c);
     return Buffer.concat(chunks);
 }
