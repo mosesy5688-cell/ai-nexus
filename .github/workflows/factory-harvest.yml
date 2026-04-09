@@ -40,8 +40,8 @@ jobs:
   harvest-huggingface:
     name: Harvest HuggingFace
     runs-on: ubuntu-latest
-    timeout-minutes: 180
-    
+    timeout-minutes: 330
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,7 +49,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      
+
       - name: Harvest HuggingFace Models
         if: github.event.inputs.skip_harvest != 'true'
         env:
@@ -87,8 +87,8 @@ jobs:
   harvest-github:
     name: Harvest GitHub
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    
+    timeout-minutes: 330
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,7 +96,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      
+
       - name: Harvest GitHub Repos
         if: github.event.inputs.skip_harvest != 'true'
         env:
@@ -197,8 +197,8 @@ jobs:
   harvest-ecosystem:
     name: Harvest Ecosystem
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    
+    timeout-minutes: 330
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -206,7 +206,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      
+
       - name: Harvest Ollama Registry
         if: github.event.inputs.skip_harvest != 'true'
         run: |
@@ -328,7 +328,7 @@ jobs:
     name: Merge & Upload
     runs-on: ubuntu-latest
     needs: [harvest-huggingface, harvest-github, harvest-academic, harvest-ecosystem]
-    timeout-minutes: 30
+    timeout-minutes: 120
     env:
       # V55.9: 10GB Heap + expose-gc for explicit GC in merge phase
       NODE_OPTIONS: '--max-old-space-size=10240 --expose-gc'
