@@ -94,11 +94,11 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          if [ "$FOUND" -lt 6 ]; then
-            echo "⚠️ Only $FOUND/6 Rust binaries from cache. Restoring from R2 vault..."
+          if [ "$FOUND" -lt 7 ]; then
+            echo "⚠️ Only $FOUND/7 Rust binaries from cache. Restoring from R2 vault..."
             node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           else
-            echo "✅ All 6 Rust FFI binaries restored from cache"
+            echo "✅ All 7 Rust FFI binaries restored from cache"
           fi
       - name: Setup Directories
         run: |
@@ -181,6 +181,17 @@ jobs:
             data/
             cache/
           key: prepared-entity-data-${{ github.run_id }}
+      # P0-R5: R2 backup for prepared entity data (cache-only was single point of failure)
+      - name: Backup Prepared Data to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js backup-dir data/ state/prepared-entity-data/data/ --extensions=.json,.json.zst
+          node scripts/factory/r2-workflow-cli.js backup-dir cache/ state/prepared-entity-data/cache/
+          echo "✅ Prepared entity data backed up to R2"
 
   # Matrix shards for parallel processing
   matrix-shards:
@@ -228,8 +239,8 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          if [ "$FOUND" -lt 6 ]; then
-            echo "⚠️ Only $FOUND/6 Rust binaries. Restoring from R2 vault..."
+          if [ "$FOUND" -lt 7 ]; then
+            echo "⚠️ Only $FOUND/7 Rust binaries. Restoring from R2 vault..."
             node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           fi
 
@@ -282,12 +293,24 @@ jobs:
 
       # Restore entity checksums for incremental processing
       - name: Restore Entity Checksums
+        id: cache-checksums
         uses: actions/cache@v4
         with:
           path: cache/entity-checksums.json.zst
           key: entity-checksums-${{ github.run_id }}
           restore-keys: |
             entity-checksums-
+      # P0-R6: R2 fallback for entity checksums (cache-only was single point of failure)
+      - name: R2 Fallback for Entity Checksums
+        if: steps.cache-checksums.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p cache
+          node scripts/factory/r2-workflow-cli.js restore-file meta/backup/entity-checksums.json.zst cache/entity-checksums.json.zst || echo "⚠️ No entity checksums on R2 — full recompute expected"
 
       # Process shard
       - name: Process Shard ${{ matrix.shard }}
