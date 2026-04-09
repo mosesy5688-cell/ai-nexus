@@ -149,7 +149,7 @@ jobs:
       - name: R2 Fallback for Base Output
         if: steps.cache-output-fusion.outputs.cache-hit != 'true'
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Restore Baked Profiles from Cache
         uses: actions/cache/restore@v4
         with:
@@ -341,9 +341,8 @@ jobs:
           restore-keys: cycle-
       - name: R2 Fallback for Base Output
         if: steps.cache-output-rss.outputs.cache-hit != 'true'
-        continue-on-error: true
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Generate RSS feeds
         run: node scripts/factory/lib/rss-generator.js ./output
       - name: Save RSS Feeds to Cache
@@ -390,9 +389,8 @@ jobs:
           restore-keys: cycle-
       - name: R2 Fallback for Base Output
         if: steps.cache-output-upload.outputs.cache-hit != 'true'
-        continue-on-error: true
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Restore Upload Manifest from Cache
         uses: actions/cache/restore@v4
         with:

@@ -329,6 +329,17 @@ jobs:
             cache/fni-history.json.zst
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
+      # P1-R9: R2 backup for FNI history (was cache-only, no R2 copy for current cycle)
+      - name: Backup FNI History to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          [ -f "cache/fni-history.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer cache/fni-history.json.zst meta/backup/fni-history.json.zst
+          [ -d "cache/fni-history" ] && node scripts/factory/r2-workflow-cli.js backup-dir cache/fni-history/ meta/backup/fni-history/
+          echo "✅ FNI history backed up to R2"
 
       - name: Save Daily Accumulator to Cache (Self-Healing)
         uses: actions/cache/save@v4

@@ -356,6 +356,22 @@ jobs:
             rust/r2-engine/r2-engine-rust.node
           key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           # No restore-keys: prevent stale binary fallback (V25.8.5)
+      # P1-R13: R2 fallback for Rust FFI (was cache-only, no fallback)
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          if [ "$FOUND" -lt 7 ]; then
+            echo "⚠️ Only $FOUND/7 Rust binaries from cache. Restoring from R2 vault..."
+            node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
+          else
+            echo "✅ All 7 Rust FFI binaries restored from cache"
+          fi
 
       # V16.96.2: Pre-merge Cache Maintenance
       - name: Cache Cleanup

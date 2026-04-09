@@ -135,9 +135,9 @@ jobs:
           fail-on-cache-miss: false
           
       # V25.8 §6.1: R2 fallback for harvest data (cross-workflow resilience)
+      # P1-R14: Removed continue-on-error — harvest data is critical path
       - name: R2 Fallback for Harvest Data
         if: steps.cache-harvest.outputs.cache-hit != 'true'
-        continue-on-error: true
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
