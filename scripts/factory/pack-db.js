@@ -160,11 +160,12 @@ async function packDatabase() {
         e.search_vector = keywords;
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
 
-        // 2. Search Values (for full-search): ANN vectors removed — semantic search
-        //    now served by vector-core.bin (hot 30K) + Cluster ANN (full 436K).
-        //    Keeping keywords only to reduce search.db size (~1166MB → ~700MB).
+        // 2. Search Values (for full-search): Truncate summary to 1000 chars.
+        //    Full body_content lives in fused shards, not search.db.
+        //    1000 chars is sufficient for FTS5 + inverted index tokenization.
         e.search_vector = keywords;
-        const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, rawSummary, bundleKey, offset, size);
+        const searchSummary = rawSummary.length > 1000 ? rawSummary.substring(0, 1000) + '...' : rawSummary;
+        const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, searchSummary, bundleKey, offset, size);
 
         const slotId = computeMetaShardSlot(e.slug || e.id, META_SHARD_COUNT);
         const targetKey = `slot_${slotId}`;
