@@ -187,10 +187,22 @@ async function main() {
                 for (let j = 0; j < needed.length; j += DL_CONCURRENCY) {
                     const batch = needed.slice(j, j + DL_CONCURRENCY);
                     const results = await Promise.allSettled(batch.map(async ([umid, key]) => {
-                        const raw = await downloadBufferFromR2FFI(r2, key);
-                        await fs.writeFile(path.join(enrichmentDir, `${umid}.md.gz`), raw);
+                        for (let attempt = 0; attempt < 3; attempt++) {
+                            try {
+                                const raw = await downloadBufferFromR2FFI(r2, key);
+                                await fs.writeFile(path.join(enrichmentDir, `${umid}.md.gz`), raw);
+                                return;
+                            } catch (e) {
+                                if (attempt === 2) throw e;
+                                await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+                            }
+                        }
                     }));
-                    dlCount += results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.filter(r => r.status === 'rejected');
+                    dlCount += results.length - failed.length;
+                    if (failed.length > 0 && i < 3) {
+                        console.warn(`  [DIAG] Shard ${i} batch ${j}: ${failed.length}/${batch.length} failed — ${failed[0].reason?.message || failed[0].reason}`);
+                    }
                 }
                 totalDl += dlCount;
             }
