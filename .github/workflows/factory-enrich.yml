@@ -96,7 +96,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
 
       # Download dedup.db from R2
       - name: Restore Dedup Ledger from R2

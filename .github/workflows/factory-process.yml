@@ -64,7 +64,7 @@ jobs:
     name: Prepare Entity Data
     needs: check-upstream
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 330
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -94,11 +94,11 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          if [ "$FOUND" -lt 6 ]; then
-            echo "⚠️ Only $FOUND/6 Rust binaries from cache. Restoring from R2 vault..."
+          if [ "$FOUND" -lt 7 ]; then
+            echo "⚠️ Only $FOUND/7 Rust binaries from cache. Restoring from R2 vault..."
             node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           else
-            echo "✅ All 6 Rust FFI binaries restored from cache"
+            echo "✅ All 7 Rust FFI binaries restored from cache"
           fi
       - name: Setup Directories
         run: |
@@ -135,9 +135,9 @@ jobs:
           fail-on-cache-miss: false
           
       # V25.8 §6.1: R2 fallback for harvest data (cross-workflow resilience)
+      # P1-R14: Removed continue-on-error — harvest data is critical path
       - name: R2 Fallback for Harvest Data
         if: steps.cache-harvest.outputs.cache-hit != 'true'
-        continue-on-error: true
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -181,13 +181,24 @@ jobs:
             data/
             cache/
           key: prepared-entity-data-${{ github.run_id }}
+      # P0-R5: R2 backup for prepared entity data (cache-only was single point of failure)
+      - name: Backup Prepared Data to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js backup-dir data/ state/prepared-entity-data/data/ --extensions=.json,.json.zst
+          node scripts/factory/r2-workflow-cli.js backup-dir cache/ state/prepared-entity-data/cache/
+          echo "✅ Prepared entity data backed up to R2"
 
   # Matrix shards for parallel processing
   matrix-shards:
     name: Shard ${{ matrix.shard }}
     needs: [check-upstream, prepare-data]
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     strategy:
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
@@ -228,8 +239,8 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          if [ "$FOUND" -lt 6 ]; then
-            echo "⚠️ Only $FOUND/6 Rust binaries. Restoring from R2 vault..."
+          if [ "$FOUND" -lt 7 ]; then
+            echo "⚠️ Only $FOUND/7 Rust binaries. Restoring from R2 vault..."
             node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           fi
 
@@ -282,12 +293,24 @@ jobs:
 
       # Restore entity checksums for incremental processing
       - name: Restore Entity Checksums
+        id: cache-checksums
         uses: actions/cache@v4
         with:
           path: cache/entity-checksums.json.zst
           key: entity-checksums-${{ github.run_id }}
           restore-keys: |
             entity-checksums-
+      # P0-R6: R2 fallback for entity checksums (cache-only was single point of failure)
+      - name: R2 Fallback for Entity Checksums
+        if: steps.cache-checksums.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p cache
+          node scripts/factory/r2-workflow-cli.js restore-file meta/backup/entity-checksums.json.zst cache/entity-checksums.json.zst || echo "⚠️ No entity checksums on R2 — full recompute expected"
 
       # Process shard
       - name: Process Shard ${{ matrix.shard }}
@@ -332,7 +355,7 @@ jobs:
     name: Save Shards to Cache
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

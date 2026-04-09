@@ -63,7 +63,7 @@ jobs:
     name: Mesh Baking
     needs: check-upstream
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -86,7 +86,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Complete Cycle Output from Cache
         id: cache-output-mesh
         uses: actions/cache/restore@v4
@@ -115,7 +115,7 @@ jobs:
     name: Master Fusion
     needs: [mesh-baking, check-upstream]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -138,7 +138,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output from Cache
         id: cache-output-fusion
         uses: actions/cache/restore@v4
@@ -149,7 +149,7 @@ jobs:
       - name: R2 Fallback for Base Output
         if: steps.cache-output-fusion.outputs.cache-hit != 'true'
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Restore Baked Profiles from Cache
         uses: actions/cache/restore@v4
         with:
@@ -220,7 +220,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output (Trending Context)
         uses: actions/cache/restore@v4
         with:
@@ -308,7 +308,7 @@ jobs:
     name: RSS Feeds
     needs: check-upstream
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -331,7 +331,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output from Cache
         id: cache-output-rss
         uses: actions/cache/restore@v4
@@ -341,9 +341,8 @@ jobs:
           restore-keys: cycle-
       - name: R2 Fallback for Base Output
         if: steps.cache-output-rss.outputs.cache-hit != 'true'
-        continue-on-error: true
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Generate RSS feeds
         run: node scripts/factory/lib/rss-generator.js ./output
       - name: Save RSS Feeds to Cache
@@ -357,7 +356,7 @@ jobs:
     name: Final Upload to R2
     needs: [mesh-baking, master-fusion, vfs-packing, rss-feeds, check-upstream]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -380,7 +379,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output from Cache
         id: cache-output-upload
         uses: actions/cache/restore@v4
@@ -390,9 +389,8 @@ jobs:
           restore-keys: cycle-
       - name: R2 Fallback for Base Output
         if: steps.cache-output-upload.outputs.cache-hit != 'true'
-        continue-on-error: true
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ || echo '⚠️ R2 fallback skipped'
+          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Restore Upload Manifest from Cache
         uses: actions/cache/restore@v4
         with:
@@ -413,6 +411,7 @@ jobs:
           key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: global-registry-
       - name: Restore FNI History Cache
+        id: cache-fni-history
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -420,7 +419,20 @@ jobs:
             cache/fni-history/
           key: fni-history-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: fni-history-
+      # P0-R3: R2 fallback for FNI history
+      - name: R2 Fallback for FNI History
+        if: steps.cache-fni-history.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p cache/fni-history
+          node scripts/factory/r2-workflow-cli.js restore-dir meta/backup/fni-history/ cache/fni-history/ || echo "⚠️ R2 FNI history fallback unavailable"
+          node scripts/factory/r2-workflow-cli.js restore-file meta/backup/fni-history.json.zst cache/fni-history.json.zst || true
       - name: Restore Daily Accumulator Cache
+        id: cache-daily-accum
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -428,6 +440,18 @@ jobs:
             cache/daily-accum/
           key: daily-accum-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: daily-accum-
+      # P0-R3: R2 fallback for daily accumulator
+      - name: R2 Fallback for Daily Accumulator
+        if: steps.cache-daily-accum.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p cache/daily-accum
+          node scripts/factory/r2-workflow-cli.js restore-dir meta/backup/daily-accum/ cache/daily-accum/ || echo "⚠️ R2 daily-accum fallback unavailable"
+          node scripts/factory/r2-workflow-cli.js restore-file meta/backup/daily-accum.json.zst cache/daily-accum.json.zst || true
       - name: Extract Fused Entities
         run: |
           mkdir -p output/cache
@@ -508,6 +532,20 @@ jobs:
             done
           else
             echo "⚠️ No VFS DBs found in output — skipping health check"
+          fi
+      # V26.9: Restore previous dedup.db from R2 so has_fulltext=1 markers survive across cycles.
+      # Without this, sync-ledger creates a fresh DB and Factory 1.5 re-downloads all fulltext.
+      - name: Restore Dedup Ledger from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || echo "⚠️ No prior dedup.db on R2 — starting fresh"
+          if [ -f "output/data/dedup.db" ]; then
+            ENRICHED=$(node -e "const D=require('better-sqlite3');const d=new D('output/data/dedup.db',{readonly:true});console.log(d.prepare(\"SELECT COUNT(*) as c FROM ledger WHERE has_fulltext=1\").get().c);d.close()" 2>/dev/null || echo 0)
+            echo "✅ Restored dedup.db with $ENRICHED already-enriched entities"
           fi
       # V26.9: Feed Density Booster Queue — stream search.db → dedup.db (O(1) memory)
       - name: Sync Ledger (Feed 1.5)
@@ -634,8 +672,10 @@ jobs:
         run: |
           if [ -f "output/data/dedup.db" ]; then
             node scripts/factory/r2-workflow-cli.js upload-file output/data/dedup.db state/dedup.db
+            echo "✅ Dedup ledger uploaded to R2 state/dedup.db"
+          else
+            echo "⚠️ No dedup.db found — Factory 1.5 will use stale ledger"
           fi
-        continue-on-error: true
       # Embedding cache R2 backup moved to vfs-packing job (file only exists there)
 
       # V25.8.3: Recursion Bypass — workflow_run chain depth limit is 3.

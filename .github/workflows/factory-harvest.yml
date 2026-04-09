@@ -40,8 +40,8 @@ jobs:
   harvest-huggingface:
     name: Harvest HuggingFace
     runs-on: ubuntu-latest
-    timeout-minutes: 180
-    
+    timeout-minutes: 330
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,7 +49,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      
+
       - name: Harvest HuggingFace Models
         if: github.event.inputs.skip_harvest != 'true'
         env:
@@ -87,8 +87,8 @@ jobs:
   harvest-github:
     name: Harvest GitHub
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    
+    timeout-minutes: 330
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,7 +96,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      
+
       - name: Harvest GitHub Repos
         if: github.event.inputs.skip_harvest != 'true'
         env:
@@ -197,8 +197,8 @@ jobs:
   harvest-ecosystem:
     name: Harvest Ecosystem
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    
+    timeout-minutes: 330
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -206,7 +206,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      
+
       - name: Harvest Ollama Registry
         if: github.event.inputs.skip_harvest != 'true'
         run: |
@@ -328,7 +328,7 @@ jobs:
     name: Merge & Upload
     runs-on: ubuntu-latest
     needs: [harvest-huggingface, harvest-github, harvest-academic, harvest-ecosystem]
-    timeout-minutes: 30
+    timeout-minutes: 120
     env:
       # V55.9: 10GB Heap + expose-gc for explicit GC in merge phase
       NODE_OPTIONS: '--max-old-space-size=10240 --expose-gc'
@@ -356,6 +356,22 @@ jobs:
             rust/r2-engine/r2-engine-rust.node
           key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           # No restore-keys: prevent stale binary fallback (V25.8.5)
+      # P1-R13: R2 fallback for Rust FFI (was cache-only, no fallback)
+      - name: R2 Fallback for Rust FFI
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
+          if [ "$FOUND" -lt 7 ]; then
+            echo "⚠️ Only $FOUND/7 Rust binaries from cache. Restoring from R2 vault..."
+            node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
+          else
+            echo "✅ All 7 Rust FFI binaries restored from cache"
+          fi
 
       # V16.96.2: Pre-merge Cache Maintenance
       - name: Cache Cleanup
@@ -562,8 +578,8 @@ jobs:
           key: cycle-${{ github.run_id }}-harvest
 
       # V25.8 §6.1: Dual-write harvest output to R2 (cross-workflow resilience)
+      # P0-R4: Removed continue-on-error — this is the primary R2 backup for harvest data
       - name: Backup Harvest Cycle to R2
-        continue-on-error: true
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -573,6 +589,23 @@ jobs:
           node scripts/factory/r2-workflow-cli.js backup-dir data/ state/cycle-harvest/data/ --extensions=.json,.json.zst
           node scripts/factory/r2-workflow-cli.js backup-dir cache/ state/cycle-harvest/cache/
           echo "✅ Harvest cycle backed up to R2 state/cycle-harvest/"
+      # P0-R4: Dedicated R2 backup for FNI history, daily-accum, checksums
+      - name: Backup FNI/Accum/Checksums to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          # FNI History
+          [ -f "cache/fni-history.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer cache/fni-history.json.zst meta/backup/fni-history.json.zst
+          [ -d "cache/fni-history" ] && node scripts/factory/r2-workflow-cli.js backup-dir cache/fni-history/ meta/backup/fni-history/
+          # Daily Accumulator
+          [ -f "cache/daily-accum.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer cache/daily-accum.json.zst meta/backup/daily-accum.json.zst
+          [ -d "cache/daily-accum" ] && node scripts/factory/r2-workflow-cli.js backup-dir cache/daily-accum/ meta/backup/daily-accum/
+          # Entity Checksums
+          [ -f "cache/entity-checksums.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer cache/entity-checksums.json.zst meta/backup/entity-checksums.json.zst
+          echo "✅ FNI/Accum/Checksums backed up to R2"
 
       # Pipeline Summary
       - name: Summary

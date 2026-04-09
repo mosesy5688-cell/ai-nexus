@@ -145,7 +145,9 @@ async function main() {
     await fs.mkdir(outDir, { recursive: true });
 
     console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards...`);
-    let totalEnriched = 0, totalDl = 0;
+    console.log(`  [DIAG] shardEntityIds keys: [${[...shardEntityIds.keys()].sort((a,b) => a-b).join(',')}]`);
+    console.log(`  [DIAG] entityEnrichMap.size=${entityEnrichMap.size}, enrichmentMap.size=${enrichmentMap.size}`);
+    let totalEnriched = 0, totalDl = 0, totalNeeded = 0, totalMissingShard = 0;
     const DL_CONCURRENCY = 100;
 
     for (let i = 0; i < shardFiles.length; i++) {
@@ -157,14 +159,23 @@ async function main() {
         let dlCount = 0;
         if (r2 && entityEnrichMap.size > 0) {
             const entityIds = shardEntityIds.get(shardIdx) || [];
+            if (entityIds.length === 0 && i < 3) {
+                console.warn(`  [DIAG] Shard ${shardIdx} (file=${shardFiles[i]}): shardEntityIds returned EMPTY — index mismatch?`);
+                totalMissingShard++;
+            }
             const needed = []; // [prodUmid, r2Key] — save as prod umid so Rust can find via entity.umid
+            let enrichHits = 0, enrichMisses = 0;
             for (const id of entityIds) {
                 const r2Umid = entityEnrichMap.get(id);
                 if (r2Umid && enrichmentMap.has(r2Umid)) {
                     const prodUmid = generateUMID(id);
                     needed.push([prodUmid, enrichmentMap.get(r2Umid)]);
+                    enrichHits++;
+                } else if (r2Umid) {
+                    enrichMisses++;
                 }
             }
+            totalNeeded += needed.length;
             if (needed.length > 0) {
                 // Write manifest for Rust fusion (entity_id → prod umid)
                 const manifest = {};
@@ -213,6 +224,10 @@ async function main() {
     await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
     console.log(`[FUSION V26.8] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched)`);
+    console.log(`  [DIAG] Enrichment summary: needed=${totalNeeded}, downloaded=${totalDl}, missingShard=${totalMissingShard}`);
+    if (totalMissingShard > 0) {
+        console.warn(`  [DIAG] ${totalMissingShard} shards had empty entity ID lists — registry shard indices may not match artifact file indices`);
+    }
 }
 
 main().catch(err => { console.error('[CRITICAL] Fusion:', err); process.exit(1); });

@@ -69,7 +69,7 @@ jobs:
     name: Merge Core Registry
     needs: check-upstream
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 330
     env:
       NODE_OPTIONS: "--max-old-space-size=8192 --expose-gc"
     steps:
@@ -106,8 +106,8 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          if [ "$FOUND" -lt 6 ]; then
-            echo "⚠️ Only $FOUND/6 Rust binaries. Restoring from R2 vault..."
+          if [ "$FOUND" -lt 7 ]; then
+            echo "⚠️ Only $FOUND/7 Rust binaries. Restoring from R2 vault..."
             node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           fi
 
@@ -329,6 +329,17 @@ jobs:
             cache/fni-history.json.zst
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
+      # P1-R9: R2 backup for FNI history (was cache-only, no R2 copy for current cycle)
+      - name: Backup FNI History to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          [ -f "cache/fni-history.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer cache/fni-history.json.zst meta/backup/fni-history.json.zst
+          [ -d "cache/fni-history" ] && node scripts/factory/r2-workflow-cli.js backup-dir cache/fni-history/ meta/backup/fni-history/
+          echo "✅ FNI history backed up to R2"
 
       - name: Save Daily Accumulator to Cache (Self-Healing)
         uses: actions/cache/save@v4
@@ -351,7 +362,7 @@ jobs:
     name: "Agg: Search Index"
     needs: merge-core
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -379,7 +390,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -405,12 +416,22 @@ jobs:
         with:
           path: output/cache/search*
           key: intra-cycle-${{ github.run_id }}-search
+      # R2 backup for search satellite (P0-R2: R2-primary resilience)
+      - name: Backup Search Results to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/ state/satellite-search/ --glob='search*'
+          echo "✅ Search results backed up to R2"
 
   aggregate-rankings:
     name: "Agg: Rankings"
     needs: merge-core
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -438,7 +459,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -467,13 +488,23 @@ jobs:
             output/cache/rankings/
             output/cache/category_stats.json.zst
           key: intra-cycle-${{ github.run_id }}-rankings
-
+      # R2 backup for rankings satellite (P0-R2: R2-primary resilience)
+      - name: Backup Rankings Results to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/rankings/ state/satellite-rankings/rankings/
+          [ -f "output/cache/category_stats.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/category_stats.json.zst state/satellite-rankings/category_stats.json.zst
+          echo "✅ Rankings results backed up to R2"
 
   aggregate-trending:
     name: "Agg: Trending"
     needs: merge-core
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -501,7 +532,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -537,12 +568,23 @@ jobs:
             output/cache/trending.json.zst
             output/cache/trend-data.json.zst
           key: intra-cycle-${{ github.run_id }}-trending
+      # R2 backup for trending satellite (P0-R2: R2-primary resilience)
+      - name: Backup Trending Results to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          [ -f "output/cache/trending.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trending.json.zst state/satellite-trending/trending.json.zst
+          [ -f "output/cache/trend-data.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trend-data.json.zst state/satellite-trending/trend-data.json.zst
+          echo "✅ Trending results backed up to R2"
 
   aggregate-relations:
     name: "Agg: Knowledge Mesh"
     needs: merge-core
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -570,7 +612,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 6 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v4
         with:
@@ -612,12 +654,25 @@ jobs:
             output/cache/mesh/
             output/cache/knowledge/
           key: intra-cycle-${{ github.run_id }}-relations
+      # R2 backup for relations satellite (P0-R2: R2-primary resilience)
+      - name: Backup Relations Results to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/relations/ state/satellite-relations/relations/
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/ state/satellite-relations/mesh/
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/knowledge/ state/satellite-relations/knowledge/
+          [ -f "output/cache/relations.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/relations.json.zst state/satellite-relations/relations.json.zst
+          echo "✅ Relations results backed up to R2"
 
   finalize:
     name: Finalize Aggregation
     needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations]
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -729,8 +784,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js backup-dir output/ state/cycle-output/ || echo '⚠️ R2 cycle-output backup skipped (non-fatal)'
-        continue-on-error: true
+          node scripts/factory/r2-workflow-cli.js backup-dir output/ state/cycle-output/
+          echo "✅ Cycle output backed up to R2 state/cycle-output/"
 
       - name: Summary
         run: |
