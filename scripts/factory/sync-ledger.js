@@ -1,83 +1,68 @@
 /**
- * V25.8.3 Sync Ledger — Feed the Density Booster Queue
+ * V26.9 Sync Ledger — Feed the Density Booster Queue
  *
- * Scans Aggregate output (fused entities) and onboards them into dedup.db.
- * This fixes the "starvation" bug where Factory 1.5 has an empty work queue
- * because upsertEntities() was never called during the pack pipeline.
+ * Reads search.db (SQLite cursor, O(1) memory) and upserts into dedup.db.
+ * Replaces the previous fused-entity JSON loading that caused OOM at 436K+ entities.
  *
  * Usage: node scripts/factory/sync-ledger.js
  * Environment:
- *   CACHE_DIR  — path to output/cache (default: ./output/cache)
  *   DEDUP_DB_PATH — path to dedup.db (default: ./output/data/dedup.db)
+ *   SEARCH_DB_PATH — path to search.db (default: ./output/data/search.db)
+ *   UMID_SALT — required for generateUMID fallback
  */
 
-import fs from 'fs/promises';
-import path from 'path';
-import { autoDecompress } from './lib/zstd-helper.js';
-import { partitionMonolithStreamingly } from './lib/aggregator-stream-utils.js';
+import Database from 'better-sqlite3';
 import { upsertEntities, openLedger } from './lib/dedup-manager.js';
 
-const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
 const DEDUP_DB_PATH = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
+const SEARCH_DB_PATH = process.env.SEARCH_DB_PATH || './output/data/search.db';
 const BATCH_SIZE = 5000;
 
-/**
- * Load all fused entities from Aggregate output.
- * Mirrors the loading logic in pack-utils.js collectAndSortMetadata().
- */
-async function loadFusedEntities() {
-    const fusedDir = path.join(CACHE_DIR, 'fused');
-    let fusedFiles;
-    try {
-        fusedFiles = (await fs.readdir(fusedDir))
-            .filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'));
-    } catch {
-        console.error(`[SYNC-LEDGER] FATAL: No fused directory at ${fusedDir}`);
-        process.exit(1);
-    }
-
-    if (fusedFiles.length === 0) {
-        console.error(`[SYNC-LEDGER] FATAL: No fused entities found in ${fusedDir}`);
-        process.exit(1);
-    }
-
-    const entities = [];
-    for (const file of fusedFiles) {
-        const fullPath = path.join(fusedDir, file);
-        try {
-            // V26.6: O(1) streaming — bypasses V8 512MB string limit
-            await partitionMonolithStreamingly(fullPath, (e) => {
-                if (!e.id && !e.slug) return;
-                entities.push(e);
-            });
-        } catch (e) {
-            console.warn(`[SYNC-LEDGER] Skipping ${file}: ${e.message}`);
-        }
-    }
-
-    console.log(`[SYNC-LEDGER] Loaded ${entities.length} entities from ${fusedFiles.length} fused shards`);
-    return entities;
-}
-
 async function main() {
-    console.log('[SYNC-LEDGER] V25.8.3 — Onboarding fused entities into dedup.db...');
+    console.log('[SYNC-LEDGER] V26.9 — Streaming from search.db into dedup.db...');
     const startTime = Date.now();
 
-    const allEntities = await loadFusedEntities();
+    const searchDb = new Database(SEARCH_DB_PATH, { readonly: true });
+    const totalCount = searchDb.prepare('SELECT COUNT(*) as c FROM entities').get().c;
+    console.log(`[SYNC-LEDGER] search.db: ${totalCount} entities`);
 
-    if (allEntities.length === 0) {
-        console.warn('[SYNC-LEDGER] No entities to onboard. Exiting.');
+    if (totalCount === 0) {
+        searchDb.close();
+        console.warn('[SYNC-LEDGER] No entities in search.db. Exiting.');
         return;
     }
 
-    // Batch upsert to avoid holding too much in memory
-    let totalInserted = 0, totalRefreshed = 0;
-    for (let i = 0; i < allEntities.length; i += BATCH_SIZE) {
-        const batch = allEntities.slice(i, i + BATCH_SIZE);
+    // SQLite cursor iteration — O(1) memory, no JSON parse, no Zstd
+    const stmt = searchDb.prepare(
+        'SELECT id, umid, slug, name, type, author, source, fni_score FROM entities'
+    );
+
+    let batch = [];
+    let totalInserted = 0, totalRefreshed = 0, processed = 0;
+
+    for (const row of stmt.iterate()) {
+        batch.push(row);
+        if (batch.length >= BATCH_SIZE) {
+            const result = upsertEntities(batch, DEDUP_DB_PATH);
+            totalInserted += result.inserted;
+            totalRefreshed += result.refreshed;
+            processed += batch.length;
+            batch = [];
+            if (processed % 50000 === 0) {
+                console.log(`[SYNC-LEDGER]   Progress: ${processed}/${totalCount}`);
+            }
+        }
+    }
+
+    // Final batch
+    if (batch.length > 0) {
         const result = upsertEntities(batch, DEDUP_DB_PATH);
         totalInserted += result.inserted;
         totalRefreshed += result.refreshed;
+        processed += batch.length;
     }
+
+    searchDb.close();
 
     // Verify final state
     const db = openLedger(DEDUP_DB_PATH);
@@ -88,7 +73,7 @@ async function main() {
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[SYNC-LEDGER] ✅ Complete in ${elapsed}s`);
-    console.log(`[SYNC-LEDGER]   Inserted: ${totalInserted} | Refreshed: ${totalRefreshed}`);
+    console.log(`[SYNC-LEDGER]   Processed: ${processed} | Inserted: ${totalInserted} | Refreshed: ${totalRefreshed}`);
     console.log(`[SYNC-LEDGER]   Active: ${totalActive} | Need Enrichment: ${needEnrichment}`);
     for (const r of enrichStats) console.log(`[SYNC-LEDGER]     ${r.type}: ${r.c} need fulltext`);
 }

@@ -509,10 +509,10 @@ jobs:
           else
             echo "⚠️ No VFS DBs found in output — skipping health check"
           fi
-      # V25.8.3: Feed Density Booster Queue — onboard entities into dedup.db
+      # V26.9: Feed Density Booster Queue — stream search.db → dedup.db (O(1) memory)
       - name: Sync Ledger (Feed 1.5)
         env:
-          CACHE_DIR: ./output/cache
+          SEARCH_DB_PATH: ./output/data/search.db
           DEDUP_DB_PATH: ./output/data/dedup.db
           UMID_SALT: ${{ secrets.UMID_SALT }}
         run: node scripts/factory/sync-ledger.js
