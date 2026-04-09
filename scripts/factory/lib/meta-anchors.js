@@ -13,6 +13,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { autoDecompress } from './zstd-helper.js';
 import { setupDatabasePragmas } from './pack-utils.js';
+import { generateDailyReportsIndex } from './daily-reports-index.js';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './output/data';
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
@@ -55,38 +56,37 @@ async function buildReportDb() {
 
     let count = 0;
     const reportsDir = path.join(CACHE_DIR, 'reports');
+    const dailySubDir = path.join(reportsDir, 'daily');
+    const srcDailyDir = path.join(path.dirname(CACHE_DIR), 'daily');
+    const dirsToScan = [reportsDir, dailySubDir, srcDailyDir];
+    const seenIds = new Set();
 
-    try {
-        const files = await fs.readdir(reportsDir);
-        db.exec('BEGIN TRANSACTION');
-
-        for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'))) {
-            try {
-                const raw = await fs.readFile(path.join(reportsDir, file));
-                const report = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
-
-                const id = report.id || `report-${file.replace(/\.(json|json\.gz)$/, '')}`;
-                const slug = id.replace(/[^a-z0-9-]/g, '-');
-
-                insert.run(
-                    id, report.umid || '', report.title || '', report.subtitle || '',
-                    report.summary || '', 'daily-report', report.tags || '',
-                    report.author || 'free2aitools', report.published_at || report.date || '',
-                    report.updated_at || '', slug, report.word_count || 0,
-                    'published',
-                    `https://free2aitools.com/reports/${slug}`,
-                    ''
-                );
-                count++;
-            } catch (e) {
-                // Skip invalid files silently
+    db.exec('BEGIN TRANSACTION');
+    for (const dir of dirsToScan) {
+        try {
+            const files = await fs.readdir(dir);
+            for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'))) {
+                try {
+                    const raw = await fs.readFile(path.join(dir, file));
+                    const report = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
+                    const id = report.id || `report-${file.replace(/\.(json|json\.gz|json\.zst)$/, '')}`;
+                    if (seenIds.has(id)) continue;
+                    seenIds.add(id);
+                    const slug = id.replace(/[^a-z0-9-]/g, '-');
+                    insert.run(
+                        id, report.umid || '', report.title || '', report.subtitle || '',
+                        report.summary || '', 'daily-report', report.tags || '',
+                        report.author || 'free2aitools', report.published_at || report.date || '',
+                        report.updated_at || '', slug, report.word_count || 0,
+                        'published', `https://free2aitools.com/reports/${slug}`, ''
+                    );
+                    count++;
+                } catch { /* skip invalid */ }
             }
-        }
-
-        db.exec('COMMIT');
-    } catch {
-        console.warn('[META-ANCHORS] No reports directory found. Creating empty meta-report.db.');
+        } catch { /* dir not found — skip */ }
     }
+    db.exec('COMMIT');
+    if (count === 0) console.warn('[META-ANCHORS] No report files found in any scan directory.');
 
     db.exec('PRAGMA integrity_check; VACUUM;');
     db.close();
@@ -150,6 +150,10 @@ async function buildKnowledgeDb() {
 export async function generateMetaAnchors() {
     console.log('[META-ANCHORS] Building Discovery Anchor databases...');
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
+    // V26.10: Sync daily reports → cache/reports/ before building meta-report.db
+    try { await generateDailyReportsIndex(path.dirname(CACHE_DIR)); } catch (e) {
+        console.warn(`[META-ANCHORS] Reports index generation failed: ${e.message}`);
+    }
     await buildReportDb();
     await buildKnowledgeDb();
     console.log('[META-ANCHORS] Complete.');
