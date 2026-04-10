@@ -220,26 +220,30 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
     console.log(`${'Partition Name'.padEnd(25)} | ${'Entities'.padEnd(12)} | ${'Size (MB)'.padEnd(12)} | ${'Status'}`);
     console.log('-'.repeat(70));
 
+    // V25.9.1: Deferred circuit breaker — print full histogram before terminating
+    // (run 24255279523 died on slot_0 and left the other 39 slots invisible).
     const finalReportDbs = { ...metaDbs, "full-search": searchDb };
+    const offenders = [];
     for (const [name, db] of Object.entries(finalReportDbs)) {
         const fileStats = fsSync.statSync(db.name);
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
         const limitMB = (name === 'full-search') ? 1024 : 100; // V5.8 §1.1: < 100MB Edge Worker constraint (search.db exempt)
         const isOver = fileStats.size > limitMB * 1024 * 1024;
-        if (isOver) {
-            console.error(`\n[CRITICAL] 🛑 Shard ${name} (${sizeMB} MB) exceeds ${limitMB}MB safety limit!`);
-            console.error('[CRITICAL] Hard circuit breaker triggered. Build terminated to protect production.');
-            process.exit(1);
-        }
-        const status = '✅ OK';
+        const status = isOver ? `🛑 OVER ${limitMB}MB` : '✅ OK';
+        if (isOver) offenders.push({ name, sizeMB, limitMB });
         console.log(`${name.padEnd(25)} | ${String(count).padEnd(12)} | ${String(sizeMB).padEnd(12)} | ${status}`);
     }
     console.log('='.repeat(70));
     console.log(`[VFS] Fused Binary Shards : ${currentShardId + 1}`);
     console.log(`[VFS] Total Heavy Entities : ${stats.heavy} (${(stats.bytes / 1024 / 1024).toFixed(2)} MB)`);
     console.log('='.repeat(70) + '\n');
+
+    if (offenders.length > 0) {
+        for (const o of offenders) {
+            console.error(`[CRITICAL] 🛑 Shard ${o.name} (${o.sizeMB} MB) exceeds ${o.limitMB}MB safety limit!`);
+        }
+        console.error('[CRITICAL] Hard circuit breaker triggered. Build terminated to protect production.');
+        process.exit(1);
+    }
 }
-
-
-
