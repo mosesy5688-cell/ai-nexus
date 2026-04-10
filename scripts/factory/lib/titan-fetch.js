@@ -6,7 +6,7 @@
  * response body error logging, shared circuit breaker, safety settings.
  */
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
 const GEMINI_FALLBACK_MODEL = 'gemini-2.5-pro';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
