@@ -11,7 +11,7 @@ const GEMINI_FALLBACK_MODEL = 'gemini-2.5-pro';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const TITAN_CONFIG = {
-    STAGGER_DELAY_MS: 30000,
+    STAGGER_DELAY_MS: 60000,
     BACKOFF_BASE_MS: 10000,
     MAX_RETRIES: 3,
     CIRCUIT_BREAKER_THRESHOLD: 10,
