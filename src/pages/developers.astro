@@ -1,0 +1,322 @@
+---
+/**
+ * Developer Documentation — API, MCP, Badge
+ * Public-facing docs for Free2AI programmatic access.
+ */
+import Layout from '../layouts/Layout.astro';
+
+const SITE = 'https://free2aitools.com';
+const pageTitle = 'Developer Docs — API, MCP & Badge | Free2AI';
+const pageDescription = 'Integrate Free2AI into your apps and AI agents. REST API, MCP server for Claude/Cursor, and FNI badge for your README.';
+
+const searchExample = JSON.stringify({
+  version: "fni_v2.0",
+  results: [
+    { id: "meta-llama/Llama-3-8B", name: "Llama 3 8B", type: "model", fni_score: 87.2 },
+    { id: "deepseek-ai/DeepSeek-V3", name: "DeepSeek V3", type: "model", fni_score: 83.5 }
+  ],
+  meta: { elapsed_ms: 42, total: 2 }
+}, null, 2);
+
+const mcpConfig = JSON.stringify({
+  mcpServers: {
+    free2ai: {
+      url: `${SITE}/api/mcp`,
+      transport: "streamable-http"
+    }
+  }
+}, null, 2);
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebAPI",
+  "name": "Free2AI API",
+  "description": "Search, rank, and explain open-source AI models, tools, datasets, and papers by FNI score",
+  "url": `${SITE}/api/v1/search`,
+  "documentation": `${SITE}/developers`,
+  "provider": { "@type": "Organization", "name": "Free2AITools", "url": SITE },
+  "termsOfService": `${SITE}/compliance`,
+  "availableChannel": [
+    { "@type": "ServiceChannel", "serviceUrl": `${SITE}/api/v1/search`, "name": "REST API" },
+    { "@type": "ServiceChannel", "serviceUrl": `${SITE}/api/mcp`, "name": "MCP Server" },
+    { "@type": "ServiceChannel", "serviceUrl": `${SITE}/api/v1/badge/{umid}`, "name": "FNI Badge" }
+  ]
+});
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="max-w-4xl mx-auto px-4 py-12">
+    <!-- Structured data for agents and search engines (valid in body per Google spec) -->
+    <script type="application/ld+json" set:html={jsonLd} />
+    <!-- Hero -->
+    <div class="text-center mb-12">
+      <h1 class="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4">
+        Developer Docs
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400">
+        REST API &middot; MCP Server &middot; FNI Badge
+      </p>
+      <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">
+        All endpoints are free, no authentication required
+      </p>
+    </div>
+
+    <!-- Quick Links -->
+    <nav class="grid md:grid-cols-3 gap-4 mb-12">
+      <a href="#api" class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800 hover:border-blue-400 transition-colors">
+        <div class="text-2xl mb-2">{`{ }`}</div>
+        <h3 class="font-bold text-blue-800 dark:text-blue-300">REST API</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Search hundreds of thousands of AI entities ranked by FNI</p>
+      </a>
+      <a href="#mcp" class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800 hover:border-purple-400 transition-colors">
+        <div class="text-2xl mb-2">&lt;/&gt;</div>
+        <h3 class="font-bold text-purple-800 dark:text-purple-300">MCP Server</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">AI Agent discovery via Claude, Cursor, etc.</p>
+      </a>
+      <a href="#badge" class="bg-green-50 dark:bg-green-900/20 rounded-xl p-5 border border-green-200 dark:border-green-800 hover:border-green-400 transition-colors">
+        <div class="text-2xl mb-2">[ ]</div>
+        <h3 class="font-bold text-green-800 dark:text-green-300">FNI Badge</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Embed live FNI score in your README</p>
+      </a>
+    </nav>
+
+    <!-- Section 1: REST API -->
+    <section id="api" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">REST API</h2>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">GET /api/v1/search</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          Search and rank AI models, tools, datasets, and papers by FNI score.
+        </p>
+
+        <div class="space-y-4">
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Parameters</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="text-left border-b border-gray-200 dark:border-gray-700">
+                    <th class="pb-2 text-gray-500 dark:text-gray-400">Param</th>
+                    <th class="pb-2 text-gray-500 dark:text-gray-400">Type</th>
+                    <th class="pb-2 text-gray-500 dark:text-gray-400">Default</th>
+                    <th class="pb-2 text-gray-500 dark:text-gray-400">Description</th>
+                  </tr>
+                </thead>
+                <tbody class="text-gray-600 dark:text-gray-400">
+                  <tr class="border-b border-gray-100 dark:border-gray-800">
+                    <td class="py-2 font-mono text-blue-600 dark:text-blue-400">q</td>
+                    <td>string</td>
+                    <td>-</td>
+                    <td>Search query (required)</td>
+                  </tr>
+                  <tr class="border-b border-gray-100 dark:border-gray-800">
+                    <td class="py-2 font-mono text-blue-600 dark:text-blue-400">limit</td>
+                    <td>number</td>
+                    <td>5</td>
+                    <td>Max results (1-5, free tier)</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 font-mono text-blue-600 dark:text-blue-400">type</td>
+                    <td>string</td>
+                    <td>all</td>
+                    <td>Filter: model, tool, dataset, paper</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Example</h4>
+            <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+              <code>curl "{SITE}/api/v1/search?q=code+generation&limit=2"</code>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Response</h4>
+            <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+              <pre>{searchExample}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+        <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — 1,000 requests/month, max 5 results per query. CDN cached (30min). No API key required.
+      </div>
+    </section>
+
+    <!-- Section 2: MCP Server -->
+    <section id="mcp" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">MCP Server</h2>
+
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Free2AI exposes an <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">MCP</a> server so AI agents (Claude, Cursor, Windsurf, etc.) can discover and rank AI tools automatically.
+      </p>
+
+      <!-- Tools -->
+      <div class="space-y-4 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2ai_search</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Search and rank AI tools, models, datasets, and papers by FNI score.</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2ai_rank</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Rank AI tools by FNI score for a given task context. Ideal for AI agents selecting the best tool.</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2ai_explain</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Explain why a specific entity received its FNI ranking score with factor breakdown.</p>
+        </div>
+      </div>
+
+      <!-- Setup Guides -->
+      <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Setup</h3>
+
+      <div class="space-y-6">
+        <!-- Claude Desktop -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Claude Desktop / Claude Code</h4>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Add to your MCP settings (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">claude_desktop_config.json</code> or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">.mcp.json</code>):
+          </p>
+          <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+            <pre>{mcpConfig}</pre>
+          </div>
+        </div>
+
+        <!-- Cursor -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Cursor</h4>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Go to <strong>Settings &gt; MCP Servers &gt; Add Server</strong>, enter:
+          </p>
+          <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+            <code>URL: {SITE}/api/mcp<br/>Transport: Streamable HTTP</code>
+          </div>
+        </div>
+
+        <!-- Windsurf -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Windsurf</h4>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Go to <strong>Cascade &gt; Plugins &gt; Add MCP Server</strong>, enter:
+          </p>
+          <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+            <code>URL: {SITE}/api/mcp<br/>Transport: Streamable HTTP</code>
+          </div>
+        </div>
+
+        <!-- Generic / Auto-Discovery -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Any MCP Client / Auto-Discovery</h4>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Endpoint: <code class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400">POST {SITE}/api/mcp</code>
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Protocol: JSON-RPC 2.0 (MCP Spec 2025-03-26). Supports <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">initialize</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">tools/list</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">tools/call</code>.
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Machine-readable server manifest: <a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">{SITE}/.well-known/mcp.json</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: FNI Badge -->
+    <section id="badge" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">FNI Badge</h2>
+
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Embed a live FNI score badge in your README, docs, or website. The badge updates automatically as scores change.
+      </p>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 mb-6">
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Endpoint</h4>
+        <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto mb-4">
+          <code>GET {SITE}/api/v1/badge/&#123;umid&#125;</code>
+        </div>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Returns an SVG image. Color-coded: <span class="text-green-600 font-semibold">green</span> (90+), <span class="text-blue-600 font-semibold">blue</span> (70+), <span class="text-yellow-600 font-semibold">yellow</span> (50+), <span class="text-red-500 font-semibold">red</span> (&lt;50). Cached 1 hour at CDN edge.
+        </p>
+
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Markdown (README)</h4>
+        <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-sm overflow-x-auto mb-4">
+          <code>![FNI Score]({SITE}/api/v1/badge/YOUR_UMID)</code>
+        </div>
+
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">HTML</h4>
+        <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+          <code>&lt;img src="{SITE}/api/v1/badge/YOUR_UMID" alt="FNI Score" /&gt;</code>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+        <strong class="text-gray-900 dark:text-white">Finding your UMID:</strong> Search for your model/tool using the API, the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">id</code> field in the response is your UMID.
+      </div>
+    </section>
+
+    <!-- Section 4: Open Data -->
+    <section id="data" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Open Data</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">
+        For bulk access and offline analysis, download FNI rankings as Apache Parquet files. Compatible with DuckDB, Pandas, Spark, and any columnar data tool.
+      </p>
+      <a href="/open-data" class="inline-block bg-gray-900 dark:bg-gray-700 text-white font-semibold px-6 py-3 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors">
+        View Open Data Downloads
+      </a>
+    </section>
+
+    <!-- Section 5: FNI Score -->
+    <section id="fni" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">FNI Score</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">
+        Every entity is ranked by the <strong>Free2AITools Nexus Index (FNI)</strong> — a composite score from 0 to 99.9 based on five factors:
+      </p>
+      <div class="bg-gray-900 text-white rounded-xl p-6 font-mono text-center text-lg mb-6">
+        FNI = 0.35&middot;S + 0.25&middot;A + 0.15&middot;P + 0.15&middot;R + 0.10&middot;Q
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-center">
+          <div class="text-lg font-bold text-blue-700 dark:text-blue-300">S</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400">Semantic</div>
+        </div>
+        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 text-center">
+          <div class="text-lg font-bold text-purple-700 dark:text-purple-300">A</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400">Authority</div>
+        </div>
+        <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-center">
+          <div class="text-lg font-bold text-orange-700 dark:text-orange-300">P</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400">Popularity</div>
+        </div>
+        <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+          <div class="text-lg font-bold text-green-700 dark:text-green-300">R</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400">Recency</div>
+        </div>
+        <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center">
+          <div class="text-lg font-bold text-red-700 dark:text-red-300">Q</div>
+          <div class="text-xs text-gray-600 dark:text-gray-400">Quality</div>
+        </div>
+      </div>
+      <a href="/methodology" class="text-blue-600 dark:text-blue-400 hover:underline text-sm">
+        Full methodology and anti-manipulation details &rarr;
+      </a>
+    </section>
+
+    <!-- Footer CTA -->
+    <section class="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+      <h2 class="text-2xl font-bold mb-4">Build with Free2AI</h2>
+      <p class="text-blue-100 mb-6">Hundreds of thousands of AI entities &middot; FNI-ranked &middot; Updated daily</p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="https://github.com/mosesy5688-cell/ai-nexus" target="_blank" rel="noopener noreferrer" class="inline-block bg-white text-blue-600 font-bold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors">
+          GitHub
+        </a>
+        <a href="/methodology" class="inline-block bg-blue-500 text-white font-bold px-8 py-3 rounded-lg hover:bg-blue-400 transition-colors">
+          FNI Methodology
+        </a>
+      </div>
+    </section>
+  </main>
+</Layout>
