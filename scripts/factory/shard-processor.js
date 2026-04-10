@@ -1,9 +1,13 @@
 /**
- * Factory Shard Processor V16.8.7 (CES Compliant)
- * 
+ * Factory Shard Processor V56.2 (CES Compliant)
+ *
  * Constitution: Art 3.1-3.4 (Factory Pipeline)
- * V16.8.7: Uses cache-manager for persistent entity checksums (cross-run diff)
- * 
+ * V56.2: Removed V25.8 Pulse Sync cursor resume — V56.1 streaming made shards fast
+ *        (4-10s each), resume was designed for hours-long shards that no longer exist.
+ *        Stale cursors from prior runs were silently skipping 90% of new data per shard
+ *        because Consolidator regenerates `merged_shard_*.json.zst` every cycle but the
+ *        cursor had no invalidation. Every run now processes the full consolidated shard.
+ *
  * Usage: node scripts/factory/shard-processor.js --shard=N --total=20
  */
 
@@ -16,13 +20,12 @@ import { processEntity } from './lib/processor-core.js';
 import { zstdCompress, autoDecompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
 import { loadEntityChecksums, loadDailyAccum, loadFniHistory } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
-import { initR2Bridge, createR2ClientFFI, streamToR2FFI, downloadFromR2FFI } from './lib/r2-bridge.js';
+import { initR2Bridge, createR2ClientFFI, downloadFromR2FFI } from './lib/r2-bridge.js';
 import { initRustBridge } from './lib/rust-bridge.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
     TOTAL_SHARDS: 20,
-    CHECKPOINT_THRESHOLD_HOURS: 5.5,
     CACHE_DIR: process.env.CACHE_DIR || './cache',
     ARTIFACT_DIR: './artifacts'
 };
@@ -40,45 +43,18 @@ function parseArgs() {
     };
 }
 
-/**
- * Utility: Save partial results for long-running shards (Art 3.4)
- */
-async function saveCheckpoint(shardId, results, lastId) {
-    const checkpointPath = `./artifacts/checkpoint-shard-${shardId}.json`;
-    await fs.mkdir('./artifacts', { recursive: true });
-    await fs.writeFile(checkpointPath, JSON.stringify({
-        shardId,
-        lastId,
-        results,
-        timestamp: new Date().toISOString()
-    }, null, 2));
-}
-
-// V25.8 §2.3: Pulse Sync interval (every 1000 entities)
-const PULSE_SYNC_INTERVAL = 1000;
-
 // Main (V14.5.2: with artifact-based checksum tracking)
 async function main() {
     const { shardId, totalShards } = parseArgs();
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
 
-    // V25.8: R2 Pulse Sync (state checkpoint, not data writes)
+    // R2 client is used only for the consolidated-shard R2 fallback in ensureLocalShard().
+    // V56.2: Pulse Sync cursor resume was removed — every run processes the full shard.
     initR2Bridge();
     initRustBridge();
     const r2 = createR2ClientFFI();
-    const cursorKey = `state/v25.8-cursor-shard-${shardId}.json`;
 
-    // V25.8 §2.3: Check for existing cursor (resume from last checkpoint)
-    let resumeFrom = 0;
-    if (r2) {
-        const cursor = await downloadFromR2FFI(r2, cursorKey);
-        if (cursor && cursor.shardId === shardId) {
-            resumeFrom = cursor.processedCount || 0;
-            console.log(`[SHARD ${shardId}] Resuming from cursor: ${resumeFrom} entities`);
-        }
-    }
-
-    // V16.2.10: Data Safety Guard - 2/4 stage writes state only (cursor), not shard data
+    // V16.2.10: Data Safety Guard - 2/4 stage must not back up shard data to R2
     process.env.ENABLE_R2_BACKUP = 'false';
 
     // V16.11: Load global context
@@ -152,7 +128,7 @@ async function main() {
         if (!outStream.write(chunk)) await once(outStream, 'drain');
     };
 
-    let entityIndex = 0;       // total entities seen on the input stream (for resume)
+    let entityIndex = 0;       // total lines seen on the input stream (for zero-loss guard)
     let processedCount = 0;    // entities actually processed in this run
     let successCount = 0;
     let writtenCount = 0;      // entities serialized to outStream (for comma framing)
@@ -160,9 +136,6 @@ async function main() {
 
     for await (const line of rl) {
         if (!line) continue;
-
-        // V25.8 §2.3: Skip already-processed entities on resume
-        if (entityIndex < resumeFrom) { entityIndex++; continue; }
 
         let entity;
         try {
@@ -189,14 +162,6 @@ async function main() {
                 console.log(`[SHARD ${shardId}] Progress: ${processedCount} processed (RAM: ${mem}MB)...`);
                 if (global.gc) global.gc();
             }
-
-            // V25.8 §2.3: Pulse Sync — checkpoint to R2 every 1000 entities
-            if (r2 && processedCount % PULSE_SYNC_INTERVAL === 0) {
-                await streamToR2FFI(r2, cursorKey, {
-                    shardId, processedCount, lastId: entity.id,
-                    timestamp: new Date().toISOString(), total: null
-                });
-            }
         } catch (e) {
             console.error(`[SHARD ${shardId}] Error processing ${entity?.id}:`, e.message);
         }
@@ -204,20 +169,20 @@ async function main() {
         entityIndex++;
     }
 
-    // V56.1: Hard fail on zero entities — never silently produce empty shards.
+    // V56.2: Hard fail on zero entities — never silently produce empty shards.
     // entityIndex == 0 means the input stream produced no parseable lines at all
-    // (truly broken). resumeFrom == entityIndex means we resumed past the end,
-    // which is also a checkpoint corruption — fail loudly.
+    // (truly broken). processedCount == 0 with lines seen means every entity
+    // errored in processEntity — also a silent loss scenario.
     if (entityIndex === 0) {
         throw new Error(`Shard ${shardId} streamed 0 entities from ${shardFilePath} — refusing silent loss`);
     }
-    if (processedCount === 0 && resumeFrom === 0) {
+    if (processedCount === 0) {
         throw new Error(`Shard ${shardId} processed 0 entities (saw ${entityIndex} lines) — refusing silent loss`);
     }
 
     // Footer
     const timestamp = new Date().toISOString();
-    await safeWrite(`\n],\n"timestamp":"${timestamp}",\n"processedCount":${processedCount},\n"successCount":${successCount},\n"totalSeen":${entityIndex},\n"version":"56.1-streaming"\n}`);
+    await safeWrite(`\n],\n"timestamp":"${timestamp}",\n"processedCount":${processedCount},\n"successCount":${successCount},\n"totalSeen":${entityIndex},\n"version":"56.2-streaming"\n}`);
 
     // Finalize
     outStream.end();
