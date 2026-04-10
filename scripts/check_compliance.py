@@ -61,7 +61,9 @@ IGNORE_FILES = {
     # Tier 5: Cache Reader (CES Compliance Fix)
     'entity-cache-reader.js',
     # Tier 6: Public Prompt Entities (False Positive Bypasses for Art 9.1)
-    'prompts.astro', 'PromptDeepDive.astro'
+    'prompts.astro', 'PromptDeepDive.astro',
+    # Tier 7: Content Pages (Documentation — exempt from monolith check)
+    'developers.astro', 'methodology.astro'
 }
 
 # File extensions to scan for code quality
