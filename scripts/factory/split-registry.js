@@ -1,12 +1,17 @@
 /**
- * Registry Consolidator V55.9
+ * Registry Consolidator V56.0 (NDJSON Streaming)
  *
  * Consolidates natural shards (1000 entities each, from 1/4 Harvest)
  * into 20 hash-routed processing shards for the 2/4 matrix pipeline.
  * Replaces the V22.2 monolith splitter — monolith no longer exists.
  *
- * Input:  data/merged_shard_*.json.zst (natural shards from merge-batches)
- * Output: data/merged_shard_0..19.json.zst (hash-routed processing shards)
+ * V56.0: Output is NDJSON (one entity per line) inside Zstd, so the
+ * shard-processor reader can stream entities line-by-line via Rust FFI
+ * decompression + readline, never loading the full payload into a single
+ * V8 string (which caps at 512 MiB).
+ *
+ * Input:  data/merged_shard_*.json.zst (natural shards from merge-batches, JSON array)
+ * Output: data/merged_shard_0..19.json.zst (hash-routed processing shards, NDJSON)
  */
 
 import fs from 'node:fs';
@@ -14,6 +19,7 @@ import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
 import { zstdCompress, autoDecompress, createZstdCompressStream } from './lib/zstd-helper.js';
+import { initR2Bridge, createR2ClientFFI, uploadFileFFI, uploadFileMultipartFFI } from './lib/r2-bridge.js';
 
 const TOTAL_SHARDS = 20;
 const DATA_DIR = 'data';
@@ -50,12 +56,12 @@ async function consolidateShards() {
     await zstdCompress(Buffer.from('init'));
 
     // Open 20 output streams — write to temp names to avoid collision with input
+    // V56.0: NDJSON format — no array brackets, one JSON object per line.
     const shardCounts = new Array(TOTAL_SHARDS).fill(0);
     const outStreams = Array.from({ length: TOTAL_SHARDS }, (_, i) => {
         const zst = createZstdCompressStream();
         const ws = fs.createWriteStream(path.join(DATA_DIR, `proc_shard_${i}.json.zst`));
         zst.pipe(ws);
-        zst.write('[');
         return { zst, ws };
     });
 
@@ -76,8 +82,8 @@ async function consolidateShards() {
 
         for (const entity of entities) {
             const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
-            const prefix = shardCounts[shardIdx] === 0 ? '' : ',';
-            outStreams[shardIdx].zst.write(prefix + JSON.stringify(entity));
+            // V56.0 NDJSON: one entity per line, no separators
+            outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
             shardCounts[shardIdx]++;
             totalCount++;
         }
@@ -90,7 +96,6 @@ async function consolidateShards() {
 
     // Close all output streams
     for (let i = 0; i < TOTAL_SHARDS; i++) {
-        outStreams[i].zst.write(']');
         outStreams[i].zst.end();
     }
 
@@ -108,6 +113,38 @@ async function consolidateShards() {
             path.join(DATA_DIR, `proc_shard_${i}.json.zst`),
             path.join(DATA_DIR, `merged_shard_${i}.json.zst`)
         );
+    }
+
+    // V56.0: R2-primary upload of processing shards (durable cross-job transport).
+    // Matrix shard jobs will fall back to this prefix if GHA cache misses.
+    initR2Bridge();
+    const r2 = createR2ClientFFI();
+    if (r2) {
+        console.log(`\n☁️ [Consolidator] Uploading processing shards to R2 (state/processing-shards/)...`);
+        let uploaded = 0, failed = 0;
+        for (let i = 0; i < TOTAL_SHARDS; i++) {
+            const localPath = path.join(DATA_DIR, `merged_shard_${i}.json.zst`);
+            const r2Key = `state/processing-shards/merged_shard_${i}.json.zst`;
+            try {
+                const stat = await fsp.stat(localPath);
+                // Use multipart for >8MB; processing shards are typically 30-100MB
+                if (stat.size > 8 * 1024 * 1024) {
+                    await uploadFileMultipartFFI(r2, localPath, r2Key);
+                } else {
+                    await uploadFileFFI(r2, localPath, r2Key, null);
+                }
+                uploaded++;
+            } catch (e) {
+                console.warn(`   ⚠️ R2 upload failed for shard ${i}: ${e.message}`);
+                failed++;
+            }
+        }
+        console.log(`   ☁️ R2 upload: ${uploaded}/${TOTAL_SHARDS} succeeded, ${failed} failed`);
+        if (failed > 0) {
+            console.warn(`   ⚠️ Some shards not on R2 — matrix jobs will rely on GHA cache only`);
+        }
+    } else {
+        console.warn(`   ⚠️ R2 client unavailable — skipping R2 upload (matrix jobs will rely on cache)`);
     }
 
     // Integrity check
