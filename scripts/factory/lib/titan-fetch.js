@@ -6,7 +6,7 @@
  * response body error logging, shared circuit breaker, safety settings.
  */
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const GEMINI_FALLBACK_MODEL = 'gemini-2.5-pro';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -139,9 +139,13 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
     const fallbackUrl = (GEMINI_FALLBACK_MODEL && GEMINI_FALLBACK_MODEL !== GEMINI_MODEL)
         ? `${GEMINI_BASE}/${GEMINI_FALLBACK_MODEL}:generateContent?key=${apiKey}` : null;
 
-    // V25.9.2: Retry loop — retries once on truncation (MAX_TOKENS) or parse failure
+    // V26.10: Retry loop — retries once on truncation (MAX_TOKENS) with doubled token limit
     for (let attempt = 0; attempt < 2; attempt++) {
         await enforceStaggerDelay();
+        if (attempt > 0) {
+            body.generationConfig.maxOutputTokens = Math.min(maxOutputTokens * 4, 8192);
+            fetchOpts.body = JSON.stringify(body);
+        }
         let response = await fetchWithTitan(primaryUrl, fetchOpts);
         if (!response && fallbackUrl) {
             console.warn(`[TITAN] Primary model failed. Trying fallback: ${GEMINI_FALLBACK_MODEL}`);
