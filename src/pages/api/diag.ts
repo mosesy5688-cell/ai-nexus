@@ -47,7 +47,7 @@ export const GET: APIRoute = async ({ locals }) => {
         }
 
         // Step 2: Open DB connection (uses sqlite-engine singleton with pre-compiled WASM)
-        const dbName = 'meta-00.db'; // V5.8: 16-way hash sharding
+        const dbName = 'meta-00.db'; // V25.9.1: xxhash64(slug) % meta_shards — count from manifest
         let engine: any;
         try {
             const t2 = Date.now();

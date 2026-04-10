@@ -47,7 +47,8 @@ export class CatalogDataSource {
         }
 
         // V25.9: Unified hash sharding — all types mixed in each meta-NN.db
-        const count = partitions?.meta_shards || 40;
+        // V25.9.1: Fallback bumped 40 → 48 in lockstep with pack-db.js META_SHARD_COUNT.
+        const count = partitions?.meta_shards || 48;
         this.shardQueue = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
         console.log(`[CatalogDataSource] Shard queue (${this.type}): ${this.shardQueue.length} shards`);
     }

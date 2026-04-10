@@ -69,7 +69,10 @@ async function packDatabase() {
     await computeEmbeddingsStreaming(accumulator, cacheDb);
 
     // ── Phase 3: Setup Shard DBs ──
-    const META_SHARD_COUNT = 40;
+    // V25.9.1: 40 → 48. Post-#1727 slot_0 hit 101.53 MB (run 24255279523) — density
+    // growth from full FNI coverage, not bloat. Expected post-bump max ≈ 84.6 MB.
+    // Manifest is the source of truth; fallbacks in sqlite-engine.ts + CatalogDataSource.js.
+    const META_SHARD_COUNT = 48;
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
     console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards`);
     const metaDbs = {};

@@ -34,7 +34,8 @@ export function getShardIndex(nameStr: string, shardCount: number) {
 export function determineTargetDbs(type: string, q: string, page: number, manifest?: any): { priority: string[], expansion: string[] } {
     const partitions = manifest?.partitions || {};
 
-    // V5.8: 16-way hash sharding — all types mixed in each meta-NN.db
+    // V25.9.1: xxhash64(slug) % meta_shards — all entity types mixed in each meta-NN.db.
+    // Count is manifest-driven (48 post-#PR, was 40; packer source of truth is pack-db.js).
     if (partitions.meta_shards) {
         const count = partitions.meta_shards as number;
         const all = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
