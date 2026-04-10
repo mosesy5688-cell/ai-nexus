@@ -26,10 +26,28 @@ const mcpConfig = JSON.stringify({
     }
   }
 }, null, 2);
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "WebAPI",
+  "name": "Free2AI API",
+  "description": "Search, rank, and explain open-source AI models, tools, datasets, and papers by FNI score",
+  "url": `${SITE}/api/v1/search`,
+  "documentation": `${SITE}/developers`,
+  "provider": { "@type": "Organization", "name": "Free2AITools", "url": SITE },
+  "termsOfService": `${SITE}/compliance`,
+  "availableChannel": [
+    { "@type": "ServiceChannel", "serviceUrl": `${SITE}/api/v1/search`, "name": "REST API" },
+    { "@type": "ServiceChannel", "serviceUrl": `${SITE}/api/mcp`, "name": "MCP Server" },
+    { "@type": "ServiceChannel", "serviceUrl": `${SITE}/api/v1/badge/{umid}`, "name": "FNI Badge" }
+  ]
+});
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <main class="max-w-4xl mx-auto px-4 py-12">
+    <!-- Structured data for agents and search engines (valid in body per Google spec) -->
+    <script type="application/ld+json" set:html={jsonLd} />
     <!-- Hero -->
     <div class="text-center mb-12">
       <h1 class="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4">
@@ -48,7 +66,7 @@ const mcpConfig = JSON.stringify({
       <a href="#api" class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800 hover:border-blue-400 transition-colors">
         <div class="text-2xl mb-2">{`{ }`}</div>
         <h3 class="font-bold text-blue-800 dark:text-blue-300">REST API</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Search 430K+ AI entities ranked by FNI</p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Search hundreds of thousands of AI entities ranked by FNI</p>
       </a>
       <a href="#mcp" class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800 hover:border-purple-400 transition-colors">
         <div class="text-2xl mb-2">&lt;/&gt;</div>
@@ -180,14 +198,28 @@ const mcpConfig = JSON.stringify({
           </div>
         </div>
 
-        <!-- Generic -->
+        <!-- Windsurf -->
         <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Any MCP Client</h4>
+          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Windsurf</h4>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Go to <strong>Cascade &gt; Plugins &gt; Add MCP Server</strong>, enter:
+          </p>
+          <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+            <code>URL: {SITE}/api/mcp<br/>Transport: Streamable HTTP</code>
+          </div>
+        </div>
+
+        <!-- Generic / Auto-Discovery -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Any MCP Client / Auto-Discovery</h4>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
             Endpoint: <code class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-blue-600 dark:text-blue-400">POST {SITE}/api/mcp</code>
           </p>
-          <p class="text-sm text-gray-600 dark:text-gray-400">
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
             Protocol: JSON-RPC 2.0 (MCP Spec 2025-03-26). Supports <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">initialize</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">tools/list</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">tools/call</code>.
+          </p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Machine-readable server manifest: <a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">{SITE}/.well-known/mcp.json</a>
           </p>
         </div>
       </div>
@@ -276,7 +308,7 @@ const mcpConfig = JSON.stringify({
     <!-- Footer CTA -->
     <section class="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
       <h2 class="text-2xl font-bold mb-4">Build with Free2AI</h2>
-      <p class="text-blue-100 mb-6">430K+ AI entities &middot; FNI-ranked &middot; Updated daily</p>
+      <p class="text-blue-100 mb-6">Hundreds of thousands of AI entities &middot; FNI-ranked &middot; Updated daily</p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <a href="https://github.com/mosesy5688-cell/ai-nexus" target="_blank" rel="noopener noreferrer" class="inline-block bg-white text-blue-600 font-bold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors">
           GitHub

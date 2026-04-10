@@ -1,0 +1,48 @@
+{
+  "name": "free2ai",
+  "version": "1.0.0",
+  "description": "Search, rank, and explain open-source AI models, tools, datasets, and papers by FNI score",
+  "url": "https://free2aitools.com/api/mcp",
+  "transport": "streamable-http",
+  "protocol_version": "2025-03-26",
+  "tools": [
+    {
+      "name": "free2ai_search",
+      "description": "Search and rank AI tools, models, datasets, and papers by FNI score. Returns ranked results with metadata.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Natural language search query" },
+          "limit": { "type": "number", "default": 10, "description": "Max results (1-20)" },
+          "type": { "type": "string", "enum": ["all", "model", "tool", "dataset", "paper"], "description": "Filter by entity type" }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "free2ai_rank",
+      "description": "Rank AI tools by FNI score for a given task context. Ideal for AI agents selecting the best tool for a job.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Search query" },
+          "task": { "type": "string", "description": "The task to rank tools for" },
+          "constraints": { "type": "array", "items": { "type": "string" }, "description": "Filtering constraints" },
+          "limit": { "type": "number", "default": 10, "description": "Max results (1-20)" }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "free2ai_explain",
+      "description": "Explain why a specific AI entity received its FNI ranking score with factor breakdown (Semantic, Authority, Popularity, Recency, Quality).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Entity name or ID to explain (e.g. 'meta-llama/Llama-3-8B')" }
+        },
+        "required": ["id"]
+      }
+    }
+  ]
+}
