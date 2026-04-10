@@ -117,23 +117,19 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
             }
         });
     } else {
-        // B. Fallback to Update Shards
+        // B. Fallback to Update Shards (V56.2: per-entity streaming callback contract)
         console.log(`  [DELTAS] Processing Update Shards from ${artifactDir}...`);
-        await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (shard) => {
-            if (shard?.entities) {
-                for (const result of shard.entities) {
-                    const incoming = result.enriched || result;
-                    const regIdx = registryMap.get(incoming.id);
-                    if (regIdx !== undefined) {
-                        if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
-                        updateBuffers.get(regIdx).push(JSON.stringify(incoming));
-                        updateCount++;
-                        totalProcessed++;
+        await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (result) => {
+            const incoming = result.enriched || result;
+            const regIdx = registryMap.get(incoming.id);
+            if (regIdx !== undefined) {
+                if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
+                updateBuffers.get(regIdx).push(JSON.stringify(incoming));
+                updateCount++;
+                totalProcessed++;
 
-                        if (totalProcessed % FLUSH_THRESHOLD === 0) {
-                            await flushBuffers();
-                        }
-                    }
+                if (totalProcessed % FLUSH_THRESHOLD === 0) {
+                    await flushBuffers();
                 }
             }
         });
