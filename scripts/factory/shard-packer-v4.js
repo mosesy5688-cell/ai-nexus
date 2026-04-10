@@ -12,12 +12,11 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import zlib from 'zlib';
 import { autoDecompress } from './lib/zstd-helper.js';
 import { generateUMID } from './lib/umid-generator.js';
-import { initRustBridge, computeShardSlotFFI, buildEnrichmentManifestFFI, validateFusionContentFFI } from './lib/rust-bridge.js';
+import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
 import { ShardWriter } from './lib/shard-writer.js';
-import { initR2Bridge, createR2ClientFFI, streamToR2FFI, downloadFromR2FFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
+import { initR2Bridge, createR2ClientFFI, streamToR2FFI, downloadFromR2FFI } from './lib/r2-bridge.js';
 
 const SHARD_SOFT_LIMIT = 4 * 1024 * 1024;  // 4MB soft (optimized for VFS-mmap)
 const TOTAL_SLOTS = 4096;
@@ -92,15 +91,6 @@ export async function packV4Shards() {
     }
     console.log(`[V4-PACKER] Sources: ${allSourceFiles.length} files`);
 
-    // V25.8.3 Fusion Sweep — build enrichment manifest via Rust FFI (Spec §3.2)
-    let enrichmentManifest = new Map();
-    if (r2) {
-        console.log('[V4-PACKER] Fusion Sweep: scanning R2 enrichment/fulltext/...');
-        const etags = await fetchAllR2ETagsFFI(r2, ['enrichment/fulltext/']);
-        enrichmentManifest = buildEnrichmentManifestFFI([...etags.keys()]);
-        console.log(`[V4-PACKER] Fusion Sweep: ${enrichmentManifest.size} enriched papers found`);
-    }
-
     // Route entities to logical slots
     const slots = new Map();
     let entityIndex = 0;
@@ -120,19 +110,9 @@ export async function packV4Shards() {
             const umid = umidMapping[id] || generateUMID(id);
             const slotId = computeShardSlotFFI(umid, TOTAL_SLOTS);
 
-            // V25.8.3 Fusion: inject enriched fulltext via Rust validation (Spec §3.2)
-            let bodyContent = entity.readme || entity.html_readme || entity.body_content || '';
-            let hasFulltext = entity.has_fulltext || false;
-            if (entity.type === 'paper' && enrichmentManifest.has(umid)) {
-                try {
-                    const raw = await downloadBufferFromR2FFI(r2, enrichmentManifest.get(umid));
-                    const fulltext = (await autoDecompress(raw)).toString('utf-8');
-                    // Rust FFI validates quality + prevents downgrade
-                    const fusion = validateFusionContentFFI(fulltext, bodyContent);
-                    bodyContent = fusion.text;
-                    hasFulltext = fusion.hasFulltext;
-                } catch { /* non-fatal: keep original body_content */ }
-            }
+            // Enrichment already merged by master-fusion V26.8 (all entity types)
+            const bodyContent = entity.readme || entity.html_readme || entity.body_content || '';
+            const hasFulltext = entity.has_fulltext || false;
 
             const payload = Buffer.from(JSON.stringify({
                 umid,
