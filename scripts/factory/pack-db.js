@@ -3,11 +3,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
 import { configureDistiller, distillEntity } from './lib/v25-distiller.js';
-import {
-    loadTrendingMap, loadTrendMap, ingestToAccumulator,
-    buildBundleJson, buildEntityRow,
-    setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary
-} from './lib/pack-utils.js';
+import { loadTrendingMap, loadTrendMap, ingestToAccumulator, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary } from './lib/pack-utils.js';
 import { computeMetaShardSlot } from './lib/meta-shard-router.js';
 import { dbSchemas, searchDbSchema, ftsDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
@@ -93,9 +89,7 @@ async function packDatabase() {
 
     // Prepare Statements
     const placeholder = Array(54).fill('?').join(', ');
-    const prepInserts = {};
-
-    const prepFts = {};
+    const prepInserts = {}, prepFts = {};
     for (const [key, db] of Object.entries(metaDbs)) {
         prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
         prepFts[key] = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
@@ -119,14 +113,23 @@ async function packDatabase() {
     ftsDb.exec("BEGIN TRANSACTION");
 
     let searchFtsRowId = 1;
-
     configureDistiller();
-
     // V25.9: Build entity lookup from accumulator (O(1) per-entity, ~40MB total)
     const entityLookup = accumulator.getEntityLookup();
 
-    // ── Phase 4: Streaming Pack Loop — iterate accumulator, never materialize full array ──
+    // ── Phase 4: Streaming Pack Loop. Defense-in-depth umid dedup before the 6
+    // inserts (root cause fixed in master-fusion #1724) — FNI DESC keeps the winner.
+    const seenUmids = new Set();
+    let dupSkipped = 0;
     for (let e of accumulator.iterate()) {
+        const umidKey = e.umid || e.id;
+        if (seenUmids.has(umidKey)) {
+            dupSkipped++;
+            console.warn(`[VFS] ⚠️ Skipping duplicate umid ${umidKey} (id=${e.id}, fni=${e.fni_score ?? e.fni ?? 0}) — upstream regression?`);
+            continue;
+        }
+        seenUmids.add(umidKey);
+
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
@@ -136,9 +139,6 @@ async function packDatabase() {
 
         // V25.8.3: Selective Injection (Zero-Heap Persistent Pattern)
         const keywords = e.search_vector || '';
-        const vecRow = getVecStm.get(e.id || e.slug);
-        const annVectorBase64 = (vecRow && vecRow.vector) ? Buffer.from(vecRow.vector).toString('base64') : '';
-
         const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;
         if (bundleJson.length > THRESHOLD_KB * 1024) {
@@ -155,15 +155,10 @@ async function packDatabase() {
         const category = getV6Category(e);
         const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
-        // V25.8.3 ARCH SPLIT:
-        // 1. Meta Values (for Slots): Use original keywords to keep DB < 100MB
+        // V25.8.3 ARCH SPLIT: meta slots get original keywords (DB < 100MB);
+        // search.db gets summary truncated to 1000 chars (full body lives in fused shards).
         e.search_vector = keywords;
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
-
-        // 2. Search Values (for full-search): Truncate summary to 1000 chars.
-        //    Full body_content lives in fused shards, not search.db.
-        //    1000 chars is sufficient for FTS5 + inverted index tokenization.
-        e.search_vector = keywords;
         const searchSummary = rawSummary.length > 1000 ? rawSummary.substring(0, 1000) + '...' : rawSummary;
         const searchValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, searchSummary, bundleKey, offset, size);
 
@@ -190,6 +185,8 @@ async function packDatabase() {
     searchDb.exec("COMMIT");
     ftsDb.exec("COMMIT");
     shardWriter.finalize();
+
+    if (dupSkipped > 0) console.warn(`[VFS] ⚠️ Pack loop skipped ${dupSkipped} duplicate-umid entities — investigate upstream (master-fusion / 2/4 enriched payload)`);
 
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 

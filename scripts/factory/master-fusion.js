@@ -35,7 +35,9 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMa
 
     for (const result of shardEntities) {
         const entity = { ...result, ...(result.enriched || {}) };
-        if (!entity.umid && entity.id) entity.umid = generateUMID(entity.id);
+        // V26.9: Always re-stamp umid from canonical id with current salt — enriched
+        // payloads can carry stale dev-salt umids that collide in pack-db (#1724).
+        if (entity.id) entity.umid = generateUMID(entity.id);
         if (entity.relations) {
             entity.relations = entity.relations.filter(r => {
                 const nt = normalizeId(r.target_id, r.target_source || getNodeSource(r.target_id, r.target_type));
