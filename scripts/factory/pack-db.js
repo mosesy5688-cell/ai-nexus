@@ -126,7 +126,21 @@ async function packDatabase() {
     const entityLookup = accumulator.getEntityLookup();
 
     // ── Phase 4: Streaming Pack Loop — iterate accumulator, never materialize full array ──
+    // Defense-in-depth: track umids to skip duplicates BEFORE any of the 6 inserts run.
+    // Root cause is fixed in master-fusion.js (always re-stamp umid from canonical id),
+    // but this guard prevents future regressions from desyncing FTS5 rowids or crashing
+    // pack-db. Iteration order is FNI DESC, so the higher-ranked entity wins on collision.
+    const seenUmids = new Set();
+    let dupSkipped = 0;
     for (let e of accumulator.iterate()) {
+        const umidKey = e.umid || e.id;
+        if (seenUmids.has(umidKey)) {
+            dupSkipped++;
+            console.warn(`[VFS] ⚠️ Skipping duplicate umid ${umidKey} (id=${e.id}, fni=${e.fni_score ?? e.fni ?? 0}) — upstream regression?`);
+            continue;
+        }
+        seenUmids.add(umidKey);
+
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
@@ -190,6 +204,10 @@ async function packDatabase() {
     searchDb.exec("COMMIT");
     ftsDb.exec("COMMIT");
     shardWriter.finalize();
+
+    if (dupSkipped > 0) {
+        console.warn(`[VFS] ⚠️ Pack loop skipped ${dupSkipped} duplicate-umid entities — investigate upstream (master-fusion / 2/4 enriched payload)`);
+    }
 
     await finalizePack(metaDbs, searchDb, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 

@@ -35,7 +35,15 @@ async function fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMa
 
     for (const result of shardEntities) {
         const entity = { ...result, ...(result.enriched || {}) };
-        if (!entity.umid && entity.id) entity.umid = generateUMID(entity.id);
+        // V26.9: Always re-stamp umid from canonical id with current UMID_SALT.
+        // The spread above lets `result.enriched.umid` override `result.umid`,
+        // and enriched payloads can carry stale umids from past cycles where the
+        // salt (dev vs prod) differed. Inheriting those mixes namespaces and
+        // produces UNIQUE-constraint collisions in pack-db (see 4/4 run 24237153338).
+        // Re-stamping unconditionally guarantees umid = HMAC(current_salt, canonical_id),
+        // which is one-to-one with id and matches whatever generateUMID() produces
+        // elsewhere in the pipeline (Phase 3 enrichment lookup, registry-loader, etc.).
+        if (entity.id) entity.umid = generateUMID(entity.id);
         if (entity.relations) {
             entity.relations = entity.relations.filter(r => {
                 const nt = normalizeId(r.target_id, r.target_source || getNodeSource(r.target_id, r.target_type));
