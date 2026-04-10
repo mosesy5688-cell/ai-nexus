@@ -5,11 +5,31 @@
 
 use std::collections::HashSet;
 
+use hmac::{Hmac, Mac};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde_json::json;
+use sha2::Sha256;
 
 use crate::project::project_entity_for_fusion;
+
+type HmacSha256 = Hmac<Sha256>;
+
+/// V26.9 #1724: Rust-side mirror of JS `generateUMID`.
+/// HMAC-SHA256(key = UMID_SALT || 'nexus-dev-salt-v25.8', msg = canonical_id)
+/// → first 16 hex chars. Must match `scripts/factory/lib/umid-generator.js` exactly.
+fn generate_umid(canonical_id: &str) -> String {
+    let salt = std::env::var("UMID_SALT").unwrap_or_else(|_| "nexus-dev-salt-v25.8".to_string());
+    let mut mac = HmacSha256::new_from_slice(salt.as_bytes())
+        .expect("HMAC can take key of any size");
+    mac.update(canonical_id.as_bytes());
+    let bytes = mac.finalize().into_bytes();
+    let mut out = String::with_capacity(16);
+    for b in bytes.iter().take(8) {
+        out.push_str(&format!("{:02x}", b));
+    }
+    out
+}
 
 #[napi(object)]
 pub struct FuseShardResult {
@@ -75,6 +95,14 @@ pub fn fuse_shard(
             continue;
         }
 
+        // V26.9 #1724: Always re-stamp umid from canonical id with the current
+        // UMID_SALT. Binary shards can carry stale dev-salt umids from earlier
+        // cycles; inheriting those mixes namespaces and produces UNIQUE-constraint
+        // collisions in pack-db. Re-stamping is idempotent and guarantees one-to-one
+        // id ↔ umid alignment with Phase 3 enrichment lookup keys.
+        let fresh_umid = generate_umid(&id);
+        entity["umid"] = json!(fresh_umid);
+
         // A. Closed-world relation filter
         if let Some(rels) = entity
             .get_mut("relations")
@@ -105,13 +133,16 @@ pub fn fuse_shard(
         entity["fni_pScore"] = json!(fni_score);
         entity["fni_percentile"] = json!(percentile);
 
-        // C. Enrichment from pre-downloaded local files
+        // C. Enrichment from pre-downloaded local files.
+        // V26.9: use the freshly-stamped prod umid — Phase 4 of master-fusion.js
+        // saves enrichment files as `${generateUMID(id)}.md.gz`, so this matches.
+        // umid_manifest is kept as a belt-and-braces fallback for the rare case
+        // where UMID_SALT is missing (both sides resolve to the dev fallback).
         if do_enrich {
-            let entity_umid = entity.get("umid").and_then(|v| v.as_str()).unwrap_or("");
-            let umid = if entity_umid.is_empty() {
-                umid_manifest.get(&id).map(|s| s.as_str()).unwrap_or("")
+            let umid: &str = if !fresh_umid.is_empty() {
+                &fresh_umid
             } else {
-                entity_umid
+                umid_manifest.get(&id).map(|s| s.as_str()).unwrap_or("")
             };
             if !umid.is_empty() {
                 if let Some(text) = try_load_enrichment(&enrichment_dir, umid) {
@@ -146,6 +177,42 @@ pub fn fuse_shard(
         filtered_relations: filtered_rels,
         enriched_count: enriched,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn umid_matches_js_reference() {
+        // Reference values precomputed via JS generateUMID() in
+        // scripts/factory/lib/umid-generator.js. If this test fails after
+        // touching generate_umid(), you have desynced Rust from JS — pack-db
+        // will start rejecting entities with UNIQUE-umid collisions.
+        std::env::set_var("UMID_SALT", "test-salt-123");
+        assert_eq!(
+            generate_umid("hf-model--meta-llama--llama-3"),
+            "83ba6c32b557858b"
+        );
+        // Dev-fallback path (no UMID_SALT set)
+        std::env::remove_var("UMID_SALT");
+        assert_eq!(
+            generate_umid("hf-model--meta-llama--llama-3"),
+            dev_fallback_reference()
+        );
+    }
+
+    fn dev_fallback_reference() -> String {
+        // HMAC-SHA256('nexus-dev-salt-v25.8', 'hf-model--meta-llama--llama-3')[0..16]
+        let mut mac = HmacSha256::new_from_slice(b"nexus-dev-salt-v25.8").unwrap();
+        mac.update(b"hf-model--meta-llama--llama-3");
+        let b = mac.finalize().into_bytes();
+        let mut s = String::with_capacity(16);
+        for x in b.iter().take(8) {
+            s.push_str(&format!("{:02x}", x));
+        }
+        s
+    }
 }
 
 fn try_load_enrichment(dir: &str, umid: &str) -> Option<String> {
