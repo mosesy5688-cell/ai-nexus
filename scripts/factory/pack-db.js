@@ -89,8 +89,8 @@ async function packDatabase() {
     searchDb.exec(searchDbSchema);
     ftsDb.exec(ftsDbSchema);
 
-    // Prepare Statements
-    const placeholder = Array(54).fill('?').join(', ');
+    // Prepare Statements — V25.9.6: 55 cols (added has_fulltext)
+    const placeholder = Array(55).fill('?').join(', ');
     const prepInserts = {}, prepFts = {};
     for (const [key, db] of Object.entries(metaDbs)) {
         prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);

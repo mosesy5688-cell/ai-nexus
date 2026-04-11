@@ -70,9 +70,12 @@ export function upsertEntities(entities, dbPath = DEDUP_DB_PATH) {
     const db = openLedger(dbPath);
     const now = new Date().toISOString();
 
+    // V25.9.6: has_fulltext propagated from search.db (fusion-authoritative).
+    // MAX(old, new) semantics — once enriched, never regress to 0 (defensive against
+    // transient R2/enrichment-file outages where fusion might fail to detect fulltext).
     const upsert = db.prepare(`
-        INSERT INTO ledger (umid, canonical_id, type, source, name, author, first_seen_at, last_refresh_at, refresh_count, fni_score, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'active')
+        INSERT INTO ledger (umid, canonical_id, type, source, name, author, first_seen_at, last_refresh_at, refresh_count, fni_score, has_fulltext, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'active')
         ON CONFLICT(canonical_id) DO UPDATE SET
             umid = excluded.umid,
             last_refresh_at = excluded.last_refresh_at,
@@ -80,6 +83,7 @@ export function upsertEntities(entities, dbPath = DEDUP_DB_PATH) {
             fni_score = excluded.fni_score,
             name = COALESCE(excluded.name, name),
             author = COALESCE(excluded.author, author),
+            has_fulltext = MAX(has_fulltext, excluded.has_fulltext),
             status = 'active'
     `);
 
@@ -97,7 +101,8 @@ export function upsertEntities(entities, dbPath = DEDUP_DB_PATH) {
         const changes = upsert.run(
             umid, id, entity.type || 'model', entity.source || '',
             entity.name || '', author, now, now,
-            entity.fni_score || 0
+            entity.fni_score || 0,
+            entity.has_fulltext ? 1 : 0
         );
 
         if (changes.changes > 0) {
