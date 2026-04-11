@@ -8,8 +8,11 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { zstdCompress } from './zstd-helper.js';
 import { computeMetaShardSlot } from './meta-shard-router.js';
+import { META_SHARD_COUNT } from '../../../src/constants/shard-constants.js';
 
-const SHARD_COUNT = 40;
+// V∞ fix: shard slot MUST align with pack-db's META_SHARD_COUNT (currently 96).
+// Prior hardcoded SHARD_COUNT=40 left ~58% of entities unreachable via Tier 1
+// because postings pointed to the wrong meta-NN.db shard (h%40 ≠ h%96).
 const HIGH_FREQ_THRESHOLD = 10000;
 const HIGH_FREQ_CHUNK_SIZE = 5000;
 const STOP_WORDS = new Set([
@@ -99,7 +102,7 @@ export async function buildInvertedIndex(searchDbPath, outputDir) {
 
         totalDocs++;
         totalLen += terms.length;
-        const shard = computeMetaShardSlot(row.slug || row.id, SHARD_COUNT);
+        const shard = computeMetaShardSlot(row.slug || row.id, META_SHARD_COUNT);
 
         for (const term of terms) {
             let entry = termMap.get(term);
@@ -153,7 +156,7 @@ export async function buildInvertedIndex(searchDbPath, outputDir) {
         total_bytes: totalBytes,
         avg_doc_length: Math.round(avgDl * 10) / 10,
         high_freq_threshold: HIGH_FREQ_THRESHOLD,
-        shard_count: SHARD_COUNT
+        shard_count: META_SHARD_COUNT
     };
     const mJson = JSON.stringify(manifest, null, 2);
     const mCompressed = await zstdCompress(Buffer.from(mJson), 3);
