@@ -107,7 +107,7 @@ async function main() {
     console.log(`[BOOSTER] HF models: ${hfModels.length}/${models.length} (non-HF skipped)`);
     for (const model of hfModels) {
         processed++;
-        if (processed % 100 === 0) console.log(`[BOOSTER] Models: ${processed}/${hfModels.length} | S:${success}`);
+        if (processed % 100 === 0) console.log(`[BOOSTER] Models: ${processed}/${hfModels.length} | S:${success} F:${failed}`);
         if (Date.now() - startTime > MAX_RUNTIME_MS) break;
         // hf-model--author--name → author/name
         const hfId = model.canonical_id.slice('hf-model--'.length).replace('--', '/');
@@ -116,9 +116,18 @@ async function main() {
             const partition = model.umid.substring(0, 2);
             const key = `enrichment/fulltext/${partition}/${model.umid}.md.zst`;
             const compressed = await zstdCompress(readme);
-            await uploadBufferToR2FFI(s3, key, compressed, 'application/zstd');
-            enrichedUmids.push(model.umid);
-            success++;
+            // V25.8.8: Defensive try-catch — a single R2 PUT failure (e.g. transient CF edge 409
+            // with non-XML body, which crashes AWS SDK XML deserializer) must not kill the whole
+            // partition. Log, count, continue. Data is safe: already-PUT enrichment files persist,
+            // and the next run's buildAlreadyEnrichedSet() will skip them.
+            try {
+                await uploadBufferToR2FFI(s3, key, compressed, 'application/zstd');
+                enrichedUmids.push(model.umid);
+                success++;
+            } catch (e) {
+                console.warn(`[BOOSTER] R2 PUT failed for ${model.umid}: ${e?.message || e}`);
+                failed++;
+            }
         } else { skipped++; }
         await new Promise(r => setTimeout(r, 500 + Math.floor(Math.random() * 500)));
     }
@@ -193,7 +202,16 @@ async function main() {
             const partition = paper.umid.substring(0, 2);
             const key = `enrichment/fulltext/${partition}/${paper.umid}.md.zst`;
             const compressed = await zstdCompress(result.text);
-            await uploadBufferToR2FFI(s3, key, compressed, 'application/zstd');
+            // V25.8.8: Symmetric defensive try-catch — see Phase A rationale above.
+            // Additionally, trip the circuit breaker on R2 failure (same as paper-fetch failures).
+            try {
+                await uploadBufferToR2FFI(s3, key, compressed, 'application/zstd');
+            } catch (e) {
+                console.warn(`[BOOSTER] R2 PUT failed for ${paper.umid}: ${e?.message || e}`);
+                failed++;
+                await handleFailure();
+                continue;
+            }
 
             if (result.classification === 'SUCCESS') {
                 enrichedUmids.push(paper.umid);
