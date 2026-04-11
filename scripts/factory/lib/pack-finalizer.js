@@ -47,19 +47,20 @@ export async function finalizePack(metaDbs, searchDb, ftsDb, manifest, currentSh
     await fs.writeFile(path.join(shardDir, 'shards_manifest.json'), manifestJson);
     console.log(`[VFS] Manifest: ${(manifestBytes / 1024).toFixed(1)}KB (limit: 5MB)`);
 
-    printBuildSummary(metaDbs, searchDb, stats, currentShardId);
-
-    // Optimize all databases
-    console.log('[VFS] Optimizing databases...');
-    Object.values(metaDbs).forEach(db => {
-        // V55.9: Per-shard FTS5 removed — no optimize needed
-        db.exec("PRAGMA integrity_check; VACUUM;");
-        db.close();
-    });
-
-    // V55.9 §FTS5 Collapse: Optimize unified FTS5 in search.db
+    // V25.9.3: Optimize + VACUUM BEFORE the size check. Pre-vacuum measurement
+    // is inflated by FTS5 segment fragmentation + UPDATE free pages — run
+    // 24269853939 tripped the 1024MB breaker on search.db at 1054.61 MB while
+    // the actual deployed size is significantly smaller. Handles stay open so
+    // printBuildSummary can still query `SELECT count(*)` per DB.
+    console.log('[VFS] Optimizing databases before size check...');
+    Object.values(metaDbs).forEach(db => db.exec("PRAGMA integrity_check; VACUUM;"));
     searchDb.exec("INSERT INTO search(search) VALUES('optimize');");
     searchDb.exec("PRAGMA integrity_check; VACUUM;");
+
+    printBuildSummary(metaDbs, searchDb, stats, currentShardId);
+
+    // Close handles after measurement (VACUUM already done above)
+    Object.values(metaDbs).forEach(db => db.close());
     searchDb.close();
 
     // V5.8 §1.1: Finalize decoupled FTS5 with incremental merge + WAL checkpoint
