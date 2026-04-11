@@ -42,8 +42,10 @@ export const ftsDbSchema = `
 
 export const searchDbSchema = `
     ${entitiesTableSql}
-    -- V55.9 §FTS5 Collapse: Unified FTS5 co-located with entities (replaces 32-shard federation)
-    CREATE VIRTUAL TABLE search USING fts5(name, summary, author, tags, category, content='', tokenize='porter unicode61 remove_diacritics 2');
+    -- V25.9.5: FTS5 retired from search.db. Active readers — sync-ledger (1.5 enrichment list),
+    -- inverted-index-builder (Phase 1A-β term_index), pack-db Phase 6 (Top-30k vectors),
+    -- vfs-sitemap-gen — all query the entities table only. Runtime search uses term_index/
+    -- + meta-NN.db, never search.db. FTS5 was ~200-400 MB of dead-weight dictionaries.
     CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
     CREATE INDEX idx_fni_full ON entities(fni_score DESC, raw_pop DESC, slug ASC);
     CREATE INDEX idx_type ON entities(type);

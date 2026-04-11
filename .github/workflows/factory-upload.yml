@@ -554,6 +554,17 @@ jobs:
           DEDUP_DB_PATH: ./output/data/dedup.db
           UMID_SALT: ${{ secrets.UMID_SALT }}
         run: node scripts/factory/sync-ledger.js
+      # V25.9.5: search.db has no runtime consumer. sync-ledger above already extracted the
+      # 1.5 enrichment list into dedup.db, and inverted-index-builder / Phase 6 / vfs-sitemap-gen
+      # ran in the pack job. Discard it before R2 upload — R2_PREFIX_FILTER's trailing `data/`
+      # would otherwise catch it and waste ~600-800 MB of upload + Class A PUT ops every cycle.
+      - name: Discard search.db (CI-only scratch, no runtime consumer)
+        run: |
+          if [ -f "output/data/search.db" ]; then
+            SZ=$(du -m output/data/search.db | cut -f1)
+            rm -f output/data/search.db
+            echo "🗑️ Discarded output/data/search.db (${SZ} MB) — sync-ledger already consumed it"
+          fi
       - name: Upload to R2 via S3 API
         env:
           # V22.9.6: Removed cache/fused/ (~290K PUTs) and cache/mesh/profiles/ (~10K PUTs)
@@ -624,7 +635,7 @@ jobs:
           # V25.8: Initialize with global configs, core DB, and new V25.8 assets
           WARM_URLS=(
             "https://cdn.free2aitools.com/data/shards_manifest.json"
-            "https://cdn.free2aitools.com/data/search.db"
+            # V25.9.5: search.db retired from CDN — no runtime consumer
             "https://cdn.free2aitools.com/data/fts.db"
             "https://cdn.free2aitools.com/data/hot-shard.bin"
             "https://cdn.free2aitools.com/data/vector-core.bin"
