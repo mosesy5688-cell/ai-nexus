@@ -228,7 +228,8 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
         const fileStats = fsSync.statSync(db.name);
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
-        const limitMB = (name === 'full-search') ? 1024 : 100; // V5.8 §1.1: < 100MB Edge Worker constraint (search.db exempt)
+        // V25.9.4: full-search 1024→2048 (run 24271732160 hit 1047 MB post-VACUUM; old limit was a self-heuristic, not a CF cap — R2 VFS does Range Reads. Buys ~42mo until Phase 1A IVF retires FTS5).
+        const limitMB = (name === 'full-search') ? 2048 : 100; // V5.8 §1.1: < 100MB Edge Worker constraint (search.db exempt)
         const isOver = fileStats.size > limitMB * 1024 * 1024;
         const status = isOver ? `🛑 OVER ${limitMB}MB` : '✅ OK';
         if (isOver) offenders.push({ name, sizeMB, limitMB });
