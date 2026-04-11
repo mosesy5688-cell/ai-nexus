@@ -10,38 +10,62 @@
  */
 
 import Database from 'better-sqlite3';
+import fs from 'fs';
+import path from 'path';
 
 const ARGS = process.argv.slice(2);
 const dbArg = ARGS.find(a => a.startsWith('--db='))?.split('=')[1];
-const DB_PATH = dbArg || './output/data/search.db';
+const DATA_DIR = './output/data';
 const CDN_BASE = 'https://cdn.free2aitools.com';
 
+// V25.9.5: search.db retired. Sample from meta-NN.db union — each meta shard
+// holds ~1/40 of entities; unioning all slots covers every bundle_key.
+function collectSamplesFromShards() {
+    if (dbArg) {
+        const db = new Database(dbArg, { readonly: true });
+        const rows = db.prepare(SAMPLE_SQL).all();
+        db.close();
+        return rows;
+    }
+    const metaFiles = fs.readdirSync(DATA_DIR)
+        .filter(f => /^meta-\d{2}\.db$/.test(f))
+        .map(f => path.join(DATA_DIR, f));
+    if (metaFiles.length === 0) throw new Error(`No meta-NN.db found in ${DATA_DIR}`);
+
+    const perBundle = new Map();
+    for (const file of metaFiles) {
+        const db = new Database(file, { readonly: true });
+        for (const row of db.prepare(SAMPLE_SQL).all()) {
+            if (!perBundle.has(row.bundle_key)) perBundle.set(row.bundle_key, row);
+        }
+        db.close();
+    }
+    return Array.from(perBundle.values());
+}
+
+const SAMPLE_SQL = `
+    SELECT e.id, e.bundle_key, e.bundle_offset, e.bundle_size
+    FROM entities e
+    INNER JOIN (
+        SELECT bundle_key, MIN(rowid) as rid
+        FROM (
+            SELECT bundle_key, rowid FROM entities
+            WHERE bundle_key IS NOT NULL
+            ORDER BY RANDOM()
+        )
+        GROUP BY bundle_key
+    ) s ON e.rowid = s.rid
+`;
+
 async function probe() {
-    console.log('[PROBE] 🏥 V22.8 Full-Shard Production VFS Integrity Probe...');
+    console.log('[PROBE] 🏥 V25.9.5 Full-Shard Production VFS Integrity Probe...');
 
     if (!process.env.CLOUDFLARE_ZONE_ID) {
         console.warn('[PROBE] ⚠️ No Zone ID found. Skipping production probe (CI Dry Run).');
         return;
     }
 
-    const db = new Database(DB_PATH, { readonly: true });
-
-    // V22.8: Get one random entity per shard for full coverage
-    const samples = db.prepare(`
-        SELECT e.id, e.bundle_key, e.bundle_offset, e.bundle_size
-        FROM entities e
-        INNER JOIN (
-            SELECT bundle_key, MIN(rowid) as rid
-            FROM (
-                SELECT bundle_key, rowid FROM entities 
-                WHERE bundle_key IS NOT NULL
-                ORDER BY RANDOM()
-            )
-            GROUP BY bundle_key
-        ) s ON e.rowid = s.rid
-    `).all();
-
-    db.close();
+    const samples = collectSamplesFromShards();
 
     if (samples.length === 0) {
         console.error('[PROBE] ❌ No sharded entities found in DB! Probe failed.');
