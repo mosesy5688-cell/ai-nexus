@@ -6,6 +6,7 @@ import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.m
 // @ts-ignore
 import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { R2RangeVFS } from './r2-vfs.js';
+import { META_SHARD_COUNT } from '../constants/shard-constants.js';
 // V26.2: ?module import handled natively by @cloudflare/vite-plugin
 // This gives us a pre-compiled WebAssembly.Module at build time,
 // bypassing CF Workers' runtime WASM compilation block.
@@ -146,7 +147,7 @@ export async function loadManifest(r2Bucket: any, simulate: boolean) {
             shardManifest._etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '');
         }
     } catch (e) {
-        shardManifest = { partitions: { meta_shards: 48 }, _etag: 'fallback' };
+        shardManifest = { partitions: { meta_shards: META_SHARD_COUNT }, _etag: 'fallback' };
     }
     return shardManifest;
 }

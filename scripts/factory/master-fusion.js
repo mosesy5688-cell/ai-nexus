@@ -8,62 +8,17 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
-import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
+import { zstdCompress } from './lib/zstd-helper.js';
 import { initRustBridge, fuseShardFFI } from './lib/rust-bridge.js';
 import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
 import { generateUMID, generateDevUMID } from './lib/umid-generator.js';
+import { fuseShardJS } from './lib/fuse-shard-js.js';
 
 const CONFIG = {
     CACHE_DIR: process.env.CACHE_DIR || './cache',
     ARTIFACT_DIR: process.env.ARTIFACT_DIR || './artifacts',
     OUTPUT_DIR: './output'
 };
-
-/** JS fallback: process shard when Rust is unavailable. */
-async function fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir, r2, outIdx) {
-    let shardEntities = [];
-    if (shardPath.endsWith('.bin')) {
-        const { readBinaryShard } = await import('./lib/registry-binary-reader.js');
-        shardEntities = (await readBinaryShard(shardPath))?.entities || [];
-    } else {
-        const raw = await fs.readFile(shardPath);
-        shardEntities = JSON.parse((await autoDecompress(raw)).toString('utf-8')).entities || [];
-    }
-    const { projectEntity } = await import('./lib/registry-loader.js');
-    const { normalizeId, getNodeSource } = await import('../utils/id-normalizer.js');
-    let fusedEntities = [], enrichedInShard = 0;
-
-    for (const result of shardEntities) {
-        const entity = { ...result, ...(result.enriched || {}) };
-        // V26.9: Always re-stamp umid from canonical id with current salt — enriched
-        // payloads can carry stale dev-salt umids that collide in pack-db (#1724).
-        if (entity.id) entity.umid = generateUMID(entity.id);
-        if (entity.relations) {
-            entity.relations = entity.relations.filter(r => {
-                const nt = normalizeId(r.target_id, r.target_source || getNodeSource(r.target_id, r.target_type));
-                return allValidIds.has(nt);
-            });
-        }
-        entity.fni_pScore = entity.fni_score ?? entity.fni ?? 0;
-        entity.fni_percentile = fniThresholds.scorePercentiles?.[entity.fni_pScore] || 0;
-
-        // V26.8: Enrichment from pre-downloaded local files (saved as prod umid)
-        if (entityEnrichMap.has(entity.id)) {
-            try {
-                const localPath = path.join(enrichmentDir, `${entity.umid}.md.gz`);
-                const raw = await fs.readFile(localPath);
-                const fulltext = (await autoDecompress(raw)).toString('utf-8');
-                if (fulltext.length > 200) {
-                    entity.body_content = fulltext;
-                    entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
-                    enrichedInShard++;
-                }
-            } catch { /* file not downloaded for this shard — skip */ }
-        }
-        fusedEntities.push(projectEntity(entity, false));
-    }
-    return fusedEntities;
-}
 
 async function main() {
     console.log('[FUSION V26.8] Starting Mesh Fusion...');
@@ -216,7 +171,7 @@ async function main() {
                 totalEnriched += result.enrichedCount;
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${result.enrichedCount} enriched)`);
             } else {
-                const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir, r2, i);
+                const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir);
                 await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
                     shardId: i, entities: fused, _ts: new Date().toISOString()
                 })));

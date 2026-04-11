@@ -14,6 +14,7 @@ import { ShardWriter } from './lib/shard-writer.js';
 import { initRustBridge } from './lib/rust-bridge.js';
 import { computeEmbeddings } from './lib/embedding-generator.js';
 import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
+import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SEARCH_DB_PATH = './output/data/search.db', SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024, EMBEDDING_STREAM_BATCH = 500;
@@ -69,10 +70,8 @@ async function packDatabase() {
     await computeEmbeddingsStreaming(accumulator, cacheDb);
 
     // ── Phase 3: Setup Shard DBs ──
-    // V25.9.1: 40 → 48. Post-#1727 slot_0 hit 101.53 MB (run 24255279523) — density
-    // growth from full FNI coverage, not bloat. Expected post-bump max ≈ 84.6 MB.
-    // Manifest is the source of truth; fallbacks in sqlite-engine.ts + CatalogDataSource.js.
-    const META_SHARD_COUNT = 48;
+    // V25.9.2: META_SHARD_COUNT imported from src/constants/shard-constants.js
+    // (single source of truth — bump there, not here). See #PR for rationale.
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
     console.log(`[VFS] V5.8 Hash-Shard Routing: ${META_SHARD_COUNT} meta shards`);
     const metaDbs = {};

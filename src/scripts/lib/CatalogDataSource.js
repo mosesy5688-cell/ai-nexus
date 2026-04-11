@@ -1,5 +1,6 @@
 import { DataNormalizer } from './DataNormalizer.js';
 import { SqliteClient } from './SqliteClient.js';
+import { META_SHARD_COUNT } from '../../constants/shard-constants.js';
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
 
@@ -46,9 +47,9 @@ export class CatalogDataSource {
             try { partitions = JSON.parse(localStorage.getItem('_vfs_partitions') || ''); } catch (_) { }
         }
 
-        // V25.9: Unified hash sharding — all types mixed in each meta-NN.db
-        // V25.9.1: Fallback bumped 40 → 48 in lockstep with pack-db.js META_SHARD_COUNT.
-        const count = partitions?.meta_shards || 48;
+        // V25.9.2: Fallback sourced from src/constants/shard-constants.js —
+        // single source of truth shared with pack-db.js and sqlite-engine.ts.
+        const count = partitions?.meta_shards || META_SHARD_COUNT;
         this.shardQueue = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
         console.log(`[CatalogDataSource] Shard queue (${this.type}): ${this.shardQueue.length} shards`);
     }
