@@ -43,6 +43,7 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
 
     const wasmConfig: any = {};
     sqliteInitPromise = (async () => {
+      try {
         // V26.1: Detect CF Workers first
         const isCloudflareWorkers = typeof caches !== 'undefined' && 'default' in caches;
 
@@ -80,6 +81,13 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
         globalSqlite3 = Factory(globalSqliteModule);
         globalVFS = new R2RangeVFS(r2Bucket, { simulate: shouldSimulate }, globalSqliteModule);
         globalSqliteModule.vfs_register(globalVFS, true);
+      } catch (e: any) {
+        // V26.3: Reset init promise on failure so subsequent requests can retry
+        // (otherwise every page load forever would hit the same rejected cached promise).
+        console.error('[SQLite Engine] WASM init failed:', e?.message || e);
+        sqliteInitPromise = null;
+        throw e;
+      }
     })();
 
     return sqliteInitPromise;

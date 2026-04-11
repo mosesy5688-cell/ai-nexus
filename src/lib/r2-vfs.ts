@@ -125,9 +125,12 @@ export class R2RangeVFS extends FacadeVFS {
 
                 if (this.bucket && !this.options.simulate) {
                     const obj = await this.bucket.get(`data/${fileName}`, { range: { offset: start, length: CHUNK_SIZE } });
+                    if (!obj) throw new Error(`R2 miss data/${fileName}@${start}`);
                     chunk = new Uint8Array(await obj.arrayBuffer());
                 } else {
                     const res = await fetch(`https://cdn.free2aitools.com/data/${fileName}`, { headers: { Range: `bytes=${start}-${end}` } });
+                    // V26.3: Validate HTTP status — 5xx body would be treated as valid data and poison the cache.
+                    if (!res.ok) throw new Error(`CDN fetch ${res.status} for data/${fileName}@${start}`);
                     chunk = new Uint8Array(await res.arrayBuffer());
                 }
 

@@ -137,6 +137,9 @@ const siteMeta = {
     <meta property="article:published_time" content={new Date().toISOString()} />
     <meta property="article:modified_time" content={new Date().toISOString()} />
 
+    <!-- V26.3: Schema.org JSON-LD (Organization + WebSite by default, page-specific when provided) -->
+    <script type="application/ld+json" set:html={JSON.stringify(schemaToUse)} />
+
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
