@@ -17,6 +17,7 @@
 import type { APIRoute } from 'astro';
 import { getCachedDbConnection, executeSql, loadManifest } from '../../../../lib/sqlite-engine.js';
 import { xxhash64Mod } from '../../../../utils/xxhash64.js';
+import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { env } from 'cloudflare:workers';
 
 const BADGE_CACHE = 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400';
@@ -76,7 +77,7 @@ export const GET: APIRoute = async ({ params }) => {
         const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
         const manifest = await loadManifest(r2Bucket, isDev);
-        const metaShards = Number(manifest?.partitions?.meta_shards) || 48;
+        const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
         const shardIdx = xxhash64Mod(routeKey, metaShards);
         const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
         const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
