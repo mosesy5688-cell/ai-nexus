@@ -98,7 +98,7 @@ async function packDatabase() {
     }
     const shardFtsRowIds = Object.fromEntries(Object.keys(metaDbs).map(k => [k, 1]));
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
-    const insertSearchFts = searchDb.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
+    // V25.9.5: search.db FTS5 retired — insertSearchFts removed. Readers query entities table only.
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
 
     // V25.8.3: Streaming Vector Query (from embedding cache)
@@ -114,7 +114,6 @@ async function packDatabase() {
     searchDb.exec("BEGIN TRANSACTION");
     ftsDb.exec("BEGIN TRANSACTION");
 
-    let searchFtsRowId = 1;
     configureDistiller();
     // V25.9: Build entity lookup from accumulator (O(1) per-entity, ~40MB total)
     const entityLookup = accumulator.getEntityLookup();
@@ -175,9 +174,9 @@ async function packDatabase() {
         const ftsTagStr = String(tags + ' ' + keywords);
         const catStr = String(category);
 
-        // Per-shard FTS5 (SSR federated search) + unified search.db FTS5 + standalone fts.db
+        // V25.9.5: Per-shard meta.db FTS5 (CatalogDataSource MATCH fallback) + standalone fts.db.
+        // search.db FTS5 retired — no reader, was ~200-400 MB dead weight.
         prepFts[targetKey].run(shardFtsRowIds[targetKey]++, nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
-        insertSearchFts.run(searchFtsRowId++, nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
         insertFts.run(stats.packed + 1, String(e.umid || e.id), nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
 
         stats.packed++;

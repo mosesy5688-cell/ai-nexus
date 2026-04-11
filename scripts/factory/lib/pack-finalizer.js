@@ -54,7 +54,7 @@ export async function finalizePack(metaDbs, searchDb, ftsDb, manifest, currentSh
     // printBuildSummary can still query `SELECT count(*)` per DB.
     console.log('[VFS] Optimizing databases before size check...');
     Object.values(metaDbs).forEach(db => db.exec("PRAGMA integrity_check; VACUUM;"));
-    searchDb.exec("INSERT INTO search(search) VALUES('optimize');");
+    // V25.9.5: search.db FTS5 retired — no FTS5 optimize pass needed here.
     searchDb.exec("PRAGMA integrity_check; VACUUM;");
 
     printBuildSummary(metaDbs, searchDb, stats, currentShardId);
@@ -68,5 +68,5 @@ export async function finalizePack(metaDbs, searchDb, ftsDb, manifest, currentSh
     ftsDb.pragma('wal_checkpoint(TRUNCATE)'); // Flush WAL to main DB before shipping
     ftsDb.exec("PRAGMA integrity_check; VACUUM;");
     ftsDb.close();
-    console.log('[VFS] V55.9: search.db unified (entities + FTS5), fts.db legacy checkpointed.');
+    console.log('[VFS] V25.9.5: search.db (entities only, FTS5 retired), fts.db legacy checkpointed.');
 }
