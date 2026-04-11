@@ -32,7 +32,10 @@ export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
 }
 
 /**
- * V18.9: Build 54-column entity row for meta.db/search.db (UMID + CDDPP + rawPop)
+ * V25.9.6: Build 55-column entity row for meta.db/search.db.
+ * Column 55 (has_fulltext) lets sync-ledger skip entities already enriched by Factory 1.5.
+ * Authoritative source is master-fusion (fuse-shard-js.js) which sets entity.has_fulltext
+ * based on R2 {umid}.md.gz presence + quality heuristic (>1000 chars, >=2 headings).
  */
 export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, summary, bundleKey, offset, size) {
     const s = (v, fallback = '') => {
@@ -64,6 +67,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.datasets_used), s(e.quick_start),
         n(e.vram_fp16_gb), n(e.vram_int8_gb), n(e.vram_int4_gb),
         '', '', s(e.search_vector),
-        s(e.canonical_url), s(e.citation)
+        s(e.canonical_url), s(e.citation),
+        e.has_fulltext ? 1 : 0
     ];
 }

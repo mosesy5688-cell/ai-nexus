@@ -33,8 +33,9 @@ async function main() {
     }
 
     // SQLite cursor iteration — O(1) memory, no JSON parse, no Zstd
+    // V25.9.6: has_fulltext sourced from master-fusion (authoritative); upsertEntities applies MAX semantics.
     const stmt = searchDb.prepare(
-        'SELECT id, umid, slug, name, type, author, source, fni_score FROM entities'
+        'SELECT id, umid, slug, name, type, author, source, fni_score, has_fulltext FROM entities'
     );
 
     let batch = [];

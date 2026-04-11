@@ -17,7 +17,8 @@ export const entitiesTableSql = `
         datasets_used TEXT, quick_start TEXT,
         vram_fp16_gb REAL, vram_int8_gb REAL, vram_int4_gb REAL,
         readme_html TEXT, ui_related_mesh TEXT, search_vector TEXT,
-        canonical_url TEXT, citation TEXT
+        canonical_url TEXT, citation TEXT,
+        has_fulltext INTEGER DEFAULT 0
     );
 
 `;
