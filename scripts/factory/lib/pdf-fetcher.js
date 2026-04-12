@@ -65,8 +65,12 @@ export function initMarkerSidecar() {
             }
         });
 
-        // Timeout fallback if sidecar never prints "Ready"
-        setTimeout(() => resolve(false), 120000);
+        // V25.8.9: Timeout fallback if sidecar never prints "Ready".
+        // Must exceed Marker cold-start (~2m49s observed in run 24280140876:
+        // 1.34GB model download + PyTorch load + "Ready" print). GHA runners
+        // are ephemeral so every run is cold start — 120s was 49s too short
+        // and PDF fallback was silently disabled on every 1.5 run since V25.8.7.
+        setTimeout(() => resolve(false), 300000);
     });
 }
 
