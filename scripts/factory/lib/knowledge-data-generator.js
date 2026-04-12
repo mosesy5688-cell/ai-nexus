@@ -16,6 +16,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { getCategory, parseFrontmatter, extractSections } from './knowledge-utils.js';
+import { zstdCompress } from './zstd-helper.js';
 
 const CONFIG = {
     KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json',
@@ -130,6 +131,32 @@ export async function generateKnowledgeData(outputDir = './output') {
                 // Write individual article (V16.6: Gzip via SmartWriter)
                 const articleKey = `articles/${slug}.json`;
                 await smartWriteWithVersioning(articleKey, article, knowledgeDir, { compress: true });
+
+                // V26.3: Export as Fused Entity for VFS packing (knowledge → meta shards)
+                const fusedEntity = {
+                    id: `knowledge--${slug}`,
+                    slug: `knowledge--${slug}`,
+                    name: article.title,
+                    type: 'knowledge',
+                    description: frontmatter.description || article.title,
+                    body_content: typeof sections === 'string' ? sections : content,
+                    summary: frontmatter.description || `Technical article about ${article.title}`,
+                    author: 'Free2AI',
+                    category: category,
+                    tags: (frontmatter.keywords || '').split(',').map(k => k.trim()).filter(Boolean),
+                    fni_score: Math.min(20 + refs, 50),
+                    source: 'knowledge-data-gen',
+                    source_platform: 'internal',
+                    pipeline_tag: 'knowledge-article',
+                    difficulty: frontmatter.difficulty || 'Intermediate',
+                    created_at: new Date().toISOString(),
+                    last_modified: new Date().toISOString(),
+                };
+                const fusedDir = path.join(process.env.CACHE_DIR || path.join(outputDir, 'cache'), 'fused');
+                await fs.mkdir(fusedDir, { recursive: true });
+                const fusedPath = path.join(fusedDir, `${fusedEntity.id}.json.zst`);
+                await fs.writeFile(fusedPath, await zstdCompress(JSON.stringify(fusedEntity)));
+                console.log(`  [VFS] Knowledge entity exported: ${fusedEntity.id}`);
 
                 // Add to index
                 articles.push({

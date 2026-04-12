@@ -49,7 +49,9 @@ export function getR2PathCandidates(type, normalizedSlug) {
         'space': ['hf-space--', 'huggingface--', 'space--'],
         'agent': ['gh-agent--', 'hf-agent--', 'langchain-agent--', 'github--', 'huggingface--', 'agent--'],
         'tool': ['gh-tool--', 'hf-tool--', 'github--', 'huggingface--', 'tool--', 'github-tool--'],
-        'prompt': ['hf-prompt--', 'langchain-prompt--', 'prompt--']
+        'prompt': ['hf-prompt--', 'langchain-prompt--', 'prompt--'],
+        'report': ['report--'],
+        'knowledge': ['knowledge--']
     };
     const prefixes = prefixMap[singular] || [];
 
