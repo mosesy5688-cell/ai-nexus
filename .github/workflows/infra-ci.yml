@@ -184,7 +184,7 @@ jobs:
       - name: Test Model Detail Page
         run: |
           echo "🧪 Testing model detail page..."
-          
+
           # Test with a known model (adjust slug as needed)
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/model/meta-llama--Llama-3-2-1B)
           if [ "$STATUS" != "200" ] && [ "$STATUS" != "404" ]; then
@@ -192,30 +192,76 @@ jobs:
           else
             echo "✅ Model page test passed"
           fi
-      
+
       - name: Test Explore Page
         run: |
           echo "🧪 Testing explore page..."
-          
+
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/explore)
           if [ "$STATUS" != "200" ]; then
             echo "❌ Explore page returned $STATUS"
             exit 1
           fi
-          
+
           echo "✅ Explore page test passed"
-      
+
       - name: Test API Endpoints
         run: |
           echo "🧪 Testing API endpoints..."
-          
+
           # Test search API (if exists)
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/api/search?q=test)
           if [ "$STATUS" != "200" ] && [ "$STATUS" != "404" ]; then
             echo "⚠️ Search API returned $STATUS"
           fi
-          
+
           echo "✅ API tests completed"
+
+      - name: "V26.3: X-Data-Source Header Validation"
+        run: |
+          echo "🧪 Verifying X-Data-Source headers on entity detail pages..."
+          FAILURES=0
+
+          # V26.3: Entity pages must expose X-Data-Source header
+          # Valid values: vfs-primary, r2-binding, r2-cdn, catalog-stub, static-fallback, 404
+          # Test checks that header EXISTS (not absent), proving the observability layer is wired up.
+          # In CI (static serve) VFS/R2 are unavailable, so we accept any non-empty value.
+
+          check_header() {
+            local URL="$1"
+            local LABEL="$2"
+            local RESP_HEADERS
+            RESP_HEADERS=$(curl -sI "$URL" 2>/dev/null)
+            local STATUS
+            STATUS=$(echo "$RESP_HEADERS" | grep -i "^HTTP/" | tail -1 | awk '{print $2}')
+
+            # Skip 404/3xx — header only required on 200 responses
+            if [ "$STATUS" != "200" ]; then
+              echo "  ⏭️  $LABEL: status=$STATUS (skipped — not 200)"
+              return 0
+            fi
+
+            local DS
+            DS=$(echo "$RESP_HEADERS" | grep -i "^x-data-source:" | awk '{print $2}' | tr -d '\r')
+            if [ -z "$DS" ]; then
+              echo "  ❌ $LABEL: 200 but missing X-Data-Source header"
+              FAILURES=$((FAILURES + 1))
+            else
+              echo "  ✅ $LABEL: X-Data-Source=$DS"
+            fi
+          }
+
+          check_header "http://localhost:4321/knowledge/transformer" "knowledge"
+          check_header "http://localhost:4321/knowledge/quantization" "knowledge-2"
+          check_header "http://localhost:4321/model/meta-llama--Llama-3-2-1B" "model"
+          check_header "http://localhost:4321/paper/2401.00001" "paper"
+          check_header "http://localhost:4321/dataset/test-dataset" "dataset"
+
+          if [ $FAILURES -gt 0 ]; then
+            echo "❌ $FAILURES entity page(s) returned 200 without X-Data-Source header"
+            exit 1
+          fi
+          echo "✅ X-Data-Source header validation passed"
       
       - name: Cleanup
         if: always()

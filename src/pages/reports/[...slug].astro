@@ -11,6 +11,7 @@ const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 let report = null;
+let reportDataSource = '404';
 
 const reportSlug = slugStr.replace(/^daily\//, '');
 
@@ -19,6 +20,7 @@ try {
     const { entity, _meta } = await loadEntityStreams('report', slugStr, Astro.locals);
     if (entity) {
         report = hydrateEntity(entity, 'report');
+        reportDataSource = _meta.dataSource || 'vfs-primary';
         // V16.8.30: Defensive Title Restoration
         report.title = report.title || report.name || (slugStr.includes('/') ? slugStr.split('/').pop().replace(/-/g, ' ') : slugStr);
     }
@@ -33,10 +35,13 @@ if (!report) {
         if (path.includes(reportSlug)) {
             report = (reportModules[path] as any).default;
             if (report) report = hydrateEntity(report, 'report');
+            reportDataSource = 'static-fallback';
             break;
         }
     }
 }
+
+Astro.response.headers.set('X-Data-Source', reportDataSource);
 
 if (!report) {
     Astro.response.status = 404;

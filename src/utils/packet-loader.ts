@@ -17,6 +17,8 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     const isSimulatingRemote = !!(typeof process !== 'undefined' && process.env.SIMULATE_PRODUCTION);
 
     let entityResult;
+    // V26.3: Data source classification for test observability
+    let dataSource = '404';
 
     // TIER 0: VFS Primary Discovery (V22.8 Mandate)
     try {
@@ -27,6 +29,7 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
                 path: vfsMatch.source,
                 isVfs: true
             };
+            dataSource = 'vfs-primary';
         }
     } catch (e: any) {
         console.warn(`[Loader] VFS Discovery skipped for ${normalized}:`, e.message);
@@ -40,6 +43,7 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
                 data: sequentialResult.entity || sequentialResult,
                 path: sequentialResult._cache_path || 'r2-binding'
             };
+            dataSource = 'r2-binding';
         }
     }
 
@@ -55,22 +59,25 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
 
         try {
             entityResult = await Promise.any(primaryCandidates.map(p => raceCandidate(p)));
+            dataSource = 'r2-cdn';
         } catch (e) {
             const otherCandidates = candidates.filter(c => !primaryCandidates.includes(c));
             try {
                 entityResult = await Promise.any(otherCandidates.map(p => raceCandidate(p)));
+                dataSource = 'r2-cdn';
             } catch (err) {
                 console.warn(`[Loader] Parallel race failed for ${normalized}, trying sequential recovery...`);
                 const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
 
                 if (!sequentialResult) {
-                    return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+                    return { entity: null, html: null, mesh: null, _meta: { available: false, dataSource: '404', source: '404' } };
                 }
 
                 entityResult = {
                     data: sequentialResult.entity || sequentialResult,
                     path: sequentialResult._cache_path || 'sequential'
                 };
+                dataSource = 'r2-binding';
             }
         }
     }
@@ -89,12 +96,13 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
                 data: stub,
                 path: 'catalog-index'
             };
+            dataSource = 'catalog-stub';
             console.log(`[Loader] Resolved ${normalized} via Catalog Index Fallback`);
         }
     }
 
     if (!entityResult) {
-        return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+        return { entity: null, html: null, mesh: null, _meta: { available: false, dataSource: '404', source: '404' } };
     }
 
     let entityPack = entityResult.data?.entity || entityResult.data;
@@ -221,6 +229,7 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
         mesh,
         _meta: {
             available: true,
+            dataSource,
             source: 'entity-first-anchored',
             streams: {
                 entity: true,
