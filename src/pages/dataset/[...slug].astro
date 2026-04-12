@@ -35,13 +35,14 @@ let pageTitle = "AI Dataset Details - Free AI Tools";
 let pageDescription = "Explore high-quality datasets for AI training and evaluation.";
 let meshRelations = [];
 let cleanedDesc = "";
+let dataSource = 'error';
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
-  
+
   const type = 'dataset';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  Astro.response.headers.set('X-Data-Source', _meta.dataSource || '404');
+  dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
     Astro.response.status = 404;
@@ -76,8 +77,10 @@ try {
 
 } catch (e) {
   console.error("[DatasetPage] Error loading dataset:", e);
+  Astro.response.headers.set('X-Data-Source', dataSource);
   return Astro.redirect('/404?reason=dataset-error&id=' + encodeURIComponent(slugStr));
 }
+Astro.response.headers.set('X-Data-Source', dataSource);
 
 if (!dataset) {
   Astro.response.status = 404;

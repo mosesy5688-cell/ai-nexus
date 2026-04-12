@@ -34,13 +34,14 @@ let pageTitle = "AI Developer Tool - Free AI Tools";
 let pageDescription = "Explore development tools and utilities for AI engineering.";
 let meshRelations = [];
 let cleanedDesc = "";
+let dataSource = 'error';
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
   // V16.5: Static Assembly Architecture
   const type = 'tool';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  Astro.response.headers.set('X-Data-Source', _meta.dataSource || '404');
+  dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
     Astro.response.status = 404;
@@ -62,6 +63,7 @@ try {
   console.error("[ToolPage] Error loading tool:", e);
   error = e;
 }
+Astro.response.headers.set('X-Data-Source', dataSource);
 
 if (!tool && !error) {
   Astro.response.status = 404;

@@ -24,12 +24,13 @@ let pageTitle = "AI System Prompt - Free2AITools";
 let pageDescription = "Explore evaluated system instructions and templates.";
 let meshRelations = [];
 let cleanedDesc = "";
+let dataSource = 'error';
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
   const type = 'prompt';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  Astro.response.headers.set('X-Data-Source', _meta.dataSource || '404');
+  dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
     Astro.response.status = 404;
@@ -50,6 +51,7 @@ try {
   console.error("[PromptPage] Error loading:", e);
   error = e;
 }
+Astro.response.headers.set('X-Data-Source', dataSource);
 
 if (!promptData && !error) {
   Astro.response.status = 404;
