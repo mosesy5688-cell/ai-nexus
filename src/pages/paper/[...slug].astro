@@ -32,13 +32,14 @@ let tagsArray = [];
 let pageTitle = "AI Research Paper - Free AI Tools";
 let pageDescription = "Explore the latest breakthroughs in AI research and architectures.";
 let meshRelations = [];
+let dataSource = 'error';
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
   // V16.5: Static Assembly Architecture
   const type = 'paper';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  Astro.response.headers.set('X-Data-Source', _meta.dataSource || '404');
+  dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
     Astro.response.status = 404;
@@ -59,6 +60,7 @@ try {
   console.error("[PaperPage] Error loading paper:", e);
   error = e;
 }
+Astro.response.headers.set('X-Data-Source', dataSource);
 
 if (!paper && !error) {
   Astro.response.status = 404;
