@@ -3,6 +3,7 @@ import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
 import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
+import { writeBoosterStats } from './lib/booster-stats.js';
 
 // ── HF README Fetcher (for model enrichment) ───────────
 const HF_TOKEN = process.env.HF_TOKEN || '';
@@ -228,6 +229,10 @@ async function main() {
     }
 
     if (enrichedUmids.length > 0) markEnriched(enrichedUmids);
+    writeBoosterStats(PARTITION_START, {
+        processed, success, partial, skipped, failed,
+        remaining: workQueue.length - processed
+    });
     shutdownMarkerSidecar();
 }
 
