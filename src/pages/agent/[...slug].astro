@@ -44,6 +44,7 @@ try {
   // V16.5: Static Assembly Architecture
   const type = 'agent';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
+  Astro.response.headers.set('X-Data-Source', _meta.dataSource || '404');
 
   if (!entity || !_meta.available) {
      Astro.response.status = 404;

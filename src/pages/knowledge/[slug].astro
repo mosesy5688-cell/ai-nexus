@@ -27,10 +27,11 @@ const { slug } = Astro.params;
 
 let article = null;
 let cdnStats = null;
+let knowledgeDataSource = '404';
 
 // V26.3: VFS-First Loading (Zero JSON Mandate)
 try {
-    const { entity } = await loadEntityStreams('knowledge', slug || '', Astro.locals);
+    const { entity, _meta } = await loadEntityStreams('knowledge', slug || '', Astro.locals);
     if (entity) {
         const hydrated = hydrateEntity(entity, 'knowledge');
         article = {
@@ -42,6 +43,7 @@ try {
             effort: hydrated.effort || '5 min',
             slug: slug
         };
+        knowledgeDataSource = _meta.dataSource || 'vfs-primary';
     }
 } catch (e) {
     console.warn(`[Knowledge] VFS loader failed for ${slug}:`, e.message);
@@ -64,6 +66,7 @@ if (!article) {
             effort: configResult?.article.effort || contentData?.effort || '5 min',
             slug: slug
         };
+        knowledgeDataSource = 'static-fallback';
     } else {
         const cat = getCategoryById(slug);
         if (cat) {
@@ -77,9 +80,12 @@ if (!article) {
                 effort: 'Diverse',
                 slug: slug
             };
+            knowledgeDataSource = 'static-fallback';
         }
     }
 }
+
+Astro.response.headers.set('X-Data-Source', knowledgeDataSource);
 
 const pageTitle = article ? `${article.title} - AI Knowledge Base` : 'Article Not Found';
 const pageDescription = article?.description 

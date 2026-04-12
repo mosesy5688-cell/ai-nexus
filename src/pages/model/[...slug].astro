@@ -42,7 +42,8 @@ try {
   const type = 'model';
   // V16.5: Static Assembly Architecture
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  
+  Astro.response.headers.set('X-Data-Source', _meta.dataSource || '404');
+
   if (!_meta.available || !entity) {
     // V22.8: Explicit 404 for unknown entities
     console.warn(`[Astro] 404 Triggered for ${slugStr}: Metadata available: ${_meta.available}`);
