@@ -14,8 +14,10 @@ import KnowledgeRelated from '../../components/knowledge/KnowledgeRelated.astro'
 import KnowledgeGroundedEntities from '../../components/knowledge/KnowledgeGroundedEntities.astro';
 import ReadStatusManager from '../../components/knowledge/ReadStatusManager.astro';
 import { articles } from '../../data/knowledge-articles';
-import { getArticleBySlug } from '../../data/knowledge-base-config';
+import { getArticleBySlug, getCategoryById } from '../../data/knowledge-base-config';
 import { getRouteFromId, getTypeFromId } from '../../utils/mesh-routing-core.js';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 
 // Load styles
 import '../../styles/knowledge.css';
@@ -23,73 +25,60 @@ import '../../styles/knowledge.css';
 // Get article slug
 const { slug } = Astro.params;
 
-// V15.5: Unified Content & Metadata Merging
-const configResult = getArticleBySlug(slug || '');
-const canonicalSlug = configResult?.article.slug || slug || '';
-const contentData = articles[canonicalSlug];
-
 let article = null;
 let cdnStats = null;
 
-// V16.29: Resilient Content Orchestration (Local -> Config Fallback -> R2)
-if (contentData || configResult) {
-  article = {
-    ...(configResult?.article || {}),
-    title: contentData?.title || configResult?.article.title || slug,
-    description: contentData?.description || configResult?.article.description || 'Article details in progress...',
-    category: configResult?.category.id || contentData?.category || 'fundamentals',
-    content: contentData?.content || `## ${contentData?.title || configResult?.article.title || slug}\n\nInformation about this topic is currently being aggregated in the Knowledge Mesh. Check back soon for deep-dive insights.\n\n### Related Concepts\n- [Knowledge Hub](/knowledge)\n- [AI Fundamentals](/knowledge/fundamentals)`,
-    difficulty: configResult?.article.difficulty || contentData?.difficulty || 'Intermediate',
-    effort: configResult?.article.effort || contentData?.effort || '5 min',
-    slug: slug
-  };
-} else {
-    // V16.8.15 R5.7.3: Category Fallback (Prevent 404 for mapping nodes like 'organizations')
-    import { getCategoryById } from '../../data/knowledge-base-config';
-    const cat = getCategoryById(slug);
-    if (cat) {
+// V26.3: VFS-First Loading (Zero JSON Mandate)
+try {
+    const { entity } = await loadEntityStreams('knowledge', slug || '', Astro.locals);
+    if (entity) {
+        const hydrated = hydrateEntity(entity, 'knowledge');
         article = {
-            title: cat.title,
-            description: cat.description,
-            category: cat.id,
-            content: `## ${cat.title}\n\n${cat.description}\n\n### Articles in this Category\n` + 
-                     cat.articles.map(a => `- [${a.title}](/knowledge/${a.slug})`).join('\n'),
-            difficulty: 'Beginner',
-            effort: 'Diverse',
+            title: hydrated.name || hydrated.title || slug,
+            description: hydrated.description || hydrated.summary || 'Article details in progress...',
+            category: hydrated.category || 'fundamentals',
+            content: hydrated.body_content || hydrated.content || '',
+            difficulty: hydrated.difficulty || 'Intermediate',
+            effort: hydrated.effort || '5 min',
             slug: slug
         };
     }
+} catch (e) {
+    console.warn(`[Knowledge] VFS loader failed for ${slug}:`, e.message);
 }
 
-// R2 Live Fetch (Constitutional SSOT - R2 is the master source)
-const R2 = Astro.locals?.runtime?.env?.R2_ASSETS;
-let r2Data = null;
+// Fallback: Static content (build-time .md + config)
+if (!article) {
+    const configResult = getArticleBySlug(slug || '');
+    const canonicalSlug = configResult?.article.slug || slug || '';
+    const contentData = articles[canonicalSlug];
 
-if (R2 && slug) {
-  try {
-    const cdnFile = await R2.get(`cache/knowledge/articles/${slug}.json`);
-    if (cdnFile) {
-      r2Data = await cdnFile.json();
-      cdnStats = r2Data;
-      
-      // V16.31: R2 Elevation - Overwrite local data if R2 has actual content
-      if (r2Data.title || r2Data.content) {
-          article = {
-              ...(article || {}),
-              title: r2Data.title || article?.title,
-              description: r2Data.description || r2Data.summary || article?.description,
-              category: r2Data.category || article?.category,
-              content: r2Data.content || r2Data.body || article?.content,
-              difficulty: r2Data.difficulty || article?.difficulty,
-              effort: r2Data.effort || article?.effort,
-              slug: slug,
-              _source: 'r2' // Tracking for audit
-          };
-      }
+    if (contentData || configResult) {
+        article = {
+            ...(configResult?.article || {}),
+            title: contentData?.title || configResult?.article.title || slug,
+            description: contentData?.description || configResult?.article.description || 'Article details in progress...',
+            category: configResult?.category.id || contentData?.category || 'fundamentals',
+            content: contentData?.content || `## ${contentData?.title || configResult?.article.title || slug}\n\nInformation about this topic is currently being aggregated in the Knowledge Mesh.\n\n### Related Concepts\n- [Knowledge Hub](/knowledge)`,
+            difficulty: configResult?.article.difficulty || contentData?.difficulty || 'Intermediate',
+            effort: configResult?.article.effort || contentData?.effort || '5 min',
+            slug: slug
+        };
+    } else {
+        const cat = getCategoryById(slug);
+        if (cat) {
+            article = {
+                title: cat.title,
+                description: cat.description,
+                category: cat.id,
+                content: `## ${cat.title}\n\n${cat.description}\n\n### Articles in this Category\n` +
+                         cat.articles.map(a => `- [${a.title}](/knowledge/${a.slug})`).join('\n'),
+                difficulty: 'Beginner',
+                effort: 'Diverse',
+                slug: slug
+            };
+        }
     }
-  } catch (e) {
-    console.warn(`[KnowledgeR2] SSOT Fetch failed for ${slug}:`, e.message);
-  }
 }
 
 const pageTitle = article ? `${article.title} - AI Knowledge Base` : 'Article Not Found';

@@ -11,7 +11,7 @@ let totalShards = 0;
 let shardsLoaded = 0;
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
-const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'prompt'];
+const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'prompt', 'report', 'knowledge'];
 
 /**
  * V22.9 Unified Command Parser
