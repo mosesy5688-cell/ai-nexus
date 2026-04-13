@@ -10,13 +10,15 @@
  * decompression + readline, never loading the full payload into a single
  * V8 string (which caps at 512 MiB).
  *
- * Input:  data/merged_shard_*.json.zst (natural shards from merge-batches, JSON array)
+ * Input:  data/merged_shard_*.json.zst (natural shards from merge-batches, NDJSON since V56.1)
  * Output: data/merged_shard_0..19.json.zst (hash-routed processing shards, NDJSON)
  */
 
 import fs from 'node:fs';
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
+import readline from 'node:readline';
+import { Readable } from 'node:stream';
 import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
 import { zstdCompress, autoDecompress, createZstdCompressStream } from './lib/zstd-helper.js';
 import { initR2Bridge, createR2ClientFFI, uploadFileFFI, uploadFileMultipartFFI } from './lib/r2-bridge.js';
@@ -67,25 +69,60 @@ async function consolidateShards() {
 
     let totalCount = 0;
 
-    // Process each natural shard: decompress → parse → hash-route → write
+    // V56.1: Process each natural shard via streaming readline — never materialize
+    // the full decompressed payload as a single V8 string (caps at 512 MiB).
+    // Supports both NDJSON (V56.1+ input) and legacy JSON-array fallback per-line.
     for (const file of naturalShards) {
         const filePath = path.join(DATA_DIR, file);
         const raw = await fsp.readFile(filePath);
         const decompressed = await autoDecompress(raw);
-        let entities;
-        try {
-            entities = JSON.parse(decompressed.toString('utf-8'));
-        } catch (e) {
-            console.warn(`   ⚠️ Skipping corrupt shard ${file}: ${e.message}`);
-            continue;
-        }
 
-        for (const entity of entities) {
-            const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
-            // V56.0 NDJSON: one entity per line, no separators
-            outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
-            shardCounts[shardIdx]++;
-            totalCount++;
+        // Detect legacy JSON-array format by probing first non-whitespace byte.
+        const firstChar = decompressed.length > 0
+            ? String.fromCharCode(decompressed[0])
+            : '';
+        const isLegacyArray = firstChar === '[';
+
+        if (isLegacyArray) {
+            // Legacy path (pre-V56.1 natural shards): parse whole array.
+            // Only safe when individual shards stay under the V8 string limit.
+            let entities;
+            try {
+                entities = JSON.parse(decompressed.toString('utf-8'));
+            } catch (e) {
+                console.warn(`   ⚠️ Skipping corrupt legacy shard ${file}: ${e.message}`);
+                continue;
+            }
+            for (const entity of entities) {
+                const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
+                outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
+                shardCounts[shardIdx]++;
+                totalCount++;
+            }
+        } else {
+            // V56.1 NDJSON path: stream line-by-line, O(1 entity) memory.
+            const rl = readline.createInterface({
+                input: Readable.from(decompressed),
+                crlfDelay: Infinity,
+            });
+            let skipped = 0;
+            for await (const line of rl) {
+                if (!line) continue;
+                let entity;
+                try {
+                    entity = JSON.parse(line);
+                } catch {
+                    skipped++;
+                    continue;
+                }
+                const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
+                outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
+                shardCounts[shardIdx]++;
+                totalCount++;
+            }
+            if (skipped > 0) {
+                console.warn(`   ⚠️ Skipped ${skipped} malformed NDJSON line(s) in ${file}`);
+            }
         }
 
         if (totalCount % 50000 === 0 || file === naturalShards[naturalShards.length - 1]) {

@@ -8,11 +8,12 @@
  * Usage: node scripts/ingestion/merge-batches.js
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, createWriteStream } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { once } from 'events';
 import { mergeEntities } from './lib/entity-merger.js';
-import { zstdCompress } from '../factory/lib/zstd-helper.js';
+import { zstdCompress, createZstdCompressStream } from '../factory/lib/zstd-helper.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
@@ -121,30 +122,46 @@ async function mergeBatches() {
         throw new Error(`CRITICAL: Entity count dropped to ${registryState.count} (Expected >85k).`);
     }
 
-    // V55.9: Natural sharding export — 1000 entities/shard, Zstd via Rust FFI.
-    // zstd-helper.js internally uses Rust FFI (native, zero memory leak).
-    // WASM fallback only activates if Rust binary unavailable.
-    console.log(`\n🛡️ [Merge] Exporting via natural sharding (${SHARD_SIZE}/shard, Zstd)...`);
+    // V56.1: NDJSON streaming export — 1000 entities/shard, per-entity write,
+    // Rust FFI zstd stream. O(1) memory per entity (was: O(shard) mega-array
+    // + JSON.stringify hitting V8 512MB string limit at ~260 shards, see §18.22).
+    console.log(`\n🛡️ [Merge] Exporting via natural sharding (${SHARD_SIZE}/shard, NDJSON+Zstd stream)...`);
     await zstdCompress(Buffer.from('init')); // Warm up codec (Rust or WASM)
 
     let exportedCount = 0;
     let totalVelocity = 0;
     let compressedSize = 0;
     let shardIndex = 0;
-    let shardBuffer = [];
+    let entitiesInShard = 0;
     const hash = crypto.createHash('sha256');
 
-    const flushShard = async () => {
-        if (shardBuffer.length === 0) return;
-        const json = JSON.stringify(shardBuffer);
-        const compressed = await zstdCompress(json);
-        const shardFile = path.join(DATA_DIR, `merged_shard_${shardIndex}.json.zst`);
-        await fs.writeFile(shardFile, compressed);
-        hash.update(compressed);
-        compressedSize += compressed.length;
-        shardIndex++;
-        shardBuffer = [];
+    let currentShardFile = null;
+    let currentZst = null;
+    let currentWs = null;
+
+    const openShard = () => {
+        currentShardFile = path.join(DATA_DIR, `merged_shard_${shardIndex}.json.zst`);
+        currentZst = createZstdCompressStream();
+        currentWs = createWriteStream(currentShardFile);
+        currentZst.pipe(currentWs);
+        entitiesInShard = 0;
     };
+
+    const closeShard = async () => {
+        if (!currentZst) return;
+        currentZst.end();
+        await once(currentWs, 'finish');
+        const stat = await fs.stat(currentShardFile);
+        const compressedBuf = await fs.readFile(currentShardFile);
+        hash.update(compressedBuf);
+        compressedSize += stat.size;
+        shardIndex++;
+        currentShardFile = null;
+        currentZst = null;
+        currentWs = null;
+    };
+
+    openShard();
 
     const iterator = registryManager.getStreamingIterator('id ASC');
     for (const entity of iterator) {
@@ -153,19 +170,24 @@ async function mergeBatches() {
         const newId = normalizeId(oldId, source, entity.type);
         const scrubbed = { ...entity, id: newId };
 
-        shardBuffer.push(scrubbed);
+        // V56.1: Per-entity NDJSON write — single entity JSON never exceeds V8 string limit.
+        if (!currentZst.write(JSON.stringify(scrubbed) + '\n')) {
+            await once(currentZst, 'drain');
+        }
         totalVelocity += (scrubbed.velocity || 0);
         exportedCount++;
+        entitiesInShard++;
 
-        if (shardBuffer.length >= SHARD_SIZE) {
-            await flushShard();
+        if (entitiesInShard >= SHARD_SIZE) {
+            await closeShard();
+            openShard();
         }
 
         if (exportedCount % 10000 === 0) {
             console.log(`   - Exported ${exportedCount} entities (${shardIndex} shards)...`);
         }
     }
-    await flushShard();
+    await closeShard();
 
     const mergedHash = hash.digest('hex');
     console.log(`\n✅ [Merge] Complete: ${exportedCount} entities → ${shardIndex} shards`);
