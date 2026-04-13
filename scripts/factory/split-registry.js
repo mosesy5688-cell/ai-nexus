@@ -18,9 +18,8 @@ import fs from 'node:fs';
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { Readable } from 'node:stream';
 import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
-import { zstdCompress, autoDecompress, createZstdCompressStream } from './lib/zstd-helper.js';
+import { zstdCompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
 import { initR2Bridge, createR2ClientFFI, uploadFileFFI, uploadFileMultipartFFI } from './lib/r2-bridge.js';
 
 const TOTAL_SHARDS = 20;
@@ -69,60 +68,76 @@ async function consolidateShards() {
 
     let totalCount = 0;
 
-    // V56.1: Process each natural shard via streaming readline — never materialize
-    // the full decompressed payload as a single V8 string (caps at 512 MiB).
-    // Supports both NDJSON (V56.1+ input) and legacy JSON-array fallback per-line.
+    // V56.2: End-to-end file-stream + Rust FFI decompress + readline.
+    // Never materialize the full decompressed payload as a single V8 string
+    // (caps at 0x1fffffe8 / ~512 MiB). Mirrors shard-processor.js §119-123.
+    //
+    // Why not Readable.from(buffer)? It emits the entire buffer as ONE data
+    // event, so readline's StringDecoder tries to decode ~500MB in one call
+    // and hits the V8 string limit (observed crash at shard 250, run post-PR #1751).
+    //
+    // fs.createReadStream emits 64KB chunks → decompress stream → readline,
+    // so StringDecoder never accumulates more than a line's worth.
     for (const file of naturalShards) {
         const filePath = path.join(DATA_DIR, file);
-        const raw = await fsp.readFile(filePath);
-        const decompressed = await autoDecompress(raw);
+        const fileRs = fs.createReadStream(filePath);
+        const decompStream = createAutoDecompressStream();
+        const rl = readline.createInterface({
+            input: fileRs.pipe(decompStream),
+            crlfDelay: Infinity,
+        });
 
-        // Detect legacy JSON-array format by probing first non-whitespace byte.
-        const firstChar = decompressed.length > 0
-            ? String.fromCharCode(decompressed[0])
-            : '';
-        const isLegacyArray = firstChar === '[';
+        let skipped = 0;
+        let firstLineSeen = false;
+        let legacyEntities = null;
 
-        if (isLegacyArray) {
-            // Legacy path (pre-V56.1 natural shards): parse whole array.
-            // Only safe when individual shards stay under the V8 string limit.
-            let entities;
-            try {
-                entities = JSON.parse(decompressed.toString('utf-8'));
-            } catch (e) {
-                console.warn(`   ⚠️ Skipping corrupt legacy shard ${file}: ${e.message}`);
-                continue;
-            }
-            for (const entity of entities) {
-                const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
-                outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
-                shardCounts[shardIdx]++;
-                totalCount++;
-            }
-        } else {
-            // V56.1 NDJSON path: stream line-by-line, O(1 entity) memory.
-            const rl = readline.createInterface({
-                input: Readable.from(decompressed),
-                crlfDelay: Infinity,
-            });
-            let skipped = 0;
-            for await (const line of rl) {
-                if (!line) continue;
-                let entity;
-                try {
-                    entity = JSON.parse(line);
-                } catch {
-                    skipped++;
+        for await (const line of rl) {
+            if (!line) continue;
+
+            // Detect legacy JSON-array format on first non-empty line (starts with '[').
+            // Legacy shards are pre-V56.1 and fit in a single V8 string by construction
+            // (natural shards capped at 1000 entities ≈ well under 512MB).
+            if (!firstLineSeen) {
+                firstLineSeen = true;
+                if (line.trimStart().startsWith('[')) {
+                    // Collect remaining lines, parse as one array below.
+                    legacyEntities = [line];
                     continue;
                 }
-                const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
-                outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
-                shardCounts[shardIdx]++;
-                totalCount++;
             }
-            if (skipped > 0) {
-                console.warn(`   ⚠️ Skipped ${skipped} malformed NDJSON line(s) in ${file}`);
+            if (legacyEntities) {
+                legacyEntities.push(line);
+                continue;
             }
+
+            let entity;
+            try {
+                entity = JSON.parse(line);
+            } catch {
+                skipped++;
+                continue;
+            }
+            const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
+            outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
+            shardCounts[shardIdx]++;
+            totalCount++;
+        }
+
+        if (legacyEntities) {
+            try {
+                const arr = JSON.parse(legacyEntities.join('\n'));
+                for (const entity of arr) {
+                    const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
+                    outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
+                    shardCounts[shardIdx]++;
+                    totalCount++;
+                }
+            } catch (e) {
+                console.warn(`   ⚠️ Skipping corrupt legacy shard ${file}: ${e.message}`);
+            }
+        }
+        if (skipped > 0) {
+            console.warn(`   ⚠️ Skipped ${skipped} malformed NDJSON line(s) in ${file}`);
         }
 
         if (totalCount % 50000 === 0 || file === naturalShards[naturalShards.length - 1]) {
