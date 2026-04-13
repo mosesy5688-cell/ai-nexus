@@ -80,9 +80,9 @@ if (!model && !error) {
 const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
 const hasBenchmarks = hasCapability(model, 'benchmarks');
 const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmark_hellaswag || model?.benchmark_arc);
-// V18.2.15: Zero-Image Policy enforcement
-const placeholderImage = ''; 
-const coverImage = '';
+// SEO: og:image — prefer entity image_url, fall back to Free2AITools default hero.
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = model?.image_url || placeholderImage;
 const modelName = model?.name || 'Unknown Model';
 const displayAuthor = model?.author || 'Independent / Community';
 const entityId = model?.id || slugStr;
@@ -99,7 +99,7 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
   type="model" 
   title={pageTitle} 
   description={pageDescription}
-  image={undefined}
+  image={coverImage}
   jsonld={jsonld}
   canonical={canonicalPath}
 >

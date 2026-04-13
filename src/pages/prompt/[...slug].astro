@@ -13,7 +13,7 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
-import { cleanDescription } from '../../utils/model-page-helpers.ts';
+import { cleanDescription, generatePromptJsonLd } from '../../utils/model-page-helpers.ts';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -65,6 +65,7 @@ const displayAuthor = promptData?.author || 'Community';
 // Pure architecture: Zero hero images for prompt
 const placeholderImage = '/images/models/default-model.jpg';
 const canonicalPath = promptData ? getRouteFromId(promptData.id || entityId, 'prompt') : undefined;
+const jsonld = generatePromptJsonLd(promptData, slugStr);
 ---
 
 <EntityLayout 
@@ -73,7 +74,7 @@ const canonicalPath = promptData ? getRouteFromId(promptData.id || entityId, 'pr
   title={pageTitle} 
   description={pageDescription}
   image={placeholderImage}
-  jsonld={null}
+  jsonld={jsonld}
   canonical={canonicalPath}
 >
     {promptData && (
