@@ -13,6 +13,7 @@ import { initRustBridge, fuseShardFFI } from './lib/rust-bridge.js';
 import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
 import { generateUMID, generateDevUMID } from './lib/umid-generator.js';
 import { fuseShardJS } from './lib/fuse-shard-js.js';
+import { installExitGuard, assertCompletion, writeSentinel } from './lib/fusion-completion-guard.js';
 
 const CONFIG = {
     CACHE_DIR: process.env.CACHE_DIR || './cache',
@@ -129,21 +130,9 @@ async function main() {
     let processedCount = 0;
     const DL_CONCURRENCY = 100;
 
-    // V26.9 §18.22.4: Silent-exit guard. Observed in field run: Master Fusion
-    // exited after part-086 with no error, no completion banner, and exit code 0,
-    // letting the GHA step pass while 80% of entities silently vanished.
-    // Likely cause: a NAPI-layer crash or unhandled promise rejection that
-    // terminates the process without going through main().catch.
-    // This handler runs synchronously on ANY exit path and converts a premature
-    // exit-0 into a hard failure so the workflow step turns red.
+    // §18.22.4: Three-layer silent early-exit defense (see fusion-completion-guard.js).
     const expectedFusionCount = shardFiles.length;
-    const exitGuard = (code) => {
-        if (processedCount < expectedFusionCount && (code === 0 || code === undefined)) {
-            console.error(`[FUSION] CRITICAL: process exited after fusing only ${processedCount}/${expectedFusionCount} shards. Forcing exit code 1 to fail the workflow step.`);
-            process.exitCode = 1;
-        }
-    };
-    process.on('exit', exitGuard);
+    const exitGuard = installExitGuard(() => ({ processed: processedCount, expected: expectedFusionCount }));
 
     for (let i = 0; i < shardFiles.length; i++) {
         const shardPath = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
@@ -225,12 +214,7 @@ async function main() {
         if (global.gc && i % 10 === 9) global.gc();
     }
 
-    // V26.9 §18.22.4: Loud post-loop assertion. Catches the case where the
-    // fusion for-loop completes "normally" but processed fewer shards than
-    // expected (e.g. a future regression silently breaks out of the loop).
-    if (processedCount < expectedFusionCount) {
-        throw new Error(`[FUSION] CRITICAL: fused only ${processedCount}/${expectedFusionCount} shards. Refusing to write a partial fusion that would silently drop ${expectedFusionCount - processedCount} shards' worth of entities.`);
-    }
+    assertCompletion(processedCount, expectedFusionCount);
 
     // Cleanup
     shardEntityIds.clear();
@@ -239,6 +223,13 @@ async function main() {
     await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
     process.removeListener('exit', exitGuard);
+    await writeSentinel(outDir, {
+        processedShards: processedCount,
+        expectedShards: expectedFusionCount,
+        enriched: totalEnriched,
+        downloaded: totalDl
+    });
+
     console.log(`[FUSION V26.8] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched, ${processedCount}/${expectedFusionCount} shards processed)`);
     console.log(`  [DIAG] Enrichment summary: needed=${totalNeeded}, downloaded=${totalDl}, missingShard=${totalMissingShard}`);
     if (totalMissingShard > 0) {

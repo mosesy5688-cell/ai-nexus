@@ -183,8 +183,35 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
-          NODE_OPTIONS: '--max-old-space-size=8192 --expose-gc'
-        run: node scripts/factory/master-fusion.js
+          # §18.22.4: --unhandled-rejections=strict surfaces silent promise
+          # rejections instead of letting them swallow the process. RUST_BACKTRACE
+          # ensures the next NAPI panic leaves an unwind trace in stderr.
+          NODE_OPTIONS: '--max-old-space-size=8192 --expose-gc --unhandled-rejections=strict'
+          RUST_BACKTRACE: full
+        # §18.22.4: explicit exit-code capture. The previous `run: node …`
+        # form returned green when the field run silently aborted at part-087.
+        run: |
+          set -uo pipefail
+          node scripts/factory/master-fusion.js
+          rc=$?
+          echo "[GHA] master-fusion.js exit code: ${rc}"
+          if [ "${rc}" != "0" ]; then
+            echo "::error::Master Fusion exited with code ${rc}"
+            exit "${rc}"
+          fi
+      - name: Verify Master Fusion Sentinel
+        # §18.22.4: file-existence check is the ONLY mechanism that survives
+        # native crashes that bypass Node's 'exit' event. master-fusion.js
+        # writes .complete only after its post-loop assertion passes.
+        run: |
+          set -euo pipefail
+          if [ ! -f output/cache/fused/.complete ]; then
+            echo "::error::Master Fusion did not produce .complete sentinel — silent early-exit suspected (see execution memo §18.22.4)"
+            ls -la output/cache/fused/ 2>/dev/null || echo "(fused/ dir missing)"
+            exit 1
+          fi
+          echo "[GHA] Master Fusion sentinel verified:"
+          cat output/cache/fused/.complete
       - name: Tar Fused Entities
         run: tar -cf fused-entities.tar -C output/cache fused
       - name: Save Fused Entities to Cache
