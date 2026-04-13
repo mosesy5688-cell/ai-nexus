@@ -6,9 +6,9 @@
  */
 import Layout from '@/layouts/Layout.astro';
 import { getRouteFromId } from '@/utils/mesh-routing-core';
+import { env } from 'cloudflare:workers';
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
-const env = (Astro as any).locals?.runtime?.env;
 const R2_ASSETS = env?.R2_ASSETS;
 
 let reports: any[] = [];
