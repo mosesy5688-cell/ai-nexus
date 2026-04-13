@@ -1,5 +1,17 @@
 // tests/unit/mesh.test.js
 import { describe, it, expect, vi } from 'vitest';
+
+// V26: Mock cloudflare:workers virtual module (not available in vitest)
+// Production code uses `import { env } from 'cloudflare:workers'` for R2 access
+// and isSSR detection — simulate SSR env so isSSR=true path is exercised.
+vi.mock('cloudflare:workers', () => ({
+    env: {
+        R2_ASSETS: {
+            get: vi.fn().mockResolvedValue(null)
+        }
+    }
+}));
+
 import { getMeshProfile } from '../../src/utils/mesh-orchestrator.js';
 
 describe('Mesh Orchestrator', () => {
