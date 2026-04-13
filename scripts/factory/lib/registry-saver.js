@@ -121,7 +121,33 @@ export async function saveGlobalRegistry(input) {
 
     console.log(`[CACHE] Registry persisted. Shards: ${shardCount} (Binary), Monolith: OK (Zstd).`);
 
-    // 3. Purge stale shards from R2
+    // 3a. Purge stale .bin shards from LOCAL registry dir.
+    // Critical: when a run produces fewer shards than a prior run (e.g. entity count
+    // drop), prior `part-NNN.bin` files for index >= shardCount are NOT overwritten
+    // and persist via GHA cache. Master Fusion's readdir then sweeps them up and
+    // silently fuses garbage. See execution memo §18.22.4 for the 80% data-loss
+    // incident this prevents.
+    try {
+        const cacheDir = process.env.CACHE_DIR || './cache';
+        const registryDir = path.join(cacheDir, 'registry');
+        const { readdir, unlink } = await import('fs/promises');
+        const localFiles = await readdir(registryDir).catch(() => []);
+        let purged = 0;
+        for (const f of localFiles) {
+            const m = f.match(/^part-(\d+)\.bin$/);
+            if (m && parseInt(m[1]) >= shardCount) {
+                await unlink(path.join(registryDir, f)).catch(() => {});
+                purged++;
+            }
+        }
+        if (purged > 0) {
+            console.log(`[CACHE] 🧹 Purged ${purged} stale local .bin shard(s) (index >= ${shardCount})`);
+        }
+    } catch (e) {
+        console.warn(`[CACHE] ⚠️ Local stale shard purge failed: ${e.message}`);
+    }
+
+    // 3b. Purge stale shards from R2
     await purgeStaleShards('registry', shardCount);
 
     return { count, shardCount, lastUpdated: timestamp };

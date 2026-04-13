@@ -94,14 +94,35 @@ async function main() {
 
     // Phase 4: Per-shard fusion (single shard read, per-shard download O(1) disk)
     const artifactFiles = await fs.readdir(CONFIG.ARTIFACT_DIR).catch(() => []);
-    const shardFiles = artifactFiles.filter(f =>
+    const allShardFiles = artifactFiles.filter(f =>
         f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json.gz') || f.endsWith('.json'))
     ).sort();
+
+    // V26.9 §18.22.4: Sanity check — only fuse shard files whose index is in the
+    // current registry's shardEntityIds. Stale .bin files from prior runs with
+    // higher shard counts (not purged due to historical cleanup gap) would
+    // otherwise be silently fused as 0-entity shards, producing the 80% data-loss
+    // pattern observed pre-fix. Abort if expected shards are missing on disk.
+    const expectedIndices = new Set(shardEntityIds.keys());
+    const staleFiles = [];
+    const shardFiles = allShardFiles.filter(f => {
+        const idx = parseInt(f.match(/part-(\d+)/)?.[1] ?? '-1');
+        if (expectedIndices.has(idx)) return true;
+        staleFiles.push(f);
+        return false;
+    });
+    if (staleFiles.length > 0) {
+        console.warn(`[FUSION] ⚠️ Skipping ${staleFiles.length} stale shard file(s) not in current registry (preview): ${staleFiles.slice(0, 5).join(', ')}${staleFiles.length > 5 ? '...' : ''}`);
+    }
+    if (shardFiles.length < expectedIndices.size) {
+        const missing = [...expectedIndices].filter(i => !shardFiles.some(f => parseInt(f.match(/part-(\d+)/)?.[1] ?? '-1') === i));
+        throw new Error(`[FUSION] CRITICAL: registry expects ${expectedIndices.size} shards but only ${shardFiles.length} present on disk. Missing indices (preview): ${missing.slice(0, 10).join(',')}`);
+    }
 
     const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
     await fs.mkdir(outDir, { recursive: true });
 
-    console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards...`);
+    console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards (${staleFiles.length} stale skipped)...`);
     console.log(`  [DIAG] shardEntityIds keys: [${[...shardEntityIds.keys()].sort((a,b) => a-b).join(',')}]`);
     console.log(`  [DIAG] entityEnrichMap.size=${entityEnrichMap.size}, enrichmentMap.size=${enrichmentMap.size}`);
     let totalEnriched = 0, totalDl = 0, totalNeeded = 0, totalMissingShard = 0;
