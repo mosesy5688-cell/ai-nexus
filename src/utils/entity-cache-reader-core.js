@@ -1,6 +1,6 @@
 // V15.1 Unified Entity Cache Reader Core (Art.I-Extended: Frontend D1 = 0)
 import { R2_CACHE_URL } from '../config/constants.js';
-
+import { env } from 'cloudflare:workers';
 import { stripPrefix, getTypeFromId } from './mesh-routing-core.js';
 
 // Normalize entity slug for R2 storage path
@@ -109,8 +109,8 @@ export { hydrateEntity, augmentEntity };
 export async function fetchEntityFromR2(type, slug, locals) {
     const normalized = normalizeEntitySlug(slug, type);
 
-    // 1. Try R2 Cache (Production/Preview SSR)
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    // 1. Try R2 Cache (Production/Preview SSR) — V26.5: Astro v6 env getter
+    const r2 = env?.R2_ASSETS;
     if (r2) {
         const paths = getR2PathCandidates(type, normalized);
         console.log(`[R2Reader] Checking ${paths.length} paths for ${type}/${normalized}`);
