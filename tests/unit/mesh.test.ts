@@ -1,5 +1,5 @@
 // tests/unit/mesh.test.js
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 
 // V26: Mock cloudflare:workers virtual module (not available in vitest)
 // Production code uses `import { env } from 'cloudflare:workers'` for R2 access
@@ -15,6 +15,12 @@ vi.mock('cloudflare:workers', () => ({
 import { getMeshProfile } from '../../src/utils/mesh-orchestrator.js';
 
 describe('Mesh Orchestrator', () => {
+    // Silence expected SSR-protection warnings from production code to avoid
+    // vitest RPC teardown race with pending console logs.
+    let warnSpy: ReturnType<typeof vi.spyOn>;
+    beforeAll(() => { warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {}); });
+    afterAll(() => { warnSpy.mockRestore(); });
+
     it('should orchestrate mesh profile without throwing (typo fix verification)', async () => {
         const mockR2 = {
             get: vi.fn().mockResolvedValue({
