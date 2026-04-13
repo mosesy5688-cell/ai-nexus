@@ -16,7 +16,6 @@ export type EntityCapability =
     | 'fni'           // FNI scoring (Model only)
     | 'deploy'        // Deployability info
     | 'benchmark'     // Benchmark results
-    | 'architecture'  // Neural architecture visualization
     | 'citations'     // Academic citations
     | 'size'          // Data size metrics
     | 'pricing'       // Commercial pricing
@@ -32,7 +31,6 @@ export const CAPABILITY_MODULES: Record<EntityCapability, string> = {
     fni: 'FNIModule',
     deploy: 'DeployModule',
     benchmark: 'BenchmarkModule',
-    architecture: 'ArchitectureModule',
     citations: 'CitationsModule',
     size: 'SizeModule',
     pricing: 'PricingModule',
