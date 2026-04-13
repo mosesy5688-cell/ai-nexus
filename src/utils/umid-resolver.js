@@ -16,6 +16,7 @@ import {
 } from './slug-utils.js';
 
 import { getModelFromCache } from './entity-cache-reader.js';
+import { env } from 'cloudflare:workers';
 
 // Re-export for backward compatibility
 export { normalizeSlug, canonicalizeSlug, isArxivId, parseHuggingFaceId, generateVariants, levenshteinDistance };
@@ -27,8 +28,8 @@ export { normalizeSlug, canonicalizeSlug, isArxivId, parseHuggingFaceId, generat
  * @returns {Promise<{model: object|null, resolution: {source: string, confidence: number}}>}
  */
 export async function resolveToModel(slug, locals) {
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
-    const kvCache = locals?.runtime?.env?.KV_CACHE;
+    const r2 = env?.R2_ASSETS;
+    const kvCache = env?.KV_CACHE;
 
     if (!slug) {
         return { model: null, resolution: { source: 'none', confidence: 0 } };

@@ -2,6 +2,7 @@
 // V14.2 Zero-Cost Constitution: D1 REMOVED - Using R2 Static Cache Only
 import { getCachedModel, setCachedModel } from './cache.js';
 import { getModelFromCache } from './entity-cache-reader.js';
+import { env } from 'cloudflare:workers';
 
 /**
  * V14.2: D1 Database has been PERMANENTLY REMOVED per Zero-Cost Constitution Art 2.1
@@ -14,7 +15,7 @@ import { getModelFromCache } from './entity-cache-reader.js';
  * @returns {object|null} Model data from R2 cache or null if not found
  */
 export async function getModelBySlug(slug, locals) {
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const r2 = env?.R2_ASSETS;
 
     if (!slug) return null;
 

@@ -1,5 +1,6 @@
 import pako from 'pako';
 import { R2_CACHE_URL } from '../config/constants.js';
+import { env } from 'cloudflare:workers';
 
 /**
  * V19.4 Unified Config Loader
@@ -15,7 +16,7 @@ export async function getGlobalStats(key, locals = null) {
     }
 
     // 2. SSR Check (Priority: R2 Binding)
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const r2 = env?.R2_ASSETS;
 
     // V19.4: Multi-format candidates for resilience
     const candidates = [
