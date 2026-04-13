@@ -41,6 +41,30 @@ export function generateModelJsonLd(model: any, slug: string, coverImage: string
 }
 
 /**
+ * Generate Schema.org JSON-LD for prompt/template page
+ * Uses CreativeWork (prompts are creative text artifacts, not HowTo sequences).
+ */
+export function generatePromptJsonLd(prompt: any, slug: string) {
+    if (!prompt) return null;
+    const name = prompt.name || prompt.title || 'AI System Prompt';
+    const cleanDesc = cleanDescription(prompt.description);
+    return {
+        "@context": "https://schema.org",
+        "@type": "CreativeWork",
+        "additionalType": "SystemPrompt",
+        "name": name,
+        "description": (prompt.seo_summary?.description || cleanDesc || '').substring(0, 300),
+        "author": prompt.author
+            ? { "@type": "Organization", "name": prompt.author }
+            : { "@type": "Organization", "name": "Community" },
+        "dateModified": prompt.last_updated || new Date().toISOString(),
+        "url": `https://free2aitools.com/prompt/${slug}`,
+        "inLanguage": "en",
+        "isAccessibleForFree": true
+    };
+}
+
+/**
  * Check if model has capability
  */
 export function hasCapability(model: any, capId: string): boolean {
