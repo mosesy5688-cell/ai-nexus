@@ -52,13 +52,6 @@ try {
   error = e;
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
-// V26.4 DIAG (temp): surface loader exception for V22 investigation
-if (error) {
-  const msg = (error?.message || String(error)).slice(0, 200).replace(/[\r\n]+/g, ' ');
-  const stk = (error?.stack || '').split('\n').slice(0, 4).join(' | ').slice(0, 500).replace(/[\r\n]+/g, ' ');
-  try { Astro.response.headers.set('X-Loader-Error', msg); } catch {}
-  try { Astro.response.headers.set('X-Loader-Stack', stk); } catch {}
-}
 
 if (!promptData && !error) {
   Astro.response.status = 404;
