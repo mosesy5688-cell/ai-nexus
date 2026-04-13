@@ -126,7 +126,24 @@ async function main() {
     console.log(`  [DIAG] shardEntityIds keys: [${[...shardEntityIds.keys()].sort((a,b) => a-b).join(',')}]`);
     console.log(`  [DIAG] entityEnrichMap.size=${entityEnrichMap.size}, enrichmentMap.size=${enrichmentMap.size}`);
     let totalEnriched = 0, totalDl = 0, totalNeeded = 0, totalMissingShard = 0;
+    let processedCount = 0;
     const DL_CONCURRENCY = 100;
+
+    // V26.9 §18.22.4: Silent-exit guard. Observed in field run: Master Fusion
+    // exited after part-086 with no error, no completion banner, and exit code 0,
+    // letting the GHA step pass while 80% of entities silently vanished.
+    // Likely cause: a NAPI-layer crash or unhandled promise rejection that
+    // terminates the process without going through main().catch.
+    // This handler runs synchronously on ANY exit path and converts a premature
+    // exit-0 into a hard failure so the workflow step turns red.
+    const expectedFusionCount = shardFiles.length;
+    const exitGuard = (code) => {
+        if (processedCount < expectedFusionCount && (code === 0 || code === undefined)) {
+            console.error(`[FUSION] CRITICAL: process exited after fusing only ${processedCount}/${expectedFusionCount} shards. Forcing exit code 1 to fail the workflow step.`);
+            process.exitCode = 1;
+        }
+    };
+    process.on('exit', exitGuard);
 
     for (let i = 0; i < shardFiles.length; i++) {
         const shardPath = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
@@ -198,6 +215,7 @@ async function main() {
                 })));
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${fused.length} entities (JS)`);
             }
+            processedCount++;
         } catch (e) {
             console.error(`  [FAIL] Shard ${i}: ${e.message}`);
         }
@@ -207,13 +225,21 @@ async function main() {
         if (global.gc && i % 10 === 9) global.gc();
     }
 
+    // V26.9 §18.22.4: Loud post-loop assertion. Catches the case where the
+    // fusion for-loop completes "normally" but processed fewer shards than
+    // expected (e.g. a future regression silently breaks out of the loop).
+    if (processedCount < expectedFusionCount) {
+        throw new Error(`[FUSION] CRITICAL: fused only ${processedCount}/${expectedFusionCount} shards. Refusing to write a partial fusion that would silently drop ${expectedFusionCount - processedCount} shards' worth of entities.`);
+    }
+
     // Cleanup
     shardEntityIds.clear();
     entityEnrichMap.clear();
     enrichmentMap.clear();
     await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
-    console.log(`[FUSION V26.8] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched)`);
+    process.removeListener('exit', exitGuard);
+    console.log(`[FUSION V26.8] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched, ${processedCount}/${expectedFusionCount} shards processed)`);
     console.log(`  [DIAG] Enrichment summary: needed=${totalNeeded}, downloaded=${totalDl}, missingShard=${totalMissingShard}`);
     if (totalMissingShard > 0) {
         console.warn(`  [DIAG] ${totalMissingShard} shards had empty entity ID lists — registry shard indices may not match artifact file indices`);
