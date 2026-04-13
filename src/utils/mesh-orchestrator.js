@@ -3,12 +3,13 @@ import { processRelationsIntoTiers, injectStructuralRelations, injectCategoryAlt
 import { loadCachedJSON, loadSpecs } from './loadCachedJSON.js';
 import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 import { UNIVERSAL_ICONS, DEFAULT_TIERS } from './mesh-constants.js';
+import { env } from 'cloudflare:workers';
 
 export async function getMeshProfile(locals, rootId, entity, options = {}) {
     const opts = typeof options === 'string' ? { type: options } : (options || {});
     const { type = 'model', ssrOnly = true } = opts;
     const normRoot = stripPrefix(rootId);
-    const isSSR = Boolean(locals?.runtime?.env);
+    const isSSR = Boolean(env);
     const category = entity?.primary_category || entity?.pipeline_tag || '';
 
     const [rawRelationsResult, graphMeta, knowledgeIndex, specsResult, meshStatsResult, categoryAlts] = await Promise.all([

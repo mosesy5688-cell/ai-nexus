@@ -12,6 +12,7 @@
 export { getDatasetFromCache, getPaperFromCache } from './entity-cache-reader-depth.js';
 
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from './entity-cache-reader-core.js';
+import { env } from 'cloudflare:workers';
 
 /**
  * V6.2: Get space data from R2 cache for detail page
@@ -41,7 +42,7 @@ export async function getToolFromCache(slug, locals) {
 export async function getRelatedEntities(entityId, locals) {
     if (!entityId) return [];
 
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const r2 = env?.R2_ASSETS;
     if (!r2) {
         console.warn('[RelationsCache] R2 not available');
         return [];

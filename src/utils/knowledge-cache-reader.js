@@ -2,6 +2,7 @@
 export { stripPrefix, getTypeFromId, getRouteFromId, normalizeSlug, isMatch, KNOWLEDGE_ALIAS_MAP } from './mesh-routing-core.js';
 import { stripPrefix, getTypeFromId, normalizeSlug, isMatch } from './mesh-routing-core.js';
 import { loadCachedJSON } from './loadCachedJSON.js';
+import { env } from 'cloudflare:workers';
 
 // Bidirectional matching and ingestion logic
 
@@ -23,7 +24,7 @@ export async function fetchCategoryAlts(locals, category) {
 }
 
 export async function fetchMeshRelations(locals, entityId = null, options = { ssrOnly: true }) {
-    const R2 = locals?.runtime?.env?.R2_ASSETS;
+    const R2 = env?.R2_ASSETS;
 
     const target = stripPrefix(entityId);
     let allRelations = [];
@@ -31,7 +32,7 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     // V22.8: Extreme SSR Throttling (Constitutional Safety Fix)
     // Loading full relations.json or graph.json during SSR at 364K scale causes 1102 Worker OOM.
     // We skip these for the initial HTML load; rich mesh data will hydrate on the client-side.
-    const isSSR = Boolean(locals?.runtime?.env);
+    const isSSR = Boolean(env);
 
     if (isSSR && options.ssrOnly) {
         console.warn(`[KnowledgeReader] SSR Memory Protection enabled for ${entityId}. Returning empty relations to prevent 1102 crash.`);
@@ -191,7 +192,7 @@ export async function fetchGraphMetadata(locals) {
     try {
         // V16.96: Skip heavy graph metadata during SSR to preserve memory
         // V18.2.7: Allow if NOT in SSR (client-side) or explicit override
-        const isSSR = Boolean(locals?.runtime?.env);
+        const isSSR = Boolean(env);
 
         // V18.12.0: If in SSR, we still need a tiny "existence index" to prevent 404s
         // We will try to use the provided locals context if available
@@ -218,7 +219,7 @@ export async function fetchGraphMetadata(locals) {
  * Concept metadata fetcher (Legacy/Refined)
  */
 export async function fetchConceptMetadata(locals) {
-    const isSSR = Boolean(locals?.runtime?.env);
+    const isSSR = Boolean(env);
     // V21.5.2: Skip large index during SSR to prevent 1102 worker crashes
     if (isSSR) return [];
 
