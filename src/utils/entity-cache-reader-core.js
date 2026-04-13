@@ -1,5 +1,7 @@
 // V15.1 Unified Entity Cache Reader Core (Art.I-Extended: Frontend D1 = 0)
 import { R2_CACHE_URL } from '../config/constants.js';
+// V26.5: Astro v6 — locals.runtime.env is a throwing getter; use module-level env from cloudflare:workers
+import { env } from 'cloudflare:workers';
 
 import { stripPrefix, getTypeFromId } from './mesh-routing-core.js';
 
@@ -110,7 +112,8 @@ export async function fetchEntityFromR2(type, slug, locals) {
     const normalized = normalizeEntitySlug(slug, type);
 
     // 1. Try R2 Cache (Production/Preview SSR)
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    // V26.5: Astro v6 removed locals.runtime.env (throwing getter). Use module-level env.
+    const r2 = env?.R2_ASSETS;
     if (r2) {
         const paths = getR2PathCandidates(type, normalized);
         console.log(`[R2Reader] Checking ${paths.length} paths for ${type}/${normalized}`);
