@@ -31,7 +31,11 @@ export async function purgeStaleShards(directory, currentShardCount) {
 
         const deleteBatch = [];
         for (const obj of list.Contents) {
-            const match = obj.Key.match(/part-(\d+)\.json(\.gz)?/);
+            // V25.8: match both legacy JSON shards (.json / .json.gz) and current
+            // NXVF binary shards (.bin). Without `.bin` here, R2 retains stale binary
+            // shards from prior runs forever — Master Fusion picks them up via readdir
+            // and silently fuses them into garbage (see execution memo §18.22.4).
+            const match = obj.Key.match(/part-(\d+)\.(?:json(?:\.gz)?|bin)/);
             if (match) {
                 const index = parseInt(match[1]);
                 if (index >= currentShardCount) {
