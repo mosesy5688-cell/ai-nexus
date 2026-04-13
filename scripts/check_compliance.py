@@ -53,7 +53,7 @@ IGNORE_FILES = {
     # Tier 1: Legacy Test (Frozen)
     'frontend-guardian.js',
     # Tier 2: Complex Visualization (Complete UI - NO FUTURE GROWTH)
-    'GraphExplorer.astro', 'NeuralGraphExplorer.astro', 'FamilyTree.astro', 'ArchitectureModule.astro',
+    'GraphExplorer.astro',
     # Tier 3: CSS Design System (Stable)
     'design-tokens.css', 'leaderboard.css', 'knowledge.css',
     # Tier 4: Authorized Internal Documents (Art 9.1 Exemption)
