@@ -64,7 +64,11 @@ function getCategory(name) {
 const category = getCategory(dbName);
 const THRESHOLD = getThreshold(category);
 const EXPECTED_PAGE_SIZE = 16384;
-const MAX_DB_SIZE_MB = isSearchDb ? 1024 : (isHashShard || isFtsDb) ? 250 : 125;
+// V25.9.5: align with pack-utils.js:232 (PR #1731 raised search-db limit to 2048MB).
+// verify-db.js was left at 1024MB and turned into a blocking check when 4/4 recovered
+// from the §18.22.4 data-loss incident — search.db hit 1068MB legitimately with
+// 447k entities. Audit item A3 "deferred" auto-escalated to blocker.
+const MAX_DB_SIZE_MB = isSearchDb ? 2048 : (isHashShard || isFtsDb) ? 250 : 125;
 
 let failures = 0;
 
