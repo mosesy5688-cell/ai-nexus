@@ -75,30 +75,43 @@ async function probe() {
     console.log(`[PROBE] Testing ${samples.length} shards (1 entity per shard)...`);
     let failures = 0;
 
+    // V25.9.6: retry ONLY on timeout/network error (catch branch).
+    // Real failures (HTTP non-206, size mismatch) fail immediately — do not mask data corruption.
+    // 2/391 false-positive rate observed when CDN cold-miss tail latency crossed 10s;
+    // 15s × 3 retries absorbs the ~99p cold-miss latency without hiding true regressions.
     for (const s of samples) {
         const url = `${CDN_BASE}/${s.bundle_key}`;
         const range = `bytes=${s.bundle_offset}-${s.bundle_offset + s.bundle_size - 1}`;
 
-        try {
-            const res = await fetch(url, {
-                headers: { 'Range': range },
-                signal: AbortSignal.timeout(10000)
-            });
+        let lastErr = null;
+        let success = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                const res = await fetch(url, {
+                    headers: { 'Range': range },
+                    signal: AbortSignal.timeout(15000)
+                });
 
-            if (res.status === 206) {
-                const buffer = await res.arrayBuffer();
-                if (buffer.byteLength === s.bundle_size) {
-                    console.log(`  ✅ ${s.bundle_key} → ${s.id}: OK (${buffer.byteLength}B)`);
+                if (res.status === 206) {
+                    const buffer = await res.arrayBuffer();
+                    if (buffer.byteLength === s.bundle_size) {
+                        const retryTag = attempt > 0 ? ` (retry ${attempt})` : '';
+                        console.log(`  ✅ ${s.bundle_key} → ${s.id}: OK (${buffer.byteLength}B)${retryTag}`);
+                        success = true;
+                    } else {
+                        lastErr = `Size ${buffer.byteLength} ≠ expected ${s.bundle_size}`;
+                    }
                 } else {
-                    console.error(`  ❌ ${s.bundle_key} → ${s.id}: Size ${buffer.byteLength} ≠ expected ${s.bundle_size}`);
-                    failures++;
+                    lastErr = `HTTP ${res.status}`;
                 }
-            } else {
-                console.error(`  ❌ ${s.bundle_key} → ${s.id}: HTTP ${res.status}`);
-                failures++;
+                break; // non-timeout outcomes (success or real failure) — do not retry
+            } catch (e) {
+                lastErr = e.message;
+                if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
             }
-        } catch (e) {
-            console.error(`  ❌ ${s.bundle_key} → ${s.id}: ${e.message}`);
+        }
+        if (!success) {
+            console.error(`  ❌ ${s.bundle_key} → ${s.id}: ${lastErr}`);
             failures++;
         }
     }
