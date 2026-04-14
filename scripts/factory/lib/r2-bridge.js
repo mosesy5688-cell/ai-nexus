@@ -204,13 +204,15 @@ export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = 
     return backupDirectoryToR2(absDir, r2Prefix, opts);
 }
 
-/** Restore directory from R2 (manifest-first, prefix-listing fallback). */
+// §18.22.7: Rust _r2Engine.restoreDirectoryFromR2 silently returns 0 on non-empty prefixes (run 24382359065: rust=0 vs real=2064). Fall back to JS on Rust 0.
 export async function restoreDirectoryFromR2FFI(client, r2Prefix, localDir, opts = {}) {
-    if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        return _r2Engine.restoreDirectoryFromR2(client, r2Prefix, localDir, opts.concurrency);
-    }
-    const { restoreDirectoryFromR2 } = await import('./r2-handoff.js');
-    return restoreDirectoryFromR2(r2Prefix, localDir, opts);
+    const { restoreDirectoryFromR2: restoreJS } = await import('./r2-handoff.js');
+    if (!_r2Engine || client?.constructor?.name !== 'R2Client') return restoreJS(r2Prefix, localDir, opts);
+    const rust = await _r2Engine.restoreDirectoryFromR2(client, r2Prefix, localDir, opts.concurrency);
+    if ((rust?.count || 0) > 0) return rust;
+    console.warn(`[R2-BRIDGE] Rust restore-dir returned 0 for ${r2Prefix} — falling back to JS`);
+    const js = await restoreJS(r2Prefix, localDir, opts);
+    if ((js?.count || 0) > 0) console.error(`[R2-BRIDGE] Rust/JS divergence for ${r2Prefix}: rust=0, js=${js.count} (Rust bug — §18.22.7)`); return js;
 }
 
 /** Backup a single file to R2. */
