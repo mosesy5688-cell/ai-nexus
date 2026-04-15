@@ -701,7 +701,10 @@ jobs:
 
       # V25.8.3: Upload dedup.db to state/ for Factory 1.5 consumption
       # factory-enrich.yml downloads from state/dedup.db, not data/dedup.db
+      # §18.23.10: if: always() prevents dedup.db loss when probe-vfs fails — otherwise
+      # next Factory 1.5 re-harvests ~8500 already-enriched entities under HF 14.5% rate-limit.
       - name: Upload Dedup Ledger to R2 State
+        if: always()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
