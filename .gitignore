@@ -11,6 +11,9 @@ target
 # Wrangler local development state
 .wrangler/
 
+# Claude Code local settings (machine-specific permissions)
+.claude/settings.local.json
+
 # Astro auto-generated files
 .astro/
 
