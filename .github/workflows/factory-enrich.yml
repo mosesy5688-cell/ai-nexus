@@ -119,6 +119,7 @@ jobs:
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           UMID_SALT: ${{ secrets.UMID_SALT }}
           S2_API_KEY: ${{ secrets.S2_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}  # C-stage §18.23.5: previously unplumbed, booster was running anonymous against the Pages 200/5min bucket
           DEDUP_DB_PATH: ./output/data/dedup.db
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |

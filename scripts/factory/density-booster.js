@@ -4,19 +4,7 @@ import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/ru
 import { zstdCompress } from './lib/zstd-helper.js';
 import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
 import { writeBoosterStats } from './lib/booster-stats.js';
-
-// ── HF README Fetcher (for model enrichment) ───────────
-const HF_TOKEN = process.env.HF_TOKEN || '';
-const HF_HEADERS = HF_TOKEN ? { Authorization: `Bearer ${HF_TOKEN}` } : {};
-async function fetchHfReadme(modelId) {
-    try {
-        const url = `https://huggingface.co/${modelId}/raw/main/README.md`;
-        const res = await fetch(url, { headers: HF_HEADERS, signal: AbortSignal.timeout(15000) });
-        if (!res.ok) return null;
-        const text = await res.text();
-        return text.length >= 200 ? text : null;
-    } catch { return null; }
-}
+import { fetchHfReadme, preflightHfToken, hfReasons } from './lib/hf-fetcher.js';
 
 // ── Config ──────────────────────────────────────────────
 const RATE_LIMIT_MS = 10000;
@@ -83,6 +71,16 @@ async function main() {
     console.log(`[BOOSTER] V25.8.7 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
     const startTime = Date.now();
 
+    // C-stage §18.23.5: fail-fast if HF_TOKEN provided but invalid, then stagger
+    // 30s per partition-index so 8 parallel runners don't slam HF in lockstep.
+    if (!(await preflightHfToken())) process.exit(1);
+    const staggerIdx = Math.floor(parseInt(PARTITION_START, 16) / 32);
+    if (staggerIdx > 0) {
+        const ms = staggerIdx * 30000;
+        console.log(`[BOOSTER] Partition ${PARTITION_START} stagger: ${ms / 1000}s`);
+        await new Promise(r => setTimeout(r, ms));
+    }
+
     const rustStatus = initRustBridge();
     await primeSession();
     const markerReady = await initMarkerSidecar();
@@ -132,7 +130,7 @@ async function main() {
         } else { skipped++; }
         await new Promise(r => setTimeout(r, 500 + Math.floor(Math.random() * 500)));
     }
-    console.log(`[BOOSTER] Models done: ${success} enriched, ${skipped} skipped`);
+    console.log(`[BOOSTER] Models done: ${success} enriched, ${skipped} skipped | reasons: ok=${hfReasons.ok} 404=${hfReasons.notFound} 429=${hfReasons.rateLimited} short=${hfReasons.tooShort} net=${hfReasons.networkError}`);
 
     // ── Phase B: Paper enrichment (arXiv waterfall, slow) ──
     const paperStart = { processed: 0, success, skipped, failed };
