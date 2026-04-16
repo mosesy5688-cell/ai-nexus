@@ -113,7 +113,9 @@ async function buildKnowledgeDb() {
         const files = await fs.readdir(knowledgeDir);
         db.exec('BEGIN TRANSACTION');
 
-        for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'))) {
+        // V26.12: Exclude sidecar tracking files (e.g. `stats.json.zst.meta`) that
+        // previously slipped through and produced empty-title rows in meta-knowledge.db.
+        for (const file of files.filter(f => (f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst')) && !f.includes('.meta'))) {
             try {
                 const raw = await fs.readFile(path.join(knowledgeDir, file));
                 const article = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
