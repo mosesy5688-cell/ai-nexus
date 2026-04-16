@@ -58,14 +58,21 @@ async function buildReportDb() {
     const reportsDir = path.join(CACHE_DIR, 'reports');
     const dailySubDir = path.join(reportsDir, 'daily');
     const srcDailyDir = path.join(path.dirname(CACHE_DIR), 'daily');
-    const dirsToScan = [reportsDir, dailySubDir, srcDailyDir];
+    // V26.13: Also scan fused report files from Master Fusion (report--YYYY-MM-DD.json.zst)
+    const fusedDir = path.join(CACHE_DIR, 'fused');
+    const dirsToScan = [reportsDir, dailySubDir, srcDailyDir, fusedDir];
     const seenIds = new Set();
 
     db.exec('BEGIN TRANSACTION');
     for (const dir of dirsToScan) {
         try {
             const files = await fs.readdir(dir);
-            for (const file of files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'))) {
+            // V26.13: In fused dir, only pick report--*.json.zst files
+            const isReportFile = (f) => {
+                if (dir === fusedDir) return f.startsWith('report--') && (f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'));
+                return f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst');
+            };
+            for (const file of files.filter(isReportFile)) {
                 try {
                     const raw = await fs.readFile(path.join(dir, file));
                     const report = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
@@ -110,7 +117,8 @@ async function buildKnowledgeDb() {
     )`);
 
     try {
-        const files = await fs.readdir(knowledgeDir);
+        // V26.13: Recursive scan — knowledge articles live in subdirectories (ai/, articles/, etc.)
+        const files = await fs.readdir(knowledgeDir, { recursive: true });
         db.exec('BEGIN TRANSACTION');
 
         // V26.12: Exclude sidecar tracking files (e.g. `stats.json.zst.meta`) that
