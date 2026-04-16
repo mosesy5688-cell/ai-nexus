@@ -228,9 +228,8 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
         const fileStats = fsSync.statSync(db.name);
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
-        // V25.9.4: full-search 1024→2048 (run 24271732160 hit 1047 MB post-VACUUM; old limit was a self-heuristic, not a CF cap — R2 VFS does Range Reads. Buys ~42mo until Phase 1A IVF retires FTS5).
-        // V26.4 §18.23.11: meta shards 100→2048. Run 24461219375 (Cycle 3 3/4) blocked by 5 slots over 100MB. Confirmed meta-NN.db uses R2 Range Read (r2-vfs.ts:16 CHUNK_SIZE=256KB, r2-vfs.ts:127 bucket.get with range) — never full-loads. 100MB was the same legacy full-load self-heuristic as search.db's old 1024MB; removed for the same reason.
-        const limitMB = (name === 'full-search') ? 2048 : 2048;
+        // V25.9.4: full-search 1024→2048 (post-VACUUM hit 1047MB). V26.4 §18.23.11: meta shards 100→2048 (Run 24467812161 4/4 blocked by 5 slots @ 100-102MB). Both limits were legacy full-load heuristics; R2 VFS does Range Reads (r2-vfs.ts:16 CHUNK_SIZE=256KB), never full-loads — per-shard size has no edge-runtime relevance.
+        const limitMB = 2048;
         const isOver = fileStats.size > limitMB * 1024 * 1024;
         const status = isOver ? `🛑 OVER ${limitMB}MB` : '✅ OK';
         if (isOver) offenders.push({ name, sizeMB, limitMB });
