@@ -28,6 +28,9 @@ const { slug } = Astro.params;
 let article = null;
 let cdnStats = null;
 let knowledgeDataSource = '404';
+// V26.11: Hoist canonicalSlug to outer scope — previously declared only inside
+// static-fallback branch, leaving canonical URL as `/knowledge/undefined` on VFS-hit path.
+let canonicalSlug = slug || '';
 
 // V26.3: VFS-First Loading (Zero JSON Mandate)
 try {
@@ -52,7 +55,7 @@ try {
 // Fallback: Static content (build-time .md + config)
 if (!article) {
     const configResult = getArticleBySlug(slug || '');
-    const canonicalSlug = configResult?.article.slug || slug || '';
+    canonicalSlug = configResult?.article.slug || slug || '';
     const contentData = articles[canonicalSlug];
 
     if (contentData || configResult) {
