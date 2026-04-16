@@ -51,6 +51,34 @@ export async function generateDailyReportsIndex(outputDir = './output') {
         }
     }
 
+    // V26.12: Backfill historical report bodies from CDN. The CDN index.json.zst
+    // only carries metadata; individual report bodies live at cache/reports/daily/<id>.json.zst.
+    // Without this pass, buildReportDb (meta-anchors.js) scans disk and sees only
+    // reports freshly generated this cycle — meta-report.db ends up with 1 row.
+    const dailyReportsDir = path.join(reportsDir, 'daily');
+    await fs.mkdir(dailyReportsDir, { recursive: true });
+    let backfilled = 0;
+    let backfillFailed = 0;
+    for (const r of reports) {
+        const localPath = path.join(dailyReportsDir, `${r.id}.json.zst`);
+        try { await fs.access(localPath); continue; } catch { /* not on disk — fetch */ }
+        try {
+            const res = await fetch(`${CDN_BASE}/cache/reports/daily/${r.id}.json.zst`);
+            if (res.ok) {
+                await fs.writeFile(localPath, Buffer.from(await res.arrayBuffer()));
+                backfilled++;
+            } else {
+                backfillFailed++;
+            }
+        } catch (e) {
+            backfillFailed++;
+            console.warn(`  [REPORTS-INDEX] Backfill fetch failed for ${r.id}: ${e.message}`);
+        }
+    }
+    if (backfilled > 0 || backfillFailed > 0) {
+        console.log(`  [REPORTS-INDEX] Historical backfill: ${backfilled} fetched, ${backfillFailed} failed/missing`);
+    }
+
     // Scan directories
     const dirsToScan = [dailyDir, backupDir];
 
