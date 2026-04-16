@@ -1,18 +1,43 @@
 ---
 /**
  * Knowledge Base Index Page
- * V12 UX Refresh - Premium design with improved contrast
+ * V26.11: SSR + VFS Discovery Anchor DB (meta-knowledge.db) for AI-generated
+ * articles section. Static KNOWLEDGE_CATEGORIES grid retained as-is (build-time
+ * curated content remains the primary hub; AI articles are additive below).
  */
-
-export const prerender = true;
 
 import Layout from '../layouts/Layout.astro';
 import KnowledgeCategoryCard from '../components/knowledge/KnowledgeCategoryCard.astro';
 import { KNOWLEDGE_CATEGORIES, getTotalArticleCount } from '../data/knowledge-base-config';
+import { getRouteFromId } from '../utils/mesh-routing-core';
+import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine';
+import { env } from 'cloudflare:workers';
 
 const pageTitle = "AI Knowledge Base - Free2AITools";
 const pageDescription = "Learn about AI benchmarks, model architectures, and deployment. Comprehensive guides for MMLU, HumanEval, context length, and more.";
 const totalArticles = getTotalArticleCount();
+
+// V26.11: VFS-Only — Latest AI-generated articles from meta-knowledge.db (Discovery Anchor DB).
+const r2Bucket = env?.R2_ASSETS;
+const shouldSimulate = !!import.meta.env?.DEV;
+let aiArticles: Array<{ id: string; title: string; date: string; slug: string; summary: string }> = [];
+try {
+    await loadManifest(r2Bucket, shouldSimulate);
+    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-knowledge.db');
+    const rows = await executeSql(engine.sqlite3, engine.db,
+        `SELECT id, title, published_at, slug, summary FROM articles ORDER BY published_at DESC LIMIT 20`, []);
+    aiArticles = rows.map((r: any) => ({
+        id: r.id,
+        title: r.title || r.slug || r.id,
+        date: (r.published_at || '').substring(0, 10),
+        slug: r.slug || r.id,
+        summary: r.summary || ''
+    }));
+} catch (e: any) {
+    console.warn('[Knowledge] VFS query failed:', e?.message || e);
+}
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=60');
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -94,6 +119,28 @@ const totalArticles = getTotalArticleCount();
         </a>
       </div>
     </section>
+
+    {/* V26.11: Latest AI-Generated Articles (VFS-backed via meta-knowledge.db). Rendered only when rows exist. */}
+    {aiArticles.length > 0 && (
+      <section class="mb-10">
+        <h2 class="text-lg font-bold text-gray-900 dark:text-[var(--text-strong)] mb-4 flex items-center gap-2">
+          ✨ Latest AI-Generated Articles
+        </h2>
+        <ul class="divide-y divide-[var(--border-hairline)] border border-[var(--border-hairline)] rounded-xl overflow-hidden bg-[var(--bg-surface)]">
+          {aiArticles.map((a) => (
+            <li class="group transition-colors hover:bg-black/20">
+              <a href={getRouteFromId(a.id, 'knowledge')} class="block p-4">
+                <div class="flex items-center justify-between gap-4 mb-1">
+                  <h3 class="text-sm font-bold text-[var(--text-strong)] truncate group-hover:text-indigo-400 transition-colors">{a.title}</h3>
+                  <span class="text-[10px] font-bold tabular-nums text-zinc-500 tracking-widest flex-shrink-0">{a.date}</span>
+                </div>
+                {a.summary && <p class="text-xs text-zinc-500 line-clamp-2">{a.summary}</p>}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
     <!-- CTA Section -->
     <section class="text-center py-10 px-6 bg-gradient-to-r from-indigo-600/90 to-purple-600/90 rounded-2xl text-[var(--text-strong)]">

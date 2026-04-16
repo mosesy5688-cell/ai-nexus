@@ -1,44 +1,37 @@
 ---
 /**
- * Reports Index — V25.1 News-Style Title List
- * Minimal SSR: single fetch from index.json.gz → title + date list
- * No DailyTrendingSection, TrendChart, or per-day fallback scanning.
+ * Reports Index — VFS-Only (V26.11)
+ * VFS-compliant list via Discovery Anchor DB (meta-report.db, articles table).
+ * Replaces legacy R2.list('cache/reports/daily/') direct bucket read.
  */
 import Layout from '@/layouts/Layout.astro';
 import { getRouteFromId } from '@/utils/mesh-routing-core';
+import { getCachedDbConnection, loadManifest, executeSql } from '@/lib/sqlite-engine';
 import { env } from 'cloudflare:workers';
 
-const CDN_BASE = 'https://cdn.free2aitools.com';
-const R2_ASSETS = env?.R2_ASSETS;
+const r2Bucket = env?.R2_ASSETS;
+const shouldSimulate = !!import.meta.env?.DEV;
 
-let reports: any[] = [];
+let reports: Array<{ id: string; title: string; date: string; slug: string }> = [];
 
-if (R2_ASSETS) {
-    // V25.3: Real-time Discovery via R2.list()
-    try {
-        const list = await R2_ASSETS.list({ prefix: 'cache/reports/daily/' });
-        reports = list.objects
-            .filter((obj: any) => obj.key.endsWith('.json.gz') || obj.key.endsWith('.json'))
-            .map((obj: any) => {
-                const filename = obj.key.split('/').pop()!;
-                const dateStr = filename.split('.')[0];
-                return {
-                    id: dateStr,
-                    title: `AI Daily Digest - ${dateStr}`, // Discovery-time title
-                    date: dateStr,
-                    lastModified: obj.uploaded
-                };
-            })
-            .sort((a: any, b: any) => b.date.localeCompare(a.date));
-    } catch (e) {
-        console.error('[Reports] R2.list failed:', (e as Error).message);
-    }
+try {
+    await loadManifest(r2Bucket, shouldSimulate);
+    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-report.db');
+    const rows = await executeSql(engine.sqlite3, engine.db,
+        `SELECT id, title, published_at, slug FROM articles ORDER BY published_at DESC LIMIT 100`, []);
+    reports = rows.map((r: any) => ({
+        id: r.id,
+        title: r.title || `AI Daily Report - ${r.published_at || r.id}`,
+        date: r.published_at || r.id,
+        slug: r.slug || r.id
+    }));
+} catch (e: any) {
+    console.warn('[Reports] VFS query failed:', e?.message || e);
 }
 
 const pageTitle = "AI Industry Daily Reports";
 const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape.";
 
-// V25.3: Atomic Edge Caching (60s) to balance freshness and R2 Operations cost
 Astro.response.headers.set('Cache-Control', reports.length > 0
     ? 'public, max-age=60, s-maxage=60'
     : 'public, max-age=0, s-maxage=0');
@@ -66,7 +59,7 @@ Astro.response.headers.set('Cache-Control', reports.length > 0
             <li class="group transition-colors hover:bg-black/20">
               <a href={getRouteFromId(report.id, 'report')} class="flex items-center p-4 gap-6">
                 <span class="flex-shrink-0 w-28 text-[10px] font-bold tabular-nums text-zinc-500 tracking-widest group-hover:text-indigo-400 transition-colors">
-                  {new Date(report.date).toISOString().split('T')[0]}
+                  {(report.date || '').substring(0, 10)}
                 </span>
                 <h3 class="flex-1 min-w-0 text-sm font-bold text-[var(--text-strong)] truncate group-hover:text-[#bdc3ff] transition-colors">
                   {report.title}
