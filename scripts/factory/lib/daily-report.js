@@ -114,7 +114,9 @@ export async function generateDailyReport(outputDir = './output') {
         console.log(`  [AI] Report for ${reportId} already has AI content. Skipping generation.`);
     } else {
         const topEntriesForAI = combinedHighlights.slice(0, 10);
-        aiContent = await generateAIContent(topEntriesForAI);
+        // Collect past 7 days' titles for dedup
+        const recentTitles = await getRecentTitles(dailyDir, reportId, 7);
+        aiContent = await generateAIContent(topEntriesForAI, recentTitles);
     }
 
     const title = aiContent?.title || existingReport?.title || `AI Daily Digest - ${reportId}`;
@@ -212,6 +214,28 @@ export async function updateDailyAccumulatorFromTopN(topEntities, outputDir = '.
 
     await saveDailyAccum(accumulator);
     console.log(`  [DAILY] Accumulated ${accumulator.entries.length} entries total (streaming).`);
+}
+
+/**
+ * Read titles from the past N days' reports for dedup.
+ */
+async function getRecentTitles(dailyDir, currentDateId, days = 7) {
+    const titles = [];
+    for (let i = 1; i <= days; i++) {
+        const d = new Date(currentDateId);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const candidates = [`${dateStr}.json.zst`, `${dateStr}.json.gz`, `${dateStr}.json`];
+        for (const file of candidates) {
+            try {
+                const raw = await fs.readFile(path.join(dailyDir, file));
+                const data = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
+                if (data.title) titles.push(data.title);
+                break;
+            } catch { /* file doesn't exist for this day */ }
+        }
+    }
+    return titles;
 }
 
 function calculateAvgFni(entries) {

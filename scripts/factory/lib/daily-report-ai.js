@@ -7,9 +7,11 @@ import { callGemini } from './titan-fetch.js';
 
 /**
  * Generate AI content for daily report using Gemini.
+ * @param {Array} topEntities - Top entities by FNI score
+ * @param {string[]} recentTitles - Titles from the past 7 days (for dedup)
  */
-export async function generateAIContent(topEntities) {
-    const top3 = topEntities.slice(0, 3).map((e, i) => {
+export async function generateAIContent(topEntities, recentTitles = []) {
+    const top10 = topEntities.slice(0, 10).map((e, i) => {
         const fni = typeof e.fni_score === 'number' ? e.fni_score.toFixed(1) : 'N/A';
         return `${i + 1}. ${e.name} (FNI: ${fni}, type: ${e.type || 'model'})`;
     }).join('\n');
@@ -18,20 +20,24 @@ export async function generateAIContent(topEntities) {
 
 Rules:
 - Professional, objective, data-driven tone. No hype or marketing language.
-- Use precise industry terminology: RAG, Agentic Workflows, Inference Scaling, KV Cache, Mixture of Experts, RLHF, CoT, etc.
+- Use precise industry terminology relevant to the entities being analyzed.
 - Cite specific model names, paper titles, and quantitative metrics when available.
 - Compare today's landscape against yesterday's to highlight deltas.
 - Return ONLY valid JSON. No markdown, no commentary outside JSON.`;
 
+    const recentTitlesBlock = recentTitles.length > 0
+        ? `\nRecent titles (past 7 days) — AVOID keyword overlap with these:\n${recentTitles.map(t => `- ${t}`).join('\n')}\n`
+        : '';
+
     const prompt = `Based on the following data, generate today's artificial intelligence industry insight report.
 
-Top 3 entities today:
-${top3}
+Top 10 entities today:
+${top10}
 
 A total of ${topEntities.length} high-value entities made it to today's list.
-
+${recentTitlesBlock}
 Strict Requirements:
-1. title: MUST use exactly this format: "free2aitools Daily Report: [Core Tech Breakthrough/Trend Keyword]". Example: "free2aitools Daily Report: DeepSeek-V3 Architecture Analysis & Long-Context Reasoning Breakthrough"
+1. title: MUST use exactly this format: "free2aitools Daily Report: [Core Tech Breakthrough/Trend Keyword]". The keyword MUST reflect today's specific top entities — do NOT reuse themes from recent titles listed above.
 2. subtitle: 15-25 words, summarizing today's core data points and advancements.
 3. summary: 100-150 words. Your analysis must contain three parts: (1) Objective summary of today's major breakthroughs, (2) Industry Implications, (3) Technical Outlook.
 4. Explicitly point out what changed compared to "yesterday" and cite specific model/paper names.
@@ -39,7 +45,7 @@ Strict Requirements:
 Return exactly this JSON format:
 {"title": "...", "subtitle": "...", "summary": "..."}`;
 
-    const aiContent = await callGemini({ systemInstruction, prompt, temperature: 0.2, maxOutputTokens: 1024 });
+    const aiContent = await callGemini({ systemInstruction, prompt, temperature: 0.7, maxOutputTokens: 1024 });
 
     if (!aiContent) return null;
 
