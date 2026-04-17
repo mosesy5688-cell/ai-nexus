@@ -143,17 +143,8 @@ export class CatalogDataSource {
             }
         } catch (e) { console.warn('[CatalogDataSource] API search timeout, falling back to local:', e.message); }
 
-        // V26.3: Local FTS5 fallback — query current open shard's search table directly
-        try {
-            const safeQuery = q.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/).filter(t => t.length > 0).map(t => `"${t}"*`).join(' AND ');
-            if (!safeQuery) return filtered;
-            // Hash-sharded DBs have per-shard `search` FTS5 table — query directly without JOIN
-            const sql = `SELECT e.* FROM entities e WHERE e.rowid IN (SELECT rowid FROM search WHERE search MATCH ?) ORDER BY e.fni_score DESC, e.raw_pop DESC LIMIT 50`;
-            const rows = await this.dbClient.query(sql, [safeQuery]);
-            if (rows.length > 0) return DataNormalizer.normalizeCollection(rows, this.type);
-        } catch (e) { console.warn('[CatalogDataSource] Local FTS5 fallback failed:', e.message); }
-
-        // V26.3: Final fallback — return in-memory filtered results
+        // V26.4: FTS5 removed from meta shards (Path B — ~80MB/shard dead weight).
+        // SSR API search (Static Inverted Index) is primary; in-memory filter is fallback.
         return filtered.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
     }
 
