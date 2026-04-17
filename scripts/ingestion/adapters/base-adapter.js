@@ -253,7 +253,7 @@ export class BaseAdapter {
      * @returns {Promise<boolean>} True if waited and should retry, false otherwise
      */
     async handleRateLimit(response) {
-        if (response.status === 403 || response.status === 429) {
+        if (response.status === 403 || response.status === 429 || response.status === 503) {
             // Check for GitHub secondary rate limit (403 with specific message)
             // or standard 429.
             let waitMs = 60000; // Default: 1 minute

@@ -120,10 +120,12 @@ export class GitHubAdapter extends BaseAdapter {
             }
         `;
 
+        const failedTopics = []; // V26.13: Track topics that exhausted retries for a second pass
+
         for (const topic of topics) {
             if (allRepos.length >= limit) break;
             let after = null;
-            let retries = 0; // V22.8: Track retries per topic
+            let retries = 0;
 
             for (let page = 1; page <= pagesPerTopic; page++) {
                 if (allRepos.length >= limit) break;
@@ -148,18 +150,21 @@ export class GitHubAdapter extends BaseAdapter {
                         if (await this.handleRateLimit(response)) {
                             page--; continue;
                         }
-                        // V22.8: Retry on 502/503 with exponential backoff (max 3 retries, 10s/20s/30s wait)
-                        if ((response.status === 502 || response.status === 503) && retries < 3) {
+                        // V26.13: Retry on 502/503/504 with exponential backoff + jitter (max 5 retries)
+                        if ((response.status === 502 || response.status === 503 || response.status === 504) && retries < 5) {
                             retries++;
-                            const backoff = retries * 10000; // 10s, 20s, 30s
-                            console.warn(`   ⚠️ GitHub GQL ${response.status}, retry ${retries}/3 in ${backoff / 1000}s...`);
+                            const baseMs = Math.min(10000 * Math.pow(2, retries - 1), 120000); // 10s→20s→40s→80s→120s cap
+                            const jitter = Math.floor(Math.random() * 5000); // 0-5s jitter
+                            const backoff = baseMs + jitter;
+                            console.warn(`   ⚠️ GitHub GQL ${response.status}, retry ${retries}/5 in ${(backoff / 1000).toFixed(1)}s...`);
                             await this.delay(backoff);
                             page--; continue;
                         }
-                        console.warn(`   ⚠️ GitHub GQL failed: ${response.status} (giving up on ${topic})`);
+                        console.warn(`   ⚠️ GitHub GQL failed: ${response.status} — skipping ${topic} (will retry later)`);
+                        failedTopics.push({ topic, after, page });
                         break;
                     }
-                    retries = 0; // Reset on success
+                    retries = 0;
 
                     const result = await response.json();
                     if (result.errors) {
@@ -181,31 +186,7 @@ export class GitHubAdapter extends BaseAdapter {
                         if (!seenIds.has(node.databaseId) && allRepos.length < limit) {
                             seenIds.add(node.databaseId);
 
-                            // Map GraphQL structure to legacy REST structure for normalize() compatibility
-                            const mappedRepo = {
-                                id: node.databaseId,
-                                name: node.name,
-                                full_name: node.nameWithOwner,
-                                description: node.description,
-                                html_url: node.htmlUrl,
-                                stargazers_count: node.stargazerCount,
-                                forks_count: node.forkCount,
-                                watchers_count: node.watchers?.totalCount || 0,
-                                open_issues_count: node.issues?.totalCount || 0,
-                                language: node.primaryLanguage?.name || null,
-                                topics: node.repositoryTopics?.nodes?.map(n => n.topic.name) || [],
-                                license: node.licenseInfo ? { spdx_id: node.licenseInfo.spdxId } : null,
-                                created_at: node.createdAt,
-                                pushed_at: node.pushedAt,
-                                default_branch: node.defaultBranchRef?.name || 'main',
-                                owner: {
-                                    login: node.owner?.login,
-                                    avatar_url: node.owner?.avatarUrl
-                                },
-                                readme: node.readme?.text || node.readmeLower?.text || '',
-                                quick_start: this.extractQuickStartFromReadme(node.readme?.text || node.readmeLower?.text || '')
-                            };
-
+                            const mappedRepo = this._mapGraphQLNode(node);
                             batch.push(mappedRepo);
                             allRepos.push(mappedRepo);
                         }
@@ -225,6 +206,56 @@ export class GitHubAdapter extends BaseAdapter {
                 } catch (error) {
                     console.warn(`   ⚠️ GQL error searching ${topic}: ${error.message}`);
                     break;
+                }
+            }
+        }
+
+        // V26.13: Retry round for topics that failed due to transient 502/503/504
+        if (failedTopics.length > 0 && allRepos.length < limit) {
+            console.log(`   🔄 [GitHub] Retry round: ${failedTopics.length} failed topics...`);
+            await this.delay(30000); // 30s cooldown before retry round
+            for (const { topic, after: savedAfter, page: savedPage } of failedTopics) {
+                if (allRepos.length >= limit) break;
+                let after = savedAfter;
+                for (let page = savedPage; page <= pagesPerTopic; page++) {
+                    if (allRepos.length >= limit) break;
+                    const queryVariables = { queryString: `topic:${topic} sort:stars-desc`, first: perPage, after };
+                    try {
+                        const response = await fetch(`${GH_API_BASE}/graphql`, {
+                            method: 'POST',
+                            headers: { ...this.getHeaders(), 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: GQL_QUERY, variables: queryVariables })
+                        });
+                        if (!response.ok) {
+                            if (await this.handleRateLimit(response)) { page--; continue; }
+                            console.warn(`   ⚠️ [Retry] GitHub GQL ${response.status} — giving up on ${topic}`);
+                            break;
+                        }
+                        const result = await response.json();
+                        if (result.errors) break;
+                        const searchData = result.data.search;
+                        const nodes = searchData.nodes || [];
+                        if (nodes.length === 0) break;
+                        const batch = [];
+                        for (const node of nodes) {
+                            if (!node || !node.databaseId) continue;
+                            if (!this.isSafeForWork({ name: node.name, description: node.description })) continue;
+                            if (!seenIds.has(node.databaseId) && allRepos.length < limit) {
+                                seenIds.add(node.databaseId);
+                                const mappedRepo = this._mapGraphQLNode(node);
+                                batch.push(mappedRepo);
+                                allRepos.push(mappedRepo);
+                            }
+                        }
+                        if (options.onBatch && batch.length > 0) await options.onBatch(batch);
+                        console.log(`   [Retry] ${topic} p${page}: +${batch.length} repos (total: ${allRepos.length})`);
+                        if (!searchData.pageInfo.hasNextPage) break;
+                        after = searchData.pageInfo.endCursor;
+                        await this.delay(1000);
+                    } catch (error) {
+                        console.warn(`   ⚠️ [Retry] GQL error on ${topic}: ${error.message}`);
+                        break;
+                    }
                 }
             }
         }
@@ -343,6 +374,32 @@ export class GitHubAdapter extends BaseAdapter {
         }
 
         return assets;
+    }
+
+    /**
+     * V26.13: Map GraphQL node to legacy REST structure for normalize() compatibility
+     */
+    _mapGraphQLNode(node) {
+        return {
+            id: node.databaseId,
+            name: node.name,
+            full_name: node.nameWithOwner,
+            description: node.description,
+            html_url: node.htmlUrl,
+            stargazers_count: node.stargazerCount,
+            forks_count: node.forkCount,
+            watchers_count: node.watchers?.totalCount || 0,
+            open_issues_count: node.issues?.totalCount || 0,
+            language: node.primaryLanguage?.name || null,
+            topics: node.repositoryTopics?.nodes?.map(n => n.topic.name) || [],
+            license: node.licenseInfo ? { spdx_id: node.licenseInfo.spdxId } : null,
+            created_at: node.createdAt,
+            pushed_at: node.pushedAt,
+            default_branch: node.defaultBranchRef?.name || 'main',
+            owner: { login: node.owner?.login, avatar_url: node.owner?.avatarUrl },
+            readme: node.readme?.text || node.readmeLower?.text || '',
+            quick_start: this.extractQuickStartFromReadme(node.readme?.text || node.readmeLower?.text || '')
+        };
     }
 
     /**
