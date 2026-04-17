@@ -24,7 +24,7 @@ import {
 import { fetchAr5ivHtml } from './ar5iv-fetcher.js';
 
 const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
-const ARXIV_OAI_BASE = 'https://export.arxiv.org/oai2';
+const ARXIV_OAI_BASE = 'https://oaipmh.arxiv.org/oai';
 
 // AI/ML relevant ArXiv categories
 const AI_CATEGORIES = ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV', 'cs.NE', 'stat.ML'];
@@ -76,6 +76,7 @@ export class ArXivAdapter extends BaseAdapter {
         const seenIds = new Set();
         let resumptionToken = null;
         let totalFetched = 0;
+        let consecutiveErrors = 0;
 
         while (totalFetched < limit) {
             let url = `${ARXIV_OAI_BASE}?verb=ListRecords`;
@@ -86,16 +87,28 @@ export class ArXivAdapter extends BaseAdapter {
                 if (from) url += `&from=${from}`;
             }
 
+            // V26.13: Per-request sleep to avoid hammering ArXiv servers
+            await this.delay(250);
+
             try {
                 const response = await fetch(url, {
                     headers: { 'User-Agent': 'Free2AITools-OAI/1.0' }
                 });
 
                 if (!response.ok) {
-                    if (await this.handleRateLimit(response)) continue;
+                    if (await this.handleRateLimit(response)) { consecutiveErrors = 0; continue; }
+                    // V26.13: Retry transient errors (502/504) up to 3 times with backoff
+                    if ((response.status === 502 || response.status === 504) && consecutiveErrors < 3) {
+                        consecutiveErrors++;
+                        const backoff = consecutiveErrors * 15000;
+                        console.warn(`   ⚠️ ArXiv OAI ${response.status}, retry ${consecutiveErrors}/3 in ${backoff / 1000}s...`);
+                        await this.delay(backoff);
+                        continue;
+                    }
                     console.warn(`   ⚠️ ArXiv OAI failed: ${response.status}`);
                     break;
                 }
+                consecutiveErrors = 0;
 
                 const xmlText = await response.text();
                 const result = await parseStringPromise(xmlText);
@@ -171,16 +184,20 @@ export class ArXivAdapter extends BaseAdapter {
 
             } catch (error) {
                 console.error(`   ❌ ArXiv OAI error: ${error.message}`);
+                // V26.13: If resumptionToken request failed, retry once without token
+                if (resumptionToken && consecutiveErrors < 2) {
+                    consecutiveErrors++;
+                    console.warn(`   🔄 [ArXiv] ResumptionToken may be stale — retrying fresh query in 30s...`);
+                    resumptionToken = null;
+                    await this.delay(30000);
+                    continue;
+                }
                 break;
             }
         }
 
         console.log(`✅ [ArXiv] OAI Ingestion Complete: ${seenIds.size} unique papers`);
         return onBatch ? [] : allPapers;
-    }
-
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
