@@ -6,14 +6,13 @@
 /**
  * V22.8: Build complete bundle JSON for VFS shard packing
  */
-export function buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch) {
+export function buildBundleJson(e, pBillions, ctxLen, arch) {
     return Buffer.from(JSON.stringify({
         readme: e.readme || e.html_readme || e.body_content || e.content || e.description || '',
         changelog: e.changelog || '',
         benchmarks: e.benchmarks || [],
         paper_abstract: e.paper_abstract || '',
         mesh_profile: e.mesh_profile || { relations: [] },
-        fni_metrics: fniMetrics,
         params_billions: pBillions, context_length: ctxLen, architecture: arch,
         license: e.license || e.license_spdx || '',
         source_url: e.source_url || '',
