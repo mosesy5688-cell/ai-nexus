@@ -130,6 +130,7 @@ async function consolidateShards() {
             } catch (e) { console.warn(`   ⚠️ Cold shard ${fileIdx} upload failed: ${e.message}`); }
         }
         coldBuffer = null;
+        await fsp.unlink(filePath).catch(() => {});
 
         if (totalCount % 50000 === 0 || fileIdx === naturalShards.length - 1) {
             const mem = Math.round(process.memoryUsage().heapUsed / 1048576);
@@ -148,10 +149,7 @@ async function consolidateShards() {
         new Promise(resolve => s.ws.on('finish', resolve))
     ));
 
-    // Remove natural shards, rename proc shards to final names
-    for (const file of naturalShards) {
-        await fsp.unlink(path.join(DATA_DIR, file)).catch(() => {});
-    }
+    // Rename proc shards to final names (natural shards already deleted in loop)
     for (let i = 0; i < TOTAL_SHARDS; i++) {
         await fsp.rename(
             path.join(DATA_DIR, `proc_shard_${i}.json.zst`),
