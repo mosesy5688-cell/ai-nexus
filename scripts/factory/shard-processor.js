@@ -20,8 +20,9 @@ import { processEntity } from './lib/processor-core.js';
 import { zstdCompress, autoDecompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
 import { loadEntityChecksums, loadDailyAccum, loadFniHistory } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
-import { initR2Bridge, createR2ClientFFI, downloadFromR2FFI } from './lib/r2-bridge.js';
+import { initR2Bridge, createR2ClientFFI, downloadFromR2FFI, uploadBufferToR2FFI } from './lib/r2-bridge.js';
 import { initRustBridge } from './lib/rust-bridge.js';
+import { generateUMID } from './lib/umid-generator.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -41,6 +42,24 @@ function parseArgs() {
         shardId: parseInt(shard) || 0,
         totalShards: parseInt(total) || 20
     };
+}
+
+// A3: Batch upload cold body_content to R2
+async function flushColdBodies(r2, bodies) {
+    if (!r2 || bodies.length === 0) return 0;
+    let uploaded = 0;
+    for (const { umid, body } of bodies) {
+        try {
+            const prefix = umid.substring(0, 2);
+            const key = `cold/body/${prefix}/${umid}.md.zst`;
+            const compressed = await zstdCompress(Buffer.from(body, 'utf-8'));
+            await uploadBufferToR2FFI(r2, key, compressed, 'application/zstd');
+            uploaded++;
+        } catch (e) {
+            console.warn(`[COLD] R2 PUT failed for ${umid}: ${e?.message || e}`);
+        }
+    }
+    return uploaded;
 }
 
 // Main (V14.5.2: with artifact-based checksum tracking)
@@ -132,6 +151,9 @@ async function main() {
     let processedCount = 0;    // entities actually processed in this run
     let successCount = 0;
     let writtenCount = 0;      // entities serialized to outStream (for comma framing)
+    let coldBodies = [];       // A3: cold body_content for R2 upload
+    let coldUploaded = 0;
+    const COLD_FLUSH = 500;
     const startTime = Date.now();
 
     for await (const line of rl) {
@@ -150,16 +172,30 @@ async function main() {
             const result = await processEntity(entity, globalStats, entityChecksums, fniHistory, CONFIG);
 
             if (result.success) successCount++;
+
+            // A3: collect cold body for R2 upload (only changed entities with meaningful content)
+            if (result._coldBody) {
+                const umid = result.enriched?.umid || generateUMID(result.id);
+                coldBodies.push({ umid, body: result._coldBody });
+                result._coldBody = null;
+            }
+
             processedCount++;
 
-            // Write to stream (backpressure-aware)
+            // Write to stream (backpressure-aware) — _coldBody already nulled, not serialized
             const comma = writtenCount === 0 ? '' : ',\n';
             await safeWrite(comma + JSON.stringify(result));
             writtenCount++;
 
+            // A3: flush cold bodies to R2 periodically to bound memory
+            if (coldBodies.length >= COLD_FLUSH) {
+                coldUploaded += await flushColdBodies(r2, coldBodies);
+                coldBodies = [];
+            }
+
             if (processedCount % 500 === 0) {
                 const mem = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0);
-                console.log(`[SHARD ${shardId}] Progress: ${processedCount} processed (RAM: ${mem}MB)...`);
+                console.log(`[SHARD ${shardId}] Progress: ${processedCount} processed, ${coldUploaded} cold uploaded (RAM: ${mem}MB)...`);
                 if (global.gc) global.gc();
             }
         } catch (e) {
@@ -168,6 +204,13 @@ async function main() {
 
         entityIndex++;
     }
+
+    // A3: flush remaining cold bodies
+    if (coldBodies.length > 0) {
+        coldUploaded += await flushColdBodies(r2, coldBodies);
+        coldBodies = [];
+    }
+    if (coldUploaded > 0) console.log(`[SHARD ${shardId}] ❄️ Cold storage: ${coldUploaded} bodies uploaded to R2`);
 
     // V56.2: Hard fail on zero entities — never silently produce empty shards.
     // entityIndex == 0 means the input stream produced no parseable lines at all
