@@ -45,15 +45,30 @@ export function createR2ClientFFI() {
     return createR2Client();
 }
 
-/** Fetch all R2 ETags with optional prefix filtering. */
+/** Fetch all R2 ETags with optional prefix filtering.
+ *  §18.22.7 pattern: Rust-first → JS fallback on 0/error → divergence log. */
 export async function fetchAllR2ETagsFFI(client, prefixFilter = []) {
-    if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        const map = await _r2Engine.fetchAllR2Etags(client, prefixFilter);
-        return new Map(Object.entries(map));
+    const isRust = _r2Engine && client?.constructor?.name === 'R2Client';
+    let rustFailed = false;
+    if (isRust) {
+        try {
+            const map = await _r2Engine.fetchAllR2Etags(client, prefixFilter);
+            const rustResult = new Map(Object.entries(map));
+            if (rustResult.size > 0) return rustResult;
+            console.warn(`[R2-BRIDGE] Rust fetchAllR2Etags returned 0 entries — falling back to JS`);
+        } catch (e) {
+            console.warn(`[R2-BRIDGE] Rust fetchAllR2Etags error: ${e.message} — falling back to JS`);
+        }
+        rustFailed = true;
     }
     const { fetchAllR2ETags } = await import('./r2-helpers.js');
     const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    return fetchAllR2ETags(client, bucket, prefixFilter);
+    const jsClient = isRust ? (_cachedJsClient ||= require('./r2-helpers.js').createR2Client()) : client;
+    const jsResult = await fetchAllR2ETags(jsClient, bucket, prefixFilter);
+    if (rustFailed && jsResult.size > 0) {
+        console.error(`[R2-BRIDGE] Rust/JS divergence — fetchAllR2Etags: rust=0, js=${jsResult.size}`);
+    }
+    return jsResult;
 }
 
 /** Upload single file with MD5/ETag skip. */
@@ -166,37 +181,21 @@ export async function batchUploadFFI(client, files, etagMap, concurrency) {
 
 /** Backup directory to R2 with manifest. */
 export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = {}) {
-    // Resolve to absolute path to avoid cwd issues in Rust WalkDir
     const path = await import('path');
     const fs = await import('fs');
     const absDir = path.resolve(localDir);
-
-    if (!fs.existsSync(absDir)) {
-        console.warn(`[R2-BRIDGE] backup-dir: directory '${absDir}' does not exist`);
-        return { count: 0 };
-    }
-
-    // List files for diagnostics
-    const entries = fs.readdirSync(absDir);
-    console.log(`[R2-BRIDGE] backup-dir: found ${entries.length} entries in ${absDir}`);
-
+    if (!fs.existsSync(absDir)) { console.warn(`[R2-BRIDGE] backup-dir: '${absDir}' not found`); return { count: 0 }; }
+    console.log(`[R2-BRIDGE] backup-dir: ${fs.readdirSync(absDir).length} entries in ${absDir}`);
     if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        // Walk with extensions filter, then upload
-        const extFilter = opts.extensions || null;
-        const walkResult = await _r2Engine.walkDirWithMd5(absDir, extFilter);
+        const walkResult = await _r2Engine.walkDirWithMd5(absDir, opts.extensions || null);
         console.log(`[R2-BRIDGE] backup-dir: ${walkResult.length} files matched filter`);
-
         let count = 0;
         for (const entry of walkResult) {
-            const localPath = `${absDir}/${entry.relPath}`;
-            const r2Key = `${r2Prefix}${entry.relPath}`;
             try {
-                const data = fs.readFileSync(localPath);
-                await _r2Engine.streamToR2(client, r2Key, data.toString('base64'));
+                const data = fs.readFileSync(`${absDir}/${entry.relPath}`);
+                await _r2Engine.streamToR2(client, `${r2Prefix}${entry.relPath}`, data.toString('base64'));
                 count++;
-            } catch (e) {
-                console.warn(`[R2-BRIDGE] backup-dir: failed to upload ${entry.relPath}: ${e.message}`);
-            }
+            } catch (e) { console.warn(`[R2-BRIDGE] backup-dir: failed ${entry.relPath}: ${e.message}`); }
         }
         return { count };
     }
