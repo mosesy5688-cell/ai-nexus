@@ -64,7 +64,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
 
         // 5. Semantic HTML Pre-rendering (V22.8 FIX: Inclusive Long-text extraction)
         const fullContent = entity.body_content || entity.readme_content || entity.readme || entity.content || entity.description || '';
-        const bodyContentLength = fullContent.length;
+        const bodyContentLength = entity.body_content_length || fullContent.length;
         const abstract300 = cleanAbstract(fullContent, 300);
         const htmlFragment = fullContent ? marked.parse(fullContent) : '';
 
