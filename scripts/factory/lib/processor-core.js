@@ -129,8 +129,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             success: true,
             _checksum: entityHash,
             enriched: enriched,
-            html_readme: htmlFragment,
-            _coldBody: isChanged && fullContent.length > 200 ? fullContent : null
+            html_readme: htmlFragment
         };
     } catch (error) {
         console.error(`[ERROR] ${entity.id}:`, error.message);

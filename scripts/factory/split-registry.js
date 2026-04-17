@@ -20,7 +20,9 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
 import { zstdCompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
-import { initR2Bridge, createR2ClientFFI, uploadFileFFI, uploadFileMultipartFFI } from './lib/r2-bridge.js';
+import { initR2Bridge, createR2ClientFFI, uploadFileFFI, uploadFileMultipartFFI, uploadBufferToR2FFI } from './lib/r2-bridge.js';
+import { cleanAbstract } from './lib/abstract-cleaner.js';
+import { generateUMID } from './lib/umid-generator.js';
 
 const TOTAL_SHARDS = 20;
 const DATA_DIR = 'data';
@@ -67,84 +69,74 @@ async function consolidateShards() {
     });
 
     let totalCount = 0;
+    let coldUploaded = 0;
+    initR2Bridge();
+    const r2 = createR2ClientFFI();
 
-    // V56.2: End-to-end file-stream + Rust FFI decompress + readline.
-    // Never materialize the full decompressed payload as a single V8 string
-    // (caps at 0x1fffffe8 / ~512 MiB). Mirrors shard-processor.js §119-123.
-    //
-    // Why not Readable.from(buffer)? It emits the entire buffer as ONE data
-    // event, so readline's StringDecoder tries to decode ~500MB in one call
-    // and hits the V8 string limit (observed crash at shard 250, run post-PR #1751).
-    //
-    // fs.createReadStream emits 64KB chunks → decompress stream → readline,
-    // so StringDecoder never accumulates more than a line's worth.
-    for (const file of naturalShards) {
+    // A3: Helper — truncate entity, collect cold body, route to processing shard
+    function routeEntity(entity) {
+        const id = entity.id || entity.slug;
+        const body = entity.body_content || entity.readme || entity.content || '';
+        if (body.length > 200) {
+            coldBuffer.push(JSON.stringify({ id, umid: entity.umid || generateUMID(id), body }) + '\n');
+        }
+        entity.body_content = cleanAbstract(body, 300);
+        entity.body_content_length = body.length;
+        entity.readme = entity.body_content;
+        entity.readme_content = undefined;
+        entity.content = undefined;
+        const shardIdx = getShardFromId(id, TOTAL_SHARDS);
+        outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
+        shardCounts[shardIdx]++;
+        totalCount++;
+    }
+
+    for (let fileIdx = 0; fileIdx < naturalShards.length; fileIdx++) {
+        const file = naturalShards[fileIdx];
         const filePath = path.join(DATA_DIR, file);
         const fileRs = fs.createReadStream(filePath);
         const decompStream = createAutoDecompressStream();
-        const rl = readline.createInterface({
-            input: fileRs.pipe(decompStream),
-            crlfDelay: Infinity,
-        });
+        const rl = readline.createInterface({ input: fileRs.pipe(decompStream), crlfDelay: Infinity });
 
-        let skipped = 0;
-        let firstLineSeen = false;
-        let legacyEntities = null;
+        let skipped = 0, firstLineSeen = false, legacyEntities = null;
+        let coldBuffer = [];
 
         for await (const line of rl) {
             if (!line) continue;
-
-            // Detect legacy JSON-array format on first non-empty line (starts with '[').
-            // Legacy shards are pre-V56.1 and fit in a single V8 string by construction
-            // (natural shards capped at 1000 entities ≈ well under 512MB).
             if (!firstLineSeen) {
                 firstLineSeen = true;
-                if (line.trimStart().startsWith('[')) {
-                    // Collect remaining lines, parse as one array below.
-                    legacyEntities = [line];
-                    continue;
-                }
+                if (line.trimStart().startsWith('[')) { legacyEntities = [line]; continue; }
             }
-            if (legacyEntities) {
-                legacyEntities.push(line);
-                continue;
-            }
+            if (legacyEntities) { legacyEntities.push(line); continue; }
 
             let entity;
-            try {
-                entity = JSON.parse(line);
-            } catch {
-                skipped++;
-                continue;
-            }
-            const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
-            outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
-            shardCounts[shardIdx]++;
-            totalCount++;
+            try { entity = JSON.parse(line); } catch { skipped++; continue; }
+            routeEntity(entity);
         }
 
         if (legacyEntities) {
             try {
-                const arr = JSON.parse(legacyEntities.join('\n'));
-                for (const entity of arr) {
-                    const shardIdx = getShardFromId(entity.id || entity.slug, TOTAL_SHARDS);
-                    outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
-                    shardCounts[shardIdx]++;
-                    totalCount++;
-                }
-            } catch (e) {
-                console.warn(`   ⚠️ Skipping corrupt legacy shard ${file}: ${e.message}`);
-            }
+                for (const entity of JSON.parse(legacyEntities.join('\n'))) routeEntity(entity);
+            } catch (e) { console.warn(`   ⚠️ Skipping corrupt legacy shard ${file}: ${e.message}`); }
         }
-        if (skipped > 0) {
-            console.warn(`   ⚠️ Skipped ${skipped} malformed NDJSON line(s) in ${file}`);
-        }
+        if (skipped > 0) console.warn(`   ⚠️ Skipped ${skipped} malformed NDJSON line(s) in ${file}`);
 
-        if (totalCount % 50000 === 0 || file === naturalShards[naturalShards.length - 1]) {
+        // A3: Upload cold bundle for this natural shard (~1000 entities, ~5MB)
+        if (coldBuffer.length > 0 && r2) {
+            try {
+                const compressed = await zstdCompress(Buffer.from(coldBuffer.join(''), 'utf-8'));
+                await uploadBufferToR2FFI(r2, `cold/shard/shard-${String(fileIdx).padStart(3, '0')}.jsonl.zst`, compressed, 'application/zstd');
+                coldUploaded++;
+            } catch (e) { console.warn(`   ⚠️ Cold shard ${fileIdx} upload failed: ${e.message}`); }
+        }
+        coldBuffer = null;
+
+        if (totalCount % 50000 === 0 || fileIdx === naturalShards.length - 1) {
             const mem = Math.round(process.memoryUsage().heapUsed / 1048576);
             console.log(`   - ${totalCount} entities routed (${file}) [Heap: ${mem}MB]`);
         }
     }
+    if (coldUploaded > 0) console.log(`   ❄️ Cold storage: ${coldUploaded}/${naturalShards.length} shard bundles uploaded to R2`);
 
     // Close all output streams
     for (let i = 0; i < TOTAL_SHARDS; i++) {
@@ -168,9 +160,7 @@ async function consolidateShards() {
     }
 
     // V56.0: R2-primary upload of processing shards (durable cross-job transport).
-    // Matrix shard jobs will fall back to this prefix if GHA cache misses.
-    initR2Bridge();
-    const r2 = createR2ClientFFI();
+    // R2 client already initialized above for cold storage.
     if (r2) {
         console.log(`\n☁️ [Consolidator] Uploading processing shards to R2 (state/processing-shards/)...`);
         let uploaded = 0, failed = 0;
