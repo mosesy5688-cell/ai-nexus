@@ -91,12 +91,10 @@ async function packDatabase() {
 
     // Prepare Statements — V25.9.6: 55 cols (added has_fulltext)
     const placeholder = Array(55).fill('?').join(', ');
-    const prepInserts = {}, prepFts = {};
+    const prepInserts = {};
     for (const [key, db] of Object.entries(metaDbs)) {
         prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
-        prepFts[key] = db.prepare(`INSERT INTO search (rowid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?)`);
     }
-    const shardFtsRowIds = Object.fromEntries(Object.keys(metaDbs).map(k => [k, 1]));
     const insertEntitySearch = searchDb.prepare(`INSERT INTO entities VALUES (${placeholder})`);
     // V25.9.5: search.db FTS5 retired — insertSearchFts removed. Readers query entities table only.
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -174,9 +172,6 @@ async function packDatabase() {
         const ftsTagStr = String(tags + ' ' + keywords);
         const catStr = String(category);
 
-        // V25.9.5: Per-shard meta.db FTS5 (CatalogDataSource MATCH fallback) + standalone fts.db.
-        // search.db FTS5 retired — no reader, was ~200-400 MB dead weight.
-        prepFts[targetKey].run(shardFtsRowIds[targetKey]++, nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
         insertFts.run(stats.packed + 1, String(e.umid || e.id), nameStr, String(truncatedSummary), authorStr, ftsTagStr, catStr);
 
         stats.packed++;

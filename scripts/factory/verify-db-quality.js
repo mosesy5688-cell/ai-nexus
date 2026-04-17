@@ -20,8 +20,8 @@ top.forEach(e => console.log(`  [${e.type}] ${e.name} | FNI: ${e.fni_score} | St
 const fniStats = db.prepare("SELECT count(CASE WHEN fni_score > 0 THEN 1 END) as has_fni, count(CASE WHEN fni_score = 0 OR fni_score IS NULL THEN 1 END) as no_fni FROM entities").get();
 console.log(`\nFNI populated: ${fniStats.has_fni} | FNI missing: ${fniStats.no_fni}`);
 
-const fts = db.prepare("SELECT e.id, e.name, e.type FROM search s JOIN entities e ON e.rowid = s.rowid WHERE search MATCH '\"gpt\"*' AND e.name != '' LIMIT 5").all();
-console.log(`\nFTS5 "gpt" (named only): ${fts.length} results`);
+const fts = db.prepare("SELECT id, name, type FROM entities WHERE name LIKE '%gpt%' AND name != '' ORDER BY fni_score DESC LIMIT 5").all();
+console.log(`\nB-Tree "gpt" (named only): ${fts.length} results`);
 fts.forEach(r => console.log(`  [${r.type}] ${r.name}`));
 
 // 5. Category Distribution
