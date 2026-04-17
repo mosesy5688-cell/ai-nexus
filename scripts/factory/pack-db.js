@@ -138,7 +138,7 @@ async function packDatabase() {
 
         // V25.8.3: Selective Injection (Zero-Heap Persistent Pattern)
         const keywords = e.search_vector || '';
-        const bundleJson = buildBundleJson(e, fniMetrics, pBillions, ctxLen, arch);
+        const bundleJson = buildBundleJson(e, pBillions, ctxLen, arch);
         let bundleKey = null, offset = 0, size = 0;
         if (bundleJson.length > THRESHOLD_KB * 1024) {
             if (shardWriter.wouldExceed(bundleJson.length, MAX_SHARD_SIZE)) {
