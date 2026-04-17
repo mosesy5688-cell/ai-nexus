@@ -149,7 +149,7 @@ async function packDatabase() {
             stats.heavy++; stats.bytes += size;
         }
 
-        const rawSummary = e.summary || e.description || e.body_content || '';
+        const rawSummary = e.summary || e.description || e.abstract_300 || e.body_content || '';
         const truncatedSummary = rawSummary.length > 500 ? rawSummary.substring(0, 500) + '...' : rawSummary;
         const category = getV6Category(e);
         const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');

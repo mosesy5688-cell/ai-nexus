@@ -8,7 +8,7 @@
  */
 export function buildBundleJson(e, pBillions, ctxLen, arch) {
     return Buffer.from(JSON.stringify({
-        readme: e.readme || e.html_readme || e.body_content || e.content || e.description || '',
+        readme: e.body_content || e.readme || e.html_readme || e.content || e.description || '',
         changelog: e.changelog || '',
         benchmarks: e.benchmarks || [],
         paper_abstract: e.paper_abstract || '',
