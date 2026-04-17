@@ -4,7 +4,8 @@ import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/ru
 import { zstdCompress } from './lib/zstd-helper.js';
 import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
 import { writeBoosterStats } from './lib/booster-stats.js';
-import { fetchHfReadme, preflightHfToken, hfReasons } from './lib/hf-fetcher.js';
+// V26.4: HF model README removed from 1.5 — 1/4 fetchFullModel already fetches README.md.
+// hf-fetcher.js retained for potential future use but no longer imported here.
 
 // ── Config ──────────────────────────────────────────────
 const RATE_LIMIT_MS = 10000;
@@ -71,16 +72,6 @@ async function main() {
     console.log(`[BOOSTER] V25.8.7 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
     const startTime = Date.now();
 
-    // C-stage §18.23.5: fail-fast if HF_TOKEN provided but invalid, then stagger
-    // 30s per partition-index so 8 parallel runners don't slam HF in lockstep.
-    if (!(await preflightHfToken())) process.exit(1);
-    const staggerIdx = Math.floor(parseInt(PARTITION_START, 16) / 32);
-    if (staggerIdx > 0) {
-        const ms = staggerIdx * 30000;
-        console.log(`[BOOSTER] Partition ${PARTITION_START} stagger: ${ms / 1000}s`);
-        await new Promise(r => setTimeout(r, ms));
-    }
-
     const rustStatus = initRustBridge();
     await primeSession();
     const markerReady = await initMarkerSidecar();
@@ -95,44 +86,12 @@ async function main() {
     const queue = getEnrichmentQueue(PARTITION_START, PARTITION_END, BUDGET);
     const workQueue = queue.filter(p => !alreadyEnriched.has(p.umid));
     const papers = workQueue.filter(e => e.type === 'paper');
-    const models = workQueue.filter(e => e.type === 'model');
-    console.log(`[BOOSTER] Work queue: ${workQueue.length} (papers: ${papers.length}, models: ${models.length})`);
+    console.log(`[BOOSTER] Work queue: ${workQueue.length} papers`);
 
     let processed = 0, success = 0, partial = 0, skipped = 0, failed = 0;
     const enrichedUmids = [];
 
-    // ── Phase A: Model README enrichment (HF models only) ──
-    const hfModels = models.filter(m => m.canonical_id.startsWith('hf-model--'));
-    console.log(`[BOOSTER] HF models: ${hfModels.length}/${models.length} (non-HF skipped)`);
-    for (const model of hfModels) {
-        processed++;
-        if (processed % 100 === 0) console.log(`[BOOSTER] Models: ${processed}/${hfModels.length} | S:${success} F:${failed}`);
-        if (Date.now() - startTime > MAX_RUNTIME_MS) break;
-        // hf-model--author--name → author/name
-        const hfId = model.canonical_id.slice('hf-model--'.length).replace('--', '/');
-        const readme = await fetchHfReadme(hfId);
-        if (readme) {
-            const partition = model.umid.substring(0, 2);
-            const key = `enrichment/fulltext/${partition}/${model.umid}.md.zst`;
-            const compressed = await zstdCompress(readme);
-            // V25.8.8: Defensive try-catch — a single R2 PUT failure (e.g. transient CF edge 409
-            // with non-XML body, which crashes AWS SDK XML deserializer) must not kill the whole
-            // partition. Log, count, continue. Data is safe: already-PUT enrichment files persist,
-            // and the next run's buildAlreadyEnrichedSet() will skip them.
-            try {
-                await uploadBufferToR2FFI(s3, key, compressed, 'application/zstd');
-                enrichedUmids.push(model.umid);
-                success++;
-            } catch (e) {
-                console.warn(`[BOOSTER] R2 PUT failed for ${model.umid}: ${e?.message || e}`);
-                failed++;
-            }
-        } else { skipped++; }
-        await new Promise(r => setTimeout(r, 500 + Math.floor(Math.random() * 500)));
-    }
-    console.log(`[BOOSTER] Models done: ${success} enriched, ${skipped} skipped | reasons: ok=${hfReasons.ok} 404=${hfReasons.notFound} 429=${hfReasons.rateLimited} short=${hfReasons.tooShort} net=${hfReasons.networkError}`);
-
-    // ── Phase B: Paper enrichment (arXiv waterfall, slow) ──
+    // ── Paper enrichment (arXiv waterfall) ──
     const paperStart = { processed: 0, success, skipped, failed };
     for (const paper of papers) {
         processed++;

@@ -148,10 +148,10 @@ export function getRefreshCandidates(limit = 15000, dbPath = DEDUP_DB_PATH) {
  * @param {string} prefixEnd - Hex prefix end (e.g. '0f')
  * @param {number} limit - Max entities to return
  * @param {string} dbPath - Path to dedup.db
- * @param {string[]} types - Entity types to enrich (default: paper + model)
+ * @param {string[]} types - Entity types to enrich (default: paper only — models get README at 1/4 harvest)
  * @returns {Array<{umid: string, canonical_id: string, source: string, type: string}>}
  */
-export function getEnrichmentQueue(prefixStart, prefixEnd, limit = 5000, dbPath = DEDUP_DB_PATH, types = ['paper', 'model']) {
+export function getEnrichmentQueue(prefixStart, prefixEnd, limit = 5000, dbPath = DEDUP_DB_PATH, types = ['paper']) {
     const db = openLedger(dbPath);
     const placeholders = types.map(() => '?').join(',');
     const queue = db.prepare(`
