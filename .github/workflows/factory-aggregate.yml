@@ -400,6 +400,8 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
+      - name: Free Disk (satellite jobs only need cache/registry)
+        run: rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null; echo "Freed $(df -h . | tail -1 | awk '{print $4}') available"
       - name: Generate Search Indices
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -469,6 +471,8 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
+      - name: Free Disk (satellite jobs only need cache/registry)
+        run: rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null; echo "Freed $(df -h . | tail -1 | awk '{print $4}') available"
       - name: Generate Rankings
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -542,6 +546,8 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
+      - name: Free Disk (satellite jobs only need cache/registry)
+        run: rm -rf artifacts/ cache/deltas/ output/meta/ 2>/dev/null; echo "Freed $(df -h . | tail -1 | awk '{print $4}') available"
       - name: Restore FNI History from Cache
         uses: actions/cache/restore@v4
         with:
@@ -622,6 +628,8 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
+      - name: Free Disk (satellite jobs only need cache/registry)
+        run: rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null; echo "Freed $(df -h . | tail -1 | awk '{print $4}') available"
       - name: Generate Relations & Knowledge Mesh
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
