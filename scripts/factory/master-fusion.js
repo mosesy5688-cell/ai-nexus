@@ -58,12 +58,13 @@ async function main() {
     // Phase 3: Enrichment — scan R2 + build global entity→enrichment mapping (memory only)
     const enrichmentDir = path.join(CONFIG.CACHE_DIR, 'enrichment-local');
     await fs.mkdir(enrichmentDir, { recursive: true });
-    let enrichmentMap = new Map(); // r2_umid → r2_key
-    let entityEnrichMap = new Map(); // entity_id → r2_umid (for local file lookup)
+    let enrichmentMap = new Map();
+    let entityEnrichMap = new Map();
+    let coldBodyMap = new Map();
     initR2Bridge();
     const r2 = createR2ClientFFI();
     if (r2) {
-        console.log('[FUSION] Phase 3: Scanning R2 enrichment + cold body index...');
+        console.log('[FUSION] Phase 3: Scanning R2 enrichment + cold shard bundles...');
         try {
             const etags = await fetchAllR2ETagsFFI(r2, ['enrichment/fulltext/']);
             for (const key of etags.keys()) {
@@ -71,17 +72,24 @@ async function main() {
                 if (m) enrichmentMap.set(m[1], key);
             }
             console.log(`  [OK] ${enrichmentMap.size} enrichment files indexed`);
-            // A3: Cold body fallback — only for entities WITHOUT enrichment
-            const coldEtags = await fetchAllR2ETagsFFI(r2, ['cold/body/']);
-            let coldCount = 0;
-            for (const key of coldEtags.keys()) {
-                const m = key.match(/cold\/body\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.zst$/);
-                if (m && !enrichmentMap.has(m[1])) { enrichmentMap.set(m[1], key); coldCount++; }
+        } catch (e) { console.warn(`  [WARN] Enrichment scan: ${e.message}`); }
+        // A3: Load cold shard bundles (fallback for entities without enrichment)
+        try {
+            const coldKeys = [...(await fetchAllR2ETagsFFI(r2, ['cold/shard/'])).keys()].filter(k => k.endsWith('.jsonl.zst'));
+            if (coldKeys.length > 0) {
+                const { autoDecompress } = await import('./lib/zstd-helper.js');
+                for (const key of coldKeys) {
+                    try {
+                        const text = (await autoDecompress(await downloadBufferFromR2FFI(r2, key))).toString('utf-8');
+                        for (const line of text.split('\n')) {
+                            if (!line) continue;
+                            try { const { id, body } = JSON.parse(line); if (id && body) coldBodyMap.set(id, body); } catch { }
+                        }
+                    } catch (e) { console.warn(`  [COLD] ${key}: ${e.message}`); }
+                }
+                console.log(`  [OK] ${coldBodyMap.size} cold bodies from ${coldKeys.length} bundles`);
             }
-            console.log(`  [OK] ${coldCount} cold body files indexed (enrichment priority preserved)`);
-        } catch (e) { console.warn(`  [WARN] Enrichment/Cold scan: ${e.message}`); }
-
-        // V26.8: Build global entity→enrichment mapping (dual-salt, no shard reads needed)
+        } catch (e) { console.warn(`  [WARN] Cold scan: ${e.message}`); }
         if (enrichmentMap.size > 0) {
             let prodHits = 0, devHits = 0;
             for (const id of allValidIds) {
@@ -107,11 +115,6 @@ async function main() {
         f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json.gz') || f.endsWith('.json'))
     ).sort();
 
-    // V26.9 §18.22.4: Sanity check — only fuse shard files whose index is in the
-    // current registry's shardEntityIds. Stale .bin files from prior runs with
-    // higher shard counts (not purged due to historical cleanup gap) would
-    // otherwise be silently fused as 0-entity shards, producing the 80% data-loss
-    // pattern observed pre-fix. Abort if expected shards are missing on disk.
     const expectedIndices = new Set(shardEntityIds.keys());
     const staleFiles = [];
     const shardFiles = allShardFiles.filter(f => {
@@ -120,20 +123,15 @@ async function main() {
         staleFiles.push(f);
         return false;
     });
-    if (staleFiles.length > 0) {
-        console.warn(`[FUSION] ⚠️ Skipping ${staleFiles.length} stale shard file(s) not in current registry (preview): ${staleFiles.slice(0, 5).join(', ')}${staleFiles.length > 5 ? '...' : ''}`);
-    }
+    if (staleFiles.length > 0) console.warn(`[FUSION] ⚠️ Skipping ${staleFiles.length} stale shard(s)`);
     if (shardFiles.length < expectedIndices.size) {
         const missing = [...expectedIndices].filter(i => !shardFiles.some(f => parseInt(f.match(/part-(\d+)/)?.[1] ?? '-1') === i));
-        throw new Error(`[FUSION] CRITICAL: registry expects ${expectedIndices.size} shards but only ${shardFiles.length} present on disk. Missing indices (preview): ${missing.slice(0, 10).join(',')}`);
+        throw new Error(`[FUSION] CRITICAL: ${expectedIndices.size} expected, ${shardFiles.length} present. Missing: ${missing.slice(0, 10)}`);
     }
-
     const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
     await fs.mkdir(outDir, { recursive: true });
-
-    console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards (${staleFiles.length} stale skipped)...`);
-    console.log(`  [DIAG] shardEntityIds keys: [${[...shardEntityIds.keys()].sort((a,b) => a-b).join(',')}]`);
-    console.log(`  [DIAG] entityEnrichMap.size=${entityEnrichMap.size}, enrichmentMap.size=${enrichmentMap.size}`);
+    console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards...`);
+    console.log(`  [DIAG] enrich=${entityEnrichMap.size}, cold=${coldBodyMap.size}`);
     let totalEnriched = 0, totalDl = 0, totalNeeded = 0, totalMissingShard = 0;
     let processedCount = 0;
     const DL_CONCURRENCY = 100;
@@ -147,6 +145,21 @@ async function main() {
         const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.zst`);
         const shardIdx = parseInt(shardFiles[i].match(/part-(\d+)/)[1]);
 
+        // A3: Write cold bodies to enrichmentDir for entities WITHOUT enrichment
+        let coldWritten = 0;
+        if (coldBodyMap.size > 0) {
+            const entityIds = shardEntityIds.get(shardIdx) || [];
+            for (const id of entityIds) {
+                if (!entityEnrichMap.has(id) && coldBodyMap.has(id)) {
+                    const umid = generateUMID(id);
+                    try {
+                        await fs.writeFile(path.join(enrichmentDir, `${umid}.md.gz`), Buffer.from(coldBodyMap.get(id), 'utf-8'));
+                        coldWritten++;
+                    } catch { }
+                }
+            }
+        }
+
         // V26.8: Per-shard download using pre-built mapping (no shard read needed)
         let dlCount = 0;
         if (r2 && entityEnrichMap.size > 0) {
@@ -155,16 +168,12 @@ async function main() {
                 console.warn(`  [DIAG] Shard ${shardIdx} (file=${shardFiles[i]}): shardEntityIds returned EMPTY — index mismatch?`);
                 totalMissingShard++;
             }
-            const needed = []; // [prodUmid, r2Key] — save as prod umid so Rust can find via entity.umid
-            let enrichHits = 0, enrichMisses = 0;
+            const needed = [];
             for (const id of entityIds) {
                 const r2Umid = entityEnrichMap.get(id);
                 if (r2Umid && enrichmentMap.has(r2Umid)) {
                     const prodUmid = generateUMID(id);
                     needed.push([prodUmid, enrichmentMap.get(r2Umid)]);
-                    enrichHits++;
-                } else if (r2Umid) {
-                    enrichMisses++;
                 }
             }
             totalNeeded += needed.length;
@@ -204,7 +213,7 @@ async function main() {
             const result = fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outPath);
             if (result) {
                 totalEnriched += result.enrichedCount;
-                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${result.enrichedCount} enriched)`);
+                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${coldWritten} cold, ${result.enrichedCount} enriched)`);
             } else {
                 const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir);
                 await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
@@ -224,25 +233,13 @@ async function main() {
 
     assertCompletion(processedCount, expectedFusionCount);
 
-    // Cleanup
-    shardEntityIds.clear();
-    entityEnrichMap.clear();
-    enrichmentMap.clear();
+    shardEntityIds.clear(); entityEnrichMap.clear(); enrichmentMap.clear(); coldBodyMap.clear();
     await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
     process.removeListener('exit', exitGuard);
-    await writeSentinel(outDir, {
-        processedShards: processedCount,
-        expectedShards: expectedFusionCount,
-        enriched: totalEnriched,
-        downloaded: totalDl
-    });
+    await writeSentinel(outDir, { processedShards: processedCount, expectedShards: expectedFusionCount, enriched: totalEnriched, downloaded: totalDl });
 
-    console.log(`[FUSION V26.8] Complete! Fused to ${outDir} (${totalDl} downloaded, ${totalEnriched} enriched, ${processedCount}/${expectedFusionCount} shards processed)`);
-    console.log(`  [DIAG] Enrichment summary: needed=${totalNeeded}, downloaded=${totalDl}, missingShard=${totalMissingShard}`);
-    if (totalMissingShard > 0) {
-        console.warn(`  [DIAG] ${totalMissingShard} shards had empty entity ID lists — registry shard indices may not match artifact file indices`);
-    }
+    console.log(`[FUSION V26.8] Complete! ${processedCount}/${expectedFusionCount} shards, ${totalDl} dl, ${totalEnriched} enriched`);
 }
 
 main().catch(err => { console.error('[CRITICAL] Fusion:', err); process.exit(1); });
