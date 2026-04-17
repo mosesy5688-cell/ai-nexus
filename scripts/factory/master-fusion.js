@@ -63,7 +63,7 @@ async function main() {
     initR2Bridge();
     const r2 = createR2ClientFFI();
     if (r2) {
-        console.log('[FUSION] Phase 3: Scanning R2 enrichment index...');
+        console.log('[FUSION] Phase 3: Scanning R2 enrichment + cold body index...');
         try {
             const etags = await fetchAllR2ETagsFFI(r2, ['enrichment/fulltext/']);
             for (const key of etags.keys()) {
@@ -71,7 +71,15 @@ async function main() {
                 if (m) enrichmentMap.set(m[1], key);
             }
             console.log(`  [OK] ${enrichmentMap.size} enrichment files indexed`);
-        } catch (e) { console.warn(`  [WARN] Enrichment: ${e.message}`); }
+            // A3: Cold body fallback — only for entities WITHOUT enrichment
+            const coldEtags = await fetchAllR2ETagsFFI(r2, ['cold/body/']);
+            let coldCount = 0;
+            for (const key of coldEtags.keys()) {
+                const m = key.match(/cold\/body\/[0-9a-f]{2}\/([0-9a-f]+)\.md\.zst$/);
+                if (m && !enrichmentMap.has(m[1])) { enrichmentMap.set(m[1], key); coldCount++; }
+            }
+            console.log(`  [OK] ${coldCount} cold body files indexed (enrichment priority preserved)`);
+        } catch (e) { console.warn(`  [WARN] Enrichment/Cold scan: ${e.message}`); }
 
         // V26.8: Build global entity→enrichment mapping (dual-salt, no shard reads needed)
         if (enrichmentMap.size > 0) {
