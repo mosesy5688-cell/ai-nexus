@@ -70,10 +70,10 @@ async function consolidateShards() {
 
     let totalCount = 0;
     let coldUploaded = 0;
+    let coldBuffer = [];
     initR2Bridge();
     const r2 = createR2ClientFFI();
 
-    // A3: Helper — truncate entity, collect cold body, route to processing shard
     function routeEntity(entity) {
         const id = entity.id || entity.slug;
         const body = entity.body_content || entity.readme || entity.content || '';
@@ -99,7 +99,7 @@ async function consolidateShards() {
         const rl = readline.createInterface({ input: fileRs.pipe(decompStream), crlfDelay: Infinity });
 
         let skipped = 0, firstLineSeen = false, legacyEntities = null;
-        let coldBuffer = [];
+        coldBuffer = [];
 
         for await (const line of rl) {
             if (!line) continue;
