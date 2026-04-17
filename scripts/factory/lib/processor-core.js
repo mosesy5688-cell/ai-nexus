@@ -10,6 +10,7 @@ import { hasValidCachePath } from '../../l5/entity-validator.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { estimateVRAM } from '../../../src/utils/vram-calculator.js';
 import { getUseCases, getQuickInsights } from '../../../src/utils/inference.js';
+import { cleanAbstract } from './abstract-cleaner.js';
 
 // Configure marked
 marked.setOptions({ gfm: true, breaks: true });
@@ -63,6 +64,8 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
 
         // 5. Semantic HTML Pre-rendering (V22.8 FIX: Inclusive Long-text extraction)
         const fullContent = entity.body_content || entity.readme_content || entity.readme || entity.content || entity.description || '';
+        const bodyContentLength = fullContent.length;
+        const abstract300 = cleanAbstract(fullContent, 300);
         const htmlFragment = fullContent ? marked.parse(fullContent) : '';
 
         // 6. Use Cases & Insights
@@ -84,6 +87,8 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
 
         const enriched = {
             ...entity,
+            body_content: abstract300,
+            body_content_length: bodyContentLength,
             id: id,
             type: finalType,
             fni_score: finalFni,
@@ -120,9 +125,9 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             lastModified: enriched._updated,
             success: true,
             _checksum: entityHash,
-            // Return full payload for monolithic bundling
             enriched: enriched,
-            html_readme: htmlFragment
+            html_readme: htmlFragment,
+            _coldBody: isChanged && fullContent.length > 200 ? fullContent : null
         };
     } catch (error) {
         console.error(`[ERROR] ${entity.id}:`, error.message);
