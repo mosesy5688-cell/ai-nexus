@@ -18,6 +18,9 @@ import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-m
 import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
+import { cleanAbstract } from '../factory/lib/abstract-cleaner.js';
+import { generateUMID } from '../factory/lib/umid-generator.js';
+import { initR2Bridge, createR2ClientFFI, uploadBufferToR2FFI } from '../factory/lib/r2-bridge.js';
 
 const DATA_DIR = 'data';
 const MANIFEST_FILE = 'data/manifest.json';
@@ -125,19 +128,17 @@ async function mergeBatches() {
     // V56.1: NDJSON streaming export — 1000 entities/shard, per-entity write,
     // Rust FFI zstd stream. O(1) memory per entity (was: O(shard) mega-array
     // + JSON.stringify hitting V8 512MB string limit at ~260 shards, see §18.22).
-    console.log(`\n🛡️ [Merge] Exporting via natural sharding (${SHARD_SIZE}/shard, NDJSON+Zstd stream)...`);
-    await zstdCompress(Buffer.from('init')); // Warm up codec (Rust or WASM)
+    console.log(`\n[Merge] V26.5: Exporting with cold/hot split (${SHARD_SIZE}/shard)...`);
+    await zstdCompress(Buffer.from('init'));
+    initR2Bridge();
+    const r2 = createR2ClientFFI();
 
-    let exportedCount = 0;
-    let totalVelocity = 0;
-    let compressedSize = 0;
-    let shardIndex = 0;
-    let entitiesInShard = 0;
+    let exportedCount = 0, totalVelocity = 0, compressedSize = 0;
+    let shardIndex = 0, entitiesInShard = 0, coldUploaded = 0;
     const hash = crypto.createHash('sha256');
+    let coldBuffer = [];
 
-    let currentShardFile = null;
-    let currentZst = null;
-    let currentWs = null;
+    let currentShardFile = null, currentZst = null, currentWs = null;
 
     const openShard = () => {
         currentShardFile = path.join(DATA_DIR, `merged_shard_${shardIndex}.json.zst`);
@@ -145,6 +146,7 @@ async function mergeBatches() {
         currentWs = createWriteStream(currentShardFile);
         currentZst.pipe(currentWs);
         entitiesInShard = 0;
+        coldBuffer = [];
     };
 
     const closeShard = async () => {
@@ -155,10 +157,17 @@ async function mergeBatches() {
         const compressedBuf = await fs.readFile(currentShardFile);
         hash.update(compressedBuf);
         compressedSize += stat.size;
+        // Upload cold shard bundle to R2
+        if (coldBuffer.length > 0 && r2) {
+            try {
+                const compressed = await zstdCompress(Buffer.from(coldBuffer.join(''), 'utf-8'));
+                await uploadBufferToR2FFI(r2, `cold/shard/shard-${String(shardIndex).padStart(3, '0')}.jsonl.zst`, compressed, 'application/zstd');
+                coldUploaded++;
+            } catch (e) { console.warn(`   Cold shard ${shardIndex} upload failed: ${e.message}`); }
+        }
+        coldBuffer = [];
         shardIndex++;
-        currentShardFile = null;
-        currentZst = null;
-        currentWs = null;
+        currentShardFile = null; currentZst = null; currentWs = null;
     };
 
     openShard();
@@ -170,7 +179,18 @@ async function mergeBatches() {
         const newId = normalizeId(oldId, source, entity.type);
         const scrubbed = { ...entity, id: newId };
 
-        // V56.1: Per-entity NDJSON write — single entity JSON never exceeds V8 string limit.
+        // Stage 2: Cold/hot split at the earliest point
+        const body = scrubbed.body_content || scrubbed.readme || scrubbed.content || '';
+        if (body.length > 200) {
+            coldBuffer.push(JSON.stringify({ id: newId, umid: scrubbed.umid || generateUMID(newId), body }) + '\n');
+        }
+        scrubbed.body_content_length = body.length;
+        scrubbed.clean_summary = cleanAbstract(body, 500);
+        scrubbed.body_content = scrubbed.clean_summary;
+        delete scrubbed.readme;
+        delete scrubbed.readme_content;
+        delete scrubbed.content;
+
         if (!currentZst.write(JSON.stringify(scrubbed) + '\n')) {
             await once(currentZst, 'drain');
         }
@@ -188,6 +208,7 @@ async function mergeBatches() {
         }
     }
     await closeShard();
+    if (coldUploaded > 0) console.log(`   Cold storage: ${coldUploaded}/${shardIndex} shard bundles uploaded to R2`);
 
     const mergedHash = hash.digest('hex');
     console.log(`\n✅ [Merge] Complete: ${exportedCount} entities → ${shardIndex} shards`);

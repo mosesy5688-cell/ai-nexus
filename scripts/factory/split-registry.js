@@ -20,9 +20,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { initRustBridge, computeShardSlotFFI } from './lib/rust-bridge.js';
 import { zstdCompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
-import { initR2Bridge, createR2ClientFFI, uploadFileFFI, uploadFileMultipartFFI, uploadBufferToR2FFI } from './lib/r2-bridge.js';
-import { cleanAbstract } from './lib/abstract-cleaner.js';
-import { generateUMID } from './lib/umid-generator.js';
+import { initR2Bridge, createR2ClientFFI, uploadFileFFI, uploadFileMultipartFFI } from './lib/r2-bridge.js';
 
 const TOTAL_SHARDS = 20;
 const DATA_DIR = 'data';
@@ -69,29 +67,11 @@ async function consolidateShards() {
     });
 
     let totalCount = 0;
-    let coldUploaded = 0;
-    let coldBuffer = [];
     initR2Bridge();
     const r2 = createR2ClientFFI();
 
-    function routeEntity(entity) {
-        const id = entity.id || entity.slug;
-        const body = entity.body_content || entity.readme || entity.content || '';
-        if (body.length > 200) {
-            coldBuffer.push(JSON.stringify({ id, umid: entity.umid || generateUMID(id), body }) + '\n');
-        }
-        entity.body_content_length = body.length;
-        entity.clean_summary = cleanAbstract(body, 500);
-        entity.body_content = entity.clean_summary;
-        delete entity.readme;
-        delete entity.readme_content;
-        delete entity.content;
-        const shardIdx = getShardFromId(id, TOTAL_SHARDS);
-        outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
-        shardCounts[shardIdx]++;
-        totalCount++;
-    }
-
+    // V26.5 Stage 2: Natural shards are already hot-data-only (truncated in merge-batches).
+    // Consolidation is now pure routing — no truncation, no cold upload.
     for (let fileIdx = 0; fileIdx < naturalShards.length; fileIdx++) {
         const file = naturalShards[fileIdx];
         const filePath = path.join(DATA_DIR, file);
@@ -100,7 +80,6 @@ async function consolidateShards() {
         const rl = readline.createInterface({ input: fileRs.pipe(decompStream), crlfDelay: Infinity });
 
         let skipped = 0, firstLineSeen = false, legacyEntities = null;
-        coldBuffer = [];
 
         for await (const line of rl) {
             if (!line) continue;
@@ -112,25 +91,25 @@ async function consolidateShards() {
 
             let entity;
             try { entity = JSON.parse(line); } catch { skipped++; continue; }
-            routeEntity(entity);
+            const id = entity.id || entity.slug;
+            const shardIdx = getShardFromId(id, TOTAL_SHARDS);
+            outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
+            shardCounts[shardIdx]++;
+            totalCount++;
         }
 
         if (legacyEntities) {
             try {
-                for (const entity of JSON.parse(legacyEntities.join('\n'))) routeEntity(entity);
-            } catch (e) { console.warn(`   ⚠️ Skipping corrupt legacy shard ${file}: ${e.message}`); }
+                for (const entity of JSON.parse(legacyEntities.join('\n'))) {
+                    const id = entity.id || entity.slug;
+                    const shardIdx = getShardFromId(id, TOTAL_SHARDS);
+                    outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
+                    shardCounts[shardIdx]++;
+                    totalCount++;
+                }
+            } catch (e) { console.warn(`   Skipping corrupt legacy shard ${file}: ${e.message}`); }
         }
-        if (skipped > 0) console.warn(`   ⚠️ Skipped ${skipped} malformed NDJSON line(s) in ${file}`);
-
-        // A3: Upload cold bundle for this natural shard (~1000 entities, ~5MB)
-        if (coldBuffer.length > 0 && r2) {
-            try {
-                const compressed = await zstdCompress(Buffer.from(coldBuffer.join(''), 'utf-8'));
-                await uploadBufferToR2FFI(r2, `cold/shard/shard-${String(fileIdx).padStart(3, '0')}.jsonl.zst`, compressed, 'application/zstd');
-                coldUploaded++;
-            } catch (e) { console.warn(`   ⚠️ Cold shard ${fileIdx} upload failed: ${e.message}`); }
-        }
-        coldBuffer = null;
+        if (skipped > 0) console.warn(`   Skipped ${skipped} malformed NDJSON line(s) in ${file}`);
         await fsp.unlink(filePath).catch(() => {});
 
         if (totalCount % 50000 === 0 || fileIdx === naturalShards.length - 1) {
@@ -138,8 +117,6 @@ async function consolidateShards() {
             console.log(`   - ${totalCount} entities routed (${file}) [Heap: ${mem}MB]`);
         }
     }
-    if (coldUploaded > 0) console.log(`   ❄️ Cold storage: ${coldUploaded}/${naturalShards.length} shard bundles uploaded to R2`);
-
     // Close all output streams
     for (let i = 0; i < TOTAL_SHARDS; i++) {
         outStreams[i].zst.end();
@@ -159,7 +136,6 @@ async function consolidateShards() {
     }
 
     // V56.0: R2-primary upload of processing shards (durable cross-job transport).
-    // R2 client already initialized above for cold storage.
     if (r2) {
         console.log(`\n☁️ [Consolidator] Uploading processing shards to R2 (state/processing-shards/)...`);
         let uploaded = 0, failed = 0;
