@@ -18,6 +18,28 @@ import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/
 import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SHARD_PATH_DIR = './output/data';
+
+// Derive slug from entity ID — must match frontend normalizeEntitySlug(stripPrefix(id))
+const SLUG_PREFIXES = [
+    'hf-model', 'hf-agent', 'hf-tool', 'hf-dataset', 'hf-space', 'hf-paper', 'hf-collection',
+    'gh-model', 'gh-agent', 'gh-tool', 'gh-repo',
+    'arxiv-paper', 'arxiv', 'paper',
+    'replicate-model', 'replicate-agent', 'replicate-space',
+    'civitai-model', 'ollama-model',
+    'kaggle-dataset', 'kaggle-model',
+    'langchain-prompt', 'langchain-agent',
+    'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt'
+];
+function deriveSlug(id) {
+    let r = (id || '').toLowerCase();
+    for (const p of SLUG_PREFIXES) {
+        if (r.startsWith(`${p}--`) || r.startsWith(`${p}:`) || r.startsWith(`${p}/`)) {
+            r = r.slice(p.length + (r[p.length] === '-' ? 2 : 1));
+            break;
+        }
+    }
+    return r.replace(/[:\/]/g, '--').replace(/^--|--$/g, '').replace(/--+/g, '--');
+}
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024, EMBEDDING_STREAM_BATCH = 500;
 const EMBEDDING_CACHE_PATH = path.join(CACHE_DIR, 'embedding-cache.db');
 const EMBEDDING_MODEL = 'Xenova/bge-base-en-v1.5';
@@ -130,6 +152,7 @@ async function packDatabase() {
         const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');
 
         e.search_vector = keywords;
+        if (!e.slug && e.id) e.slug = deriveSlug(e.id);
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
         const slotId = computeMetaShardSlot(e.slug || e.id, META_SHARD_COUNT);
         prepInserts[`slot_${slotId}`].run(...metaValues);
