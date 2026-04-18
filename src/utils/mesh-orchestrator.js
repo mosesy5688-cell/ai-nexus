@@ -1,6 +1,7 @@
 import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, fetchCategoryAlts, stripPrefix, isMatch, getTypeFromId, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
 import { processRelationsIntoTiers, injectStructuralRelations, injectCategoryAlts } from './mesh-processor.js';
-import { loadCachedJSON, loadSpecs } from './loadCachedJSON.js';
+import { loadSpecs } from './loadCachedJSON.js';
+import { loadSiteMetadata } from './vfs-site-metadata.js';
 import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 import { UNIVERSAL_ICONS, DEFAULT_TIERS } from './mesh-constants.js';
 import { env } from 'cloudflare:workers';
@@ -17,7 +18,7 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
         fetchGraphMetadata(locals).catch(() => ({})),
         fetchConceptMetadata(locals).catch(() => ([])),
         isSSR ? Promise.resolve(null) : loadSpecs(locals).catch(() => null),
-        isSSR ? Promise.resolve(null) : loadCachedJSON('cache/mesh/stats.json', { locals }).catch(() => null),
+        isSSR ? Promise.resolve(null) : loadSiteMetadata('mesh_stats').catch(() => null),
         category ? fetchCategoryAlts(locals, category).catch(() => []) : Promise.resolve([])
     ]);
 

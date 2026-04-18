@@ -1,20 +1,17 @@
 ---
-import { loadCachedJSON } from '../../utils/loadCachedJSON.js';
+import { loadSiteMetadata } from '../../utils/vfs-site-metadata.js';
 
 /**
- * MeshVisualizer V18.12.0
- * Visualizes the 9-node knowledge graph from cache/mesh/graph.json
- * Displays nodes and edges in a navigable format
+ * MeshVisualizer V26.5
+ * Visualizes the knowledge graph from VFS site_metadata
  */
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
 
-// Fetch mesh stats from CDN
 let meshStats = { nodes: 0, edges: 0, by_type: {} };
 
 try {
-  // V18.12.0: Use loadCachedJSON for transparent .gz fallback and decompression
-  const { data } = await loadCachedJSON('cache/mesh/stats.json', { locals: Astro.locals });
+  const data = await loadSiteMetadata('mesh_stats');
   if (data) {
     meshStats = data;
   } else {
