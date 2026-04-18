@@ -79,42 +79,28 @@ async function main() {
     }
 }
 
-/** V25.9: Streaming core — zero fullSet accumulation. ~530MB peak vs ~7GB+ before. */
+/** V26.5: Single-pass streaming core — merge + FNI overlay + watermark in one read/write. */
 async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDeltas,
     mergePartitionedShard, rankingsMap, registryMap, scoreMap, entitiesInputPath, shardDir, startTime) {
     const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
     await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
-    console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge...`);
-    let mergeCount = 0;
-    await loadShards(async (baselineEntities, shardIdx) => {
-        const mergedShard = await mergePartitionedShard(baselineEntities, shardIdx, rankingsMap, { slim: false });
-        await saveShard(shardIdx, mergedShard.entities);
-        mergeCount++;
-        mergedShard.entities = null;
-    }, { slim: false });
-    // Build lightweight FNI Map from 2/4 artifacts (~13MB for 436K entries)
     const { buildFniMap } = await import('./lib/aggregator-shard-manager.js');
     const fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
     registryMap.clear();
-    console.log('[AGGREGATOR] Streaming finalization: FNI overlay + CDDPP watermarking...');
-    let entityCount = 0, watermarked = 0, fniHits = 0, fniRecomputed = 0;
+    console.log(`[AGGREGATOR] Single-pass: Merge + FNI overlay + watermarking...`);
+    let mergeCount = 0, entityCount = 0, watermarked = 0, fniHits = 0, fniRecomputed = 0;
     const topN = [];
     const historyBatch = new Map();
 
-    await loadShards(async (entities, shardIdx) => {
-        for (const e of entities) {
+    await loadShards(async (baselineEntities, shardIdx) => {
+        const mergedShard = await mergePartitionedShard(baselineEntities, shardIdx, rankingsMap, { slim: false });
+        for (const e of mergedShard.entities) {
             const artifactFni = fniMap.get(e.id);
-            if (artifactFni != null) {
-                e.fni_score = artifactFni; e.fni = artifactFni;
-                fniHits++;
-            } else if (!e.fni_score) {
-                // V26.9: Real-time FNI computation for entities missing from 2/4 artifacts.
-                // Uses the same calculateFniFFI as 2/4 — no floor values, full accuracy.
+            if (artifactFni != null) { e.fni_score = artifactFni; e.fni = artifactFni; fniHits++; }
+            else if (!e.fni_score) {
                 const result = calculateFniFFI(e, { includeMetrics: true, lastSeen: e._last_seen });
-                e.fni_score = result.score; e.fni = result.score;
-                fniRecomputed++;
+                e.fni_score = result.score; e.fni = result.score; fniRecomputed++;
             }
-
             const id = e.id || e.slug;
             if (id) {
                 if (!e.umid) e.umid = generateUMID(id);
@@ -122,30 +108,25 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
                 if (!e.citation) e.citation = generateCitation(e);
                 watermarked++;
             }
-
-            // Bounded top-50 tracking for daily report
             const score = e.fni_score || 0;
             if (topN.length < DAILY_TOP || score > topN[topN.length - 1].fni_score) {
-                topN.push({
-                    id: e.id, name: e.name || e.slug, type: e.type || 'model',
-                    fni_score: score, pipeline_tag: e.pipeline_tag || '', author: e.author || 'Community'
-                });
+                topN.push({ id: e.id, name: e.name || e.slug, type: e.type || 'model',
+                    fni_score: score, pipeline_tag: e.pipeline_tag || '', author: e.author || 'Community' });
                 topN.sort((a, b) => b.fni_score - a.fni_score);
                 if (topN.length > DAILY_TOP) topN.length = DAILY_TOP;
             }
-
-            // FNI history accumulation (normalizedId → score)
             const nid = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
             historyBatch.set(nid, score);
             entityCount++;
         }
-
-        await saveShard(shardIdx, entities);
+        await saveShard(shardIdx, mergedShard.entities);
+        mergedShard.entities = null;
+        mergeCount++;
         if (global.gc && entityCount % 100000 === 0) global.gc();
     }, { slim: false });
     fniMap.clear();
     const fniMissNoScore = entityCount - fniHits - fniRecomputed;
-    console.log(`[AGGREGATOR] Streaming finalization: ${entityCount} entities, ${watermarked} watermarked.`);
+    console.log(`[AGGREGATOR] Single-pass complete: ${entityCount} entities, ${watermarked} watermarked.`);
     console.log(`[FNI-OVERLAY] hits=${fniHits}, recomputed=${fniRecomputed}, kept_existing=${fniMissNoScore}`);
 
     if (entityCount < AGGREGATE_FLOOR) {
