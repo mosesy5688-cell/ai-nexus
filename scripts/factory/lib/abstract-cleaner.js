@@ -4,7 +4,7 @@
  * stripping YAML frontmatter, code blocks, HTML, markdown markers.
  */
 
-export function cleanAbstract(body, maxLen = 300) {
+export function cleanAbstract(body, maxLen = 500) {
     if (!body) return '';
     return body
         .replace(/^---[\s\S]*?---\s*/m, '')

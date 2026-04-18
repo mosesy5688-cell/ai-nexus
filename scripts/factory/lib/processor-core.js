@@ -88,9 +88,6 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         const enriched = {
             ...entity,
             body_content: abstract300,
-            readme: abstract300,
-            readme_content: undefined,
-            content: undefined,
             body_content_length: bodyContentLength,
             id: id,
             type: finalType,

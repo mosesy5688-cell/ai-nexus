@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
 import { configureDistiller, distillEntity } from './lib/v25-distiller.js';
+import { cleanAbstract } from './lib/abstract-cleaner.js';
 import { loadTrendingMap, loadTrendMap, ingestToAccumulator, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary } from './lib/pack-utils.js';
 import { computeMetaShardSlot } from './lib/meta-shard-router.js';
 import { dbSchemas, searchDbSchema, ftsDbSchema } from './lib/pack-schemas.js';
@@ -149,7 +150,7 @@ async function packDatabase() {
             stats.heavy++; stats.bytes += size;
         }
 
-        const rawSummary = e.summary || e.description || e.abstract_300 || e.body_content || '';
+        const rawSummary = e.summary || e.description || e.clean_summary || cleanAbstract(e.body_content, 500) || '';
         const truncatedSummary = rawSummary.length > 500 ? rawSummary.substring(0, 500) + '...' : rawSummary;
         const category = getV6Category(e);
         const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');

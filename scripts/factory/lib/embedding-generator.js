@@ -67,16 +67,10 @@ function buildEntityText(entity) {
     const task = entity.pipeline_tag || entity.task || entity.category || '';
     if (task) parts.push(task);
 
-    // Add body content excerpt for richer semantic signal
-    const body = entity.body_content || entity.readme || '';
+    // Add body content excerpt for richer semantic signal (prefer clean_summary)
+    const body = entity.clean_summary || entity.body_content || '';
     if (body) {
-        // Strip HTML/markdown, take first 200 chars
-        const cleaned = body
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/[#*`\[\]]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 200);
+        const cleaned = body.replace(/<[^>]+>/g, ' ').replace(/[#*`\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 200);
         if (cleaned.length > 20) parts.push(cleaned);
     }
 
