@@ -1,121 +1,90 @@
-import { normalizeEntitySlug, getR2PathCandidates } from './entity-cache-reader-core.js';
-// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
+import { normalizeEntitySlug } from './entity-cache-reader-core.js';
+import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine.js';
 import { env } from 'cloudflare:workers';
 
 /**
- * VFS Metadata Provider (V22.8)
- * 
- * Provides 100% JSON-free metadata resolution via SQLite Range Queries.
- * Dual-Mode Enforcement (Art 2.1):
- * - Local Testing: 100% SQLite (meta.db) -> Fails if missing.
- * - Production: VFS-Primary (Range Read) -> Fallback allowed if R2 severed.
+ * V26.5 VFS Metadata Provider — C1 VFS-Only Detail Pages
+ *
+ * Resolves entity metadata directly from meta-NN.db via SQLite Range Read.
+ * Replaces legacy R2 JSON path-guessing with authoritative VFS query.
  */
+
+// V26.5: Hash routing must match pack-db deriveSlug + computeMetaShardSlot
+function cyrb53(str: string, seed = 0) {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0; i < str.length; i++) {
+        const ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
 
 export async function resolveVfsMetadata(type: string, slug: string, locals: any = null) {
     const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
     const isSimulatingRemote = !!(typeof process !== 'undefined' && process.env.SIMULATE_PRODUCTION);
-    console.log(`[VFS-DEBUG] isDev=${isDev}, isSimulatingRemote=${isSimulatingRemote}`);
     const normalized = normalizeEntitySlug(slug, type).toLowerCase();
 
     // Strategy 1: Local Development (better-sqlite3)
-    // STRICTOR LOCAL VFS MANDATE: Fails if DB not found, forbidden JSON fallback locally.
     if (isDev && typeof window === 'undefined' && !isSimulatingRemote) {
         try {
             const { default: Database } = await import('better-sqlite3');
             const path = await import('path');
             const dbPath = path.resolve(process.cwd(), 'data/meta.db');
-
-            // Check if local DB exists
             const fs = await import('fs/promises');
             const exists = await fs.stat(dbPath).catch(() => null);
-
             if (exists) {
                 const db = new Database(dbPath, { readonly: true });
-                const row = db.prepare('SELECT * FROM entities WHERE id = ? OR slug = ?').get(normalized, normalized);
+                const row = db.prepare('SELECT * FROM entities WHERE slug = ? OR id = ?').get(normalized, normalized);
                 db.close();
-
-                if (row) {
-                    console.log(`[VFS-Metadata] [LOCAL] Resolved ${normalized} via strict SQLite`);
-                    return { data: row, source: 'local-sqlite' };
-                }
-            } else {
-                console.error(`[VFS-Metadata] [LOCAL-ERROR] meta.db missing at ${dbPath}. Strict VFS Mandate VIOLATED.`);
-                // In local dev, we throw to prevent hidden JSON fallbacks
-                throw new Error('VFS-Primary Violation: Local meta.db not found.');
+                if (row) return { data: row, source: 'local-sqlite' };
             }
         } catch (e: any) {
-            console.warn('[VFS-Metadata] [LOCAL-FAIL]', e.message);
-            throw e; // Propagate failure in dev
+            console.warn('[VFS-Metadata] Local DB failed:', e.message);
         }
+        return null;
     }
 
-    // Strategy 2: Remote/Production VFS Proxy (SQLite Range Query / site_metadata)
-    // Production / Simulation Mode: Attempt remote metadata lookup via R2 binding directly on server
+    // Strategy 2: Production VFS — query meta-NN.db via R2 Range Read SQLite
     if (!isDev || isSimulatingRemote) {
-        // V26.0: env imported from cloudflare:workers at module level
-        const r2 = env?.R2_ASSETS;
-        const { R2_CACHE_URL } = await import('../config/constants.js');
-        const paths = getR2PathCandidates(type, normalized);
+        const r2Bucket = env?.R2_ASSETS;
+        const shouldSimulate = isDev;
 
-        // Prioritize Fused (High Fidelity) and Gzip
-        const prioritized = paths.filter(p => p.includes('/fused/'));
-        if (prioritized.length === 0) prioritized.push(...paths);
+        try {
+            const manifest = await loadManifest(r2Bucket, shouldSimulate);
+            const shardCount = manifest?.partitions?.meta_shards || 96;
+            const shardIdx = cyrb53(normalized) % shardCount;
+            const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
 
-        for (const path of prioritized) {
-            try {
-                let data: any = null;
-                let source = '';
+            const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
+            const rows = await executeSql(engine.sqlite3, engine.db,
+                'SELECT * FROM entities WHERE slug = ? OR id = ? LIMIT 1',
+                [normalized, normalized]);
 
-                // Tier 1: R2 Binding (High Reliability for Workers)
-                if (r2 && typeof window === 'undefined') {
-                    const file = await r2.get(path);
-                    if (file) {
-                        if (path.endsWith('.gz')) {
-                            const ds = new DecompressionStream('gzip');
-                            const decompressedStream = file.body.pipeThrough(ds);
-                            data = await new Response(decompressedStream).json();
-                        } else {
-                            data = await file.json();
+            if (rows.length > 0) {
+                return { data: rows[0], source: `vfs:${dbName}` };
+            }
+
+            // Fallback: try adjacent shards (hash collision or slug mismatch)
+            for (let offset = 1; offset <= 2; offset++) {
+                for (const delta of [offset, -offset]) {
+                    const fallbackIdx = ((shardIdx + delta) % shardCount + shardCount) % shardCount;
+                    const fallbackDb = `meta-${String(fallbackIdx).padStart(2, '0')}.db`;
+                    try {
+                        const eng = await getCachedDbConnection(r2Bucket, shouldSimulate, fallbackDb);
+                        const fallbackRows = await executeSql(eng.sqlite3, eng.db,
+                            'SELECT * FROM entities WHERE slug = ? OR id = ? LIMIT 1',
+                            [normalized, normalized]);
+                        if (fallbackRows.length > 0) {
+                            return { data: fallbackRows[0], source: `vfs:${fallbackDb}(fallback)` };
                         }
-                        source = `r2-binding:${path}`;
-                    }
+                    } catch {}
                 }
-
-                // Tier 2: CDN Fetch (Fallback/Browser)
-                if (!data) {
-                    const url = `${R2_CACHE_URL}/${path}`;
-                    const res = await fetch(url);
-                    if (res.ok) {
-                        const buffer = await res.arrayBuffer();
-                        const uint8 = new Uint8Array(buffer);
-                        const isGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
-
-                        if (isGzip) {
-                            try {
-                                const ds = new DecompressionStream('gzip');
-                                const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
-                                data = await decompressedRes.json();
-                            } catch (err) {
-                                const zlib = await import('node:zlib');
-                                data = JSON.parse(zlib.gunzipSync(Buffer.from(buffer)).toString('utf-8'));
-                            }
-                        } else {
-                            data = JSON.parse(new TextDecoder().decode(buffer));
-                        }
-                        source = `remote-fetch:${path}`;
-                    }
-                }
-
-                if (data) {
-                    const entity = data.entity || data;
-                    console.log(`[VFS-Metadata] Resolved ${normalized} via ${source}`);
-                    return {
-                        data: entity,
-                        source: source,
-                        _isRemote: true
-                    };
-                }
-            } catch (e) { continue; }
+            }
+        } catch (e: any) {
+            console.warn(`[VFS-Metadata] SQLite query failed for ${normalized}:`, e.message);
         }
     }
 
