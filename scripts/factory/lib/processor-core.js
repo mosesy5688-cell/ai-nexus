@@ -61,7 +61,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         const historyEntries = fniHistory[id] || fniHistory[entity.id] || [];
         const trend = Array.isArray(historyEntries) ? historyEntries.slice(-7).map(h => h.score) : [];
 
-        // 5. Semantic HTML Pre-rendering — body_content already truncated by consolidation
+        // 5. Semantic HTML Pre-rendering — body_content already truncated by merge-batches (1/4)
         const fullContent = entity.body_content || entity.description || '';
         const bodyContentLength = entity.body_content_length || fullContent.length;
         const htmlFragment = fullContent ? marked.parse(fullContent) : '';
