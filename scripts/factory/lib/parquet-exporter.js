@@ -163,18 +163,7 @@ async function updateEpochManifest(epoch, fileName, entityCount, fileSize) {
     console.log(`[Parquet] Epoch manifest updated. Retained: ${manifest.epochs.length}/${MAX_EPOCHS_RETAINED}`);
 }
 
-/** Strip Markdown/HTML noise for clean plaintext abstract */
-function cleanAbstract(raw) {
-    return raw
-        .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')   // [text](url) → text, ![alt](img) → alt
-        .replace(/<[^>]+>/g, '')                       // <html tags>
-        .replace(/^#{1,6}\s+/gm, '')                   // ### headings
-        .replace(/[*_~`]{1,3}/g, '')                   // bold/italic/strike/code markers
-        .replace(/\|[^\n]*\|/g, '')                    // table rows
-        .replace(/[-=]{3,}/g, '')                      // horizontal rules / heading underlines
-        .replace(/\n{2,}/g, '\n')                      // collapse blank lines
-        .trim();
-}
+import { cleanAbstract } from './abstract-cleaner.js';
 
 /**
  * V∞ Phase 4 — Spec §7.1 Lite Tier: Public fni_lite.parquet
@@ -205,11 +194,11 @@ export async function exportLiteParquet(accumulator) {
 
     let count = 0;
     for (const e of accumulator.iterate()) {
-        const raw = String(e.body_content || e.readme_content || e.description || '');
+        const summary = e.clean_summary || cleanAbstract(e.body_content || e.description || '', 500);
         await writer.appendRow({
             id:           String(e.id || e.slug || ''),
             title:        String(e.name || e.displayName || ''),
-            abstract_300: cleanAbstract(raw).slice(0, 300),
+            abstract_300: summary,
             fni_score:    Number(e.fni_score ?? 0),
             fni_version:  FNI_VERSION,
         });
