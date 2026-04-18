@@ -165,3 +165,58 @@ export async function buildInvertedIndex(searchDbPath, outputDir) {
     console.log(`[InvIdx] ✅ Complete: ${filesWritten} files, ${(totalBytes / 1024 / 1024).toFixed(1)}MB compressed`);
     return manifest;
 }
+
+/** V26.5: Build inverted index from meta-NN.db shards (search.db eliminated) */
+export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
+    console.log('[InvIdx] Building static inverted index from meta shards...');
+    const termMap = new Map();
+    let totalDocs = 0, totalLen = 0;
+
+    for (const [, db] of Object.entries(metaDbs)) {
+        const stmt = db.prepare(
+            `SELECT id, slug, name, type, author, summary, tags, category, fni_score FROM entities ORDER BY fni_score DESC`
+        );
+        for (const row of stmt.iterate()) {
+            const fields = [row.name, row.summary, row.tags, row.category, row.author];
+            const terms = tokenize(fields.join(' '));
+            if (terms.length === 0) continue;
+            totalDocs++; totalLen += terms.length;
+            const shard = computeMetaShardSlot(row.slug || row.id, META_SHARD_COUNT);
+            for (const term of terms) {
+                let entry = termMap.get(term);
+                if (!entry) { entry = []; termMap.set(term, entry); }
+                entry.push([row.id, Math.round(row.fni_score || 0), shard]);
+            }
+        }
+    }
+
+    const avgDl = totalDocs > 0 ? totalLen / totalDocs : 1;
+    console.log(`[InvIdx] ${totalDocs} docs, ${termMap.size} unique terms, avgDl=${avgDl.toFixed(1)}`);
+
+    let filesWritten = 0, totalBytes = 0;
+    for (const [term, postings] of termMap) {
+        const df = postings.length;
+        postings.sort((a, b) => b[1] - a[1]);
+        const prefix = term.length >= 2 ? term.slice(0, 2) : term.padEnd(2, '_');
+        const bucketDir = join(outputDir, prefix);
+        mkdirSync(bucketDir, { recursive: true });
+        if (df > HIGH_FREQ_THRESHOLD) {
+            const chunks = Math.ceil(postings.length / HIGH_FREQ_CHUNK_SIZE);
+            for (let i = 0; i < chunks; i++) {
+                const chunk = postings.slice(i * HIGH_FREQ_CHUNK_SIZE, (i + 1) * HIGH_FREQ_CHUNK_SIZE);
+                const compressed = await zstdCompress(Buffer.from(JSON.stringify({ term, df, chunk: i, chunks, postings: chunk })), 3);
+                writeFileSync(join(bucketDir, `${term}_${i}.json.zst`), compressed);
+                filesWritten++; totalBytes += compressed.length;
+            }
+        } else {
+            const compressed = await zstdCompress(Buffer.from(JSON.stringify({ term, df, postings })), 3);
+            writeFileSync(join(bucketDir, `${term}.json.zst`), compressed);
+            filesWritten++; totalBytes += compressed.length;
+        }
+    }
+
+    const manifest = { version: 'inverted_v1', built: new Date().toISOString(), total_docs: totalDocs, total_terms: termMap.size, total_files: filesWritten, total_bytes: totalBytes, avg_doc_length: Math.round(avgDl * 10) / 10, high_freq_threshold: HIGH_FREQ_THRESHOLD, shard_count: META_SHARD_COUNT };
+    writeFileSync(join(outputDir, '_manifest.json.zst'), await zstdCompress(Buffer.from(JSON.stringify(manifest, null, 2)), 3));
+    console.log(`[InvIdx] ✅ Complete: ${filesWritten} files, ${(totalBytes / 1024 / 1024).toFixed(1)}MB compressed`);
+    return manifest;
+}

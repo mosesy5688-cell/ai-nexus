@@ -40,13 +40,4 @@ export const ftsDbSchema = `
     CREATE TABLE fts_metadata (key TEXT PRIMARY KEY, value TEXT);
 `;
 
-export const searchDbSchema = `
-    ${entitiesTableSql}
-    -- V25.9.5: FTS5 retired from search.db. Active readers — sync-ledger (1.5 enrichment list),
-    -- inverted-index-builder (Phase 1A-β term_index), pack-db Phase 6 (Top-30k vectors),
-    -- vfs-sitemap-gen — all query the entities table only. Runtime search uses term_index/
-    -- + meta-NN.db, never search.db. FTS5 was ~200-400 MB of dead-weight dictionaries.
-    CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
-    CREATE INDEX idx_fni_full ON entities(fni_score DESC, raw_pop DESC, slug ASC);
-    CREATE INDEX idx_type ON entities(type);
-`;
+// V26.5: searchDbSchema removed — search.db eliminated. All consumers read meta-NN.db.

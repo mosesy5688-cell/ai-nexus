@@ -320,7 +320,7 @@ jobs:
             echo "::warning::No embedding-cache.db to back up to R2"
           fi
       - name: Generate VFS-Parity Sitemaps
-        run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/search.db --out=output
+        run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
       - name: V23.1 SQL Health Check
         run: |
           for db in output/data/*.db; do
@@ -582,30 +582,19 @@ jobs:
             ENRICHED=$(node -e "const D=require('better-sqlite3');const d=new D('output/data/dedup.db',{readonly:true});console.log(d.prepare(\"SELECT COUNT(*) as c FROM ledger WHERE has_fulltext=1\").get().c);d.close()" 2>/dev/null || echo 0)
             echo "✅ Restored dedup.db with $ENRICHED already-enriched entities"
           fi
-      # V26.9: Feed Density Booster Queue — stream search.db → dedup.db (O(1) memory)
+      # V26.5: Feed Density Booster Queue — stream meta shards → dedup.db
       - name: Sync Ledger (Feed 1.5)
         env:
-          SEARCH_DB_PATH: ./output/data/search.db
+          SHARD_DIR: ./output/data
           DEDUP_DB_PATH: ./output/data/dedup.db
           UMID_SALT: ${{ secrets.UMID_SALT }}
         run: node scripts/factory/sync-ledger.js
-      # V25.9.5: search.db has no runtime consumer. sync-ledger above already extracted the
-      # 1.5 enrichment list into dedup.db, and inverted-index-builder / Phase 6 / vfs-sitemap-gen
-      # ran in the pack job. Discard it before R2 upload — R2_PREFIX_FILTER's trailing `data/`
-      # would otherwise catch it and waste ~600-800 MB of upload + Class A PUT ops every cycle.
-      - name: Discard search.db (CI-only scratch, no runtime consumer)
-        run: |
-          if [ -f "output/data/search.db" ]; then
-            SZ=$(du -m output/data/search.db | cut -f1)
-            rm -f output/data/search.db
-            echo "🗑️ Discarded output/data/search.db (${SZ} MB) — sync-ledger already consumed it"
-          fi
       - name: Upload to R2 via S3 API
         env:
           # V22.9.6: Removed cache/fused/ (~290K PUTs) and cache/mesh/profiles/ (~10K PUTs)
           # VFS is now the sole data source — individual entity JSONs are redundant.
           # Kept: cache/mesh/graph + cache/mesh/stats (VFS-IN via site_metadata)
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.zst,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.zst,cache/category_stats.json,cache/category_stats.json.zst,cache/search-core.json,cache/search-core.json.zst,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.zst,cache/trend-data.json,cache/trend-data.json.zst,cache/knowledge/,cache/mesh/graph,cache/mesh/stats,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/search.db,data/hot-shard.bin,data/vector-core.bin,data/,parquet/,datasets/
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.zst,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.zst,cache/category_stats.json,cache/category_stats.json.zst,cache/search-core.json,cache/search-core.json.zst,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.zst,cache/trend-data.json,cache/trend-data.json.zst,cache/knowledge/,cache/mesh/graph,cache/mesh/stats,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/hot-shard.bin,data/vector-core.bin,data/,parquet/,datasets/
           CACHE_DIR: output/cache
           # V25.8 §2.2: Enable S3 Multipart for fused-shard-NNN.bin (>8MB)
           R2_MULTIPART_ENABLED: 'true'
