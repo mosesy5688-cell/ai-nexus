@@ -2,10 +2,8 @@ import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadBufferToR2FF
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
-import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext, initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './lib/arxiv-fetchers.js';
+import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext } from './lib/arxiv-fetchers.js';
 import { writeBoosterStats } from './lib/booster-stats.js';
-// V26.4: HF model README removed from 1.5 — 1/4 fetchFullModel already fetches README.md.
-// hf-fetcher.js retained for potential future use but no longer imported here.
 
 // ── Config ──────────────────────────────────────────────
 const RATE_LIMIT_MS = 10000;
@@ -69,14 +67,11 @@ async function buildAlreadyEnrichedSet(s3) {
 
 // ── Main ────────────────────────────────────────────────
 async function main() {
-    console.log(`[BOOSTER] V25.8.7 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
+    console.log(`[BOOSTER] V26.5 Density Booster starting [${PARTITION_START}..${PARTITION_END}]`);
     const startTime = Date.now();
 
     const rustStatus = initRustBridge();
     await primeSession();
-    const markerReady = await initMarkerSidecar();
-    if (markerReady) console.log('[BOOSTER] Marker PDF sidecar ready.');
-    else console.warn('[BOOSTER] Marker unavailable. PDF fallback disabled.');
 
     initR2Bridge();
     const s3 = createR2ClientFFI();
@@ -91,7 +86,7 @@ async function main() {
     let processed = 0, success = 0, partial = 0, skipped = 0, failed = 0;
     const enrichedUmids = [];
 
-    // ── Paper enrichment (arXiv waterfall) ──
+    // V26.5: S2-first waterfall — S2 fulltext (2s) → arXiv HTML (10s). PDF removed.
     const paperStart = { processed: 0, success, skipped, failed };
     for (const paper of papers) {
         processed++;
@@ -105,54 +100,45 @@ async function main() {
         const arxivId = extractArxivId(paper.canonical_id);
         if (!arxivId) { skipped++; continue; }
 
-        const jitter = Math.floor(Math.random() * 2000);
-        await new Promise(r => setTimeout(r, baseDelay + jitter));
+        let result;
 
-        let htmlResult = await fetchOfficialHtml(arxivId);
-        if (htmlResult.type === 'FAILURE') {
-            await new Promise(r => setTimeout(r, AR5IV_RETRY_DELAY_MS));
-            htmlResult = await fetchOfficialHtml(arxivId);
+        // Layer 1: S2 fulltext (fast, ~2s, API key authenticated)
+        const s2Text = await fetchS2Fulltext(arxivId, S2_RUNNER_BUDGET);
+        if (s2Text && s2Text.length >= 200) {
+            result = classifyTextFFI(s2Text);
+            if (result.classification !== 'SKIP') {
+                // S2 success — skip HTML entirely
+            } else { result = null; }
         }
 
-        if (htmlResult.type !== 'HTML') {
-            htmlResult = await fetchAr5ivHtml(arxivId);
+        // Layer 2: arXiv HTML fallback (slower, ~10s)
+        if (!result) {
+            const jitter = Math.floor(Math.random() * 2000);
+            await new Promise(r => setTimeout(r, baseDelay + jitter));
+
+            let htmlResult = await fetchOfficialHtml(arxivId);
             if (htmlResult.type === 'FAILURE') {
                 await new Promise(r => setTimeout(r, AR5IV_RETRY_DELAY_MS));
+                htmlResult = await fetchOfficialHtml(arxivId);
+            }
+            if (htmlResult.type !== 'HTML') {
                 htmlResult = await fetchAr5ivHtml(arxivId);
-            }
-        }
-
-        let result;
-        if (htmlResult.type === 'HTML' && htmlResult.html) {
-            result = extractAndClassifyFFI(htmlResult.html);
-            if (result.classification === 'SKIP') {
-                htmlResult.type = 'SKIP'; // fallback to S2/PDF due to poor extraction
-            } else if (htmlResult.source === 'ar5iv') {
-                console.log(`   🌐 [AR5IV] ${arxivId}`);
-            }
-        }
-
-        if (htmlResult.type !== 'HTML') {
-            const s2Text = await fetchS2Fulltext(arxivId, S2_RUNNER_BUDGET);
-            if (s2Text && s2Text.length >= 200) {
-                result = classifyTextFFI(s2Text);
-            } else {
-                // PDF fallback (Marker sidecar)
-                const pdfText = markerReady ? await fetchArxivPdf(arxivId) : null;
-                if (pdfText && pdfText.length >= 200) {
-                    result = classifyTextFFI(pdfText);
-                    console.log(`   📄 [PDF] ${arxivId}`);
-                } else {
-                    if (htmlResult.type === 'FAILURE') {
-                        console.log(`   ❌ [FAIL] ${arxivId} | HTTP ${htmlResult.status || 'ERR'}`);
-                        await handleFailure();
-                        failed++;
-                    } else {
-                        console.log(`   ⏭️ [SKIP] ${arxivId} | No data from any source`);
-                        skipped++;
-                    }
-                    continue;
+                if (htmlResult.type === 'FAILURE') {
+                    await new Promise(r => setTimeout(r, AR5IV_RETRY_DELAY_MS));
+                    htmlResult = await fetchAr5ivHtml(arxivId);
                 }
+            }
+            if (htmlResult.type === 'HTML' && htmlResult.html) {
+                result = extractAndClassifyFFI(htmlResult.html);
+                if (result.classification === 'SKIP') result = null;
+                else if (htmlResult.source === 'ar5iv') console.log(`   [AR5IV] ${arxivId}`);
+            }
+            if (!result) {
+                if (htmlResult.type === 'FAILURE') {
+                    console.log(`   [FAIL] ${arxivId} | HTTP ${htmlResult.status || 'ERR'}`);
+                    await handleFailure(); failed++;
+                } else { skipped++; }
+                continue;
             }
         }
 
@@ -190,7 +176,7 @@ async function main() {
         processed, success, partial, skipped, failed,
         remaining: workQueue.length - processed
     });
-    shutdownMarkerSidecar();
+    // V26.5: Marker PDF removed — S2-first + arXiv HTML fallback only
 }
 
 main().catch(err => { console.error('[BOOSTER] Fatal:', err); process.exit(1); });
