@@ -11,11 +11,18 @@
 import { BaseAdapter } from './base-adapter.js';
 
 const S2_API_BASE = 'https://api.semanticscholar.org/graph/v1';
+const S2_API_KEY = process.env.S2_API_KEY || '';
 
 export class SemanticScholarAdapter extends BaseAdapter {
     constructor() {
         super('semantic_scholar');
         this.entityTypes = ['paper'];
+    }
+
+    getHeaders() {
+        const headers = { 'Accept': 'application/json', 'User-Agent': 'Free2AITools-Ingestion/semantic_scholar' };
+        if (S2_API_KEY) headers['x-api-key'] = S2_API_KEY;
+        return headers;
     }
 
 
@@ -44,7 +51,7 @@ export class SemanticScholarAdapter extends BaseAdapter {
             console.log(`   🔍 Searching: ${topic}...`);
 
             while (topicFetched < limit / topics.length) {
-                const fields = 'paperId,externalIds,title,abstract,authors,venue,year,referenceCount,citationCount,openAccessPdf,fieldsOfStudy,s2FieldsOfStudy';
+                const fields = 'paperId,externalIds,title,abstract,tldr,authors,venue,year,referenceCount,citationCount,influentialCitationCount,openAccessPdf,fieldsOfStudy,s2FieldsOfStudy,publicationTypes,publicationDate';
                 let url = `${S2_API_BASE}/paper/search/bulk?query=${encodeURIComponent(topic)}&limit=${batchSize}&fields=${fields}`;
                 if (token) url += `&token=${token}`;
 
@@ -118,25 +125,28 @@ export class SemanticScholarAdapter extends BaseAdapter {
         const paperId = raw.paper_id;
         const arxivId = raw.arxiv_id || this.extractArxivId(paperId);
 
+        const tldrText = raw.tldr?.text || '';
+        const abstract = raw.abstract || raw.description || '';
         const entity = {
             id: this.generateId('unknown', paperId, 'paper'),
             type: 'paper',
             source: 'semantic_scholar',
             source_url: `https://api.semanticscholar.org/${paperId}`,
             title: raw.title || paperId,
-            description: this.truncate(raw.description || '', 500),
-            body_content: raw.description || '',
+            description: this.truncate(tldrText || abstract, 500),
+            body_content: tldrText || abstract,
             tags: ['paper', 'research', 'academic'],
             author: raw.authors || 'Unknown',
             license_spdx: 'ArXiv',
             meta_json: {
                 citation_count: raw.citation_count || 0,
                 influential_count: raw.influential_citation_count || 0,
-                year: raw.year
+                year: raw.year,
+                venue: raw.venue || '',
+                publication_types: raw.publicationTypes || [],
+                publication_date: raw.publicationDate || ''
             },
-            // V24.12: Promoted fields for DB schema expansion
             citation_count: raw.citation_count || 0,
-
             popularity: raw.citation_count || 0,
             downloads: 0,
             arxiv_id: arxivId,
@@ -158,11 +168,10 @@ export class SemanticScholarAdapter extends BaseAdapter {
         const cleanId = arxivId.replace('arxiv:', '').trim();
         const url = `${S2_API_BASE}/paper/arXiv:${cleanId}?fields=title,citationCount,influentialCitationCount,year,authors,abstract`;
 
-        const response = await fetch(url, { headers: { 'User-Agent': 'Free2AITools/1.0' } });
+        const response = await fetch(url, { headers: this.getHeaders() });
         if (!response.ok) {
-            // V22.3: Centralized handleRateLimit (handles 403/429)
             if (await this.handleRateLimit(response)) {
-                return await this.fetchPaperByArxiv(arxivId); // Recursive retry
+                return await this.fetchPaperByArxiv(arxivId);
             }
             return null;
         }
@@ -171,6 +180,7 @@ export class SemanticScholarAdapter extends BaseAdapter {
         return {
             paper_id: cleanId,
             title: data.title,
+            abstract: data.abstract || '',
             description: data.abstract || '',
             citation_count: data.citationCount || 0,
             influential_citation_count: data.influentialCitationCount || 0,
@@ -187,7 +197,7 @@ export class SemanticScholarAdapter extends BaseAdapter {
         const url = `${S2_API_BASE}/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=title,citationCount,influentialCitationCount,externalIds,abstract,authors,year`;
         try {
             console.log(`   [S2] Fetching: ${url}`);
-            const response = await fetch(url, { headers: { 'User-Agent': 'Free2AITools/1.0' } });
+            const response = await fetch(url, { headers: this.getHeaders() });
             if (!response.ok) {
                 // V22.3: Centralized handleRateLimit (handles 403/429)
                 if (await this.handleRateLimit(response)) {
