@@ -65,6 +65,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - name: Free Runner Disk
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -117,6 +119,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - name: Free Runner Disk
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -226,6 +230,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - name: Free Runner Disk
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -385,6 +391,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - name: Free Runner Disk
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
