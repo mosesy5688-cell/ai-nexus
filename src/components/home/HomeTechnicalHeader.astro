@@ -2,7 +2,7 @@
 // src/components/home/HomeTechnicalHeader.astro
 // V21.16: Premium Technical Header (Copy of Knowledge page architecture)
 import MeshVisualizer from '../mesh/MeshVisualizer.astro';
-import { loadCachedJSON } from '../../utils/loadCachedJSON.js';
+import { loadSiteMetadata } from '../../utils/vfs-site-metadata.js';
 
 interface Props {
   initialQuery?: string;
@@ -13,7 +13,7 @@ const { initialQuery = '', totalEntities = 125312 } = Astro.props;
 
 let totalNodes = totalEntities;
 try {
-  const { data } = await loadCachedJSON('cache/mesh/stats.json', { locals: Astro.locals });
+  const data = await loadSiteMetadata('mesh_stats');
   if (data && data.nodes) totalNodes = data.nodes;
 } catch (e) {}
 

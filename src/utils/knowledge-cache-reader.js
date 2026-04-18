@@ -2,6 +2,7 @@
 export { stripPrefix, getTypeFromId, getRouteFromId, normalizeSlug, isMatch, KNOWLEDGE_ALIAS_MAP } from './mesh-routing-core.js';
 import { stripPrefix, getTypeFromId, normalizeSlug, isMatch } from './mesh-routing-core.js';
 import { loadCachedJSON } from './loadCachedJSON.js';
+import { loadSiteMetadata } from './vfs-site-metadata.js';
 import { env } from 'cloudflare:workers';
 
 // Bidirectional matching and ingestion logic
@@ -34,29 +35,27 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     // We skip these for the initial HTML load; rich mesh data will hydrate on the client-side.
     const isSSR = Boolean(env);
 
+    // V26.5: SSR reads from VFS site_metadata (small, no OOM risk)
     if (isSSR && options.ssrOnly) {
-        console.warn(`[KnowledgeReader] SSR Memory Protection enabled for ${entityId}. Returning empty relations to prevent 1102 crash.`);
+        try {
+            const data = await loadSiteMetadata('relations') || await loadSiteMetadata('mesh_graph');
+            if (data?.edges) {
+                const edges = data.edges[target] || [];
+                return edges.map(([t, type, w]) => ({ source: entityId, target: t, type, weight: w || 1 }));
+            }
+        } catch {}
         return [];
     }
 
-    const sourcesToFetch = options.ssrOnly ? [
-        'cache/relations.json',
-        'cache/relations/explicit.json',
-        'cache/mesh/graph.json'
-    ] : [
-        'cache/mesh/graph.json',
-        'cache/relations.json',
-        'cache/relations/explicit.json',
-        'cache/relations/knowledge-links.json',
-        'cache/knowledge/index.json',
-        'cache/reports/index.json',
-        'cache/mesh/stats.json'
+    const sourcesToFetch = [
+        'cache/mesh/graph.json', 'cache/relations.json', 'cache/relations/explicit.json',
+        'cache/relations/knowledge-links.json', 'cache/knowledge/index.json',
+        'cache/reports/index.json', 'cache/mesh/stats.json'
     ];
 
     try {
         for (const key of sourcesToFetch) {
             try {
-                // V16.10: Use loadCachedJSON for environment-aware fetching
                 const { data } = await loadCachedJSON(key, { locals });
                 if (!data) continue;
 
@@ -202,13 +201,8 @@ export async function fetchGraphMetadata(locals) {
             return {};
         }
 
-        // V16.10: Use loadCachedJSON for environment-aware fetching
-        const { data } = await loadCachedJSON('cache/mesh/graph.json', { locals });
-        if (data) return data.nodes || {};
-
-        // Fallback to explicit
-        const { data: legacy } = await loadCachedJSON('cache/relations/explicit.json', { locals });
-        return legacy?.nodes || {};
+        const data = await loadSiteMetadata('mesh_graph') || await loadSiteMetadata('relations');
+        if (data) return data.nodes || data;
     } catch (e) {
         console.warn('[KnowledgeReader] Metadata load failed:', e.message);
         return {};
@@ -225,7 +219,7 @@ export async function fetchConceptMetadata(locals) {
 
     try {
         // ... (rest of the logic for client-side)
-        const { data } = await loadCachedJSON('cache/knowledge/index.json', { locals });
+        const { data } = await loadCachedJSON('cache/knowledge/index.json', { locals }); // knowledge index not in site_metadata yet
         const list = data?.articles || (Array.isArray(data) ? data : []);
         if (Array.isArray(list) && list.length > 0) return list;
     } catch (e) {

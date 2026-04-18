@@ -185,8 +185,13 @@ export async function injectMetadata(metaDbs, searchDb, cacheDir) {
     const metaFiles = [
         { key: 'category_stats', file: 'category_stats.json' },
         { key: 'trending', file: 'trending.json' },
+        { key: 'trend_data', file: 'trend-data.json' },
         { key: 'relations', file: 'relations/explicit.json' },
-        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }
+        { key: 'knowledge_links', file: 'relations/knowledge-links.json' },
+        { key: 'mesh_stats', file: 'mesh/stats.json' },
+        { key: 'mesh_graph', file: 'mesh/graph.json' },
+        { key: 'search_core', file: 'search-core.json' },
+        { key: 'search_manifest', file: 'search-manifest.json' }
     ];
 
     for (const meta of metaFiles) {
@@ -220,14 +225,12 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
     console.log(`${'Partition Name'.padEnd(25)} | ${'Entities'.padEnd(12)} | ${'Size (MB)'.padEnd(12)} | ${'Status'}`);
     console.log('-'.repeat(70));
 
-    const finalReportDbs = { ...metaDbs };
-    if (searchDb) finalReportDbs["full-search"] = searchDb;
+    const finalReportDbs = searchDb ? { ...metaDbs, "full-search": searchDb } : { ...metaDbs };
     const offenders = [];
     for (const [name, db] of Object.entries(finalReportDbs)) {
         const fileStats = fsSync.statSync(db.name);
         const sizeMB = (fileStats.size / 1024 / 1024).toFixed(2);
         const count = db.prepare('SELECT count(*) as c FROM entities').get().c;
-        // V25.9.4: full-search 1024→2048 (post-VACUUM hit 1047MB). V26.4 §18.23.11: meta shards 100→2048 (Run 24467812161 4/4 blocked by 5 slots @ 100-102MB). Both limits were legacy full-load heuristics; R2 VFS does Range Reads (r2-vfs.ts:16 CHUNK_SIZE=256KB), never full-loads — per-shard size has no edge-runtime relevance.
         const limitMB = 2048;
         const isOver = fileStats.size > limitMB * 1024 * 1024;
         const status = isOver ? `🛑 OVER ${limitMB}MB` : '✅ OK';
@@ -240,10 +243,8 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
     console.log('='.repeat(70) + '\n');
 
     if (offenders.length > 0) {
-        for (const o of offenders) {
-            console.error(`[CRITICAL] 🛑 Shard ${o.name} (${o.sizeMB} MB) exceeds ${o.limitMB}MB safety limit!`);
-        }
-        console.error('[CRITICAL] Hard circuit breaker triggered. Build terminated to protect production.');
+        offenders.forEach(o => console.error(`[CRITICAL] Shard ${o.name} (${o.sizeMB} MB) exceeds ${o.limitMB}MB!`));
+        console.error('[CRITICAL] Circuit breaker triggered.');
         process.exit(1);
     }
 }
