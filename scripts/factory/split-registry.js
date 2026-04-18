@@ -80,11 +80,12 @@ async function consolidateShards() {
         if (body.length > 200) {
             coldBuffer.push(JSON.stringify({ id, umid: entity.umid || generateUMID(id), body }) + '\n');
         }
-        entity.body_content = cleanAbstract(body, 300);
         entity.body_content_length = body.length;
-        entity.readme = entity.body_content;
-        entity.readme_content = undefined;
-        entity.content = undefined;
+        entity.clean_summary = cleanAbstract(body, 500);
+        entity.body_content = entity.clean_summary;
+        delete entity.readme;
+        delete entity.readme_content;
+        delete entity.content;
         const shardIdx = getShardFromId(id, TOTAL_SHARDS);
         outStreams[shardIdx].zst.write(JSON.stringify(entity) + '\n');
         shardCounts[shardIdx]++;
