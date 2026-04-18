@@ -204,7 +204,7 @@ export async function injectMetadata(metaDbs, searchDb, cacheDir) {
                 Object.values(metaDbs).forEach(db => {
                     db.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
                 });
-                searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
+                if (searchDb) searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
             }
         } catch (e) { }
     }
@@ -220,9 +220,8 @@ export function printBuildSummary(metaDbs, searchDb, stats, currentShardId) {
     console.log(`${'Partition Name'.padEnd(25)} | ${'Entities'.padEnd(12)} | ${'Size (MB)'.padEnd(12)} | ${'Status'}`);
     console.log('-'.repeat(70));
 
-    // V25.9.1: Deferred circuit breaker — print full histogram before terminating
-    // (run 24255279523 died on slot_0 and left the other 39 slots invisible).
-    const finalReportDbs = { ...metaDbs, "full-search": searchDb };
+    const finalReportDbs = { ...metaDbs };
+    if (searchDb) finalReportDbs["full-search"] = searchDb;
     const offenders = [];
     for (const [name, db] of Object.entries(finalReportDbs)) {
         const fileStats = fsSync.statSync(db.name);

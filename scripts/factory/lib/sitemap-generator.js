@@ -124,36 +124,31 @@ export async function generateSitemap(source, outputDir = './output') {
         });
     }
 
-    // 2. Add entity pages from source
+    // 2. Add entity pages from source (single .db or directory of meta shards)
     if (typeof source === 'string' && source.endsWith('.db')) {
-        // VFS Mode: Streaming from SQLite
-        console.log(`[SITEMAP] Mode: VFS Streaming (DB: ${source})`);
-        const db = new Database(source, { readonly: true });
+        const { readdirSync } = await import('fs');
+        const dir = path.dirname(source);
+        const shardFiles = readdirSync(dir).filter(f => f.startsWith('meta-') && f.endsWith('.db')).sort();
+        const dbPaths = shardFiles.length > 0 ? shardFiles.map(f => path.join(dir, f)) : [source];
+        console.log(`[SITEMAP] Mode: VFS Streaming (${dbPaths.length} shard(s))`);
 
-        // V25.8 SEO Gating: Exclude thin content (< ~600 words ≈ 3600 chars) to prevent SEO penalties
-        const stmt = db.prepare(`
-            SELECT id, type, fni_score, last_modified FROM entities
-            WHERE (LENGTH(COALESCE(readme_html, '')) + LENGTH(COALESCE(summary, ''))) > 3600
-               OR fni_score >= 20
-               OR type = 'paper'
-        `);
-        const cursor = stmt.iterate();
-
-        for (const entity of cursor) {
-            const id = entity.id;
-            const entityType = entity.type || getTypeFromId(id);
-            const route = getRouteFromId(id, entityType);
-
-            if (!route || route === '#') continue;
-
-            await addUrl({
-                loc: route,
-                priority: calculatePriority(entity.fni_score),
-                changefreq: 'daily',
-                lastmod: entity.last_modified
-            });
+        for (const dbPath of dbPaths) {
+            const db = new Database(dbPath, { readonly: true });
+            const stmt = db.prepare(`
+                SELECT id, type, fni_score, last_modified FROM entities
+                WHERE (LENGTH(COALESCE(readme_html, '')) + LENGTH(COALESCE(summary, ''))) > 3600
+                   OR fni_score >= 20
+                   OR type = 'paper'
+            `);
+            for (const entity of stmt.iterate()) {
+                const id = entity.id;
+                const entityType = entity.type || getTypeFromId(id);
+                const route = getRouteFromId(id, entityType);
+                if (!route || route === '#') continue;
+                await addUrl({ loc: route, priority: calculatePriority(entity.fni_score), changefreq: 'daily', lastmod: entity.last_modified });
+            }
+            db.close();
         }
-        db.close();
     } else if (Array.isArray(source)) {
         // Legacy Mode: Memory array
         console.log(`[SITEMAP] Mode: Legacy Array (Size: ${source.length})`);
