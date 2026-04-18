@@ -7,10 +7,9 @@
 # so Level 4 would be silently dropped. Factory 4/4 uses `gh workflow run`
 # to dispatch this workflow, which resets the depth counter.
 #
-# V25.8.7: Marker PDF-first strategy for high-quality PDF→Markdown conversion.
-# Architecture: 8 parallel runners with persistent Marker sidecar per runner.
-# Budget: 5000 papers / 5.5h per runner (20K papers/cycle max)
-# Priority: arxiv.org HTML5 → S2 fullText API → PDF+Marker → skip
+# V26.5: S2-first waterfall. Marker PDF removed (0.5% success, 13h timeout waste).
+# Architecture: 8 parallel runners, papers-only (models removed #1771).
+# Priority: S2 fullText API (2s) → arXiv HTML5 (10s) → skip
 
 name: Factory 1.5 - Density Booster
 
@@ -65,13 +64,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Marker
-        run: pip install marker-pdf torch --extra-index-url https://download.pytorch.org/whl/cpu
+      # V26.5: Marker PDF removed — S2-first waterfall, no Python needed
 
       # Restore all Rust .node binaries (must match rust-build.yml cache/save)
       - name: Restore Rust FFI Binaries
