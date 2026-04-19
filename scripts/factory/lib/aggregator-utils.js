@@ -82,26 +82,20 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
     const files = await fs.readdir(deltaDir).catch(() => []);
     for (const f of files) await fs.unlink(path.join(deltaDir, f));
 
-    const updateBuffers = new Map();
-    const FLUSH_THRESHOLD = 1000;
     let updateCount = 0;
-
-    const flushBuffers = async () => {
-        for (const [idx, lines] of updateBuffers.entries()) {
-            if (lines.length > 0) {
-                await fs.appendFile(path.join(deltaDir, `reg-${idx}.jsonl`), lines.join('\n') + '\n');
-                lines.length = 0;
-            }
-        }
+    const { createWriteStream } = await import('fs');
+    const streams = new Map();
+    const getStream = (idx) => {
+        if (!streams.has(idx)) streams.set(idx, createWriteStream(path.join(deltaDir, `reg-${idx}.jsonl`)));
+        return streams.get(idx);
     };
 
     const routeDelta = async (incoming) => {
         const regIdx = registryMap.get(incoming.id);
         if (regIdx !== undefined) {
-            if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
-            updateBuffers.get(regIdx).push(JSON.stringify(incoming));
+            const s = getStream(regIdx);
+            if (!s.write(JSON.stringify(incoming) + '\n')) await new Promise(r => s.once('drain', r));
             updateCount++;
-            if (updateCount % FLUSH_THRESHOLD === 0) await flushBuffers();
             if (updateCount % 50000 === 0) console.log(`  [DELTAS] ${updateCount} entities routed...`);
         }
     };
@@ -116,8 +110,8 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
         });
     }
 
-    await flushBuffers();
-    updateBuffers.clear();
+    await Promise.all([...streams.values()].map(s => new Promise(r => s.end(r))));
+    streams.clear();
     console.log(`  [DELTAS] Aligned ${updateCount} updates across all shards.`);
 }
 
