@@ -89,6 +89,7 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
         if (regIdx !== undefined) {
             await fs.appendFile(path.join(deltaDir, `reg-${regIdx}.jsonl`), JSON.stringify(incoming) + '\n');
             updateCount++;
+            if (updateCount % 50000 === 0) console.log(`  [DELTAS] ${updateCount} entities written...`);
         }
     };
 
