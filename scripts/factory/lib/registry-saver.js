@@ -29,6 +29,13 @@ export async function saveRegistryShard(index, entities) {
     writer.open();
 
     for (const entity of entities) {
+        // V26.5: Strip known heavy/redundant fields before persist.
+        // Registry is hot data — only structured fields needed.
+        delete entity.enriched;
+        delete entity.html_readme;
+        delete entity.readme_content;
+        delete entity.content;
+        delete entity._coldBody;
         const payload = Buffer.from(JSON.stringify(entity));
         writer.writeEntity(payload);
     }
