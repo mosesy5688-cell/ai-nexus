@@ -82,35 +82,42 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
     const files = await fs.readdir(deltaDir).catch(() => []);
     for (const f of files) await fs.unlink(path.join(deltaDir, f));
 
+    const updateBuffers = new Map();
+    const FLUSH_THRESHOLD = 1000;
     let updateCount = 0;
-    const { createWriteStream } = await import('fs');
-    const streams = new Map();
-    const getStream = (idx) => {
-        if (!streams.has(idx)) streams.set(idx, createWriteStream(path.join(deltaDir, `reg-${idx}.jsonl`), { flags: 'a' }));
-        return streams.get(idx);
+
+    const flushBuffers = async () => {
+        for (const [idx, lines] of updateBuffers.entries()) {
+            if (lines.length > 0) {
+                await fs.appendFile(path.join(deltaDir, `reg-${idx}.jsonl`), lines.join('\n') + '\n');
+                lines.length = 0;
+            }
+        }
     };
-    const writeDelta = async (incoming) => {
+
+    const routeDelta = async (incoming) => {
         const regIdx = registryMap.get(incoming.id);
         if (regIdx !== undefined) {
-            const ok = getStream(regIdx).write(JSON.stringify(incoming) + '\n');
-            if (!ok) await new Promise(r => getStream(regIdx).once('drain', r));
+            if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
+            updateBuffers.get(regIdx).push(JSON.stringify(incoming));
             updateCount++;
+            if (updateCount % FLUSH_THRESHOLD === 0) await flushBuffers();
             if (updateCount % 50000 === 0) console.log(`  [DELTAS] ${updateCount} entities routed...`);
         }
     };
-    const closeStreams = () => Promise.all([...streams.values()].map(s => new Promise(r => s.end(r))));
 
     if (monolithPath && await fs.access(monolithPath).then(() => true).catch(() => false)) {
         console.log(`  [DELTAS] Streaming Monolith: ${monolithPath}...`);
-        await partitionMonolithStreamingly(monolithPath, writeDelta);
+        await partitionMonolithStreamingly(monolithPath, routeDelta);
     } else {
         console.log(`  [DELTAS] Processing Update Shards from ${artifactDir}...`);
         await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (result) => {
-            await writeDelta(result.enriched || result);
+            await routeDelta(result.enriched || result);
         });
     }
 
-    await closeStreams();
+    await flushBuffers();
+    updateBuffers.clear();
     console.log(`  [DELTAS] Aligned ${updateCount} updates across all shards.`);
 }
 
