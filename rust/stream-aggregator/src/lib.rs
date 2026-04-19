@@ -1,5 +1,6 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{BufReader, BufWriter, Write};
 
@@ -121,6 +122,101 @@ pub fn zstd_decompress_file(input_path: String, output_path: String) -> Result<u
     let size = fs::metadata(&output_path)
         .map_err(|e| Error::from_reason(format!("Stat: {}", e)))?.len() as u32;
     Ok(size)
+}
+
+/// V26.5: Route 2/4 artifact entities to per-registry-shard delta JSONL files.
+/// Replaces JS preProcessDeltas — no V8 string limit, no GC pressure,
+/// streaming I/O via BufWriter. O(1) memory per entity.
+#[napi(object)]
+pub struct RouteDeltaResult {
+    pub routed_count: u32,
+    pub shard_count: u32,
+    pub duration_ms: u32,
+}
+
+#[napi]
+pub fn route_artifacts_to_deltas(
+    artifact_dir: String,
+    registry_map_path: String,
+    delta_dir: String,
+) -> Result<RouteDeltaResult> {
+    let start = std::time::Instant::now();
+
+    // Load registry map: id → shard_index
+    let map_data = fs::read_to_string(&registry_map_path)
+        .map_err(|e| Error::from_reason(format!("Cannot read registry map: {}", e)))?;
+    let registry_map: HashMap<String, u32> = serde_json::from_str(&map_data)
+        .map_err(|e| Error::from_reason(format!("Cannot parse registry map: {}", e)))?;
+
+    // Ensure delta dir exists and is clean
+    fs::create_dir_all(&delta_dir).ok();
+    if let Ok(entries) = fs::read_dir(&delta_dir) {
+        for entry in entries.flatten() {
+            fs::remove_file(entry.path()).ok();
+        }
+    }
+
+    // Open BufWriters lazily per shard index
+    let mut writers: HashMap<u32, BufWriter<fs::File>> = HashMap::new();
+    let mut routed = 0u32;
+
+    // Discover and process artifact shards
+    let mut artifact_files: Vec<String> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&artifact_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("shard-") && (name.ends_with(".json.zst") || name.ends_with(".json.gz") || name.ends_with(".json")) {
+                artifact_files.push(entry.path().to_string_lossy().to_string());
+            }
+        }
+    }
+    artifact_files.sort();
+
+    for artifact_path in &artifact_files {
+        let entities = match nxvf_core::load_shard_entities(artifact_path) {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("[RUST-DELTA] Skipping {}: {}", artifact_path, e);
+                continue;
+            }
+        };
+
+        for entity_val in &entities {
+            // Extract enriched entity or use raw
+            let incoming = entity_val.get("enriched").unwrap_or(entity_val);
+            let id = incoming.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            if id.is_empty() { continue; }
+
+            if let Some(&shard_idx) = registry_map.get(id) {
+                let writer = writers.entry(shard_idx).or_insert_with(|| {
+                    let path = format!("{}/reg-{}.jsonl", delta_dir, shard_idx);
+                    BufWriter::new(fs::File::create(&path).expect("Cannot create delta file"))
+                });
+                serde_json::to_writer(&mut *writer, incoming).ok();
+                writer.write_all(b"\n").ok();
+                routed += 1;
+            }
+        }
+
+        if routed % 50000 == 0 && routed > 0 {
+            eprintln!("[RUST-DELTA] {} entities routed...", routed);
+        }
+    }
+
+    // Flush all writers
+    let shard_count = writers.len() as u32;
+    for (_, mut w) in writers {
+        w.flush().ok();
+    }
+
+    eprintln!("[RUST-DELTA] Complete: {} entities → {} delta files in {}ms",
+        routed, shard_count, start.elapsed().as_millis());
+
+    Ok(RouteDeltaResult {
+        routed_count: routed,
+        shard_count,
+        duration_ms: start.elapsed().as_millis() as u32,
+    })
 }
 
 /// Compress a Buffer with Zstd, returning compressed Buffer.

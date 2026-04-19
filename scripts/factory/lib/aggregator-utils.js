@@ -106,7 +106,10 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
     } else {
         console.log(`  [DELTAS] Processing Update Shards from ${artifactDir}...`);
         await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (result) => {
-            await routeDelta(result.enriched || result);
+            const incoming = result.enriched || result;
+            delete incoming.enriched;
+            delete incoming.html_readme;
+            await routeDelta(incoming);
         });
     }
 

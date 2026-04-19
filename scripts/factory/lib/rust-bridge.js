@@ -18,23 +18,10 @@ function tryLoadNative(name) {
 export function initRustBridge() {
     const loaded = [];
 
-    _shardRouter = tryLoadNative('shard-router-rust');
-    if (_shardRouter) loaded.push('shard-router');
-
-    _fniCalc = tryLoadNative('fni-calc-rust');
-    if (_fniCalc) loaded.push('fni-calc');
-
-    _meshEngine = tryLoadNative('mesh-engine-rust');
-    if (_meshEngine) loaded.push('mesh-engine');
-
-    _contentExtractor = tryLoadNative('content-extractor-rust');
-    if (_contentExtractor) loaded.push('content-extractor');
-
-    _streamAggregator = tryLoadNative('stream-aggregator-rust');
-    if (_streamAggregator) loaded.push('stream-aggregator');
-
-    _satelliteTasks = tryLoadNative('satellite-tasks-rust');
-    if (_satelliteTasks) loaded.push('satellite-tasks');
+    for (const [name, setter] of [['shard-router', v => _shardRouter = v], ['fni-calc', v => _fniCalc = v], ['mesh-engine', v => _meshEngine = v], ['content-extractor', v => _contentExtractor = v], ['stream-aggregator', v => _streamAggregator = v], ['satellite-tasks', v => _satelliteTasks = v]]) {
+        const mod = tryLoadNative(`${name}-rust`);
+        if (mod) { setter(mod); loaded.push(name); }
+    }
 
     _mode = loaded.length > 0 ? 'rust' : 'js';
     console.log(`[RUST-BRIDGE] Mode: ${_mode} | Loaded: ${loaded.length > 0 ? loaded.join(', ') : 'none (JS fallback)'}`);
@@ -227,6 +214,13 @@ export function fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichment
     return null;
 }
 
+export function routeArtifactsToDeltasFFI(artifactDir, registryMapPath, deltaDir) {
+    if (_streamAggregator?.routeArtifactsToDeltas) {
+        try { return _streamAggregator.routeArtifactsToDeltas(artifactDir, registryMapPath, deltaDir); }
+        catch (e) { console.warn(`[RUST-BRIDGE] routeArtifactsToDeltas: ${e.message}`); }
+    }
+    return null;
+}
 /** V26.5: Mesh graph — prefer file reading. */
 export function buildMeshGraphFromFilesFFI(explicitPath, knowledgePath, reportsPath, outputDir) {
     if (_satelliteTasks?.buildMeshGraphFromFiles) {
