@@ -11,7 +11,7 @@ import {
 } from './lib/aggregator-maintenance.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
-import { initRustBridge, calculateFniFFI } from './lib/rust-bridge.js';
+import { initRustBridge, calculateFniFFI, routeArtifactsToDeltasFFI } from './lib/rust-bridge.js';
 
 const CONFIG = {
     TOTAL_SHARDS: 20,
@@ -82,8 +82,19 @@ async function main() {
 /** V26.5: Single-pass streaming core — merge + FNI overlay + watermark in one read/write. */
 async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDeltas,
     mergePartitionedShard, rankingsMap, registryMap, scoreMap, entitiesInputPath, shardDir, startTime) {
-    const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
-    await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
+    // V26.5: Rust-primary delta routing — no V8 string/heap limits
+    const registryMapPath = path.join(CONFIG.OUTPUT_DIR, '.registry-map.json');
+    await fs.writeFile(registryMapPath, JSON.stringify(Object.fromEntries(registryMap)));
+    const deltaDir = './cache/deltas';
+    const rustResult = routeArtifactsToDeltasFFI(CONFIG.ARTIFACT_DIR, registryMapPath, deltaDir);
+    if (rustResult) {
+        console.log(`[AGGREGATOR] Rust delta routing: ${rustResult.routedCount} entities → ${rustResult.shardCount} shards (${rustResult.durationMs}ms)`);
+    } else {
+        console.warn('[AGGREGATOR] Rust delta routing unavailable, falling back to JS...');
+        const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
+        await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
+    }
+    await fs.unlink(registryMapPath).catch(() => {});
     const { buildFniMap } = await import('./lib/aggregator-shard-manager.js');
     const fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
     registryMap.clear();
