@@ -77,67 +77,30 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
  * Pass 1.5: Pre-process updates (Monolith or Shards)
  */
 export async function preProcessDeltas(artifactDir, totalShards, registryMap, monolithPath = null) {
-    // V18.12.5.21: Stability Hardening (Art 3.1)
     const deltaDir = './cache/deltas';
     await fs.mkdir(deltaDir, { recursive: true });
-
-    // Clear old deltas
     const files = await fs.readdir(deltaDir).catch(() => []);
     for (const f of files) await fs.unlink(path.join(deltaDir, f));
 
-    // Optimized: Use memory-buffered writes to prevent I/O saturation
-    const updateBuffers = new Map(); // shardIdx -> string[]
-    const FLUSH_THRESHOLD = 1000; // V5.8 §2.3: Pulse Sync every 1000 entities
+    // V26.5: Stream-to-disk — no memory buffer. Each entity written immediately.
     let updateCount = 0;
-    let totalProcessed = 0;
-
-    const flushBuffers = async () => {
-        for (const [idx, lines] of updateBuffers.entries()) {
-            if (lines.length > 0) {
-                await fs.appendFile(path.join(deltaDir, `reg-${idx}.jsonl`), lines.join('\n') + '\n');
-                lines.length = 0;
-            }
+    const writeDelta = async (incoming) => {
+        const regIdx = registryMap.get(incoming.id);
+        if (regIdx !== undefined) {
+            await fs.appendFile(path.join(deltaDir, `reg-${regIdx}.jsonl`), JSON.stringify(incoming) + '\n');
+            updateCount++;
         }
     };
 
-    // A. Check for Monolith first (Most efficient if it exists)
     if (monolithPath && await fs.access(monolithPath).then(() => true).catch(() => false)) {
         console.log(`  [DELTAS] Streaming Monolith: ${monolithPath}...`);
-        await partitionMonolithStreamingly(monolithPath, async (incoming) => {
-            const regIdx = registryMap.get(incoming.id);
-            if (regIdx !== undefined) {
-                if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
-                updateBuffers.get(regIdx).push(JSON.stringify(incoming));
-                updateCount++;
-                totalProcessed++;
-
-                if (totalProcessed % FLUSH_THRESHOLD === 0) {
-                    await flushBuffers();
-                }
-            }
-        });
+        await partitionMonolithStreamingly(monolithPath, writeDelta);
     } else {
-        // B. Fallback to Update Shards (V56.2: per-entity streaming callback contract)
         console.log(`  [DELTAS] Processing Update Shards from ${artifactDir}...`);
         await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (result) => {
-            const incoming = result.enriched || result;
-            const regIdx = registryMap.get(incoming.id);
-            if (regIdx !== undefined) {
-                if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
-                updateBuffers.get(regIdx).push(JSON.stringify(incoming));
-                updateCount++;
-                totalProcessed++;
-
-                if (totalProcessed % FLUSH_THRESHOLD === 0) {
-                    await flushBuffers();
-                }
-            }
+            await writeDelta(result.enriched || result);
         });
     }
-
-    // Final flush
-    await flushBuffers();
-    updateBuffers.clear();
 
     console.log(`  [DELTAS] Aligned ${updateCount} updates across all shards.`);
 }
