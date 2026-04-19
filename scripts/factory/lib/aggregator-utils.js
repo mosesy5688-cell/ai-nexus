@@ -82,15 +82,23 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
     const files = await fs.readdir(deltaDir).catch(() => []);
     for (const f of files) await fs.unlink(path.join(deltaDir, f));
 
-    // V26.5: Stream-to-disk — no memory buffer. Each entity written immediately.
     let updateCount = 0;
+    const { createWriteStream } = await import('fs');
+    const streams = new Map();
+    const getStream = (idx) => {
+        if (!streams.has(idx)) streams.set(idx, createWriteStream(path.join(deltaDir, `reg-${idx}.jsonl`), { flags: 'a' }));
+        return streams.get(idx);
+    };
     const writeDelta = async (incoming) => {
         const regIdx = registryMap.get(incoming.id);
         if (regIdx !== undefined) {
-            await fs.appendFile(path.join(deltaDir, `reg-${regIdx}.jsonl`), JSON.stringify(incoming) + '\n');
+            const ok = getStream(regIdx).write(JSON.stringify(incoming) + '\n');
+            if (!ok) await new Promise(r => getStream(regIdx).once('drain', r));
             updateCount++;
+            if (updateCount % 50000 === 0) console.log(`  [DELTAS] ${updateCount} entities routed...`);
         }
     };
+    const closeStreams = () => Promise.all([...streams.values()].map(s => new Promise(r => s.end(r))));
 
     if (monolithPath && await fs.access(monolithPath).then(() => true).catch(() => false)) {
         console.log(`  [DELTAS] Streaming Monolith: ${monolithPath}...`);
@@ -102,6 +110,7 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
         });
     }
 
+    await closeStreams();
     console.log(`  [DELTAS] Aligned ${updateCount} updates across all shards.`);
 }
 

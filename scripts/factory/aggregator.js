@@ -122,6 +122,10 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
         await saveShard(shardIdx, mergedShard.entities);
         mergedShard.entities = null;
         mergeCount++;
+        if (mergeCount % 50 === 0 || mergeCount === 1) {
+            const mem = Math.round(process.memoryUsage().heapUsed / 1048576);
+            console.log(`  [MERGE] Shard ${shardIdx}: ${entityCount} entities, ${mergeCount} shards merged [Heap: ${mem}MB]`);
+        }
         if (global.gc && entityCount % 100000 === 0) global.gc();
     }, { slim: false });
     fniMap.clear();
