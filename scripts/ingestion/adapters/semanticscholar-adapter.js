@@ -51,7 +51,7 @@ export class SemanticScholarAdapter extends BaseAdapter {
             console.log(`   🔍 Searching: ${topic}...`);
 
             while (topicFetched < limit / topics.length) {
-                const fields = 'paperId,externalIds,title,abstract,tldr,authors,venue,year,referenceCount,citationCount,influentialCitationCount,openAccessPdf,fieldsOfStudy,s2FieldsOfStudy,publicationTypes,publicationDate';
+                const fields = 'paperId,externalIds,title,abstract,authors,venue,year,referenceCount,citationCount,influentialCitationCount,openAccessPdf,fieldsOfStudy,s2FieldsOfStudy,publicationTypes,publicationDate';
                 let url = `${S2_API_BASE}/paper/search/bulk?query=${encodeURIComponent(topic)}&limit=${batchSize}&fields=${fields}`;
                 if (token) url += `&token=${token}`;
 
