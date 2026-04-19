@@ -16,24 +16,12 @@ export function mergeEntities(existing, incoming, options = {}) {
         // This prevents "Slow Leakage" during satellite tasks.
         mergedObj.meta_json = existing.meta_json || incoming.meta_json || null;
         mergedObj.source_trail = existing.source_trail || incoming.source_trail || null;
-        mergedObj.body_content = existing.body_content || incoming.body_content || null;
+        mergedObj.body_content = incoming.body_content || existing.body_content || null;
         mergedObj.readme = null;
         mergedObj.content = null;
     } else {
-        // 2. Content Quality Guard (Readme) - V18.2.4: Freshness Priority
-        const existingLen = existing.body_content?.length || 0;
-        const incomingLen = incoming.body_content?.length || 0;
-        const isNewer = new Date(incoming._updated || 0) > new Date(existing._updated || 0);
-
-        let useIncoming = true;
-        if (existingLen > incomingLen * 1.2 && !isNewer) {
-            useIncoming = false;
-        }
-
-        if (!useIncoming) {
-            mergedObj.body_content = existing.body_content;
-            mergedObj.description = existing.description;
-        }
+        // V26.5: A3 cold/hot split — incoming body_content (clean_summary 500 chars) is
+        // intentionally truncated. Always use incoming. Full text lives in R2 cold storage.
 
         // 3. Metadata Deep Merge (meta_json)
         try {
