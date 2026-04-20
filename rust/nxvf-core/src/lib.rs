@@ -107,6 +107,83 @@ fn decrypt_payload(key: &[u8; 32], shard_name: &str, payload: &[u8], offset: u32
     decrypted
 }
 
+// ── Lightweight Field Extraction ───────────────────────────────────
+
+/// Minimal struct for stats extraction — serde skips all other fields
+/// (body_content, readme, html_readme etc.) without allocating memory.
+#[derive(serde::Deserialize)]
+struct SlimEntity {
+    #[serde(default)]
+    id: String,
+    #[serde(default)]
+    fni_score: Option<f64>,
+    #[serde(default)]
+    fni: Option<f64>,
+}
+
+/// Extract (id, fni_score) from a shard file. O(1 entity) memory —
+/// each entity payload is decoded, slim-parsed (serde skips body_content),
+/// then immediately dropped. No full-entity Vec accumulation.
+pub fn extract_scores_from_shard(file_path: &str) -> Result<Vec<(String, f64)>, String> {
+    if file_path.ends_with(".bin") {
+        return extract_scores_from_binary_shard(file_path);
+    }
+    // JSON.gz/.json.zst/.json fallback — must full-parse (rare legacy path)
+    let entities = load_shard_entities(file_path)?;
+    Ok(entities.iter().filter_map(|e| {
+        let id = e.get("id")?.as_str()?;
+        if id.is_empty() { return None; }
+        let score = e.get("fni_score").and_then(|v| v.as_f64())
+            .or_else(|| e.get("fni").and_then(|v| v.as_f64())).unwrap_or(0.0);
+        Some((id.to_string(), score))
+    }).collect())
+}
+
+fn extract_scores_from_binary_shard(file_path: &str) -> Result<Vec<(String, f64)>, String> {
+    let data = fs::read(file_path).map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
+    if data.len() < HEADER_SIZE || data[0..4] != NXVF_MAGIC {
+        return Err(format!("Invalid NXVF: {}", file_path));
+    }
+    let header = parse_header(&data).ok_or_else(|| format!("Bad header: {}", file_path))?;
+    let ot_start = header.offset_table_offset as usize;
+    let ot_end = ot_start + header.entity_count as usize * 8;
+    if ot_end > data.len() { return Err(format!("Offset table overflow: {}", file_path)); }
+    let offset_table = &data[ot_start..ot_end];
+    let shard_name = Path::new(file_path).file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let aes_key = get_aes_key();
+    let mut results = Vec::with_capacity(header.entity_count as usize);
+
+    for i in 0..header.entity_count as usize {
+        let base = i * 8;
+        let offset = u32::from_le_bytes(offset_table[base..base+4].try_into().unwrap_or([0;4]));
+        let size = u32::from_le_bytes(offset_table[base+4..base+8].try_into().unwrap_or([0;4]));
+        let end = offset as usize + size as usize;
+        if end > data.len() { continue; }
+        let mut payload = data[offset as usize..end].to_vec();
+        if !is_valid_payload(&payload) {
+            if let Some(key) = aes_key {
+                let decrypted = decrypt_payload(key, shard_name, &payload, offset);
+                if is_valid_payload(&decrypted) { payload = decrypted; }
+            }
+        }
+        if payload.len() >= 4 && payload[0..4] == ZSTD_MAGIC {
+            if let Ok(d) = zstd::decode_all(payload.as_slice()) { payload = d; }
+        } else if payload.len() >= 2 && payload[0..2] == GZIP_MAGIC {
+            let mut dec = GzDecoder::new(payload.as_slice());
+            let mut d = Vec::new();
+            if dec.read_to_end(&mut d).is_ok() { payload = d; }
+        }
+        // Slim parse: serde only allocates id + fni_score, skips body_content/readme/etc.
+        if let Ok(e) = serde_json::from_slice::<SlimEntity>(&payload) {
+            if !e.id.is_empty() {
+                results.push((e.id, e.fni_score.or(e.fni).unwrap_or(0.0)));
+            }
+        }
+        // payload dropped here — O(1 entity) memory
+    }
+    Ok(results)
+}
+
 // ── Public API ──────────────────────────────────────────────────────
 
 /// Read and decode a binary NXVF V4.1 shard file into entity JSON values.

@@ -245,24 +245,21 @@ pub fn build_stats_and_route_deltas(
     let shard_files = discover_shards(&shard_dir)?;
     let shard_count = shard_files.len() as u32;
 
-    // Phase 1: Stream registry → extract (id, fni_score, shard_idx)
+    // Phase 1: Stream registry → slim extract (id, fni_score) per entity
+    // Uses extract_scores_from_shard — serde skips body_content, O(1 entity) memory
     let mut scores: Vec<(String, f64)> = Vec::new();
     let mut registry_map: HashMap<String, u32> = HashMap::new();
     for (file_idx, file_path) in shard_files.iter().enumerate() {
-        let entities = match load_shard_entities(file_path) {
-            Ok(e) => e,
+        let shard_scores = match nxvf_core::extract_scores_from_shard(file_path) {
+            Ok(s) => s,
             Err(e) => { eprintln!("[RUST-STATS] Skipping {}: {}", file_path, e); continue; }
         };
         let shard_idx = std::path::Path::new(file_path).file_stem()
             .and_then(|s| s.to_str()).and_then(|s| s.strip_prefix("part-"))
             .and_then(|s| s.parse::<u32>().ok()).unwrap_or(file_idx as u32);
-        for e in &entities {
-            let id = e.get("id").and_then(|v| v.as_str()).unwrap_or_default();
-            if id.is_empty() { continue; }
-            let score = e.get("fni_score").and_then(|v| v.as_f64())
-                .or_else(|| e.get("fni").and_then(|v| v.as_f64())).unwrap_or(0.0);
-            scores.push((id.to_string(), score));
-            registry_map.insert(id.to_string(), shard_idx);
+        for (id, score) in shard_scores {
+            registry_map.insert(id.clone(), shard_idx);
+            scores.push((id, score));
         }
     }
     let entity_count = scores.len() as u32;

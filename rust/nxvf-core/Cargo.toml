@@ -8,6 +8,7 @@ description = "Shared NXVF V4.1 shard reader — binary (AES-CTR + Zstd) and JSO
 # Pure Rust lib — no cdylib, no N-API. Used as dependency by other crates.
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 flate2 = "1"
 aes = "0.8"
