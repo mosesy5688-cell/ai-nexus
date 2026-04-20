@@ -284,6 +284,14 @@ impl napi::Task for StatsTask {
             }
         }
         af.sort();
+        // Diagnostic: check RSS before Phase 3
+        if let Ok(status) = fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if line.starts_with("VmRSS:") || line.starts_with("VmSize:") {
+                    eprintln!("[RUST-DIAG] {}", line.trim());
+                }
+            }
+        }
         eprintln!("[RUST-DELTA] Found {} artifact shards", af.len());
         for (ai, ap) in af.iter().enumerate() {
             let before = routed;
