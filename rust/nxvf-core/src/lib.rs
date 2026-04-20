@@ -403,6 +403,48 @@ pub fn discover_shards(dir: &str) -> Result<Vec<String>, String> {
     Ok(files)
 }
 
+/// Stream entities from a single shard file, calling `callback` per entity.
+/// Memory: raw decompressed buffer + O(1 entity Value). No full Vec<Value> accumulation.
+/// Each entity Value is dropped after callback returns.
+pub fn for_each_entity_in_file<F>(file_path: &str, mut callback: F) -> Result<usize, String>
+where
+    F: FnMut(serde_json::Value) -> Result<(), String>,
+{
+    if file_path.ends_with(".bin") {
+        let entities = read_binary_shard(file_path)?;
+        let count = entities.len();
+        for e in entities { callback(e)?; }
+        return Ok(count);
+    }
+    let file = fs::File::open(file_path)
+        .map_err(|e| format!("Cannot open {}: {}", file_path, e))?;
+    let mut raw = Vec::new();
+    if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
+        zstd::Decoder::new(BufReader::new(file))
+            .map_err(|e| format!("Zstd init {}: {}", file_path, e))?
+            .read_to_end(&mut raw).map_err(|e| format!("Zstd {}: {}", file_path, e))?;
+    } else if file_path.ends_with(".gz") {
+        GzDecoder::new(BufReader::new(file)).read_to_end(&mut raw)
+            .map_err(|e| format!("Gzip {}: {}", file_path, e))?;
+    } else {
+        BufReader::new(file).read_to_end(&mut raw)
+            .map_err(|e| format!("Read {}: {}", file_path, e))?;
+    };
+    // Find entities array bounds — skip {"shardId":N,"entities":[ wrapper
+    let arr_start = raw.iter().position(|&b| b == b'[').unwrap_or(0);
+    let arr_end = raw.iter().rposition(|&b| b == b']').map(|p| p + 1).unwrap_or(raw.len());
+    let slice = &raw[arr_start..arr_end];
+    let stream = serde_json::Deserializer::from_slice(slice).into_iter::<serde_json::Value>();
+    let mut count = 0usize;
+    for result in stream {
+        match result {
+            Ok(val) => { callback(val)?; count += 1; }
+            Err(e) => { eprintln!("[NXVF-CORE] Stream parse error in {}: {}", file_path, e); break; }
+        }
+    }
+    Ok(count)
+}
+
 /// Load all entities from a shard directory into a single Vec.
 /// WARNING: O(N) memory. Prefer `for_each_shard` for streaming.
 pub fn load_all_entities(shard_dir: &str) -> Result<Vec<serde_json::Value>, String> {
