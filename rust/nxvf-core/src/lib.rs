@@ -430,16 +430,13 @@ where
         BufReader::new(file).read_to_end(&mut raw)
             .map_err(|e| format!("Read {}: {}", file_path, e))?;
     };
-    // Convert raw → String (zero-copy if valid UTF-8), then sanitize
-    let text = String::from_utf8(raw).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
-    let sanitized = sanitize_json_escapes(&text);
-    drop(text);
+    // In-place sanitize: fix incomplete \uXXXX escapes by zero-padding. ~0 extra allocation.
+    sanitize_json_escapes_inplace(&mut raw);
     // Find entities array bounds — skip {"shardId":N,"entities":[ wrapper
-    let bytes = sanitized.as_bytes();
-    let arr_start = bytes.iter().position(|&b| b == b'[').unwrap_or(0);
-    let arr_end = bytes.iter().rposition(|&b| b == b']').map(|p| p + 1).unwrap_or(bytes.len());
-    let slice = &sanitized[arr_start..arr_end];
-    let stream = serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
+    let arr_start = raw.iter().position(|&b| b == b'[').unwrap_or(0);
+    let arr_end = raw.iter().rposition(|&b| b == b']').map(|p| p + 1).unwrap_or(raw.len());
+    let slice = &raw[arr_start..arr_end];
+    let stream = serde_json::Deserializer::from_slice(slice).into_iter::<serde_json::Value>();
     let mut count = 0usize;
     for result in stream {
         match result {
@@ -479,6 +476,45 @@ where
         }
     }
     Ok(total)
+}
+
+/// In-place fix for incomplete \uXXXX escapes. Zero allocation for valid data.
+/// Pads incomplete hex digits with zeros: \uAB → \u00AB. Uses Vec::splice
+/// which is O(n) memcpy per fix, but typically only 1-2 fixes per shard.
+fn sanitize_json_escapes_inplace(data: &mut Vec<u8>) {
+    let mut i = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut fixes = 0u32;
+    while i < data.len() {
+        let b = data[i];
+        if escaped {
+            if b == b'u' && in_string {
+                let hex_start = i + 1;
+                let mut hex_count = 0;
+                while hex_start + hex_count < data.len() && data[hex_start + hex_count].is_ascii_hexdigit() && hex_count < 4 {
+                    hex_count += 1;
+                }
+                if hex_count < 4 {
+                    let pad = 4 - hex_count;
+                    let zeros = vec![b'0'; pad];
+                    data.splice(hex_start..hex_start, zeros);
+                    fixes += 1;
+                    i = hex_start + 4;
+                } else {
+                    i = hex_start + 4;
+                }
+            } else {
+                i += 1;
+            }
+            escaped = false;
+            continue;
+        }
+        if b == b'"' { in_string = !in_string; }
+        else if b == b'\\' && in_string { escaped = true; }
+        i += 1;
+    }
+    if fixes > 0 { eprintln!("[NXVF-CORE] Sanitized {} incomplete \\u escapes in-place", fixes); }
 }
 
 /// Fix malformed \uXXXX escape sequences that JS serializers can produce.
