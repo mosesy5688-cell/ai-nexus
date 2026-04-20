@@ -61,8 +61,18 @@ async function main() {
         return;
     }
 
-    // Pass 1: Global Indexing — Rust primary (zero JS heap for body_content)
+    // Health fast path — only counts entities, no Pass 1 needed
     const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
+    if (taskArg === 'health') {
+        let entityCount = 0, shardCount = 0;
+        await loadRegistryShardsSequentially(async (entities) => { entityCount += entities.length; shardCount++; }, { slim: true });
+        if (entityCount < AGGREGATE_FLOOR) throw new Error(`[CRITICAL] Data Loss! Only ${entityCount} entities (Min: ${AGGREGATE_FLOOR}).`);
+        await generateHealthReport(shardCount, { length: entityCount }, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
+        console.log(`[AGGREGATOR V25.9.0] Health check complete! (${((Date.now() - startTime) / 1000).toFixed(1)}s)`);
+        return;
+    }
+
+    // Pass 1: Global Indexing — Rust primary (zero JS heap for body_content)
     const outputCache = './output/cache';
     const rustStats = buildRegistryStatsFFI(shardDir, outputCache);
     let rankingsMap, registryMap;
@@ -187,18 +197,6 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
 
 /** V25.9: Satellite tasks — zero fullSet. Each generator streams via shardReader. */
 async function runSatelliteTask(loadShards, rankingsMap, shardDir, startTime) {
-    if (taskArg === 'health') {
-        let entityCount = 0, shardCount = 0;
-        await loadShards(async (entities) => { entityCount += entities.length; shardCount++; }, { slim: true });
-        if (entityCount < AGGREGATE_FLOOR) {
-            throw new Error(`[CRITICAL] Data Loss Detected! Only ${entityCount} entities (Min: ${AGGREGATE_FLOOR}).`);
-        }
-        await generateHealthReport(shardCount, { length: entityCount }, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
-        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`[AGGREGATOR V25.9.0] Health check complete! (${duration}s)`);
-        return;
-    }
-
     // Percentile-injecting shard reader — Rust binary reader (AES+Zstd) remains primary
     const satelliteReader = async (consumer, opts = {}) => {
         await loadShards(async (entities, shardIdx) => {
