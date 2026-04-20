@@ -230,10 +230,10 @@ export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson)
     return null;
 }
 
-/** V26.7: Pass 1 + delta routing in one Rust call. */
-export function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDir, outputDir) {
+/** V26.9: AsyncTask — returns Promise, worker thread execution. */
+export async function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDir, outputDir) {
     if (_streamAggregator?.buildStatsAndRouteDeltas) {
-        try { return _streamAggregator.buildStatsAndRouteDeltas(shardDir, artifactDir, deltaDir, outputDir); }
+        try { return await _streamAggregator.buildStatsAndRouteDeltas(shardDir, artifactDir, deltaDir, outputDir); }
         catch (e) { console.warn(`[RUST-BRIDGE] buildStatsAndRouteDeltas: ${e.message}`); }
     }
     return null;
