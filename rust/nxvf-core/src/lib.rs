@@ -404,8 +404,10 @@ pub fn discover_shards(dir: &str) -> Result<Vec<String>, String> {
 }
 
 /// Stream entities from a single shard file, calling `callback` per entity.
-/// Memory: raw decompressed buffer + O(1 entity Value). No full Vec<Value> accumulation.
-/// Each entity Value is dropped after callback returns.
+/// True streaming: decompress → readline → per-line sanitize → parse.
+/// O(1 entity) memory. Never buffers the full decompressed file.
+/// Artifact shards use JSON array format with one entity per line:
+///   {"shardId":N,"entities":[\n{entity1},\n{entity2},\n...]}
 pub fn for_each_entity_in_file<F>(file_path: &str, mut callback: F) -> Result<usize, String>
 where
     F: FnMut(serde_json::Value) -> Result<(), String>,
@@ -418,30 +420,34 @@ where
     }
     let file = fs::File::open(file_path)
         .map_err(|e| format!("Cannot open {}: {}", file_path, e))?;
-    let mut raw = Vec::new();
-    if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
-        zstd::Decoder::new(BufReader::new(file))
-            .map_err(|e| format!("Zstd init {}: {}", file_path, e))?
-            .read_to_end(&mut raw).map_err(|e| format!("Zstd {}: {}", file_path, e))?;
+    let reader: Box<dyn Read> = if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
+        Box::new(zstd::Decoder::new(BufReader::new(file))
+            .map_err(|e| format!("Zstd init {}: {}", file_path, e))?)
     } else if file_path.ends_with(".gz") {
-        GzDecoder::new(BufReader::new(file)).read_to_end(&mut raw)
-            .map_err(|e| format!("Gzip {}: {}", file_path, e))?;
+        Box::new(GzDecoder::new(BufReader::new(file)))
     } else {
-        BufReader::new(file).read_to_end(&mut raw)
-            .map_err(|e| format!("Read {}: {}", file_path, e))?;
+        Box::new(BufReader::new(file))
     };
-    // In-place sanitize: fix incomplete \uXXXX escapes by zero-padding. ~0 extra allocation.
-    sanitize_json_escapes_inplace(&mut raw);
-    // Find entities array bounds — skip {"shardId":N,"entities":[ wrapper
-    let arr_start = raw.iter().position(|&b| b == b'[').unwrap_or(0);
-    let arr_end = raw.iter().rposition(|&b| b == b']').map(|p| p + 1).unwrap_or(raw.len());
-    let slice = &raw[arr_start..arr_end];
-    let stream = serde_json::Deserializer::from_slice(slice).into_iter::<serde_json::Value>();
+    let buf_reader = std::io::BufReader::new(reader);
     let mut count = 0usize;
-    for result in stream {
-        match result {
+    let mut started = false;
+    for line_result in std::io::BufRead::lines(buf_reader) {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(_) => break,
+        };
+        let trimmed = line.trim().trim_start_matches(',');
+        if trimmed.is_empty() || trimmed == "[" || trimmed == "]" || trimmed == "]}" { continue; }
+        if !trimmed.starts_with('{') {
+            if !started { continue; }
+            break;
+        }
+        started = true;
+        let clean = trimmed.trim_end_matches(',');
+        let sanitized = sanitize_json_escapes(clean);
+        match serde_json::from_str::<serde_json::Value>(&sanitized) {
             Ok(val) => { callback(val)?; count += 1; }
-            Err(e) => { eprintln!("[NXVF-CORE] Stream parse error in {}: {}", file_path, e); break; }
+            Err(e) => { eprintln!("[NXVF-CORE] Line parse error in {}: {}", file_path, e); }
         }
     }
     Ok(count)
@@ -476,45 +482,6 @@ where
         }
     }
     Ok(total)
-}
-
-/// In-place fix for incomplete \uXXXX escapes. Zero allocation for valid data.
-/// Pads incomplete hex digits with zeros: \uAB → \u00AB. Uses Vec::splice
-/// which is O(n) memcpy per fix, but typically only 1-2 fixes per shard.
-fn sanitize_json_escapes_inplace(data: &mut Vec<u8>) {
-    let mut i = 0;
-    let mut in_string = false;
-    let mut escaped = false;
-    let mut fixes = 0u32;
-    while i < data.len() {
-        let b = data[i];
-        if escaped {
-            if b == b'u' && in_string {
-                let hex_start = i + 1;
-                let mut hex_count = 0;
-                while hex_start + hex_count < data.len() && data[hex_start + hex_count].is_ascii_hexdigit() && hex_count < 4 {
-                    hex_count += 1;
-                }
-                if hex_count < 4 {
-                    let pad = 4 - hex_count;
-                    let zeros = vec![b'0'; pad];
-                    data.splice(hex_start..hex_start, zeros);
-                    fixes += 1;
-                    i = hex_start + 4;
-                } else {
-                    i = hex_start + 4;
-                }
-            } else {
-                i += 1;
-            }
-            escaped = false;
-            continue;
-        }
-        if b == b'"' { in_string = !in_string; }
-        else if b == b'\\' && in_string { escaped = true; }
-        i += 1;
-    }
-    if fixes > 0 { eprintln!("[NXVF-CORE] Sanitized {} incomplete \\u escapes in-place", fixes); }
 }
 
 /// Fix malformed \uXXXX escape sequences that JS serializers can produce.
