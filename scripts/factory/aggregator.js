@@ -11,7 +11,7 @@ import {
 } from './lib/aggregator-maintenance.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
-import { initRustBridge, calculateFniFFI, routeArtifactsToDeltasFFI, buildRegistryStatsFFI } from './lib/rust-bridge.js';
+import { initRustBridge, calculateFniFFI, buildStatsAndRouteDeltasFFI } from './lib/rust-bridge.js';
 
 const CONFIG = {
     TOTAL_SHARDS: 20,
@@ -84,52 +84,38 @@ async function main() {
         return;
     }
 
-    // Pass 1: Global Indexing — Rust primary (zero JS heap for body_content)
+    // Pass 1 + Delta Routing — single Rust call (registry_map stays in Rust, never enters JS)
     const outputCache = './output/cache';
-    const rustStats = buildRegistryStatsFFI(shardDir, outputCache);
-    let rankingsMap, registryMap;
+    const deltaDir = './cache/deltas';
+    const rustStats = buildStatsAndRouteDeltasFFI(shardDir, CONFIG.ARTIFACT_DIR, deltaDir, outputCache);
+    let rankingsMap;
     if (rustStats) {
-        console.log(`[AGGREGATOR] Rust Pass 1: ${rustStats.entityCount} entities from ${rustStats.shardCount} shards (${rustStats.durationMs}ms)`);
+        console.log(`[AGGREGATOR] Rust Pass 1+Delta: ${rustStats.entityCount} entities, ${rustStats.routedCount} routed → ${rustStats.deltaShardCount} shards (${rustStats.durationMs}ms)`);
+        if (rustStats.entityCount === 0) throw new Error('[CRITICAL] Pass 1 returned 0 entities.');
         rankingsMap = await loadTsvMap(path.join(outputCache, 'rankings.tsv'));
-        registryMap = await loadTsvMap(path.join(outputCache, 'registry-map.tsv'));
     } else {
-        console.warn('[AGGREGATOR] Rust Pass 1 unavailable, falling back to JS...');
+        console.warn('[AGGREGATOR] Rust unavailable, falling back to JS...');
+        let registryMap;
         ({ rankingsMap, registryMap } = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS));
-    }
-    if (registryMap.size === 0) {
-        throw new Error('[CRITICAL] Pass 1 returned 0 entities. Check AES_CRYPTO_KEY is set and registry shards exist.');
+        if (registryMap.size === 0) throw new Error('[CRITICAL] Pass 1 returned 0 entities.');
+        const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
+        await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
+        registryMap.clear();
     }
     console.log(`✓ Global rankings and registry mapping aligned (including Mesh Impact).`);
     const isCoreTask = !taskArg || taskArg === 'core';
     if (isCoreTask) {
-        await runStreamingCore(loadRegistryShardsSequentially, saveRegistryShard, calculateGlobalStats,
-            preProcessDeltas, mergePartitionedShard, rankingsMap, registryMap,
-            entitiesInputPath, shardDir, startTime);
+        await runStreamingCore(loadRegistryShardsSequentially, saveRegistryShard,
+            mergePartitionedShard, rankingsMap, shardDir, startTime);
     } else {
         await runSatelliteTask(loadRegistryShardsSequentially, rankingsMap,
             shardDir, startTime);
     }
 }
 
-/** V26.5: Single-pass streaming core — merge + FNI overlay + watermark in one read/write. */
-async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDeltas,
-    mergePartitionedShard, rankingsMap, registryMap, entitiesInputPath, shardDir, startTime) {
-    // V26.6: Rust-primary delta routing — registry-map.json already written by Rust Pass 1
-    const registryMapPath = path.join('./output/cache', '.registry-map.json');
-    if (!await fs.access(registryMapPath).then(() => true).catch(() => false)) {
-        await fs.writeFile(registryMapPath, JSON.stringify(Object.fromEntries(registryMap)));
-    }
-    const deltaDir = './cache/deltas';
-    const rustResult = routeArtifactsToDeltasFFI(CONFIG.ARTIFACT_DIR, registryMapPath, deltaDir);
-    if (rustResult) {
-        console.log(`[AGGREGATOR] Rust delta routing: ${rustResult.routedCount} entities → ${rustResult.shardCount} shards (${rustResult.durationMs}ms)`);
-    } else {
-        console.warn('[AGGREGATOR] Rust delta routing unavailable, falling back to JS...');
-        const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
-        await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
-    }
-    registryMap.clear();
-    await fs.unlink(registryMapPath).catch(() => {});
+/** V26.7: Single-pass streaming core — delta routing already done by Rust. */
+async function runStreamingCore(loadShards, saveShard,
+    mergePartitionedShard, rankingsMap, shardDir, startTime) {
     const { buildFniMap } = await import('./lib/aggregator-shard-manager.js');
     const fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
     console.log(`[AGGREGATOR] Single-pass: Merge + FNI overlay + watermarking...`);

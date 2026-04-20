@@ -237,11 +237,11 @@ export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson)
     return null;
 }
 
-/** V26.6: Build registry stats (Pass 1) entirely in Rust. */
-export function buildRegistryStatsFFI(shardDir, outputDir) {
-    if (_streamAggregator?.buildRegistryStats) {
-        try { return _streamAggregator.buildRegistryStats(shardDir, outputDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildRegistryStats: ${e.message}`); }
+/** V26.7: Pass 1 + delta routing in one Rust call. */
+export function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDir, outputDir) {
+    if (_streamAggregator?.buildStatsAndRouteDeltas) {
+        try { return _streamAggregator.buildStatsAndRouteDeltas(shardDir, artifactDir, deltaDir, outputDir); }
+        catch (e) { console.warn(`[RUST-BRIDGE] buildStatsAndRouteDeltas: ${e.message}`); }
     }
     return null;
 }
