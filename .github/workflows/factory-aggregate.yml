@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 330
     env:
-      NODE_OPTIONS: "--max-old-space-size=8192 --expose-gc"
+      NODE_OPTIONS: "--max-old-space-size=4096 --expose-gc"
     steps:
       - name: Free Runner Disk (pre-installed tools not needed)
         run: |

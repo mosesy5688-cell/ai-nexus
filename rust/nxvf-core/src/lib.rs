@@ -430,9 +430,8 @@ where
         BufReader::new(file).read_to_end(&mut raw)
             .map_err(|e| format!("Read {}: {}", file_path, e))?;
     };
-    // Sanitize malformed \uXXXX escapes from JS serializers, then drop raw
-    let text = String::from_utf8_lossy(&raw).into_owned();
-    drop(raw);
+    // Convert raw → String (zero-copy if valid UTF-8), then sanitize
+    let text = String::from_utf8(raw).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
     let sanitized = sanitize_json_escapes(&text);
     drop(text);
     // Find entities array bounds — skip {"shardId":N,"entities":[ wrapper
