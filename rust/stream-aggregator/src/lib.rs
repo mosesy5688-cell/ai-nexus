@@ -293,13 +293,10 @@ pub fn build_stats_and_route_deltas(
     }
     artifact_files.sort();
     for artifact_path in &artifact_files {
-        let entities = match nxvf_core::load_shard_entities(artifact_path) {
-            Ok(e) => e, Err(e) => { eprintln!("[RUST-DELTA] Skipping {}: {}", artifact_path, e); continue; }
-        };
-        for entity_val in &entities {
-            let incoming = entity_val.get("enriched").unwrap_or(entity_val);
+        let route_result = nxvf_core::for_each_entity_in_file(artifact_path, |entity_val| {
+            let incoming = entity_val.get("enriched").unwrap_or(&entity_val);
             let id = incoming.get("id").and_then(|v| v.as_str()).unwrap_or_default();
-            if id.is_empty() { continue; }
+            if id.is_empty() { return Ok(()); }
             if let Some(&shard_idx) = registry_map.get(id) {
                 let writer = writers.entry(shard_idx).or_insert_with(|| {
                     let path = format!("{}/reg-{}.jsonl", delta_dir, shard_idx);
@@ -309,6 +306,10 @@ pub fn build_stats_and_route_deltas(
                 writer.write_all(b"\n").ok();
                 routed += 1;
             }
+            Ok(())
+        });
+        if let Err(e) = route_result {
+            eprintln!("[RUST-DELTA] Skipping {}: {}", artifact_path, e);
         }
     }
     let delta_shard_count = writers.len() as u32;
