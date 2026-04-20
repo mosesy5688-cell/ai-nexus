@@ -214,13 +214,6 @@ export function fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichment
     return null;
 }
 
-export function routeArtifactsToDeltasFFI(artifactDir, registryMapPath, deltaDir) {
-    if (_streamAggregator?.routeArtifactsToDeltas) {
-        try { return _streamAggregator.routeArtifactsToDeltas(artifactDir, registryMapPath, deltaDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] routeArtifactsToDeltas: ${e.message}`); }
-    }
-    return null;
-}
 /** V26.5: Mesh graph — prefer file reading. */
 export function buildMeshGraphFromFilesFFI(explicitPath, knowledgePath, reportsPath, outputDir) {
     if (_satelliteTasks?.buildMeshGraphFromFiles) {
