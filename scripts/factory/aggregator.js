@@ -11,7 +11,7 @@ import {
 } from './lib/aggregator-maintenance.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
-import { initRustBridge, calculateFniFFI, routeArtifactsToDeltasFFI } from './lib/rust-bridge.js';
+import { initRustBridge, calculateFniFFI, routeArtifactsToDeltasFFI, buildRegistryStatsFFI } from './lib/rust-bridge.js';
 
 const CONFIG = {
     TOTAL_SHARDS: 20,
@@ -61,30 +61,42 @@ async function main() {
         return;
     }
 
-    // Pass 1: Global Indexing (lightweight Maps only)
-    const { rankingsMap, registryMap, scoreMap } = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    // Pass 1: Global Indexing — Rust primary (zero JS heap for body_content)
+    const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
+    const outputCache = './output/cache';
+    const rustStats = buildRegistryStatsFFI(shardDir, outputCache);
+    let rankingsMap, registryMap;
+    if (rustStats) {
+        console.log(`[AGGREGATOR] Rust Pass 1: ${rustStats.entityCount} entities from ${rustStats.shardCount} shards (${rustStats.durationMs}ms)`);
+        rankingsMap = new Map(Object.entries(JSON.parse(await fs.readFile(path.join(outputCache, 'rankings.json'), 'utf-8'))).map(([k, v]) => [k, Number(v)]));
+        registryMap = new Map(Object.entries(JSON.parse(await fs.readFile(path.join(outputCache, '.registry-map.json'), 'utf-8'))).map(([k, v]) => [k, Number(v)]));
+    } else {
+        console.warn('[AGGREGATOR] Rust Pass 1 unavailable, falling back to JS...');
+        ({ rankingsMap, registryMap } = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS));
+    }
     if (registryMap.size === 0) {
         throw new Error('[CRITICAL] Pass 1 returned 0 entities. Check AES_CRYPTO_KEY is set and registry shards exist.');
     }
     console.log(`✓ Global rankings and registry mapping aligned (including Mesh Impact).`);
-    const shardDir = path.join(process.env.CACHE_DIR || './cache', 'registry');
     const isCoreTask = !taskArg || taskArg === 'core';
     if (isCoreTask) {
         await runStreamingCore(loadRegistryShardsSequentially, saveRegistryShard, calculateGlobalStats,
-            preProcessDeltas, mergePartitionedShard, rankingsMap, registryMap, scoreMap,
+            preProcessDeltas, mergePartitionedShard, rankingsMap, registryMap,
             entitiesInputPath, shardDir, startTime);
     } else {
-        await runSatelliteTask(loadRegistryShardsSequentially, rankingsMap, scoreMap,
+        await runSatelliteTask(loadRegistryShardsSequentially, rankingsMap,
             shardDir, startTime);
     }
 }
 
 /** V26.5: Single-pass streaming core — merge + FNI overlay + watermark in one read/write. */
 async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDeltas,
-    mergePartitionedShard, rankingsMap, registryMap, scoreMap, entitiesInputPath, shardDir, startTime) {
-    // V26.5: Rust-primary delta routing — no V8 string/heap limits
-    const registryMapPath = path.join(CONFIG.OUTPUT_DIR, '.registry-map.json');
-    await fs.writeFile(registryMapPath, JSON.stringify(Object.fromEntries(registryMap)));
+    mergePartitionedShard, rankingsMap, registryMap, entitiesInputPath, shardDir, startTime) {
+    // V26.6: Rust-primary delta routing — registry-map.json already written by Rust Pass 1
+    const registryMapPath = path.join('./output/cache', '.registry-map.json');
+    if (!await fs.access(registryMapPath).then(() => true).catch(() => false)) {
+        await fs.writeFile(registryMapPath, JSON.stringify(Object.fromEntries(registryMap)));
+    }
     const deltaDir = './cache/deltas';
     const rustResult = routeArtifactsToDeltasFFI(CONFIG.ARTIFACT_DIR, registryMapPath, deltaDir);
     if (rustResult) {
@@ -94,10 +106,10 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
         const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
         await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
     }
+    registryMap.clear();
     await fs.unlink(registryMapPath).catch(() => {});
     const { buildFniMap } = await import('./lib/aggregator-shard-manager.js');
     const fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
-    registryMap.clear();
     console.log(`[AGGREGATOR] Single-pass: Merge + FNI overlay + watermarking...`);
     let mergeCount = 0, entityCount = 0, watermarked = 0, fniHits = 0, fniRecomputed = 0;
     const topN = [];
@@ -174,7 +186,7 @@ async function runStreamingCore(loadShards, saveShard, _calcStats, preProcessDel
 }
 
 /** V25.9: Satellite tasks — zero fullSet. Each generator streams via shardReader. */
-async function runSatelliteTask(loadShards, rankingsMap, scoreMap, shardDir, startTime) {
+async function runSatelliteTask(loadShards, rankingsMap, shardDir, startTime) {
     if (taskArg === 'health') {
         let entityCount = 0, shardCount = 0;
         await loadShards(async (entities) => { entityCount += entities.length; shardCount++; }, { slim: true });

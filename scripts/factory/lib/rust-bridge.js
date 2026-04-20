@@ -237,6 +237,12 @@ export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson)
     return null;
 }
 
-export function getRustMode() {
-    return _mode;
+/** V26.6: Build registry stats (Pass 1) entirely in Rust. */
+export function buildRegistryStatsFFI(shardDir, outputDir) {
+    if (_streamAggregator?.buildRegistryStats) {
+        try { return _streamAggregator.buildRegistryStats(shardDir, outputDir); }
+        catch (e) { console.warn(`[RUST-BRIDGE] buildRegistryStats: ${e.message}`); }
+    }
+    return null;
 }
+export function getRustMode() { return _mode; }

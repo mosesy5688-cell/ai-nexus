@@ -69,8 +69,9 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
         scorePercentiles
     }, null, 2));
 
+    scoreMap.clear();
     console.log(`  [STATS] Mapped ${registryMap.size} entities with Authority-First scoring.`);
-    return { rankingsMap, registryMap, scoreMap };
+    return { rankingsMap, registryMap };
 }
 
 /**
