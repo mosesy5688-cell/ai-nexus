@@ -246,7 +246,6 @@ pub fn build_stats_and_route_deltas(
     let shard_count = shard_files.len() as u32;
 
     // Phase 1: Stream registry → slim extract (id, fni_score) per entity
-    // Uses extract_scores_from_shard — serde skips body_content, O(1 entity) memory
     let mut scores: Vec<(String, f64)> = Vec::new();
     let mut registry_map: HashMap<String, u32> = HashMap::new();
     for (file_idx, file_path) in shard_files.iter().enumerate() {
@@ -261,11 +260,15 @@ pub fn build_stats_and_route_deltas(
             registry_map.insert(id.clone(), shard_idx);
             scores.push((id, score));
         }
+        if (file_idx + 1) % 50 == 0 {
+            eprintln!("[RUST-STATS] Phase 1: {}/{} shards, {} entities so far", file_idx + 1, shard_count, scores.len());
+        }
     }
     let entity_count = scores.len() as u32;
-    eprintln!("[RUST-STATS] Phase 1: {} entities from {} shards", entity_count, shard_count);
+    eprintln!("[RUST-STATS] Phase 1 done: {} entities from {} shards ({}ms)", entity_count, shard_count, start.elapsed().as_millis());
 
     // Phase 2: Percentile rankings → rankings.tsv
+    eprintln!("[RUST-STATS] Phase 2: calculating percentile rankings...");
     let rankings = percentile::calculate_rankings(&scores);
     fs::create_dir_all(&output_dir).ok();
     let rankings_path = format!("{}/rankings.tsv", output_dir);
@@ -274,8 +277,10 @@ pub fn build_stats_and_route_deltas(
     for (id, pct) in &rankings { write!(rw, "{}\t{}\n", id, pct).ok(); }
     rw.flush().ok();
     drop(scores); drop(rankings);
+    eprintln!("[RUST-STATS] Phase 2 done: rankings.tsv written ({}ms)", start.elapsed().as_millis());
 
     // Phase 3: Route artifacts to deltas using in-memory registry_map
+    eprintln!("[RUST-STATS] Phase 3: routing artifact deltas...");
     fs::create_dir_all(&delta_dir).ok();
     if let Ok(entries) = fs::read_dir(&delta_dir) {
         for entry in entries.flatten() { fs::remove_file(entry.path()).ok(); }
@@ -292,7 +297,9 @@ pub fn build_stats_and_route_deltas(
         }
     }
     artifact_files.sort();
-    for artifact_path in &artifact_files {
+    eprintln!("[RUST-DELTA] Found {} artifact shards", artifact_files.len());
+    for (ai, artifact_path) in artifact_files.iter().enumerate() {
+        let shard_routed_before = routed;
         let route_result = nxvf_core::for_each_entity_in_file(artifact_path, |entity_val| {
             let incoming = entity_val.get("enriched").unwrap_or(&entity_val);
             let id = incoming.get("id").and_then(|v| v.as_str()).unwrap_or_default();
@@ -308,19 +315,24 @@ pub fn build_stats_and_route_deltas(
             }
             Ok(())
         });
-        if let Err(e) = route_result {
-            eprintln!("[RUST-DELTA] Skipping {}: {}", artifact_path, e);
+        let shard_routed = routed - shard_routed_before;
+        match route_result {
+            Ok(count) => eprintln!("[RUST-DELTA] Shard {}/{}: {} entities parsed, {} routed ({}ms)",
+                ai + 1, artifact_files.len(), count, shard_routed, start.elapsed().as_millis()),
+            Err(e) => eprintln!("[RUST-DELTA] Shard {}/{} ERROR: {}", ai + 1, artifact_files.len(), e),
         }
     }
     let delta_shard_count = writers.len() as u32;
     for (_, mut w) in writers { w.flush().ok(); }
     drop(registry_map);
+    eprintln!("[RUST-STATS] Phase 3 done: {} routed → {} delta shards ({}ms)", routed, delta_shard_count, start.elapsed().as_millis());
 
-    // Phase 4: fni-thresholds.json
+    // Phase 4: fni-thresholds.json (consumed by 4/4 master-fusion)
     let thresholds_path = format!("{}/fni-thresholds.json", output_dir);
-    let th = serde_json::json!({ "_ts": start.elapsed().as_secs(), "_count": entity_count });
     if let Ok(f) = fs::File::create(&thresholds_path) {
-        serde_json::to_writer_pretty(BufWriter::new(f), &th).ok();
+        let mut tw = BufWriter::new(f);
+        write!(tw, "{{\"_count\":{}}}\n", entity_count).ok();
+        tw.flush().ok();
     }
 
     eprintln!("[RUST-STATS] Complete: {} entities, {} routed → {} delta shards ({}ms)",
