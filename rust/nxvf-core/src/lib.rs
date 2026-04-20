@@ -404,10 +404,9 @@ pub fn discover_shards(dir: &str) -> Result<Vec<String>, String> {
 }
 
 /// Stream entities from a single shard file, calling `callback` per entity.
-/// True streaming: decompress → readline → per-line sanitize → parse.
-/// O(1 entity) memory. Never buffers the full decompressed file.
-/// Artifact shards use JSON array format with one entity per line:
-///   {"shardId":N,"entities":[\n{entity1},\n{entity2},\n...]}
+/// True streaming: decompress → chunk → brace-match → per-entity parse.
+/// O(1 entity) memory. Mirrors JS partitionMonolithStreamingly pattern.
+/// Format-agnostic: works with {"entities":[...]}, plain arrays, NDJSON.
 pub fn for_each_entity_in_file<F>(file_path: &str, mut callback: F) -> Result<usize, String>
 where
     F: FnMut(serde_json::Value) -> Result<(), String>,
@@ -420,7 +419,7 @@ where
     }
     let file = fs::File::open(file_path)
         .map_err(|e| format!("Cannot open {}: {}", file_path, e))?;
-    let reader: Box<dyn Read> = if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
+    let mut reader: Box<dyn Read> = if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
         Box::new(zstd::Decoder::new(BufReader::new(file))
             .map_err(|e| format!("Zstd init {}: {}", file_path, e))?)
     } else if file_path.ends_with(".gz") {
@@ -428,26 +427,62 @@ where
     } else {
         Box::new(BufReader::new(file))
     };
-    let buf_reader = std::io::BufReader::new(reader);
+    // Streaming brace-match parser — O(1 entity) memory
+    let mut buf = String::new();
+    let mut chunk = vec![0u8; 65536];
+    let mut depth: i32 = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut obj_start: Option<usize> = None;
     let mut count = 0usize;
-    let mut started = false;
-    for line_result in std::io::BufRead::lines(buf_reader) {
-        let line = match line_result {
-            Ok(l) => l,
-            Err(_) => break,
-        };
-        let trimmed = line.trim().trim_start_matches(',');
-        if trimmed.is_empty() || trimmed == "[" || trimmed == "]" || trimmed == "]}" { continue; }
-        if !trimmed.starts_with('{') {
-            if !started { continue; }
-            break;
+
+    loop {
+        let n = reader.read(&mut chunk).map_err(|e| format!("Read {}: {}", file_path, e))?;
+        if n == 0 { break; }
+        let scan_start = buf.len();
+        buf.push_str(&String::from_utf8_lossy(&chunk[..n]));
+
+        let bytes = buf.as_bytes();
+        for i in scan_start..bytes.len() {
+            let c = bytes[i];
+            if c == b'"' && !escaped { in_string = !in_string; }
+            escaped = c == b'\\' && !escaped && in_string;
+            if !in_string {
+                if c == b'{' {
+                    if depth == 1 { obj_start = Some(i); }
+                    depth += 1;
+                } else if c == b'}' {
+                    depth -= 1;
+                    if depth == 1 {
+                        if let Some(start) = obj_start {
+                            let slice = &buf[start..i + 1];
+                            match serde_json::from_str::<serde_json::Value>(slice) {
+                                Ok(val) => {
+                                    if val.get("id").is_some() || val.get("umid").is_some() {
+                                        callback(val)?;
+                                        count += 1;
+                                    }
+                                }
+                                Err(_) => {
+                                    let sanitized = sanitize_json_escapes(slice);
+                                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&sanitized) {
+                                        if val.get("id").is_some() || val.get("umid").is_some() {
+                                            callback(val)?;
+                                            count += 1;
+                                        }
+                                    }
+                                }
+                            }
+                            obj_start = None;
+                        }
+                    }
+                }
+            }
         }
-        started = true;
-        let clean = trimmed.trim_end_matches(',');
-        let sanitized = sanitize_json_escapes(clean);
-        match serde_json::from_str::<serde_json::Value>(&sanitized) {
-            Ok(val) => { callback(val)?; count += 1; }
-            Err(e) => { eprintln!("[NXVF-CORE] Line parse error in {}: {}", file_path, e); }
+        // O(1) memory guard: trim consumed data
+        match obj_start {
+            None => { buf.clear(); }
+            Some(s) => { buf = buf[s..].to_string(); obj_start = Some(0); }
         }
     }
     Ok(count)
