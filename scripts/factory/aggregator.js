@@ -84,13 +84,13 @@ async function main() {
         return;
     }
 
-    // Pass 1 + Delta Routing — single Rust call (registry_map stays in Rust, never enters JS)
+    // Phase 1-4 in Rust AsyncTask (worker thread, event loop stays alive)
     const outputCache = './output/cache';
     const deltaDir = './cache/deltas';
-    const rustStats = buildStatsAndRouteDeltasFFI(shardDir, CONFIG.ARTIFACT_DIR, deltaDir, outputCache);
+    const rustStats = await buildStatsAndRouteDeltasFFI(shardDir, CONFIG.ARTIFACT_DIR, deltaDir, outputCache);
     let rankingsMap;
     if (rustStats) {
-        console.log(`[AGGREGATOR] Rust Pass 1+Delta: ${rustStats.entityCount} entities, ${rustStats.routedCount} routed → ${rustStats.deltaShardCount} shards (${rustStats.durationMs}ms)`);
+        console.log(`[AGGREGATOR] Rust Phase 1-4: ${rustStats.entityCount} entities, ${rustStats.routedCount} routed → ${rustStats.deltaShardCount} shards (${rustStats.durationMs}ms)`);
         if (rustStats.entityCount === 0) throw new Error('[CRITICAL] Pass 1 returned 0 entities.');
         rankingsMap = await loadTsvMap(path.join(outputCache, 'rankings.tsv'));
     } else {

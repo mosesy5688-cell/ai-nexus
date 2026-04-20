@@ -219,12 +219,7 @@ pub fn route_artifacts_to_deltas(
     })
 }
 
-/// V26.7: Pass 1 + delta routing in one Rust call.
-/// 1. Stream registry shards → build (id, fni_score, shard_idx) maps
-/// 2. Calculate percentile rankings → write rankings.tsv for JS
-/// 3. Route artifact deltas using in-memory registry_map (no JSON roundtrip)
-/// 4. Write fni-thresholds.json
-/// Zero JS heap for body_content or registry_map.
+/// V26.9: AsyncTask — Phase 1-4 on libuv worker thread. Event loop stays alive.
 #[napi(object)]
 pub struct RegistryStatsResult {
     pub entity_count: u32,
@@ -234,114 +229,102 @@ pub struct RegistryStatsResult {
     pub duration_ms: u32,
 }
 
+pub struct StatsTask { shard_dir: String, artifact_dir: String, delta_dir: String, output_dir: String }
+
+impl napi::Task for StatsTask {
+    type Output = RegistryStatsResult;
+    type JsValue = RegistryStatsResult;
+
+    fn compute(&mut self) -> Result<Self::Output> {
+        let start = std::time::Instant::now();
+        let shard_files = discover_shards(&self.shard_dir)?;
+        let shard_count = shard_files.len() as u32;
+
+        // Phase 1: slim serde extract
+        let mut scores: Vec<(String, f64)> = Vec::new();
+        let mut registry_map: HashMap<String, u32> = HashMap::new();
+        for (fi, fp) in shard_files.iter().enumerate() {
+            let ss = match nxvf_core::extract_scores_from_shard(fp) {
+                Ok(s) => s, Err(e) => { eprintln!("[RUST-STATS] Skipping {}: {}", fp, e); continue; }
+            };
+            let si = std::path::Path::new(fp).file_stem().and_then(|s| s.to_str())
+                .and_then(|s| s.strip_prefix("part-")).and_then(|s| s.parse::<u32>().ok()).unwrap_or(fi as u32);
+            for (id, score) in ss { registry_map.insert(id.clone(), si); scores.push((id, score)); }
+            if (fi + 1) % 50 == 0 { eprintln!("[RUST-STATS] Phase 1: {}/{} shards, {} entities", fi+1, shard_count, scores.len()); }
+        }
+        let entity_count = scores.len() as u32;
+        eprintln!("[RUST-STATS] Phase 1 done: {} entities from {} shards ({}ms)", entity_count, shard_count, start.elapsed().as_millis());
+
+        // Phase 2: percentile → rankings.tsv
+        eprintln!("[RUST-STATS] Phase 2: percentile rankings...");
+        let rankings = percentile::calculate_rankings(&scores);
+        fs::create_dir_all(&self.output_dir).ok();
+        let mut rw = BufWriter::new(fs::File::create(format!("{}/rankings.tsv", self.output_dir))
+            .map_err(|e| Error::from_reason(format!("rankings.tsv: {}", e)))?);
+        for (id, pct) in &rankings { write!(rw, "{}\t{}\n", id, pct).ok(); }
+        rw.flush().ok();
+        drop(scores); drop(rankings);
+        eprintln!("[RUST-STATS] Phase 2 done ({}ms)", start.elapsed().as_millis());
+
+        // Phase 3: route artifacts → deltas (in-memory registry_map)
+        eprintln!("[RUST-STATS] Phase 3: delta routing...");
+        fs::create_dir_all(&self.delta_dir).ok();
+        if let Ok(entries) = fs::read_dir(&self.delta_dir) {
+            for entry in entries.flatten() { fs::remove_file(entry.path()).ok(); }
+        }
+        let mut writers: HashMap<u32, BufWriter<fs::File>> = HashMap::new();
+        let mut routed = 0u32;
+        let mut af: Vec<String> = Vec::new();
+        if let Ok(entries) = fs::read_dir(&self.artifact_dir) {
+            for entry in entries.flatten() {
+                let n = entry.file_name().to_string_lossy().to_string();
+                if n.starts_with("shard-") && (n.ends_with(".json.zst") || n.ends_with(".json.gz") || n.ends_with(".json")) {
+                    af.push(entry.path().to_string_lossy().to_string());
+                }
+            }
+        }
+        af.sort();
+        eprintln!("[RUST-DELTA] Found {} artifact shards", af.len());
+        for (ai, ap) in af.iter().enumerate() {
+            let before = routed;
+            let r = nxvf_core::for_each_entity_in_file(ap, |ev| {
+                let inc = ev.get("enriched").unwrap_or(&ev);
+                let id = inc.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+                if id.is_empty() { return Ok(()); }
+                if let Some(&si) = registry_map.get(id) {
+                    let w = writers.entry(si).or_insert_with(|| {
+                        BufWriter::new(fs::File::create(format!("{}/reg-{}.jsonl", self.delta_dir, si)).expect("delta file"))
+                    });
+                    serde_json::to_writer(&mut *w, inc).ok();
+                    w.write_all(b"\n").ok();
+                    routed += 1;
+                }
+                Ok(())
+            });
+            match r {
+                Ok(n) => eprintln!("[RUST-DELTA] {}/{}: {} parsed, {} routed ({}ms)", ai+1, af.len(), n, routed-before, start.elapsed().as_millis()),
+                Err(e) => eprintln!("[RUST-DELTA] {}/{} ERROR: {}", ai+1, af.len(), e),
+            }
+        }
+        let dsc = writers.len() as u32;
+        for (_, mut w) in writers { w.flush().ok(); }
+        drop(registry_map);
+
+        // Phase 4: fni-thresholds.json
+        if let Ok(f) = fs::File::create(format!("{}/fni-thresholds.json", self.output_dir)) {
+            write!(BufWriter::new(f), "{{\"_count\":{}}}\n", entity_count).ok();
+        }
+        eprintln!("[RUST-STATS] Complete: {} entities, {} routed → {} deltas ({}ms)", entity_count, routed, dsc, start.elapsed().as_millis());
+        Ok(RegistryStatsResult { entity_count, shard_count, routed_count: routed, delta_shard_count: dsc, duration_ms: start.elapsed().as_millis() as u32 })
+    }
+
+    fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> Result<Self::JsValue> { Ok(output) }
+}
+
 #[napi]
-pub fn build_stats_and_route_deltas(
-    shard_dir: String,
-    artifact_dir: String,
-    delta_dir: String,
-    output_dir: String,
-) -> Result<RegistryStatsResult> {
-    let start = std::time::Instant::now();
-    let shard_files = discover_shards(&shard_dir)?;
-    let shard_count = shard_files.len() as u32;
-
-    // Phase 1: Stream registry → slim extract (id, fni_score) per entity
-    let mut scores: Vec<(String, f64)> = Vec::new();
-    let mut registry_map: HashMap<String, u32> = HashMap::new();
-    for (file_idx, file_path) in shard_files.iter().enumerate() {
-        let shard_scores = match nxvf_core::extract_scores_from_shard(file_path) {
-            Ok(s) => s,
-            Err(e) => { eprintln!("[RUST-STATS] Skipping {}: {}", file_path, e); continue; }
-        };
-        let shard_idx = std::path::Path::new(file_path).file_stem()
-            .and_then(|s| s.to_str()).and_then(|s| s.strip_prefix("part-"))
-            .and_then(|s| s.parse::<u32>().ok()).unwrap_or(file_idx as u32);
-        for (id, score) in shard_scores {
-            registry_map.insert(id.clone(), shard_idx);
-            scores.push((id, score));
-        }
-        if (file_idx + 1) % 50 == 0 {
-            eprintln!("[RUST-STATS] Phase 1: {}/{} shards, {} entities so far", file_idx + 1, shard_count, scores.len());
-        }
-    }
-    let entity_count = scores.len() as u32;
-    eprintln!("[RUST-STATS] Phase 1 done: {} entities from {} shards ({}ms)", entity_count, shard_count, start.elapsed().as_millis());
-
-    // Phase 2: Percentile rankings → rankings.tsv
-    eprintln!("[RUST-STATS] Phase 2: calculating percentile rankings...");
-    let rankings = percentile::calculate_rankings(&scores);
-    fs::create_dir_all(&output_dir).ok();
-    let rankings_path = format!("{}/rankings.tsv", output_dir);
-    let mut rw = BufWriter::new(fs::File::create(&rankings_path)
-        .map_err(|e| Error::from_reason(format!("rankings.tsv: {}", e)))?);
-    for (id, pct) in &rankings { write!(rw, "{}\t{}\n", id, pct).ok(); }
-    rw.flush().ok();
-    drop(scores); drop(rankings);
-    eprintln!("[RUST-STATS] Phase 2 done: rankings.tsv written ({}ms)", start.elapsed().as_millis());
-
-    // Phase 3: Route artifacts to deltas using in-memory registry_map
-    eprintln!("[RUST-STATS] Phase 3: routing artifact deltas...");
-    fs::create_dir_all(&delta_dir).ok();
-    if let Ok(entries) = fs::read_dir(&delta_dir) {
-        for entry in entries.flatten() { fs::remove_file(entry.path()).ok(); }
-    }
-    let mut writers: HashMap<u32, BufWriter<fs::File>> = HashMap::new();
-    let mut routed = 0u32;
-    let mut artifact_files: Vec<String> = Vec::new();
-    if let Ok(entries) = fs::read_dir(&artifact_dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with("shard-") && (name.ends_with(".json.zst") || name.ends_with(".json.gz") || name.ends_with(".json")) {
-                artifact_files.push(entry.path().to_string_lossy().to_string());
-            }
-        }
-    }
-    artifact_files.sort();
-    eprintln!("[RUST-DELTA] Found {} artifact shards", artifact_files.len());
-    for (ai, artifact_path) in artifact_files.iter().enumerate() {
-        let shard_routed_before = routed;
-        let route_result = nxvf_core::for_each_entity_in_file(artifact_path, |entity_val| {
-            let incoming = entity_val.get("enriched").unwrap_or(&entity_val);
-            let id = incoming.get("id").and_then(|v| v.as_str()).unwrap_or_default();
-            if id.is_empty() { return Ok(()); }
-            if let Some(&shard_idx) = registry_map.get(id) {
-                let writer = writers.entry(shard_idx).or_insert_with(|| {
-                    let path = format!("{}/reg-{}.jsonl", delta_dir, shard_idx);
-                    BufWriter::new(fs::File::create(&path).expect("Cannot create delta file"))
-                });
-                serde_json::to_writer(&mut *writer, incoming).ok();
-                writer.write_all(b"\n").ok();
-                routed += 1;
-            }
-            Ok(())
-        });
-        let shard_routed = routed - shard_routed_before;
-        match route_result {
-            Ok(count) => eprintln!("[RUST-DELTA] Shard {}/{}: {} entities parsed, {} routed ({}ms)",
-                ai + 1, artifact_files.len(), count, shard_routed, start.elapsed().as_millis()),
-            Err(e) => eprintln!("[RUST-DELTA] Shard {}/{} ERROR: {}", ai + 1, artifact_files.len(), e),
-        }
-    }
-    let delta_shard_count = writers.len() as u32;
-    for (_, mut w) in writers { w.flush().ok(); }
-    drop(registry_map);
-    eprintln!("[RUST-STATS] Phase 3 done: {} routed → {} delta shards ({}ms)", routed, delta_shard_count, start.elapsed().as_millis());
-
-    // Phase 4: fni-thresholds.json (consumed by 4/4 master-fusion)
-    let thresholds_path = format!("{}/fni-thresholds.json", output_dir);
-    if let Ok(f) = fs::File::create(&thresholds_path) {
-        let mut tw = BufWriter::new(f);
-        write!(tw, "{{\"_count\":{}}}\n", entity_count).ok();
-        tw.flush().ok();
-    }
-
-    eprintln!("[RUST-STATS] Complete: {} entities, {} routed → {} delta shards ({}ms)",
-        entity_count, routed, delta_shard_count, start.elapsed().as_millis());
-
-    Ok(RegistryStatsResult {
-        entity_count, shard_count, routed_count: routed, delta_shard_count,
-        duration_ms: start.elapsed().as_millis() as u32,
-    })
+pub fn build_stats_and_route_deltas(shard_dir: String, artifact_dir: String, delta_dir: String, output_dir: String,
+) -> napi::bindgen_prelude::AsyncTask<StatsTask> {
+    napi::bindgen_prelude::AsyncTask::new(StatsTask { shard_dir, artifact_dir, delta_dir, output_dir })
 }
 
 /// Compress a Buffer with Zstd, returning compressed Buffer.
