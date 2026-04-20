@@ -404,19 +404,12 @@ pub fn discover_shards(dir: &str) -> Result<Vec<String>, String> {
 }
 
 /// Stream entities from a single shard file, calling `callback` per entity.
-/// True streaming: decompress → chunk → brace-match → per-entity parse.
-/// O(1 entity) memory. Mirrors JS partitionMonolithStreamingly pattern.
-/// Format-agnostic: works with {"entities":[...]}, plain arrays, NDJSON.
-pub fn for_each_entity_in_file<F>(file_path: &str, mut callback: F) -> Result<usize, String>
+/// True streaming brace-match: decompress → chunk → brace-match → raw callback.
+/// O(1 entity) memory. Callback receives raw &[u8] slice — no serde parse.
+pub fn for_each_raw_entity<F>(file_path: &str, mut callback: F) -> Result<usize, String>
 where
-    F: FnMut(serde_json::Value) -> Result<(), String>,
+    F: FnMut(&[u8]) -> Result<(), String>,
 {
-    if file_path.ends_with(".bin") {
-        let entities = read_binary_shard(file_path)?;
-        let count = entities.len();
-        for e in entities { callback(e)?; }
-        return Ok(count);
-    }
     let file = fs::File::open(file_path)
         .map_err(|e| format!("Cannot open {}: {}", file_path, e))?;
     let mut reader: Box<dyn Read> = if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
@@ -427,8 +420,7 @@ where
     } else {
         Box::new(BufReader::new(file))
     };
-    // Streaming brace-match parser — O(1 entity) memory
-    let mut buf = String::new();
+    let mut buf = Vec::<u8>::new();
     let mut chunk = vec![0u8; 65536];
     let mut depth: i32 = 0;
     let mut in_string = false;
@@ -440,11 +432,10 @@ where
         let n = reader.read(&mut chunk).map_err(|e| format!("Read {}: {}", file_path, e))?;
         if n == 0 { break; }
         let scan_start = buf.len();
-        buf.push_str(&String::from_utf8_lossy(&chunk[..n]));
+        buf.extend_from_slice(&chunk[..n]);
 
-        let bytes = buf.as_bytes();
-        for i in scan_start..bytes.len() {
-            let c = bytes[i];
+        for i in scan_start..buf.len() {
+            let c = buf[i];
             if c == b'"' && !escaped { in_string = !in_string; }
             escaped = c == b'\\' && !escaped && in_string;
             if !in_string {
@@ -455,37 +446,43 @@ where
                     depth -= 1;
                     if depth == 1 {
                         if let Some(start) = obj_start {
-                            let slice = &buf[start..i + 1];
-                            match serde_json::from_str::<serde_json::Value>(slice) {
-                                Ok(val) => {
-                                    if val.get("id").is_some() || val.get("umid").is_some() {
-                                        callback(val)?;
-                                        count += 1;
-                                    }
-                                }
-                                Err(_) => {
-                                    let sanitized = sanitize_json_escapes(slice);
-                                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&sanitized) {
-                                        if val.get("id").is_some() || val.get("umid").is_some() {
-                                            callback(val)?;
-                                            count += 1;
-                                        }
-                                    }
-                                }
-                            }
+                            callback(&buf[start..i + 1])?;
+                            count += 1;
                             obj_start = None;
                         }
                     }
                 }
             }
         }
-        // O(1) memory guard: trim consumed data
         match obj_start {
             None => { buf.clear(); }
-            Some(s) => { buf = buf[s..].to_string(); obj_start = Some(0); }
+            Some(s) => { let tail = buf[s..].to_vec(); buf = tail; obj_start = Some(0); }
         }
     }
     Ok(count)
+}
+
+/// Streaming brace-match with serde parse per entity. For callers that need Value.
+pub fn for_each_entity_in_file<F>(file_path: &str, mut callback: F) -> Result<usize, String>
+where
+    F: FnMut(serde_json::Value) -> Result<(), String>,
+{
+    if file_path.ends_with(".bin") {
+        let entities = read_binary_shard(file_path)?;
+        let count = entities.len();
+        for e in entities { callback(e)?; }
+        return Ok(count);
+    }
+    for_each_raw_entity(file_path, |raw| {
+        let val = serde_json::from_slice::<serde_json::Value>(raw)
+            .or_else(|_| {
+                let text = String::from_utf8_lossy(raw);
+                let sanitized = sanitize_json_escapes(&text);
+                serde_json::from_str::<serde_json::Value>(&sanitized)
+            })
+            .map_err(|e| format!("Parse: {}", e))?;
+        callback(val)
+    })
 }
 
 /// Load all entities from a shard directory into a single Vec.

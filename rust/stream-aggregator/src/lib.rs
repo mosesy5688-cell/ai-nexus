@@ -41,6 +41,37 @@ pub fn stream_aggregate(shard_dir: String, output_path: String) -> Result<Aggreg
     })
 }
 
+/// Extract "id" value from raw JSON bytes without full parse.
+/// Scans for `"id":"` or `"id" :  "` pattern, returns the value.
+fn extract_id_from_raw(raw: &[u8]) -> &str {
+    // Fast path: find b'"id"' then scan for the value
+    let needle = b"\"id\"";
+    let mut pos = 0;
+    while pos + needle.len() < raw.len() {
+        if let Some(found) = raw[pos..].windows(needle.len()).position(|w| w == needle) {
+            let after_key = pos + found + needle.len();
+            // Skip whitespace and colon
+            let mut i = after_key;
+            while i < raw.len() && (raw[i] == b' ' || raw[i] == b':' || raw[i] == b'\t' || raw[i] == b'\n' || raw[i] == b'\r') { i += 1; }
+            if i < raw.len() && raw[i] == b'"' {
+                let val_start = i + 1;
+                let mut val_end = val_start;
+                while val_end < raw.len() && raw[val_end] != b'"' {
+                    if raw[val_end] == b'\\' { val_end += 1; }
+                    val_end += 1;
+                }
+                if let Ok(s) = std::str::from_utf8(&raw[val_start..val_end]) {
+                    if !s.is_empty() { return s; }
+                }
+            }
+            pos = after_key;
+        } else {
+            break;
+        }
+    }
+    ""
+}
+
 /// Discover shard files — delegates to nxvf-core.
 fn discover_shards(dir: &str) -> Result<Vec<String>> {
     nxvf_core::discover_shards(dir).map_err(|e| Error::from_reason(e))
@@ -295,22 +326,21 @@ impl napi::Task for StatsTask {
         eprintln!("[RUST-DELTA] Found {} artifact shards", af.len());
         for (ai, ap) in af.iter().enumerate() {
             let before = routed;
-            let r = nxvf_core::for_each_entity_in_file(ap, |ev| {
-                let inc = ev.get("enriched").unwrap_or(&ev);
-                let id = inc.get("id").and_then(|v| v.as_str()).unwrap_or_default();
+            let r = nxvf_core::for_each_raw_entity(ap, |raw| {
+                let id = extract_id_from_raw(raw);
                 if id.is_empty() { return Ok(()); }
                 if let Some(&si) = registry_map.get(id) {
                     let w = writers.entry(si).or_insert_with(|| {
                         BufWriter::new(fs::File::create(format!("{}/reg-{}.jsonl", self.delta_dir, si)).expect("delta file"))
                     });
-                    serde_json::to_writer(&mut *w, inc).ok();
+                    w.write_all(raw).ok();
                     w.write_all(b"\n").ok();
                     routed += 1;
                 }
                 Ok(())
             });
             match r {
-                Ok(n) => eprintln!("[RUST-DELTA] {}/{}: {} parsed, {} routed ({}ms)", ai+1, af.len(), n, routed-before, start.elapsed().as_millis()),
+                Ok(n) => eprintln!("[RUST-DELTA] {}/{}: {} entities, {} routed ({}ms)", ai+1, af.len(), n, routed-before, start.elapsed().as_millis()),
                 Err(e) => eprintln!("[RUST-DELTA] {}/{} ERROR: {}", ai+1, af.len(), e),
             }
         }
