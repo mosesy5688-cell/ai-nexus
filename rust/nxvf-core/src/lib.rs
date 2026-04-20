@@ -430,11 +430,17 @@ where
         BufReader::new(file).read_to_end(&mut raw)
             .map_err(|e| format!("Read {}: {}", file_path, e))?;
     };
+    // Sanitize malformed \uXXXX escapes from JS serializers, then drop raw
+    let text = String::from_utf8_lossy(&raw).into_owned();
+    drop(raw);
+    let sanitized = sanitize_json_escapes(&text);
+    drop(text);
     // Find entities array bounds — skip {"shardId":N,"entities":[ wrapper
-    let arr_start = raw.iter().position(|&b| b == b'[').unwrap_or(0);
-    let arr_end = raw.iter().rposition(|&b| b == b']').map(|p| p + 1).unwrap_or(raw.len());
-    let slice = &raw[arr_start..arr_end];
-    let stream = serde_json::Deserializer::from_slice(slice).into_iter::<serde_json::Value>();
+    let bytes = sanitized.as_bytes();
+    let arr_start = bytes.iter().position(|&b| b == b'[').unwrap_or(0);
+    let arr_end = bytes.iter().rposition(|&b| b == b']').map(|p| p + 1).unwrap_or(bytes.len());
+    let slice = &sanitized[arr_start..arr_end];
+    let stream = serde_json::Deserializer::from_str(slice).into_iter::<serde_json::Value>();
     let mut count = 0usize;
     for result in stream {
         match result {
