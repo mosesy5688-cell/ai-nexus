@@ -276,25 +276,33 @@ pub fn build_registry_stats(
     // Phase 2: Calculate percentile rankings
     let rankings = percentile::calculate_rankings(&scores);
 
-    // Phase 3: Write output files
+    // Phase 3: Write output files — TSV for streaming JS parse (no JSON.parse OOM)
     fs::create_dir_all(&output_dir).ok();
 
-    // rankings.json: { "id": percentile, ... }
-    let rankings_obj: HashMap<&str, u8> = rankings.iter()
-        .map(|(k, v)| (k.as_str(), *v))
-        .collect();
-    let rankings_path = format!("{}/rankings.json", output_dir);
-    let rankings_file = fs::File::create(&rankings_path)
-        .map_err(|e| Error::from_reason(format!("Cannot create rankings.json: {}", e)))?;
-    serde_json::to_writer(BufWriter::new(rankings_file), &rankings_obj)
-        .map_err(|e| Error::from_reason(format!("Write rankings.json: {}", e)))?;
+    // rankings.tsv: id\tpercentile\n — JS reads line-by-line into Map
+    let rankings_path = format!("{}/rankings.tsv", output_dir);
+    let mut rw = BufWriter::new(fs::File::create(&rankings_path)
+        .map_err(|e| Error::from_reason(format!("Cannot create rankings.tsv: {}", e)))?);
+    for (id, pct) in &rankings {
+        write!(rw, "{}\t{}\n", id, pct).ok();
+    }
+    rw.flush().ok();
 
-    // registry-map.json: { "id": shard_idx, ... }
-    let reg_path = format!("{}/.registry-map.json", output_dir);
-    let reg_file = fs::File::create(&reg_path)
-        .map_err(|e| Error::from_reason(format!("Cannot create registry-map.json: {}", e)))?;
-    serde_json::to_writer(BufWriter::new(reg_file), &registry_map)
-        .map_err(|e| Error::from_reason(format!("Write registry-map.json: {}", e)))?;
+    // registry-map.tsv: id\tshard_idx\n
+    let reg_path = format!("{}/registry-map.tsv", output_dir);
+    let mut mw = BufWriter::new(fs::File::create(&reg_path)
+        .map_err(|e| Error::from_reason(format!("Cannot create registry-map.tsv: {}", e)))?);
+    for (id, idx) in &registry_map {
+        write!(mw, "{}\t{}\n", id, idx).ok();
+    }
+    mw.flush().ok();
+
+    // .registry-map.json — needed by routeArtifactsToDeltasFFI (Rust reads this)
+    let reg_json_path = format!("{}/.registry-map.json", output_dir);
+    let reg_json_file = fs::File::create(&reg_json_path)
+        .map_err(|e| Error::from_reason(format!("Cannot create .registry-map.json: {}", e)))?;
+    serde_json::to_writer(BufWriter::new(reg_json_file), &registry_map)
+        .map_err(|e| Error::from_reason(format!("Write .registry-map.json: {}", e)))?;
 
     // fni-thresholds.json (for late-binding)
     let mut sorted_scores: Vec<f64> = scores.iter().map(|(_, s)| *s).collect();

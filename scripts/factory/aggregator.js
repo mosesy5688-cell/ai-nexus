@@ -26,6 +26,18 @@ const taskArg = args.find(a => a.startsWith('--task=') || a.startsWith('-t='))?.
 const AGGREGATE_FLOOR = 125000;
 const DAILY_TOP = 50;
 
+async function loadTsvMap(filePath) {
+    const { createReadStream } = await import('fs');
+    const { createInterface } = await import('readline');
+    const map = new Map();
+    const rl = createInterface({ input: createReadStream(filePath), crlfDelay: Infinity });
+    for await (const line of rl) {
+        const tab = line.indexOf('\t');
+        if (tab > 0) map.set(line.slice(0, tab), Number(line.slice(tab + 1)));
+    }
+    return map;
+}
+
 async function main() {
     const rustStatus = initRustBridge();
     console.log(`[AGGREGATOR] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
@@ -78,8 +90,8 @@ async function main() {
     let rankingsMap, registryMap;
     if (rustStats) {
         console.log(`[AGGREGATOR] Rust Pass 1: ${rustStats.entityCount} entities from ${rustStats.shardCount} shards (${rustStats.durationMs}ms)`);
-        rankingsMap = new Map(Object.entries(JSON.parse(await fs.readFile(path.join(outputCache, 'rankings.json'), 'utf-8'))).map(([k, v]) => [k, Number(v)]));
-        registryMap = new Map(Object.entries(JSON.parse(await fs.readFile(path.join(outputCache, '.registry-map.json'), 'utf-8'))).map(([k, v]) => [k, Number(v)]));
+        rankingsMap = await loadTsvMap(path.join(outputCache, 'rankings.tsv'));
+        registryMap = await loadTsvMap(path.join(outputCache, 'registry-map.tsv'));
     } else {
         console.warn('[AGGREGATOR] Rust Pass 1 unavailable, falling back to JS...');
         ({ rankingsMap, registryMap } = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS));
