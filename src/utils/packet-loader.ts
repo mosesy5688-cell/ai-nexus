@@ -44,14 +44,17 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
         try {
             const r2 = env?.R2_ASSETS;
             if (r2) {
+                console.log(`[Loader] R2 direct: key=${entityPack.bundle_key} offset=${entityPack.bundle_offset} size=${entityPack.bundle_size}`);
                 const obj = await r2.get(entityPack.bundle_key, {
                     range: { offset: entityPack.bundle_offset, length: entityPack.bundle_size }
                 });
                 if (obj) {
                     let raw = new Uint8Array(await (obj as any).arrayBuffer());
+                    console.log(`[Loader] R2 got ${raw.length} bytes, first4: ${raw[0]?.toString(16)} ${raw[1]?.toString(16)} ${raw[2]?.toString(16)} ${raw[3]?.toString(16)}`);
                     if (entityPack.bundle_key.endsWith('.bin') && (env as any)?.AES_CRYPTO_KEY) {
                         await initShardDecrypt((env as any).AES_CRYPTO_KEY);
-                        raw = new Uint8Array(decryptShardRange(entityPack.bundle_key.split('/').pop() || '', raw.buffer, entityPack.bundle_offset));
+                        raw = new Uint8Array(await decryptShardRange(entityPack.bundle_key.split('/').pop() || '', raw.buffer, entityPack.bundle_offset));
+                        console.log(`[Loader] Decrypted ${raw.length} bytes, first4: ${raw[0]?.toString(16)} ${raw[1]?.toString(16)} ${raw[2]?.toString(16)} ${raw[3]?.toString(16)}`);
                     }
                     let decoded: string;
                     if (raw.length >= 4 && raw[0] === 0x28 && raw[1] === 0xB5 && raw[2] === 0x2F && raw[3] === 0xFD) {
@@ -66,6 +69,9 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
                     const bundle = JSON.parse(decoded);
                     html = bundle.readme || bundle.html_readme || null;
                     mesh = bundle.mesh_profile?.relations || bundle.relations || mesh;
+                    console.log(`[Loader] Bundle OK: readme=${!!html} (${(html||'').length} chars), mesh=${mesh.length} relations`);
+                } else {
+                    console.warn(`[Loader] R2 returned null for ${entityPack.bundle_key}`);
                 }
             } else {
                 const bundle = await fetchBundleRange(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
