@@ -2,7 +2,7 @@ import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadBufferToR2FF
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
-import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml, fetchS2Fulltext } from './lib/arxiv-fetchers.js';
+import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml } from './lib/arxiv-fetchers.js';
 import { writeBoosterStats } from './lib/booster-stats.js';
 
 // ── Config ──────────────────────────────────────────────
@@ -10,7 +10,6 @@ const RATE_LIMIT_MS = 10000;
 const AR5IV_RETRY_DELAY_MS = 8000;
 const BUDGET = 20000;
 const MAX_RUNTIME_MS = 5 * 60 * 60 * 1000;
-const S2_RUNNER_BUDGET = 1250; 
 const BREAKER_THRESHOLD = 5;
 const BREAKER_PAUSE_MS = 2 * 60 * 1000;
 const BREAKER_RECOVERY_DELAY = 10000;
@@ -102,17 +101,8 @@ async function main() {
 
         let result;
 
-        // Layer 1: S2 fulltext (fast, ~2s, API key authenticated)
-        const s2Text = await fetchS2Fulltext(arxivId, S2_RUNNER_BUDGET);
-        if (s2Text && s2Text.length >= 200) {
-            result = classifyTextFFI(s2Text);
-            if (result.classification !== 'SKIP') {
-                // S2 success — skip HTML entirely
-            } else { result = null; }
-        }
-
-        // Layer 2: arXiv HTML fallback (slower, ~10s)
-        if (!result) {
+        // Layer 1: arXiv HTML (primary — full text, ~10s)
+        {
             const jitter = Math.floor(Math.random() * 2000);
             await new Promise(r => setTimeout(r, baseDelay + jitter));
 
