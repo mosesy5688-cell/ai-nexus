@@ -34,7 +34,7 @@ async function hydrateMeshHub(): Promise<void> {
             if (!grid) return;
 
             grid.innerHTML = tier.nodes.map((node: any, index: number) => {
-                const path = getRouteFromId(node.id, node.type);
+                const path = getRouteFromId(node.slug || node.id, node.type);
                 const isExtra = index >= 6 ? 'hidden extra-node' : '';
                 const relationBadge = node.relation ? `
                     <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter overflow-hidden">

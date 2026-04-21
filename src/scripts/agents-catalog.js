@@ -85,7 +85,7 @@ export async function initAgentsCatalog(initialData = []) {
 
         grid.innerHTML = pageItems.map(item => {
             const description = stripHtml(item.description || '').slice(0, 120) + (item.description?.length > 120 ? '...' : '');
-            const path = getRouteFromId(item.id || item.slug, 'agent');
+            const path = getRouteFromId(item.slug || item.id, 'agent');
 
             return `
       <a href="${path}" 
