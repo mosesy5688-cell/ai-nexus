@@ -107,13 +107,13 @@ export async function fetchS2Fulltext(arxivId, budget) {
         const isArxiv = /^\d{4}\.\d{4,5}$/.test(arxivId) || /^[a-z-]+\/\d{7}$/i.test(arxivId);
         const endpointId = isArxiv ? `ArXiv:${arxivId}` : arxivId;
 
-        const res = await fetch(`${S2_API}/${endpointId}?fields=title,abstract,fullText`, {
+        const res = await fetch(`${S2_API}/${endpointId}?fields=abstract`, {
             headers,
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
         });
         if (!res.ok) return null;
         const data = await res.json();
-        return data.fullText || null;
+        return data.abstract || null;
     } catch { return null; }
 }
 
