@@ -60,7 +60,7 @@ async function main() {
     await fs.mkdir(enrichmentDir, { recursive: true });
     let enrichmentMap = new Map();
     let entityEnrichMap = new Map();
-    let coldBodyMap = new Map();
+    let coldShardKeys = [];
     initR2Bridge();
     const r2 = createR2ClientFFI();
     if (r2) {
@@ -73,22 +73,10 @@ async function main() {
             }
             console.log(`  [OK] ${enrichmentMap.size} enrichment files indexed`);
         } catch (e) { console.warn(`  [WARN] Enrichment scan: ${e.message}`); }
-        // A3: Load cold shard bundles (fallback for entities without enrichment)
+        // A3: Index cold shard bundle keys (download per-shard in Phase 4, not preloaded)
         try {
-            const coldKeys = [...(await fetchAllR2ETagsFFI(r2, ['cold/shard/'])).keys()].filter(k => k.endsWith('.jsonl.zst'));
-            if (coldKeys.length > 0) {
-                const { autoDecompress } = await import('./lib/zstd-helper.js');
-                for (const key of coldKeys) {
-                    try {
-                        const text = (await autoDecompress(await downloadBufferFromR2FFI(r2, key))).toString('utf-8');
-                        for (const line of text.split('\n')) {
-                            if (!line) continue;
-                            try { const { id, body } = JSON.parse(line); if (id && body) coldBodyMap.set(id, body); } catch { }
-                        }
-                    } catch (e) { console.warn(`  [COLD] ${key}: ${e.message}`); }
-                }
-                console.log(`  [OK] ${coldBodyMap.size} cold bodies from ${coldKeys.length} bundles`);
-            }
+            coldShardKeys = [...(await fetchAllR2ETagsFFI(r2, ['cold/shard/'])).keys()].filter(k => k.endsWith('.jsonl.zst'));
+            console.log(`  [OK] ${coldShardKeys.length} cold shard bundles indexed (deferred download)`);
         } catch (e) { console.warn(`  [WARN] Cold scan: ${e.message}`); }
         if (enrichmentMap.size > 0) {
             let prodHits = 0, devHits = 0;
@@ -130,8 +118,9 @@ async function main() {
     }
     const outDir = path.join(CONFIG.CACHE_DIR, 'fused');
     await fs.mkdir(outDir, { recursive: true });
+    const { autoDecompress } = await import('./lib/zstd-helper.js');
     console.log(`[FUSION] Phase 4: Fusing ${shardFiles.length} shards...`);
-    console.log(`  [DIAG] enrich=${entityEnrichMap.size}, cold=${coldBodyMap.size}`);
+    console.log(`  [DIAG] enrich=${entityEnrichMap.size}, coldBundles=${coldShardKeys.length}`);
     let totalEnriched = 0, totalDl = 0, totalNeeded = 0, totalMissingShard = 0;
     let processedCount = 0;
     const DL_CONCURRENCY = 100;
@@ -145,18 +134,24 @@ async function main() {
         const outPath = path.join(outDir, `part-${String(i).padStart(3, '0')}.json.zst`);
         const shardIdx = parseInt(shardFiles[i].match(/part-(\d+)/)[1]);
 
-        // A3: Write cold bodies to enrichmentDir for entities WITHOUT enrichment
+        // A3: Download cold shard bundle on-demand, write bodies for entities WITHOUT enrichment
         let coldWritten = 0;
-        if (coldBodyMap.size > 0) {
-            const entityIds = shardEntityIds.get(shardIdx) || [];
-            for (const id of entityIds) {
-                if (!entityEnrichMap.has(id) && coldBodyMap.has(id)) {
-                    const umid = generateUMID(id);
-                    try {
-                        await fs.writeFile(path.join(enrichmentDir, `${umid}.md.gz`), Buffer.from(coldBodyMap.get(id), 'utf-8'));
-                        coldWritten++;
-                    } catch { }
-                }
+        if (coldShardKeys.length > 0 && r2) {
+            const coldKey = coldShardKeys.find(k => k.includes(`shard-${String(shardIdx).padStart(3, '0')}`));
+            if (coldKey) {
+                try {
+                    const text = (await autoDecompress(await downloadBufferFromR2FFI(r2, coldKey))).toString('utf-8');
+                    for (const line of text.split('\n')) {
+                        if (!line) continue;
+                        try {
+                            const { id, body } = JSON.parse(line);
+                            if (id && body && !entityEnrichMap.has(id)) {
+                                await fs.writeFile(path.join(enrichmentDir, `${generateUMID(id)}.md.gz`), Buffer.from(body, 'utf-8'));
+                                coldWritten++;
+                            }
+                        } catch { }
+                    }
+                } catch (e) { console.warn(`  [COLD] shard ${shardIdx}: ${e.message}`); }
             }
         }
 
@@ -233,7 +228,7 @@ async function main() {
 
     assertCompletion(processedCount, expectedFusionCount);
 
-    shardEntityIds.clear(); entityEnrichMap.clear(); enrichmentMap.clear(); coldBodyMap.clear();
+    shardEntityIds.clear(); entityEnrichMap.clear(); enrichmentMap.clear(); coldShardKeys = [];
     await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
     process.removeListener('exit', exitGuard);

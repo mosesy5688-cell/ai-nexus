@@ -29,6 +29,7 @@ export const dbSchemas = `
     CREATE INDEX idx_fni ON entities(fni_score DESC, raw_pop DESC, slug ASC);
     CREATE INDEX idx_type ON entities(type);
     CREATE INDEX idx_umid ON entities(umid);
+    CREATE INDEX idx_bundle ON entities(bundle_key);
 `;
 
 /** V25.8: Standalone FTS5 database schema (decoupled from meta.db) */
