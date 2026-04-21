@@ -24,7 +24,7 @@ async function main() {
     console.log('[SYNC-LEDGER] V26.5 — Streaming from meta shards into dedup.db...');
     const startTime = Date.now();
 
-    const shardFiles = fs.readdirSync(SHARD_DIR).filter(f => f.startsWith('meta-') && f.endsWith('.db')).sort();
+    const shardFiles = fs.readdirSync(SHARD_DIR).filter(f => /^meta-\d+\.db$/.test(f)).sort();
     if (shardFiles.length === 0) {
         console.warn('[SYNC-LEDGER] No meta shards found. Exiting.');
         return;

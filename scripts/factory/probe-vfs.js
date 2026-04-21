@@ -28,7 +28,7 @@ function collectSamplesFromShards() {
         return rows;
     }
     const metaFiles = fs.readdirSync(DATA_DIR)
-        .filter(f => /^meta-\d{2}\.db$/.test(f))
+        .filter(f => /^meta-\d+\.db$/.test(f))
         .map(f => path.join(DATA_DIR, f));
     if (metaFiles.length === 0) throw new Error(`No meta-NN.db found in ${DATA_DIR}`);
 

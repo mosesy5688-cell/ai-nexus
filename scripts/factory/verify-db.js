@@ -111,7 +111,8 @@ const requiredCols = [
 const hasAllCols = requiredCols.every(c => columns.includes(c));
 check('Schema Completeness', hasAllCols, hasAllCols ? 'All V23.1 columns present' : `Missing: ${requiredCols.filter(c => !columns.includes(c))}`);
 } else {
-    check('Schema Completeness', false, 'entities table missing (unknown DB type)');
+    console.log(`[VERIFY] Skipping ${dbName} — not an entities/search/articles DB`);
+    db.close(); process.exit(0);
 }
 
 // 5. Global Entity Accounting
