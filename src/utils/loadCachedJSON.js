@@ -49,7 +49,8 @@ export async function loadCachedJSON(path, options = {}) {
 
     // Strategy 1: R2 Direct (Primary for SSR)
     // locals could be Astro.locals (with runtime) or the environment object itself
-    const r2 = locals?.runtime?.env?.R2_ASSETS || locals?.R2_ASSETS || locals?.env?.R2_ASSETS;
+    let r2 = locals?.R2_ASSETS || locals?.env?.R2_ASSETS;
+    if (!r2) { try { const { env } = await import('cloudflare:workers'); r2 = env?.R2_ASSETS; } catch {} }
 
     if (r2) {
         let r2Path = path.startsWith('/') ? path.slice(1) : path;
@@ -154,7 +155,7 @@ export async function loadBenchmarks(locals = null) {
  */
 export async function loadSpecs(locals = null) {
     // V18.2.5: Block heavy specs load during SSR to prevent Worker Resource Limit (1102)
-    const isSSR = Boolean(locals?.runtime?.env);
+    const isSSR = typeof caches !== 'undefined' && 'default' in caches;
     if (isSSR) {
         console.warn('[loadSpecs] SSR Memory Protection active: Returning stub');
         return { data: { count: 0, data: [], architecture_families: [] }, source: 'ssr-stub', freshness: 'live' };

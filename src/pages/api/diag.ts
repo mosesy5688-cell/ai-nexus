@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlite-engine';
+import { env } from 'cloudflare:workers';
 
 export const prerender = false;
 
@@ -11,10 +12,9 @@ export const GET: APIRoute = async ({ locals }) => {
     const t0 = Date.now();
 
     try {
-        const env = (locals as any).runtime?.env || {};
-        const r2Bucket = env.R2_ASSETS;
+        const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
-        const shouldSimulate = !!env.SIMULATE_PRODUCTION || (isDev && env.NODE_ENV !== 'production');
+        const shouldSimulate = isDev;
 
         steps.push({
             step: 'env',
@@ -23,8 +23,7 @@ export const GET: APIRoute = async ({ locals }) => {
                 hasR2: !!r2Bucket,
                 isDev,
                 shouldSimulate,
-                envKeys: Object.keys(env).join(','),
-                runtime: typeof (locals as any).runtime,
+                envKeys: Object.keys(env || {}).join(','),
                 hasCachesDefault: typeof caches !== 'undefined' && 'default' in caches,
                 processVersionsNode: typeof process !== 'undefined' ? process.versions?.node : 'no-process',
             })
