@@ -124,13 +124,13 @@ export async function generateSitemap(source, outputDir = './output') {
         });
     }
 
-    // 2. Add entity pages from source (single .db or directory of meta shards)
+    // 2. Add entity pages from meta-NN.db shards
     if (typeof source === 'string' && source.endsWith('.db')) {
         const { readdirSync } = await import('fs');
         const dir = path.dirname(source);
-        const shardFiles = readdirSync(dir).filter(f => f.startsWith('meta-') && f.endsWith('.db')).sort();
+        const shardFiles = readdirSync(dir).filter(f => /^meta-\d+\.db$/.test(f)).sort();
         const dbPaths = shardFiles.length > 0 ? shardFiles.map(f => path.join(dir, f)) : [source];
-        console.log(`[SITEMAP] Mode: VFS Streaming (${dbPaths.length} shard(s))`);
+        console.log(`[SITEMAP] Mode: VFS Streaming (${dbPaths.length} entity shard(s))`);
 
         for (const dbPath of dbPaths) {
             const db = new Database(dbPath, { readonly: true });
@@ -148,6 +148,23 @@ export async function generateSitemap(source, outputDir = './output') {
                 await addUrl({ loc: route, priority: calculatePriority(entity.fni_score), changefreq: 'daily', lastmod: entity.last_modified });
             }
             db.close();
+        }
+
+        // 2b. Add reports + knowledge articles from anchor DBs
+        for (const anchorFile of ['meta-report.db', 'meta-knowledge.db']) {
+            const anchorPath = path.join(dir, anchorFile);
+            try {
+                const { existsSync } = await import('fs');
+                if (!existsSync(anchorPath)) continue;
+                const db = new Database(anchorPath, { readonly: true });
+                const rows = db.prepare('SELECT slug, category, published_at FROM articles WHERE status = ?').all('published');
+                for (const r of rows) {
+                    const prefix = r.category === 'daily-report' ? '/reports/' : '/knowledge/';
+                    await addUrl({ loc: `${prefix}${r.slug}`, priority: '0.6', changefreq: 'weekly', lastmod: r.published_at || '' });
+                }
+                console.log(`  [SITEMAP] ${anchorFile}: ${rows.length} articles`);
+                db.close();
+            } catch { }
         }
     } else if (Array.isArray(source)) {
         // Legacy Mode: Memory array

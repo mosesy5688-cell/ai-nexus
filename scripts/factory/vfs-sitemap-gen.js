@@ -7,7 +7,7 @@ import { generateSitemap } from './lib/sitemap-generator.js';
 import path from 'path';
 
 const ARGS = process.argv.slice(2);
-const dbArg = ARGS.find(a => a.startsWith('--db='))?.split('=')[1] || './output/data/content.db';
+const dbArg = ARGS.find(a => a.startsWith('--db='))?.split('=')[1] || './output/data/meta-00.db';
 const outArg = ARGS.find(a => a.startsWith('--out='))?.split('=')[1] || './output';
 
 async function main() {
