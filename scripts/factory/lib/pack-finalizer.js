@@ -9,6 +9,7 @@ import crypto from 'crypto';
 
 export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary) {
     console.log('[VFS] Updating shard hashes...');
+    const hashStart = Date.now();
     for (let i = 0; i <= currentShardId; i++) {
         const name = `fused-shard-${String(i).padStart(3, '0')}.bin`;
         const file = path.join(shardDir, name);
@@ -20,6 +21,7 @@ export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, sha
             });
         }
     }
+    console.log(`[VFS] Shard hashes updated (${((Date.now() - hashStart) / 1000).toFixed(1)}s)`);
 
     await injectMetadata(metaDbs, null, cacheDir);
     const fullManifest = { shards: manifest, partitions: partitionCounts };
@@ -31,15 +33,16 @@ export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, sha
     await fs.writeFile(path.join(shardDir, 'shards_manifest.json'), manifestJson);
     console.log(`[VFS] Manifest: ${(manifestBytes / 1024).toFixed(1)}KB (limit: 5MB)`);
 
-    console.log('[VFS] Optimizing databases before size check...');
-    Object.values(metaDbs).forEach(db => db.exec("PRAGMA integrity_check; VACUUM;"));
+    console.log('[VFS] Optimizing databases...');
+    const vacStart = Date.now();
+    Object.values(metaDbs).forEach(db => db.exec("VACUUM;"));
+    console.log(`[VFS] VACUUM ${Object.keys(metaDbs).length} meta DBs (${((Date.now() - vacStart) / 1000).toFixed(1)}s)`);
 
     printBuildSummary(metaDbs, null, stats, currentShardId);
-    // metaDbs NOT closed here — pack-db Phase 6 reads from them after finalize
 
     ftsDb.exec("INSERT INTO search(search) VALUES('optimize');");
     ftsDb.pragma('wal_checkpoint(TRUNCATE)');
-    ftsDb.exec("PRAGMA integrity_check; VACUUM;");
+    ftsDb.exec("VACUUM;");
     ftsDb.close();
-    console.log('[VFS] V26.5: search.db eliminated. fts.db checkpointed.');
+    console.log('[VFS] fts.db optimized.');
 }
