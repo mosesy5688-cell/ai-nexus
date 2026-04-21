@@ -61,7 +61,7 @@ export function renderResults(results) {
     }
 
     dropdown.innerHTML = results.map(r => {
-        const path = getRouteFromId(r.id || r.slug, r.type || 'model');
+        const path = getRouteFromId(r.slug || r.id, r.type || 'model');
         const isKnowledge = (r.type || 'model') === 'knowledge';
 
         // V16.8.15 R5.7.1: Minimalist Dropdown Row
