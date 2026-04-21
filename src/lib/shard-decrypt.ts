@@ -31,7 +31,7 @@ async function deriveEntityIv(shardName: string, entityOffset: number): Promise<
     let pos = 0;
     for (const p of parts) { data.set(p, pos); pos += p.length; }
     const hash = await crypto.subtle.digest('SHA-256', data);
-    return new Uint8Array(hash).subarray(0, 16);
+    return new Uint8Array(hash).slice(0, 16);
 }
 
 /**
