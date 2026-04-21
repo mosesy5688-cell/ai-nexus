@@ -62,7 +62,7 @@ const {
   stars
 } = Astro.props;
 
-const trend_7d = rawTrend || [];
+const trend_7d = Array.isArray(rawTrend) ? rawTrend : (() => { try { return JSON.parse(rawTrend || '[]'); } catch { return []; } })();
 
 // High-Density Sparkline Generator (Server-Side SVG)
 function generateSvgPath(scores: number[], width: number, height: number, pad: number) {
