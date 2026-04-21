@@ -122,7 +122,7 @@ export function getRouteFromId(id, type = null) {
         const baseRoute = baseType === 'report' ? 'reports' : 'knowledge';
         return `/${baseRoute}/${slug}`;
     } else if (resolvedType === 'paper') {
-        slug = norm.replace(/--/g, '.');
+        slug = norm.replace(/^unknown--/i, '').replace(/--/g, '.');
     } else {
         // V16.8.31 SEO RESTORATION: Use hierarchical / separator
         // Filter out empty segments to prevent // in URLs

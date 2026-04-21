@@ -6,7 +6,11 @@ import { env } from 'cloudflare:workers';
 export async function resolveVfsMetadata(type: string, slug: string, locals: any = null) {
     const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
     const isSimulatingRemote = !!(typeof process !== 'undefined' && process.env.SIMULATE_PRODUCTION);
-    const normalized = normalizeEntitySlug(slug, type).toLowerCase();
+    let normalized = normalizeEntitySlug(slug, type).toLowerCase();
+    // Paper URLs use bare arXiv ID (/paper/2307.01952) but DB stores unknown--2307.01952
+    if (type === 'paper' && !normalized.includes('--')) {
+        normalized = `unknown--${normalized}`;
+    }
 
     // Strategy 1: Local Development (better-sqlite3)
     if (isDev && typeof window === 'undefined' && !isSimulatingRemote) {
