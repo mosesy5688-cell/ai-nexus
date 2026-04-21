@@ -1,26 +1,7 @@
 import { normalizeEntitySlug } from './entity-cache-reader-core.js';
 import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine.js';
+import { xxhash64Mod } from './xxhash64.js';
 import { env } from 'cloudflare:workers';
-
-/**
- * V26.5 VFS Metadata Provider — C1 VFS-Only Detail Pages
- *
- * Resolves entity metadata directly from meta-NN.db via SQLite Range Read.
- * Replaces legacy R2 JSON path-guessing with authoritative VFS query.
- */
-
-// V26.5: Hash routing must match pack-db deriveSlug + computeMetaShardSlot
-function cyrb53(str: string, seed = 0) {
-    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
-    for (let i = 0; i < str.length; i++) {
-        const ch = str.charCodeAt(i);
-        h1 = Math.imul(h1 ^ ch, 2654435761);
-        h2 = Math.imul(h2 ^ ch, 1597334677);
-    }
-    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
-}
 
 export async function resolveVfsMetadata(type: string, slug: string, locals: any = null) {
     const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
@@ -55,7 +36,7 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
         try {
             const manifest = await loadManifest(r2Bucket, shouldSimulate);
             const shardCount = manifest?.partitions?.meta_shards || 96;
-            const shardIdx = cyrb53(normalized) % shardCount;
+            const shardIdx = xxhash64Mod(normalized, shardCount);
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
 
             const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
