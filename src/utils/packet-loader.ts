@@ -2,6 +2,7 @@ import { R2_CACHE_URL } from '../config/constants.js';
 import { normalizeEntitySlug } from './entity-cache-reader-core.js';
 import { fetchBundleRange } from './vfs-fetcher.js';
 import { resolveVfsMetadata } from './vfs-metadata-provider.js';
+import { initShardDecrypt, decryptShardRange } from '../lib/shard-decrypt.js';
 import { env } from 'cloudflare:workers';
 
 /**
@@ -35,16 +36,43 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     }
     if (!entityPack.id) entityPack.id = normalized.includes('--') ? normalized.replace(/--/g, '/') : normalized;
 
-    // Bundle hydration: fetch README + mesh from fused-shard binary
+    // Bundle hydration: fetch README + mesh from fused-shard binary via R2 direct
     let html: string | null = null;
     let mesh: any[] = entityPack.relations ? JSON.parse(entityPack.relations) : [];
 
     if (entityPack.bundle_key && entityPack.bundle_size > 0) {
         try {
-            const bundle = await fetchBundleRange(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
-            if (bundle) {
-                html = bundle.readme || bundle.html_readme || null;
-                mesh = bundle.mesh_profile?.relations || bundle.relations || mesh;
+            const r2 = env?.R2_ASSETS;
+            if (r2) {
+                const obj = await r2.get(entityPack.bundle_key, {
+                    range: { offset: entityPack.bundle_offset, length: entityPack.bundle_size }
+                });
+                if (obj) {
+                    let raw = new Uint8Array(await (obj as any).arrayBuffer());
+                    if (entityPack.bundle_key.endsWith('.bin') && (env as any)?.AES_CRYPTO_KEY) {
+                        await initShardDecrypt((env as any).AES_CRYPTO_KEY);
+                        raw = new Uint8Array(decryptShardRange(entityPack.bundle_key.split('/').pop() || '', raw.buffer, entityPack.bundle_offset));
+                    }
+                    let decoded: string;
+                    if (raw.length >= 4 && raw[0] === 0x28 && raw[1] === 0xB5 && raw[2] === 0x2F && raw[3] === 0xFD) {
+                        const { decompress } = await import('fzstd');
+                        decoded = new TextDecoder().decode(decompress(raw));
+                    } else if (raw.length >= 2 && raw[0] === 0x1F && raw[1] === 0x8B) {
+                        const pako = await import('pako');
+                        decoded = pako.ungzip(raw, { to: 'string' });
+                    } else {
+                        decoded = new TextDecoder().decode(raw);
+                    }
+                    const bundle = JSON.parse(decoded);
+                    html = bundle.readme || bundle.html_readme || null;
+                    mesh = bundle.mesh_profile?.relations || bundle.relations || mesh;
+                }
+            } else {
+                const bundle = await fetchBundleRange(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
+                if (bundle) {
+                    html = bundle.readme || bundle.html_readme || null;
+                    mesh = bundle.mesh_profile?.relations || bundle.relations || mesh;
+                }
             }
         } catch (e: any) {
             console.warn(`[Loader] Bundle hydration failed for ${entityPack.id}:`, e.message);
