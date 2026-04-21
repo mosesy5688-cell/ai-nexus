@@ -27,7 +27,7 @@ const ENTITY_URL_PREFIXES = {
  */
 export function generateUrlSlug(entity) {
     if (!entity) return '';
-    const id = entity.id || entity.umid || entity.slug || '';
+    const id = entity.slug || entity.id || entity.umid || '';
     // V2.1 Standard: Hierarchical SEO Slug (strip prefixes and convert -- to /)
     return stripPrefix(id).replace(/--/g, '/');
 }
@@ -38,7 +38,7 @@ export function generateUrlSlug(entity) {
  */
 export function generateEntityUrl(entity, type) {
     if (!entity) return '/';
-    const id = entity.id || entity.umid || entity.slug || '';
+    const id = entity.slug || entity.id || entity.umid || '';
     const entityType = type || entity.type || entity.entity_type || getTypeFromId(id);
 
     return getRouteFromId(id, entityType);
