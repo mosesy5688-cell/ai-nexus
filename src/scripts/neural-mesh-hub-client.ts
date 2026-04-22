@@ -9,6 +9,9 @@
  */
 import { escapeHtml } from '../utils/escape-html.js';
 
+/** Guard: only register global Astro lifecycle listeners once to prevent N executions after N navigations */
+let _meshHubInitialized = false;
+
 async function hydrateMeshHub(): Promise<void> {
     const hub = document.getElementById('neural-mesh-hub');
     if (!hub) return;
@@ -121,6 +124,10 @@ function initFolding(): void {
 export function initNeuralMeshHub(): void {
     hydrateMeshHub().then(() => validateMeshHub());
     initFolding();
+
+    // Only register global Astro lifecycle listeners once to prevent stacking on repeated navigations
+    if (_meshHubInitialized) return;
+    _meshHubInitialized = true;
 
     document.addEventListener('astro:after-swap', () => {
         hydrateMeshHub().then(() => validateMeshHub());

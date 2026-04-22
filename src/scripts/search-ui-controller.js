@@ -7,6 +7,9 @@ import { getRouteFromId } from '../utils/mesh-routing-core.js';
 import { decompress as zstdDecompress } from 'fzstd';
 import { escapeHtml } from '../utils/escape-html.js';
 
+/** @type {IntersectionObserver|null} Module-level ref to prevent observer accumulation across renderResults calls */
+let _hydrationObserver = null;
+
 export function setupSearchUI(dom) {
     if (!dom) return;
 
@@ -144,17 +147,23 @@ export function renderResults(items, container, query = '') {
 }
 
 export function setupHydrationObserver() {
-    const observer = new IntersectionObserver((entries) => {
+    // Disconnect previous observer to prevent accumulation on repeated renderResults calls / view transitions
+    if (_hydrationObserver) {
+        _hydrationObserver.disconnect();
+        _hydrationObserver = null;
+    }
+
+    _hydrationObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 hydrateSearchResult(entry.target);
-                observer.unobserve(entry.target);
+                _hydrationObserver.unobserve(entry.target);
             }
         });
     }, { rootMargin: '100px' });
 
     document.querySelectorAll('.search-result-item[data-hydrated="false"]').forEach(item => {
-        observer.observe(item);
+        _hydrationObserver.observe(item);
     });
 }
 

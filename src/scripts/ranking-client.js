@@ -4,6 +4,9 @@
  */
 import { createModelCardHTML } from './ui-utils.js';
 
+/** @type {IntersectionObserver|null} Module-level ref to allow cleanup on Astro view transitions */
+let _rankingObserver = null;
+
 export function initRankingInfiniteScroll() {
     const grid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2');
     if (!grid) return;
@@ -26,6 +29,12 @@ export function initRankingInfiniteScroll() {
     sentinel.className = 'w-full h-20 flex justify-center items-center';
     sentinel.innerHTML = '<span class="hidden" id="scroll-loader">Loading...</span>';
     grid.parentNode?.appendChild(sentinel);
+
+    // Disconnect previous observer to prevent leaks across Astro view transitions
+    if (_rankingObserver) {
+        _rankingObserver.disconnect();
+        _rankingObserver = null;
+    }
 
     const observer = new IntersectionObserver(async (entries) => {
         if (entries[0].isIntersecting && !isLoading && currentPage < maxScrollPage) {
@@ -98,6 +107,15 @@ export function initRankingInfiniteScroll() {
     }, { rootMargin: '200px' });
 
     observer.observe(sentinel);
+    _rankingObserver = observer;
+
+    // Clean up observer on Astro view transition
+    document.addEventListener('astro:before-swap', () => {
+        if (_rankingObserver) {
+            _rankingObserver.disconnect();
+            _rankingObserver = null;
+        }
+    }, { once: true });
 }
 
 // Auto-init on DOMContentLoaded
