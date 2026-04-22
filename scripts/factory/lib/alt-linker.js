@@ -169,13 +169,14 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
         return { totalRelations: rustResult.totalRelations };
     }
 
-    // V25.9: Streaming JS fallback — group by category via shardReader
+    // V25.9: Streaming JS fallback — group by category via shardReader (bounded per category)
     const byCategory = {};
+    const MAX_PER_CATEGORY = 5000;
     await shardReader(async (entities) => {
         for (const entity of entities) {
             const category = entity.primary_category || entity.pipeline_tag || 'other';
             if (!byCategory[category]) byCategory[category] = [];
-            byCategory[category].push(entity);
+            if (byCategory[category].length < MAX_PER_CATEGORY) byCategory[category].push(entity);
         }
     }, { slim: true });
     const categories = Object.keys(byCategory);

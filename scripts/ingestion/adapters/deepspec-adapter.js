@@ -94,7 +94,7 @@ export class DeepSpecAdapter extends BaseAdapter {
             source_url: `https://huggingface.co/${raw.model_id}`,
             title: name,
             description: `${raw.params_billions || '?'}B parameters, ${raw.context_length || '?'} context length, ${raw.architecture_family || 'unknown'} architecture`,
-            body_content: '',
+            body_content: `${name}: ${raw.params_billions || '?'}B parameters, ${raw.context_length || '?'} context, ${raw.architecture_family || 'unknown'} architecture.`,
             tags: [raw.architecture_family, `${raw.params_billions}B`, 'text-generation'].filter(Boolean),
             author: author || 'unknown',
             license_spdx: null,

@@ -143,8 +143,9 @@ export async function computeKnowledgeLinks(shardReader, outputDir = './output',
         return { totalLinks: rustResult.totalLinks, inverseHubs: rustResult.inverseHubs, stats: {} };
     }
 
-    // V25.9: Streaming JS fallback
+    // V25.9: Streaming JS fallback (bounded at 500K to prevent OOM)
     const allLinks = [];
+    const MAX_LINKS = 500000;
     const knowledgeStats = {};
 
     await shardReader(async (entities) => {
@@ -152,7 +153,7 @@ export async function computeKnowledgeLinks(shardReader, outputDir = './output',
             const id = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
             const links = extractKnowledgeLinks(entity);
 
-            if (links.length > 0) {
+            if (links.length > 0 && allLinks.length < MAX_LINKS) {
                 allLinks.push({
                     entity_id: id,
                     entity_type: entity.type || 'model',
