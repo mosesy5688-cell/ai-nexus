@@ -210,6 +210,10 @@ export async function updateDailyAccumulatorFromTopN(topEntities, outputDir = '.
 
     accumulator.entries = accumulator.entries || [];
     accumulator.entries.push(...entries);
+    const MAX_ACCUM_ENTRIES = 1500;
+    if (accumulator.entries.length > MAX_ACCUM_ENTRIES) {
+        accumulator.entries = accumulator.entries.slice(-MAX_ACCUM_ENTRIES);
+    }
     accumulator._updated = new Date().toISOString();
 
     await saveDailyAccum(accumulator);
