@@ -21,13 +21,13 @@ interface Props {
 }
 
 const {
-  fniScore,
-  fniPercentile,
-  fniS = 50,
-  fniA = 0,
-  fniP,
-  fniR = 0,
-  fniQ = 0,
+  fniScore: _fniScore,
+  fniPercentile: _fniPercentile,
+  fniS: _fniS = 50,
+  fniA: _fniA = 0,
+  fniP: _fniP,
+  fniR: _fniR = 0,
+  fniQ: _fniQ = 0,
   fniPillarsSynthesized,
   paramsB,
   contextLength,
@@ -36,6 +36,13 @@ const {
   trendColor,
   trendPercent
 } = Astro.props;
+const fniScore = Number(_fniScore) || 0;
+const fniPercentile = Number(_fniPercentile) || 0;
+const fniS = Number(_fniS) || 50;
+const fniA = Number(_fniA) || 0;
+const fniP = Number(_fniP) || 0;
+const fniR = Number(_fniR) || 0;
+const fniQ = Number(_fniQ) || 0;
 ---
 
 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-px bg-[var(--border-hairline)] border border-[var(--border-hairline)] rounded-sm overflow-hidden mt-2">
