@@ -93,6 +93,8 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
     return sqliteInitPromise;
 }
 
+const openingDbs = new Map<string, Promise<any>>();
+
 export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boolean, dbName: string) {
     await initSqlite(r2Bucket, shouldSimulate);
     if (!shouldSimulate && r2Bucket && globalVFS) globalVFS.bucket = r2Bucket;
@@ -103,6 +105,13 @@ export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boole
         return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db };
     }
 
+    if (openingDbs.has(dbName)) {
+        await openingDbs.get(dbName);
+        const entry = dbCache.get(dbName);
+        if (entry) { entry.lastUsed = Date.now(); return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db }; }
+    }
+
+    const openPromise = (async () => {
     if (dbCache.size >= MAX_CACHED_DBS) {
         let oldestName = '';
         let oldestTime = Infinity;
@@ -129,7 +138,12 @@ export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boole
     });
 
     dbCache.set(dbName, { db, lastUsed: Date.now() });
-    return { sqlite3: globalSqlite3, module: globalSqliteModule, db };
+    })();
+
+    openingDbs.set(dbName, openPromise);
+    try { await openPromise; } finally { openingDbs.delete(dbName); }
+    const entry = dbCache.get(dbName)!;
+    return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db };
 }
 
 /** Evict a cached DB connection and reset VFS state for re-fetch on retry */

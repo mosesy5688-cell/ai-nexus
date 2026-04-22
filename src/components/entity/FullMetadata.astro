@@ -37,21 +37,22 @@ const groups = [
 const groupedKeys = new Set(groups.flatMap(g => g.fields));
 const extraKeys = allKeys.filter(k => !groupedKeys.has(k)).sort();
 
+function esc(s: string): string { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c)); }
 function formatValue(val: any): string {
   if (val === null || val === undefined) return '<span class="text-gray-400 italic">null</span>';
   if (typeof val === 'boolean') return val ? '<span class="text-emerald-500 font-bold">true</span>' : '<span class="text-rose-500 font-bold">false</span>';
   if (Array.isArray(val)) {
-    return `<div class="flex flex-wrap gap-1">${val.map(v => `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-md text-[11px] font-medium text-gray-600 dark:text-gray-400 border border-gray-200/50 dark:border-gray-700/50">${v}</span>`).join('')}</div>`;
+    return `<div class="flex flex-wrap gap-1">${val.map(v => `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-md text-[11px] font-medium text-gray-600 dark:text-gray-400 border border-gray-200/50 dark:border-gray-700/50">${esc(String(v))}</span>`).join('')}</div>`;
   }
   if (typeof val === 'object') {
-    const str = JSON.stringify(val);
+    const str = esc(JSON.stringify(val));
     if (str.length < 50) return `<span class="text-[11px] font-mono text-indigo-400">${str}</span>`;
-    return `<details class="cursor-pointer"><summary class="text-[10px] text-gray-400 hover:text-indigo-400 transition-colors">View Complex Data</summary><pre class="text-[10px] bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800 mt-1 overflow-x-auto max-h-40">${JSON.stringify(val, null, 2)}</pre></details>`;
+    return `<details class="cursor-pointer"><summary class="text-[10px] text-gray-400 hover:text-indigo-400 transition-colors">View Complex Data</summary><pre class="text-[10px] bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800 mt-1 overflow-x-auto max-h-40">${esc(JSON.stringify(val, null, 2))}</pre></details>`;
   }
   if (typeof val === 'number') {
     return `<span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">${val.toLocaleString()}</span>`;
   }
-  return String(val);
+  return esc(String(val));
 }
 ---
 

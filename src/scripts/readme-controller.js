@@ -8,6 +8,7 @@ import { initSearch, performSearch } from './home-search.js';
 import { fetchBundleRange } from '../utils/vfs-fetcher.ts';
 import { initMarkdownCopy } from './markdown-controller.js';
 import { marked } from 'marked';
+import { sanitizeHtml } from '../utils/sanitize-client.js';
 
 export function runReadmeController() {
   initVfsRecovery();
@@ -45,7 +46,8 @@ async function initVfsRecovery() {
       const bundle = await fetchBundleRange(record.bundle_key, record.bundle_offset, record.bundle_size);
       
       if (bundle && (bundle.html_readme || bundle.readme)) {
-        const html = bundle.html_readme || await marked(bundle.readme || '');
+        const rawHtml = bundle.html_readme || await marked(bundle.readme || '');
+        const html = sanitizeHtml(rawHtml);
         target.innerHTML = `<div class="markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none 
                                   prose-headings:font-black prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-white
                                   prose-a:text-[#bdc3ff] prose-a:font-bold prose-a:no-underline hover:prose-a:underline
