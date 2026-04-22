@@ -1,6 +1,6 @@
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadBufferToR2FFI } from './lib/r2-bridge.js';
 import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
-import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/rust-bridge.js';
+import { initRustBridge, extractAndClassifyFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
 import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml } from './lib/arxiv-fetchers.js';
 import { writeBoosterStats } from './lib/booster-stats.js';
