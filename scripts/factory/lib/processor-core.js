@@ -123,7 +123,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             success: true,
             _checksum: entityHash,
             enriched: enriched,
-            html_readme: htmlFragment
+            html_readme: ''
         };
     } catch (error) {
         console.error(`[ERROR] ${entity.id}:`, error.message);
