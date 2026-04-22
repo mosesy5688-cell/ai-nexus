@@ -7,9 +7,9 @@
 # so Level 4 would be silently dropped. Factory 4/4 uses `gh workflow run`
 # to dispatch this workflow, which resets the depth counter.
 #
-# V26.5: S2-first waterfall. Marker PDF removed (0.5% success, 13h timeout waste).
+# V26.6: ar5iv-only waterfall. S2/Marker PDF removed (#1823).
 # Architecture: 8 parallel runners, papers-only (models removed #1771).
-# Priority: S2 fullText API (2s) → arXiv HTML5 (10s) → skip
+# Priority: arXiv official HTML → ar5iv HTML fallback → skip
 
 name: Factory 1.5 - Density Booster
 
@@ -111,8 +111,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           UMID_SALT: ${{ secrets.UMID_SALT }}
-          S2_API_KEY: ${{ secrets.S2_API_KEY }}
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}  # C-stage §18.23.5: previously unplumbed, booster was running anonymous against the Pages 200/5min bucket
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           DEDUP_DB_PATH: ./output/data/dedup.db
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |

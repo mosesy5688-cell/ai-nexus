@@ -1,12 +1,11 @@
 /**
- * ArXiv Ingestion Fetchers — V25.8.6.5 (2026-Standard)
- * Handles session priming, HTML5 conversion fetching, and S2 fallback.
+ * ArXiv Ingestion Fetchers — V26.6 (2026-Standard)
+ * Handles session priming and ar5iv HTML5 conversion fetching.
  */
 
 // ── Constants ───────────────────────────────────────────
 export const ARXIV_HOME = 'https://arxiv.org';
 export const ARXIV_HTML_BASE = 'https://arxiv.org/html';
-export const S2_API = 'https://api.semanticscholar.org/graph/v1/paper';
 export const FETCH_TIMEOUT_MS = 60000;
 
 let sessionCookie = '';
@@ -86,36 +85,3 @@ export async function fetchAr5ivHtml(arxivId) {
     }
 }
 
-let s2CallCount = 0;
-export async function fetchS2Fulltext(arxivId, budget) {
-    if (!arxivId) return null;
-
-    const apiKey = process.env.S2_API_KEY;
-    if (!apiKey) {
-        if (s2CallCount >= budget) return null;
-        s2CallCount++;
-    }
-
-    try {
-        const headers = { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36' 
-        };
-        if (apiKey) {
-            headers['x-api-key'] = apiKey;
-        }
-
-        const isArxiv = /^\d{4}\.\d{4,5}$/.test(arxivId) || /^[a-z-]+\/\d{7}$/i.test(arxivId);
-        const endpointId = isArxiv ? `ArXiv:${arxivId}` : arxivId;
-
-        const res = await fetch(`${S2_API}/${endpointId}?fields=abstract`, {
-            headers,
-            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
-        });
-        if (!res.ok) return null;
-        const data = await res.json();
-        return data.abstract || null;
-    } catch { return null; }
-}
-
-// ── PDF Fallback (Marker Sidecar) ───────────────────────
-export { initMarkerSidecar, fetchArxivPdf, shutdownMarkerSidecar } from './pdf-fetcher.js';
