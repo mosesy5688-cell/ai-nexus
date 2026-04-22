@@ -110,8 +110,8 @@ export async function fetchAllTermPostings(
     const results = new Map<string, TermData>();
     const [, manifest] = await Promise.all([
         Promise.all(terms.map(async (term) => {
-            let data = await fetchTermFile(term, r2Bucket, isDev);
-            if (!data) data = await fetchHighFreqTerm(term, r2Bucket, isDev);
+            let data = await fetchHighFreqTerm(term, r2Bucket, isDev);
+            if (!data) data = await fetchTermFile(term, r2Bucket, isDev);
             if (data) results.set(term, data);
         })),
         fetchManifest(r2Bucket, isDev)
