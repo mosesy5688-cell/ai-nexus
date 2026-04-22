@@ -66,7 +66,8 @@ jobs:
     timeout-minutes: 330
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -120,7 +121,8 @@ jobs:
     timeout-minutes: 330
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -231,7 +233,10 @@ jobs:
     timeout-minutes: 330
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+          sudo rm -rf /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
+          echo "Disk: $(df -h / | tail -1 | awk '{print $4}') available"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -292,6 +297,8 @@ jobs:
         run: |
           mkdir -p output/cache/fused
           tar -xf fused-entities.tar -C output/cache
+          rm -f fused-entities.tar
+          echo "Disk after extract+cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
       - name: Execute Stable 1.0 Packer
         env:
           CACHE_DIR: ./output/cache
@@ -392,7 +399,8 @@ jobs:
     timeout-minutes: 330
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
