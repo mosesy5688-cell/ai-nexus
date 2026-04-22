@@ -29,6 +29,7 @@ export function getFavorites() {
 
 export function addFavorite(model) {
     const favorites = getFavorites();
+    const MAX_FAVORITES = 100;
     if (!favorites.find(f => f.id === model.id)) {
         favorites.unshift({
             id: model.id,
@@ -37,6 +38,7 @@ export function addFavorite(model) {
             author: model.author,
             addedAt: new Date().toISOString()
         });
+        if (favorites.length > MAX_FAVORITES) favorites.length = MAX_FAVORITES;
         localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
     }
     return favorites;

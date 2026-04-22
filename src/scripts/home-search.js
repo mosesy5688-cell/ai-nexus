@@ -58,7 +58,7 @@ export async function performSearch(query, filters = {}, limit = 20, page = 0) {
         });
 
         const res = await fetch(`/api/search?${params}`, {
-            signal: AbortSignal.timeout(5000) // 5s timeout per CES Art 3.4
+            signal: AbortSignal.timeout?.(5000)
         });
 
         if (!res.ok) {
@@ -77,7 +77,7 @@ export async function performSearch(query, filters = {}, limit = 20, page = 0) {
             window.dispatchEvent(new CustomEvent('search-status-change', { detail: { tier: 'semantic' } }));
 
             params.set('mode', 'semantic');
-            const semanticRes = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout(10000) });
+            const semanticRes = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout?.(10000) });
             if (semanticRes.ok) {
                 const semanticData = await semanticRes.json();
                 if (semanticData.results && semanticData.results.length > 0) {

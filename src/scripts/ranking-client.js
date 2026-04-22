@@ -3,6 +3,7 @@
  * CES V5.1.2 Art 3.3: Infinite Scroll & Pagination UX
  */
 import { createModelCardHTML } from './ui-utils.js';
+import { decompressGzipResponse } from '../utils/decompress-helper.js';
 
 /** @type {IntersectionObserver|null} Module-level ref to allow cleanup on Astro view transitions */
 let _rankingObserver = null;
@@ -59,10 +60,8 @@ export function initRankingInfiniteScroll() {
                     const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip' || res.headers.get('content-encoding') === 'gzip';
 
                     if (isGzip && !isAlreadyDecompressed) {
-                        const ds = new DecompressionStream('gzip');
-                        const decompressedStream = res.body.pipeThrough(ds);
-                        const decompressedRes = new Response(decompressedStream);
-                        data = await decompressedRes.json();
+                        const text = await decompressGzipResponse(res);
+                        data = JSON.parse(text);
                     } else {
                         data = await res.json();
                     }

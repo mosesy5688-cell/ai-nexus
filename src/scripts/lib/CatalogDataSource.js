@@ -26,7 +26,7 @@ export class CatalogDataSource {
         if (this._manifestLoaded) return;
         try {
             const res = await fetch(`${CDN_BASE}/data/shards_manifest.json`, {
-                signal: AbortSignal.timeout(20000) // V25.1: Safety guardrail — 103 Early Hints targets <500ms; 20s prevents false "0 entities" on extreme network jitter
+                signal: AbortSignal.timeout?.(20000)
             });
             if (res.ok) {
                 this._manifestData = await res.json();
@@ -136,7 +136,7 @@ export class CatalogDataSource {
         // V26.3: Federated SSR search (8s timeout for 16-shard expansion)
         try {
             const params = new URLSearchParams({ q, type: this.type, sort: 'fni', limit: '50', page: '1' });
-            const res = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout(8000) });
+            const res = await fetch(`/api/search?${params}`, { signal: AbortSignal.timeout?.(8000) });
             if (res.ok) {
                 const data = await res.json();
                 if (data.results?.length > 0) return DataNormalizer.normalizeCollection(data.results, this.type);
