@@ -101,7 +101,7 @@ if (isFtsDb) {
 } else if (hasEntitiesTable) {
 const columns = db.prepare("PRAGMA table_info(entities)").all().map(c => c.name);
 const requiredCols = [
-    'bundle_offset', 'bundle_size', 'shard_hash', 'is_trending', 'category', 'license', 'source_url',
+    'bundle_offset', 'bundle_size', 'is_trending', 'category', 'license', 'source_url',
     'pipeline_tag', 'image_url', 'vram_estimate_gb', 'source', 'task_categories', 'num_rows', 'primary_language',
     'forks', 'citation_count',
     'runtime_hardware', 'vocab_size', 'num_layers', 'hidden_size', 'datasets_used', 'quick_start',
@@ -145,12 +145,10 @@ if (isFtsDb) {
 }
 
 // 6. Shard Consistency (skip for FTS-only DBs and legacy DBs)
-const heavySample = hasEntitiesTable ? db.prepare('SELECT bundle_key, bundle_offset, bundle_size, shard_hash FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get() : null;
+const heavySample = hasEntitiesTable ? db.prepare('SELECT bundle_key, bundle_offset, bundle_size FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get() : null;
 if (heavySample) {
     const isShardFormat = heavySample.bundle_key.startsWith('data/fused-shard-');
     check('Shard Format', isShardFormat, heavySample.bundle_key);
-    const hasHash = heavySample.shard_hash && heavySample.shard_hash.length === 64;
-    check('Shard Hash Integrity', isSearchDb || hasHash, 'Registry/Hash check');
 }
 
 // 7. Binary Shard Validation (V25.8.2: NXVF V4.1 Header Check)

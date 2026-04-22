@@ -10,7 +10,7 @@ export const entitiesTableSql = `
         fni_s REAL DEFAULT 0, fni_a REAL DEFAULT 0, fni_p REAL DEFAULT 0, fni_r REAL DEFAULT 0, fni_q REAL DEFAULT 0, raw_pop REAL DEFAULT 0,
         params_billions REAL DEFAULT 0, architecture TEXT, context_length INTEGER DEFAULT 0,
         is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
-        last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT,
+        last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, trend_7d TEXT,
         license TEXT, source_url TEXT, pipeline_tag TEXT, image_url TEXT, vram_estimate_gb REAL, source TEXT,
         task_categories TEXT, num_rows INTEGER DEFAULT 0, primary_language TEXT, forks INTEGER DEFAULT 0, citation_count INTEGER DEFAULT 0,
         runtime_hardware TEXT, vocab_size INTEGER DEFAULT 0, num_layers INTEGER DEFAULT 0, hidden_size INTEGER DEFAULT 0,
