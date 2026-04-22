@@ -193,7 +193,7 @@ export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = 
         for (const entry of walkResult) {
             try {
                 const data = fs.readFileSync(`${absDir}/${entry.relPath}`);
-                await _r2Engine.streamToR2(client, `${r2Prefix}${entry.relPath}`, data.toString('base64'));
+                await uploadBufferToR2FFI(client, `${r2Prefix}${entry.relPath}`, data);
                 count++;
             } catch (e) { console.warn(`[R2-BRIDGE] backup-dir: failed ${entry.relPath}: ${e.message}`); }
         }
