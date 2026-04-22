@@ -196,8 +196,8 @@ export const GET: APIRoute = async ({ url }) => {
         }
 
         // Dedup + sort browse results
-        if (sort === 'likes') allRows.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-        else if (sort === 'last_updated') allRows.sort((a, b) => new Date(b.last_updated || 0).getTime() - new Date(a.last_updated || 0).getTime());
+        if (sort === 'likes') allRows.sort((a, b) => (b.stars || 0) - (a.stars || 0));
+        else if (sort === 'last_updated') allRows.sort((a, b) => new Date(b.last_modified || 0).getTime() - new Date(a.last_modified || 0).getTime());
         else allRows.sort((a, b) => a._dbSort - b._dbSort);
         const unique: any[] = []; const seen = new Set<string>();
         for (const r of allRows) {
