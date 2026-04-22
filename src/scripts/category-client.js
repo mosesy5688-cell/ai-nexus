@@ -1,4 +1,5 @@
 import { stripPrefix } from '../utils/mesh-routing-core.js';
+import { escapeHtml } from '../utils/escape-html.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   const data = window.__CATEGORY_DATA__;
@@ -61,13 +62,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const url = `${prefix}${cleanSlug}`;
     return `<a href="${url}" class="model-card group block bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 p-5">
       <div class="flex items-start gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">${(displayTitle)[0].toUpperCase()}</div>
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">${escapeHtml((displayTitle)[0].toUpperCase())}</div>
         <div class="flex-1 min-w-0">
-          <h3 class="font-semibold text-gray-900 dark:text-white truncate" title="${displayTitle}">${displayTitle}</h3>
-          <p class="text-sm text-gray-500 truncate">${m.author || 'Unknown'}</p>
+          <h3 class="font-semibold text-gray-900 dark:text-white truncate" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</h3>
+          <p class="text-sm text-gray-500 truncate">${escapeHtml(m.author || 'Unknown')}</p>
         </div>
       </div>
-      <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">${(m.description || '').replace(/<[^>]*>?/gm, '').substring(0, 100)}...</p>
+      <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">${escapeHtml((m.description || '').replace(/<[^>]*>?/gm, '').substring(0, 100))}...</p>
       <div class="flex gap-4 text-xs text-gray-500">
         <span>⭐ ${(m.likes || 0).toLocaleString()}</span>
         <span>⬇ ${(m.downloads || 0).toLocaleString()}</span>
