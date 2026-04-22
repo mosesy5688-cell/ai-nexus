@@ -32,7 +32,7 @@ export function buildBundleJson(e, pBillions, ctxLen, arch) {
 
 /**
  * V26.6: Build 54-column entity row for meta.db (shard_hash removed — factory-only, never read at runtime).
- * Column 55 (has_fulltext) lets sync-ledger skip entities already enriched by Factory 1.5.
+ * Column 54 (has_fulltext) lets sync-ledger skip entities already enriched by Factory 1.5.
  * Authoritative source is master-fusion (fuse-shard-js.js) which sets entity.has_fulltext
  * based on R2 {umid}.md.gz presence + quality heuristic (>1000 chars, >=2 headings).
  */
@@ -45,6 +45,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         if (typeof v === 'object') return JSON.stringify(v);
         return String(v);
     };
+    const tr = (v, max) => { const r = s(v); return typeof r === 'string' && r.length > max ? r.substring(0, max) : r; };
     const n = (v, fallback = 0) => {
         if (typeof v === 'number' && !isNaN(v)) return v;
         const parsed = Number(v);
@@ -53,7 +54,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
 
     return [
         s(e.id), s(e.umid || e.id), s(e.slug), s(e.name || e.displayName), s(e.type, 'model'),
-        s(e.author), s(summary), s(category), s(tags), n(e.fni_score), s(e.fni_percentile),
+        s(e.author), s(summary), s(category), tr(tags, 500), n(e.fni_score), s(e.fni_percentile),
         n(e.fni_s ?? fniMetrics.s), n(e.fni_a ?? fniMetrics.a), n(e.fni_p ?? fniMetrics.p),
         n(e.fni_r ?? fniMetrics.r), n(e.fni_q ?? fniMetrics.q), n(e.raw_pop),
         n(pBillions), s(arch), n(ctxLen), e.is_trending ? 1 : 0,
@@ -61,12 +62,12 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e._trend_7d),
         s(e.license || e.license_spdx), s(e.source_url), s(e.pipeline_tag),
         s(e.raw_image_url || e.image_url), n(e.vram_estimate_gb), s(e.source || e.source_platform),
-        s(e.task_categories), n(e.num_rows), s(e.primary_language), n(e.forks), n(e.citation_count),
+        tr(e.task_categories, 500), n(e.num_rows), s(e.primary_language), n(e.forks), n(e.citation_count),
         s(e.runtime_hardware), n(e.vocab_size), n(e.num_layers), n(e.hidden_size),
-        s(e.datasets_used), s(e.quick_start),
+        tr(e.datasets_used, 500), tr(e.quick_start, 1000),
         n(e.vram_fp16_gb), n(e.vram_int8_gb), n(e.vram_int4_gb),
         '', '', s(e.search_vector),
-        s(e.canonical_url), s(e.citation),
+        s(e.canonical_url), tr(e.citation, 500),
         e.has_fulltext ? 1 : 0
     ];
 }
