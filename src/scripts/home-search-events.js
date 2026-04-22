@@ -10,6 +10,7 @@ import {
 import { loadHotShard, searchShardPool } from './search-shard-engine.js';
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
 import { highlightTerms } from './search-ui-controller.js';
+import { escapeHtml } from '../utils/escape-html.js';
 
 export function renderHistory() {
     const dropdown = document.getElementById('search-results-dropdown');
@@ -22,8 +23,8 @@ export function renderHistory() {
       <button id="clear-history" class="text-xs text-red-500 hover:text-red-700">Clear</button>
     </div>
     ${history.map(q => `
-      <button data-history-query="${q}" class="history-item w-full text-left p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
-        <span class="text-gray-700 dark:text-gray-300">🔍 ${q}</span>
+      <button data-history-query="${escapeHtml(q)}" class="history-item w-full text-left p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
+        <span class="text-gray-700 dark:text-gray-300">🔍 ${escapeHtml(q)}</span>
       </button>
     `).join('')}
   `;
@@ -71,7 +72,7 @@ export function renderResults(results) {
     <a href="${path}" class="flex flex-col p-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700/50 last:border-0 group">
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2 overflow-hidden">
-          <span class="text-[8px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded uppercase tracking-tighter">${typeLabel}</span>
+          <span class="text-[8px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded uppercase tracking-tighter">${escapeHtml(typeLabel)}</span>
           <div class="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">
             ${highlightTerms(r.name, document.getElementById('search-box')?.value || '')}
           </div>

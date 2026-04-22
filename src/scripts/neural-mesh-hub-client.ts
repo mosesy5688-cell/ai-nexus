@@ -7,6 +7,7 @@
  *  - Validate hub has nodes and hide empty wrapper
  *  - Wire "show more" fold buttons
  */
+import { escapeHtml } from '../utils/escape-html.js';
 
 async function hydrateMeshHub(): Promise<void> {
     const hub = document.getElementById('neural-mesh-hub');
@@ -38,7 +39,7 @@ async function hydrateMeshHub(): Promise<void> {
                 const isExtra = index >= 6 ? 'hidden extra-node' : '';
                 const relationBadge = node.relation ? `
                     <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter overflow-hidden">
-                      ${node.relation}
+                      ${escapeHtml(node.relation)}
                       ${node.match_score ? `<span class="ml-1 opacity-70 border-l border-white/20 pl-1">${node.match_score}%</span>` : ''}
                     </span>` : '';
 
@@ -46,15 +47,15 @@ async function hydrateMeshHub(): Promise<void> {
                   <a href="${path}" class="mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 ${isExtra}">
                     <div class="flex items-start gap-4">
                       <div class="node-icon-wrapper relative">
-                        <span class="text-3xl filter grayscale group-hover:grayscale-0 transition-all duration-500 block">${node.icon || '📦'}</span>
+                        <span class="text-3xl filter grayscale group-hover:grayscale-0 transition-all duration-500 block">${escapeHtml(node.icon || '📦')}</span>
                         ${relationBadge}
                       </div>
                       <div class="flex-1 min-w-0">
                         <div class="flex items-center justify-between gap-2 mb-1">
-                          <span class="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-500 transition-colors">${node.name}</span>
-                          <span class="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-800">${node.type}</span>
+                          <span class="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-500 transition-colors">${escapeHtml(node.name)}</span>
+                          <span class="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-800">${escapeHtml(node.type)}</span>
                         </div>
-                        <p class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">${node.author || 'Ecosystem Node'}</p>
+                        <p class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">${escapeHtml(node.author || 'Ecosystem Node')}</p>
                       </div>
                       <div class="flex flex-col justify-center opacity-30 group-hover:opacity-100 transition-opacity">
                         <span class="text-indigo-500 translate-x-0 group-hover:translate-x-1 transition-transform">→</span>

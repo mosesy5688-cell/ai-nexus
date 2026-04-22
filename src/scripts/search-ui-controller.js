@@ -5,6 +5,7 @@
 import { initSearch, performSearch, getSearchStatus } from './home-search.js';
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
 import { decompress as zstdDecompress } from 'fzstd';
+import { escapeHtml } from '../utils/escape-html.js';
 
 export function setupSearchUI(dom) {
     if (!dom) return;
@@ -63,11 +64,12 @@ export function setupSearchUI(dom) {
 }
 
 export function highlightTerms(text, query) {
-    if (!query) return text;
+    if (!query) return escapeHtml(text);
+    const safe = escapeHtml(text);
     const terms = query.split(/\s+/).filter(t => t.length > 2);
-    let highlighted = text;
+    let highlighted = safe;
     terms.forEach(t => {
-        const escapedTerm = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedTerm = escapeHtml(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const regex = new RegExp(`(${escapedTerm})`, 'gi');
         highlighted = highlighted.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800/40 text-current rounded-sm px-0.5">$1</mark>');
     });
@@ -93,37 +95,37 @@ export function renderResults(items, container, query = '') {
         const hasDesc = (item.description && item.description.length > 5);
 
         return `
-                    <a href="${path}" 
+                    <a href="${path}"
                        class="search-result-item flex flex-col gap-1.5 py-3 px-2 border-b border-zinc-100 dark:border-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
-                       data-id="${item.id}"
-                       data-type="${type}"
+                       data-id="${escapeHtml(item.id)}"
+                       data-type="${escapeHtml(type)}"
                        data-hydrated="${hasDesc && fni > 0 ? 'true' : 'false'}"
                     >
                         <div class="flex items-center justify-between gap-2 w-full">
                             <div class="flex items-center gap-2 min-w-0">
                                 <span class="text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded uppercase tracking-tighter border border-zinc-200/50 dark:border-zinc-700/50 flex-shrink-0">
-                                    ${type}
+                                    ${escapeHtml(type)}
                                 </span>
                                 <h3 class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">
                                     ${highlightTerms(item.name, query)}
                                 </h3>
                             </div>
-                            
+
                             <div class="fni-badge text-emerald-600 dark:text-emerald-400 font-black text-[10px] sm:text-[11px] flex-shrink-0 ${fni > 0 ? '' : 'hidden'}">
                                 FNI ${fni}
                             </div>
                         </div>
-                        
+
                         <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-zinc-500 dark:text-zinc-400">
                             <span class="text-[10px] sm:text-[11px] font-medium truncate">
-                                by ${item.author || 'Open Source'}
+                                by ${escapeHtml(item.author || 'Open Source')}
                             </span>
-                            
+
                             <div class="flex items-center gap-2 overflow-hidden">
                                 <p class="result-desc text-[10px] sm:text-[11px] line-clamp-1 italic sm:not-italic flex-1">
                                     ${highlightTerms(item.description || '', query)}
                                 </p>
-                                
+
                                 <div class="flex items-center gap-2 flex-shrink-0 text-[10px] font-medium opacity-60">
                                     <span class="flex items-center gap-0.5">⭐ ${item.likes || 0}</span>
                                     <span class="hidden sm:inline">•</span>

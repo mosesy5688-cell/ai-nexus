@@ -5,6 +5,7 @@
  * Fetches from trending.json and applies filters/sorting
  */
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
+import { escapeHtml } from '../utils/escape-html.js';
 
 export async function initAgentsCatalog(initialData = []) {
     const grid = document.getElementById('entity-grid');
@@ -88,7 +89,7 @@ export async function initAgentsCatalog(initialData = []) {
             const path = getRouteFromId(item.slug || item.id, 'agent');
 
             return `
-      <a href="${path}" 
+      <a href="${path}"
          class="agent-card group bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 block">
         <div class="flex items-center justify-between mb-4">
           <span class="text-xs px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-medium">
@@ -101,10 +102,10 @@ export async function initAgentsCatalog(initialData = []) {
           ` : ''}
         </div>
         <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 mb-2">
-          ${item.name || item.id}
+          ${escapeHtml(item.name || item.id)}
         </h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-3 leading-relaxed">
-          ${description || 'No description available'}
+          ${escapeHtml(description) || 'No description available'}
         </p>
         <div class="mt-4 flex items-center gap-4 text-xs text-gray-400">
              <span>📥 ${formatNumber(item.downloads || 0)}</span>

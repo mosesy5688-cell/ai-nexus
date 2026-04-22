@@ -5,6 +5,7 @@
  * Fetches from trending.json and applies filters/sorting
  */
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
+import { escapeHtml } from '../utils/escape-html.js';
 
 export async function initModelsCatalog(initialData = []) {
   const grid = document.getElementById('models-grid');
@@ -104,10 +105,10 @@ export async function initModelsCatalog(initialData = []) {
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Try these trending models:</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                   ${hotModels.map(m => `
-                    <a href="${getRouteFromId(m.slug || m.id, 'model')}" 
+                    <a href="${getRouteFromId(m.slug || m.id, 'model')}"
                        class="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
-                      <p class="font-medium text-indigo-700 dark:text-indigo-300 truncate">${m.name?.split('/').pop() || 'Model'}</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">${m.author || 'Unknown'}</p>
+                      <p class="font-medium text-indigo-700 dark:text-indigo-300 truncate">${escapeHtml(m.name?.split('/').pop() || 'Model')}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">${escapeHtml(m.author || 'Unknown')}</p>
                     </a>
                   `).join('')}
                 </div>
@@ -126,29 +127,29 @@ export async function initModelsCatalog(initialData = []) {
     }
 
     grid.innerHTML = pageModels.map(m => `
-      <a href="${getRouteFromId(m.slug || m.id, 'model')}" 
+      <a href="${getRouteFromId(m.slug || m.id, 'model')}"
          class="group bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-            ${m.pipeline_tag || 'model'}
+            ${escapeHtml(m.pipeline_tag || 'model')}
           </span>
           ${(m.fni_score > 0 || m.fni > 0 || m.fni_percentile || m.percentile) ? `
             <span class="text-xs font-bold px-2 py-0.5 rounded-full ${(m.fni_percentile === 'top_1%' || m.fni_percentile === 'top_10%' || m.percentile?.startsWith?.('top_') || (typeof m.fni_percentile === 'number' && m.fni_percentile >= 90)) ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white' :
           (m.fni_percentile === 'top_25%' || (typeof m.fni_percentile === 'number' && m.fni_percentile >= 75)) ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
             'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
         }">
-              🛡️ ${(m.fni_percentile || m.percentile)?.startsWith?.('top_') ? (m.fni_percentile || m.percentile).replace('top_', 'Top ') : Math.round(m.fni_score ?? m.fni ?? 0)}
+              🛡️ ${escapeHtml((m.fni_percentile || m.percentile)?.startsWith?.('top_') ? (m.fni_percentile || m.percentile).replace('top_', 'Top ') : String(Math.round(m.fni_score ?? m.fni ?? 0)))}
             </span>
           ` : ''}
         </div>
         <h3 class="font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 mb-1">
-          ${m.name?.split('/').pop() || 'Unnamed'}
+          ${escapeHtml(m.name?.split('/').pop() || 'Unnamed')}
         </h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
-          by ${m.author || 'Unknown'}
+          by ${escapeHtml(m.author || 'Unknown')}
         </p>
         <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">
-          ${m.description?.slice(0, 100) || 'No description available'}
+          ${escapeHtml(m.description?.slice(0, 100) || 'No description available')}
         </p>
         <div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
           <span>❤️ ${formatNumber(m.likes || 0)}</span>

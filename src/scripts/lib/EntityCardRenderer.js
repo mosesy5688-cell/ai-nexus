@@ -5,6 +5,7 @@
  */
 import { generateEntityUrl } from '../../utils/url-utils.js';
 import { extractAuthor } from '../../utils/entity-utils.js';
+import { escapeHtml } from '../../utils/escape-html.js';
 
 export class EntityCardRenderer {
     static formatNumber(num) {
@@ -91,12 +92,12 @@ export class EntityCardRenderer {
         `).join('');
 
         return `
-            <a href="${link}" class="entity-card group h-[44px] px-3 bg-[#1e1e1e] hover:bg-[#252525] border-b border-[#2a2a2a] transition-all flex items-center justify-between gap-4 overflow-hidden select-none" data-entity-id="${id}" data-entity-type="${type}">
+            <a href="${link}" class="entity-card group h-[44px] px-3 bg-[#1e1e1e] hover:bg-[#252525] border-b border-[#2a2a2a] transition-all flex items-center justify-between gap-4 overflow-hidden select-none" data-entity-id="${escapeHtml(id)}" data-entity-type="${escapeHtml(type)}">
                 <!-- Column 1: Identity -->
                 <div class="flex items-center gap-2 md:gap-3 flex-1 md:flex-none md:w-1/4 min-w-0">
-                    <span class="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm border border-white/5 shrink-0 hidden sm:inline-block sm:min-w-[65px] text-center truncate ${typeBadgeColor}">${typeLabel}</span>
-                    <h3 class="text-xs font-bold text-zinc-100 group-hover:text-[#bdc3ff] transition-colors truncate" title="${displayTitle}">
-                        ${displayTitle}
+                    <span class="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-sm border border-white/5 shrink-0 hidden sm:inline-block sm:min-w-[65px] text-center truncate ${typeBadgeColor}">${escapeHtml(typeLabel)}</span>
+                    <h3 class="text-xs font-bold text-zinc-100 group-hover:text-[#bdc3ff] transition-colors truncate" title="${escapeHtml(displayTitle)}">
+                        ${escapeHtml(displayTitle)}
                     </h3>
                 </div>
 
@@ -104,7 +105,7 @@ export class EntityCardRenderer {
                 <div class="flex-1 hidden md:flex items-center gap-6 px-4 border-l border-white/5 overflow-hidden">
                     <div class="flex items-center gap-1.5 shrink-0">
                         <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">ARCH:</span>
-                        <span class="text-[9px] font-bold text-zinc-300 truncate max-w-[120px] uppercase">${(archLabel || type).replace(/-/g, ' ')}</span>
+                        <span class="text-[9px] font-bold text-zinc-300 truncate max-w-[120px] uppercase">${escapeHtml((archLabel || type).replace(/-/g, ' '))}</span>
                     </div>
                     ${metricsHtml}
                 </div>
