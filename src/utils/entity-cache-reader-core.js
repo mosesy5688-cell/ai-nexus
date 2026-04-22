@@ -2,6 +2,7 @@
 import { R2_CACHE_URL } from '../config/constants.js';
 import { env } from 'cloudflare:workers';
 import { stripPrefix, getTypeFromId } from './mesh-routing-core.js';
+import { decompressGzipResponse } from './decompress-helper.js';
 
 // Normalize entity slug for R2 storage path
 export function normalizeEntitySlug(id, type = 'model') {
@@ -121,10 +122,8 @@ export async function fetchEntityFromR2(type, slug, locals) {
                     // V18.2: Handle Gzip decompression in Worker environment
                     let data;
                     if (path.endsWith('.gz')) {
-                        const ds = new DecompressionStream('gzip');
-                        const decompressedStream = file.body.pipeThrough(ds);
-                        const response = new Response(decompressedStream);
-                        data = await response.json();
+                        const text = await decompressGzipResponse(new Response(file.body));
+                        data = JSON.parse(text);
                     } else {
                         data = await file.json();
                     }
@@ -164,9 +163,8 @@ export async function fetchEntityFromR2(type, slug, locals) {
                     let data;
                     if (isActuallyGzip) {
                         try {
-                            const ds = new DecompressionStream('gzip');
-                            const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
-                            data = await decompressedRes.json();
+                            const text = await decompressGzipResponse(new Response(buffer));
+                            data = JSON.parse(text);
                         } catch (e) {
                             console.warn(`[Reader] Decompression failed for ${cdnUrl}, trying text.`);
                             try { data = JSON.parse(new TextDecoder().decode(buffer)); } catch (err) { data = null; }

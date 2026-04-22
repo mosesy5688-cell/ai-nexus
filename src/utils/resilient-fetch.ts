@@ -1,4 +1,5 @@
 import { R2_CACHE_URL } from '../config/constants.js';
+import { decompressGzipResponse } from './decompress-helper.js';
 
 const CDN_SECONDARY = 'https://ai-nexus-assets.pages.dev/cache';
 
@@ -56,9 +57,8 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
 
         if (isTrueGzip) {
             try {
-                const ds = new DecompressionStream('gzip');
-                const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
-                return decompressedRes.json();
+                const text = await decompressGzipResponse(new Response(buffer));
+                return JSON.parse(text);
             } catch (error: any) {
                 return JSON.parse(new TextDecoder().decode(buffer));
             }

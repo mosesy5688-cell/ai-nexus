@@ -214,8 +214,8 @@ export const GET: APIRoute = async ({ url }) => {
         if (edgeCache && unique.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
         return response;
     } catch (e: any) {
-        console.error('[SSR Search] Error:', e.message);
-        return new Response(JSON.stringify({ error: e.message, tier: 'error' }), {
+        console.error('[SSR Search] Error:', e.message, e.stack);
+        return new Response(JSON.stringify({ error: 'Internal search error', tier: 'error' }), {
             status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
         });
     }

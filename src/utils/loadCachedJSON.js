@@ -10,6 +10,7 @@
  */
 
 import { R2_CACHE_URL } from '../config/constants.js';
+import { decompressGzipResponse } from './decompress-helper.js';
 
 /** V55.9: Decode ArrayBuffer with Zstd/Gzip auto-detection via magic bytes */
 async function _decodeBuffer(buffer) {
@@ -19,8 +20,8 @@ async function _decodeBuffer(buffer) {
         return JSON.parse(new TextDecoder().decode(decompress(bytes)));
     }
     if (bytes.length >= 2 && bytes[0] === 0x1F && bytes[1] === 0x8B) {
-        const ds = new DecompressionStream('gzip');
-        return await new Response(new Response(buffer).body.pipeThrough(ds)).json();
+        const text = await decompressGzipResponse(new Response(buffer));
+        return JSON.parse(text);
     }
     return JSON.parse(new TextDecoder().decode(bytes));
 }

@@ -2,6 +2,8 @@
  * Neural Graph Client V15.22
  * CES Compliance: Extracted from NeuralGraphExplorer.astro to honor line limits.
  */
+import { decompressGzipResponse } from '../utils/decompress-helper.js';
+
 export function initNeuralGraph(containerId) {
     const explorer = document.getElementById('neural-graph-explorer');
     if (!explorer) return;
@@ -76,9 +78,8 @@ export function initNeuralGraph(containerId) {
                 if (!r.ok) return null;
 
                 if (r.url.endsWith('.gz')) {
-                    const ds = new DecompressionStream('gzip');
-                    const decompressedStream = r.body.pipeThrough(ds);
-                    return await new Response(decompressedStream).json();
+                    const text = await decompressGzipResponse(r);
+                    return JSON.parse(text);
                 }
                 return await r.json();
             };
