@@ -4,6 +4,7 @@ import { initRustBridge, extractAndClassifyFFI, classifyTextFFI } from './lib/ru
 import { zstdCompress } from './lib/zstd-helper.js';
 import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml } from './lib/arxiv-fetchers.js';
 import { writeBoosterStats } from './lib/booster-stats.js';
+import fs from 'fs/promises';
 
 // ── Config ──────────────────────────────────────────────
 const RATE_LIMIT_MS = 10000;
@@ -147,8 +148,8 @@ async function main() {
                 continue;
             }
 
+            enrichedUmids.push(paper.umid);
             if (result.classification === 'SUCCESS') {
-                enrichedUmids.push(paper.umid);
                 success++;
                 console.log(`   ✅ [SUCCESS] ${arxivId}`);
             } else {
@@ -166,7 +167,9 @@ async function main() {
         processed, success, partial, skipped, failed,
         remaining: workQueue.length - processed
     });
-    // V26.5: Marker PDF removed — S2-first + arXiv HTML fallback only
+    const umidsPath = `output/enriched-umids-${PARTITION_START}.json`;
+    await fs.writeFile(umidsPath, JSON.stringify(enrichedUmids));
+    console.log(`[BOOSTER] Wrote ${enrichedUmids.length} enriched UMIDs to ${umidsPath}`);
 }
 
 main().catch(err => { console.error('[BOOSTER] Fatal:', err); process.exit(1); });
