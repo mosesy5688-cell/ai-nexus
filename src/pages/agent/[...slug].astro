@@ -70,7 +70,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!agent && !error) {
+if (!agent) {
   Astro.response.status = 404;
   return Astro.redirect('/404?source=agent-not-found');
 }

@@ -67,22 +67,27 @@ async function hydrateCandidates(
     const scoreMap = new Map(candidates.map(c => [c.umid, c.score]));
     const allRows: any[] = [];
 
-    const hydrations = [...shardGroups.entries()].map(async ([shardIdx, umids]) => {
-        const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
-        const placeholders = umids.map(() => '?').join(',');
-        const sql = `SELECT ${DISPLAY_COLS} FROM entities e WHERE e.id IN (${placeholders})`;
-        try {
-            const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-            const rows = await executeSql(engine.sqlite3, engine.db, sql, umids);
-            for (const r of rows) r._score = scoreMap.get(r.id) ?? 0;
-            return rows;
-        } catch (err: any) {
-            console.warn(`[SSR Search] Hydration shard ${dbName} failed: ${err.message}`);
-            return [];
-        }
-    });
-
-    const results = await Promise.all(hydrations);
+    const entries = [...shardGroups.entries()];
+    const HYDRATION_CONCURRENCY = 4;
+    const results: any[][] = [];
+    for (let i = 0; i < entries.length; i += HYDRATION_CONCURRENCY) {
+        const batch = entries.slice(i, i + HYDRATION_CONCURRENCY);
+        const batchResults = await Promise.all(batch.map(async ([shardIdx, umids]) => {
+            const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
+            const placeholders = umids.map(() => '?').join(',');
+            const sql = `SELECT ${DISPLAY_COLS} FROM entities e WHERE e.id IN (${placeholders})`;
+            try {
+                const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
+                const rows = await executeSql(engine.sqlite3, engine.db, sql, umids);
+                for (const r of rows) r._score = scoreMap.get(r.id) ?? 0;
+                return rows;
+            } catch (err: any) {
+                console.warn(`[SSR Search] Hydration shard ${dbName} failed: ${err.message}`);
+                return [];
+            }
+        }));
+        results.push(...batchResults);
+    }
     for (const rows of results) allRows.push(...rows);
     allRows.sort((a, b) => (b._score || 0) - (a._score || 0));
     for (const r of allRows) delete r._score;

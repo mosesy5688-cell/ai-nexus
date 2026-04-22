@@ -62,7 +62,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!paper && !error) {
+if (!paper) {
   Astro.response.status = 404;
   return Astro.redirect('/404?source=paper-not-found');
 }
