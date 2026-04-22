@@ -130,8 +130,7 @@ jobs:
             data/manifest.json
             cache/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest
-          restore-keys: |
-            cycle-
+          # No restore-keys: stale cycle prefix could load wrong harvest data
           fail-on-cache-miss: false
           
       # V25.8 §6.1: R2 fallback for harvest data (cross-workflow resilience)

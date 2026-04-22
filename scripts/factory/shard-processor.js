@@ -163,6 +163,7 @@ async function main() {
             }
         } catch (e) {
             console.error(`[SHARD ${shardId}] Error processing ${entity?.id}:`, e.message);
+            processedCount++;
         }
 
         entityIndex++;

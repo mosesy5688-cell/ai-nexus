@@ -56,7 +56,12 @@ export async function fetchOfficialHtml(arxivId) {
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
         });
         if (res.status === 404) return { type: 'SKIP', html: null, status: 404 };
-        if (res.status === 429) return { type: 'FAILURE', html: null, status: 429 };
+        if (res.status === 429) {
+            const retryAfter = parseInt(res.headers.get('Retry-After') || '30', 10);
+            console.warn(`[ArXiv] 429 rate limited, waiting ${retryAfter}s...`);
+            await new Promise(r => setTimeout(r, retryAfter * 1000));
+            return { type: 'FAILURE', html: null, status: 429 };
+        }
         if (!res.ok) return { type: 'FAILURE', html: null, status: res.status };
         return { type: 'HTML', html: await res.text(), status: 200, source: 'official' };
     } catch (e) {
@@ -69,7 +74,7 @@ export async function fetchAr5ivHtml(arxivId) {
     if (!isArxiv) return { type: 'SKIP', html: null, status: 400 };
     const url = `https://ar5iv.labs.arxiv.org/html/${arxivId}`;
     try {
-        const res = await fetch(url, { 
+        const res = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -77,7 +82,12 @@ export async function fetchAr5ivHtml(arxivId) {
             signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
         });
         if (res.status === 404) return { type: 'SKIP', html: null, status: 404 };
-        if (res.status === 429) return { type: 'FAILURE', html: null, status: 429 };
+        if (res.status === 429) {
+            const retryAfter = parseInt(res.headers.get('Retry-After') || '30', 10);
+            console.warn(`[ar5iv] 429 rate limited, waiting ${retryAfter}s...`);
+            await new Promise(r => setTimeout(r, retryAfter * 1000));
+            return { type: 'FAILURE', html: null, status: 429 };
+        }
         if (!res.ok) return { type: 'FAILURE', html: null, status: res.status };
         return { type: 'HTML', html: await res.text(), status: 200, source: 'ar5iv' };
     } catch (e) {
