@@ -144,7 +144,7 @@ export class AgentsAdapter extends BaseAdapter {
                     readme = Buffer.from(rd.content, 'base64').toString('utf-8');
                     if (readme.length > 250000) readme = readme.substring(0, 250000) + '\n[Truncated for memory safety]';
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) { console.warn('[Agents] repo/README fetch failed: ' + (e?.message || e)); }
 
             return { ...data, readme, _fetchedAt: new Date().toISOString() };
         } catch (e) {

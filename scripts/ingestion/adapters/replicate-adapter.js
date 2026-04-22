@@ -102,7 +102,7 @@ export class ReplicateAdapter extends BaseAdapter {
                                     : rawReadme;
                             }
                         }
-                    } catch (e) { }
+                    } catch (e) { console.warn('[Replicate] README fetch failed for ' + (model?.id || 'unknown') + ': ' + e.message); }
                 }
 
                 if (onBatch) {

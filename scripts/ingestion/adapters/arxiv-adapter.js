@@ -161,7 +161,7 @@ export class ArXivAdapter extends BaseAdapter {
                         try {
                             const fullHtml = await fetchAr5ivHtml(batch[ei].arxiv_id);
                             if (fullHtml) batch[ei].full_html = fullHtml;
-                        } catch { /* Non-critical: fallback to abstract */ }
+                        } catch (err) { console.warn('[ArXiv] ar5iv enrichment failed for ' + (batch[ei]?.arxiv_id || 'unknown') + ': ' + (err?.message || err)); }
                     }
                 }
 
