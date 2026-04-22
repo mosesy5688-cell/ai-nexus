@@ -128,6 +128,14 @@ jobs:
           path: output/booster-stats-*.json
           if-no-files-found: ignore
 
+      - name: Upload Enriched UMIDs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enriched-umids-${{ matrix.partition.start }}
+          path: output/enriched-umids-*.json
+          if-no-files-found: ignore
+
   summary:
     name: Enrichment Summary
     needs: enrich
@@ -142,6 +150,49 @@ jobs:
           pattern: booster-stats-*
           path: stats/
           merge-multiple: true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Download Enriched UMIDs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: enriched-umids-*
+          path: umids/
+          merge-multiple: true
+      - name: Merge Enriched UMIDs into Dedup Ledger
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/data
+          node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || echo "⚠️ dedup.db not found"
+          if [ -f output/data/dedup.db ]; then
+            node -e "
+              const Database = require('better-sqlite3');
+              const fs = require('fs');
+              const glob = require('fs').existsSync('umids') ? require('fs').readdirSync('umids').filter(f => f.endsWith('.json')) : [];
+              if (glob.length === 0) { console.log('[MERGE] No UMID files found'); process.exit(0); }
+              const db = new Database('output/data/dedup.db');
+              const upd = db.prepare('UPDATE entities SET has_fulltext = 1 WHERE umid = ?');
+              let total = 0;
+              db.exec('BEGIN');
+              for (const f of glob) {
+                const umids = JSON.parse(fs.readFileSync('umids/' + f, 'utf-8'));
+                for (const u of umids) { upd.run(u); total++; }
+              }
+              db.exec('COMMIT');
+              db.close();
+              console.log('[MERGE] Marked ' + total + ' UMIDs as enriched in dedup.db');
+            "
+            node scripts/factory/r2-workflow-cli.js upload-file output/data/dedup.db state/dedup.db --content-type=application/x-sqlite3
+            echo "✅ Merged dedup.db uploaded to R2"
+          fi
       - name: Aggregate and Decide
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
