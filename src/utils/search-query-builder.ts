@@ -2,6 +2,7 @@
  * Search Query Builder (Extracted from search.ts to conform to CES size limits)
  * Processes GitHub-style commands and builds FTS5/B-Tree SQL queries.
  */
+import { xxhash64Mod } from './xxhash64.js';
 
 export const cyrb53 = (str: string, seed = 0) => {
     let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
@@ -100,10 +101,10 @@ export function determineTargetDbs(type: string, q: string, page: number, manife
  */
 export function getShardForSlug(slug: string, type: string, manifest?: any): string {
     const partitions = manifest?.partitions || {};
-    // V5.8: Hash sharding — route via cyrb53 approximation (mirrors computeShardSlot)
+    // V26.6: xxhash64 routing — matches pack-db computeMetaShardSlot
     if (partitions.meta_shards) {
         const count = partitions.meta_shards as number;
-        const idx = cyrb53(slug || '') % count;
+        const idx = xxhash64Mod(slug || '', count);
         return `meta-${String(idx).padStart(2, '0')}.db`;
     }
     // Legacy type-based routing
