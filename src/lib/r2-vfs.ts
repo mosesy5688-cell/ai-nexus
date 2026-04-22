@@ -116,7 +116,7 @@ export class R2RangeVFS extends FacadeVFS {
 
             // --- L1 Cache (Cloudflare Cache API, ~10ms) ---
             // The utility uses: https://vfs-cache.internal/${etag}/chunk/${chunkIndex}
-            let chunk = await getChunkFromCacheAPI(chunkIndex, state.etag);
+            let chunk = await getChunkFromCacheAPI(chunkIndex, state.etag, fileName);
 
             // --- L2 Origin (R2 Storage, ~50ms) ---
             if (!chunk) {
@@ -135,7 +135,7 @@ export class R2RangeVFS extends FacadeVFS {
                 }
 
                 // Write back to Edge Cache (1-year Immutable TTL)
-                if (chunk) await putChunkToCacheAPI(chunkIndex, chunk, state.etag);
+                if (chunk) await putChunkToCacheAPI(chunkIndex, chunk, state.etag, fileName);
             }
 
             if (chunk) {

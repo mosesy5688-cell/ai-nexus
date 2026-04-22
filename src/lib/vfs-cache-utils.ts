@@ -14,13 +14,13 @@ const CF_CACHE_TTL = 31536000;
  * 
  * @param etag The specific DB version string to ensure immutable isolation.
  */
-export async function getChunkFromCacheAPI(chunkIndex: number, etag: string): Promise<Uint8Array | null> {
+export async function getChunkFromCacheAPI(chunkIndex: number, etag: string, fileName: string = ''): Promise<Uint8Array | null> {
     // @ts-ignore - Cloudflare Workers extends CacheStorage with .default
     if (typeof caches === 'undefined' || !caches.default) return null;
     if (!etag) return null; // Safety fallback
 
     try {
-        const cacheKey = new Request(`https://vfs-cache.internal/${etag}/chunk/${chunkIndex}`);
+        const cacheKey = new Request(`https://vfs-cache.internal/${etag}/${fileName}/chunk/${chunkIndex}`);
         // @ts-ignore
         const response = await caches.default.match(cacheKey);
         if (response) {
@@ -37,13 +37,13 @@ export async function getChunkFromCacheAPI(chunkIndex: number, etag: string): Pr
  * 
  * @param etag The specific DB version string to ensure immutable isolation.
  */
-export async function putChunkToCacheAPI(chunkIndex: number, data: Uint8Array, etag: string) {
+export async function putChunkToCacheAPI(chunkIndex: number, data: Uint8Array, etag: string, fileName: string = '') {
     // @ts-ignore
     if (typeof caches === 'undefined' || !caches.default) return;
     if (!etag) return; // Safety fallback
 
     try {
-        const cacheKey = new Request(`https://vfs-cache.internal/${etag}/chunk/${chunkIndex}`);
+        const cacheKey = new Request(`https://vfs-cache.internal/${etag}/${fileName}/chunk/${chunkIndex}`);
         // @ts-ignore - TS DOM types don't like Uint8Array directly here sometimes
         const response = new Response(data as any, {
             headers: {
