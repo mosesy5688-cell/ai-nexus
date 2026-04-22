@@ -177,7 +177,7 @@ function getDecayLambda(type) {
  * Returns 1.0 if recently harvested, decays toward 0 for stale entities.
  * Read-time computation — zero writes, scales to 10M+ entities.
  */
-function computeStalenessFactor(type, lastSeen) {
+export function computeStalenessFactor(type, lastSeen) {
     if (!lastSeen) return 1.0; // No _last_seen = first run, no penalty
     const parsed = new Date(lastSeen).getTime();
     if (isNaN(parsed)) return 1.0;
