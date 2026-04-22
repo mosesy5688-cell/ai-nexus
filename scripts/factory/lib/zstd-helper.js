@@ -120,7 +120,7 @@ export function createZstdCompressStream(level = 3) {
                 ws.end(() => {
                     try {
                         rust.zstdCompressFile(tmpIn, tmpOut, level);
-                        // Stream compressed output (O(1) memory)
+                        safeUnlink(tmpIn);
                         const rs = createReadStream(tmpOut);
                         rs.on('data', (d) => this.push(d));
                         rs.on('end', () => {
