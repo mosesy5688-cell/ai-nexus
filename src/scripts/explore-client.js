@@ -44,6 +44,15 @@ export function initExplorePage() {
     try {
         searchWorker = new Worker('/workers/search-worker.js?v=16.6.0', { type: 'module' });
 
+        // Terminate worker on Astro view transition to prevent leaked Web Workers
+        document.addEventListener('astro:before-swap', () => {
+            if (searchWorker) {
+                searchWorker.terminate();
+                searchWorker = null;
+                workerReady = false;
+            }
+        }, { once: true });
+
         searchWorker.onmessage = (e) => {
             const { type, isLoaded, results, total, error } = e.data;
 

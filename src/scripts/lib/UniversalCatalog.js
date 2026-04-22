@@ -62,6 +62,15 @@ export class UniversalCatalog {
 
         this.updateStats();
 
+        // Cancel syncLoop timeout on Astro view transition to prevent leaked setTimeout chains
+        this._syncTimer = null;
+        document.addEventListener('astro:before-swap', () => {
+            if (this._syncTimer) {
+                clearTimeout(this._syncTimer);
+                this._syncTimer = null;
+            }
+        }, { once: true });
+
         // V23.2: Initiate Background Sync Loop
         this.syncLoop();
     }
@@ -80,7 +89,7 @@ export class UniversalCatalog {
             this.handleSearch(this.searchInput?.value || '', null, true);
         }
 
-        setTimeout(() => this.syncLoop(), delay);
+        this._syncTimer = setTimeout(() => this.syncLoop(), delay);
     }
 
     updateUrlParam(key, value) {
