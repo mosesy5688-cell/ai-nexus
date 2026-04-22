@@ -46,10 +46,11 @@ export async function loadDailyAccum() {
 
             return { ...meta, entries: allEntries, lastUpdated: lastUpdated || new Date().toISOString() };
         } catch (e) {
-            console.warn(`[CACHE] ⚠️ Failed to merge daily-accum shards: ${e.message}`);
+            console.error(`[CACHE] ❌ Failed to merge daily-accum shards: ${e.message}`);
         }
     }
 
+    console.warn('[CACHE] ⚠️ Daily-accum shards unavailable, falling back to monolithic file');
     return loadWithFallback('daily-accum.json.zst', { entries: [], lastUpdated: null });
 }
 

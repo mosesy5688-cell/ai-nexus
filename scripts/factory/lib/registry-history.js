@@ -38,10 +38,11 @@ export async function loadFniHistory() {
 
             return { entities: allEntities, lastUpdated: lastUpdated || new Date().toISOString() };
         } catch (e) {
-            console.warn(`[CACHE] ⚠️ Failed to merge history shards: ${e.message}`);
+            console.error(`[CACHE] ❌ Failed to merge history shards: ${e.message}`);
         }
     }
 
+    console.warn('[CACHE] ⚠️ FNI history shards unavailable, falling back to monolithic file');
     return loadWithFallback('fni-history.json.zst', { entities: {}, lastUpdated: null });
 }
 

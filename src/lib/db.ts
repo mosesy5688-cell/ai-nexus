@@ -210,6 +210,7 @@ export async function acquireSearchSeat(): Promise<void> {
         const timeout = setTimeout(() => {
             const index = seatQueue.indexOf(resolve);
             if (index > -1) seatQueue.splice(index, 1);
+            activeSeats++;
             resolve(); // Force-start to prevent permanent hanging
         }, 15000);
 
