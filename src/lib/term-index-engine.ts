@@ -39,7 +39,8 @@ async function fetchManifest(r2Bucket: any, isDev: boolean): Promise<TermIndexMa
         const parsed = JSON.parse(new TextDecoder().decode(decompress(compressed)));
         cachedManifest = { total_docs: parsed.total_docs, avg_doc_length: parsed.avg_doc_length };
         return cachedManifest;
-    } catch {
+    } catch (err: any) {
+        console.error(`[Term Index] fetchManifest failed: ${err?.message || err}`);
         return null;
     }
 }
@@ -62,7 +63,8 @@ async function fetchTermFile(term: string, r2Bucket: any, isDev: boolean): Promi
         }
         const decompressed = decompress(compressed);
         return JSON.parse(new TextDecoder().decode(decompressed));
-    } catch {
+    } catch (err: any) {
+        console.error(`[Term Index] fetchTermFile("${term}") key=${key} failed: ${err?.message || err}`);
         return null;
     }
 }
@@ -89,7 +91,8 @@ async function fetchHighFreqTerm(
         const chunk0: TermData = JSON.parse(new TextDecoder().decode(decompress(compressed)));
         // For search, chunk 0 (top scores) is sufficient — skip loading all chunks
         return { term, df: chunk0.df, postings: chunk0.postings };
-    } catch {
+    } catch (err: any) {
+        console.error(`[Term Index] fetchHighFreqTerm("${term}") key=${key0} failed: ${err?.message || err}`);
         return null;
     }
 }
@@ -113,6 +116,12 @@ export async function fetchAllTermPostings(
         })),
         fetchManifest(r2Bucket, isDev)
     ]);
+
+    const found = [...results.keys()];
+    const missed = terms.filter(t => !results.has(t));
+    if (missed.length > 0) {
+        console.warn(`[Term Index] query="${query}" terms=${terms.length} found=[${found.join(',')}] missed=[${missed.join(',')}]`);
+    }
 
     return { terms, results, manifest };
 }

@@ -8,20 +8,16 @@ import path from 'path';
 import crypto from 'crypto';
 
 export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary) {
-    console.log('[VFS] Updating shard hashes...');
+    console.log('[VFS] Computing shard manifest hashes...');
     const hashStart = Date.now();
     for (let i = 0; i <= currentShardId; i++) {
         const name = `fused-shard-${String(i).padStart(3, '0')}.bin`;
         const file = path.join(shardDir, name);
         if (fsSync.existsSync(file)) {
-            const hash = crypto.createHash('sha256').update(fsSync.readFileSync(file)).digest('hex');
-            manifest[`data/${name}`] = hash;
-            Object.values(metaDbs).forEach(db => {
-                db.prepare('UPDATE entities SET shard_hash = ? WHERE bundle_key = ?').run(hash, `data/${name}`);
-            });
+            manifest[`data/${name}`] = crypto.createHash('sha256').update(fsSync.readFileSync(file)).digest('hex');
         }
     }
-    console.log(`[VFS] Shard hashes updated (${((Date.now() - hashStart) / 1000).toFixed(1)}s)`);
+    console.log(`[VFS] Manifest hashes computed (${((Date.now() - hashStart) / 1000).toFixed(1)}s)`);
 
     await injectMetadata(metaDbs, null, cacheDir);
     const fullManifest = { shards: manifest, partitions: partitionCounts };
