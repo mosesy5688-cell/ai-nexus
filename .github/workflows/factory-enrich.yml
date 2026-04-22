@@ -150,6 +150,13 @@ jobs:
           pattern: booster-stats-*
           path: stats/
           merge-multiple: true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
       - name: Download Enriched UMIDs
         uses: actions/download-artifact@v4
         with:
@@ -163,14 +170,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          npm ci --ignore-scripts 2>/dev/null || true
           mkdir -p output/data
           node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || echo "⚠️ dedup.db not found"
           if [ -f output/data/dedup.db ]; then
             node -e "
               const Database = require('better-sqlite3');
               const fs = require('fs');
-              const glob = require('fs').readdirSync('umids').filter(f => f.endsWith('.json'));
+              const glob = require('fs').existsSync('umids') ? require('fs').readdirSync('umids').filter(f => f.endsWith('.json')) : [];
               if (glob.length === 0) { console.log('[MERGE] No UMID files found'); process.exit(0); }
               const db = new Database('output/data/dedup.db');
               const upd = db.prepare('UPDATE entities SET has_fulltext = 1 WHERE umid = ?');
