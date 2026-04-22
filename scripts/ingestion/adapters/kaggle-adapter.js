@@ -227,10 +227,9 @@ export class KaggleAdapter extends BaseAdapter {
      * Override normalize() - delegates based on entity type marker
      */
     normalize(raw) {
-        if (raw._entityType === 'model') {
-            return this.normalizeModel(raw);
-        }
-        return this.normalizeDataset(raw);
+        const entity = raw._entityType === 'model' ? this.normalizeModel(raw) : this.normalizeDataset(raw);
+        delete entity._entityType;
+        return entity;
     }
 
     /**

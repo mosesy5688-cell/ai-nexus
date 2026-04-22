@@ -170,6 +170,13 @@ export async function readBinaryShard(filePath) {
                 } catch { /* forced decrypt also failed */ }
             }
             if (!recovered) {
+                try {
+                    const repaired = entityBuf.toString('utf-8').replace(/\\u[0-9a-fA-F]{0,3}$/g, '').replace(/\\u[0-9a-fA-F]{0,3}(["\s,}\]])/g, '$1');
+                    entities.push(JSON.parse(repaired));
+                    recovered = true;
+                } catch { /* repair also failed */ }
+            }
+            if (!recovered) {
                 console.warn(`[BINARY-READER] Entity parse error in ${shardName}[${i}]: ${e.message}`);
             }
         }
