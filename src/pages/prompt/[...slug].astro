@@ -53,7 +53,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!promptData && !error) {
+if (!promptData) {
   Astro.response.status = 404;
   return Astro.redirect('/404?source=prompt-not-found');
 }

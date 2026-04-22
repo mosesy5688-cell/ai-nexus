@@ -56,10 +56,11 @@ const { entityId, entityName, entity, hasBench, enrichedTags } = Astro.props;
    {/* Column 2: Momentum & Context */}
    <div class="space-y-8">
       {(() => {
-        const trendData = Array.isArray(entity?.trend_7d) ? entity.trend_7d.map(Number) : 
-                          (typeof entity?.trend_7d === 'string' ? entity.trend_7d.split(',').map(Number) : 
-                          (Array.isArray(entity?.fni_trend_7d) ? entity.fni_trend_7d.map(Number) : 
+        const rawTrend = Array.isArray(entity?.trend_7d) ? entity.trend_7d.map(Number) :
+                          (typeof entity?.trend_7d === 'string' ? entity.trend_7d.split(',').map(Number) :
+                          (Array.isArray(entity?.fni_trend_7d) ? entity.fni_trend_7d.map(Number) :
                           (typeof entity?.fni_trend_7d === 'string' ? entity.fni_trend_7d.split(',').map(Number) : [])));
+        const trendData = rawTrend.filter(Number.isFinite);
         
         // V25.1: Only render Trend if it has meaningful variance (not flat lines)
         const hasVariance = trendData.length >= 2 && Math.max(...trendData) !== Math.min(...trendData);

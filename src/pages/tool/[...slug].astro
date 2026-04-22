@@ -65,7 +65,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!tool && !error) {
+if (!tool) {
   Astro.response.status = 404;
   return Astro.redirect('/404?source=tool-not-found');
 }

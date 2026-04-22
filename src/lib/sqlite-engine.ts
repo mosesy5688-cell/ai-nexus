@@ -18,6 +18,8 @@ let globalSqliteModule: any = null;
 let globalVFS: any = null;
 let sqliteInitPromise: Promise<void> | null = null;
 let shardManifest: any = null;
+let manifestLoadedAt = 0;
+const MANIFEST_TTL = 300_000;
 
 // V23.10: Move cache to module scope to prevent handle mismatch across HMR reloads
 const dbCache = new Map<string, { db: any, lastUsed: number }>();
@@ -157,7 +159,7 @@ export async function evictCachedDb(dbName: string) {
 }
 
 export async function loadManifest(r2Bucket: any, simulate: boolean) {
-    if (shardManifest) return shardManifest;
+    if (shardManifest && (Date.now() - manifestLoadedAt) < MANIFEST_TTL) return shardManifest;
     try {
         if (r2Bucket && !simulate) {
             const obj = await r2Bucket.get('data/shards_manifest.json');
@@ -171,6 +173,7 @@ export async function loadManifest(r2Bucket: any, simulate: boolean) {
     } catch (e) {
         shardManifest = { partitions: { meta_shards: META_SHARD_COUNT }, _etag: 'fallback' };
     }
+    manifestLoadedAt = Date.now();
     return shardManifest;
 }
 
