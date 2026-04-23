@@ -694,6 +694,7 @@ jobs:
           # V26.7 Phase 6: Cluster ANN index for semantic rerank
           WARM_URLS+=("https://cdn.free2aitools.com/data/cluster-ann-index.bin")
           WARM_URLS+=("https://cdn.free2aitools.com/data/cluster-ann-index-ids.json")
+          WARM_URLS+=("https://cdn.free2aitools.com/data/cluster-ann-index-entity-map.json")
 
           # V25.8: Dynamic VFS Shard Warming (discovers actual DB files instead of hardcoding counts)
           if [ -d "output/data" ]; then

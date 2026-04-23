@@ -1,8 +1,10 @@
 import type { APIRoute } from 'astro';
 import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/search-query-builder.js';
-import { searchSemantic } from '../../lib/semantic-engine.js';
+import { searchSemantic, embedQuery } from '../../lib/semantic-engine.js';
 import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
 import { fetchAllTermPostings, mergePostings, groupByShard } from '../../lib/term-index-engine.js';
+import { initClusterSemantic, getClusterSemanticScore, isReady as isClusterReady } from '../../lib/cluster-semantic-engine.js';
+import { clusterFallbackSearch } from '../../lib/cluster-fallback.js';
 import { env } from 'cloudflare:workers';
 
 const CACHE_HEADERS_HIT = {
@@ -16,7 +18,7 @@ const CACHE_HEADERS_MISS = {
     'Cache-Control': 'public, max-age=0, s-maxage=10'
 };
 
-const DISPLAY_COLS = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length`;
+const DISPLAY_COLS = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.fni_a, e.fni_p, e.fni_r, e.fni_q, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length`;
 
 function respond(results: any[], tier: string, startMs: number) {
     const headers = results.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
@@ -148,6 +150,23 @@ export const GET: APIRoute = async ({ url }) => {
                     const toHydrate = candidates.slice(0, fetchCount);
                     let hydrated = await hydrateCandidates(toHydrate, r2Bucket, shouldSimulate);
 
+                    // V26.7 Phase 6: Cluster semantic rerank (S factor)
+                    if (env?.AI && hydrated.length > 0) {
+                        try {
+                            await initClusterSemantic(r2Bucket, isDev);
+                            if (isClusterReady()) {
+                                const qEmb = await embedQuery(q, env);
+                                if (qEmb) {
+                                    for (const r of hydrated) {
+                                        const S = getClusterSemanticScore(qEmb, r.id);
+                                        r.fni_score = Math.min(99.9, Math.round((0.35 * S + 0.25 * (r.fni_a || 0) + 0.15 * (r.fni_p || 0) + 0.15 * (r.fni_r || 0) + 0.10 * (r.fni_q || 0)) * 10) / 10);
+                                    }
+                                    hydrated.sort((a: any, b: any) => (b.fni_score || 0) - (a.fni_score || 0));
+                                }
+                            }
+                        } catch (e: any) { console.warn(`[SSR Search] Cluster semantic rerank failed: ${e.message}`); }
+                    }
+
                     if (type !== 'all') {
                         hydrated = hydrated.filter((r: any) => r.type === type);
                     }
@@ -158,27 +177,23 @@ export const GET: APIRoute = async ({ url }) => {
                 }
             }
 
-            // ── Tier 2: Semantic fallback (vector-core.bin) — 0 index results ──
+            // ── Tier 2: Cluster semantic fallback — 0 inverted index results ──
             if (env?.AI) {
-                const ranked = await searchSemantic(q, limit, env);
-                if (ranked.length > 0) {
-                    const semanticScores = new Map(ranked.map(r => [r.rowid, r.score]));
-                    const placeholders = ranked.map(() => '?').join(',');
-                    const sql = `SELECT *, rowid as _rowid FROM entities e WHERE e.rowid IN (${placeholders})`;
-                    const dbName = 'meta-00.db'; // semantic rowids map to first shard
-                    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-                    const rows = await executeSql(engine.sqlite3, engine.db, sql, ranked.map(r => r.rowid), semanticScores);
-                    rows.sort((a: any, b: any) => (b._semanticScore || 0) - (a._semanticScore || 0));
-                    const unique: any[] = []; const seen = new Set<string>();
-                    for (const r of rows) {
-                        if (!seen.has(r.id)) { seen.add(r.id); r._source = 'fallback_only'; unique.push(r); }
-                        if (unique.length >= limit) break;
+                try {
+                    const fallbackCandidates = await clusterFallbackSearch(q, limit, r2Bucket, isDev, manifest, env);
+                    if (fallbackCandidates && fallbackCandidates.length > 0) {
+                        let hydrated = await hydrateCandidates(
+                            fallbackCandidates.map(c => ({ umid: c.id, score: c.score, shard: c.shard })),
+                            r2Bucket, shouldSimulate
+                        );
+                        for (const r of hydrated) r._source = 'cluster_fallback';
+                        const unique: any[] = []; const seen = new Set<string>();
+                        for (const r of hydrated) { if (!seen.has(r.id)) { seen.add(r.id); unique.push(r); } if (unique.length >= limit) break; }
+                        response = respond(unique, 'cluster_fallback', start);
+                        if (edgeCache && unique.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
+                        return response;
                     }
-                    for (const r of unique) { delete r._semanticScore; delete r._rowid; }
-                    response = respond(unique, 'semantic_fallback', start);
-                    if (edgeCache && unique.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
-                    return response;
-                }
+                } catch (e: any) { console.warn(`[SSR Search] Cluster fallback failed: ${e.message}`); }
             }
 
             return respond([], 'empty', start);
