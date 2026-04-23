@@ -19,7 +19,8 @@ export const GET: APIRoute = async (context) => {
     const internal = await internalSearch({ ...context, url });
     const body = await internal.json();
 
-    // Wrap with version field
+    // Strip internal fields + wrap with version
+    if (body.results) body.results.forEach((r: any) => { delete r._dbSort; delete r._score; delete r._source; });
     const wrapped = { version: API_VERSION, ...body };
 
     // Preserve original headers (cache + CORS)
