@@ -70,7 +70,7 @@ const NOT_FOUND_BADGE = `<svg xmlns="http://www.w3.org/2000/svg" width="130" hei
 export const GET: APIRoute = async ({ params }) => {
     // V25.9.1: URL segment is legacy-named `:umid` but is treated as slug||id to
     // match the packer's routing key. See file header.
-    const routeKey = params.umid || '';
+    const routeKey = (params.umid || '').toLowerCase();
     if (!routeKey) return svgResponse(NOT_FOUND_BADGE);
 
     try {
