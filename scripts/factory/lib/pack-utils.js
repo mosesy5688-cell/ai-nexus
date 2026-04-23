@@ -106,52 +106,39 @@ export async function loadTrendMap(cacheDir) {
 }
 
 /**
- * V25.9: Ingest fused entities into SQLite PackAccumulator (O(1) memory).
- * Replaces collectAndSortMetadata's monolithic in-memory array pattern.
- * Sorting is handled by SQLite index (fni_score DESC, trending_rank ASC, id ASC).
- *
- * @returns {PackAccumulator} Streaming iterator-based entity store.
+ * V26.7: Stream fused entities directly — O(1) memory, no accumulator.
+ * Calls consumer(entity) for each entity, with trending/trend context baked in.
  */
-export async function ingestToAccumulator(cacheDir, trendingMap, trendMap) {
-    const accumulator = new PackAccumulator(path.join(cacheDir, 'pack-accumulator.db'));
-    await accumulator.init();
-
+export async function streamFusedEntities(cacheDir, trendingMap, trendMap, consumer) {
     const fusedDir = path.join(cacheDir, 'fused');
     const fusedFiles = (await fs.readdir(fusedDir).catch(() => []))
         .filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'));
 
     if (fusedFiles.length === 0) throw new Error(`No fused entities found at ${fusedDir}`);
 
-    // Sort: .json first, compressed second — compressed files take priority via INSERT OR REPLACE
     const compressOrder = (f) => f.endsWith('.json') ? 0 : 1;
     fusedFiles.sort((a, b) => compressOrder(a) - compressOrder(b));
 
-    accumulator.beginTransaction();
-    let ingested = 0;
-
+    let count = 0;
     for (const file of fusedFiles) {
         const fullPath = path.join(fusedDir, file);
         try {
-            // V26.6: O(1) streaming — bypasses V8 512MB string limit on large shards
-            const prevIngested = ingested;
+            const prev = count;
             await partitionMonolithStreamingly(fullPath, (entity) => {
-                const trendingInfo = trendingMap.get(entity.id || entity.slug) || { rank: 999999, is_trending: false };
-                accumulator.ingest(entity, trendingInfo, trendMap.get(entity.id || entity.slug) || '');
-                ingested++;
+                const ti = trendingMap.get(entity.id || entity.slug) || { rank: 999999, is_trending: false };
+                entity._trending_rank = ti.rank;
+                entity.is_trending = ti.is_trending;
+                entity._trend_7d = trendMap.get(entity.id || entity.slug) || '';
+                consumer(entity);
+                count++;
             });
-
-            const shardCount = ingested - prevIngested;
-            if (ingested % 50000 < shardCount && ingested > 0) {
-                console.log(`[VFS] Ingested ${ingested} entities...`);
-            }
+            if (count % 50000 < (count - prev) && count > 0) console.log(`[VFS] Streamed ${count} entities...`);
         } catch (e) {
             console.error(`[VFS] Failed to read ${file}:`, e.message);
         }
     }
-
-    accumulator.commitTransaction();
-    console.log(`[VFS] PackAccumulator ready: ${accumulator.count} unique entities (SQLite-backed, O(1) memory).`);
-    return accumulator;
+    console.log(`[VFS] Streaming complete: ${count} entities.`);
+    return count;
 }
 
 // V23.1: Builders extracted to satisfy CES Art 5.1

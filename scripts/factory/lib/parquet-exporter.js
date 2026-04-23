@@ -213,3 +213,31 @@ export async function exportLiteParquet(accumulator) {
     console.log(`[Parquet-Lite] ✅ ${fileName} — ${count} entities, ${(fileSize / 1024 / 1024).toFixed(2)} MB`);
     return { file: filePath, latest: latestPath, count };
 }
+
+/** V26.7: Export from meta shards (no accumulator needed) */
+export async function exportParquetFromShards(metaDbs) {
+    const epoch = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fp = path.join(PARQUET_DIR, `entities-${epoch}.parquet`);
+    await fs.mkdir(PARQUET_DIR, { recursive: true });
+    const parquet = await import('@dsnp/parquetjs');
+    const w = await parquet.ParquetWriter.openFile(await getParquetSchema(), fp, { compression: 'SNAPPY', rowGroupSize: 10000 });
+    let c = 0;
+    for (const db of Object.values(metaDbs)) for (const r of db.prepare('SELECT * FROM entities').iterate()) { await w.appendRow(entityToRow(r)); c++; }
+    await w.close();
+    console.log(`[Parquet] ✅ ${c} entities, ${(fsSync.statSync(fp).size / 1048576).toFixed(2)} MB`);
+    await updateEpochManifest(epoch, path.basename(fp), c, fsSync.statSync(fp).size);
+}
+
+/** V26.7: Lite export from meta shards */
+export async function exportLiteParquetFromShards(metaDbs) {
+    const parquet = await import('@dsnp/parquetjs');
+    const schema = new parquet.ParquetSchema({ id: { type: 'UTF8' }, title: { type: 'UTF8' }, abstract_300: { type: 'UTF8' }, fni_score: { type: 'FLOAT' }, fni_version: { type: 'UTF8' } });
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '_');
+    const fp = path.join(DATASETS_DIR, `fni_lite_${date}.parquet`), lp = path.join(DATASETS_DIR, 'fni_lite_latest.parquet');
+    await fs.mkdir(DATASETS_DIR, { recursive: true });
+    const w = await parquet.ParquetWriter.openFile(schema, fp, { compression: 'SNAPPY', rowGroupSize: 10000 });
+    let c = 0;
+    for (const db of Object.values(metaDbs)) for (const r of db.prepare('SELECT id, name, summary, fni_score FROM entities').iterate()) { await w.appendRow({ id: String(r.id || ''), title: String(r.name || ''), abstract_300: String(r.summary || '').slice(0, 300), fni_score: Number(r.fni_score ?? 0), fni_version: FNI_VERSION }); c++; }
+    await w.close(); await fs.copyFile(fp, lp);
+    console.log(`[Parquet-Lite] ✅ ${c} entities, ${(fsSync.statSync(fp).size / 1048576).toFixed(2)} MB`);
+}
