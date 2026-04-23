@@ -5,7 +5,6 @@ import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '
 import { fetchAllTermPostings, mergePostings, groupByShard } from '../../lib/term-index-engine.js';
 import { initClusterSemantic, getClusterSemanticScore, isReady as isClusterReady } from '../../lib/cluster-semantic-engine.js';
 import { clusterFallbackSearch } from '../../lib/cluster-fallback.js';
-import { embedQuery } from '../../lib/semantic-engine.js';
 import { env } from 'cloudflare:workers';
 
 const CACHE_HEADERS_HIT = {
