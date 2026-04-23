@@ -3,6 +3,7 @@
  * Serves sitemap-index.xml and compressed shard files (.xml.gz) from R2 CDN.
  * Only .xml.gz format for shards — zero SSR decompression overhead.
  *
+ * Shard count is derived from sitemap-index.xml at build time (no hardcode).
  * Routes: /sitemaps/[filename]
  */
 
@@ -11,12 +12,24 @@ import type { APIRoute, GetStaticPaths } from 'astro';
 export const prerender = true;
 
 const R2_CDN_BASE = 'https://cdn.free2aitools.com';
-const SHARD_COUNT = 9;
+
+async function discoverShardFilenames(): Promise<string[]> {
+    try {
+        const res = await fetch(`${R2_CDN_BASE}/sitemaps/sitemap-index.xml`, {
+            headers: { 'Accept-Encoding': 'identity' }
+        });
+        if (!res.ok) return [];
+        const xml = await res.text();
+        const matches = [...xml.matchAll(/<loc>[^<]*\/sitemaps\/(sitemap-\d+\.xml)[^<]*<\/loc>/g)];
+        return matches.map(m => m[1]);
+    } catch { return []; }
+}
 
 export const getStaticPaths: GetStaticPaths = async () => {
+    const shardFiles = await discoverShardFilenames();
     const paths = [{ params: { filename: 'sitemap-index.xml' } }];
-    for (let i = 1; i <= SHARD_COUNT; i++) {
-        paths.push({ params: { filename: `sitemap-${i}.xml.gz` } });
+    for (const name of shardFiles) {
+        paths.push({ params: { filename: `${name}.gz` } });
     }
     return paths;
 };
