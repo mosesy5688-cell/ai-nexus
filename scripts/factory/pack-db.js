@@ -62,11 +62,25 @@ async function packDatabase() {
     });
     console.log(`[VFS] Entity lookup: ${entityLookup.size} entries.`);
 
-    // Prepare embedding cache
+    // Embedding pass: collect uncached IDs → batch compute
     const cacheDb = openCache(EMBEDDING_CACHE_PATH);
     validateModel(cacheDb, EMBEDDING_MODEL);
     const cachedIdSet = loadIds(cacheDb);
-    let embBatch = [], embComputed = 0;
+    console.log(`[VFS] Embedding pass: ${cachedIdSet.size} cached, collecting uncached...`);
+    const uncachedEntities = [];
+    await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e) => {
+        const eid = e.id || e.slug;
+        if (eid && !cachedIdSet.has(eid)) {
+            uncachedEntities.push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
+        }
+    });
+    console.log(`[VFS] Uncached entities: ${uncachedEntities.length}. Computing embeddings...`);
+    for (let i = 0; i < uncachedEntities.length; i += 500) {
+        const batch = uncachedEntities.slice(i, i + 500);
+        await computeEmbeddings(batch, { onBatchComplete: async (results) => saveBatch(cacheDb, results) });
+        if ((i + 500) % 5000 < 500) console.log(`[VFS] Embeddings: ${Math.min(i + 500, uncachedEntities.length)}/${uncachedEntities.length}...`);
+    }
+    console.log(`[VFS] Embedding pass complete: ${uncachedEntities.length} newly computed.`);
 
     // Prepare DBs
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
@@ -109,12 +123,7 @@ async function packDatabase() {
         if (seenUmids.has(umidKey)) { dupSkipped++; return; }
         seenUmids.add(umidKey);
 
-        // Embedding: batch and compute inline
         const eid = e.id || e.slug;
-        if (eid && !cachedIdSet.has(eid)) {
-            embBatch.push(e);
-        }
-
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
@@ -162,12 +171,6 @@ async function packDatabase() {
         stats.packed++;
     });
 
-    // Flush remaining embedding batch
-    if (embBatch.length > 0) {
-        await computeEmbeddings(embBatch, { onBatchComplete: async (results) => saveBatch(cacheDb, results) });
-        embComputed += embBatch.length;
-    }
-    console.log(`[VFS] Embeddings: ${embComputed} newly computed, ${cachedIdSet.size} cached.`);
     cachedIdSet.clear();
 
     Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
