@@ -53,28 +53,21 @@ async function packDatabase() {
     const trendingMap = await loadTrendingMap(CACHE_DIR);
     const trendMap = await loadTrendMap(CACHE_DIR);
 
-    // Pre-scan: build entity lookup for distiller mesh pre-join (~40MB Map)
-    console.log('[VFS] Pre-scan: building entity lookup...');
-    const entityLookup = new Map();
-    await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e) => {
-        const id = e.id || e.slug;
-        if (id) entityLookup.set(id, { name: e.name || e.displayName || id, icon: e.icon || '' });
-    });
-    console.log(`[VFS] Entity lookup: ${entityLookup.size} entries.`);
-
-    // Embedding pass: collect uncached IDs → batch compute
+    // Combined pre-scan: entity lookup + uncached embedding collection (single pass)
     const cacheDb = openCache(EMBEDDING_CACHE_PATH);
     validateModel(cacheDb, EMBEDDING_MODEL);
     const cachedIdSet = loadIds(cacheDb);
-    console.log(`[VFS] Embedding pass: ${cachedIdSet.size} cached, collecting uncached...`);
+    console.log(`[VFS] Pre-scan: building entity lookup + collecting uncached embeddings (${cachedIdSet.size} cached)...`);
+    const entityLookup = new Map();
     const uncachedEntities = [];
     await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e) => {
-        const eid = e.id || e.slug;
-        if (eid && !cachedIdSet.has(eid)) {
-            uncachedEntities.push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
+        const id = e.id || e.slug;
+        if (id) {
+            entityLookup.set(id, { name: e.name || e.displayName || id, icon: e.icon || '' });
+            if (!cachedIdSet.has(id)) uncachedEntities.push({ id, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
         }
     });
-    console.log(`[VFS] Uncached entities: ${uncachedEntities.length}. Computing embeddings...`);
+    console.log(`[VFS] Entity lookup: ${entityLookup.size}. Uncached: ${uncachedEntities.length}. Computing embeddings...`);
     for (let i = 0; i < uncachedEntities.length; i += 500) {
         const batch = uncachedEntities.slice(i, i + 500);
         await computeEmbeddings(batch, { onBatchComplete: async (results) => saveBatch(cacheDb, results) });
@@ -107,10 +100,6 @@ async function packDatabase() {
     let currentShardName = shardWriter.open();
     const seenUmids = new Set();
     let dupSkipped = 0;
-
-    // Bounded top-30K heap for hot-shard/vector-core
-    const TOP_K = 30000;
-    const topHeap = [];
 
     Object.values(metaDbs).forEach(db => db.exec("BEGIN TRANSACTION"));
     ftsDb.exec("BEGIN TRANSACTION");
@@ -157,17 +146,6 @@ async function packDatabase() {
         const ftsTagStr = String(tags + ' ' + keywords);
         insertFts.run(stats.packed + 1, String(e.umid || e.id), nameStr, String(truncatedSummary), authorStr, ftsTagStr, String(category));
 
-        // Bounded top-K tracking
-        const score = e.fni_score || 0;
-        if (topHeap.length < TOP_K || score > topHeap[topHeap.length - 1]._fni) {
-            topHeap.push({ id: eid, slug: e.slug, name: nameStr, type: e.type || 'model', author: authorStr,
-                license: e.license || '', pipeline_tag: e.pipeline_tag || '', category, fni_score: score,
-                downloads: e.downloads || 0, stars: e.stars || e.likes || 0, params_billions: pBillions,
-                context_length: ctxLen, last_modified: e.last_modified || '', is_trending: e.is_trending ? 1 : 0, _fni: score });
-            topHeap.sort((a, b) => b._fni - a._fni);
-            if (topHeap.length > TOP_K) topHeap.length = TOP_K;
-        }
-
         stats.packed++;
     });
 
@@ -204,8 +182,20 @@ async function packDatabase() {
     await exportParquetFromShards(metaDbs);
     await exportLiteParquetFromShards(metaDbs);
 
-    // Top-30k → hot-shard + vector-core (from bounded heap)
-    for (const row of topHeap) {
+    // Top-30k from meta shards (SQLite indexed query, fast)
+    console.log('[VFS] Recovering Top-30k vectors from meta shards...');
+    const top30k = [];
+    for (const db of Object.values(metaDbs)) {
+        const rows = db.prepare(
+            `SELECT id, slug, name, type, author, license, pipeline_tag, category, fni_score,
+             downloads, stars, params_billions, context_length, last_modified, is_trending
+             FROM entities ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 30000`
+        ).all();
+        top30k.push(...rows);
+    }
+    top30k.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
+    top30k.length = Math.min(top30k.length, 30000);
+    for (const row of top30k) {
         const vecRow = getVecStm.get(row.id || row.slug);
         if (vecRow?.vector) {
             const int8 = new Int8Array(vecRow.vector.buffer, vecRow.vector.byteOffset, vecRow.vector.byteLength);
@@ -213,11 +203,10 @@ async function packDatabase() {
             for (let j = 0; j < int8.length; j++) float32[j] = int8[j] / 127.0;
             row.embedding = Array.from(float32);
         }
-        delete row._fni;
     }
     closeCache(cacheDb);
-    await generateHotShard(topHeap);
-    await generateVectorCore(topHeap);
+    await generateHotShard(top30k);
+    await generateVectorCore(top30k);
 
     const { buildClusterAnnIndex } = await import('./lib/cluster-ann-builder.js');
     await buildClusterAnnIndex(EMBEDDING_CACHE_PATH);
