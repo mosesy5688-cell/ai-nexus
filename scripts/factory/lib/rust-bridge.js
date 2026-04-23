@@ -44,7 +44,10 @@ export function batchComputeShardSlotsFFI(umids, totalSlots = 4096) {
 
 /** Batch FNI calculation (pre-extracted inputs). */
 export function batchCalculateFniFFI(entities) {
-    if (_fniCalc) return _fniCalc.batchCalculateFni(Buffer.from(JSON.stringify(entities)));
+    if (_fniCalc) {
+        const results = _fniCalc.batchCalculateFni(Buffer.from(JSON.stringify(entities)));
+        return results.map(r => ({ id: r.id, fni_score: r.fniScore ?? r.fni_score, raw_pop: r.rawPop ?? r.raw_pop ?? 0, s: r.s, a: r.a, p: r.p, r: r.r, q: r.q }));
+    }
     const { calculateFNI } = require('./fni-score.js');
     return entities.map(e => {
         const r = calculateFNI(e, { includeMetrics: true });

@@ -225,6 +225,9 @@ jobs:
         with:
           path: fused-entities.tar
           key: intra-4-4-${{ github.run_id }}-fused-tar
+      - name: Backup Fused Entities to R2
+        continue-on-error: true
+        run: node scripts/factory/r2-workflow-cli.js upload-buffer fused-entities.tar state/fused-entities.tar --content-type=application/x-tar
 
   vfs-packing:
     name: VFS Packing (Stable 1.0)
@@ -266,10 +269,15 @@ jobs:
           key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
           restore-keys: cycle-
       - name: Restore Fused Entities
+        id: cache-fused
         uses: actions/cache/restore@v4
         with:
           path: fused-entities.tar
           key: intra-4-4-${{ github.run_id }}-fused-tar
+      - name: R2 Fallback for Fused Entities
+        if: steps.cache-fused.outputs.cache-hit != 'true'
+        run: |
+          node scripts/factory/r2-workflow-cli.js restore-file state/fused-entities.tar fused-entities.tar || echo "⚠️ No fused-entities on R2"
       - name: Restore Embedding Cache (Vault)
         id: cache-embedding
         uses: actions/cache/restore@v4
@@ -682,6 +690,10 @@ jobs:
           
           # V∞ Phase 1A-β: Warm inverted index manifest
           WARM_URLS+=("https://cdn.free2aitools.com/data/term_index/_manifest.json.zst")
+
+          # V26.7 Phase 6: Cluster ANN index for semantic rerank
+          WARM_URLS+=("https://cdn.free2aitools.com/data/cluster-ann-index.bin")
+          WARM_URLS+=("https://cdn.free2aitools.com/data/cluster-ann-index-ids.json")
 
           # V25.8: Dynamic VFS Shard Warming (discovers actual DB files instead of hardcoding counts)
           if [ -d "output/data" ]; then
