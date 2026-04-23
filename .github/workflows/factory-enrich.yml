@@ -178,7 +178,7 @@ jobs:
               const glob = require('fs').existsSync('umids') ? require('fs').readdirSync('umids').filter(f => f.endsWith('.json')) : [];
               if (glob.length === 0) { console.log('[MERGE] No UMID files found'); process.exit(0); }
               const db = new Database('output/data/dedup.db');
-              const upd = db.prepare('UPDATE entities SET has_fulltext = 1 WHERE umid = ?');
+              const upd = db.prepare('UPDATE ledger SET has_fulltext = 1 WHERE umid = ?');
               let total = 0;
               db.exec('BEGIN');
               for (const f of glob) {
