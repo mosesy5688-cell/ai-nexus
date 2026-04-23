@@ -167,9 +167,6 @@ async function main() {
         processed, success, partial, skipped, failed,
         remaining: workQueue.length - processed
     });
-    const umidsPath = `output/enriched-umids-${PARTITION_START}.json`;
-    await fs.writeFile(umidsPath, JSON.stringify(enrichedUmids));
-    console.log(`[BOOSTER] Wrote ${enrichedUmids.length} enriched UMIDs to ${umidsPath}`);
 }
 
 main().catch(err => { console.error('[BOOSTER] Fatal:', err); process.exit(1); });
