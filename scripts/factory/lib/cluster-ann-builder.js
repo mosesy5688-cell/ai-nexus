@@ -220,9 +220,16 @@ export async function buildClusterAnnIndex(cachePath) {
     fsSync.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
     fsSync.writeFileSync(OUTPUT_PATH, buf);
 
-    // Also write the ID mapping (entity index → entity ID)
+    // Entity index → entity ID mapping
     const idMapPath = OUTPUT_PATH.replace('.bin', '-ids.json');
     fsSync.writeFileSync(idMapPath, JSON.stringify(ids));
+
+    // Entity ID → cluster ID mapping (for SSR cluster semantic scoring)
+    const entityClusterMap = {};
+    for (let i = 0; i < ids.length; i++) entityClusterMap[ids[i]] = assignments[i];
+    const mapPath = OUTPUT_PATH.replace('.bin', '-entity-map.json');
+    fsSync.writeFileSync(mapPath, JSON.stringify(entityClusterMap));
+    console.log(`[CLUSTER-ANN] Entity→cluster map: ${ids.length} entries → ${mapPath}`);
 
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     const sizeMB = (buf.length / 1024 / 1024).toFixed(2);
