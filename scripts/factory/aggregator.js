@@ -26,18 +26,6 @@ const taskArg = args.find(a => a.startsWith('--task=') || a.startsWith('-t='))?.
 const AGGREGATE_FLOOR = 125000;
 const DAILY_TOP = 50;
 
-async function loadTsvMap(filePath) {
-    const { createReadStream } = await import('fs');
-    const { createInterface } = await import('readline');
-    const map = new Map();
-    const rl = createInterface({ input: createReadStream(filePath), crlfDelay: Infinity });
-    for await (const line of rl) {
-        const tab = line.indexOf('\t');
-        if (tab > 0) map.set(line.slice(0, tab), Number(line.slice(tab + 1)));
-    }
-    return map;
-}
-
 async function main() {
     const rustStatus = initRustBridge();
     console.log(`[AGGREGATOR] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
@@ -92,7 +80,8 @@ async function main() {
     if (rustStats) {
         console.log(`[AGGREGATOR] Rust Phase 1-4: ${rustStats.entityCount} entities, ${rustStats.routedCount} routed → ${rustStats.deltaShardCount} shards (${rustStats.durationMs}ms)`);
         if (rustStats.entityCount === 0) throw new Error('[CRITICAL] Pass 1 returned 0 entities.');
-        rankingsMap = await loadTsvMap(path.join(outputCache, 'rankings.tsv'));
+        rankingsMap = new Map(Object.entries(rustStats.rankings));
+        console.log(`[AGGREGATOR] Rankings: ${rankingsMap.size} entries (direct N-API, no TSV)`);
     } else {
         console.warn('[AGGREGATOR] Rust unavailable, falling back to JS...');
         let registryMap;

@@ -258,6 +258,7 @@ pub struct RegistryStatsResult {
     pub routed_count: u32,
     pub delta_shard_count: u32,
     pub duration_ms: u32,
+    pub rankings: HashMap<String, u8>,
 }
 
 pub struct StatsTask { shard_dir: String, artifact_dir: String, delta_dir: String, output_dir: String }
@@ -286,16 +287,12 @@ impl napi::Task for StatsTask {
         let entity_count = scores.len() as u32;
         eprintln!("[RUST-STATS] Phase 1 done: {} entities from {} shards ({}ms)", entity_count, shard_count, start.elapsed().as_millis());
 
-        // Phase 2: percentile → rankings.tsv
+        // Phase 2: percentile rankings (returned directly via N-API, no TSV intermediate file)
         eprintln!("[RUST-STATS] Phase 2: percentile rankings...");
         let rankings = percentile::calculate_rankings(&scores);
         fs::create_dir_all(&self.output_dir).ok();
-        let mut rw = BufWriter::new(fs::File::create(format!("{}/rankings.tsv", self.output_dir))
-            .map_err(|e| Error::from_reason(format!("rankings.tsv: {}", e)))?);
-        for (id, pct) in &rankings { write!(rw, "{}\t{}\n", id, pct).ok(); }
-        rw.flush().ok();
-        drop(scores); drop(rankings);
-        eprintln!("[RUST-STATS] Phase 2 done ({}ms)", start.elapsed().as_millis());
+        drop(scores);
+        eprintln!("[RUST-STATS] Phase 2 done: {} rankings ({}ms)", rankings.len(), start.elapsed().as_millis());
 
         // Phase 3: route artifacts → deltas (in-memory registry_map)
         eprintln!("[RUST-STATS] Phase 3: delta routing...");
@@ -353,7 +350,7 @@ impl napi::Task for StatsTask {
             write!(BufWriter::new(f), "{{\"_count\":{}}}\n", entity_count).ok();
         }
         eprintln!("[RUST-STATS] Complete: {} entities, {} routed → {} deltas ({}ms)", entity_count, routed, dsc, start.elapsed().as_millis());
-        Ok(RegistryStatsResult { entity_count, shard_count, routed_count: routed, delta_shard_count: dsc, duration_ms: start.elapsed().as_millis() as u32 })
+        Ok(RegistryStatsResult { entity_count, shard_count, routed_count: routed, delta_shard_count: dsc, duration_ms: start.elapsed().as_millis() as u32, rankings })
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> Result<Self::JsValue> { Ok(output) }
