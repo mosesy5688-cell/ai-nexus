@@ -82,6 +82,7 @@ async function handleToolCall(context: any, toolName: string, args: any) {
             if (args.limit) searchParams.limit = String(Math.min(args.limit, 20));
             if (args.type && args.type !== 'all') searchParams.type = args.type;
             const data = await callSearch(context, searchParams);
+            if (data.results) data.results.forEach((r: any) => { delete r._dbSort; delete r._score; delete r._source; });
             return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
         }
         case 'free2ai_rank': {
@@ -89,6 +90,7 @@ async function handleToolCall(context: any, toolName: string, args: any) {
             const searchParams: Record<string, string> = { q: query };
             if (args.limit) searchParams.limit = String(Math.min(args.limit, 20));
             const data = await callSearch(context, searchParams);
+            if (data.results) data.results.forEach((r: any) => { delete r._dbSort; delete r._score; delete r._source; });
             return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
         }
         case 'free2ai_explain': {
