@@ -40,29 +40,29 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
 ---
 
 { !hasEntity ? (
-  <Layout title={title || "Technical Snapshot"} description="The knowledge graph is currently indexing this entity.">
+  <Layout title={title || "Entity Not Found"} description="This entity is being indexed and will be available shortly.">
      <div class="py-24 text-center max-w-2xl mx-auto px-4">
         <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-md mb-6 transition-all hover:bg-indigo-100">
             <span class="w-1.5 h-1.5 rounded-full bg-indigo-500/50 animate-pulse"></span>
-            <span class="text-[9px] font-bold uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Technical Snapshot: Indexing Node</span>
+            <span class="text-[9px] font-bold uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Indexing in Progress</span>
         </div>
-        <h1 class="text-xl font-bold text-gray-900 dark:text-[var(--text-strong)] mb-2 tracking-tight uppercase">Deep Hive Sync in Progress</h1>
+        <h1 class="text-xl font-bold text-gray-900 dark:text-[var(--text-strong)] mb-2 tracking-tight uppercase">Entity Being Indexed</h1>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-8 font-medium max-w-md mx-auto leading-relaxed">
-           The Nexus Knowledge Mesh has identified ID <span class="bg-zinc-100 dark:bg-zinc-800 px-1 rounded font-mono text-[10px] text-zinc-900 dark:text-[var(--text-strong)] uppercase">{displayId || 'Unknown'}</span>, but the technical profil is currently being re-fused via Tier-1 cache.
+           We've identified <span class="bg-zinc-100 dark:bg-zinc-800 px-1 rounded font-mono text-[10px] text-zinc-900 dark:text-[var(--text-strong)] uppercase">{displayId || 'Unknown'}</span>, but its data is still being processed. It should be available after the next daily update.
         </p>
 
         <div class="grid grid-cols-1 gap-4 mb-10 max-w-sm mx-auto">
             <a href={`/search?q=${encodeURIComponent(displayId)}`} data-astro-reload class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-indigo-500 transition-all group">
                 <div class="text-left">
-                    <p class="text-[9px] text-zinc-400 uppercase font-bold tracking-widest leading-none mb-1">Search Pipeline</p>
-                    <p class="text-xs font-bold text-zinc-900 dark:text-[var(--text-strong)]">Query Global Registry</p>
+                    <p class="text-[9px] text-zinc-400 uppercase font-bold tracking-widest leading-none mb-1">Search</p>
+                    <p class="text-xs font-bold text-zinc-900 dark:text-[var(--text-strong)]">Search our catalog</p>
                 </div>
                 <span class="text-indigo-500 group-hover:translate-x-1 transition-transform">→</span>
             </a>
             <div class="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-800 text-left">
-                <p class="text-[9px] text-zinc-400 uppercase font-black tracking-widest mb-1 leading-none">Status Code 404_RESILIENT</p>
+                <p class="text-[9px] text-zinc-400 uppercase font-black tracking-widest mb-1 leading-none">Temporarily Unavailable</p>
                 <p class="text-[10px] text-zinc-500 font-medium leading-normal">
-                    Node propagation in progress. Primary fused data for {displayId} is currently staged for R2 deployment. 
+                    This entity's data is being processed and will appear after the next index update.
                 </p>
             </div>
         </div>

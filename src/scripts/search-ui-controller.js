@@ -86,7 +86,7 @@ export function renderResults(items, container, query = '') {
         <section class="animate-in fade-in duration-500">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
-                    Neural Mesh Matches (${items.length})
+                    Search Results (${items.length})
                 </h2>
             </div>
             <div id="results-list" class="flex flex-col border-t border-zinc-200 dark:border-zinc-800">
