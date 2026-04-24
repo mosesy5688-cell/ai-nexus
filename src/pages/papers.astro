@@ -12,7 +12,7 @@ import CatalogCard from '../components/common/CatalogCard.astro';
 const { items: allPapers = [], totalPages, totalEntities } = await fetchCatalogData('paper');
 const papers = allPapers.slice(0, 48).map(truncateListingItem);
 
-const pageTitle = "AI Research Papers Catalog | Neural Archive";
+const pageTitle = "AI Research Papers | Ranked by FNI";
 const pageDescription = "Explore the latest in AI research. 50,000+ sharded papers from ArXiv and beyond.";
 
 // V24.9: Only edge-cache pages with data; prevent caching empty/error states
