@@ -9,7 +9,7 @@ interface Props {
   totalEntities?: number;
 }
 
-const { initialQuery = '', totalEntities = 125312 } = Astro.props;
+const { initialQuery = '', totalEntities = 460000 } = Astro.props;
 
 let totalNodes = totalEntities;
 try {
@@ -23,19 +23,30 @@ try {
     <!-- Hero Section: V25.1 Industrial Mirror -->
     <header class="text-left mb-10 pt-6">
       <div class="flex items-center gap-2 mb-4">
-          <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] font-mono">Global Mesh Node</span>
+          <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] font-mono">Updated Daily</span>
           <span class="w-1 h-1 bg-indigo-500/50 rounded-full"></span>
-          <span class="text-[10px] font-bold text-indigo-500/70 uppercase tracking-widest">Active Runtime</span>
+          <span class="text-[10px] font-bold text-indigo-500/70 uppercase tracking-widest">FNI Ranked</span>
       </div>
 
       <h1 class="text-3xl md:text-5xl font-bold text-[var(--text-strong)] mb-4 tracking-tight leading-tight uppercase">
-        Explore the <span class="text-zinc-500">AI Ecosystem</span>
+        The Open-Source <span class="text-zinc-500">AI Registry</span>
       </h1>
-      
+
       <div class="max-w-xl">
-        <p class="text-sm text-zinc-500 leading-relaxed tracking-tight">
-          The definitive open-source intelligence index. Discover, bench, and integrate 120K+ models, agents, and research nodes via UMID-verified pipelines.
+        <p class="text-sm text-zinc-500 leading-relaxed tracking-tight mb-4">
+          Discover and rank {totalNodes.toLocaleString()}+ models, datasets, papers, and tools. Scored by the Free2AITools Nexus Index (FNI).
         </p>
+        <div class="flex flex-wrap gap-3">
+          <a href="/developers" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-500/10 transition-colors">
+            REST API
+          </a>
+          <a href="/developers#mcp" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-500/10 transition-colors">
+            MCP Server
+          </a>
+          <a href="/developers#badge" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 border border-zinc-700 rounded hover:bg-zinc-800 transition-colors">
+            FNI Badge
+          </a>
+        </div>
       </div>
     </header>
 

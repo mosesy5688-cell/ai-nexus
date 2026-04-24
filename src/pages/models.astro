@@ -12,7 +12,7 @@ import CatalogCard from '../components/common/CatalogCard.astro';
 const { items: allModels = [], totalPages, totalEntities, error } = await fetchCatalogData('model');
 const models = (allModels || []).slice(0, 48).map(truncateListingItem);
 
-const pageTitle = "AI Models Catalog | Explore 70K+ Open-Source Models";
+const pageTitle = "AI Models Catalog | Open-Source Models Ranked by FNI";
 const pageDescription = "Explore the definitive index of open-source AI models. Filter by performance, category, and framework.";
 
 // V24.9: Only edge-cache pages with data; prevent caching empty/error states
@@ -34,7 +34,7 @@ Astro.response.headers.set('Cache-Control', models.length > 0
                 {totalEntities > 0 && <span class="text-base font-bold text-zinc-400 ml-3">{totalEntities.toLocaleString()}</span>}
             </h1>
             <p class="text-sm text-gray-600 dark:text-zinc-400 max-w-2xl leading-relaxed tracking-tight">
-                Open-weights intelligence — ranked by the Federated Neural Index (FNI).
+                Open-weights intelligence — ranked by the Free2AITools Nexus Index (FNI).
             </p>
         </header>
 

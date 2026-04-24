@@ -1,66 +1,54 @@
-**Free AI Tools** is a full-featured, open-source platform for discovering AI models and tools. Its core mission is to automatically aggregate, process, and display the latest models and tools from major global AI communities. It also leverages AI to generate insightful weekly industry reports, providing a comprehensive and efficient information portal for developers, researchers, and AI enthusiasts.
+# Free2AITools — The Open-Source AI Registry
 
-## 2. Core Features
+Discover, rank, and integrate 460,000+ AI models, datasets, papers, and tools from across the open-source ecosystem. Updated daily, scored by the Free2AITools Nexus Index (FNI).
 
-The website currently has the following core features:
+**Website**: [free2aitools.com](https://free2aitools.com)
 
-### Multi-Source AI Model Aggregation
+## What It Does
 
-*   **Automated Data Flow**: Through a core Node.js script (`scripts/fetch-data.js`), the website automatically fetches the latest AI model and tool data from multiple sources during each build.
-*   **Data Sources**:
-    *   **HuggingFace**: Fetches popular models via API.
-    *   **GitHub**: Searches for repositories with specific topics (e.g., `ai-tool`) via API.
-    *   **GitHub Statistics** (NEW): Enriches models with repository statistics (stars, forks, last commit) via GitHub REST API.
-    *   **Civitai**: Reads and parses a pre-prepared `civitai.json` file.
-    *   **Replicate**: Scrapes popular models from its explore page using web scraping techniques.
-*   **Data Processing**: The script standardizes the raw data fetched, including unifying data structures, filtering NSFW content, deduplicating based on model names, and finally sorting by popularity (e.g., like count).
+- **Comprehensive AI Index** — Aggregates models, datasets, papers, agents, tools, spaces, and prompts from HuggingFace, GitHub, ArXiv, Semantic Scholar, Civitai, Replicate, and more
+- **FNI Ranking** — Every entity scored by a 5-factor index (Semantic, Authority, Popularity, Recency, Quality) for objective, explainable ranking
+- **Daily Reports** — AI-generated industry briefings highlighting trends and breakthroughs
+- **Knowledge Base** — 30+ articles on AI architectures, deployment guides, and benchmarks
 
-### AI-Powered Weekly Reports
+## For Developers & AI Agents
 
-*   **Gemini-Powered**: Utilizes Google's `gemini-2.5-flash` model to automatically analyze the latest aggregated model data each week.
-*   **Intelligent Analysis**: The script constructs a detailed prompt, providing the latest model trends and metadata to Gemini, asking it to generate a weekly report from the perspective of an industry analyst, covering technological breakthroughs, market trends, and more.
-*   **Fault Tolerance & Fallback**: The report generation process includes a retry mechanism. If the AI generation fails, the system automatically creates a "fallback report" containing the week's top models, ensuring uninterrupted content.
+Free2AITools exposes its full index as infrastructure for AI agents and developer tools:
 
-### Content Exploration & Discovery
+### REST API
+```
+GET /api/v1/search?q=text+generation&type=model&limit=5
+```
+Free, no auth required. Returns FNI-scored results with factor breakdown.
 
-*   **Model Detail Pages**: Automatically generates individual static pages (`/model/...`) for each model, displaying detailed information, metadata, tags, and the `README.md` content fetched from the source repository.
-*   **Powerful Search & Filtering**: On the `/explore` page, users can perform full-text searches using keywords or filter by clicking on tags (`/keyword/...` or `/explore?tag=...`), and both methods can be combined.
-*   **Related Model Recommendations**: On the model detail page, the system intelligently recommends 3 related models based on tag similarity to enhance user discovery and exploration depth.
+### MCP Server
+```json
+// Claude Desktop / Cursor / Windsurf config
+{
+  "mcpServers": {
+    "free2ai": {
+      "url": "https://free2aitools.com/api/mcp"
+    }
+  }
+}
+```
+3 tools: `free2ai_search`, `free2ai_rank`, `free2ai_explain`. Auto-discoverable via `/.well-known/mcp.json`.
 
-### Content Archiving
+### FNI Badge
+Embed in any README:
+```markdown
+![FNI Score](https://free2aitools.com/api/v1/badge/meta-llama--llama-3.3-70b-instruct)
+```
 
-*   **Model Data Archives**: Daily snapshots of model data are stored in `YYYY-MM-DD.json` format in the `src/data/archives/` directory.
-*   **Report Archives**: All generated weekly reports (both AI-generated and fallback) are permanently stored in the `src/data/report-archives/` directory and are accessible to users at any time via the `/reports/archive` page.
+### Open Data
+Parquet exports available for offline analysis with DuckDB, Pandas, or Spark.
 
-### SEO & Commercialization Foundation
+## Documentation
 
-*   **Deep SEO Optimization**: The website is configured with unique, content-relevant `title` and `description` meta tags for every page (including dynamically generated model, report, and keyword pages) and generates a standard `sitemap.xml`, laying a solid foundation for search engine optimization.
-*   **Ad Placement Ready**: Ad slots have been strategically reserved on key pages (like the explore page), preparing for future integration with ad networks like Google AdSense.
+- [Developer Docs](https://free2aitools.com/developers) — API reference, MCP setup, Badge integration
+- [FNI Methodology](https://free2aitools.com/methodology) — Scoring formula, sub-factors, anti-manipulation
+- [Knowledge Base](https://free2aitools.com/knowledge) — AI concepts and deployment guides
 
-## 3. Technical Architecture
+## License
 
-The website uses a modern Jamstack architecture with **Astro** as its core framework, achieving excellent performance and maintainability.
-
-*   **Frontend Framework**: **Astro**
-    *   **Static Site Generation (SSG)**: The entire site is pre-rendered into static HTML, CSS, and JavaScript at build time, ensuring extremely fast loading speeds, outstanding SEO performance, and high security.
-    *   **Component-Based**: Reusable UI components (e.g., `ModelCard.astro`, `ReportCard.astro`) are built using `.astro` files.
-    *   **Integrations**: Seamlessly integrates with **Tailwind CSS** for styling.
-
-*   **Data Layer**: **Node.js**
-    *   **Core Script**: `scripts/fetch-data.js` is the project's "data engine," responsible for all data-related tasks before each build.
-    *   **Key Dependencies**:
-        *   `axios`: For making HTTP requests to fetch data from APIs.
-        *   `cheerio`: For parsing HTML to enable web scraping of sites like Replicate.
-        *   `@google/generative-ai`: For interacting with the Gemini API to generate intelligent weekly reports.
-        *   `fs`, `path`: Node.js built-in modules for file system reading/writing and path management.
-
-*   **Data Flow & Storage**
-    *   **Data Flow**: External Data Sources → `fetch-data.js` (Fetch, Process, Generate) → `src/data/*.json` → Astro Page Components (Read, Render) → Static HTML Pages.
-    *   **Data Storage**: All content data (models, reports, keywords) is stored as `.json` files in the `src/data/` directory. This design separates data from the view, making it easy to manage and version control.
-
-*   **Deployment & Hosting**
-    *   **Platform**: Cloudflare Pages.
-    *   **Build Command**: `npm run build`, which sequentially executes the data fetching script and Astro's static build command.
-    *   **Advantages**: Leverages Cloudflare's global CDN, allowing users to access the site from the nearest node for extremely low latency.
-
-## 4. Project Structure
+MIT
