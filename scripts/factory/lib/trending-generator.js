@@ -24,11 +24,10 @@ export async function generateTrending(shardReader, outputDir = './output') {
         for (const e of entities) {
             const score = e.fni_score || e.fni || 0;
             if (topN.length < TRENDING_LIMIT) {
-                topN.push(e);
-                if (topN.length === TRENDING_LIMIT) topN.sort(byFniDesc);
+                binaryInsert(topN, e, score);
             } else if (score > (topN[topN.length - 1].fni_score || 0)) {
-                topN[topN.length - 1] = e;
-                topN.sort(byFniDesc);
+                topN.pop();
+                binaryInsert(topN, e, score);
             }
         }
     }, { slim: true });
@@ -73,3 +72,12 @@ export async function generateTrending(shardReader, outputDir = './output') {
 }
 
 function byFniDesc(a, b) { return (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0); }
+
+function binaryInsert(arr, item, score) {
+    let lo = 0, hi = arr.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if ((arr[mid].fni_score || arr[mid].fni || 0) > score) lo = mid + 1; else hi = mid;
+    }
+    arr.splice(lo, 0, item);
+}
