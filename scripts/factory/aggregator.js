@@ -77,10 +77,9 @@ async function main() {
     const deltaDir = './cache/deltas';
     const rustStats = await buildStatsAndRouteDeltasFFI(shardDir, CONFIG.ARTIFACT_DIR, deltaDir, outputCache);
     let rankingsMap;
-    if (rustStats) {
+    if (rustStats && rustStats.entityCount > 0) {
         console.log(`[AGGREGATOR] Rust Phase 1-4: ${rustStats.entityCount} entities, ${rustStats.routedCount} routed → ${rustStats.deltaShardCount} shards (${rustStats.durationMs}ms)`);
-        if (rustStats.entityCount === 0) throw new Error('[CRITICAL] Pass 1 returned 0 entities.');
-        rankingsMap = new Map(Object.entries(rustStats.rankings));
+        rankingsMap = new Map(Object.entries(rustStats.rankings || {}));
         console.log(`[AGGREGATOR] Rankings: ${rankingsMap.size} entries (direct N-API, no TSV)`);
     } else {
         console.warn('[AGGREGATOR] Rust unavailable, falling back to JS...');
@@ -93,9 +92,10 @@ async function main() {
     }
     console.log(`✓ Global rankings and registry mapping aligned (including Mesh Impact).`);
     const isCoreTask = !taskArg || taskArg === 'core';
+    const fniScoreMap = (rustStats?.scores && Object.keys(rustStats.scores).length > 0) ? new Map(Object.entries(rustStats.scores)) : null;
     if (isCoreTask) {
         await runStreamingCore(loadRegistryShardsSequentially, saveRegistryShard,
-            mergePartitionedShard, rankingsMap, shardDir, startTime);
+            mergePartitionedShard, rankingsMap, shardDir, startTime, fniScoreMap);
     } else {
         await runSatelliteTask(loadRegistryShardsSequentially, rankingsMap,
             shardDir, startTime);
@@ -104,9 +104,15 @@ async function main() {
 
 /** V26.7: Single-pass streaming core — delta routing already done by Rust. */
 async function runStreamingCore(loadShards, saveShard,
-    mergePartitionedShard, rankingsMap, shardDir, startTime) {
-    const { buildFniMap } = await import('./lib/aggregator-shard-manager.js');
-    const fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    mergePartitionedShard, rankingsMap, shardDir, startTime, fniScoreMap) {
+    let fniMap;
+    if (fniScoreMap && fniScoreMap.size > 0) {
+        fniMap = fniScoreMap;
+        console.log(`[AGGREGATOR] FNI map: ${fniMap.size} scores (direct N-API, skipped buildFniMap)`);
+    } else {
+        const { buildFniMap } = await import('./lib/aggregator-shard-manager.js');
+        fniMap = await buildFniMap(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    }
     console.log(`[AGGREGATOR] Single-pass: Merge + FNI overlay + watermarking...`);
     let mergeCount = 0, entityCount = 0, watermarked = 0, fniHits = 0, fniRecomputed = 0;
     const topN = [];

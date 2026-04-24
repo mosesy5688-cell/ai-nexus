@@ -23,8 +23,11 @@ export function initRustBridge() {
         if (mod) { setter(mod); loaded.push(name); }
     }
 
+    const expected = ['shard-router', 'fni-calc', 'mesh-engine', 'content-extractor', 'stream-aggregator', 'satellite-tasks'];
+    const missing = expected.filter(n => !loaded.includes(n));
     _mode = loaded.length > 0 ? 'rust' : 'js';
     console.log(`[RUST-BRIDGE] Mode: ${_mode} | Loaded: ${loaded.length > 0 ? loaded.join(', ') : 'none (JS fallback)'}`);
+    if (missing.length > 0 && loaded.length > 0) console.warn(`[RUST-BRIDGE] ⚠️ Partial load — missing: ${missing.join(', ')}`);
     return { mode: _mode, modules: loaded };
 }
 

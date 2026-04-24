@@ -51,15 +51,24 @@ export async function generateRankings(shardReader, outputDir = './output') {
 function boundedInsert(arr, item, maxSize) {
     const score = item.fni_score || 0;
     if (arr.length < maxSize) {
-        arr.push(item);
+        binaryInsert(arr, item, score);
         return;
     }
-    if (score <= (arr[arr.length - 1]?._minScore ?? (arr[arr.length - 1]?.fni_score || 0))) return;
-    arr[arr.length - 1] = item;
-    arr.sort(byFniDesc);
+    if (score <= (arr[arr.length - 1]?.fni_score || 0)) return;
+    arr.pop();
+    binaryInsert(arr, item, score);
 }
 
 function byFniDesc(a, b) { return (b.fni_score || 0) - (a.fni_score || 0); }
+
+function binaryInsert(arr, item, score) {
+    let lo = 0, hi = arr.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if ((arr[mid].fni_score || 0) > score) lo = mid + 1; else hi = mid;
+    }
+    arr.splice(lo, 0, item);
+}
 
 async function generateCategoryRanking(category, entities, cacheDir) {
     const totalPages = Math.ceil(entities.length / PAGE_SIZE) || 1;

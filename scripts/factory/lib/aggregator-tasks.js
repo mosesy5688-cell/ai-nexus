@@ -62,6 +62,7 @@ export function buildTaskList(shardReader, outputDir, opts = {}) {
                     }
                 }
                 console.log(`[KnowledgeAI] Generated ${generated}/${topics.length} articles`);
+                if (generated === 0 && topics.length > 0) console.error('[KnowledgeAI] ⚠️ All articles failed — check Gemini API quota');
             }
         }
     ];

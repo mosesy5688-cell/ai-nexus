@@ -62,9 +62,10 @@ export async function exportRankingsDbs(groups, outputDir) {
             );
         }
         db.exec('COMMIT');
-        db.exec('INSERT INTO site_metadata VALUES (?, ?)', ['rankings_group', groupName]);
-        db.exec(`INSERT INTO site_metadata VALUES ('entity_count', '${entities.length}')`);
-        db.exec(`INSERT INTO site_metadata VALUES ('generated', '${new Date().toISOString()}')`);
+        const metaInsert = db.prepare('INSERT INTO site_metadata (key, value) VALUES (?, ?)');
+        metaInsert.run('rankings_group', groupName);
+        metaInsert.run('entity_count', String(entities.length));
+        metaInsert.run('generated', new Date().toISOString());
         db.exec('VACUUM');
         db.close();
         const sizeMb = (fs.statSync(dbPath).size / 1048576).toFixed(2);

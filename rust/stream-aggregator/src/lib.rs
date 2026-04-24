@@ -259,6 +259,7 @@ pub struct RegistryStatsResult {
     pub delta_shard_count: u32,
     pub duration_ms: u32,
     pub rankings: HashMap<String, u8>,
+    pub scores: HashMap<String, f64>,
 }
 
 pub struct StatsTask { shard_dir: String, artifact_dir: String, delta_dir: String, output_dir: String }
@@ -291,7 +292,8 @@ impl napi::Task for StatsTask {
         eprintln!("[RUST-STATS] Phase 2: percentile rankings...");
         let rankings = percentile::calculate_rankings(&scores);
         fs::create_dir_all(&self.output_dir).ok();
-        drop(scores);
+        let score_map: HashMap<String, f64> = scores.into_iter().collect();
+        eprintln!("[RUST-STATS] Phase 2: {} rankings + {} scores", rankings.len(), score_map.len());
         eprintln!("[RUST-STATS] Phase 2 done: {} rankings ({}ms)", rankings.len(), start.elapsed().as_millis());
 
         // Phase 3: route artifacts → deltas (in-memory registry_map)
@@ -350,7 +352,7 @@ impl napi::Task for StatsTask {
             write!(BufWriter::new(f), "{{\"_count\":{}}}\n", entity_count).ok();
         }
         eprintln!("[RUST-STATS] Complete: {} entities, {} routed → {} deltas ({}ms)", entity_count, routed, dsc, start.elapsed().as_millis());
-        Ok(RegistryStatsResult { entity_count, shard_count, routed_count: routed, delta_shard_count: dsc, duration_ms: start.elapsed().as_millis() as u32, rankings })
+        Ok(RegistryStatsResult { entity_count, shard_count, routed_count: routed, delta_shard_count: dsc, duration_ms: start.elapsed().as_millis() as u32, rankings, scores: score_map })
     }
 
     fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> Result<Self::JsValue> { Ok(output) }
