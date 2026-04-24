@@ -40,9 +40,22 @@ async function main() {
             const [localPath, r2Key] = positional;
             if (!localPath || !r2Key) { console.error('Usage: upload-buffer <localPath> <r2Key>'); process.exit(1); }
             const ct = parseOpt(rest, 'content-type', 'application/octet-stream');
-            const data = fs.readFileSync(localPath);
-            await uploadBufferToR2FFI(client, r2Key, data, ct);
-            console.log(`[R2-CLI] upload-buffer: OK ${localPath} -> ${r2Key} (${ct})`);
+            const stat = fs.statSync(localPath);
+            const sizeMb = (stat.size / 1048576).toFixed(0);
+            if (stat.size > 100 * 1024 * 1024) {
+                const { Upload } = await import('@aws-sdk/lib-storage');
+                const { createR2Client } = await import('./lib/r2-helpers.js');
+                const s3Client = createR2Client();
+                const stream = fs.createReadStream(localPath);
+                const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+                const upload = new Upload({ client: s3Client, params: { Bucket: bucket, Key: r2Key, Body: stream, ContentType: ct }, partSize: 64 * 1024 * 1024 });
+                await upload.done();
+                console.log(`[R2-CLI] upload-buffer (S3 multipart stream): ${localPath} -> ${r2Key} (${sizeMb}MB)`);
+            } else {
+                const data = fs.readFileSync(localPath);
+                await uploadBufferToR2FFI(client, r2Key, data, ct);
+                console.log(`[R2-CLI] upload-buffer: ${localPath} -> ${r2Key} (${sizeMb}MB)`);
+            }
             break;
         }
         case 'backup-file': {
