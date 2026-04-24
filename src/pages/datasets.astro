@@ -25,15 +25,16 @@ Astro.response.headers.set('Cache-Control', datasets.length > 0
     <main class="min-h-screen py-4">
         <header class="mb-8 border-b border-[var(--border-hairline)] pb-6">
             <div class="flex items-center gap-2 mb-2">
-                <span class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Registry Node v26.3</span>
+                <span class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Updated Daily</span>
                 <span class="w-1 h-1 bg-indigo-500 rounded-full"></span>
-                <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Ground Truth Data</span>
+                <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">FNI Ranked</span>
             </div>
             <h1 class="text-2xl md:text-3xl font-black text-gray-900 dark:text-[var(--text-strong)] mb-4 tracking-tight uppercase">
                 AI Datasets <span class="text-zinc-500">Archive</span>
+                {totalEntities > 0 && <span class="text-base font-bold text-zinc-400 ml-3">{totalEntities.toLocaleString()}</span>}
             </h1>
             <p class="text-sm text-gray-600 dark:text-zinc-400 max-w-2xl leading-relaxed tracking-tight">
-                The high-fidelity foundation for model intelligence. Diverse, massive, and sharded across globally distributed inference nodes.
+                Training and evaluation datasets for model intelligence — ranked by FNI.
             </p>
         </header>
 
