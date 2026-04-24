@@ -69,12 +69,17 @@ raw.json
 data/
 data/merged.json
 
-# Temp files from debugging
-temp_*.json
-temp_*.json.gz
-temp_*.html
-temp_*.bin
-temp_*.sql
+# Temp/debug/scratch files
+temp_*
+temp-*
+tmp_*
+debug-*
+scratch_*
+raw_*.json
+raw_*.txt
+r1_*.json
+deepseek_*
+et\ --*
 
 # Test/debug directories
 FINAL_PROOF/
