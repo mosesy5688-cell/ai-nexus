@@ -7,6 +7,7 @@
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { getV6Category } from './category-stats-generator.js';
+import { exportRankingsDbs } from './rankings-db-exporter.js';
 
 const CATEGORIES = [
     'text-generation', 'knowledge-retrieval', 'vision-multimedia',
@@ -43,6 +44,8 @@ export async function generateRankings(shardReader, outputDir = './output') {
         entities.sort(byFniDesc);
         await generateCategoryRanking(groupName, entities, cacheDir);
     }
+
+    await exportRankingsDbs(groups, outputDir);
 }
 
 function boundedInsert(arr, item, maxSize) {
