@@ -433,7 +433,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/ state/satellite-search/ --glob='search*'
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/ state/satellite-search/ --extensions=.json,.json.zst,.json.gz
           echo "✅ Search results backed up to R2"
 
   aggregate-rankings:

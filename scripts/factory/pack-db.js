@@ -48,6 +48,7 @@ async function packDatabase() {
 
     await fs.mkdir(SHARD_PATH_DIR, { recursive: true });
     for (const f of await fs.readdir(SHARD_PATH_DIR)) {
+        if (f.startsWith('rankings-')) continue;
         if (f.endsWith('.db') || f.endsWith('.db-journal') || f === 'meta.db') await fs.unlink(path.join(SHARD_PATH_DIR, f));
     }
     const trendingMap = await loadTrendingMap(CACHE_DIR);
