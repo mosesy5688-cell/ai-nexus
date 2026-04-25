@@ -708,13 +708,12 @@ jobs:
         with:
           path: output/cache/search*
           key: intra-cycle-${{ github.run_id }}-search
-      - name: Restore Rankings Results
+      - name: Restore Rankings JSON (pre-core, safe — output/cache/ only)
         uses: actions/cache/restore@v4
         with:
           path: |
             output/cache/rankings/
             output/cache/category_stats.json.zst
-            output/data/
           key: intra-cycle-${{ github.run_id }}-rankings
       - name: Restore Trending Results
         uses: actions/cache/restore@v4
@@ -751,6 +750,11 @@ jobs:
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
 
+      - name: Restore Rankings DBs (post-core, prevents overwrite)
+        uses: actions/cache/restore@v4
+        with:
+          path: output/data/
+          key: intra-cycle-${{ github.run_id }}-rankings
       - name: Merge Core with Satellite Outputs
         run: |
           # V17.5: Entities.json and meta are already restored to output/ by the previous step

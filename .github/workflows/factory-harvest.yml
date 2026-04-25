@@ -76,7 +76,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "data/huggingface_master.ndjson" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-buffer data/huggingface_master.ndjson ingestion/raw/huggingface_master.ndjson || echo "⚠️ R2 stream skipped (non-fatal)"
+            node scripts/factory/r2-workflow-cli.js upload-buffer data/huggingface_master.ndjson ingestion/raw/huggingface_master.ndjson || echo "::warning::R2 batch upload failed (non-fatal, cache is primary)"
           fi
 
 
@@ -122,7 +122,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           if [ -f "data/github_master.ndjson" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-buffer data/github_master.ndjson ingestion/raw/github_master.ndjson || echo "⚠️ R2 stream skipped (non-fatal)"
+            node scripts/factory/r2-workflow-cli.js upload-buffer data/github_master.ndjson ingestion/raw/github_master.ndjson || echo "::warning::R2 batch upload failed (non-fatal, cache is primary)"
           fi
 
 
@@ -186,7 +186,7 @@ jobs:
           for f in data/*_master.ndjson; do
             [ -f "$f" ] || continue
             BASENAME=$(basename "$f")
-            node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || echo "⚠️ R2 stream for $BASENAME skipped"
+            node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || echo "::warning::R2 stream for $BASENAME failed (non-fatal)"
           done
 
 
@@ -316,7 +316,7 @@ jobs:
           for f in data/*_master.ndjson; do
             [ -f "$f" ] || continue
             BASENAME=$(basename "$f")
-            node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || echo "⚠️ R2 stream for $BASENAME skipped"
+            node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || echo "::warning::R2 stream for $BASENAME failed (non-fatal)"
           done
 
 
