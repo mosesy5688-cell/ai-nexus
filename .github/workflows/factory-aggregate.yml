@@ -500,7 +500,7 @@ jobs:
           path: |
             output/cache/rankings/
             output/cache/category_stats.json.zst
-            output/data/rankings-*.db
+            output/data/
           key: intra-cycle-${{ github.run_id }}-rankings
       # R2 backup for rankings satellite (P0-R2: R2-primary resilience)
       - name: Backup Rankings Results to R2
@@ -714,7 +714,7 @@ jobs:
           path: |
             output/cache/rankings/
             output/cache/category_stats.json.zst
-            output/data/rankings-*.db
+            output/data/
           key: intra-cycle-${{ github.run_id }}-rankings
       - name: Restore Trending Results
         uses: actions/cache/restore@v4
