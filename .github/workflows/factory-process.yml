@@ -252,12 +252,23 @@ jobs:
 
       # V22.8: Restore from cache (replaces download-artifact for privacy)
       - name: Restore Entity Data from Cache
+        id: cache-prepared
         uses: actions/cache/restore@v4
         with:
           path: |
             data/
             cache/
           key: prepared-entity-data-${{ github.run_id }}
+      - name: R2 Fallback for Prepared Entity Data
+        if: steps.cache-prepared.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js restore-dir state/prepared-entity-data/data/ data/ --strict
+          node scripts/factory/r2-workflow-cli.js restore-dir state/prepared-entity-data/cache/ cache/ || true
 
       # Move downloaded files to correct locations
       # V14.5 Fix: download-artifact preserves directory structure

@@ -175,6 +175,11 @@ async function consolidateShards() {
         console.error(`   ❌ CRITICAL: Integrity Violation! Routed ${sumCount} vs processed ${totalCount}`);
         process.exit(1);
     }
+    const emptyShards = shardCounts.filter(c => c === 0).length;
+    if (emptyShards > 0) {
+        console.error(`   ❌ CRITICAL: ${emptyShards} empty shards detected — data routing failed`);
+        process.exit(1);
+    }
 
     if (totalCount < 85000) {
         console.error(`   ❌ CRITICAL: Entity count ${totalCount} below 85k baseline!`);
