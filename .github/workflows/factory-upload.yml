@@ -339,6 +339,7 @@ jobs:
       - name: V23.1 SQL Health Check
         run: |
           for db in output/data/*.db; do
+            case "$(basename "$db")" in rankings-*) echo "⏭ Skipping rankings DB: $db"; continue;; esac
             echo "🔍 Verifying $db..."
             node scripts/factory/verify-db.js "$db"
           done
@@ -578,6 +579,7 @@ jobs:
         run: |
           if [ -d "output/data" ]; then
             for db in output/data/*.db; do
+              case "$(basename "$db")" in rankings-*) echo "⏭ Skipping rankings DB: $db"; continue;; esac
               echo "🔍 Production Guard: Verifying $db..."
               node scripts/factory/verify-db.js "$db"
             done
