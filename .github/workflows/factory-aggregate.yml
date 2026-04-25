@@ -512,7 +512,8 @@ jobs:
         run: |
           node scripts/factory/r2-workflow-cli.js backup-dir output/cache/rankings/ state/satellite-rankings/rankings/
           [ -f "output/cache/category_stats.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/category_stats.json.zst state/satellite-rankings/category_stats.json.zst
-          echo "✅ Rankings results backed up to R2"
+          for db in output/data/rankings-*.db; do [ -f "$db" ] && node scripts/factory/r2-workflow-cli.js upload-buffer "$db" "state/satellite-rankings/$(basename $db)" || true; done
+          echo "✅ Rankings results + DBs backed up to R2"
 
   aggregate-trending:
     name: "Agg: Trending"
@@ -708,13 +709,7 @@ jobs:
         with:
           path: output/cache/search*
           key: intra-cycle-${{ github.run_id }}-search
-      - name: Restore Rankings JSON (pre-core, safe — output/cache/ only)
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            output/cache/rankings/
-            output/cache/category_stats.json.zst
-          key: intra-cycle-${{ github.run_id }}-rankings
+      # Rankings restore moved to post-core (cache path must match save exactly)
       - name: Restore Trending Results
         uses: actions/cache/restore@v4
         with:
@@ -750,11 +745,30 @@ jobs:
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
 
-      - name: Restore Rankings DBs (post-core, prevents overwrite)
+      - name: Restore Rankings (post-core, path must match save exactly)
+        id: cache-rankings
         uses: actions/cache/restore@v4
         with:
-          path: output/data/
+          path: |
+            output/cache/rankings/
+            output/cache/category_stats.json.zst
+            output/data/
           key: intra-cycle-${{ github.run_id }}-rankings
+      - name: R2 Fallback for Rankings DBs
+        if: steps.cache-rankings.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/data output/cache/rankings
+          node scripts/factory/r2-workflow-cli.js restore-dir state/satellite-rankings/rankings/ output/cache/rankings/ || true
+          node scripts/factory/r2-workflow-cli.js restore-file state/satellite-rankings/category_stats.json.zst output/cache/category_stats.json.zst || true
+          for t in all model paper agent space dataset tool prompt text-generation knowledge-retrieval vision-multimedia automation-workflow infrastructure-ops prompts; do
+            node scripts/factory/r2-workflow-cli.js restore-file "state/satellite-rankings/rankings-${t}.db" "output/data/rankings-${t}.db" 2>/dev/null || true
+          done
+          echo "✅ Rankings restored from R2: $(ls output/data/rankings-*.db 2>/dev/null | wc -l) DBs"
       - name: Merge Core with Satellite Outputs
         run: |
           # V17.5: Entities.json and meta are already restored to output/ by the previous step
