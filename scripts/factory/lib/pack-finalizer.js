@@ -20,8 +20,7 @@ export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, sha
     console.log(`[VFS] Manifest hashes computed (${((Date.now() - hashStart) / 1000).toFixed(1)}s)`);
 
     await injectMetadata(metaDbs, null, cacheDir);
-    const rankingsDbExists = fsSync.readdirSync(shardDir).some(f => f.startsWith('rankings-') && f.endsWith('.db'));
-    if (rankingsDbExists) partitionCounts.rankings_dbs = true;
+    try { if (fsSync.readdirSync(shardDir).some(f => f.startsWith('rankings-') && f.endsWith('.db'))) partitionCounts.rankings_dbs = true; } catch {};
     const fullManifest = { shards: manifest, partitions: partitionCounts };
     const manifestJson = JSON.stringify(fullManifest, null, 2);
     const manifestBytes = Buffer.byteLength(manifestJson, 'utf8');
