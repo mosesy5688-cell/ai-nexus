@@ -74,6 +74,7 @@ async function packDatabase() {
         if ((i + 500) % 5000 < 500) console.log(`[VFS] Embeddings: ${Math.min(i + 500, uncachedEntities.length)}/${uncachedEntities.length}...`);
     }
     console.log(`[VFS] Embedding pass complete: ${uncachedEntities.length} newly computed.`);
+    console.log(`[VFS] Embedding Vault: ${cachedIdSet.size} cached vectors (model: ${EMBEDDING_MODEL})`);
 
     // Prepare DBs
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
@@ -204,6 +205,8 @@ async function packDatabase() {
             row.embedding = Array.from(float32);
         }
     }
+    const withVec = top30k.filter(r => r.embedding).length;
+    console.log(`[VFS] Top-30k vectors: ${withVec}/${top30k.length} populated from Embedding Vault`);
     closeCache(cacheDb);
     await generateHotShard(top30k);
     await generateVectorCore(top30k);
