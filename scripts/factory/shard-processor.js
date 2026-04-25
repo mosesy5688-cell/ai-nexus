@@ -118,6 +118,9 @@ async function main() {
     console.log(`[SHARD ${shardId}] Streaming entities from ${shardFilePath}...`);
     const fileRs = fsSync.createReadStream(shardFilePath);
     const decompStream = createAutoDecompressStream();
+    fileRs.on('error', e => { console.error(`[SHARD ${shardId}] Read stream error: ${e.message}`); process.exit(1); });
+    decompStream.on('error', e => { console.error(`[SHARD ${shardId}] Decompress error: ${e.message}`); process.exit(1); });
+    outStream.on('error', e => { console.error(`[SHARD ${shardId}] Write stream error: ${e.message}`); process.exit(1); });
     const rl = readline.createInterface({
         input: fileRs.pipe(decompStream),
         crlfDelay: Infinity

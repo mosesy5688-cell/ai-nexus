@@ -63,7 +63,7 @@ async function validateShard(filePath) {
         if (header.equals(NXVF_MAGIC)) return 'nxvf';
         if (header[0] === 0x1f && header[1] === 0x8b) return 'gzip';
         return null;
-    } catch { return null; }
+    } catch (e) { console.warn(`[R2-RESTORE] validateShard ${filePath}: ${e.message}`); return null; }
 }
 
 /**
@@ -110,7 +110,7 @@ async function restoreFromPrefix(s3, prefix, label) {
                 const fmt = await validateShard(localPath);
                 if (fmt) { valid++; continue; }
             }
-        } catch { /* doesn't exist, download it */ }
+        } catch (e) { /* file missing or unreadable — download from R2 */ }
 
         try {
             const bytes = await downloadObject(s3, obj.Key, localPath);

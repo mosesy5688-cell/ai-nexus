@@ -557,8 +557,8 @@ jobs:
             ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
             echo "✅ Merged: $ENTITY_COUNT total entities (via manifest)"
             
-            if [ "$ENTITY_COUNT" -lt 80000 ]; then
-              echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 80,000+."
+            if [ "$ENTITY_COUNT" -lt 85000 ]; then
+              echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 85,000+."
               echo "This indicates corrupted data or missing batches."
               exit 1
             fi
