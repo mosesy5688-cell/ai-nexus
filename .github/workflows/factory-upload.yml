@@ -113,6 +113,14 @@ jobs:
         with:
           path: mesh-profiles.tar
           key: intra-4-4-${{ github.run_id }}-baked
+      - name: Backup Baked Profiles to R2
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: node scripts/factory/r2-workflow-cli.js upload-buffer mesh-profiles.tar state/mesh-profiles.tar --content-type=application/x-tar
 
   master-fusion:
     name: Master Fusion
@@ -157,14 +165,23 @@ jobs:
         run: |
           node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Restore Baked Profiles from Cache
+        id: cache-baked
         uses: actions/cache/restore@v4
         with:
           path: mesh-profiles.tar
           key: intra-4-4-${{ github.run_id }}-baked
+      - name: R2 Fallback for Baked Profiles
+        if: steps.cache-baked.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: node scripts/factory/r2-workflow-cli.js restore-file state/mesh-profiles.tar mesh-profiles.tar || echo "⚠️ Mesh profiles not in R2"
       - name: Extract Profiles
         run: |
           mkdir -p output/cache/mesh
-          tar -xf mesh-profiles.tar -C output/cache/mesh
+          if [ -f mesh-profiles.tar ]; then tar -xf mesh-profiles.tar -C output/cache/mesh; fi
       - name: Restore Global Registry Cache
         uses: actions/cache/restore@v4
         with:
