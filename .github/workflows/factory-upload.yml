@@ -285,6 +285,16 @@ jobs:
           path: output/
           key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
           restore-keys: cycle-
+      - name: R2 Fallback for Trending Data
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/cache
+          [ ! -f "output/cache/trending.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trending.json.zst output/cache/trending.json.zst || true
+          [ ! -f "output/cache/trend-data.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trend-data.json.zst output/cache/trend-data.json.zst || true
       - name: Restore Fused Entities
         id: cache-fused
         uses: actions/cache/restore@v4
