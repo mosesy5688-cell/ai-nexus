@@ -1,10 +1,8 @@
 /**
- * Sitemap Files Proxy (V23.10)
- * Serves sitemap-index.xml and compressed shard files (.xml.gz) from R2 CDN.
- * Only .xml.gz format for shards — zero SSR decompression overhead.
- *
- * Shard count is derived from sitemap-index.xml at build time (no hardcode).
- * Routes: /sitemaps/[filename]
+ * Sitemap Files Proxy (V26.11)
+ * Serves sitemap-index.xml and shard XML files from R2 CDN.
+ * Prerendered at build time — shards served as uncompressed XML.
+ * Shard count derived from sitemap-index.xml at build time (no hardcode).
  */
 
 import type { APIRoute, GetStaticPaths } from 'astro';
@@ -29,7 +27,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
     const shardFiles = await discoverShardFilenames();
     const paths = [{ params: { filename: 'sitemap-index.xml' } }];
     for (const name of shardFiles) {
-        paths.push({ params: { filename: `${name}.gz` } });
+        paths.push({ params: { filename: name } });
     }
     return paths;
 };
@@ -47,15 +45,15 @@ export const GET: APIRoute = async ({ params }) => {
             if (!res.ok) return new Response('Sitemap index not found', { status: 404 });
 
             let xml = await res.text();
-            xml = xml.replace(/<loc>([^<]*sitemap-\d+)\.xml<\/loc>/g, '<loc>$1.xml.gz</loc>');
             return new Response(xml, { status: 200, headers: {
                 'Content-Type': 'application/xml',
                 'Cache-Control': 'public, max-age=3600, s-maxage=86400',
             }});
         }
 
-        // Shard files: stream .xml.gz binary from R2 directly (no decompression)
-        const r2Url = `${R2_CDN_BASE}/sitemaps/${filename}`;
+        // Shard files: serve as uncompressed XML (prerender + Node.js fetch auto-decompresses gzip)
+        const xmlName = filename.replace('.xml.gz', '.xml');
+        const r2Url = `${R2_CDN_BASE}/sitemaps/${xmlName}`;
         const response = await fetch(r2Url);
 
         if (!response.ok) {
@@ -63,7 +61,7 @@ export const GET: APIRoute = async ({ params }) => {
         }
 
         return new Response(response.body, { status: 200, headers: {
-            'Content-Type': 'application/gzip',
+            'Content-Type': 'application/xml; charset=utf-8',
             'Cache-Control': 'public, max-age=3600, s-maxage=86400',
         }});
     } catch (error) {
