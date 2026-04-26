@@ -122,7 +122,7 @@ async function runStreamingCore(loadShards, saveShard,
         const mergedShard = await mergePartitionedShard(baselineEntities, shardIdx, rankingsMap, { slim: false });
         for (const e of mergedShard.entities) {
             const artifactFni = fniMap.get(e.id);
-            if (artifactFni != null) { e.fni_score = artifactFni; e.fni = artifactFni; fniHits++; }
+            if (artifactFni != null && artifactFni > 0) { e.fni_score = artifactFni; e.fni = artifactFni; fniHits++; }
             else if (!e.fni_score) {
                 const result = calculateFniFFI(e, { includeMetrics: true, lastSeen: e._last_seen });
                 e.fni_score = result.score; e.fni = result.score; fniRecomputed++;
