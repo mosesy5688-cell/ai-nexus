@@ -292,7 +292,7 @@ impl napi::Task for StatsTask {
         eprintln!("[RUST-STATS] Phase 2: percentile rankings...");
         let rankings = percentile::calculate_rankings(&scores);
         fs::create_dir_all(&self.output_dir).ok();
-        let score_map: HashMap<String, f64> = scores.into_iter().collect();
+        let score_map: HashMap<String, f64> = scores.into_iter().filter(|(_, s)| *s > 0.0).collect();
         eprintln!("[RUST-STATS] Phase 2: {} rankings + {} scores", rankings.len(), score_map.len());
         eprintln!("[RUST-STATS] Phase 2 done: {} rankings ({}ms)", rankings.len(), start.elapsed().as_millis());
 
