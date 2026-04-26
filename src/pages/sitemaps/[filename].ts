@@ -24,9 +24,12 @@ export const GET: APIRoute = async ({ params }) => {
         }
 
         const xmlName = filename.replace('.xml.gz', '.xml');
-        return new Response(null, { status: 302, headers: {
-            'Location': `${R2_CDN_BASE}/sitemaps/${xmlName}`,
-            'Cache-Control': 'public, max-age=86400',
+        const r2Url = `${R2_CDN_BASE}/sitemaps/${xmlName}`;
+        const res = await fetch(r2Url);
+        if (!res.ok) return new Response(`Sitemap ${filename} not found`, { status: 404 });
+        return new Response(res.body, { status: 200, headers: {
+            'Content-Type': 'application/xml; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600, s-maxage=86400',
         }});
     } catch (error) {
         console.error(`[Sitemap] Error fetching ${filename}:`, error);
