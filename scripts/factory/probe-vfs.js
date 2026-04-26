@@ -79,41 +79,32 @@ async function probe() {
     // Real failures (HTTP non-206, size mismatch) fail immediately — do not mask data corruption.
     // 2/391 false-positive rate observed when CDN cold-miss tail latency crossed 10s;
     // 15s × 3 retries absorbs the ~99p cold-miss latency without hiding true regressions.
-    for (const s of samples) {
-        const url = `${CDN_BASE}/${s.bundle_key}`;
-        const range = `bytes=${s.bundle_offset}-${s.bundle_offset + s.bundle_size - 1}`;
-
-        let lastErr = null;
-        let success = false;
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                const res = await fetch(url, {
-                    headers: { 'Range': range },
-                    signal: AbortSignal.timeout(15000)
-                });
-
-                if (res.status === 206) {
-                    const buffer = await res.arrayBuffer();
-                    if (buffer.byteLength === s.bundle_size) {
-                        const retryTag = attempt > 0 ? ` (retry ${attempt})` : '';
-                        console.log(`  ✅ ${s.bundle_key} → ${s.id}: OK (${buffer.byteLength}B)${retryTag}`);
-                        success = true;
-                    } else {
-                        lastErr = `Size ${buffer.byteLength} ≠ expected ${s.bundle_size}`;
+    const BATCH = 10;
+    for (let b = 0; b < samples.length; b += BATCH) {
+        const batch = samples.slice(b, b + BATCH);
+        const results = await Promise.all(batch.map(async (s) => {
+            const url = `${CDN_BASE}/${s.bundle_key}`;
+            const range = `bytes=${s.bundle_offset}-${s.bundle_offset + s.bundle_size - 1}`;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    const res = await fetch(url, { headers: { 'Range': range }, signal: AbortSignal.timeout(15000) });
+                    if (res.status === 206) {
+                        const buf = await res.arrayBuffer();
+                        if (buf.byteLength === s.bundle_size) return { s, ok: true, attempt };
+                        return { s, ok: false, err: `Size ${buf.byteLength} ≠ ${s.bundle_size}` };
                     }
-                } else {
-                    lastErr = `HTTP ${res.status}`;
+                    return { s, ok: false, err: `HTTP ${res.status}` };
+                } catch (e) {
+                    if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+                    else return { s, ok: false, err: e.message };
                 }
-                break; // non-timeout outcomes (success or real failure) — do not retry
-            } catch (e) {
-                lastErr = e.message;
-                if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
             }
+        }));
+        for (const r of results) {
+            if (r.ok) { console.log(`  ✅ ${r.s.bundle_key} → ${r.s.id}: OK${r.attempt > 0 ? ` (retry ${r.attempt})` : ''}`); }
+            else { console.error(`  ❌ ${r.s.bundle_key} → ${r.s.id}: ${r.err}`); failures++; }
         }
-        if (!success) {
-            console.error(`  ❌ ${s.bundle_key} → ${s.id}: ${lastErr}`);
-            failures++;
-        }
+        if (b + BATCH < samples.length) await new Promise(r => setTimeout(r, 1000));
     }
 
     if (failures > 0) {
