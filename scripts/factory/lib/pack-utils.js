@@ -150,8 +150,12 @@ export { buildBundleJson, buildEntityRow } from './row-builders.js';
  * Configure SQLite pragmas for high-density 16KB VFS operations
  * V5.8 §2.2: WAL mode + explicit checkpoints for atomic reliability
  */
-export function setupDatabasePragmas(db, { wal = false } = {}) {
-    db.pragma('page_size = 16384');
+export function setupDatabasePragmas(db, { wal = false, vfsPageSize = true } = {}) {
+    if (vfsPageSize) {
+        const currentPageSize = db.pragma('page_size', { simple: true });
+        db.pragma('page_size = 16384');
+        if (currentPageSize !== 16384) db.exec('VACUUM');
+    }
     db.pragma('auto_vacuum = 0');
     db.pragma(wal ? 'journal_mode = WAL' : 'journal_mode = DELETE');
     db.pragma('synchronous = OFF');

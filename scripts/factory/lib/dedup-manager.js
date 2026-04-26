@@ -46,7 +46,7 @@ export function openLedger(dbPath = DEDUP_DB_PATH) {
     if (!fsSync.existsSync(dir)) fsSync.mkdirSync(dir, { recursive: true });
 
     const db = new Database(dbPath);
-    setupDatabasePragmas(db);
+    setupDatabasePragmas(db, { vfsPageSize: false });
     db.exec(DEDUP_SCHEMA);
 
     // V25.8.3: Migrate existing DBs — add has_fulltext if missing
