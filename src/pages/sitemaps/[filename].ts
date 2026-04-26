@@ -54,19 +54,16 @@ export const GET: APIRoute = async ({ params }) => {
             }});
         }
 
-        // Shard files: pass through .gz compressed content directly
+        // Shard files: stream .xml.gz binary from R2 directly (no decompression)
         const r2Url = `${R2_CDN_BASE}/sitemaps/${filename}`;
-        const response = await fetch(r2Url, {
-            headers: { 'Accept-Encoding': 'identity' }
-        });
+        const response = await fetch(r2Url);
 
         if (!response.ok) {
             return new Response(`Sitemap ${filename} not found`, { status: 404 });
         }
 
-        return new Response(await response.arrayBuffer(), { status: 200, headers: {
+        return new Response(response.body, { status: 200, headers: {
             'Content-Type': 'application/gzip',
-            'Content-Encoding': 'gzip',
             'Cache-Control': 'public, max-age=3600, s-maxage=86400',
         }});
     } catch (error) {
