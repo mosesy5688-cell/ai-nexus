@@ -51,18 +51,11 @@ export const GET: APIRoute = async ({ params }) => {
             }});
         }
 
-        // Shard files: serve as uncompressed XML (prerender + Node.js fetch auto-decompresses gzip)
+        // Shard files: redirect to R2 CDN (direct edge-cached XML, no Worker proxy overhead)
         const xmlName = filename.replace('.xml.gz', '.xml');
-        const r2Url = `${R2_CDN_BASE}/sitemaps/${xmlName}`;
-        const response = await fetch(r2Url);
-
-        if (!response.ok) {
-            return new Response(`Sitemap ${filename} not found`, { status: 404 });
-        }
-
-        return new Response(response.body, { status: 200, headers: {
-            'Content-Type': 'application/xml; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+        return new Response(null, { status: 302, headers: {
+            'Location': `${R2_CDN_BASE}/sitemaps/${xmlName}`,
+            'Cache-Control': 'public, max-age=86400',
         }});
     } catch (error) {
         console.error(`[Sitemap] Error fetching ${filename}:`, error);
