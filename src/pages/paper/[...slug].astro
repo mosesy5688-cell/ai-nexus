@@ -24,7 +24,8 @@ import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;
-const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+let slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+slugStr = slugStr.replace(/^(arxiv|s2)\./, '');
 
 let paper = null;
 let error = null;
