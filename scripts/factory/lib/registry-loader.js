@@ -207,6 +207,14 @@ export function projectEntity(e, slim) {
         pipeline_tag: e.pipeline_tag || '',
         last_modified: e.last_modified || e.last_updated || e.lastModified || e._updated || '',
         license: e.license || e.license_spdx || '',
-        source: e.source || ''
+        source: e.source || '',
+        params_billions: e.params_billions ?? e.params ?? 0,
+        vram_estimate_gb: e.vram_estimate_gb ?? 0,
+        context_length: e.context_length ?? 0,
+        architecture: e.architecture || '',
+        raw_pop: e.raw_pop ?? 0,
+        category: e.category || e.primary_category || '',
+        forks: e.forks || 0,
+        citation_count: e.citation_count || e.citations || 0,
     };
 }
