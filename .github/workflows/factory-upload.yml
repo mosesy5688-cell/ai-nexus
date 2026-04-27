@@ -744,7 +744,7 @@ jobs:
 
           for url in "${WARM_URLS[@]}"; do
             echo "Warming: $url"
-            curl -s -o /dev/null -H "User-Agent: Nexus-Warmer/1.0" "$url"
+            curl -s -o /dev/null --max-time 30 -H "User-Agent: Nexus-Warmer/1.0" "$url" || true
           done
           echo "✅ Proactive Warming Complete."
       - name: Trigger Health Check
