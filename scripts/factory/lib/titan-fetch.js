@@ -14,7 +14,7 @@ const TITAN_CONFIG = {
     STAGGER_DELAY_MS: 60000,
     BACKOFF_BASE_MS: 10000,
     MAX_RETRIES: 3,
-    CIRCUIT_BREAKER_THRESHOLD: 10,
+    CIRCUIT_BREAKER_THRESHOLD: 3,
     FETCH_TIMEOUT_MS: 60000,
 };
 
@@ -80,14 +80,16 @@ async function fetchWithTitan(url, options, attempt = 0) {
         if (retryable.includes(response.status)) {
             let errorDetail = '';
             try { errorDetail = await response.text(); } catch { }
-            // Quota exceeded = daily/monthly limit → retrying is pointless, fail fast to fallback
-            if (response.status === 429 && errorDetail.includes('exceeded your current quota')) {
-                _consecutiveFailures++;
-                console.warn(`[TITAN] Quota exceeded (not retryable). Failing fast to next model.`);
-                return null;
+            _consecutiveFailures++;
+            if (response.status === 429) {
+                const isQuota = /quota|resource.*exhausted|limit.*exceeded|RATE_LIMIT_EXCEEDED/i.test(errorDetail);
+                if (isQuota || _consecutiveFailures >= TITAN_CONFIG.CIRCUIT_BREAKER_THRESHOLD) {
+                    console.warn(`[TITAN] 429 quota/circuit break (failures: ${_consecutiveFailures}). Skipping retries.`);
+                    return null;
+                }
             }
             if (attempt < TITAN_CONFIG.MAX_RETRIES) {
-                console.warn(`[TITAN] ${response.status} (retryable). Detail: ${errorDetail.substring(0, 200)}`);
+                console.warn(`[TITAN] ${response.status} (retryable, failures: ${_consecutiveFailures}). Detail: ${errorDetail.substring(0, 200)}`);
                 return fetchWithTitan(url, options, attempt + 1);
             }
         }
@@ -147,9 +149,8 @@ export async function callGemini({ systemInstruction, prompt, temperature = 0.2,
             fetchOpts.body = JSON.stringify(body);
         }
         let response = await fetchWithTitan(primaryUrl, fetchOpts);
-        if (!response && fallbackUrl) {
+        if (!response && fallbackUrl && _consecutiveFailures < TITAN_CONFIG.CIRCUIT_BREAKER_THRESHOLD) {
             console.warn(`[TITAN] Primary model failed. Trying fallback: ${GEMINI_FALLBACK_MODEL}`);
-            _consecutiveFailures = Math.max(0, _consecutiveFailures - 1);
             response = await fetchWithTitan(fallbackUrl, fetchOpts);
         }
         if (!response) return null;
