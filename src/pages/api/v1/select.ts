@@ -122,7 +122,8 @@ function buildQuery(tag: string, c: any, limit: number) {
     sql: `SELECT id, name, author, type, fni_score, pipeline_tag, license,
       vram_estimate_gb, params_billions, context_length, downloads,
       fni_s, fni_a, fni_p, fni_r, fni_q, last_modified, architecture, summary
-      FROM entities ${where} ORDER BY fni_score DESC LIMIT ?`,
+      FROM entities ${where}
+      ORDER BY (CASE WHEN params_billions > 0 THEN 0 ELSE 1 END), fni_score DESC LIMIT ?`,
     params,
   };
 }
