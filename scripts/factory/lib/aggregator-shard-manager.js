@@ -26,6 +26,7 @@ const SLIM_FIELDS = [
     'id', 'umid', 'slug', 'name', 'type', 'author', 'description',
     'tags', 'metrics', 'stars', 'forks', 'downloads', 'likes',
     'citations', 'size', 'runtime', 'fni_score', 'fni_percentile',
+    'fni_s', 'fni_a', 'fni_p', 'fni_r', 'fni_q', 'fni_metrics',
     'fni_trend_7d', 'is_rising_star', 'primary_category',
     'pipeline_tag', 'published_date', 'last_modified',
     'last_updated', 'lastModified', '_updated',
