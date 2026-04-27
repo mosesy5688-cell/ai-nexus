@@ -10,6 +10,26 @@ import { META_SHARD_COUNT } from '../../../constants/shard-constants.js';
 
 const API_VERSION = 'fni_v2.0_s50_factory';
 const MAX_IDS = 10;
+const SLUG_PREFIXES = [
+  'hf-model', 'hf-agent', 'hf-tool', 'hf-dataset', 'hf-space', 'hf-paper', 'hf-collection',
+  'gh-model', 'gh-agent', 'gh-tool', 'gh-repo',
+  'arxiv-paper', 'arxiv', 'paper',
+  'replicate-model', 'replicate-agent', 'replicate-space',
+  'civitai-model', 'ollama-model', 'kaggle-dataset', 'kaggle-model',
+  'langchain-prompt', 'langchain-agent',
+  'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt',
+];
+
+function deriveSlug(id: string): string {
+  let r = (id || '').toLowerCase();
+  for (const p of SLUG_PREFIXES) {
+    if (r.startsWith(`${p}--`) || r.startsWith(`${p}:`) || r.startsWith(`${p}/`)) {
+      r = r.slice(p.length + (r[p.length] === '-' ? 2 : 1)); break;
+    }
+  }
+  return r.replace(/[:\/]/g, '--').replace(/^--|--$/g, '').replace(/--+/g, '--');
+}
+
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -40,9 +60,17 @@ export const GET: APIRoute = async ({ url }) => {
 
     const shardGroups = new Map<number, string[]>();
     for (const id of ids) {
-      const shard = xxhash64Mod(id, metaShards);
+      const slug = deriveSlug(id);
+      const shard = xxhash64Mod(slug, metaShards);
       if (!shardGroups.has(shard)) shardGroups.set(shard, []);
       shardGroups.get(shard)!.push(id);
+      if (slug !== id.toLowerCase()) {
+        const idShard = xxhash64Mod(id, metaShards);
+        if (idShard !== shard) {
+          if (!shardGroups.has(idShard)) shardGroups.set(idShard, []);
+          shardGroups.get(idShard)!.push(id);
+        }
+      }
     }
 
     const entityMap = new Map<string, any>();
