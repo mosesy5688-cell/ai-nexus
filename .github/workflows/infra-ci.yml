@@ -193,17 +193,17 @@ jobs:
             echo "✅ Model page test passed"
           fi
 
-      - name: Test Explore Page
+      - name: Test Models Page
         run: |
-          echo "🧪 Testing explore page..."
+          echo "🧪 Testing models page..."
 
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/explore)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/models)
           if [ "$STATUS" != "200" ]; then
-            echo "❌ Explore page returned $STATUS"
+            echo "❌ Models page returned $STATUS"
             exit 1
           fi
 
-          echo "✅ Explore page test passed"
+          echo "✅ Models page test passed"
 
       - name: Test API Endpoints
         run: |
@@ -318,7 +318,7 @@ jobs:
         with:
           urls: |
             http://localhost:4321/
-            http://localhost:4321/explore
+            http://localhost:4321/models
           uploadArtifacts: true
           temporaryPublicStorage: true
           runs: 3
