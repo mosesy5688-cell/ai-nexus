@@ -20,7 +20,7 @@ const searchExample = JSON.stringify({
 
 const mcpConfig = JSON.stringify({
   mcpServers: {
-    free2ai: {
+    free2aitools: {
       url: `${SITE}/api/mcp`,
       transport: "streamable-http"
     }
@@ -54,7 +54,7 @@ const jsonLd = JSON.stringify({
         Developer Docs
       </h1>
       <p class="text-xl text-gray-600 dark:text-gray-400">
-        REST API &middot; MCP Server &middot; FNI Badge
+        REST API &middot; Model Selection &middot; MCP Server &middot; FNI Badge
       </p>
       <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">
         All endpoints are free, no authentication required
@@ -143,8 +143,71 @@ const jsonLd = JSON.stringify({
         </div>
       </div>
 
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">POST /api/v1/select</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          Agent model selection — find the best model for a task with hardware and license constraints.
+        </p>
+        <div class="space-y-4">
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Request Body (JSON)</h4>
+            <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
+              <pre>{JSON.stringify({ task: "text-generation", constraints: { max_vram_gb: 24, license: "commercial" }, limit: 5 }, null, 2)}</pre>
+            </div>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Constraints (all optional)</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="text-left border-b border-gray-200 dark:border-gray-700"><th class="py-2 pr-4">Field</th><th class="py-2 pr-4">Type</th><th class="py-2">Description</th></tr></thead>
+                <tbody class="text-gray-600 dark:text-gray-400">
+                  <tr><td class="py-1 pr-4 font-mono">task</td><td class="pr-4">string</td><td>Task name or alias ("llm", "code", "embeddings")</td></tr>
+                  <tr><td class="py-1 pr-4 font-mono">max_vram_gb</td><td class="pr-4">number</td><td>Maximum VRAM in GB</td></tr>
+                  <tr><td class="py-1 pr-4 font-mono">max_params_b</td><td class="pr-4">number</td><td>Maximum parameters in billions</td></tr>
+                  <tr><td class="py-1 pr-4 font-mono">license</td><td class="pr-4">string</td><td>"commercial", "apache-2.0", "mit", or "any"</td></tr>
+                  <tr><td class="py-1 pr-4 font-mono">min_context_length</td><td class="pr-4">number</td><td>Minimum context window (tokens)</td></tr>
+                  <tr><td class="py-1 pr-4 font-mono">limit</td><td class="pr-4">number</td><td>Max results (1-20, default 5)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl</h4>
+            <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
+              <pre set:html={`curl -X POST ${SITE}/api/v1/select \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify({task:"text-generation",constraints:{max_vram_gb:24}})}'`} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">GET /api/v1/compare</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          Side-by-side model comparison with FNI factor decomposition.
+        </p>
+        <div class="space-y-4">
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Parameters</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="text-left border-b border-gray-200 dark:border-gray-700"><th class="py-2 pr-4">Param</th><th class="py-2 pr-4">Type</th><th class="py-2">Description</th></tr></thead>
+                <tbody class="text-gray-600 dark:text-gray-400">
+                  <tr><td class="py-1 pr-4 font-mono">ids</td><td class="pr-4">string</td><td>Comma-separated model IDs (2-10)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl</h4>
+            <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
+              <pre set:html={`curl "${SITE}/api/v1/compare?ids=meta-llama/Llama-3-8B,google/gemma-2-27b"`} />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-        <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — 1,000 requests/month, max 5 results per query. CDN cached (30min). No API key required.
+        <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — no authentication required. CDN cached. max 5 results for search, max 20 for select.
       </div>
     </section>
 
@@ -159,16 +222,24 @@ const jsonLd = JSON.stringify({
       <!-- Tools -->
       <div class="space-y-4 mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2ai_search</h3>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_search</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400">Search and rank AI tools, models, datasets, and papers by FNI score.</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2ai_rank</h3>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_rank</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400">Rank AI tools by FNI score for a given task context. Ideal for AI agents selecting the best tool.</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
-          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2ai_explain</h3>
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_explain</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400">Explain why a specific entity received its FNI ranking score with factor breakdown.</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_select_model</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Select the best model for a task with hardware/license constraints. Returns ranked recommendations with rationale.</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_compare</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Compare 2-10 AI models side-by-side with FNI factor decomposition.</p>
         </div>
       </div>
 
