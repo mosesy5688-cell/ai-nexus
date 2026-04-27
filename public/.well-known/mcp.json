@@ -1,14 +1,14 @@
 {
-  "name": "free2ai",
-  "version": "1.0.0",
-  "description": "Search, rank, and explain open-source AI models, tools, datasets, and papers by FNI score",
+  "name": "free2aitools",
+  "version": "2.0.0",
+  "description": "AI model selection, comparison, and ranking by FNI score — designed for AI agents and MCP clients",
   "url": "https://free2aitools.com/api/mcp",
   "transport": "streamable-http",
   "protocol_version": "2025-03-26",
   "tools": [
     {
-      "name": "free2ai_search",
-      "description": "Search and rank AI tools, models, datasets, and papers by FNI score. Returns ranked results with metadata.",
+      "name": "free2aitools_search",
+      "description": "Search AI models, tools, datasets, and papers by keyword. Returns FNI-ranked results.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -20,8 +20,8 @@
       }
     },
     {
-      "name": "free2ai_rank",
-      "description": "Rank AI tools by FNI score for a given task context. Ideal for AI agents selecting the best tool for a job.",
+      "name": "free2aitools_rank",
+      "description": "Rank AI tools by FNI score for a given task context.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -34,14 +34,47 @@
       }
     },
     {
-      "name": "free2ai_explain",
-      "description": "Explain why a specific AI entity received its FNI ranking score with factor breakdown (Semantic, Authority, Popularity, Recency, Quality).",
+      "name": "free2aitools_explain",
+      "description": "Explain an entity's FNI score with factor breakdown (Semantic, Authority, Popularity, Recency, Quality).",
       "input_schema": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "description": "Entity name or ID to explain (e.g. 'meta-llama/Llama-3-8B')" }
+          "id": { "type": "string", "description": "Entity name or ID (e.g. 'meta-llama/Llama-3-8B')" }
         },
         "required": ["id"]
+      }
+    },
+    {
+      "name": "free2aitools_select_model",
+      "description": "Select the best AI model for a task with hardware/license constraints. Returns ranked recommendations with confidence and rationale.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "task": { "type": "string", "description": "Task name or description (e.g. 'text-generation', 'code assistant')" },
+          "constraints": {
+            "type": "object",
+            "properties": {
+              "max_vram_gb": { "type": "number", "description": "Maximum VRAM in GB" },
+              "max_params_b": { "type": "number", "description": "Maximum parameters in billions" },
+              "license": { "type": "string", "description": "'commercial', 'apache-2.0', 'mit', or 'any'" },
+              "min_context_length": { "type": "number", "description": "Minimum context window tokens" }
+            }
+          },
+          "limit": { "type": "number", "default": 5, "description": "Max recommendations (1-20)" },
+          "explain": { "type": "boolean", "default": true, "description": "Include rationale and caveats" }
+        },
+        "required": ["task"]
+      }
+    },
+    {
+      "name": "free2aitools_compare",
+      "description": "Compare 2-10 AI models side-by-side with FNI factor decomposition and specs.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "ids": { "type": "array", "items": { "type": "string" }, "description": "Model IDs to compare (2-10)" }
+        },
+        "required": ["ids"]
       }
     }
   ]
