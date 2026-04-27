@@ -61,12 +61,20 @@ function sitemapHeader() {
 `;
 }
 
+function normalizeLastmod(raw) {
+    if (!raw) return '';
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
 function urlEntry(loc, priority, changefreq, lastmod) {
+    const safeLastmod = normalizeLastmod(lastmod);
     return `  <url>
     <loc>${BASE_URL}${loc}</loc>
     <priority>${priority}</priority>
     <changefreq>${changefreq}</changefreq>
-    ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}
+    ${safeLastmod ? `<lastmod>${safeLastmod}</lastmod>` : ''}
   </url>
 `;
 }
