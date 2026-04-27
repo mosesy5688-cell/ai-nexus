@@ -51,8 +51,12 @@ export const GET: APIRoute = async ({ url }) => {
       const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
       const placeholders = shardIds.map(() => '?').join(',');
       const rows = await executeSql(engine.sqlite3, engine.db,
-        `SELECT ${COMPARE_COLS} FROM entities WHERE id IN (${placeholders})`, shardIds);
-      for (const row of rows) entityMap.set(row.id, row);
+        `SELECT ${COMPARE_COLS} FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders})`,
+        [...shardIds, ...shardIds]);
+      for (const row of rows) {
+        entityMap.set(row.id, row);
+        if (row.slug) entityMap.set(row.slug, row);
+      }
     }
 
     const entities = ids.map(id => {
