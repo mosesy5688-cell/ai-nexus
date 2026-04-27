@@ -29,8 +29,12 @@ export async function saveRegistryShard(index, entities) {
     writer.open();
 
     for (const entity of entities) {
-        // V26.5: Strip known heavy/redundant fields before persist.
-        // Registry is hot data — only structured fields needed.
+        if (entity.enriched) {
+            for (const k of ['fni_score', 'fni', 'fni_s', 'fni_a', 'fni_p', 'fni_r', 'fni_q', 'fni_metrics',
+                'params_billions', 'vram_estimate_gb', 'context_length', 'architecture', 'raw_pop']) {
+                if (entity.enriched[k] != null && entity[k] == null) entity[k] = entity.enriched[k];
+            }
+        }
         delete entity.enriched;
         delete entity.html_readme;
         delete entity.readme_content;

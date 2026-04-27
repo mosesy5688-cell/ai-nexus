@@ -125,7 +125,10 @@ async function runStreamingCore(loadShards, saveShard,
             if (artifactFni != null && artifactFni > 0) { e.fni_score = artifactFni; e.fni = artifactFni; fniHits++; }
             else if (!e.fni_score) {
                 const result = calculateFniFFI(e, { includeMetrics: true, lastSeen: e._last_seen });
-                e.fni_score = result.score; e.fni = result.score; fniRecomputed++;
+                e.fni_score = result.score; e.fni = result.score;
+                e.fni_s = result.metrics.s; e.fni_a = result.metrics.a;
+                e.fni_p = result.metrics.p; e.fni_r = result.metrics.r;
+                e.fni_q = result.metrics.q; fniRecomputed++;
             }
             const id = e.id || e.slug;
             if (id) {
