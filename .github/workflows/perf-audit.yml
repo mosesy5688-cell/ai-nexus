@@ -20,7 +20,7 @@ jobs:
           urls: |
             https://free2aitools.com/
             https://free2aitools.com/text-generation
-            https://free2aitools.com/explore
+            https://free2aitools.com/models
           budgetPath: './.github/lighthouse-budget.json'
           uploadArtifacts: true
           temporaryPublicStorage: true

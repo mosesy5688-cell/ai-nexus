@@ -103,7 +103,7 @@ export function setupSearchEvents() {
         if (!searchBox.value.trim()) renderHistory();
     });
 
-    searchBox?.addEventListener('mouseenter', () => { loadHotShard(); initSearch(); });
+    searchBox?.addEventListener('mouseenter', () => { loadHotShard(); });
 
 
     let searchDebounceTimer;

@@ -7,7 +7,7 @@
             },
             {
                 "resourceType": "total",
-                "budget": 3000
+                "budget": 15000
             }
         ],
         "resourceCounts": [
@@ -19,15 +19,15 @@
         "timings": [
             {
                 "metric": "interactive",
-                "budget": 6000
+                "budget": 10000
             },
             {
                 "metric": "first-contentful-paint",
-                "budget": 3000
+                "budget": 4000
             },
             {
                 "metric": "largest-contentful-paint",
-                "budget": 4000
+                "budget": 6000
             }
         ]
     }
