@@ -1,0 +1,54 @@
+# Factory — Hosted-On Data Collector (Phase 3)
+#
+# Daily job: queries Replicate, Together, HF Inference for available model lists.
+# Uploads hosted-on-{provider}.json to R2 state/hosted-on/ for 3/4 Aggregate consumption.
+#
+# Constitution: Art 3.1 (Factory Pipeline), P2 (R2 primary data transport)
+
+name: Factory — Hosted-On Collector
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: '30 2 * * *'  # Daily 02:30 UTC (before 1/4 Harvest at 03:00)
+  workflow_dispatch:
+
+concurrency:
+  group: factory-hosted-on
+  cancel-in-progress: true
+
+jobs:
+  collect:
+    name: Collect Hosted-On Data
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+
+      - name: Collect from all providers
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          OUTPUT_DIR: ./output
+        run: node scripts/factory/hosted-on-collector.js
+
+      - name: Upload to R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          for f in output/hosted-on-*.json; do
+            [ -f "$f" ] && node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "state/hosted-on/$(basename $f)" || true
+          done
+          echo "✅ Hosted-on data uploaded to R2"

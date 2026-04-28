@@ -70,6 +70,10 @@ export const POST: APIRoute = async ({ request }) => {
         context_length: row.context_length ?? null,
         license: row.license || null,
         pipeline_tag: row.pipeline_tag || null,
+        ollama_compatible: !!row.ollama_compatible,
+        hosted_on: parseHostedOn(row.hosted_on),
+        license_type: row.license_type || 'unknown',
+        can_run_local: !!row.can_run_local,
         detail_url: `https://free2aitools.com/model/${row.id}`,
         badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(row.id)}`,
       };
@@ -114,6 +118,10 @@ function buildQuery(tag: string, c: any, limit: number) {
       clauses.push('license = ?'); params.push(c.license);
     }
   }
+  if (c.ollama_compatible) { clauses.push('ollama_compatible = 1'); }
+  if (c.can_run_local) { clauses.push('can_run_local = 1'); }
+  if (c.hosted_on) { clauses.push("hosted_on LIKE '%' || ? || '%'"); params.push(c.hosted_on); }
+  if (c.license_type && c.license_type !== 'any') { clauses.push('license_type = ?'); params.push(c.license_type); }
 
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
   params.push(limit);
@@ -121,11 +129,18 @@ function buildQuery(tag: string, c: any, limit: number) {
   return {
     sql: `SELECT id, name, author, type, fni_score, pipeline_tag, license,
       vram_estimate_gb, params_billions, context_length, downloads,
-      fni_s, fni_a, fni_p, fni_r, fni_q, last_modified, architecture, summary
+      fni_s, fni_a, fni_p, fni_r, fni_q, last_modified, architecture, summary,
+      ollama_compatible, hosted_on, license_type, can_run_local
       FROM entities ${where}
       ORDER BY (CASE WHEN params_billions > 0 THEN 0 ELSE 1 END), fni_score DESC LIMIT ?`,
     params,
   };
+}
+
+function parseHostedOn(raw: any): string[] {
+  if (!raw || raw === '[]') return [];
+  if (Array.isArray(raw)) return raw;
+  try { return JSON.parse(raw); } catch { return []; }
 }
 
 function error(status: number, message: string) {

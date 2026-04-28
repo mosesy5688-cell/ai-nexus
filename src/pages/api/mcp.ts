@@ -62,7 +62,7 @@ const TOOLS = [
             type: 'object',
             properties: {
                 task: { type: 'string', description: 'Task name or description (e.g. "text-generation", "code assistant")' },
-                constraints: { type: 'object', properties: { max_vram_gb: { type: 'number' }, max_params_b: { type: 'number' }, license: { type: 'string' }, min_context_length: { type: 'number' } } },
+                constraints: { type: 'object', properties: { max_vram_gb: { type: 'number' }, max_params_b: { type: 'number' }, license: { type: 'string' }, min_context_length: { type: 'number' }, ollama_compatible: { type: 'boolean' }, can_run_local: { type: 'boolean' }, hosted_on: { type: 'string' }, license_type: { type: 'string', enum: ['permissive', 'copyleft', 'non-commercial', 'any'] } } },
                 limit: { type: 'number', default: 5 },
                 explain: { type: 'boolean', default: true }
             },

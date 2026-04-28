@@ -334,6 +334,16 @@ jobs:
           tar -xf fused-entities.tar -C output/cache
           rm -f fused-entities.tar
           echo "Disk after extract+cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
+      - name: Download Hosted-On Data from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          for p in replicate together hf-inference; do
+            node scripts/factory/r2-workflow-cli.js restore-file "state/hosted-on/hosted-on-${p}.json" "output/cache/hosted-on-${p}.json" || echo "⚠️ hosted-on-${p}.json not in R2 (first run?)"
+          done
       - name: Execute Stable 1.0 Packer
         env:
           CACHE_DIR: ./output/cache

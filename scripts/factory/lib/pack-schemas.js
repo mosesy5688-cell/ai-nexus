@@ -18,7 +18,12 @@ export const entitiesTableSql = `
         vram_fp16_gb REAL, vram_int8_gb REAL, vram_int4_gb REAL,
         readme_html TEXT, ui_related_mesh TEXT, search_vector TEXT,
         canonical_url TEXT, citation TEXT,
-        has_fulltext INTEGER DEFAULT 0
+        has_fulltext INTEGER DEFAULT 0,
+        ollama_compatible INTEGER DEFAULT 0,
+        hosted_on TEXT DEFAULT '[]',
+        license_type TEXT DEFAULT 'unknown',
+        can_run_local INTEGER DEFAULT 0,
+        hosted_on_checked_at TEXT
     );
 
 `;
@@ -30,6 +35,8 @@ export const dbSchemas = `
     CREATE INDEX idx_type ON entities(type);
     CREATE INDEX idx_umid ON entities(umid);
     CREATE INDEX idx_bundle ON entities(bundle_key);
+    CREATE INDEX idx_license_type ON entities(license_type);
+    CREATE INDEX idx_ollama ON entities(ollama_compatible);
 `;
 
 /** V25.8: Standalone FTS5 database schema (decoupled from meta.db) */

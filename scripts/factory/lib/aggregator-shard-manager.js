@@ -33,7 +33,8 @@ const SLIM_FIELDS = [
     'params_billions', 'context_length', 'architecture',
     'mmlu', 'gsm8k', 'avg_score', 'humaneval',
     'deploy_score', 'has_gguf', 'has_ollama', 'ollama_id',
-    'benchmark_avg', 'license', 'source'
+    'benchmark_avg', 'license', 'source',
+    'hosted_on', 'hosted_on_checked_at', 'license_type'
 ];
 
 function projectSlim(result) {

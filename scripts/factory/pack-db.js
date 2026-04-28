@@ -16,6 +16,7 @@ import { initRustBridge } from './lib/rust-bridge.js';
 import { computeEmbeddings } from './lib/embedding-generator.js';
 import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
 import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
+import { loadHostedOnMap, enrichHostedOn } from './lib/hosted-on-enricher.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SHARD_PATH_DIR = './output/data';
 const SLUG_PREFIXES = [
@@ -89,7 +90,7 @@ async function packDatabase() {
     Object.values(metaDbs).forEach(db => db.exec(dbSchemas));
     ftsDb.exec(ftsDbSchema);
 
-    const placeholder = Array(54).fill('?').join(', ');
+    const placeholder = Array(59).fill('?').join(', ');
     const prepInserts = {};
     for (const [key, db] of Object.entries(metaDbs)) prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -107,6 +108,8 @@ async function packDatabase() {
     ftsDb.exec("BEGIN TRANSACTION");
     configureDistiller();
 
+    const { map: hostedOnMap, timestamp: hostedOnTs } = loadHostedOnMap(CACHE_DIR);
+
     // Main pass: stream fused files → per-entity processing → no accumulator
     console.log('[VFS] Main pass: streaming pack...');
     await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e) => {
@@ -121,6 +124,7 @@ async function packDatabase() {
         const arch = e.architecture ?? e.technical?.architecture ?? '';
 
         e = distillEntity(e, pBillions, entityLookup);
+        enrichHostedOn(e, hostedOnMap, hostedOnTs);
 
         const keywords = e.search_vector || '';
         const bundleJson = buildBundleJson(e, pBillions, ctxLen, arch);

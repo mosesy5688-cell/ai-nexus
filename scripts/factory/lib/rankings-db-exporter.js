@@ -7,6 +7,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { classifyLicense } from './row-builders.js';
 
 const RANKINGS_SCHEMA = `
     CREATE TABLE entities (
@@ -18,12 +19,17 @@ const RANKINGS_SCHEMA = `
         fni_r REAL DEFAULT 0, fni_q REAL DEFAULT 0,
         bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER,
         last_modified TEXT, category TEXT, architecture TEXT,
-        task_categories TEXT, forks INTEGER DEFAULT 0, citation_count INTEGER DEFAULT 0
+        task_categories TEXT, forks INTEGER DEFAULT 0, citation_count INTEGER DEFAULT 0,
+        ollama_compatible INTEGER DEFAULT 0, hosted_on TEXT DEFAULT '[]',
+        license_type TEXT DEFAULT 'unknown', can_run_local INTEGER DEFAULT 0,
+        hosted_on_checked_at TEXT
     );
     CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
     CREATE INDEX idx_fni ON entities(fni_score DESC);
     CREATE INDEX idx_type ON entities(type);
     CREATE INDEX idx_pipeline ON entities(pipeline_tag);
+    CREATE INDEX idx_ollama ON entities(ollama_compatible);
+    CREATE INDEX idx_license_type ON entities(license_type);
 `;
 
 const INSERT_SQL = `INSERT OR IGNORE INTO entities (
@@ -31,8 +37,9 @@ const INSERT_SQL = `INSERT OR IGNORE INTO entities (
     vram_estimate_gb, params_billions, context_length, stars, downloads, raw_pop,
     fni_s, fni_a, fni_p, fni_r, fni_q,
     bundle_key, bundle_offset, bundle_size, last_modified, category, architecture,
-    task_categories, forks, citation_count
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+    task_categories, forks, citation_count,
+    ollama_compatible, hosted_on, license_type, can_run_local, hosted_on_checked_at
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
 export async function exportRankingsDbs(groups, outputDir) {
     const dataDir = path.join(outputDir, 'data');
@@ -58,7 +65,12 @@ export async function exportRankingsDbs(groups, outputDir) {
                 e.fni_s ?? 50.0, e.fni_a ?? 0, e.fni_p ?? 0, e.fni_r ?? 0, e.fni_q ?? 0,
                 e.bundle_key || '', e.bundle_offset ?? 0, e.bundle_size ?? 0,
                 e.last_modified || '', e.category || '', e.architecture || '',
-                e.task_categories || '', e.forks || 0, e.citation_count || 0
+                e.task_categories || '', e.forks || 0, e.citation_count || 0,
+                e.ollama_compatible ?? (e.has_ollama || e.has_gguf ? 1 : 0),
+                e.hosted_on || '[]',
+                e.license_type || classifyLicense(e.license),
+                e.can_run_local ?? (((e.has_ollama || e.has_gguf) && ((e.params_billions ?? 0) <= 13 || !e.params_billions)) ? 1 : 0),
+                e.hosted_on_checked_at || null
             );
         }
         db.exec('COMMIT');

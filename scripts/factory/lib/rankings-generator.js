@@ -8,6 +8,7 @@ import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { getV6Category } from './category-stats-generator.js';
 import { exportRankingsDbs } from './rankings-db-exporter.js';
+import { loadHostedOnMap, enrichHostedOn } from './hosted-on-enricher.js';
 
 const CATEGORIES = [
     'text-generation', 'knowledge-retrieval', 'vision-multimedia',
@@ -24,6 +25,7 @@ const MAX_PER_GROUP = PAGE_SIZE * MAX_PAGES; // 2500
 export async function generateRankings(shardReader, outputDir = './output') {
     console.log('[RANKINGS] Generating rankings (streaming)...');
     const cacheDir = path.join(outputDir, 'cache');
+    const { map: hostedOnMap, timestamp: hostedOnTs } = loadHostedOnMap(cacheDir);
 
     // Per-group bounded accumulators
     const groups = { all: [] };
@@ -32,6 +34,7 @@ export async function generateRankings(shardReader, outputDir = './output') {
 
     await shardReader(async (entities) => {
         for (const e of entities) {
+            enrichHostedOn(e, hostedOnMap, hostedOnTs);
             boundedInsert(groups.all, e, MAX_PER_GROUP);
             const cat = getV6Category(e);
             if (groups[cat]) boundedInsert(groups[cat], e, MAX_PER_GROUP);
@@ -94,7 +97,12 @@ async function generateCategoryRanking(category, entities, cacheDir) {
             fni_q: e.fni_q ?? e.fni_metrics?.q ?? 0,
             bundle_key: e.bundle_key || '',
             bundle_offset: e.bundle_offset ?? 0,
-            bundle_size: e.bundle_size ?? 0
+            bundle_size: e.bundle_size ?? 0,
+            ollama_compatible: (e.has_ollama || e.has_gguf) ? 1 : 0,
+            hosted_on: e.hosted_on || '[]',
+            license_type: e.license_type || 'unknown',
+            can_run_local: ((e.has_ollama || e.has_gguf) && ((e.params_billions ?? 0) <= 13 || !e.params_billions)) ? 1 : 0,
+            hosted_on_checked_at: e.hosted_on_checked_at || null,
         }));
 
         const ranking = {

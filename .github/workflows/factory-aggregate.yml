@@ -481,6 +481,16 @@ jobs:
           key: intra-cycle-${{ github.run_id }}-core
       - name: Free Disk (satellite jobs only need cache/registry)
         run: rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null; echo "Freed $(df -h . | tail -1 | awk '{print $4}') available"
+      - name: Download Hosted-On Data from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          for p in replicate together hf-inference; do
+            node scripts/factory/r2-workflow-cli.js restore-file "state/hosted-on/hosted-on-${p}.json" "cache/hosted-on-${p}.json" || echo "⚠️ hosted-on-${p}.json not in R2"
+          done
       - name: Generate Rankings
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
