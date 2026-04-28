@@ -97,7 +97,7 @@ export class AgentsAdapter extends BaseAdapter {
                     try {
                         const perQuery = Math.ceil(limit / SEARCH_QUERIES.length);
                         const results = await this.searchGitHubRepos(query, perQuery);
-                        const newResults = results.filter(r => !existing.has(r.full_name));
+                        const newResults = results.filter(r => r && r.full_name && !existing.has(r.full_name));
 
                         if (onBatch) {
                             try {
