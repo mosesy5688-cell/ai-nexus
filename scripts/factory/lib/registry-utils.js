@@ -35,7 +35,7 @@ export async function purgeStaleShards(directory, currentShardCount) {
             // NXVF binary shards (.bin). Without `.bin` here, R2 retains stale binary
             // shards from prior runs forever — Master Fusion picks them up via readdir
             // and silently fuses them into garbage (see execution memo §18.22.4).
-            const match = obj.Key.match(/part-(\d+)\.(?:json(?:\.gz)?|bin)/);
+            const match = obj.Key.match(/part-(\d+)\.(?:json(?:\.(?:gz|zst))?|bin)/);
             if (match) {
                 const index = parseInt(match[1]);
                 if (index >= currentShardCount) {
