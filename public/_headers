@@ -22,7 +22,12 @@
   Cache-Control: public, max-age=0, must-revalidate, s-maxage=3600
   Cross-Origin-Resource-Policy: cross-origin
 
-# V25.1: 103 Early Hints — preload VFS engine components before HTML arrives
-/*
+# V25.1: 103 Early Hints — preload VFS only on search-heavy pages (not global — 6.3MB kills LCP)
+/
   Link: </assets/sqlite/wa-sqlite-async.wasm>; rel=preload; as=fetch; crossorigin
   Link: </api/vfs-proxy/hot-shard.bin>; rel=preload; as=fetch; crossorigin
+/search
+  Link: </assets/sqlite/wa-sqlite-async.wasm>; rel=preload; as=fetch; crossorigin
+  Link: </api/vfs-proxy/hot-shard.bin>; rel=preload; as=fetch; crossorigin
+/models
+  Link: </assets/sqlite/wa-sqlite-async.wasm>; rel=preload; as=fetch; crossorigin
