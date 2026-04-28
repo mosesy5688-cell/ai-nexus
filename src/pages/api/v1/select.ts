@@ -8,7 +8,7 @@ import { getCachedDbConnection, executeSql, loadManifest } from '../../../lib/sq
 import { mapTaskToTag } from '../../../lib/task-mapper.js';
 import { buildRationale } from '../../../lib/rationale-builder.js';
 
-const API_VERSION = 'fni_v2.0_s50_factory';
+const API_VERSION = 'fni_v2.0';
 const MAX_LIMIT = 20;
 const DEFAULT_LIMIT = 5;
 const CORS_HEADERS = {
@@ -92,7 +92,7 @@ export const POST: APIRoute = async ({ request }) => {
       task_confidence: taskMap.confidence,
       total_candidates: recommendations.length,
       recommendations,
-      meta: { elapsed_ms: Date.now() - start, db_source: dbName },
+      meta: { elapsed_ms: Date.now() - start },
     }), { headers: CORS_HEADERS });
   } catch (e: any) {
     console.error('[SELECT]', e.message);

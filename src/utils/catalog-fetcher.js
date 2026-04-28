@@ -26,7 +26,7 @@ export async function fetchCatalogData(type) {
         return result;
     } catch (e) {
         console.error(`[CatalogFetcher] ${e.message} after ${Date.now() - start}ms for ${type}`);
-        return { items: [], totalPages: 1, totalEntities: 0, error: e.message, source: 'vfs-timeout' };
+        return { items: [], totalPages: 1, totalEntities: 0, error: e.message, source: 'timeout' };
     }
 }
 
@@ -61,7 +61,7 @@ async function _fetchCatalogDataInner(type, start) {
                     const countRow = await executeSql(engine.sqlite3, engine.db, 'SELECT value FROM site_metadata WHERE key = ?', ['entity_count']);
                     const totalEntities = countRow[0] ? Number(countRow[0].value) : normalized.length;
                     console.log(`[CatalogFetcher] Rankings DB: ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
-                    return { items: normalized, totalPages: Math.ceil(totalEntities / 48), totalEntities, error: null, source: 'vfs-rankings' };
+                    return { items: normalized, totalPages: Math.ceil(totalEntities / 48), totalEntities, error: null, source: 'rankings' };
                 }
             } catch (e) {
                 console.warn(`[CatalogFetcher] rankings-${type}.db failed (${e.message}), falling back`);
@@ -105,7 +105,7 @@ async function _fetchCatalogDataInner(type, start) {
         totalPages: Math.ceil(manifest.partitions?.[type] || 1),
         totalEntities: normalized.length,
         error: null,
-        source: 'vfs-federated'
+        source: 'federated'
     };
 }
 
