@@ -57,7 +57,11 @@
               "max_vram_gb": { "type": "number", "description": "Maximum VRAM in GB" },
               "max_params_b": { "type": "number", "description": "Maximum parameters in billions" },
               "license": { "type": "string", "description": "'commercial', 'apache-2.0', 'mit', or 'any'" },
-              "min_context_length": { "type": "number", "description": "Minimum context window tokens" }
+              "min_context_length": { "type": "number", "description": "Minimum context window tokens" },
+              "ollama_compatible": { "type": "boolean", "description": "Only models with GGUF/Ollama support" },
+              "can_run_local": { "type": "boolean", "description": "Locally runnable models (≤13B + GGUF)" },
+              "hosted_on": { "type": "string", "description": "Hosting provider filter (replicate, together, hf-inference)" },
+              "license_type": { "type": "string", "enum": ["permissive", "copyleft", "non-commercial", "any"], "description": "License category" }
             }
           },
           "limit": { "type": "number", "default": 5, "description": "Max recommendations (1-20)" },
