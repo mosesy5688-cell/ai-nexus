@@ -10,7 +10,7 @@ keywords: fni score, free2aitools nexus index, ai ranking, model selection, agen
 
 The **FNI** is the ranking algorithm behind Free2AITools. It evaluates 464,000+ AI entities (models, datasets, papers, tools, agents, spaces, prompts) across five weighted factors to produce a single 0-100 score.
 
-**Current version:** `fni_v2.0_s50_factory`
+**Current version:** V2.0
 
 ## The Formula: S.A.P.R.Q
 
@@ -20,7 +20,7 @@ FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q
 
 | Factor | Weight | What It Measures |
 |--------|--------|-----------------|
-| **S — Semantic** | 35% | Query-time relevance via 768-dim embedding similarity and cluster-based reranking |
+| **S — Semantic** | 35% | Query-time relevance via vector similarity matching and AI-powered reranking |
 | **A — Authority** | 25% | Ecosystem gravity: knowledge mesh centrality, cross-entity citations, source credibility |
 | **P — Popularity** | 15% | Community adoption: downloads, stars, likes (log-scaled to prevent gaming) |
 | **R — Recency** | 15% | Freshness: exponential time decay with type-specific half-lives |
@@ -54,7 +54,7 @@ These tags power the [`select_model` API](/developers) — AI agents can filter 
 
 **V1.0 (2025)** — Originally called "Freshness-Novelty Index." Four-factor P.V.C.U formula (Popularity, Velocity, Context, Uniqueness). Single-source HuggingFace data. No semantic component.
 
-**V2.0 (2026)** — Renamed to "Free2AITools Nexus Index." Five-factor S.A.P.R.Q formula. Multi-source aggregation (HuggingFace, GitHub, Civitai, Replicate, Ollama, Kaggle, arXiv). Rust FFI pipeline for 464K+ entities. Agent structured tags for `select_model` API. Factor scores exposed in every API response.
+**V2.0 (2026)** — Renamed to "Free2AITools Nexus Index." Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms. 464K+ entities evaluated daily. Agent structured tags for `select_model` API. Factor scores included in every API response.
 
 ## Anti-Gaming
 
@@ -82,7 +82,7 @@ Every API response includes `fni_version` and per-factor breakdown:
 }
 ```
 
-The FNI algorithm is open source: [`scripts/factory/lib/fni-score.js`](https://github.com/mosesy5688-cell/ai-nexus/blob/main/scripts/factory/lib/fni-score.js)
+The FNI algorithm is open source: [github.com/mosesy5688-cell/ai-nexus](https://github.com/mosesy5688-cell/ai-nexus)
 
 ## Related
 

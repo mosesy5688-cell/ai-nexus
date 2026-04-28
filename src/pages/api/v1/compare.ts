@@ -8,7 +8,7 @@ import { getCachedDbConnection, executeSql, loadManifest } from '../../../lib/sq
 import { xxhash64Mod } from '../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../constants/shard-constants.js';
 
-const API_VERSION = 'fni_v2.0_s50_factory';
+const API_VERSION = 'fni_v2.0';
 const MAX_IDS = 10;
 const SLUG_PREFIXES = [
   'hf-model', 'hf-agent', 'hf-tool', 'hf-dataset', 'hf-space', 'hf-paper', 'hf-collection',
