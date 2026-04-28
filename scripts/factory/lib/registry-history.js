@@ -74,6 +74,18 @@ export async function saveFniHistory(history) {
     // Monolith fallback
     await saveWithBackup('fni-history.json.zst', { ...history, lastUpdated: timestamp }, { compress: true });
 
-    // Purge stale shards (V18.2.1)
+    // Purge stale local shards (prevent backup-dir re-uploading corrupted files)
+    const historyDir = path.join(process.env.CACHE_DIR || './cache', 'fni-history');
+    try {
+        const localFiles = await fs.readdir(historyDir);
+        for (const f of localFiles) {
+            const m = f.match(/part-(\d+)\./);
+            if (m && parseInt(m[1]) >= shardCount) {
+                await fs.unlink(path.join(historyDir, f));
+            }
+        }
+    } catch {}
+
+    // Purge stale R2 shards (V18.2.1)
     await purgeStaleShards('fni-history', shardCount);
 }
