@@ -1,8 +1,4 @@
-/**
- * V55.9 Zstd Helper — Unified Compression (Rust FFI → WASM fallback)
- * Streaming: temp-file + Rust FFI for O(1) memory. No buffer-all-then-compress.
- */
-
+/** V55.9 Zstd Helper — Unified Compression (Rust FFI → WASM fallback) */
 import { Transform } from 'stream';
 import { createRequire } from 'module';
 import { createReadStream, createWriteStream, unlinkSync, mkdtempSync } from 'fs';
@@ -87,11 +83,14 @@ export function detectCompression(data) {
     return 'none';
 }
 
-/** Auto-decompress: detects format and decompresses accordingly. */
+/** Auto-decompress: detects format, handles base64-wrapped compressed data. */
 export async function autoDecompress(data) {
-    const format = detectCompression(data);
-    if (format === 'zstd') return zstdDecompress(data);
-    if (format === 'gzip') return zlib.gunzipSync(data);
+    const fmt = detectCompression(data);
+    if (fmt === 'zstd') return zstdDecompress(data);
+    if (fmt === 'gzip') return zlib.gunzipSync(data);
+    if (data.length > 16 && data[0] >= 0x41 && data[0] <= 0x7A) {
+        try { const d = Buffer.from(data.toString('utf-8').trim(), 'base64'); if (detectCompression(d) !== 'none') return autoDecompress(d); } catch {}
+    }
     return Buffer.from(data);
 }
 
