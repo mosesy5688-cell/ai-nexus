@@ -105,16 +105,11 @@ const siteMeta = {
     <link rel="alternate" type="application/rss+xml" title="AI Knowledge Base Feed" href="https://cdn.free2aitools.com/rss/knowledge.xml">
     <link rel="alternate" type="application/rss+xml" title="AI Industry Daily Updates Feed" href="https://cdn.free2aitools.com/rss/reports.xml">
 
-    <!-- V4.5 Performance: Preconnect to external origins for faster FCP -->
+    <!-- Preconnect only to origins needed before LCP -->
     <link rel="preconnect" href="https://cdn.free2aitools.com" crossorigin>
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
-    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://huggingface.co">
     <link rel="dns-prefetch" href="https://github.com">
-    
-    <!-- V4.6 Performance: Preload critical Alpine.js (LCP blocker) -->
-    <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" as="script">
     
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
