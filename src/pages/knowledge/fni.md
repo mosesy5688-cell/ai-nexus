@@ -1,51 +1,93 @@
 ---
 layout: ../../layouts/KnowledgeLayout.astro
-title: What is the FNI Score?
+title: "FNI: Free2AITools Nexus Index"
 slug: fni
-description: Understanding the Freshness-Novelty Index used by AI Nexus Hub to rank and discover trending AI models
-keywords: fni score, freshness, novelty, ai ranking, trending models, evaluation
+description: How the Free2AITools Nexus Index (FNI) V2.0 objectively ranks 464K+ AI entities using five factors — Semantic, Authority, Popularity, Recency, Quality — plus Agent structured tags.
+keywords: fni score, free2aitools nexus index, ai ranking, model selection, agent tags, S.A.P.R.Q
 ---
 
-# What is the FNI Score?
+# Free2AITools Nexus Index (FNI)
 
-The **Freshness-Novelty Index (FNI)** is a proprietary scoring algorithm developed by **Neural Mesh Hub** to help users separate the "signal from the noise" in the rapidly evolving AI landscape. While traditional leaderboards (like MMLU) focus on raw intelligence, FNI focuses on **momentum**, **uniqueness**, and **recent impact**.
+The **FNI** is the ranking algorithm behind Free2AITools. It evaluates 464,000+ AI entities (models, datasets, papers, tools, agents, spaces, prompts) across five weighted factors to produce a single 0-100 score.
 
-## How FNI is Calculated
+**Current version:** `fni_v2.0_s50_factory`
 
-FNI isn't a single number; it's a weighted composite of four key dimensions, mapped to the acronym **P.V.C.U**:
+## The Formula: S.A.P.R.Q
 
-### 1. Popularity (P)
-Measures the rate of adoption. We track download growth, GitHub stars, and social mentions over the last 14 days. 
--   *A model that gains 10k stars in a week gets a much higher P-score than an old model with 100k total stars.*
+```
+FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q
+```
 
-### 2. Velocity (V)
-Tracks how quickly the model's ecosystem is growing. This includes the number of fine-tunes (adapters), spaces, and quantization files being created by the community.
+| Factor | Weight | What It Measures |
+|--------|--------|-----------------|
+| **S — Semantic** | 35% | Query-time relevance via 768-dim embedding similarity and cluster-based reranking |
+| **A — Authority** | 25% | Ecosystem gravity: knowledge mesh centrality, cross-entity citations, source credibility |
+| **P — Popularity** | 15% | Community adoption: downloads, stars, likes (log-scaled to prevent gaming) |
+| **R — Recency** | 15% | Freshness: exponential time decay with type-specific half-lives |
+| **Q — Quality** | 10% | Completeness: README depth, metadata richness, runtime compatibility |
 
-### 3. Context & Capability (C)
-Evaluates if the model introduces significant architectural improvements (e.g., massive context window, lower VRAM requirements at higher accuracy).
+## Agent Structured Tags (V2.0)
 
-### 4. Uniqueness (U)
-The "Novelty" factor. Does this model fill a new niche? (e.g., a tiny 1B model that outperforms 7B models, or the first model specifically for a rare language).
+Beyond the five score factors, FNI V2.0 attaches structured metadata for machine-readable model selection:
+
+| Tag | Type | Meaning |
+|-----|------|---------|
+| `ollama_compatible` | boolean | Has GGUF quantization files — can be run via `ollama run` |
+| `can_run_local` | boolean | Locally runnable: ≤13B parameters + GGUF available |
+| `license_type` | string | Classified as `permissive`, `copyleft`, `non-commercial`, or `unknown` |
+| `hosted_on` | string[] | Cloud providers offering this model (Replicate, Together, HF Inference) |
+| `hosted_on_checked_at` | ISO date | When the hosting data was last verified |
+
+These tags power the [`select_model` API](/developers) — AI agents can filter models by hardware constraints, license type, and deployment target via MCP or HTTP.
 
 ## Interpreting FNI Scores
 
-| FNI Percentile | Label | Meaning |
-| :--- | :--- | :--- |
-| **95% - 100%** | 🌈 **Viral Breakout** | A generational shift or massive community phenomenon (e.g., Llama 3 launch). |
-| **80% - 94%** | 🔥 **Trending High** | Significant momentum; the current benchmark for its class. |
-| **50% - 79%** | 📈 **Steady Growth** | Reliable models that are gaining consistent professional use. |
-| **< 50%** | ❄️ **Cooling/Static** | Established models that are no longer the primary focus of active research. |
+| Range | Label | Meaning |
+|-------|-------|---------|
+| **80-100** | Elite | Top-tier: strong across all five factors |
+| **60-79** | Strong | Well-rounded with clear strengths in 3+ factors |
+| **40-59** | Solid | Good in 1-2 areas, average elsewhere |
+| **20-39** | Emerging | New or niche — may be rising fast (check R factor) |
+| **0-19** | Low Signal | Minimal community footprint or very stale |
 
-## Why FNI Matters
+## Version History
 
-Hugging Face has over 500,000 models. 99% of them are stale or minor variations. FNI allows you to:
--   **Discover Hidden Gems**: Find small, high-U models before they go viral.
--   **Verify Hype**: See if a new model has the "Velocity" to back up its marketing claims.
--   **Stay Professional**: Focus your fine-tuning or deployment efforts on models with a growing ecosystem.
+**V1.0 (2025)** — Originally called "Freshness-Novelty Index." Four-factor P.V.C.U formula (Popularity, Velocity, Context, Uniqueness). Single-source HuggingFace data. No semantic component.
 
-## Related Concepts
+**V2.0 (2026)** — Renamed to "Free2AITools Nexus Index." Five-factor S.A.P.R.Q formula. Multi-source aggregation (HuggingFace, GitHub, Civitai, Replicate, Ollama, Kaggle, arXiv). Rust FFI pipeline for 464K+ entities. Agent structured tags for `select_model` API. Factor scores exposed in every API response.
 
--   [LLM Benchmarks](/knowledge/llm-benchmarks) - Traditional ways to measure IQ.
--   [Llama Family Guide](/knowledge/llama) - Common high-FNI models.
--   [Local Inference](/knowledge/local-inference) - How to run trending models.
--   [VRAM Requirements](/knowledge/vram) - Hardware needed for new breakthroughs.
+## Anti-Gaming
+
+FNI uses multi-dimensional cross-validation to detect manipulation:
+- **Anomalous growth**: alerts when 7-day metric growth exceeds 10x the category average
+- **Ratio anomalies**: download/star ratios outside reasonable ranges for the entity type
+- **Content mismatch**: high popularity but no substantial documentation or code
+
+Flagged entities are reviewed and scores adjusted. Log-scaling on popularity metrics (P factor) inherently dampens artificial inflation.
+
+## For Developers
+
+Every API response includes `fni_version` and per-factor breakdown:
+
+```json
+{
+  "fni_score": 72.4,
+  "fni_factors": {
+    "semantic": 50.0,
+    "authority": 85.2,
+    "popularity": 67.1,
+    "recency": 91.0,
+    "quality": 44.3
+  }
+}
+```
+
+The FNI algorithm is open source: [`scripts/factory/lib/fni-score.js`](https://github.com/mosesy5688-cell/ai-nexus/blob/main/scripts/factory/lib/fni-score.js)
+
+## Related
+
+- [Methodology](/methodology) — Visual breakdown of the FNI formula and fairness pillars
+- [Developers](/developers) — API documentation for `select_model` and `compare`
+- [LLM Benchmarks](/knowledge/llm-benchmarks) — Traditional evaluation metrics (MMLU, HumanEval)
+- [Local Inference](/knowledge/local-inference) — Running models locally with Ollama/llama.cpp
+- [VRAM Requirements](/knowledge/vram) — Hardware needed for different model sizes
