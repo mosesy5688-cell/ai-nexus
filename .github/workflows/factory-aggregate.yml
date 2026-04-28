@@ -75,7 +75,8 @@ jobs:
     steps:
       - name: Free Runner Disk (pre-installed tools not needed)
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup 2>/dev/null || true
+          sudo apt-get clean 2>/dev/null || true
           echo "Disk after cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -370,7 +371,10 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup 2>/dev/null || true
+          sudo apt-get clean 2>/dev/null || true
+          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -443,7 +447,10 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup 2>/dev/null || true
+          sudo apt-get clean 2>/dev/null || true
+          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -532,7 +539,10 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup 2>/dev/null || true
+          sudo apt-get clean 2>/dev/null || true
+          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
@@ -616,7 +626,10 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Free Runner Disk
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup 2>/dev/null || true
+          sudo apt-get clean 2>/dev/null || true
+          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
