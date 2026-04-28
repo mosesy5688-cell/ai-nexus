@@ -88,8 +88,11 @@ export async function autoDecompress(data) {
     const fmt = detectCompression(data);
     if (fmt === 'zstd') return zstdDecompress(data);
     if (fmt === 'gzip') return zlib.gunzipSync(data);
-    if (data.length > 16 && data[0] >= 0x41 && data[0] <= 0x7A) {
-        try { const d = Buffer.from(data.toString('utf-8').trim(), 'base64'); if (detectCompression(d) !== 'none') return autoDecompress(d); } catch {}
+    let buf = data;
+    for (let i = 0; i < 5 && buf.length > 16 && buf[0] >= 0x41 && buf[0] <= 0x7A; i++) {
+        try { buf = Buffer.from(buf.toString('utf-8').trim(), 'base64'); } catch { break; }
+        const inner = detectCompression(buf);
+        if (inner !== 'none') return autoDecompress(buf);
     }
     return Buffer.from(data);
 }
