@@ -196,6 +196,52 @@ const pageDescription = "Learn about the Free2AITools Nexus Index (FNI) methodol
       </div>
     </section>
 
+    <!-- Version History -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>📋</span> Version History
+      </h2>
+      <div class="space-y-4">
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h3 class="font-bold text-gray-900 dark:text-white mb-1">V1.0 (2025) — Freshness-Novelty Index</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Original four-factor formula (P.V.C.U): Popularity, Velocity, Context, Uniqueness. Single-source (HuggingFace), no semantic component.</p>
+        </div>
+        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
+          <h3 class="font-bold text-blue-800 dark:text-blue-300 mb-1">V2.0 (2026) — Free2AITools Nexus Index <span class="text-xs bg-blue-100 dark:bg-blue-800 px-2 py-0.5 rounded">Current</span></h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Five-factor S.A.P.R.Q formula. Multi-source (HuggingFace, GitHub, Civitai, Replicate, Ollama, Kaggle, arXiv). 464K+ entities. Rust FFI pipeline. Agent structured tags for machine-readable model selection.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Agent Structured Tags -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>🤖</span> Agent Structured Tags
+      </h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">Beyond the five FNI factors, V2.0 provides structured metadata for AI agent model selection:</p>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <code class="text-sm font-mono text-blue-600 dark:text-blue-400">ollama_compatible</code>
+          <p class="text-xs text-gray-500 mt-1">Has GGUF quantization — runnable via <code>ollama run</code></p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <code class="text-sm font-mono text-blue-600 dark:text-blue-400">can_run_local</code>
+          <p class="text-xs text-gray-500 mt-1">Locally runnable: ≤13B parameters + GGUF available</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <code class="text-sm font-mono text-blue-600 dark:text-blue-400">license_type</code>
+          <p class="text-xs text-gray-500 mt-1">Classified: permissive, copyleft, non-commercial, or unknown</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+          <code class="text-sm font-mono text-blue-600 dark:text-blue-400">hosted_on</code>
+          <p class="text-xs text-gray-500 mt-1">Hosting providers: Replicate, Together, HF Inference (daily updated)</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-500 mt-3">
+        These tags power the <a href="/developers" class="text-blue-500 underline">select_model API</a> — agents can filter by hardware constraints, license, and deployment target.
+      </p>
+    </section>
+
     <!-- Open Source Commitment -->
     <section class="mb-12">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
