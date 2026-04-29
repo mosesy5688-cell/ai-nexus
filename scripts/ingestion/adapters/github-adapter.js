@@ -16,17 +16,9 @@ import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const GH_API_BASE = 'https://api.github.com';
 
-/**
- * V2.1: AI Organizations whitelist for model detection
- * Repos from these orgs are likely to be models, not tools
- */
-const AI_ORGANIZATIONS = [
-    'meta-llama', 'google', 'openai', 'microsoft', 'anthropic',
-    'mistralai', 'huggingface', 'deepseek-ai', 'alibaba', 'baichuan-inc',
-    'internlm', 'qwen', 'bigscience', 'stabilityai', 'runwayml',
-    'nvidia', 'amd', 'intel', 'tiiuae', 'mosaicml', 'together-ai',
-    '01-ai', 'cohere', 'allenai', 'eleutherai', 'bigcode-project'
-];
+const MODEL_FILE_SIGNALS = ['gguf', 'safetensors', 'model_index.json', 'model-index', 'model_card', 'pytorch_model.bin', 'config.json'];
+const TOOL_NAMES = ['langchain', 'llamaindex', 'llama-index', 'autogen', 'crewai', 'pytorch', 'tensorflow', 'keras', 'ollama', 'vllm', 'tgi', 'mlflow', 'ray', 'dspy', 'haystack', 'guidance', 'semantic-kernel'];
+const AGENT_NAMES = ['autogpt', 'auto-gpt', 'babyagi', 'superagi', 'agentgpt', 'metagpt', 'chatdev', 'camel-ai'];
 
 /**
  * GitHub Adapter Implementation
@@ -288,8 +280,7 @@ export class GitHubAdapter extends BaseAdapter {
             // Structural Top-Level Promotion
             github_quick_start: raw.quick_start || null,
 
-            // V6.0: Pipeline tag inferred from topics for category assignment
-            pipeline_tag: this.inferPipelineTag(raw.topics),
+            pipeline_tag: this.inferPipelineTag(raw.topics, entityType),
 
             // Metadata
             author: owner,
@@ -441,57 +432,29 @@ export class GitHubAdapter extends BaseAdapter {
     // ============================================================
 
     inferType(raw) {
-        const owner = (raw.owner?.login || '').toLowerCase();
+        const name = (raw.name || '').toLowerCase();
+        const readme = (raw.readme || '').toLowerCase();
+
+        if (AGENT_NAMES.some(a => name.includes(a))) return 'agent';
+        if (TOOL_NAMES.some(t => name.includes(t))) return 'tool';
+
+        if (MODEL_FILE_SIGNALS.some(sig => readme.includes(sig))) return 'model';
+
         const description = (raw.description || '').toLowerCase();
-        const topics = raw.topics || [];
+        const hasWeights = ['weights', 'checkpoint', 'pretrained', 'fine-tuned', 'quantized'].some(w => description.includes(w) || readme.includes(w));
+        if (hasWeights) return 'model';
 
-        // V2.1: AI Organization detection (whitelist-based, no inference)
-        if (AI_ORGANIZATIONS.some(org => owner.includes(org))) {
-            return 'model';
-        }
-
-        // Check for model indicators in description/topics
-        const modelIndicators = ['model', 'weights', 'checkpoint', 'pretrained', 'llm', 'transformer'];
-        if (modelIndicators.some(ind => description.includes(ind) ||
-            topics.some(t => t.includes(ind)))) {
-            return 'model';
-        }
-
-        // Default to tool for code repositories
         return 'tool';
     }
 
-    /**
-     * V6.0: Infer pipeline_tag from GitHub topics for category assignment
-     */
-    inferPipelineTag(topics) {
+    inferPipelineTag(topics, type) {
+        if (type !== 'model') return 'other';
         const topicsLower = (topics || []).map(t => t.toLowerCase());
-
-        // Text generation indicators
-        if (topicsLower.some(t => ['llm', 'gpt', 'chat', 'language-model', 'chatbot', 'text-generation'].includes(t))) {
-            return 'text-generation';
-        }
-
-        // Image generation indicators
-        if (topicsLower.some(t => ['stable-diffusion', 'diffusion', 'image-generation', 'text-to-image', 'sdxl'].includes(t))) {
-            return 'text-to-image';
-        }
-
-        // Embedding/RAG indicators
-        if (topicsLower.some(t => ['embedding', 'sentence-transformers', 'rag', 'vector-database'].includes(t))) {
-            return 'feature-extraction';
-        }
-
-        // Speech/Audio indicators
-        if (topicsLower.some(t => ['speech-recognition', 'tts', 'text-to-speech', 'whisper', 'asr'].includes(t))) {
-            return 'automatic-speech-recognition';
-        }
-
-        // Computer vision indicators
-        if (topicsLower.some(t => ['object-detection', 'image-classification', 'yolo', 'segmentation'].includes(t))) {
-            return 'object-detection';
-        }
-
+        if (topicsLower.some(t => ['llm', 'gpt', 'language-model', 'text-generation'].includes(t))) return 'text-generation';
+        if (topicsLower.some(t => ['stable-diffusion', 'diffusion', 'text-to-image', 'sdxl'].includes(t))) return 'text-to-image';
+        if (topicsLower.some(t => ['embedding', 'sentence-transformers'].includes(t))) return 'feature-extraction';
+        if (topicsLower.some(t => ['speech-recognition', 'tts', 'whisper', 'asr'].includes(t))) return 'automatic-speech-recognition';
+        if (topicsLower.some(t => ['object-detection', 'image-classification', 'yolo'].includes(t))) return 'object-detection';
         return 'other';
     }
 
