@@ -48,21 +48,20 @@ try {
   dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
-     Astro.response.status = 404;
-     return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
+    console.warn(`[Astro] Entity not found: ${slugStr}`);
+  } else {
+    agent = hydrateEntity(entity, type);
+    meshRelations = mesh || [];
+    tagsArray = agent?.tags || [];
+
+    const normalizedSlug = normalizeEntitySlug(slugStr, type);
+    const displayAgentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
+    pageTitle = `${displayAgentName} - AI Agent Insights`;
+    cleanedDesc = cleanDescription(agent?.description || '');
+    pageDescription = agent?.seo_summary?.description || cleanedDesc || `Details for ${displayAgentName}.`;
+
+    agent.html_readme = html || agent.html_readme || null;
   }
-
-  agent = hydrateEntity(entity, type);
-  meshRelations = mesh || [];
-  tagsArray = agent?.tags || [];
-
-  const normalizedSlug = normalizeEntitySlug(slugStr, type);
-  const displayAgentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
-  pageTitle = `${displayAgentName} - AI Agent Insights`;
-  cleanedDesc = cleanDescription(agent?.description || '');
-  pageDescription = agent?.seo_summary?.description || cleanedDesc || `Details for ${displayAgentName}.`;
-  
-  agent.html_readme = html || agent.html_readme || null;
 
 } catch (e) {
   console.error("[AgentPage] Error loading agent:", e);
@@ -70,10 +69,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!agent) {
-  Astro.response.status = 404;
-  return Astro.redirect('/404?source=agent-not-found');
-}
+// agent=null → EntityLayout renders "Entity Being Indexed" fallback
 
 const agentName = agent?.name || 'Unknown Agent';
 const entityId = agent?.id || slugStr;

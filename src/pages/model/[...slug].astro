@@ -46,11 +46,8 @@ try {
   dataSource = _meta.dataSource || '404';
 
   if (!_meta.available || !entity) {
-    // V22.8: Explicit 404 for unknown entities
-    console.warn(`[Astro] 404 Triggered for ${slugStr}: Metadata available: ${_meta.available}`);
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=entity-not-found&id=' + encodeURIComponent(slugStr));
-  }
+    console.warn(`[Astro] Entity not found: ${slugStr}`);
+  } else {
 
   // 4. Transform & Prepare
   model = hydrateEntity(entity, type);
@@ -63,7 +60,8 @@ try {
   pageDescription = model?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayModelName}.`;
   
   // V16.5: Explicit HTML Assignment (Stream B Source)
-  model.html_readme = html || model.html_readme || null; 
+  model.html_readme = html || model.html_readme || null;
+  }
 
 } catch (e) {
   console.error("Error loading model:", e);
@@ -71,10 +69,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!model) {
-  Astro.response.status = 404;
-  return Astro.redirect('/404?source=model-not-found');
-}
+// model=null → EntityLayout renders "Entity Being Indexed" fallback
 
 // Capability Gating
 const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
