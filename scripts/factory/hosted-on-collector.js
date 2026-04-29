@@ -41,7 +41,7 @@ async function collectReplicate() {
 async function collectTogether() {
     const key = process.env.TOGETHER_API_KEY;
     if (!key) { console.warn('[HOSTED-ON] TOGETHER_API_KEY not set, skipping'); return []; }
-    const data = await fetchJson('https://api.together.xyz/v1/models', {
+    const data = await fetchJson('https://api.together.ai/v1/models', {
         Authorization: `Bearer ${key}`,
     });
     const models = (Array.isArray(data) ? data : data.data || []).map(m => ({
