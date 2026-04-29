@@ -10,59 +10,26 @@ const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 const reportSlug = slugStr.replace(/^daily\//, '');
 
 let report: any = null;
-let reportDataSource = '404';
 
 const r2Bucket = env?.R2_ASSETS;
 const shouldSimulate = !!import.meta.env?.DEV;
 
-// 1. Load metadata from meta-report.db
 try {
     await loadManifest(r2Bucket, shouldSimulate);
     const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-report.db');
     const rows = await executeSql(engine.sqlite3, engine.db,
         `SELECT * FROM articles WHERE slug = ? OR id = ? OR id LIKE ? LIMIT 1`,
         [reportSlug, reportSlug, `%${reportSlug}%`]);
-    if (rows.length > 0) {
-        report = rows[0];
-        reportDataSource = 'meta-report';
-    }
+    if (rows.length > 0) report = rows[0];
 } catch (e: any) {
-    console.warn(`[Report] meta-report.db query failed: ${e?.message}`);
+    console.warn(`[Report] VFS query failed: ${e?.message}`);
 }
 
-// 2. Load full content from R2/CDN
-if (report) {
-    const contentKey = `cache/reports/daily/${reportSlug}.json.zst`;
-    try {
-        let fullReport: any = null;
-        if (r2Bucket && !shouldSimulate) {
-            const obj = await r2Bucket.get(contentKey);
-            if (obj) {
-                const buf = await obj.arrayBuffer();
-                const { decompress } = await import('fzstd');
-                const json = new TextDecoder().decode(decompress(new Uint8Array(buf)));
-                fullReport = JSON.parse(json);
-            }
-        }
-        if (!fullReport) {
-            const res = await fetch(`https://cdn.free2aitools.com/${contentKey}`);
-            if (res.ok) {
-                const buf = await res.arrayBuffer();
-                const { decompress } = await import('fzstd');
-                const json = new TextDecoder().decode(decompress(new Uint8Array(buf)));
-                fullReport = JSON.parse(json);
-            }
-        }
-        if (fullReport) {
-            report = { ...report, ...fullReport };
-            reportDataSource = 'meta-report+content';
-        }
-    } catch (e: any) {
-        console.warn(`[Report] Content load failed for ${reportSlug}: ${e?.message}`);
-    }
+let highlights: any[] = [];
+if (report?.highlights_json) {
+    try { highlights = JSON.parse(report.highlights_json); } catch {}
 }
 
-Astro.response.headers.set('X-Data-Source', reportDataSource);
 Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=3600');
 
 const pageTitle = report?.title || `AI Daily Report - ${reportSlug}`;
@@ -88,9 +55,9 @@ const contentHtml = report?.content ? marked.parse(report.content) : '';
         </header>
         {contentHtml ? (
           <Fragment set:html={contentHtml} />
-        ) : report.highlights?.length > 0 ? (
+        ) : highlights.length > 0 ? (
           <div class="space-y-12 not-prose">
-            {report.highlights.map((item: any) => (
+            {highlights.map((item: any) => (
               <div class="group border-b border-zinc-800 pb-10 last:border-0">
                 <div class="flex items-center gap-3 mb-4">
                   <span class="px-2 py-0.5 text-[10px] font-black bg-indigo-500 text-white rounded uppercase tracking-widest">
