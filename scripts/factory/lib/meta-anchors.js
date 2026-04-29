@@ -34,10 +34,13 @@ const ANCHOR_SCHEMA = `
         word_count INTEGER DEFAULT 0,
         status TEXT DEFAULT 'published',
         canonical_url TEXT,
-        citation TEXT
+        citation TEXT,
+        content TEXT,
+        highlights_json TEXT
     );
     CREATE INDEX idx_published ON articles(published_at DESC);
     CREATE INDEX idx_category ON articles(category);
+    CREATE INDEX idx_slug ON articles(slug);
     CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
 `;
 
@@ -51,7 +54,7 @@ async function buildReportDb() {
     db.exec(ANCHOR_SCHEMA);
 
     const insert = db.prepare(`INSERT OR REPLACE INTO articles VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )`);
 
     let count = 0;
@@ -85,7 +88,8 @@ async function buildReportDb() {
                         report.summary || '', 'daily-report', report.tags || '',
                         report.author || 'free2aitools', report.published_at || report.date || '',
                         report.updated_at || '', slug, report.word_count || 0,
-                        'published', `https://free2aitools.com/reports/${slug}`, ''
+                        'published', `https://free2aitools.com/reports/${slug}`, '',
+                        report.content || '', report.highlights ? JSON.stringify(report.highlights) : ''
                     );
                     count++;
                 } catch { /* skip invalid */ }
@@ -113,7 +117,7 @@ async function buildKnowledgeDb() {
     const knowledgeDir = path.join(CACHE_DIR, 'knowledge');
 
     const insert = db.prepare(`INSERT OR REPLACE INTO articles VALUES (
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )`);
 
     try {
@@ -133,13 +137,13 @@ async function buildKnowledgeDb() {
 
                 insert.run(
                     id, article.umid || '', article.title || '', article.subtitle || '',
-                    article.summary || article.content || '', article.category || 'knowledge',
+                    article.summary || '', article.category || 'knowledge',
                     Array.isArray(article.tags) ? article.tags.join(', ') : (article.tags || ''),
                     article.author || 'free2aitools',
                     article.published_at || article.date || '', article.updated_at || '',
                     slug, article.word_count || 0, 'published',
-                    `https://free2aitools.com/knowledge/${slug}`,
-                    ''
+                    `https://free2aitools.com/knowledge/${slug}`, '',
+                    article.content || '', ''
                 );
                 count++;
             } catch (e) {
