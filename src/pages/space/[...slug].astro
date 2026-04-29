@@ -44,21 +44,20 @@ try {
   dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
+    console.warn(`[Astro] Entity not found: ${slugStr}`);
+  } else {
+    space = hydrateEntity(entity, type);
+    model = space;
+    tagsArray = space?.tags || [];
+    meshRelations = mesh || [];
+
+    const displaySpaceName = space?.title || space?.name || space?.canonical_name;
+    pageTitle = `${displaySpaceName} - AI Demo Insight`;
+    cleanedDesc = cleanDescription(space?.description || '');
+    pageDescription = space?.seo_summary?.description || cleanedDesc || `Deep dive into ${displaySpaceName} interactive space.`;
+
+    space.html_readme = html || space.html_readme || null;
   }
-
-  space = hydrateEntity(entity, type);
-  model = space; // Align with expectation in other components
-  tagsArray = space?.tags || [];
-  meshRelations = mesh || [];
-
-  const displaySpaceName = space?.title || space?.name || space?.canonical_name;
-  pageTitle = `${displaySpaceName} - AI Demo Insight`;
-  cleanedDesc = cleanDescription(space?.description || '');
-  pageDescription = space?.seo_summary?.description || cleanedDesc || `Deep dive into ${displaySpaceName} interactive space.`;
-  
-  space.html_readme = html || space.html_readme || null;
 
 } catch (e) {
   console.error("[SpacePage] Error loading space:", e);
@@ -67,10 +66,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!space) {
-  Astro.response.status = 404;
-  return Astro.redirect('/404?source=space-not-found');
-}
+// space=null → EntityLayout renders "Entity Being Indexed" fallback
 
 const spaceName = space?.name || 'Unknown Demo Space';
 const entityId = model?.id || slugStr;

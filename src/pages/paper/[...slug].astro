@@ -43,19 +43,18 @@ try {
   dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
+    console.warn(`[Astro] Entity not found: ${slugStr}`);
+  } else {
+    paper = hydrateEntity(entity, type);
+    tagsArray = paper?.tags || [];
+    meshRelations = mesh || [];
+
+    const displayPaperName = paper?.name || paper?.title || 'Unknown Research Paper';
+    pageTitle = `${displayPaperName} - AI Research Insight`;
+    pageDescription = paper?.seo_summary?.description || paper?.abstract || `Deep dive into ${displayPaperName} research and architecture.`;
+
+    paper.html_readme = html || paper.html_readme || null;
   }
-
-  paper = hydrateEntity(entity, type);
-  tagsArray = paper?.tags || [];
-  meshRelations = mesh || [];
-
-  const displayPaperName = paper?.name || paper?.title || 'Unknown Research Paper';
-  pageTitle = `${displayPaperName} - AI Research Insight`;
-  pageDescription = paper?.seo_summary?.description || paper?.abstract || `Deep dive into ${displayPaperName} research and architecture.`;
-  
-  paper.html_readme = html || paper.html_readme || null;
 
 } catch (e) {
   console.error("[PaperPage] Error loading paper:", e);
@@ -63,10 +62,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!paper) {
-  Astro.response.status = 404;
-  return Astro.redirect('/404?source=paper-not-found');
-}
+// paper=null → EntityLayout renders "Entity Being Indexed" fallback
 
 const paperTitle = paper?.name || paper?.title || 'Unknown Research Paper';
 const entityId = paper?.id || slugStr;

@@ -33,19 +33,18 @@ try {
   dataSource = _meta.dataSource || '404';
 
   if (!entity || !_meta.available) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=prompt-not-found&id=' + encodeURIComponent(slugStr));
-  }
+    console.warn(`[Astro] Entity not found: ${slugStr}`);
+  } else {
+    promptData = hydrateEntity(entity, type);
+    meshRelations = mesh || [];
 
-  promptData = hydrateEntity(entity, type);
-  meshRelations = mesh || [];
-  
-  const displayPromptName = promptData?.name || promptData?.title || 'Unknown Prompt';
-  pageTitle = `${displayPromptName} - AI Prompt Insights`;
-  cleanedDesc = cleanDescription(promptData?.description || '');
-  pageDescription = promptData?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayPromptName}.`;
-  
-  promptData.html_readme = html || promptData.html_readme || null;
+    const displayPromptName = promptData?.name || promptData?.title || 'Unknown Prompt';
+    pageTitle = `${displayPromptName} - AI Prompt Insights`;
+    cleanedDesc = cleanDescription(promptData?.description || '');
+    pageDescription = promptData?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayPromptName}.`;
+
+    promptData.html_readme = html || promptData.html_readme || null;
+  }
 
 } catch (e) {
   console.error("[PromptPage] Error loading:", e);
@@ -53,10 +52,7 @@ try {
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
 
-if (!promptData) {
-  Astro.response.status = 404;
-  return Astro.redirect('/404?source=prompt-not-found');
-}
+// promptData=null → EntityLayout renders "Entity Being Indexed" fallback
 
 const promptName = promptData?.name || 'Unknown Prompt';
 const entityId = promptData?.id || slugStr;
