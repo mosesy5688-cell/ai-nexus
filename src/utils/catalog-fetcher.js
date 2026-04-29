@@ -52,25 +52,32 @@ async function _fetchCatalogDataInner(type, start) {
     } else {
         const rankingsDb = `rankings-${type}.db`;
         if (manifest?.partitions?.rankings_dbs) {
-            try {
-                const rSql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, forks, citation_count FROM entities ORDER BY fni_score DESC LIMIT 48`;
-                const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, rankingsDb);
-                const rows = await executeSql(engine.sqlite3, engine.db, rSql, []);
-                if (rows.length > 0) {
-                    const normalized = DataNormalizer.normalizeCollection(rows, type);
-                    const countRow = await executeSql(engine.sqlite3, engine.db, 'SELECT value FROM site_metadata WHERE key = ?', ['entity_count']);
-                    const totalEntities = countRow[0] ? Number(countRow[0].value) : normalized.length;
-                    console.log(`[CatalogFetcher] Rankings DB: ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
-                    return { items: normalized, totalPages: Math.ceil(totalEntities / 48), totalEntities, error: null, source: 'rankings' };
+            for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                    const rSql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, forks, citation_count FROM entities ORDER BY fni_score DESC LIMIT 48`;
+                    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, rankingsDb);
+                    const rows = await executeSql(engine.sqlite3, engine.db, rSql, []);
+                    if (rows.length > 0) {
+                        const normalized = DataNormalizer.normalizeCollection(rows, type);
+                        const countRow = await executeSql(engine.sqlite3, engine.db, 'SELECT value FROM site_metadata WHERE key = ?', ['entity_count']);
+                        const totalEntities = countRow[0] ? Number(countRow[0].value) : normalized.length;
+                        console.log(`[CatalogFetcher] Rankings DB: ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
+                        return { items: normalized, totalPages: Math.ceil(totalEntities / 48), totalEntities, error: null, source: 'rankings' };
+                    }
+                    break;
+                } catch (e) {
+                    console.error(`[CatalogFetcher] rankings-${type}.db attempt ${attempt + 1} failed: ${e.message}`);
+                    if (attempt === 0) {
+                        const { evictCachedDb } = await import('../lib/sqlite-engine');
+                        await evictCachedDb(rankingsDb);
+                    }
                 }
-            } catch (e) {
-                console.warn(`[CatalogFetcher] rankings-${type}.db failed (${e.message}), falling back`);
             }
         }
         sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE type = ? ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 48`;
         sqlParams = [type];
-        const { priority } = determineTargetDbs(type, '', 1, manifest);
-        shardList = priority.slice(0, 1);
+        const { priority, expansion } = determineTargetDbs(type, '', 1, manifest);
+        shardList = [...priority, ...(expansion || [])].slice(0, 4);
     }
 
     // Query single priority shard for SSR (speed-safe)
