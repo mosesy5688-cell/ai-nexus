@@ -17,6 +17,12 @@ import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 const GH_API_BASE = 'https://api.github.com';
 
 const MODEL_FILE_SIGNALS = ['gguf', 'safetensors', 'model_index.json', 'model-index', 'model_card', 'pytorch_model.bin', 'config.json'];
+const MODEL_KEYWORD_SIGNALS = ['weights', 'checkpoint', 'pretrained', 'fine-tuned', 'quantized', 'inference', 'parameters', 'benchmark'];
+const MODEL_PUBLISHERS = [
+    'meta-llama', 'stabilityai', 'runwayml', 'deepseek-ai', 'mistralai',
+    'qwen', 'baichuan-inc', 'internlm', 'bigscience', 'tiiuae', 'mosaicml',
+    '01-ai', 'cohere', 'allenai', 'eleutherai', 'bigcode-project',
+];
 const TOOL_NAMES = ['langchain', 'llamaindex', 'llama-index', 'autogen', 'crewai', 'pytorch', 'tensorflow', 'keras', 'ollama', 'vllm', 'tgi', 'mlflow', 'ray', 'dspy', 'haystack', 'guidance', 'semantic-kernel'];
 const AGENT_NAMES = ['autogpt', 'auto-gpt', 'babyagi', 'superagi', 'agentgpt', 'metagpt', 'chatdev', 'camel-ai'];
 
@@ -434,15 +440,21 @@ export class GitHubAdapter extends BaseAdapter {
     inferType(raw) {
         const name = (raw.name || '').toLowerCase();
         const readme = (raw.readme || '').toLowerCase();
+        const description = (raw.description || '').toLowerCase();
+        const owner = (raw.owner?.login || '').toLowerCase();
 
         if (AGENT_NAMES.some(a => name.includes(a))) return 'agent';
         if (TOOL_NAMES.some(t => name.includes(t))) return 'tool';
 
         if (MODEL_FILE_SIGNALS.some(sig => readme.includes(sig))) return 'model';
+        if (MODEL_KEYWORD_SIGNALS.some(w => description.includes(w) || readme.includes(w))) return 'model';
 
-        const description = (raw.description || '').toLowerCase();
-        const hasWeights = ['weights', 'checkpoint', 'pretrained', 'fine-tuned', 'quantized'].some(w => description.includes(w) || readme.includes(w));
-        if (hasWeights) return 'model';
+        // Known model publishers: lower threshold — repo name or topics suggest model
+        if (MODEL_PUBLISHERS.some(org => owner.includes(org))) {
+            const topics = (raw.topics || []).map(t => t.toLowerCase());
+            if (topics.some(t => ['model', 'llm', 'weights', 'transformer', 'diffusion'].includes(t))) return 'model';
+            if (!name.includes('sdk') && !name.includes('doc') && !name.includes('example') && !name.includes('cookbook')) return 'model';
+        }
 
         return 'tool';
     }
