@@ -504,7 +504,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           for p in replicate together hf-inference; do
-            node scripts/factory/r2-workflow-cli.js restore-file "state/hosted-on/hosted-on-${p}.json" "cache/hosted-on-${p}.json" || echo "⚠️ hosted-on-${p}.json not in R2"
+            node scripts/factory/r2-workflow-cli.js restore-file "state/hosted-on/hosted-on-${p}.json" "output/cache/hosted-on-${p}.json" || echo "⚠️ hosted-on-${p}.json not in R2"
           done
       - name: Generate Rankings
         env:
