@@ -1,0 +1,347 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Free2AITools API",
+    "version": "2.0.0",
+    "description": "AI model selection, comparison, and ranking powered by the Free2AITools Nexus Index (FNI). Designed for AI agents and developers building model selection pipelines.",
+    "contact": {
+      "name": "Free2AITools",
+      "url": "https://free2aitools.com/developers"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/mosesy5688-cell/ai-nexus/blob/main/LICENSE"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://free2aitools.com",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/api/v1/select": {
+      "post": {
+        "operationId": "selectModel",
+        "summary": "Select the best AI model for a task",
+        "description": "Returns ranked model recommendations with FNI factor breakdown, confidence scores, and natural language rationale. Supports hardware, license, and deployment constraints.",
+        "tags": ["Model Selection"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectRequest"
+              },
+              "example": {
+                "task": "text-generation",
+                "constraints": {
+                  "max_vram_gb": 24,
+                  "license": "commercial",
+                  "ollama_compatible": true
+                },
+                "limit": 5,
+                "explain": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ranked model recommendations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (missing task field or invalid JSON)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "search",
+        "summary": "Search AI models, tools, datasets, and papers",
+        "description": "Full-text search across 464K+ AI entities, ranked by FNI score. Free tier returns up to 5 results.",
+        "tags": ["Search"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Search query",
+            "example": "text generation model for coding"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["all", "model", "tool", "dataset", "paper", "agent", "space", "prompt"]
+            },
+            "description": "Filter by entity type"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 5, "default": 5 },
+            "description": "Max results (free tier capped at 5)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results ranked by FNI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/compare": {
+      "get": {
+        "operationId": "compareModels",
+        "summary": "Compare 2-10 AI models side-by-side",
+        "description": "Returns FNI factor decomposition, specs, and metadata for each model in parallel columns.",
+        "tags": ["Comparison"],
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Comma-separated model IDs (2-10)",
+            "example": "meta-llama/Llama-3.1-8B,google/gemma-2-27b"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Side-by-side comparison",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing ids or fewer than 2"
+          }
+        }
+      }
+    },
+    "/api/v1/badge/{umid}": {
+      "get": {
+        "operationId": "getFniBadge",
+        "summary": "FNI score badge (SVG)",
+        "description": "Returns an SVG badge showing the entity's FNI score. Embeddable in READMEs and documentation.",
+        "tags": ["Badge"],
+        "parameters": [
+          {
+            "name": "umid",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Entity ID (slug format: author--name)",
+            "example": "meta-llama--llama-3.3-70b-instruct"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SVG badge image",
+            "content": {
+              "image/svg+xml": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp": {
+      "post": {
+        "operationId": "mcpEndpoint",
+        "summary": "MCP Server (JSON-RPC 2.0)",
+        "description": "Model Context Protocol endpoint. Supports tools/list and tools/call for 5 tools: search, rank, explain, select_model, compare.",
+        "tags": ["MCP"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "jsonrpc": { "type": "string", "enum": ["2.0"] },
+                  "method": { "type": "string", "enum": ["initialize", "tools/list", "tools/call"] },
+                  "id": { "type": "integer" },
+                  "params": { "type": "object" }
+                },
+                "required": ["jsonrpc", "method", "id"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC 2.0 response"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SelectRequest": {
+        "type": "object",
+        "required": ["task"],
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task name or natural language description",
+            "example": "text-generation"
+          },
+          "constraints": {
+            "type": "object",
+            "properties": {
+              "max_vram_gb": { "type": "number", "description": "Maximum VRAM in GB" },
+              "max_params_b": { "type": "number", "description": "Maximum parameters in billions" },
+              "license": { "type": "string", "description": "'commercial', 'apache-2.0', 'mit', or 'any'" },
+              "min_context_length": { "type": "integer", "description": "Minimum context window tokens" },
+              "ollama_compatible": { "type": "boolean", "description": "Only GGUF/Ollama-compatible models" },
+              "can_run_local": { "type": "boolean", "description": "Locally runnable (≤13B + GGUF)" },
+              "hosted_on": { "type": "string", "description": "Hosting provider: replicate, together, hf-inference" },
+              "license_type": { "type": "string", "enum": ["permissive", "copyleft", "non-commercial", "any"] }
+            }
+          },
+          "limit": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 },
+          "explain": { "type": "boolean", "default": true, "description": "Include rationale and caveats" }
+        }
+      },
+      "SelectResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "fni_v2.0" },
+          "task_interpreted": { "type": "string" },
+          "task_confidence": { "type": "number" },
+          "total_candidates": { "type": "integer" },
+          "recommendations": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Recommendation" }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "elapsed_ms": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "Recommendation": {
+        "type": "object",
+        "properties": {
+          "rank": { "type": "integer" },
+          "model_id": { "type": "string" },
+          "name": { "type": "string" },
+          "author": { "type": "string" },
+          "fni_score": { "type": "number" },
+          "fni_factors": {
+            "type": "object",
+            "properties": {
+              "semantic": { "type": "number" },
+              "authority": { "type": "number" },
+              "popularity": { "type": "number" },
+              "recency": { "type": "number" },
+              "quality": { "type": "number" }
+            }
+          },
+          "params_billions": { "type": "number", "nullable": true },
+          "vram_estimate_gb": { "type": "number", "nullable": true },
+          "context_length": { "type": "integer", "nullable": true },
+          "license": { "type": "string", "nullable": true },
+          "pipeline_tag": { "type": "string", "nullable": true },
+          "ollama_compatible": { "type": "boolean" },
+          "hosted_on": { "type": "array", "items": { "type": "string" } },
+          "license_type": { "type": "string" },
+          "can_run_local": { "type": "boolean" },
+          "confidence": { "type": "number" },
+          "rationale": { "type": "string" },
+          "caveats": { "type": "array", "items": { "type": "string" } },
+          "detail_url": { "type": "string", "format": "uri" },
+          "badge_url": { "type": "string", "format": "uri" }
+        }
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "tier": { "type": "string" },
+          "elapsed_ms": { "type": "integer" },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "slug": { "type": "string" },
+                "name": { "type": "string" },
+                "type": { "type": "string" },
+                "author": { "type": "string" },
+                "summary": { "type": "string" },
+                "fni_score": { "type": "number" },
+                "downloads": { "type": "integer" },
+                "stars": { "type": "integer" }
+              }
+            }
+          }
+        }
+      },
+      "CompareResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "entities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "author": { "type": "string" },
+                "fni_score": { "type": "number" },
+                "fni_factors": { "type": "object" },
+                "params_billions": { "type": "number", "nullable": true },
+                "vram_estimate_gb": { "type": "number", "nullable": true },
+                "context_length": { "type": "integer", "nullable": true },
+                "license": { "type": "string", "nullable": true },
+                "pipeline_tag": { "type": "string", "nullable": true }
+              }
+            }
+          },
+          "meta": { "type": "object" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" }
+        }
+      }
+    }
+  }
+}
