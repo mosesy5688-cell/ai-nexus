@@ -347,7 +347,9 @@ jobs:
         run: |
           [ -f "cache/fni-history.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer cache/fni-history.json.zst meta/backup/fni-history.json.zst
           [ -d "cache/fni-history" ] && node scripts/factory/r2-workflow-cli.js backup-dir cache/fni-history/ meta/backup/fni-history/
-          echo "✅ FNI history backed up to R2"
+          TODAY=$(date -u +%Y-%m-%d)
+          [ -f "cache/fni-history.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer cache/fni-history.json.zst "history/fni/${TODAY}.json.zst"
+          echo "✅ FNI history backed up to R2 + daily snapshot archived"
 
       - name: Save Daily Accumulator to Cache (Self-Healing)
         uses: actions/cache/save@v4
