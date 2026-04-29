@@ -35,7 +35,7 @@ export async function updateFniHistory(entities) {
         const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
         if (!history[id]) history[id] = [];
         history[id].push({ date: today, score: e.fni_score || 0 });
-        history[id] = history[id].slice(-7);
+        history[id] = history[id].slice(-90);
     }
 
     await saveFniHistory({ entities: history });
@@ -53,7 +53,7 @@ export async function updateFniHistoryFromBatch(historyBatch) {
     for (const [normalizedId, score] of historyBatch) {
         if (!history[normalizedId]) history[normalizedId] = [];
         history[normalizedId].push({ date: today, score });
-        history[normalizedId] = history[normalizedId].slice(-7);
+        history[normalizedId] = history[normalizedId].slice(-90);
     }
 
     await saveFniHistory({ entities: history });
