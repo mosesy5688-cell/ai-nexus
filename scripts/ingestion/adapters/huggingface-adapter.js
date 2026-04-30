@@ -64,7 +64,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
         // V22.4: Comprehensive metadata expansion for industrial throughput
         const expandParams = [
             'author', 'cardData', 'config', 'createdAt', 'downloads',
-            'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
+            'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'siblings', 'tags'
         ].map(e => `expand[]=${e}`).join('&');
 
         const skip = options.offset || 0;
