@@ -96,6 +96,22 @@ async function buildReportDb() {
             }
         } catch { /* dir not found — skip */ }
     }
+    // Insert trends summary as a special article
+    try {
+        const trendsPath = path.join(CACHE_DIR, 'trends-summary.json.zst');
+        const raw = await fs.readFile(trendsPath);
+        const trends = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
+        insert.run(
+            `trends-${trends.week}`, '', trends.week, 'FNI Pulse Weekly Trends',
+            `Top risers and fallers for week ${trends.week}`, 'trends', '',
+            'free2aitools', trends.generated || '', '', trends.week, 0,
+            'published', `https://free2aitools.com/trends`, '',
+            JSON.stringify(trends), JSON.stringify(trends.top_risers || [])
+        );
+        count++;
+        console.log(`[META-ANCHORS] Trends summary ${trends.week} inserted`);
+    } catch (e) { console.warn(`[META-ANCHORS] Trends summary not available: ${e.message}`); }
+
     db.exec('COMMIT');
     if (count === 0) console.warn('[META-ANCHORS] No report files found in any scan directory.');
 

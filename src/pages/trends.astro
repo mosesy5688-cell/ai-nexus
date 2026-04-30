@@ -1,0 +1,129 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import { getCachedDbConnection, loadManifest, executeSql } from '@/lib/sqlite-engine';
+import { env } from 'cloudflare:workers';
+
+const r2Bucket = env?.R2_ASSETS;
+const shouldSimulate = !!import.meta.env?.DEV;
+
+let trends: any = null;
+
+try {
+    await loadManifest(r2Bucket, shouldSimulate);
+    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-report.db');
+    const rows = await executeSql(engine.sqlite3, engine.db,
+        `SELECT content, highlights_json FROM articles WHERE category = 'trends' ORDER BY published_at DESC LIMIT 1`, []);
+    if (rows.length > 0 && rows[0].content) {
+        trends = JSON.parse(rows[0].content);
+    }
+} catch (e: any) {
+    console.warn('[Trends] VFS query failed:', e?.message);
+}
+
+const risers = trends?.top_risers || [];
+const fallers = trends?.top_fallers || [];
+const categories = trends?.category_summary || {};
+const week = trends?.week || 'N/A';
+const totalTracked = trends?.total_tracked || 0;
+
+const pageTitle = `FNI Pulse — AI Model Trends ${week}`;
+const pageDescription = `Weekly AI model ranking trends: top risers, fallers, and category analysis. ${totalTracked.toLocaleString()}+ models tracked by FNI score.`;
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="max-w-4xl mx-auto px-4 py-12">
+    <header class="mb-12">
+      <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">FNI Pulse</p>
+      <h1 class="text-3xl md:text-4xl font-black text-[var(--text-strong)] tracking-tight mb-3">
+        AI Model Trends
+      </h1>
+      <p class="text-sm text-zinc-400">
+        Weekly ranking changes across {totalTracked.toLocaleString()}+ AI models, scored by <a href="/methodology" class="text-indigo-400 hover:underline">FNI</a>. Updated every pipeline cycle.
+      </p>
+      {week !== 'N/A' && <p class="text-xs text-zinc-500 mt-1">Week: {week}</p>}
+      {trends?.headline && <p class="text-lg text-[var(--text-strong)] font-medium mt-4">{trends.headline}</p>}
+      {trends?.analysis && <p class="text-sm text-zinc-400 mt-2 leading-relaxed">{trends.analysis}</p>}
+    </header>
+
+    {!trends ? (
+      <div class="py-24 text-center">
+        <p class="text-zinc-500 text-xs uppercase tracking-widest">Trends data will be available after the next pipeline cycle.</p>
+      </div>
+    ) : (
+      <div class="space-y-12">
+        {/* Top Risers */}
+        <section>
+          <h2 class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-4">Top Risers</h2>
+          <div class="space-y-3">
+            {risers.map((r: any) => (
+              <a href={`/model/${r.author}/${r.name}`} class="flex items-center justify-between p-4 bg-emerald-950/20 border border-emerald-900/30 rounded-lg hover:border-emerald-500/50 transition-colors group">
+                <div>
+                  <p class="text-sm font-bold text-[var(--text-strong)] group-hover:text-emerald-300">{r.name}</p>
+                  <p class="text-[10px] text-zinc-500">{r.author} · {r.pipeline_tag || r.type}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm font-bold text-emerald-400">+{r.change_7d}</p>
+                  <p class="text-[10px] text-zinc-500">FNI {r.fni_score?.toFixed(1)}</p>
+                </div>
+              </a>
+            ))}
+            {risers.length === 0 && <p class="text-zinc-500 text-xs">No significant risers this week.</p>}
+          </div>
+        </section>
+
+        {/* Top Fallers */}
+        <section>
+          <h2 class="text-xs font-bold text-red-400 uppercase tracking-widest mb-4">Declining</h2>
+          <div class="space-y-3">
+            {fallers.map((r: any) => (
+              <a href={`/model/${r.author}/${r.name}`} class="flex items-center justify-between p-4 bg-red-950/20 border border-red-900/30 rounded-lg hover:border-red-500/50 transition-colors group">
+                <div>
+                  <p class="text-sm font-bold text-[var(--text-strong)] group-hover:text-red-300">{r.name}</p>
+                  <p class="text-[10px] text-zinc-500">{r.author} · {r.pipeline_tag || r.type}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm font-bold text-red-400">{r.change_7d}</p>
+                  <p class="text-[10px] text-zinc-500">FNI {r.fni_score?.toFixed(1)}</p>
+                </div>
+              </a>
+            ))}
+            {fallers.length === 0 && <p class="text-zinc-500 text-xs">No significant declines this week.</p>}
+          </div>
+        </section>
+
+        {/* Category Summary */}
+        <section>
+          <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Category Overview</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {Object.entries(categories).filter(([cat]) => cat !== 'other').slice(0, 8).map(([cat, data]: [string, any]) => (
+              <div class="p-4 bg-[var(--bg-surface)] border border-[var(--border-hairline)] rounded-lg">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-xs font-bold text-[var(--text-strong)] uppercase">{cat.replace(/-/g, ' ')}</p>
+                  <span class={`text-[10px] font-bold ${data.trend === 'rising' ? 'text-emerald-400' : data.trend === 'falling' ? 'text-red-400' : 'text-zinc-500'}`}>
+                    {data.trend === 'rising' ? '↑' : data.trend === 'falling' ? '↓' : '→'} {data.trend}
+                  </span>
+                </div>
+                <div class="flex items-center gap-4 text-[10px] text-zinc-500">
+                  <span>{data.count} models</span>
+                  <span>avg FNI {data.avg_fni}</span>
+                  <span class="text-emerald-500">{data.rising} rising</span>
+                  <span class="text-red-500">{data.falling} falling</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section class="text-center pt-8 border-t border-[var(--border-hairline)]">
+          <p class="text-xs text-zinc-500 mb-4">Want real-time alerts when models enter or leave the top 50?</p>
+          <a href="/developers" class="inline-block px-6 py-2 bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest rounded hover:bg-indigo-500 transition-colors">
+            Get API Access
+          </a>
+        </section>
+      </div>
+    )}
+  </div>
+</Layout>
