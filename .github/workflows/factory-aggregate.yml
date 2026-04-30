@@ -615,6 +615,7 @@ jobs:
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
           node scripts/factory/aggregator.js --task=trend
+          node scripts/factory/aggregator.js --task=trends-summary
       - name: Save Trending Results to Cache
         uses: actions/cache/save@v4
         with:
