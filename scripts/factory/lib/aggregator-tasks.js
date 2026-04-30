@@ -15,6 +15,7 @@ import { generateKnowledgeData } from './knowledge-data-generator.js';
 import { generateWithGemini, getKnownTopics } from './knowledge-ai.js';
 import { loadFniHistory } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
+import { generateTrendsSummary } from './trends-summary-generator.js';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { autoDecompress } from './zstd-helper.js';
 import path from 'path';
@@ -57,6 +58,12 @@ export function buildTaskList(shardReader, outputDir, opts = {}) {
             name: 'TrendData', id: 'trend', fn: async () => {
                 const history = await loadFniHistory();
                 await generateTrendData(history, path.join(outputDir, 'cache'));
+            }
+        },
+        {
+            name: 'TrendsSummary', id: 'trends-summary', fn: async () => {
+                const summary = await generateTrendsSummary(shardReader);
+                await smartWriteWithVersioning('trends-summary.json', summary, path.join(outputDir, 'cache'), { compress: true });
             }
         },
         {
