@@ -757,6 +757,9 @@ jobs:
             curl -s -o /dev/null --max-time 30 -H "User-Agent: Nexus-Warmer/1.0" "$url" || true
           done
           echo "✅ Proactive Warming Complete."
+      - name: Data Quality Check
+        run: node scripts/factory/data-quality-check.js
+        continue-on-error: true
       - name: Trigger Health Check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
