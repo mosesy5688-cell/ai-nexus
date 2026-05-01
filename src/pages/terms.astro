@@ -1,0 +1,52 @@
+---
+import Layout from '@/layouts/Layout.astro';
+const pageTitle = "Terms of Service | Free2AITools";
+const pageDescription = "Terms of Service for Free2AITools API and services.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="max-w-3xl mx-auto px-4 py-16 prose prose-invert prose-sm">
+    <h1 class="text-2xl font-black text-[var(--text-strong)] uppercase tracking-tight">Terms of Service</h1>
+    <p class="text-xs text-zinc-500">Last updated: May 1, 2026</p>
+
+    <h2>1. Acceptance</h2>
+    <p>By accessing or using Free2AITools ("Service"), you agree to these Terms. If you do not agree, do not use the Service.</p>
+
+    <h2>2. Service Description</h2>
+    <p>Free2AITools provides an AI model selection API, MCP server, FNI ranking data, and related tools. The Service aggregates publicly available data from third-party platforms and computes rankings using the Free2AITools Nexus Index (FNI) algorithm.</p>
+
+    <h2>3. API Usage</h2>
+    <ul>
+      <li>Free tier: 500 API calls per month, subject to rate limiting.</li>
+      <li>Paid tiers: Usage limits as specified in your subscription plan.</li>
+      <li>You may not use the API for illegal purposes, abuse detection systems, or resell API access without permission.</li>
+      <li>We reserve the right to suspend accounts that violate rate limits or these terms.</li>
+    </ul>
+
+    <h2>4. Data and Rankings</h2>
+    <ul>
+      <li>FNI scores are computed algorithmically. We do not guarantee the accuracy or completeness of any data.</li>
+      <li>Rankings are not endorsements. Model selection decisions are your responsibility.</li>
+      <li>Data is sourced from public APIs and may not reflect real-time availability.</li>
+    </ul>
+
+    <h2>5. Subscriptions and Payments</h2>
+    <ul>
+      <li>Paid subscriptions are billed monthly through our payment processor.</li>
+      <li>You may cancel at any time. Cancellation takes effect at the end of the current billing period.</li>
+      <li>Prices may change with 30 days notice.</li>
+    </ul>
+
+    <h2>6. Intellectual Property</h2>
+    <p>The FNI algorithm, API design, and website content are the property of Free2AITools. The underlying model data belongs to its respective owners and platforms.</p>
+
+    <h2>7. Limitation of Liability</h2>
+    <p>The Service is provided "as is" without warranties of any kind. We are not liable for any damages arising from use of the Service, including but not limited to incorrect model recommendations, API downtime, or data inaccuracies.</p>
+
+    <h2>8. Modifications</h2>
+    <p>We may update these Terms at any time. Continued use after changes constitutes acceptance.</p>
+
+    <h2>9. Contact</h2>
+    <p>Questions about these Terms: <a href="https://github.com/mosesy5688-cell/ai-nexus/issues">GitHub Issues</a></p>
+  </div>
+</Layout>

@@ -1,0 +1,59 @@
+---
+import Layout from '@/layouts/Layout.astro';
+const pageTitle = "Privacy Policy | Free2AITools";
+const pageDescription = "Privacy Policy for Free2AITools API and services.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="max-w-3xl mx-auto px-4 py-16 prose prose-invert prose-sm">
+    <h1 class="text-2xl font-black text-[var(--text-strong)] uppercase tracking-tight">Privacy Policy</h1>
+    <p class="text-xs text-zinc-500">Last updated: May 1, 2026</p>
+
+    <h2>1. Information We Collect</h2>
+    <h3>API Usage</h3>
+    <ul>
+      <li>Anonymous request logs: timestamp, endpoint, response time, status code.</li>
+      <li>We do NOT log query content, search terms, or model selection criteria.</li>
+      <li>API keys are stored as SHA-256 hashes. We never store plaintext keys.</li>
+    </ul>
+    <h3>Website</h3>
+    <ul>
+      <li>Cloudflare Analytics: anonymous page views, country, device type.</li>
+      <li>No cookies for tracking. No third-party analytics besides Cloudflare.</li>
+      <li>Google Tag Manager loads after 3-second delay and respects Do Not Track.</li>
+    </ul>
+    <h3>Payments</h3>
+    <ul>
+      <li>Payment processing is handled entirely by our payment processor (Merchant of Record).</li>
+      <li>We never see or store your credit card information.</li>
+      <li>We receive only: email, subscription tier, and payment status.</li>
+    </ul>
+
+    <h2>2. How We Use Information</h2>
+    <ul>
+      <li>API logs: aggregate usage statistics, rate limiting, service improvement.</li>
+      <li>Email: subscription management and service notifications only.</li>
+      <li>We do NOT sell, share, or transfer personal data to third parties.</li>
+    </ul>
+
+    <h2>3. Data Storage</h2>
+    <ul>
+      <li>All data is stored on Cloudflare infrastructure (R2 storage, Workers KV).</li>
+      <li>API logs are retained for 90 days, then deleted.</li>
+      <li>Account data is retained until you cancel your subscription.</li>
+    </ul>
+
+    <h2>4. Your Rights</h2>
+    <ul>
+      <li>You may request deletion of your account and associated data at any time.</li>
+      <li>You may request a copy of your data.</li>
+      <li>Contact us via <a href="https://github.com/mosesy5688-cell/ai-nexus/issues">GitHub Issues</a> for any privacy requests.</li>
+    </ul>
+
+    <h2>5. Open Source</h2>
+    <p>Free2AITools is open source. You can audit our data handling by reviewing the <a href="https://github.com/mosesy5688-cell/ai-nexus">source code</a>.</p>
+
+    <h2>6. Changes</h2>
+    <p>We may update this policy. Changes will be posted on this page with an updated date.</p>
+  </div>
+</Layout>
