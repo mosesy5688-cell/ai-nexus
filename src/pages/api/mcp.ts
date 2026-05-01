@@ -1,7 +1,7 @@
 /**
  * V∞ Phase 3.5: MCP Protocol Server (Streamable HTTP)
  * JSON-RPC 2.0 dispatch — Agent discovery layer for Free2AI.
- * Spec §6.8: 3 tools (search, rank, explain), zero new infrastructure.
+ * 5 tools: search, rank, explain, select_model, compare.
  */
 import type { APIRoute } from 'astro';
 import { GET as searchHandler } from './search.js';

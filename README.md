@@ -26,13 +26,13 @@ Free, no auth required. Returns FNI-scored results with factor breakdown.
 // Claude Desktop / Cursor / Windsurf config
 {
   "mcpServers": {
-    "free2ai": {
+    "free2aitools": {
       "url": "https://free2aitools.com/api/mcp"
     }
   }
 }
 ```
-3 tools: `free2ai_search`, `free2ai_rank`, `free2ai_explain`. Auto-discoverable via `/.well-known/mcp.json`.
+5 tools: `free2aitools_search`, `free2aitools_rank`, `free2aitools_explain`, `free2aitools_select_model`, `free2aitools_compare`. Auto-discoverable via `/.well-known/mcp.json`.
 
 ### FNI Badge
 Embed in any README:
