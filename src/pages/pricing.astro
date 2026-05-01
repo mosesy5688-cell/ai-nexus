@@ -1,0 +1,190 @@
+---
+import Layout from '@/layouts/Layout.astro';
+
+const pageTitle = "Pricing | Free2AITools";
+const pageDescription = "Free2AITools API pricing — Free tier (500 calls/mo, no signup), Hobbyist $5/mo, Pro $19/mo, Enterprise $199/mo.";
+
+const tiers = [
+  {
+    name: "Free",
+    price: "$0",
+    cadence: "forever",
+    tagline: "For exploring the API and small projects.",
+    quota: "500 API calls / month",
+    features: [
+      "No signup, no authentication",
+      "Search + ranking API",
+      "MCP server access (5 tools)",
+      "Embeddable FNI badges",
+      "Open data Parquet exports",
+      "Daily AI industry reports",
+    ],
+    cta: { text: "Try the free API", href: "/developers" },
+    highlight: false,
+    available: true,
+  },
+  {
+    name: "Hobbyist",
+    price: "$5",
+    cadence: "per month",
+    tagline: "For independent developers building on the API.",
+    quota: "3,000 API calls / month",
+    features: [
+      "Everything in Free",
+      "FNI Pulse weekly intelligence report",
+      "Top 10 results with factor breakdown",
+      "Email support (best effort)",
+    ],
+    cta: { text: "Join the waitlist", href: "https://github.com/mosesy5688-cell/ai-nexus/discussions" },
+    highlight: false,
+    available: false,
+  },
+  {
+    name: "Pro",
+    price: "$19",
+    cadence: "per month",
+    tagline: "For teams shipping AI-agent or developer-tool products.",
+    quota: "10,000 API calls / month",
+    features: [
+      "Everything in Hobbyist",
+      "Real-time alerts (webhook + email)",
+      "Historical FNI trend API",
+      "select_model with full constraint set",
+      "Priority email support",
+    ],
+    cta: { text: "Join the waitlist", href: "https://github.com/mosesy5688-cell/ai-nexus/discussions" },
+    highlight: true,
+    available: false,
+  },
+  {
+    name: "Enterprise",
+    price: "$199",
+    cadence: "per month",
+    tagline: "For organizations with custom integration needs.",
+    quota: "100,000 API calls / month",
+    features: [
+      "Everything in Pro",
+      "Custom FNI weight configuration",
+      "Full historical API access",
+      "Parquet Full snapshot exports",
+      "Priority support with SLA",
+      "Volume discounts available",
+    ],
+    cta: { text: "Contact sales", href: "https://github.com/mosesy5688-cell/ai-nexus/discussions" },
+    highlight: false,
+    available: false,
+  },
+];
+---
+
+<Layout title={pageTitle} description={pageDescription} noindex={true}>
+  <div class="max-w-6xl mx-auto px-4 py-12">
+
+    <!-- Status Banner -->
+    <div class="mb-10 rounded border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+      <p class="text-xs uppercase tracking-wide text-amber-400 font-semibold mb-1">Subscriptions opening soon</p>
+      <p class="text-sm text-zinc-300">
+        The Free tier is live and usable today. Paid tiers (Hobbyist, Pro, Enterprise) are launching soon — join the waitlist to be notified when subscriptions open.
+      </p>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-12">
+      <h1 class="text-3xl font-black text-[var(--text-strong)] uppercase tracking-tight mb-3">Pricing</h1>
+      <p class="text-sm text-zinc-400 max-w-2xl">
+        Pay for API usage, not for data. The underlying open data (Parquet exports, MIT-licensed source) remains free for everyone, regardless of tier.
+      </p>
+    </div>
+
+    <!-- Pricing Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
+      {tiers.map((tier) => (
+        <div class={`rounded border ${tier.highlight ? 'border-orange-500/50 bg-orange-500/5' : 'border-zinc-800 bg-zinc-900/30'} p-6 flex flex-col`}>
+          {tier.highlight && (
+            <p class="text-xs uppercase tracking-wide text-orange-400 font-semibold mb-2">Recommended</p>
+          )}
+          <h2 class="text-lg font-bold text-[var(--text-strong)] uppercase tracking-tight">{tier.name}</h2>
+          <div class="mt-3 mb-2 flex items-baseline gap-2">
+            <span class="text-3xl font-black text-[var(--text-strong)]">{tier.price}</span>
+            <span class="text-xs text-zinc-500">{tier.cadence}</span>
+          </div>
+          <p class="text-xs text-zinc-400 mb-4 min-h-[2.5rem]">{tier.tagline}</p>
+          <p class="text-sm font-semibold text-[var(--text-strong)] mb-3">{tier.quota}</p>
+          <ul class="space-y-1.5 mb-6 flex-grow">
+            {tier.features.map((feature) => (
+              <li class="text-xs text-zinc-400 flex items-start gap-2">
+                <span class="text-zinc-600 mt-0.5">—</span>
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+          <a
+            href={tier.cta.href}
+            class={`block text-center text-xs font-semibold uppercase tracking-wide py-2.5 rounded border transition-colors ${
+              tier.available
+                ? 'border-zinc-700 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800/50'
+                : tier.highlight
+                  ? 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10'
+                  : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:bg-zinc-800/50'
+            }`}
+          >
+            {tier.cta.text}
+          </a>
+        </div>
+      ))}
+    </div>
+
+    <!-- What stays free -->
+    <div class="mb-12 rounded border border-zinc-800 bg-zinc-900/20 p-6">
+      <h3 class="text-sm font-bold text-[var(--text-strong)] uppercase tracking-tight mb-3">What stays free for everyone</h3>
+      <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs text-zinc-400">
+        <li>— Open data: Parquet exports of the full index</li>
+        <li>— MIT-licensed source code on GitHub</li>
+        <li>— Methodology documentation (FNI formula + sub-factor weights)</li>
+        <li>— Daily AI industry summary reports</li>
+        <li>— Web UI search and rankings at free2aitools.com</li>
+        <li>— FNI score badges (embeddable in any README)</li>
+      </ul>
+    </div>
+
+    <!-- Policies -->
+    <div class="mb-8 rounded border border-zinc-800 bg-zinc-900/20 p-6">
+      <h3 class="text-sm font-bold text-[var(--text-strong)] uppercase tracking-tight mb-3">Billing policies</h3>
+      <ul class="space-y-1.5 text-xs text-zinc-400">
+        <li>— <strong class="text-zinc-300">14-day money-back guarantee</strong> on any paid tier (see <a href="/refund" class="text-zinc-300 underline">Refund Policy</a>)</li>
+        <li>— Cancel anytime; access continues to the end of the current billing period</li>
+        <li>— Monthly billing with no long-term commitment; annual plans available for Enterprise</li>
+        <li>— Pricing may change with 30 days notice for active subscribers</li>
+        <li>— Subject to our <a href="/terms" class="text-zinc-300 underline">Terms of Service</a> and <a href="/privacy" class="text-zinc-300 underline">Privacy Policy</a></li>
+      </ul>
+    </div>
+
+    <!-- FAQ -->
+    <div class="mb-8">
+      <h3 class="text-sm font-bold text-[var(--text-strong)] uppercase tracking-tight mb-4">Common questions</h3>
+
+      <div class="space-y-4 text-xs">
+        <div>
+          <p class="text-zinc-300 font-semibold mb-1">Is the data itself paywalled?</p>
+          <p class="text-zinc-400">No. Parquet exports of the full index are free for all tiers. Paid tiers are charging for higher API request limits and additional features (historical series, alerts, custom configuration), not for data access.</p>
+        </div>
+
+        <div>
+          <p class="text-zinc-300 font-semibold mb-1">What happens if I exceed my monthly quota?</p>
+          <p class="text-zinc-400">Requests beyond the tier limit return HTTP 429 (rate limit). No automatic charges, no surprise bills. You can upgrade to a higher tier mid-cycle if needed.</p>
+        </div>
+
+        <div>
+          <p class="text-zinc-300 font-semibold mb-1">Do you offer non-profit or academic discounts?</p>
+          <p class="text-zinc-400">Yes — please <a href="https://github.com/mosesy5688-cell/ai-nexus/discussions" class="text-zinc-300 underline">reach out via GitHub Discussions</a> with details about your project.</p>
+        </div>
+
+        <div>
+          <p class="text-zinc-300 font-semibold mb-1">When will paid tiers go live?</p>
+          <p class="text-zinc-400">After our payment processor onboarding completes. Join the waitlist via GitHub Discussions to be notified.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</Layout>

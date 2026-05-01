@@ -16,15 +16,17 @@ interface Props {
     image?: string;
     jsonld?: object;
     canonical?: string;
+    noindex?: boolean;
 }
 
 // V3.1 Phase 7: Enhanced SEO defaults
-const { 
-    title, 
-    description = 'The Definitive Open-Source AI Index. VRAM calculator, precision tech specs, neural discovery, and actionable toolchains powered by Free2AI.', 
-    image = '/og-image.jpg', 
+const {
+    title,
+    description = 'The Definitive Open-Source AI Index. VRAM calculator, precision tech specs, neural discovery, and actionable toolchains powered by Free2AI.',
+    image = '/og-image.jpg',
     jsonld,
-    canonical
+    canonical,
+    noindex = false
 } = Astro.props;
 
 // V18.12.5: Extreme Edge Resilience Strategy (SWR)
@@ -126,6 +128,7 @@ const siteMeta = {
     <meta property="twitter:image" content={resolvedImage}>
 
     <meta name="description" content={description}>
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <title>{title}</title>
 
     <link rel="canonical" href={canonicalURL.href} />
