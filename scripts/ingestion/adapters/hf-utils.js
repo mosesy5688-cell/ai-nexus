@@ -1,7 +1,10 @@
 /** HuggingFace Utility Functions (B.1 CES Refactor) */
 
-// prettier-ignore
-export const CONTEXT_LENGTH_BY_ARCH = { llama:8192,mistral:32768,mixtral:32768,qwen2:32768,qwen3:32768,gemma:8192,gemma2:8192,phi:2048,phi3:4096,phi4:16384,gpt2:1024,gpt_neox:2048,gpt_bigcode:8192,starcoder2:16384,bert:512,roberta:512,albert:512,deberta:512,distilbert:512,t5:512,bart:1024,mbart:1024,pegasus:1024,falcon:2048,bloom:2048,opt:2048,mpt:2048,'stable-diffusion':77,sdxl:77,flux:77,whisper:448,deepseek:4096,internlm:4096,internlm2:32768,baichuan:4096,yi:4096,chatglm:8192,glm:8192,cohere:8192,'command-r':131072,jamba:262144 };
+// V25.10 (2026-05-02): CONTEXT_LENGTH_BY_ARCH + arch normalize moved to
+// hf-arch-lookup.js to keep this file under the 250-line monolith ban.
+// Re-exported for backward compatibility with existing imports.
+export { CONTEXT_LENGTH_BY_ARCH, archToFamilyKey, lookupContextLength } from './hf-arch-lookup.js';
+import { lookupContextLength } from './hf-arch-lookup.js';
 
 /**
  * Parse model ID into author and name
@@ -62,19 +65,19 @@ export function buildMetaJson(raw) {
     const paramsRaw = raw.safetensors?.total || config.num_parameters || null;
     const paramsBillions = paramsRaw ? (paramsRaw / 1e9).toFixed(2) : null;
 
-    // Extract context length from config fields + model_type fallback table
+    // Extract architecture from config (used for both context_length fallback and entity field)
+    const architectures = config.architectures || [];
+    const architecture = architectures[0] || config.model_type || null;
+
+    // Extract context length: explicit config fields → architecture family fallback
     const contextLength = config.max_position_embeddings ||
         config.max_seq_len ||
         config.n_positions ||
         config.max_sequence_length ||
         config.seq_length ||
-        CONTEXT_LENGTH_BY_ARCH[config.model_type] ||
-        CONTEXT_LENGTH_BY_ARCH[(config.model_type || '').replace(/-/g, '')] ||
+        lookupContextLength(config.model_type) ||
+        lookupContextLength(architecture) ||
         null;
-
-    // Extract architecture from config
-    const architectures = config.architectures || [];
-    const architecture = architectures[0] || config.model_type || null;
 
     return {
         // Basic info
