@@ -75,7 +75,7 @@ export async function generateTrendsSummary(shardReader) {
         const catText = Object.entries(categorySummary).slice(0, 5).map(([c, d]) => `${c}: ${d.count} models, avg FNI ${d.avg_fni}, ${d.trend}`).join('; ');
         const narrative = await callGemini({
             systemInstruction: 'You are an AI industry analyst. Write a concise weekly trend summary in 3-4 sentences. Focus on what changed and why it matters for AI developers. No markdown, plain text only. Return JSON: {"headline":"...","analysis":"..."}',
-            prompt: `Week ${week} AI model trends:\nTop risers: ${topRisersText}\nTop fallers: ${topFallersText}\nCategories: ${catText}\nTotal tracked: ${totalTracked}`,
+            prompt: `Week ${week} AI model trends:\nTop risers: ${topRisersText}\nTop fallers: ${topFallersText}\nCategories: ${catText}\nTotal tracked: ${summary.total_tracked}`,
             temperature: 0.3,
             maxOutputTokens: 256,
         });
