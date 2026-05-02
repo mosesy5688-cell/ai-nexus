@@ -16,12 +16,17 @@ import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const GH_API_BASE = 'https://api.github.com';
 
-const MODEL_FILE_SIGNALS = ['gguf', 'safetensors', 'model_index.json', 'model-index', 'model_card', 'pytorch_model.bin', 'config.json'];
-const MODEL_KEYWORD_SIGNALS = ['weights', 'checkpoint', 'pretrained', 'fine-tuned', 'quantized', 'inference', 'parameters', 'benchmark'];
+// V25.11 (2026-05-03, #1925 fix): Removed MODEL_FILE_SIGNALS / MODEL_KEYWORD_SIGNALS
+// inference. README keyword matching produced 92% pollution (yolov5 / paddle /
+// open-interpreter / awesome-datascience all contain "model" / "weights" /
+// "inference" keywords but are tools/frameworks, not models). Only orgs in
+// MODEL_PUBLISHERS now qualify for type=model.
 const MODEL_PUBLISHERS = [
     'meta-llama', 'stabilityai', 'runwayml', 'deepseek-ai', 'mistralai',
     'qwen', 'baichuan-inc', 'internlm', 'bigscience', 'tiiuae', 'mosaicml',
     '01-ai', 'cohere', 'allenai', 'eleutherai', 'bigcode-project',
+    // 2026-05-03: extended for #1925
+    'google', 'google-research', 'microsoft', 'nvidia',
 ];
 const TOOL_NAMES = ['langchain', 'llamaindex', 'llama-index', 'autogen', 'crewai', 'pytorch', 'tensorflow', 'keras', 'ollama', 'vllm', 'tgi', 'mlflow', 'ray', 'dspy', 'haystack', 'guidance', 'semantic-kernel'];
 const AGENT_NAMES = ['autogpt', 'auto-gpt', 'babyagi', 'superagi', 'agentgpt', 'metagpt', 'chatdev', 'camel-ai'];
@@ -439,18 +444,14 @@ export class GitHubAdapter extends BaseAdapter {
 
     inferType(raw) {
         const name = (raw.name || '').toLowerCase();
-        const readme = (raw.readme || '').toLowerCase();
-        const description = (raw.description || '').toLowerCase();
         const owner = (raw.owner?.login || '').toLowerCase();
 
         if (AGENT_NAMES.some(a => name.includes(a))) return 'agent';
         if (TOOL_NAMES.some(t => name.includes(t))) return 'tool';
 
-        if (MODEL_FILE_SIGNALS.some(sig => readme.includes(sig))) return 'model';
-        if (MODEL_KEYWORD_SIGNALS.some(w => description.includes(w) || readme.includes(w))) return 'model';
-
-        // Known model publishers: lower threshold — repo name or topics suggest model
-        if (MODEL_PUBLISHERS.some(org => owner.includes(org))) {
+        // V25.11 (#1925 fix): type=model ONLY for known model publishers
+        // (removed README/description keyword inference — produced 92% pollution).
+        if (MODEL_PUBLISHERS.some(org => owner === org || owner.includes(org))) {
             const topics = (raw.topics || []).map(t => t.toLowerCase());
             if (topics.some(t => ['model', 'llm', 'weights', 'transformer', 'diffusion'].includes(t))) return 'model';
             if (!name.includes('sdk') && !name.includes('doc') && !name.includes('example') && !name.includes('cookbook')) return 'model';
