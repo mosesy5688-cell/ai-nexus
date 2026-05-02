@@ -622,6 +622,7 @@ jobs:
           path: |
             output/cache/trending.json.zst
             output/cache/trend-data.json.zst
+            output/cache/trends-summary.json.zst
           key: intra-cycle-${{ github.run_id }}-trending
       # R2 backup for trending satellite (P0-R2: R2-primary resilience)
       - name: Backup Trending Results to R2
@@ -633,6 +634,7 @@ jobs:
         run: |
           [ -f "output/cache/trending.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trending.json.zst state/satellite-trending/trending.json.zst
           [ -f "output/cache/trend-data.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trend-data.json.zst state/satellite-trending/trend-data.json.zst
+          [ -f "output/cache/trends-summary.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trends-summary.json.zst state/satellite-trending/trends-summary.json.zst
           echo "✅ Trending results backed up to R2"
 
   aggregate-relations:
