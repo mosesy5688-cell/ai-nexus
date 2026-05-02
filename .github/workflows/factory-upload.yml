@@ -295,6 +295,7 @@ jobs:
           mkdir -p output/cache
           [ ! -f "output/cache/trending.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trending.json.zst output/cache/trending.json.zst || true
           [ ! -f "output/cache/trend-data.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trend-data.json.zst output/cache/trend-data.json.zst || true
+          [ ! -f "output/cache/trends-summary.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trends-summary.json.zst output/cache/trends-summary.json.zst || true
       - name: Restore Fused Entities
         id: cache-fused
         uses: actions/cache/restore@v4
@@ -658,7 +659,7 @@ jobs:
           # V22.9.6: Removed cache/fused/ (~290K PUTs) and cache/mesh/profiles/ (~10K PUTs)
           # VFS is now the sole data source — individual entity JSONs are redundant.
           # Kept: cache/mesh/graph + cache/mesh/stats (VFS-IN via site_metadata)
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.zst,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.zst,cache/category_stats.json,cache/category_stats.json.zst,cache/search-core.json,cache/search-core.json.zst,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.zst,cache/trend-data.json,cache/trend-data.json.zst,cache/knowledge/,cache/mesh/graph,cache/mesh/stats,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/hot-shard.bin,data/vector-core.bin,data/,parquet/,datasets/
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.zst,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.zst,cache/category_stats.json,cache/category_stats.json.zst,cache/search-core.json,cache/search-core.json.zst,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.zst,cache/trend-data.json,cache/trend-data.json.zst,cache/trends-summary.json,cache/trends-summary.json.zst,cache/knowledge/,cache/mesh/graph,cache/mesh/stats,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/hot-shard.bin,data/vector-core.bin,data/,parquet/,datasets/
           CACHE_DIR: output/cache
           # V25.8 §2.2: Enable S3 Multipart for fused-shard-NNN.bin (>8MB)
           R2_MULTIPART_ENABLED: 'true'
