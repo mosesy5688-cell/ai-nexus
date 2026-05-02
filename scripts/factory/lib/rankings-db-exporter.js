@@ -9,6 +9,45 @@ import path from 'path';
 import fs from 'fs';
 import { classifyLicense } from './row-builders.js';
 
+/**
+ * V25.11 (2026-05-03, #1925 fix): Defensive filter for the 'model' rankings DB.
+ *
+ * Background: Even after GitHub adapter inferType fix (removing README keyword
+ * inference), historical entities from past harvests may still have type=model
+ * incorrectly. This filter applies at the LAST gate (rankings DB write) to
+ * ensure no GitHub repo without genuine model signals enters rankings-model.db.
+ *
+ * Civitai / Replicate / Kaggle / Ollama / HF entities pass through (they are
+ * legitimate model sources even when individual fields like params_billions
+ * are null — e.g., Civitai SD checkpoints don't use the LLM params schema).
+ *
+ * @param {Object} e - Entity object
+ * @returns {boolean} True if entity qualifies for rankings-model.db
+ */
+function qualifiesForModelRanking(e) {
+    const id = e.id || '';
+
+    // HuggingFace: trust HF API classification (real models)
+    if (id.startsWith('hf-model--') || id.startsWith('hf-')) return true;
+
+    // Civitai / Replicate / Kaggle / Ollama: real model sources (image, hosted, GGUF)
+    if (id.startsWith('civitai-') || id.startsWith('replicate-') ||
+        id.startsWith('kaggle-') || id.startsWith('ollama-')) return true;
+
+    // GitHub (gh-model-- or github-): require strong model signal
+    if (id.startsWith('gh-') || id.startsWith('github-')) {
+        return !!(
+            (e.architecture && e.architecture.length > 0) ||
+            (e.params_billions && Number(e.params_billions) > 0) ||
+            e.has_safetensors ||
+            e.has_gguf
+        );
+    }
+
+    // Unknown source: pass (conservative default)
+    return true;
+}
+
 const RANKINGS_SCHEMA = `
     CREATE TABLE entities (
         id TEXT PRIMARY KEY, slug TEXT, name TEXT, type TEXT, author TEXT,
@@ -46,7 +85,20 @@ export async function exportRankingsDbs(groups, outputDir) {
     fs.mkdirSync(dataDir, { recursive: true });
     let totalDbs = 0;
 
-    for (const [groupName, entities] of Object.entries(groups)) {
+    for (const [groupName, entitiesIn] of Object.entries(groups)) {
+        if (!entitiesIn.length) continue;
+
+        // V25.11 (#1925 fix): defensive filter for 'model' group
+        let entities = entitiesIn;
+        if (groupName === 'model') {
+            const before = entitiesIn.length;
+            entities = entitiesIn.filter(qualifiesForModelRanking);
+            const dropped = before - entities.length;
+            if (dropped > 0) {
+                console.log(`  [RANKINGS-DB] ${groupName}: filtered out ${dropped} non-qualified entities (#1925 GitHub repo without model signal)`);
+            }
+        }
+
         if (!entities.length) continue;
         const dbPath = path.join(dataDir, `rankings-${groupName}.db`);
         const db = new Database(dbPath);
