@@ -314,9 +314,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
                     existing.updated_at = expandedData.lastModified;
                     // Backfill context_length from architecture if missing
                     if (!existing.context_length && existing.architecture) {
-                        const { CONTEXT_LENGTH_BY_ARCH } = await import('./hf-utils.js');
-                        const archKey = (existing.architecture || '').toLowerCase().replace(/forlm$|forcausal.*/, '');
-                        existing.context_length = CONTEXT_LENGTH_BY_ARCH[archKey] || null;
+                        const { lookupContextLength } = await import('./hf-utils.js');
+                        existing.context_length = lookupContextLength(existing.architecture) || null;
                     }
                     return existing;
                 }
