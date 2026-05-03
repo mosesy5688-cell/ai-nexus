@@ -611,6 +611,11 @@ jobs:
           CACHE_DIR: ./cache
           ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          # 2026-05-03: GEMINI_API_KEY required for trends-summary's Gemini narrative
+          # generation. Without this, callGemini() returns null silently with
+          # "[TITAN] GEMINI_API_KEY not set. Skipping AI generation." warning,
+          # causing /trends page to show without headline/analysis text.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
