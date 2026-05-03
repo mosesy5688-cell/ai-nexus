@@ -2,7 +2,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
-import { configureDistiller, distillEntity } from './lib/v25-distiller.js';
+import { configureDistiller, distillEntity, flushDistillerCache, getDistillerStats } from './lib/v25-distiller.js';
 import { cleanAbstract } from './lib/abstract-cleaner.js';
 import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary } from './lib/pack-utils.js';
 import { computeMetaShardSlot } from './lib/meta-shard-router.js';
@@ -15,6 +15,7 @@ import { ShardWriter } from './lib/shard-writer.js';
 import { initRustBridge } from './lib/rust-bridge.js';
 import { computeEmbeddings } from './lib/embedding-generator.js';
 import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
+import { createEntityLookupAccess, getEntityLookupSize, finalizeStreamingPack, resolveMeshFixup } from './lib/entity-lookup-cache.js';
 import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
 import { loadHostedOnMap, enrichHostedOn } from './lib/hosted-on-enricher.js';
 
@@ -55,28 +56,14 @@ async function packDatabase() {
     const trendingMap = await loadTrendingMap(CACHE_DIR);
     const trendMap = await loadTrendMap(CACHE_DIR);
 
-    // Combined pre-scan: entity lookup + uncached embedding collection (single pass)
+    // V25.12 (2026-05-04): Single-pass + streaming-compliant lookup proxy
+    // Eliminates 172-min Pass 1 — entity_lookup queried lazily via SQLite,
+    // bounded batch insert (≤1000) during main pass. Zero accumulator.
     const cacheDb = openCache(EMBEDDING_CACHE_PATH);
     validateModel(cacheDb, EMBEDDING_MODEL);
     const cachedIdSet = loadIds(cacheDb);
-    console.log(`[VFS] Pre-scan: building entity lookup + collecting uncached embeddings (${cachedIdSet.size} cached)...`);
-    const entityLookup = new Map();
-    const uncachedEntities = [];
-    await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e) => {
-        const id = e.id || e.slug;
-        if (id) {
-            entityLookup.set(id, { name: e.name || e.displayName || id, icon: e.icon || '' });
-            if (!cachedIdSet.has(id)) uncachedEntities.push({ id, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
-        }
-    });
-    console.log(`[VFS] Entity lookup: ${entityLookup.size}. Uncached: ${uncachedEntities.length}. Computing embeddings...`);
-    for (let i = 0; i < uncachedEntities.length; i += 500) {
-        const batch = uncachedEntities.slice(i, i + 500);
-        await computeEmbeddings(batch, { onBatchComplete: async (results) => saveBatch(cacheDb, results) });
-        if ((i + 500) % 5000 < 500) console.log(`[VFS] Embeddings: ${Math.min(i + 500, uncachedEntities.length)}/${uncachedEntities.length}...`);
-    }
-    console.log(`[VFS] Embedding pass complete: ${uncachedEntities.length} newly computed.`);
-    console.log(`[VFS] Embedding Vault: ${cachedIdSet.size} cached vectors (model: ${EMBEDDING_MODEL})`);
+    const lookupAccess = createEntityLookupAccess(cacheDb);
+    console.log(`[VFS] entity_lookup ready (${getEntityLookupSize(cacheDb)} persisted), ${cachedIdSet.size} cached embeddings.`);
 
     // Prepare DBs
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
@@ -106,24 +93,34 @@ async function packDatabase() {
 
     Object.values(metaDbs).forEach(db => db.exec("BEGIN TRANSACTION"));
     ftsDb.exec("BEGIN TRANSACTION");
-    configureDistiller();
+    configureDistiller(cacheDb);  // V25.12: pass cacheDb for HTML render cache
 
     const { map: hostedOnMap, timestamp: hostedOnTs } = loadHostedOnMap(CACHE_DIR);
 
-    // Main pass: stream fused files → per-entity processing → no accumulator
-    console.log('[VFS] Main pass: streaming pack...');
+    // V25.12: Single-pass — streaming pack with bounded batch buffers
+    const uncachedEntities = [];
+
+    console.log('[VFS] Single-pass streaming pack...');
     await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e) => {
         const umidKey = e.umid || e.id;
         if (seenUmids.has(umidKey)) { dupSkipped++; return; }
         seenUmids.add(umidKey);
 
         const eid = e.id || e.slug;
+
+        // V25.12: Streaming lookup track (bounded batch, INSERT OR IGNORE)
+        if (eid) lookupAccess.trackEntity(eid, e.name || e.displayName || eid, e.icon || '');
+        // V25.12: Defer embedding compute to after main pass
+        if (eid && !cachedIdSet.has(eid)) {
+            uncachedEntities.push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
+        }
+
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
         const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
         const arch = e.architecture ?? e.technical?.architecture ?? '';
 
-        e = distillEntity(e, pBillions, entityLookup);
+        e = distillEntity(e, pBillions, lookupAccess.lookup);
         enrichHostedOn(e, hostedOnMap, hostedOnTs);
 
         const keywords = e.search_vector || '';
@@ -161,6 +158,21 @@ async function packDatabase() {
     ftsDb.exec("COMMIT");
     shardWriter.finalize();
     if (dupSkipped > 0) console.warn(`[VFS] Pack loop skipped ${dupSkipped} duplicate-umid entities`);
+
+    // V25.12: Post-pass — flush bounded buffers, compute embeddings
+    await finalizeStreamingPack({
+        cacheDb, lookupAccess, uncachedEntities,
+        computeEmbeddings, saveBatch, flushDistillerCache, getDistillerStats
+    });
+
+    // V25.12: Mesh fix-up — re-resolve forward refs that missed the streaming
+    // SQLite proxy during main pass. Runs AFTER lookupAccess.flush so
+    // entity_lookup is complete; runs BEFORE finalizePack VACUUM to avoid
+    // re-fragmenting the meta DBs.
+    const meshFix = resolveMeshFixup(cacheDb, metaDbs);
+    if (meshFix.rowsUpdated > 0) {
+        console.log(`[VFS] Mesh fix-up: ${meshFix.refsResolved} refs re-resolved across ${meshFix.rowsUpdated} entities.`);
+    }
 
     await finalizePack(metaDbs, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 
@@ -227,7 +239,6 @@ async function packDatabase() {
     const { buildInvertedIndexFromShards } = await import('./lib/inverted-index-builder.js');
     await buildInvertedIndexFromShards(metaDbs, path.join(SHARD_PATH_DIR, 'term_index'));
     Object.values(metaDbs).forEach(db => db.close());
-    entityLookup.clear();
     if (global.gc) global.gc();
     console.log('[VFS] V26.7 Streaming Packer Complete (zero accumulator).');
 }

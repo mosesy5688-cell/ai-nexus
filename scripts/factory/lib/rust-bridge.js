@@ -1,9 +1,7 @@
 // V26.5 Rust FFI Bridge — Loads .node N-API binaries; falls back to JS.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-let _shardRouter = null, _fniCalc = null, _meshEngine = null;
-let _contentExtractor = null, _streamAggregator = null, _satelliteTasks = null;
-let _mode = 'js';
+let _shardRouter = null, _fniCalc = null, _meshEngine = null, _contentExtractor = null, _streamAggregator = null, _satelliteTasks = null, _markdownRenderer = null, _mode = 'js';
 
 function tryLoadNative(name) {
     try {
@@ -18,7 +16,7 @@ function tryLoadNative(name) {
 export function initRustBridge() {
     const loaded = [];
 
-    for (const [name, setter] of [['shard-router', v => _shardRouter = v], ['fni-calc', v => _fniCalc = v], ['mesh-engine', v => _meshEngine = v], ['content-extractor', v => _contentExtractor = v], ['stream-aggregator', v => _streamAggregator = v], ['satellite-tasks', v => _satelliteTasks = v]]) {
+    for (const [name, setter] of [['shard-router', v => _shardRouter = v], ['fni-calc', v => _fniCalc = v], ['mesh-engine', v => _meshEngine = v], ['content-extractor', v => _contentExtractor = v], ['stream-aggregator', v => _streamAggregator = v], ['satellite-tasks', v => _satelliteTasks = v], ['markdown-renderer', v => _markdownRenderer = v]]) {
         const mod = tryLoadNative(`${name}-rust`);
         if (mod) { setter(mod); loaded.push(name); }
     }
@@ -247,4 +245,6 @@ export async function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDi
     }
     return null;
 }
+// V25.12: Markdown -> sanitized HTML via Rust (pulldown-cmark + ammonia). Null = caller falls back to JS.
+export function renderHtmlFFI(md) { if (!_markdownRenderer) return null; try { return _markdownRenderer.renderHtml(md); } catch (e) { console.warn(`[RUST-BRIDGE] renderHtml: ${e.message}`); return null; } }
 export function getRustMode() { return _mode; }

@@ -20,7 +20,7 @@ import {
 } from './lib/r2-bridge.js';
 
 const [action, ...rest] = process.argv.slice(2);
-const DEFAULT_CRATES = 'shard-router,fni-calc,mesh-engine,content-extractor,stream-aggregator,satellite-tasks,r2-engine';
+const DEFAULT_CRATES = 'shard-router,fni-calc,mesh-engine,content-extractor,stream-aggregator,satellite-tasks,r2-engine,markdown-renderer';
 
 async function main() {
     initR2Bridge();

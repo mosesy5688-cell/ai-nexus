@@ -1,0 +1,17 @@
+[package]
+name = "markdown-renderer-rust"
+version = "1.0.0"
+edition = "2021"
+description = "V25.12 Pack-DB streaming cache — Markdown to sanitized HTML render (replaces JS marked + sanitize-html in v25-distiller.js)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+ammonia = "4"
+
+[build-dependencies]
+napi-build = "2"
