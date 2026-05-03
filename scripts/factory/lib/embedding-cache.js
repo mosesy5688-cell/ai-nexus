@@ -16,6 +16,16 @@ const SCHEMA = `
         id TEXT PRIMARY KEY,
         vector BLOB
     );
+    -- V25.12 (2026-05-04): pack-db.js 6h timeout fix
+    CREATE TABLE IF NOT EXISTS entity_lookup (
+        id TEXT PRIMARY KEY,
+        name TEXT,
+        icon TEXT
+    );
+    CREATE TABLE IF NOT EXISTS html_cache (
+        hash TEXT PRIMARY KEY,
+        html TEXT
+    );
 `;
 
 /**

@@ -1,19 +1,95 @@
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
+import crypto from 'crypto';
+import { renderHtmlFFI } from './rust-bridge.js';
 
 let isMarkedConfigured = false;
 let sanitizeConfig = null;
 
-export function configureDistiller() {
-    if (isMarkedConfigured) return;
+// V25.12 (2026-05-04): HTML render cache (avoid re-rendering unchanged readme)
+let cacheDbRef = null;
+let htmlCacheGetStm = null;
+let htmlCachePutStm = null;
+let htmlCacheBatch = [];
+let htmlStats = { hits: 0, misses: 0, errors: 0 };
+const HTML_CACHE_FLUSH_SIZE = 1000;
 
-    // V25.1 Compute Shift-Left: Pre-allocate Markdown Options
-    marked.setOptions({ gfm: true, breaks: true });
-    sanitizeConfig = {
-        allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3']),
-        allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes, 'img': ['src', 'alt', 'width', 'height'] }
+export function configureDistiller(cacheDb = null) {
+    if (!isMarkedConfigured) {
+        // V25.1 Compute Shift-Left: Pre-allocate Markdown Options
+        marked.setOptions({ gfm: true, breaks: true });
+        sanitizeConfig = {
+            allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3']),
+            allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes, 'img': ['src', 'alt', 'width', 'height'] }
+        };
+        isMarkedConfigured = true;
+    }
+    if (cacheDb && !htmlCacheGetStm) {
+        cacheDbRef = cacheDb;
+        htmlCacheGetStm = cacheDb.prepare('SELECT html FROM html_cache WHERE hash = ?');
+        htmlCachePutStm = cacheDb.prepare('INSERT OR REPLACE INTO html_cache (hash, html) VALUES (?, ?)');
+        htmlCacheBatch = [];
+        htmlStats = { hits: 0, misses: 0, errors: 0 };
+    }
+}
+
+function flushHtmlCacheBatch() {
+    if (!htmlCachePutStm || !cacheDbRef || htmlCacheBatch.length === 0) return;
+    const insertMany = cacheDbRef.transaction((entries) => {
+        for (const e of entries) htmlCachePutStm.run(e.hash, e.html);
+    });
+    insertMany(htmlCacheBatch);
+    htmlCacheBatch = [];
+}
+
+/**
+ * Flush any pending HTML cache writes. Call after main pass completes.
+ */
+export function flushDistillerCache() {
+    flushHtmlCacheBatch();
+}
+
+/**
+ * Get HTML render cache statistics.
+ */
+export function getDistillerStats() {
+    return {
+        hits: htmlStats.hits,
+        misses: htmlStats.misses,
+        errors: htmlStats.errors,
+        total: htmlStats.hits + htmlStats.misses + htmlStats.errors
     };
-    isMarkedConfigured = true;
+}
+
+// V25.12: Rust-primary render (pulldown-cmark + ammonia); JS path only on FFI miss.
+let _renderModeLogged = false;
+function renderRaw(rawReadme) {
+    const ffi = renderHtmlFFI(rawReadme);
+    if (!_renderModeLogged) {
+        console.log(`[DISTILLER] HTML render mode: ${ffi !== null ? 'Rust FFI' : 'JS fallback (marked+sanitize-html)'}`);
+        _renderModeLogged = true;
+    }
+    if (ffi !== null) return ffi;
+    return sanitizeHtml(marked.parse(rawReadme), sanitizeConfig);
+}
+
+function renderHtmlWithCache(rawReadme) {
+    if (!htmlCacheGetStm) {
+        try { return renderRaw(rawReadme); } catch (err) { return ''; }
+    }
+    const hash = crypto.createHash('md5').update(rawReadme).digest('hex');
+    const cached = htmlCacheGetStm.get(hash);
+    if (cached) { htmlStats.hits++; return cached.html; }
+    try {
+        const html = renderRaw(rawReadme);
+        htmlCacheBatch.push({ hash, html });
+        if (htmlCacheBatch.length >= HTML_CACHE_FLUSH_SIZE) flushHtmlCacheBatch();
+        htmlStats.misses++;
+        return html;
+    } catch (err) {
+        htmlStats.errors++;
+        return '';
+    }
 }
 
 export function distillEntity(e, pBillions, entityLookup) {
@@ -22,7 +98,7 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.task_categories ??= Array.isArray(meta.task_categories) ? meta.task_categories.join(', ') : (meta.task_categories || '');
     e.num_rows ??= meta.rows_count || 0;
     e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || '');
-    e.forks ??= meta.forks || 0; 
+    e.forks ??= meta.forks || 0;
     e.citation_count ??= meta.citation_count || 0;
     e.stars ??= meta.stars || 0;
 
@@ -52,13 +128,10 @@ export function distillEntity(e, pBillions, entityLookup) {
         e.vram_int4_gb = Number((pBillions * 0.7).toFixed(1));
     }
 
-    // V25.1 Distillation: AOT HTML Compilation
+    // V25.1 Distillation: AOT HTML Compilation (V25.12: with cache)
     const rawReadme = e.readme || e.html_readme || e.body_content || e.content || e.description || '';
     if (rawReadme && !e.readme_html) {
-        try {
-            const rawHtml = marked.parse(rawReadme);
-            e.readme_html = sanitizeHtml(rawHtml, sanitizeConfig);
-        } catch (err) { e.readme_html = ''; }
+        e.readme_html = renderHtmlWithCache(rawReadme);
     }
 
     // V25.1 Distillation: Mesh Pre-joining

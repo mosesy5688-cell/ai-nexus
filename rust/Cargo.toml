@@ -9,6 +9,7 @@ members = [
     "stream-aggregator",
     "satellite-tasks",
     "r2-engine",
+    "markdown-renderer",
 ]
 
 [workspace.dependencies]
