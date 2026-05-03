@@ -37,7 +37,7 @@ try {
     console.warn('[Knowledge] VFS query failed:', e?.message || e);
 }
 
-Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=60');
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=3600, stale-while-revalidate=604800');
 ---
 
 <Layout title={pageTitle} description={pageDescription}>

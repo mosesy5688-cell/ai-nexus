@@ -40,7 +40,7 @@ try {
 }
 
 // V18.10.2: Explicit Edge Caching with Revalidation Guard
-Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=60');
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
 const { searchParams } = Astro.url;
 ---
 

@@ -17,7 +17,7 @@ const pageDescription = "Explore 50,000+ open-source AI datasets for training, e
 
 // V24.9: Only edge-cache pages with data; prevent caching empty/error states
 Astro.response.headers.set('Cache-Control', datasets.length > 0
-    ? 'public, max-age=0, must-revalidate, s-maxage=60'
+    ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800'
     : 'public, max-age=0, s-maxage=0');
 ---
 
