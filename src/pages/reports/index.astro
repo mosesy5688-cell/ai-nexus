@@ -33,7 +33,7 @@ const pageTitle = "AI Industry Daily Reports";
 const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape.";
 
 Astro.response.headers.set('Cache-Control', reports.length > 0
-    ? 'public, max-age=60, s-maxage=60'
+    ? 'public, max-age=60, s-maxage=3600, stale-while-revalidate=604800'
     : 'public, max-age=0, s-maxage=0');
 ---
 

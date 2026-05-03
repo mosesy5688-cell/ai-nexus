@@ -47,7 +47,7 @@ const pageDescription = `Discover the best ${meta.label} AI models, agents, tool
 
 // V24.9: Only edge-cache pages with data; prevent caching empty/error states
 Astro.response.headers.set('Cache-Control', items.length > 0
-    ? 'public, max-age=0, must-revalidate, s-maxage=60'
+    ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800'
     : 'public, max-age=0, s-maxage=0');
 ---
 
