@@ -230,7 +230,6 @@ async function packDatabase() {
     const { buildInvertedIndexFromShards } = await import('./lib/inverted-index-builder.js');
     await buildInvertedIndexFromShards(metaDbs, path.join(SHARD_PATH_DIR, 'term_index'));
     Object.values(metaDbs).forEach(db => db.close());
-    entityLookup.clear();
     if (global.gc) global.gc();
     console.log('[VFS] V26.7 Streaming Packer Complete (zero accumulator).');
 }
