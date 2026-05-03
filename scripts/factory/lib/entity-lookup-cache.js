@@ -81,6 +81,50 @@ export function getEntityLookupSize(cacheDb) {
 }
 
 /**
+ * Post-pass mesh fix-up.
+ *
+ * distillEntity marks forward-reference misses (target entity tracked but
+ * not yet flushed) with `_unresolved: 1` in ui_related_mesh entries. After
+ * the main pass commits and lookupAccess.flush() runs, entity_lookup is
+ * complete — this function re-resolves every marked entry.
+ *
+ * Restores 100% parity with the pre-V25.12 behavior (in-memory Map pre-scan).
+ * Cost: ~30s for 487K rows via prepared-statement UPDATE in a transaction.
+ *
+ * @param {Database} cacheDb
+ * @param {Object<string, Database>} metaDbs
+ * @returns {{rowsUpdated:number, refsResolved:number}}
+ */
+export function resolveMeshFixup(cacheDb, metaDbs) {
+    const getStm = cacheDb.prepare('SELECT name, icon FROM entity_lookup WHERE id = ?');
+    let rowsUpdated = 0, refsResolved = 0;
+    for (const db of Object.values(metaDbs)) {
+        const updateStm = db.prepare('UPDATE entities SET ui_related_mesh = ? WHERE id = ?');
+        const candidates = db.prepare(
+            "SELECT id, ui_related_mesh FROM entities WHERE ui_related_mesh LIKE '%_unresolved%'"
+        ).all();
+        if (candidates.length === 0) continue;
+        const fixOne = db.transaction((rows) => {
+            for (const row of rows) {
+                const mesh = JSON.parse(row.ui_related_mesh);
+                let changed = false;
+                for (const rel of mesh) {
+                    if (rel._unresolved) {
+                        const t = getStm.get(rel.id);
+                        if (t && t.name) { rel.name = t.name; rel.icon = t.icon || '📦'; refsResolved++; }
+                        delete rel._unresolved;
+                        changed = true;
+                    }
+                }
+                if (changed) { updateStm.run(JSON.stringify(mesh), row.id); rowsUpdated++; }
+            }
+        });
+        fixOne(candidates);
+    }
+    return { rowsUpdated, refsResolved };
+}
+
+/**
  * Post-pass cleanup: flush HTML cache + flush lookup batch + run embedding compute.
  * Called once after main streaming pass. Centralizes V25.12's post-pass logic.
  *

@@ -15,7 +15,7 @@ import { ShardWriter } from './lib/shard-writer.js';
 import { initRustBridge } from './lib/rust-bridge.js';
 import { computeEmbeddings } from './lib/embedding-generator.js';
 import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
-import { createEntityLookupAccess, getEntityLookupSize, finalizeStreamingPack } from './lib/entity-lookup-cache.js';
+import { createEntityLookupAccess, getEntityLookupSize, finalizeStreamingPack, resolveMeshFixup } from './lib/entity-lookup-cache.js';
 import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
 import { loadHostedOnMap, enrichHostedOn } from './lib/hosted-on-enricher.js';
 
@@ -164,6 +164,15 @@ async function packDatabase() {
         cacheDb, lookupAccess, uncachedEntities,
         computeEmbeddings, saveBatch, flushDistillerCache, getDistillerStats
     });
+
+    // V25.12: Mesh fix-up — re-resolve forward refs that missed the streaming
+    // SQLite proxy during main pass. Runs AFTER lookupAccess.flush so
+    // entity_lookup is complete; runs BEFORE finalizePack VACUUM to avoid
+    // re-fragmenting the meta DBs.
+    const meshFix = resolveMeshFixup(cacheDb, metaDbs);
+    if (meshFix.rowsUpdated > 0) {
+        console.log(`[VFS] Mesh fix-up: ${meshFix.refsResolved} refs re-resolved across ${meshFix.rowsUpdated} entities.`);
+    }
 
     await finalizePack(metaDbs, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 

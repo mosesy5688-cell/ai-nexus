@@ -135,16 +135,17 @@ export function distillEntity(e, pBillions, entityLookup) {
     }
 
     // V25.1 Distillation: Mesh Pre-joining
+    // V25.12: Mark unresolved refs with _unresolved=1 for post-pass fix-up.
+    // Forward refs to same-run new entities miss the SQLite lookup proxy
+    // (entity not yet flushed); resolveMeshFixup() repairs them after main pass.
     const relations = Array.isArray(e.relations) ? e.relations : (e.mesh_profile?.relations || []);
     e.ui_related_mesh = JSON.stringify(relations.map(rel => {
         const targetId = rel.target || rel.target_id || rel.id;
-        const targetEntity = entityLookup.get(targetId);
-        return {
-            id: targetId,
-            type: rel.type || rel.t || 'model',
-            name: targetEntity ? targetEntity.name : targetId,
-            icon: targetEntity ? targetEntity.icon : '📦'
-        };
+        const t = entityLookup.get(targetId);
+        const type = rel.type || rel.t || 'model';
+        return t
+            ? { id: targetId, type, name: t.name, icon: t.icon || '📦' }
+            : { id: targetId, type, name: targetId, icon: '📦', _unresolved: 1 };
     }));
 
     // V25.1 Distillation: Search Vector Normalization
