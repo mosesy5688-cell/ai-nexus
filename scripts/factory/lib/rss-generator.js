@@ -167,7 +167,10 @@ async function generateKnowledgeRss(outputDir) {
 }
 
 /**
- * Generate all RSS feeds
+ * Generate all RSS feeds.
+ * V25.13: Hard-fails (throws) when both feeds end up empty — used to silently
+ * produce 0-item RSS for months because input indexes weren't reachable from
+ * the runner. P6 principle: no silent failure.
  */
 export async function generateRssFeeds(outputDir = './output') {
     console.log('[RSS V16.2] Generating RSS feeds...');
@@ -176,6 +179,14 @@ export async function generateRssFeeds(outputDir = './output') {
     const knowledgeCount = await generateKnowledgeRss(outputDir);
 
     console.log(`[RSS] Generated feeds: ${reportsCount} reports, ${knowledgeCount} articles`);
+
+    if (reportsCount === 0 && knowledgeCount === 0) {
+        throw new Error(
+            '[RSS] Both feeds empty — input indexes missing or unreadable. ' +
+            'Expected ./output/cache/reports/index.json[.zst] and ./output/cache/knowledge/index.json[.zst]. ' +
+            'This is a hard failure (P6 no silent failure). Check upstream pipeline produced these files.'
+        );
+    }
 
     return { reports: reportsCount, knowledge: knowledgeCount };
 }
