@@ -264,19 +264,29 @@ jobs:
       # against historical baseline (~480K). Prior catastrophic run produced
       # 301K (38% drop) and pack-db halted 1+ hour later at FNI=77% zero
       # sanity check — wasted 1+ hour. Fail HERE instead.
-      - name: Verify Master Fusion Entity Count
+      - name: Verify Master Fusion Shard Count
+        # V25.13 fix: master-fusion writes per-shard files (`fused-shard-NNN.json.zst`),
+        # NOT per-entity. ~488 shards normal × ~1000 entities each = ~487K entities.
+        # Prior G3 threshold of 400,000 was off by 1000× (treated file count as entity
+        # count). Run 25323556634 false-blocked at 489 files (488 shards + 1 sentinel).
+        # Sentinel `.complete` is only written if `processedCount >= expectedCount`
+        # (assertCompletion in fusion-completion-guard.js), so its existence already
+        # guarantees Master Fusion didn't silent-truncate. We add an absolute lower
+        # bound on shard count as belt-and-suspenders against incomplete input.
         run: |
           set -e
-          ENTITY_COUNT=$(find output/cache/fused -name '*.json.zst' -not -name '.complete*' | wc -l)
-          THRESHOLD=400000
-          echo "[GHA] Master Fusion produced $ENTITY_COUNT entities"
-          if [ "$ENTITY_COUNT" -lt "$THRESHOLD" ]; then
-            echo "::error::Master Fusion entity count $ENTITY_COUNT < threshold $THRESHOLD."
+          SHARD_COUNT=$(find output/cache/fused -name 'fused-shard-*.json.zst' | wc -l)
+          THRESHOLD=400
+          # Sentinel content (already verified to exist by prior step)
+          SENTINEL_PROCESSED=$(node -e "try{const j=require('fs').readFileSync('output/cache/fused/.complete','utf8');process.stdout.write(String(JSON.parse(j).processedShards||0))}catch{process.stdout.write('0')}")
+          echo "[GHA] Master Fusion: $SHARD_COUNT files in fused/, sentinel.processedShards=$SENTINEL_PROCESSED"
+          if [ "$SHARD_COUNT" -lt "$THRESHOLD" ] || [ "$SENTINEL_PROCESSED" -lt "$THRESHOLD" ]; then
+            echo "::error::Master Fusion shard count below threshold ($SHARD_COUNT files / $SENTINEL_PROCESSED reported < $THRESHOLD)."
             echo "Refusing to save partial fused-entities.tar that would propagate to vfs-packing → bad FNI → broken cycle."
             echo "Likely cause: incomplete cycle-output input (R2 state stale, or 3/4 produced fewer than expected)."
             exit 1
           fi
-          echo "✅ Entity count gate passed: $ENTITY_COUNT ≥ $THRESHOLD"
+          echo "✅ Shard gate passed: $SHARD_COUNT files / $SENTINEL_PROCESSED reported ≥ $THRESHOLD (≈$((SHARD_COUNT * 1000)) entities)"
       - name: Tar Fused Entities
         run: tar -cf fused-entities.tar -C output/cache fused
       - name: Save Fused Entities to Cache
