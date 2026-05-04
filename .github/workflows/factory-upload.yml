@@ -166,6 +166,27 @@ jobs:
         if: steps.cache-output-fusion.outputs.cache-hit != 'true'
         run: |
           node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
+      # V25.13: R2 fallback completeness gate (P3 fail-fast).
+      # R2 IS primary. If primary is incomplete (missing index files indicate
+      # old r2-handoff minSize=1024B blocked them from R2), refuse to proceed
+      # with partial cycle-output rather than producing 30%-truncated FNI data.
+      # PR #1932 lowered minSize to 256B; old R2 backups still need refresh.
+      - name: Verify Cycle Output Completeness
+        run: |
+          set -e
+          MISSING=()
+          for f in output/cache/knowledge/index.json.zst output/cache/reports/index.json.zst; do
+            [ ! -f "$f" ] && MISSING+=("$f")
+          done
+          # Also check fused shard count (expected at least ~480 shards for ~480K entities)
+          SHARD_COUNT=$(find output/cache/shards -name 'shard-*.json.zst' 2>/dev/null | wc -l || echo 0)
+          if [ "${#MISSING[@]}" -gt 0 ] || [ "$SHARD_COUNT" -lt 400 ]; then
+            echo "::error::R2 cycle-output incomplete (P3 violation). Missing: ${MISSING[*]:-none}; shard count: $SHARD_COUNT (expected ≥400)."
+            echo "Likely cause: R2 state was uploaded with old r2-handoff.js minSize=1024B (PR #1932 lowered to 256B)."
+            echo "Action: trigger fresh 3/4 to rewrite R2 cycle-output with new minSize."
+            exit 1
+          fi
+          echo "✅ Cycle output completeness verified: $SHARD_COUNT shards + 2 indexes"
       - name: Restore Baked Profiles from Cache
         id: cache-baked
         uses: actions/cache/restore@v4
@@ -237,6 +258,25 @@ jobs:
           fi
           echo "[GHA] Master Fusion sentinel verified:"
           cat output/cache/fused/.complete
+      # V25.13: Absolute entity count gate (P6 fail-fast).
+      # Sentinel only checks "processed == expected shards" — passes even if
+      # input was a truncated cycle-output. This adds an absolute lower bound
+      # against historical baseline (~480K). Prior catastrophic run produced
+      # 301K (38% drop) and pack-db halted 1+ hour later at FNI=77% zero
+      # sanity check — wasted 1+ hour. Fail HERE instead.
+      - name: Verify Master Fusion Entity Count
+        run: |
+          set -e
+          ENTITY_COUNT=$(find output/cache/fused -name '*.json.zst' -not -name '.complete*' | wc -l)
+          THRESHOLD=400000
+          echo "[GHA] Master Fusion produced $ENTITY_COUNT entities"
+          if [ "$ENTITY_COUNT" -lt "$THRESHOLD" ]; then
+            echo "::error::Master Fusion entity count $ENTITY_COUNT < threshold $THRESHOLD."
+            echo "Refusing to save partial fused-entities.tar that would propagate to vfs-packing → bad FNI → broken cycle."
+            echo "Likely cause: incomplete cycle-output input (R2 state stale, or 3/4 produced fewer than expected)."
+            exit 1
+          fi
+          echo "✅ Entity count gate passed: $ENTITY_COUNT ≥ $THRESHOLD"
       - name: Tar Fused Entities
         run: tar -cf fused-entities.tar -C output/cache fused
       - name: Save Fused Entities to Cache
