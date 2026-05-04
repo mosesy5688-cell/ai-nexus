@@ -37,17 +37,18 @@ pub async fn backup_directory_to_r2(
             let ext = Path::new(&r2_key).extension().and_then(|e| e.to_str()).unwrap_or("");
             let ct = content_type_for_ext(ext);
 
-            match tokio::fs::read(&local_path).await {
-                Ok(data) => {
-                    let size = data.len() as i64;
+            // V25.13: Streaming body from disk (no whole-file load).
+            // Size already known from directory walk (entry.size), no read needed for that.
+            match ByteStream::from_path(&local_path).await {
+                Ok(body) => {
                     match client.client.put_object()
                         .bucket(&client.bucket).key(&r2_key)
-                        .body(ByteStream::from(data)).content_type(ct)
+                        .body(body).content_type(ct)
                         .send().await
                     {
                         Ok(_) => {
                             manifest_files.push(entry.rel_path.clone());
-                            total_size += size;
+                            total_size += entry.size as i64;
                             success += 1;
                         }
                         Err(_) => failed += 1,
