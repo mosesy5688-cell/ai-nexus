@@ -61,22 +61,43 @@ export async function generateHealthReport(successfulCount, entities, totalShard
 
 /**
  * Backup state files and generate trend data
+ *
+ * V25.13 (P1 + P6 fix): Eliminated the FNI weekly monolith snapshot write.
+ *
+ * Background — run 25307160858 failed at finalize with `Invalid string length`
+ * because `JSON.stringify(historyData, null, 2)` on 483K entities produced a
+ * ~530MB string, exceeding V8's single-string max (~512MB on 64-bit Node 22).
+ *
+ * Audit revealed the file `meta/backup/fni-history/fni-history-W<N>.json.zst`
+ * is **dead archive**:
+ *   - r2-registry-restore.js::restoreFromPrefix filters for `part-*.bin` and
+ *     `part-*.json.gz` only — the weekly monolith name doesn't match
+ *   - registry-history.js::loadFniHistory only reads `part-*` / `shard-*`
+ *     prefixed files — same filter
+ *   - No human-facing consumer (not exposed via CDN routes)
+ *
+ * Authoritative FNI history state = `cache/fni-history/part-*.json.zst` shards
+ * (written by `saveFniHistory`, R2-backed via workflow line 360
+ * `backup-dir cache/fni-history/ meta/backup/fni-history/`). The weekly
+ * monolith was redundant + violated P1 (fullSet stringify).
+ *
+ * Per P6: thorough fix = remove the dead code, not patch the symptom.
+ * Per P1: no fullSet stringify in hot paths.
  */
 export async function backupStateFiles(outputDir, historyData, weekNumber) {
     const backupBase = path.join(outputDir, 'meta', 'backup');
 
-    // FNI Snapshot
-    const fniBackupPath = path.join(backupBase, 'fni-history', `fni-history-${weekNumber}.json.zst`);
-    await fs.mkdir(path.dirname(fniBackupPath), { recursive: true });
-    await fs.writeFile(fniBackupPath, await zstdCompress(JSON.stringify(historyData, null, 2)));
+    // V25.13: FNI snapshot REMOVED. The sharded files at cache/fni-history/
+    // are authoritative state and are R2-backed via the workflow's
+    // `backup-dir cache/fni-history/` step. Nothing reads the monolith.
 
     await generateTrendData(historyData, path.join(outputDir, 'cache'));
 
-    // Daily Accumulator Snapshot
+    // Daily Accumulator Snapshot (small, ~50 entries — no V8 risk)
     const accumBackupPath = path.join(backupBase, 'accum', `accum-${weekNumber}.json.zst`);
     await fs.mkdir(path.dirname(accumBackupPath), { recursive: true });
     try {
         const accum = await loadDailyAccum();
-        await fs.writeFile(accumBackupPath, await zstdCompress(JSON.stringify(accum, null, 2)));
+        await fs.writeFile(accumBackupPath, await zstdCompress(JSON.stringify(accum)));
     } catch (e) { console.warn(`[BACKUP] Accumulator skipped: ${e.message}`); }
 }
