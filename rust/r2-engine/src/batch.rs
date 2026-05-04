@@ -134,11 +134,23 @@ async fn upload_single(
     remote_etag: Option<&str>,
     _mp_threshold: u64,
 ) -> std::result::Result<crate::types::UploadResult, String> {
-    let content = tokio::fs::read(local_path).await.map_err(|e| e.to_string())?;
+    use tokio::io::AsyncReadExt;
 
+    // V25.13: Stream-compute MD5 (8MB rolling buffer), no whole-file load.
+    let mut file = tokio::fs::File::open(local_path)
+        .await
+        .map_err(|e| format!("open {local_path}: {e}"))?;
     let mut hasher = Md5::new();
-    hasher.update(&content);
+    let mut buf = vec![0u8; 8 * 1024 * 1024];
+    loop {
+        let n = file.read(&mut buf).await.map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
     let local_md5 = format!("{:x}", hasher.finalize());
+    drop(buf);
 
     if let Some(etag) = remote_etag {
         if local_md5 == etag {
@@ -158,11 +170,16 @@ async fn upload_single(
         .unwrap_or("");
     let ct = content_type_for_ext(ext);
 
+    // V25.13: Streaming body from disk path (~64KB chunk read by SDK).
+    let body = ByteStream::from_path(local_path)
+        .await
+        .map_err(|e| format!("ByteStream::from_path {local_path}: {e}"))?;
+
     client
         .put_object()
         .bucket(bucket)
         .key(remote_path)
-        .body(ByteStream::from(content))
+        .body(body)
         .content_type(ct)
         .send()
         .await

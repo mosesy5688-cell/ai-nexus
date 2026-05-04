@@ -7,6 +7,7 @@ use aws_sdk_s3::types::CompletedPart;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::path::Path;
+use tokio::io::AsyncReadExt;
 
 use crate::client::R2Client;
 use crate::types::{content_type_for_ext, UploadResult};
@@ -60,14 +61,20 @@ pub async fn upload_file_multipart(
     let total_parts = ((file_size + PART_SIZE - 1) / PART_SIZE) as u32;
     let mut completed_parts: Vec<CompletedPart> = Vec::new();
 
-    let file_data = tokio::fs::read(&local_path).await.map_err(|e| {
-        Error::from_reason(format!("read {local_path}: {e}"))
+    // V25.13: Truly stream from disk — open once, read sequentially per part.
+    // Peak memory bounded at PART_SIZE (8MB), regardless of file size.
+    // Replaces previous `tokio::fs::read(whole)` which OOMed on 4GB+ files.
+    let mut file = tokio::fs::File::open(&local_path).await.map_err(|e| {
+        Error::from_reason(format!("open {local_path}: {e}"))
     })?;
 
     for part_num in 1..=total_parts {
-        let start = ((part_num - 1) as u64 * PART_SIZE) as usize;
-        let end = std::cmp::min(start + PART_SIZE as usize, file_data.len());
-        let part_data = &file_data[start..end];
+        let part_offset = (part_num - 1) as u64 * PART_SIZE;
+        let part_len = std::cmp::min(PART_SIZE, file_size - part_offset) as usize;
+        let mut part_buf = vec![0u8; part_len];
+        file.read_exact(&mut part_buf).await.map_err(|e| {
+            Error::from_reason(format!("read part {part_num}: {e}"))
+        })?;
 
         let upload_resp = client
             .client
@@ -76,7 +83,7 @@ pub async fn upload_file_multipart(
             .key(&remote_path)
             .upload_id(&upload_id)
             .part_number(part_num as i32)
-            .body(ByteStream::from(part_data.to_vec()))
+            .body(ByteStream::from(part_buf))
             .send()
             .await
             .map_err(|e| {

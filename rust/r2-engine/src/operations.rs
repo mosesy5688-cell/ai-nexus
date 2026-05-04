@@ -8,6 +8,7 @@ use aws_sdk_s3::primitives::ByteStream;
 use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+use tokio::io::AsyncReadExt;
 
 use crate::client::R2Client;
 use crate::types::{content_type_for_ext, detect_content_encoding, DownloadResult, UploadResult};
@@ -66,7 +67,8 @@ pub async fn fetch_all_r2_etags(
 }
 
 /// Upload a single file to R2 with MD5/ETag skip and retry.
-/// Computes MD5 in Rust (5-10x faster than JS crypto.createHash).
+/// V25.13: Streams from disk — O(1) memory regardless of file size
+/// (was OOM on 4GB+ embedding-cache.db with whole-file `tokio::fs::read`).
 #[napi]
 pub async fn upload_file(
     client: &R2Client,
@@ -79,6 +81,32 @@ pub async fn upload_file(
     upload_file_inner(client, &local_path, &remote_path, remote_etag.as_deref(), retries, 0).await
 }
 
+const MD5_CHUNK: usize = 8 * 1024 * 1024;
+
+/// Stream-compute MD5 + detect content encoding from first chunk.
+/// O(1) memory (8MB rolling buffer) regardless of file size.
+async fn stream_md5_and_encoding(
+    local_path: &str,
+) -> std::io::Result<(String, Option<&'static str>)> {
+    let mut file = tokio::fs::File::open(local_path).await?;
+    let mut hasher = Md5::new();
+    let mut buf = vec![0u8; MD5_CHUNK];
+    let mut content_encoding: Option<&'static str> = None;
+    let mut first_chunk = true;
+    loop {
+        let n = file.read(&mut buf).await?;
+        if n == 0 {
+            break;
+        }
+        if first_chunk {
+            content_encoding = detect_content_encoding(&buf[..n]);
+            first_chunk = false;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok((format!("{:x}", hasher.finalize()), content_encoding))
+}
+
 async fn upload_file_inner(
     client: &R2Client,
     local_path: &str,
@@ -87,8 +115,9 @@ async fn upload_file_inner(
     max_retries: u32,
     attempt: u32,
 ) -> Result<UploadResult> {
-    let content = match tokio::fs::read(local_path).await {
-        Ok(c) => c,
+    // V25.13: Streaming MD5 + encoding detection (8MB rolling buffer).
+    let (local_md5, content_encoding) = match stream_md5_and_encoding(local_path).await {
+        Ok(v) => v,
         Err(e) => {
             return Ok(UploadResult {
                 success: false,
@@ -99,11 +128,6 @@ async fn upload_file_inner(
             });
         }
     };
-
-    // Compute MD5
-    let mut hasher = Md5::new();
-    hasher.update(&content);
-    let local_md5 = format!("{:x}", hasher.finalize());
 
     // ETag skip
     if let Some(etag) = remote_etag {
@@ -118,20 +142,34 @@ async fn upload_file_inner(
         }
     }
 
-    // Content-type and encoding detection
+    // Content-type detection
     let ext = Path::new(remote_path)
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("");
     let content_type = content_type_for_ext(ext);
-    let content_encoding = detect_content_encoding(&content);
+
+    // V25.13: Streaming body from disk path (SDK reads in ~64KB chunks lazily).
+    // Replaces in-memory `ByteStream::from(Vec<u8>)` which OOMed on 4GB+ files.
+    let body = match ByteStream::from_path(local_path).await {
+        Ok(b) => b,
+        Err(e) => {
+            return Ok(UploadResult {
+                success: false,
+                path: remote_path.to_string(),
+                skipped: false,
+                error: Some(format!("ByteStream::from_path: {e}")),
+                parts: None,
+            });
+        }
+    };
 
     let mut req = client
         .client
         .put_object()
         .bucket(&client.bucket)
         .key(remote_path)
-        .body(ByteStream::from(content))
+        .body(body)
         .content_type(content_type);
 
     if let Some(enc) = content_encoding {

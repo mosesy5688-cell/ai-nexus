@@ -71,24 +71,24 @@ export async function fetchAllR2ETagsFFI(client, prefixFilter = []) {
     return jsResult;
 }
 
-/** Upload single file with MD5/ETag skip. */
+// V25.13: Single-part with MD5 skip; auto-routes to multipart for files >2GB (R2's 5GB cap). Both paths stream from disk.
 export async function uploadFileFFI(client, localPath, remotePath, remoteETag) {
     if (_r2Engine && client?.constructor?.name === 'R2Client') {
+        try {
+            const { stat } = await import('fs/promises');
+            if ((await stat(localPath)).size > 2147483648) return _r2Engine.uploadFileMultipart(client, localPath, remotePath);
+        } catch { /* stat failed — fall through */ }
         return _r2Engine.uploadFile(client, localPath, remotePath, remoteETag || null, 3);
     }
     const { uploadFile } = await import('./r2-helpers.js');
-    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    return uploadFile(client, bucket, localPath, remotePath, remoteETag);
+    return uploadFile(client, process.env.R2_BUCKET || 'ai-nexus-assets', localPath, remotePath, remoteETag);
 }
 
-/** Multipart upload for files >8MB. */
+// Multipart upload for files >8MB. Streams 8MB chunks from disk per part.
 export async function uploadFileMultipartFFI(client, localPath, remotePath) {
-    if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        return _r2Engine.uploadFileMultipart(client, localPath, remotePath);
-    }
+    if (_r2Engine && client?.constructor?.name === 'R2Client') return _r2Engine.uploadFileMultipart(client, localPath, remotePath);
     const { uploadFileMultipart } = await import('./r2-helpers.js');
-    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    return uploadFileMultipart(client, bucket, localPath, remotePath);
+    return uploadFileMultipart(client, process.env.R2_BUCKET || 'ai-nexus-assets', localPath, remotePath);
 }
 
 /** Stream JSON to R2. */
