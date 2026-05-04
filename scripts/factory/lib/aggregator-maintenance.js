@@ -61,6 +61,18 @@ export async function generateHealthReport(successfulCount, entities, totalShard
 
 /**
  * Backup state files and generate trend data
+ *
+ * V25.13: Removed pretty-print (`null, 2`) from JSON.stringify to dodge V8's
+ * single-string max-length (~512MB on 64-bit Node 22). 483K entities × pretty-
+ * print ≈ 530MB → "Invalid string length" exception in run 25307160858.
+ * Minified ≈ 380MB stays under the limit.
+ *
+ * Long-term fix needed: stream entries to a zstd writer (NDJSON-style) to
+ * eliminate the in-memory string entirely. Tracked as backend P1 follow-up.
+ *
+ * Defense-in-depth: if stringify still fails (data growth past ~600K
+ * entities), gracefully skip the weekly monolith snapshot — sharded files
+ * in cache/fni-history/part-*.json.zst remain authoritative state.
  */
 export async function backupStateFiles(outputDir, historyData, weekNumber) {
     const backupBase = path.join(outputDir, 'meta', 'backup');
@@ -68,7 +80,15 @@ export async function backupStateFiles(outputDir, historyData, weekNumber) {
     // FNI Snapshot
     const fniBackupPath = path.join(backupBase, 'fni-history', `fni-history-${weekNumber}.json.zst`);
     await fs.mkdir(path.dirname(fniBackupPath), { recursive: true });
-    await fs.writeFile(fniBackupPath, await zstdCompress(JSON.stringify(historyData, null, 2)));
+    try {
+        await fs.writeFile(fniBackupPath, await zstdCompress(JSON.stringify(historyData)));
+    } catch (e) {
+        if (e.message?.includes('Invalid string length')) {
+            console.warn(`[BACKUP] FNI snapshot stringify exceeded V8 string limit (${Object.keys(historyData.entities || {}).length} entities). Sharded files remain authoritative. Long-term fix: streaming NDJSON serialization.`);
+        } else {
+            throw e;
+        }
+    }
 
     await generateTrendData(historyData, path.join(outputDir, 'cache'));
 
@@ -77,6 +97,6 @@ export async function backupStateFiles(outputDir, historyData, weekNumber) {
     await fs.mkdir(path.dirname(accumBackupPath), { recursive: true });
     try {
         const accum = await loadDailyAccum();
-        await fs.writeFile(accumBackupPath, await zstdCompress(JSON.stringify(accum, null, 2)));
+        await fs.writeFile(accumBackupPath, await zstdCompress(JSON.stringify(accum)));
     } catch (e) { console.warn(`[BACKUP] Accumulator skipped: ${e.message}`); }
 }
