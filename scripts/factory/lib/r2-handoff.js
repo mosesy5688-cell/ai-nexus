@@ -24,8 +24,12 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
     }
     try {
         const data = await fs.readFile(localPath);
-        // Guard: refuse to overwrite production data with suspiciously small files
-        const minBytes = opts.minSize ?? 1024; // default 1KB minimum
+        // V25.13: Lowered from 1024B to 256B. Empirical: zstd-compressed index
+        // JSON for ~30 entries ≈ 700-800B, well-formed. The 1024B guard was
+        // false-positiving legitimate small indexes (e.g., RSS source files
+        // got blocked → RSS empty for months). 256B still catches obviously
+        // broken writes (empty file, single-byte).
+        const minBytes = opts.minSize ?? 256;
         if (data.length < minBytes) {
             console.error(`[R2-HANDOFF] BLOCKED: ${localPath} is only ${data.length}B (min ${minBytes}B). Refusing upload to prevent state wipe.`);
             return { success: false, reason: 'below_minimum_size' };
