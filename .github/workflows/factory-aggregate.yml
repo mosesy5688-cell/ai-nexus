@@ -750,19 +750,46 @@ jobs:
       - run: npm ci
       # V22.8: Restore satellite results from cache
       - name: Restore Search Results
+        id: cache-search-finalize
         uses: actions/cache/restore@v4
         with:
           path: output/cache/search*
           key: intra-cycle-${{ github.run_id }}-search
+      # V25.13: P3 R2 fallback (per "R2 是主数据，GHA cache 仅加速")
+      - name: R2 Fallback for Search Results
+        if: steps.cache-search-finalize.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/cache
+          node scripts/factory/r2-workflow-cli.js restore-dir state/satellite-search/ output/cache/ || echo "⚠️ R2 search fallback unavailable"
       # Rankings restore moved to post-core (cache path must match save exactly)
       - name: Restore Trending Results
+        id: cache-trending-finalize
         uses: actions/cache/restore@v4
         with:
           path: |
             output/cache/trending.json.zst
             output/cache/trend-data.json.zst
           key: intra-cycle-${{ github.run_id }}-trending
+      # V25.13: P3 R2 fallback — was missing, caused 25301418029 failure
+      - name: R2 Fallback for Trending Results
+        if: steps.cache-trending-finalize.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/cache
+          node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trending.json.zst output/cache/trending.json.zst || echo "⚠️ R2 trending.json.zst missing"
+          node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trend-data.json.zst output/cache/trend-data.json.zst || echo "⚠️ R2 trend-data.json.zst missing"
+          node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trends-summary.json.zst output/cache/trends-summary.json.zst 2>/dev/null || true
       - name: Restore Relations Results
+        id: cache-relations-finalize
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -771,6 +798,20 @@ jobs:
             output/cache/mesh/
             output/cache/knowledge/
           key: intra-cycle-${{ github.run_id }}-relations
+      # V25.13: P3 R2 fallback for relations/knowledge/mesh
+      - name: R2 Fallback for Relations Results
+        if: steps.cache-relations-finalize.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/cache/relations output/cache/mesh output/cache/knowledge
+          node scripts/factory/r2-workflow-cli.js restore-file state/satellite-relations/relations.json.zst output/cache/relations.json.zst 2>/dev/null || true
+          node scripts/factory/r2-workflow-cli.js restore-dir state/satellite-relations/relations/ output/cache/relations/ || echo "⚠️ R2 relations/ fallback unavailable"
+          node scripts/factory/r2-workflow-cli.js restore-dir state/satellite-relations/mesh/ output/cache/mesh/ || echo "⚠️ R2 mesh/ fallback unavailable"
+          node scripts/factory/r2-workflow-cli.js restore-dir state/satellite-relations/knowledge/ output/cache/knowledge/ || echo "⚠️ R2 knowledge/ fallback unavailable"
       - name: Run Health Consolidation
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
