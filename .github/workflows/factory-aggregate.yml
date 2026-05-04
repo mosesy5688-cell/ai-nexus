@@ -857,27 +857,27 @@ jobs:
           find output -type f | head -50
 
       # V25.13: Cycle output completeness gate (P3 + P6).
-      # Refuse to write a partial cycle-output to GHA cache or R2. The R2 layer
-      # is supposed to be the resilient primary — it must NEVER hold incomplete
-      # state. Prior incident: small index files were silently dropped from R2
-      # by old r2-handoff minSize=1024B, R2 fallback path returned partial
-      # cycle-output, downstream Master Fusion produced 38% truncated entities,
-      # pack-db halted at FNI=77% zero. This gate stops bad data at source.
+      # Refuse to write a partial cycle-output to GHA cache or R2. R2 must NEVER
+      # hold incomplete state. Validates 3/4-actual outputs only — reports/index
+      # is 4/4 vfs-packing's job, registry shards live in cache/ (not output/).
       - name: Verify Cycle Output Completeness (Pre-Save)
         run: |
           set -e
           MISSING=()
-          for f in output/cache/knowledge/index.json.zst output/cache/reports/index.json.zst; do
-            [ ! -f "$f" ] && MISSING+=("$f")
-          done
-          SHARD_COUNT=$(find output/cache/shards -name 'shard-*.json.zst' 2>/dev/null | wc -l || echo 0)
-          if [ "${#MISSING[@]}" -gt 0 ] || [ "$SHARD_COUNT" -lt 400 ]; then
+          [ ! -f "output/cache/knowledge/index.json.zst" ] && MISSING+=("knowledge/index.json.zst")
+          [ ! -f "output/cache/trending.json.zst" ] && MISSING+=("trending.json.zst")
+          RANKINGS_COUNT=$(ls output/cache/rankings 2>/dev/null | wc -l)
+          ARTICLES_COUNT=$(ls output/cache/knowledge/articles 2>/dev/null | wc -l)
+          DAILY_COUNT=$(ls output/daily 2>/dev/null | wc -l)
+          [ "$RANKINGS_COUNT" -lt 5 ] && MISSING+=("rankings (got $RANKINGS_COUNT, need ≥5)")
+          [ "$ARTICLES_COUNT" -lt 10 ] && MISSING+=("knowledge articles (got $ARTICLES_COUNT, need ≥10)")
+          [ "$DAILY_COUNT" -lt 1 ] && MISSING+=("daily reports (got $DAILY_COUNT, need ≥1)")
+          if [ "${#MISSING[@]}" -gt 0 ]; then
             echo "::error::Cycle output incomplete — refusing to save bad state to GHA cache or R2."
-            echo "  Missing files: ${MISSING[*]:-none}"
-            echo "  Shard count:   $SHARD_COUNT (threshold ≥400)"
+            for m in "${MISSING[@]}"; do echo "  - $m"; done
             exit 1
           fi
-          echo "✅ Cycle output complete: $SHARD_COUNT shards + indexes"
+          echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings, $DAILY_COUNT daily reports"
 
       # V17.1: Save COMPLETE output (with all satellite results) to Cache for Factory 4/4
       - name: Save Complete Cycle Output to Cache
