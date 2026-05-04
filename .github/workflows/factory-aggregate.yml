@@ -856,6 +856,29 @@ jobs:
           echo "📦 Final output structure:"
           find output -type f | head -50
 
+      # V25.13: Cycle output completeness gate (P3 + P6).
+      # Refuse to write a partial cycle-output to GHA cache or R2. The R2 layer
+      # is supposed to be the resilient primary — it must NEVER hold incomplete
+      # state. Prior incident: small index files were silently dropped from R2
+      # by old r2-handoff minSize=1024B, R2 fallback path returned partial
+      # cycle-output, downstream Master Fusion produced 38% truncated entities,
+      # pack-db halted at FNI=77% zero. This gate stops bad data at source.
+      - name: Verify Cycle Output Completeness (Pre-Save)
+        run: |
+          set -e
+          MISSING=()
+          for f in output/cache/knowledge/index.json.zst output/cache/reports/index.json.zst; do
+            [ ! -f "$f" ] && MISSING+=("$f")
+          done
+          SHARD_COUNT=$(find output/cache/shards -name 'shard-*.json.zst' 2>/dev/null | wc -l || echo 0)
+          if [ "${#MISSING[@]}" -gt 0 ] || [ "$SHARD_COUNT" -lt 400 ]; then
+            echo "::error::Cycle output incomplete — refusing to save bad state to GHA cache or R2."
+            echo "  Missing files: ${MISSING[*]:-none}"
+            echo "  Shard count:   $SHARD_COUNT (threshold ≥400)"
+            exit 1
+          fi
+          echo "✅ Cycle output complete: $SHARD_COUNT shards + indexes"
+
       # V17.1: Save COMPLETE output (with all satellite results) to Cache for Factory 4/4
       - name: Save Complete Cycle Output to Cache
         uses: actions/cache/save@v4
