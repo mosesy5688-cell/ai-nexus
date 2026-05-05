@@ -46,8 +46,8 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
             try {
                 return await tryLoad(localPath);
             } catch {
-                // V25.9: Try .zst first, then .gz (legacy)
-                for (const ext of ['.zst', '.gz']) {
+                // P3: Zstd only — no gzip fallback
+                for (const ext of ['.zst']) {
                     if (!filename.endsWith(ext)) {
                         try {
                             const result = await tryLoad(localPath + ext);
@@ -91,13 +91,11 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
         const r2Key = `${getR2Prefix()}${filename}`;
         return await tryR2(localPath, r2Key);
     } catch {
-        // V25.9: Try .zst first, then .gz (legacy)
-        for (const ext of ['.zst', '.gz']) {
-            if (!filename.endsWith(ext)) {
-                try {
-                    return await tryR2(localPath + ext, `${getR2Prefix()}${filename}${ext}`);
-                } catch { }
-            }
+        // P3: Zstd only
+        if (!filename.endsWith('.zst')) {
+            try {
+                return await tryR2(localPath + '.zst', `${getR2Prefix()}${filename}.zst`);
+            } catch { }
         }
     }
 

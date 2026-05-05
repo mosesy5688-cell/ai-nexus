@@ -25,13 +25,14 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
         return;
     }
 
-    // V25.8.3: Dedup shards — prefer .bin > .json.gz > .json per shard index
-    const shardPriority = new Map(); // index -> { priority, filename }
+    // V25.8.3: Dedup shards — prefer .bin > .json.zst > .json (P3: no gzip)
+    const shardPriority = new Map();
     for (const f of shardFiles) {
         if (!f.startsWith('part-')) continue;
         const idx = parseInt(f.match(/part-(\d+)/)?.[1] || '-1');
         if (idx < startShard || idx > endShard) continue;
-        const prio = f.endsWith('.bin') ? 0 : f.endsWith('.json.zst') ? 1 : f.endsWith('.json.gz') ? 2 : f.endsWith('.json') ? 3 : 99;
+        if (f.endsWith('.json.gz')) { console.error(`[P3] Gzip shard rejected: ${f} — convert to .bin or .json.zst`); continue; }
+        const prio = f.endsWith('.bin') ? 0 : f.endsWith('.json.zst') ? 1 : f.endsWith('.json') ? 3 : 99;
         if (prio > 3) continue;
         const existing = shardPriority.get(idx);
         if (!existing || prio < existing.priority) {
@@ -101,9 +102,9 @@ export async function loadGlobalRegistry(options = {}) {
 
     if (process.env.FORCE_R2_RESTORE !== 'true') {
         const shardFiles = await fs.readdir(shardDirPath).catch(() => []);
-        // V25.8.2: Accept .bin (binary) + .json.gz/.json (legacy)
+        // P3: Accept .bin (binary) + .json.zst + .json only — no gzip
         const validShards = shardFiles.filter(f =>
-            f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.gz') || f.endsWith('.json'))
+            f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json'))
         );
 
         if (validShards.length > 0) {
@@ -141,7 +142,7 @@ export async function loadGlobalRegistry(options = {}) {
                 // Re-scan local shards after R2 restore
                 const restoredFiles = await fs.readdir(shardDirPath).catch(() => []);
                 const restoredShards = restoredFiles.filter(f =>
-                    f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.gz') || f.endsWith('.json'))
+                    f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json'))
                 );
                 for (const s of restoredShards.sort()) {
                     const fullPath = path.join(shardDirPath, s);
