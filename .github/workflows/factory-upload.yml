@@ -575,14 +575,23 @@ jobs:
           mkdir -p output/cache
           tar -xf fused-entities.tar -C output/cache
       - name: Restore Baked Profiles from Cache
+        id: cache-baked-upload
         uses: actions/cache/restore@v4
         with:
           path: mesh-profiles.tar
           key: intra-4-4-${{ github.run_id }}-baked
+      - name: R2 Fallback for Baked Profiles (Upload Job)
+        if: steps.cache-baked-upload.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: node scripts/factory/r2-workflow-cli.js restore-file state/mesh-profiles.tar mesh-profiles.tar || echo "⚠️ Mesh profiles not in R2"
       - name: Extract Baked Profiles
         run: |
           mkdir -p output/cache/mesh
-          tar -xf mesh-profiles.tar -C output/cache/mesh
+          if [ -f mesh-profiles.tar ]; then tar -xf mesh-profiles.tar -C output/cache/mesh; fi
       - name: Restore VFS Assets from Cache
         uses: actions/cache/restore@v4
         with:
