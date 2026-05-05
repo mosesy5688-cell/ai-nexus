@@ -115,7 +115,6 @@ jobs:
           path: mesh-profiles.tar
           key: intra-4-4-${{ github.run_id }}-baked
       - name: Backup Baked Profiles to R2
-        continue-on-error: true
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -291,7 +290,6 @@ jobs:
           path: fused-entities.tar
           key: intra-4-4-${{ github.run_id }}-fused-tar
       - name: Backup Fused Entities to R2
-        continue-on-error: true
         run: node scripts/factory/r2-workflow-cli.js upload-buffer fused-entities.tar state/fused-entities.tar --content-type=application/x-tar
 
   vfs-packing:
