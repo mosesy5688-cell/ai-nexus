@@ -265,17 +265,13 @@ jobs:
       # 301K (38% drop) and pack-db halted 1+ hour later at FNI=77% zero
       # sanity check — wasted 1+ hour. Fail HERE instead.
       - name: Verify Master Fusion Shard Count
-        # V25.13 fix: master-fusion writes per-shard files (`fused-shard-NNN.json.zst`),
-        # NOT per-entity. ~488 shards normal × ~1000 entities each = ~487K entities.
-        # Prior G3 threshold of 400,000 was off by 1000× (treated file count as entity
-        # count). Run 25323556634 false-blocked at 489 files (488 shards + 1 sentinel).
-        # Sentinel `.complete` is only written if `processedCount >= expectedCount`
-        # (assertCompletion in fusion-completion-guard.js), so its existence already
-        # guarantees Master Fusion didn't silent-truncate. We add an absolute lower
-        # bound on shard count as belt-and-suspenders against incomplete input.
+        # V25.13: master-fusion.js:134 writes `part-NNN.json.zst` per shard (~488 normal).
+        # Each shard contains ~1000 entities. Threshold 400 shards ≈ 400K entities.
+        # Sentinel `.complete` written only if processedCount >= expectedCount
+        # (fusion-completion-guard.js), so existence implies no silent-truncate.
         run: |
           set -e
-          SHARD_COUNT=$(find output/cache/fused -name 'fused-shard-*.json.zst' | wc -l)
+          SHARD_COUNT=$(find output/cache/fused -name 'part-*.json.zst' | wc -l)
           THRESHOLD=400
           # Sentinel content (already verified to exist by prior step)
           SENTINEL_PROCESSED=$(node -e "try{const j=require('fs').readFileSync('output/cache/fused/.complete','utf8');process.stdout.write(String(JSON.parse(j).processedShards||0))}catch{process.stdout.write('0')}")
