@@ -1,7 +1,8 @@
-// V26.7 Streaming Shard-DB Packer — Zero accumulator, O(1) memory
+// V27.0 Streaming Shard-DB Packer — Per-shard embeddings, zero accumulator
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
+const fsp = fs, VEC_DIM = 768;
 import { configureDistiller, distillEntity, flushDistillerCache, getDistillerStats } from './lib/v25-distiller.js';
 import { cleanAbstract } from './lib/abstract-cleaner.js';
 import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary } from './lib/pack-utils.js';
@@ -14,7 +15,8 @@ import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
 import { initRustBridge } from './lib/rust-bridge.js';
 import { computeEmbeddings } from './lib/embedding-generator.js';
-import { openCache, validateModel, loadIds, saveBatch, closeCache } from './lib/embedding-cache.js';
+import { openCache, validateModel, closeCache } from './lib/embedding-cache.js';
+import { scanAllShardIds, writeEmbeddingShard, readEmbeddingShard, iterateAllVectors } from './lib/embedding-shard-cache.js';
 import { createEntityLookupAccess, getEntityLookupSize, finalizeStreamingPack, resolveMeshFixup } from './lib/entity-lookup-cache.js';
 import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
 import { loadHostedOnMap, enrichHostedOn } from './lib/hosted-on-enricher.js';
@@ -40,7 +42,8 @@ function deriveSlug(id) {
     return r.replace(/[:\/]/g, '--').replace(/^--|--$/g, '').replace(/--+/g, '--');
 }
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024, EMBEDDING_BATCH = 500;
-const EMBEDDING_CACHE_PATH = path.join(CACHE_DIR, 'embedding-cache.db');
+const PACK_STATE_PATH = path.join(CACHE_DIR, 'pack-state.db');
+const EMBED_SHARD_DIR = path.join(CACHE_DIR, 'embeddings');
 const EMBEDDING_MODEL = 'Xenova/bge-base-en-v1.5';
 
 async function packDatabase() {
@@ -56,14 +59,14 @@ async function packDatabase() {
     const trendingMap = await loadTrendingMap(CACHE_DIR);
     const trendMap = await loadTrendMap(CACHE_DIR);
 
-    // V25.12 (2026-05-04): Single-pass + streaming-compliant lookup proxy
-    // Eliminates 172-min Pass 1 — entity_lookup queried lazily via SQLite,
-    // bounded batch insert (≤1000) during main pass. Zero accumulator.
-    const cacheDb = openCache(EMBEDDING_CACHE_PATH);
+    // V27.0: pack-state.db for entity_lookup/html_cache; embeddings in per-shard binaries
+    const cacheDb = openCache(PACK_STATE_PATH);
     validateModel(cacheDb, EMBEDDING_MODEL);
-    const cachedIdSet = loadIds(cacheDb);
+    await fsp.mkdir(EMBED_SHARD_DIR, { recursive: true });
+    const cachedIdToShard = await scanAllShardIds(EMBED_SHARD_DIR);
+    const cachedIdSet = new Set(cachedIdToShard.keys());
     const lookupAccess = createEntityLookupAccess(cacheDb);
-    console.log(`[VFS] entity_lookup ready (${getEntityLookupSize(cacheDb)} persisted), ${cachedIdSet.size} cached embeddings.`);
+    console.log(`[VFS] entity_lookup ready (${getEntityLookupSize(cacheDb)} persisted), ${cachedIdSet.size} sharded embeddings.`);
 
     // Prepare DBs
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
@@ -81,8 +84,6 @@ async function packDatabase() {
     const prepInserts = {};
     for (const [key, db] of Object.entries(metaDbs)) prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    const getVecStm = cacheDb.prepare('SELECT vector FROM embeddings WHERE id = ?');
-
     const stats = { packed: 0, heavy: 0, bytes: 0 };
     const manifest = {};
     const shardWriter = new ShardWriter(SHARD_PATH_DIR);
@@ -97,11 +98,11 @@ async function packDatabase() {
 
     const { map: hostedOnMap, timestamp: hostedOnTs } = loadHostedOnMap(CACHE_DIR);
 
-    // V25.12: Single-pass — streaming pack with bounded batch buffers
-    const uncachedEntities = [];
+    // V27.0: Track uncached entities with their shard index for per-shard embedding write
+    const uncachedByShard = new Map();
 
     console.log('[VFS] Single-pass streaming pack...');
-    await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e) => {
+    await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e, shardIdx) => {
         const umidKey = e.umid || e.id;
         if (seenUmids.has(umidKey)) { dupSkipped++; return; }
         seenUmids.add(umidKey);
@@ -110,9 +111,9 @@ async function packDatabase() {
 
         // V25.12: Streaming lookup track (bounded batch, INSERT OR IGNORE)
         if (eid) lookupAccess.trackEntity(eid, e.name || e.displayName || eid, e.icon || '');
-        // V25.12: Defer embedding compute to after main pass
         if (eid && !cachedIdSet.has(eid)) {
-            uncachedEntities.push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
+            if (!uncachedByShard.has(shardIdx)) uncachedByShard.set(shardIdx, []);
+            uncachedByShard.get(shardIdx).push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
         }
 
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
@@ -159,11 +160,27 @@ async function packDatabase() {
     shardWriter.finalize();
     if (dupSkipped > 0) console.warn(`[VFS] Pack loop skipped ${dupSkipped} duplicate-umid entities`);
 
-    // V25.12: Post-pass — flush bounded buffers, compute embeddings
+    // V27.0: Post-pass — compute embeddings per-shard, write binary shards
+    const idToShardIdx = new Map();
+    const uncachedEntities = [];
+    for (const [si, arr] of uncachedByShard) { for (const e of arr) { idToShardIdx.set(e.id, si); uncachedEntities.push(e); } }
+    const pendingByShardIdx = new Map();
     await finalizeStreamingPack({
         cacheDb, lookupAccess, uncachedEntities,
-        computeEmbeddings, saveBatch, flushDistillerCache, getDistillerStats
+        computeEmbeddings, saveBatch: (_db, batch) => {
+            for (const item of batch) {
+                const si = idToShardIdx.get(item.id) ?? 0;
+                if (!pendingByShardIdx.has(si)) pendingByShardIdx.set(si, []);
+                pendingByShardIdx.get(si).push(item);
+            }
+        }, flushDistillerCache, getDistillerStats
     });
+    for (const [si, items] of pendingByShardIdx) {
+        const existing = readEmbeddingShard(EMBED_SHARD_DIR, si) || new Map();
+        for (const it of items) { const int8 = new Int8Array(it.embedding.length); for (let i = 0; i < it.embedding.length; i++) int8[i] = Math.max(-128, Math.min(127, Math.round(it.embedding[i] * 127))); existing.set(it.id, Buffer.from(int8.buffer)); }
+        writeEmbeddingShard(EMBED_SHARD_DIR, si, [...existing.entries()].map(([id, vector]) => ({ id, vector })));
+    }
+    console.log(`[VFS] Wrote ${pendingByShardIdx.size} embedding shards (${uncachedEntities.length} new vectors)`);
 
     // V25.12: Mesh fix-up — re-resolve forward refs that missed the streaming
     // SQLite proxy during main pass. Runs AFTER lookupAccess.flush so
@@ -176,29 +193,17 @@ async function packDatabase() {
 
     await finalizePack(metaDbs, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
 
-    // FNI sanity check from meta shards
-    let totalFni = 0, zeroFni = 0, maxFni = 0, allScores = [];
-    for (const db of Object.values(metaDbs)) {
-        for (const r of db.prepare('SELECT fni_score FROM entities').iterate()) {
-            const s = r.fni_score || 0;
-            if (s === 0) zeroFni++;
-            if (s > maxFni) maxFni = s;
-            allScores.push(s);
-            totalFni++;
-        }
-    }
+    // FNI sanity check
+    let totalFni = 0, zeroFni = 0, maxFni = 0;
+    const allScores = [];
+    for (const db of Object.values(metaDbs)) for (const r of db.prepare('SELECT fni_score FROM entities').iterate()) { const s = r.fni_score || 0; if (s === 0) zeroFni++; if (s > maxFni) maxFni = s; allScores.push(s); totalFni++; }
     allScores.sort((a, b) => a - b);
-    const median = allScores[Math.floor(allScores.length / 2)] || 0;
-    const zeroRatio = totalFni > 0 ? zeroFni / totalFni : 0;
+    const median = allScores[Math.floor(allScores.length / 2)] || 0, zeroRatio = totalFni > 0 ? zeroFni / totalFni : 0;
     console.log(`[FNI-CHECK] total=${totalFni} zero=${zeroFni} (${(zeroRatio * 100).toFixed(1)}%) median=${median.toFixed(1)} max=${maxFni.toFixed(1)}`);
-    if (zeroRatio > 0.05 || maxFni > 99.9 || median < 10) {
-        console.error('[VFS] BUILD HALTED: FNI sanity check failed.'); process.exit(1);
-    }
+    if (zeroRatio > 0.05 || maxFni > 99.9 || median < 10) { console.error('[VFS] BUILD HALTED: FNI sanity check failed.'); process.exit(1); }
 
-    // Parquet from meta shards
     const { exportParquetFromShards, exportLiteParquetFromShards } = await import('./lib/parquet-exporter.js');
-    await exportParquetFromShards(metaDbs);
-    await exportLiteParquetFromShards(metaDbs);
+    await exportParquetFromShards(metaDbs); await exportLiteParquetFromShards(metaDbs);
 
     // Top-30k from meta shards (SQLite indexed query, fast)
     console.log('[VFS] Recovering Top-30k vectors from meta shards...');
@@ -213,24 +218,24 @@ async function packDatabase() {
     }
     top30k.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
     top30k.length = Math.min(top30k.length, 30000);
+    const vecShardCache = new Map();
     for (const row of top30k) {
-        const vecRow = getVecStm.get(row.id || row.slug);
-        if (vecRow?.vector) {
-            const int8 = new Int8Array(vecRow.vector.buffer, vecRow.vector.byteOffset, vecRow.vector.byteLength);
-            const float32 = new Float32Array(int8.length);
-            for (let j = 0; j < int8.length; j++) float32[j] = int8[j] / 127.0;
-            row.embedding = Array.from(float32);
-        }
+        const eid = row.id || row.slug;
+        const si = cachedIdToShard.get(eid) ?? idToShardIdx.get(eid);
+        if (si == null) continue;
+        if (!vecShardCache.has(si)) vecShardCache.set(si, readEmbeddingShard(EMBED_SHARD_DIR, si) || new Map());
+        const vec = vecShardCache.get(si).get(eid);
+        if (vec) { const f32 = new Float32Array(VEC_DIM); for (let j = 0; j < VEC_DIM; j++) f32[j] = vec[j] / 127.0; row.embedding = Array.from(f32); }
     }
+    vecShardCache.clear();
     const withVec = top30k.filter(r => r.embedding).length;
-    console.log(`[VFS] Top-30k vectors: ${withVec}/${top30k.length} populated from Embedding Vault`);
+    console.log(`[VFS] Top-30k vectors: ${withVec}/${top30k.length} from embedding shards`);
     closeCache(cacheDb);
     await generateHotShard(top30k);
     await generateVectorCore(top30k);
 
     const { buildClusterAnnIndex } = await import('./lib/cluster-ann-builder.js');
-    await buildClusterAnnIndex(EMBEDDING_CACHE_PATH);
-
+    await buildClusterAnnIndex(EMBED_SHARD_DIR);
     const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
     const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();

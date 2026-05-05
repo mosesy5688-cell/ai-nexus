@@ -112,15 +112,13 @@ export async function loadTrendMap(cacheDir) {
 export async function streamFusedEntities(cacheDir, trendingMap, trendMap, consumer) {
     const fusedDir = path.join(cacheDir, 'fused');
     const fusedFiles = (await fs.readdir(fusedDir).catch(() => []))
-        .filter(f => f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst'));
-
+        .filter(f => f.endsWith('.json') || f.endsWith('.json.zst'));
     if (fusedFiles.length === 0) throw new Error(`No fused entities found at ${fusedDir}`);
-
-    const compressOrder = (f) => f.endsWith('.json') ? 0 : 1;
-    fusedFiles.sort((a, b) => compressOrder(a) - compressOrder(b));
+    fusedFiles.sort();
 
     let count = 0;
-    for (const file of fusedFiles) {
+    for (let shardIdx = 0; shardIdx < fusedFiles.length; shardIdx++) {
+        const file = fusedFiles[shardIdx];
         const fullPath = path.join(fusedDir, file);
         try {
             const prev = count;
@@ -129,7 +127,7 @@ export async function streamFusedEntities(cacheDir, trendingMap, trendMap, consu
                 entity._trending_rank = ti.rank;
                 entity.is_trending = ti.is_trending;
                 entity._trend_7d = trendMap.get(entity.id || entity.slug) || '';
-                consumer(entity);
+                consumer(entity, shardIdx);
                 count++;
             });
             if (count % 50000 < (count - prev) && count > 0) console.log(`[VFS] Streamed ${count} entities...`);
@@ -137,7 +135,7 @@ export async function streamFusedEntities(cacheDir, trendingMap, trendMap, consu
             console.error(`[VFS] Failed to read ${file}:`, e.message);
         }
     }
-    console.log(`[VFS] Streaming complete: ${count} entities.`);
+    console.log(`[VFS] Streaming complete: ${count} entities from ${fusedFiles.length} shards.`);
     return count;
 }
 
