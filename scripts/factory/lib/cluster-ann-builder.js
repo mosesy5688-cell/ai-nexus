@@ -6,7 +6,8 @@
 
 import fsSync from 'fs';
 import path from 'path';
-import Database from 'better-sqlite3';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 const NUM_CLUSTERS = 128;
 const MAX_ITERATIONS = 20;
@@ -16,20 +17,15 @@ const OUTPUT_PATH = './output/data/cluster-ann-index.bin';
 
 /** Load Int8 vectors from embedding cache → Float32. */
 function loadVectorsFromCache(cachePath) {
-    const db = new Database(cachePath, { readonly: true });
-    const rows = db.prepare('SELECT id, vector FROM embeddings').all();
-    db.close();
-
+    const { iterateAllVectors } = require('./embedding-shard-cache.js');
     const ids = [];
     const vectors = [];
 
-    for (const row of rows) {
-        const int8 = new Int8Array(row.vector.buffer, row.vector.byteOffset, row.vector.byteLength);
-        if (int8.length !== VECTOR_DIM) continue;
-
+    for (const { id, vector } of iterateAllVectors(cachePath)) {
+        if (vector.length !== VECTOR_DIM) continue;
         const float32 = new Float32Array(VECTOR_DIM);
         for (let i = 0; i < VECTOR_DIM; i++) {
-            float32[i] = int8[i] / 127.0;
+            float32[i] = vector[i] / 127.0;
         }
         ids.push(row.id);
         vectors.push(float32);

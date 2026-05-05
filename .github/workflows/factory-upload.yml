@@ -353,29 +353,32 @@ jobs:
         if: steps.cache-fused.outputs.cache-hit != 'true'
         run: |
           node scripts/factory/r2-workflow-cli.js restore-file state/fused-entities.tar fused-entities.tar || echo "⚠️ No fused-entities on R2"
-      - name: Restore Embedding Cache (Vault)
+      - name: Restore Embedding Shards (Cache)
         id: cache-embedding
         uses: actions/cache/restore@v4
         with:
-          path: output/cache/embedding-cache.db
-          key: embedding-cache-v1-${{ github.run_id }}
-          restore-keys: embedding-cache-v1-
-      - name: R2 Fallback for Embedding Cache
+          path: output/cache/embeddings/
+          key: embedding-shards-v1-${{ github.run_id }}
+          restore-keys: embedding-shards-v1-
+      - name: R2 Fallback for Embedding Shards
         if: steps.cache-embedding.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/cache/embeddings
+          node scripts/factory/r2-workflow-cli.js restore-dir state/embeddings/ output/cache/embeddings/ || echo "⚠️ No embedding shards on R2 — cold start"
+      - name: Restore Pack-State DB
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
           mkdir -p output/cache
-          node scripts/factory/r2-workflow-cli.js restore-file state/embedding-cache.db output/cache/embedding-cache.db || echo "⚠️ No embedding cache on R2 — cold start expected"
-      - name: Verify Embedding Cache
-        run: |
-          if [ -f "output/cache/embedding-cache.db" ]; then
-            SIZE=$(stat -c%s "output/cache/embedding-cache.db" 2>/dev/null || stat -f%z "output/cache/embedding-cache.db" 2>/dev/null || echo 0)
-            echo "Embedding cache: ${SIZE} bytes"
-            if [ "$SIZE" -lt 1024 ]; then
-              echo "::warning::Embedding cache < 1KB — full recompute will occur"
-            fi
-          else
-            echo "::warning::No embedding cache found — full recompute will occur (cold start)"
-          fi
+          node scripts/factory/r2-workflow-cli.js restore-file state/pack-state.db output/cache/pack-state.db || echo "⚠️ No pack-state.db — cold start"
       - name: Extract Fused Entities
         run: |
           mkdir -p output/cache/fused
@@ -399,13 +402,13 @@ jobs:
           UMID_SALT: ${{ secrets.UMID_SALT }}
           NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
         run: node scripts/factory/pack-db.js
-      - name: Save Embedding Cache to Vault
+      - name: Save Embedding Shards to Cache
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: output/cache/embedding-cache.db
-          key: embedding-cache-v1-${{ github.run_id }}
-      - name: Backup Embedding Cache to R2
+          path: output/cache/embeddings/
+          key: embedding-shards-v1-${{ github.run_id }}
+      - name: Backup Embedding Shards to R2
         if: always()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -413,12 +416,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          if [ -f "output/cache/embedding-cache.db" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-file output/cache/embedding-cache.db state/embedding-cache.db
-            echo "[R2] Embedding cache backed up to R2 state"
-          else
-            echo "::warning::No embedding-cache.db to back up to R2"
-          fi
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/embeddings/ state/embeddings/ --extensions=.bin.zst
+          [ -f "output/cache/pack-state.db" ] && node scripts/factory/r2-workflow-cli.js upload-file output/cache/pack-state.db state/pack-state.db
+          echo "[R2] Embedding shards + pack-state backed up"
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
       # V25.13: RSS gen moved here from separate rss-feeds job (architectural fix).
