@@ -6,8 +6,6 @@
 
 import fsSync from 'fs';
 import path from 'path';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 const NUM_CLUSTERS = 128;
 const MAX_ITERATIONS = 20;
@@ -15,19 +13,19 @@ const CONVERGENCE_THRESHOLD = 0.001;
 const VECTOR_DIM = 768;
 const OUTPUT_PATH = './output/data/cluster-ann-index.bin';
 
-/** Load Int8 vectors from embedding cache → Float32. */
-function loadVectorsFromCache(cachePath) {
-    const { iterateAllVectors } = require('./embedding-shard-cache.js');
+/** Load Int8 vectors from embedding shards → Float32. */
+async function loadVectorsFromCache(cachePath) {
+    const { iterateAllVectors } = await import('./embedding-shard-cache.js');
     const ids = [];
     const vectors = [];
 
-    for (const { id, vector } of iterateAllVectors(cachePath)) {
+    for await (const { id, vector } of iterateAllVectors(cachePath)) {
         if (vector.length !== VECTOR_DIM) continue;
         const float32 = new Float32Array(VECTOR_DIM);
         for (let i = 0; i < VECTOR_DIM; i++) {
             float32[i] = vector[i] / 127.0;
         }
-        ids.push(row.id);
+        ids.push(id);
         vectors.push(float32);
     }
 
@@ -204,7 +202,7 @@ export async function buildClusterAnnIndex(cachePath) {
     console.log('[CLUSTER-ANN] Building Cluster ANN Index (V2.0)...');
     const start = Date.now();
 
-    const { ids, vectors } = loadVectorsFromCache(cachePath);
+    const { ids, vectors } = await loadVectorsFromCache(cachePath);
     if (vectors.length < NUM_CLUSTERS * 10) {
         console.warn(`[CLUSTER-ANN] Only ${vectors.length} vectors, skipping.`);
         return;

@@ -6,7 +6,7 @@ import { zstdCompress, zstdDecompress } from './zstd-helper.js';
 
 const VEC_DIM = 768;
 
-export function writeEmbeddingShard(shardDir, shardIdx, entries) {
+export async function writeEmbeddingShard(shardDir, shardIdx, entries) {
     fs.mkdirSync(shardDir, { recursive: true });
     const count = entries.length;
     const parts = [Buffer.alloc(4)];
@@ -20,7 +20,7 @@ export function writeEmbeddingShard(shardDir, shardIdx, entries) {
         parts.push(vecBuf);
     }
     const raw = Buffer.concat(parts);
-    const compressed = zstdCompress(raw);
+    const compressed = await zstdCompress(raw);
     const name = `embed-${String(shardIdx).padStart(3, '0')}.bin.zst`;
     const tmpPath = path.join(shardDir, name + '.tmp');
     fs.writeFileSync(tmpPath, compressed);
@@ -28,12 +28,12 @@ export function writeEmbeddingShard(shardDir, shardIdx, entries) {
     return { path: name, rawSize: raw.length, compressedSize: compressed.length };
 }
 
-export function readEmbeddingShard(shardDir, shardIdx) {
+export async function readEmbeddingShard(shardDir, shardIdx) {
     const name = `embed-${String(shardIdx).padStart(3, '0')}.bin.zst`;
     const filePath = path.join(shardDir, name);
     if (!fs.existsSync(filePath)) return null;
     const compressed = fs.readFileSync(filePath);
-    const raw = zstdDecompress(compressed);
+    const raw = await zstdDecompress(compressed);
     return parseShardBuffer(raw);
 }
 
@@ -58,7 +58,7 @@ export async function scanAllShardIds(shardDir) {
         const idx = parseInt(f.match(/embed-(\d+)/)?.[1] || '-1');
         if (idx < 0) continue;
         const compressed = await fsp.readFile(path.join(shardDir, f));
-        const raw = zstdDecompress(compressed);
+        const raw = await zstdDecompress(compressed);
         const count = raw.readUInt32LE(0);
         let offset = 4;
         for (let i = 0; i < count; i++) {
@@ -71,18 +71,18 @@ export async function scanAllShardIds(shardDir) {
     return idToShard;
 }
 
-export function getVector(shardDir, shardIdx, entityId) {
-    const shard = readEmbeddingShard(shardDir, shardIdx);
+export async function getVector(shardDir, shardIdx, entityId) {
+    const shard = await readEmbeddingShard(shardDir, shardIdx);
     if (!shard) return null;
     const vec = shard.get(entityId);
     return vec ? new Int8Array(vec.buffer, vec.byteOffset, vec.byteLength) : null;
 }
 
-export function* iterateAllVectors(shardDir) {
+export async function* iterateAllVectors(shardDir) {
     const files = fs.readdirSync(shardDir).filter(f => f.startsWith('embed-') && f.endsWith('.bin.zst')).sort();
     for (const f of files) {
         const compressed = fs.readFileSync(path.join(shardDir, f));
-        const raw = zstdDecompress(compressed);
+        const raw = await zstdDecompress(compressed);
         const count = raw.readUInt32LE(0);
         let offset = 4;
         for (let i = 0; i < count; i++) {

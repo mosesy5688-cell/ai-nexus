@@ -28,13 +28,17 @@ console.log(`[MIGRATE] Found ${rows.length} embeddings. Writing to ${SHARD_DIR}.
 
 fs.mkdirSync(SHARD_DIR, { recursive: true });
 let shardIdx = 0, batch = [];
-for (const row of rows) {
-    batch.push({ id: row.id, vector: Buffer.from(row.vector) });
-    if (batch.length >= SHARD_SIZE) {
-        writeEmbeddingShard(SHARD_DIR, shardIdx, batch);
-        shardIdx++;
-        batch = [];
+async function run() {
+    for (const row of rows) {
+        batch.push({ id: row.id, vector: Buffer.from(row.vector) });
+        if (batch.length >= SHARD_SIZE) {
+            await writeEmbeddingShard(SHARD_DIR, shardIdx, batch);
+            if (shardIdx % 50 === 0) console.log(`[MIGRATE] ${shardIdx} shards written...`);
+            shardIdx++;
+            batch = [];
+        }
     }
+    if (batch.length > 0) { await writeEmbeddingShard(SHARD_DIR, shardIdx, batch); shardIdx++; }
 }
-if (batch.length > 0) { writeEmbeddingShard(SHARD_DIR, shardIdx, batch); shardIdx++; }
+await run();
 console.log(`[MIGRATE] ✅ Wrote ${shardIdx} shards (${rows.length} vectors) to ${SHARD_DIR}`);

@@ -176,9 +176,9 @@ async function packDatabase() {
         }, flushDistillerCache, getDistillerStats
     });
     for (const [si, items] of pendingByShardIdx) {
-        const existing = readEmbeddingShard(EMBED_SHARD_DIR, si) || new Map();
+        const existing = await readEmbeddingShard(EMBED_SHARD_DIR, si) || new Map();
         for (const it of items) { const int8 = new Int8Array(it.embedding.length); for (let i = 0; i < it.embedding.length; i++) int8[i] = Math.max(-128, Math.min(127, Math.round(it.embedding[i] * 127))); existing.set(it.id, Buffer.from(int8.buffer)); }
-        writeEmbeddingShard(EMBED_SHARD_DIR, si, [...existing.entries()].map(([id, vector]) => ({ id, vector })));
+        await writeEmbeddingShard(EMBED_SHARD_DIR, si, [...existing.entries()].map(([id, vector]) => ({ id, vector })));
     }
     console.log(`[VFS] Wrote ${pendingByShardIdx.size} embedding shards (${uncachedEntities.length} new vectors)`);
 
@@ -223,7 +223,7 @@ async function packDatabase() {
         const eid = row.id || row.slug;
         const si = cachedIdToShard.get(eid) ?? idToShardIdx.get(eid);
         if (si == null) continue;
-        if (!vecShardCache.has(si)) vecShardCache.set(si, readEmbeddingShard(EMBED_SHARD_DIR, si) || new Map());
+        if (!vecShardCache.has(si)) vecShardCache.set(si, await readEmbeddingShard(EMBED_SHARD_DIR, si) || new Map());
         const vec = vecShardCache.get(si).get(eid);
         if (vec) { const f32 = new Float32Array(VEC_DIM); for (let j = 0; j < VEC_DIM; j++) f32[j] = vec[j] / 127.0; row.embedding = Array.from(f32); }
     }
