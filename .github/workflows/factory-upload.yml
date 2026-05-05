@@ -379,6 +379,22 @@ jobs:
         run: |
           mkdir -p output/cache
           node scripts/factory/r2-workflow-cli.js restore-file state/pack-state.db output/cache/pack-state.db || echo "⚠️ No pack-state.db — cold start"
+      - name: Migrate Legacy Embedding Cache (one-time)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          SHARD_COUNT=$(find output/cache/embeddings -name 'embed-*.bin.zst' 2>/dev/null | wc -l)
+          if [ "$SHARD_COUNT" -eq 0 ]; then
+            echo "[MIGRATE] No shards found — attempting legacy SQLite migration..."
+            node scripts/factory/r2-workflow-cli.js restore-file state/embedding-cache.db output/cache/embedding-cache.db || true
+            node scripts/factory/migrate-embedding-cache.js output/cache/embedding-cache.db output/cache/embeddings
+            rm -f output/cache/embedding-cache.db
+          else
+            echo "[MIGRATE] ${SHARD_COUNT} shards present — no migration needed."
+          fi
       - name: Extract Fused Entities
         run: |
           mkdir -p output/cache/fused
