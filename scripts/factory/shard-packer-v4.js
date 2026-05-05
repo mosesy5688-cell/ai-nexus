@@ -49,16 +49,14 @@ export async function packV4Shards() {
 
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    // Load UMID mapping (V55.9: support both .zst and legacy .gz)
+    // Load UMID mapping (P3: Zstd only)
     let umidMapping = {};
     try {
-        let raw;
-        try { raw = await fs.readFile('data/umid-mapping.json.zst'); }
-        catch { raw = await fs.readFile('data/umid-mapping.json.gz'); }
+        const raw = await fs.readFile('data/umid-mapping.json.zst');
         umidMapping = JSON.parse((await autoDecompress(raw)).toString());
         console.log(`[V4-PACKER] Loaded ${Object.keys(umidMapping).length} UMID mappings`);
     } catch {
-        console.error('[V4-PACKER] FATAL: umid-mapping.json.{zst,gz} not found. Run --phase=umid-stamping first.');
+        console.error('[V4-PACKER] FATAL: data/umid-mapping.json.zst not found. Run --phase=umid-stamping first.');
         process.exit(1);
     }
 
@@ -66,7 +64,7 @@ export async function packV4Shards() {
     const DENSITY_FLOOR = 100 * 1024 * 1024;
     const registryPath = process.env.REGISTRY_MONOLITH || './cache/global-registry.json.zst';
     try {
-        const stat = await fs.stat(registryPath).catch(() => fs.stat(registryPath.replace('.zst', '.gz')));
+        const stat = await fs.stat(registryPath);
         if (stat.size < DENSITY_FLOOR) {
             console.error(`[V4-PACKER] DENSITY ALERT: ${registryPath} is ${(stat.size / 1024 / 1024).toFixed(1)}MB (floor: 100MB)`);
             console.error('[V4-PACKER] Dehydrated version detected. Aborting to prevent data loss.');
@@ -81,7 +79,7 @@ export async function packV4Shards() {
     const allSourceFiles = [];
     for (const dir of [fusedDir, registryDir]) {
         const files = (await fs.readdir(dir).catch(() => []))
-            .filter(f => f.endsWith('.json') || f.endsWith('.json.zst') || f.endsWith('.json.gz'));
+            .filter(f => f.endsWith('.json') || f.endsWith('.json.zst'));
         for (const f of files) allSourceFiles.push({ dir, file: f });
     }
 

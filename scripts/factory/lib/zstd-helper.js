@@ -87,7 +87,7 @@ export function detectCompression(data) {
 export async function autoDecompress(data) {
     const fmt = detectCompression(data);
     if (fmt === 'zstd') return zstdDecompress(data);
-    if (fmt === 'gzip') return zlib.gunzipSync(data);
+    if (fmt === 'gzip') throw new Error('[P3] Gzip format detected — 100% Zstd required. Convert source to .zst');
     let buf = data;
     for (let i = 0; i < 5 && buf.length > 16 && buf[0] >= 0x41 && buf[0] <= 0x7A; i++) {
         try { buf = Buffer.from(buf.toString('utf-8').trim(), 'base64'); } catch { break; }
@@ -171,11 +171,8 @@ export function createAutoDecompressStream() {
             if (mode === null && chunk.length >= 4) {
                 const fmt = detectCompression(chunk);
                 if (fmt === 'gzip') {
-                    mode = 'gzip';
-                    gunzip = zlib.createGunzip();
-                    gunzip.on('data', (d) => this.push(d));
-                    gunzip.on('error', (e) => this.destroy(e));
-                    gunzip.write(chunk);
+                    this.destroy(new Error('[P3] Gzip stream detected — 100% Zstd required'));
+                    return;
                 } else if (fmt === 'zstd') {
                     const rust = probeRust();
                     if (rust?.zstdDecompressFile) {

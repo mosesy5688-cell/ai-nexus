@@ -364,7 +364,7 @@ jobs:
         run: |
           SHARD_FILE="artifacts/shard-${{ matrix.shard }}.json.zst"
           if [ -f "$SHARD_FILE" ]; then
-            node scripts/factory/r2-workflow-cli.js upload-buffer "$SHARD_FILE" "state/shards/shard-${{ matrix.shard }}.json.zst" --content-type=application/zstd || echo "⚠️ R2 shard stream skipped (non-fatal)"
+            node scripts/factory/r2-workflow-cli.js upload-buffer "$SHARD_FILE" "state/shards/shard-${{ matrix.shard }}.json.zst" --content-type=application/zstd
           fi
 
   # V4.1: Save all shards to Cache for next stage
