@@ -1,7 +1,4 @@
-/**
- * V25.8.3 R2 Handoff — Reusable backup/restore for inter-workflow data.
- * Replaces scattered inline `node -e` R2 scripts in workflow YAML files.
- */
+// V25.8.3 R2 Handoff — Reusable backup/restore for inter-workflow data.
 import fs from 'fs/promises';
 import path from 'path';
 import { createR2Client } from './r2-helpers.js';
@@ -125,15 +122,12 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
         uploaded += results.filter(r => r.status === 'fulfilled' && r.value.success).length;
     }
 
-    // Write manifest for efficient restore
+    // Write manifest for efficient restore — failure here causes stale manifest bugs
     const manifestKey = r2Prefix + '_manifest.json';
+    const manifestBody = JSON.stringify({ files: manifest, timestamp: new Date().toISOString(), count: manifest.length });
     try {
-        await s3.send(new PutObjectCommand({
-            Bucket: BUCKET, Key: manifestKey,
-            Body: JSON.stringify({ files: manifest, timestamp: new Date().toISOString(), count: manifest.length }),
-            ContentType: 'application/json'
-        }));
-    } catch { /* non-fatal */ }
+        await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: manifestKey, Body: manifestBody, ContentType: 'application/json' }));
+    } catch (e) { console.error(`[R2-HANDOFF] ⚠️ MANIFEST WRITE FAILED (${manifest.length} entries): ${e.message}`); }
 
     console.log(`[R2-HANDOFF] Directory backup: ${uploaded}/${files.length} files (${(totalSize/1024/1024).toFixed(1)}MB)`);
     return { success: uploaded > 0, count: uploaded, totalSize };
@@ -189,16 +183,33 @@ export async function restoreDirectoryFromR2(r2Prefix, localDir, opts = {}) {
 
     console.log(`[R2-HANDOFF] Restoring ${fileKeys.length} files to ${localDir}...`);
     let restored = 0;
+    const restoredPaths = new Set();
     for (let i = 0; i < fileKeys.length; i += concurrency) {
         const batch = fileKeys.slice(i, i + concurrency);
-        const results = await Promise.allSettled(batch.map(({ key, rel }) => {
-            const localPath = path.join(localDir, rel);
-            return restoreFileFromR2(key, localPath);
+        const results = await Promise.allSettled(batch.map(async ({ key, rel }) => {
+            const r = await restoreFileFromR2(key, path.join(localDir, rel));
+            if (r.success) restoredPaths.add(rel);
+            return r;
         }));
         restored += results.filter(r => r.status === 'fulfilled' && r.value.success).length;
     }
-
-    console.log(`[R2-HANDOFF] Directory restore: ${restored}/${fileKeys.length} files`);
+    const failed = fileKeys.length - restored;
+    if (failed > 10 && failed / fileKeys.length > 0.05) {
+        console.warn(`[R2-HANDOFF] Manifest stale (${failed} miss). Supplementing via ListObjects...`);
+        let token;
+        do {
+            const resp = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: r2Prefix, MaxKeys: 1000, ContinuationToken: token }));
+            for (const obj of resp.Contents || []) {
+                if (obj.Key.endsWith('_manifest.json')) continue;
+                const rel = obj.Key.slice(r2Prefix.length);
+                if (restoredPaths.has(rel)) continue;
+                try { const r = await restoreFileFromR2(obj.Key, path.join(localDir, rel)); if (r.success) { restored++; restoredPaths.add(rel); } } catch (e) { console.warn(`[R2-HANDOFF] fallback restore failed: ${rel}: ${e.message}`); }
+            }
+            token = resp.NextContinuationToken;
+        } while (token);
+        console.log(`[R2-HANDOFF] After ListObjects: ${restored} files total`);
+    }
+    console.log(`[R2-HANDOFF] Directory restore: ${restored} files`);
     return { success: restored > 0, count: restored };
 }
 

@@ -1,10 +1,4 @@
-/**
- * V26.3 R2 Engine Bridge — Loads Rust N-API r2-engine; falls back to JS r2-helpers.js.
- *
- * Async functions: Rust returns Promise natively via napi-rs tokio runtime.
- * Rollback: Set R2_FORCE_JS=true to bypass Rust and use JS path.
- */
-
+// V26.3 R2 Engine Bridge — Rust N-API r2-engine with JS fallback. Set R2_FORCE_JS=true to bypass Rust.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
@@ -189,15 +183,19 @@ export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = 
     if (_r2Engine && client?.constructor?.name === 'R2Client') {
         const walkResult = await _r2Engine.walkDirWithMd5(absDir, opts.extensions || null);
         console.log(`[R2-BRIDGE] backup-dir: ${walkResult.length} files matched filter`);
-        let count = 0;
+        const manifest = [];
         for (const entry of walkResult) {
             try {
                 const data = fs.readFileSync(`${absDir}/${entry.relPath}`);
                 await uploadBufferToR2FFI(client, `${r2Prefix}${entry.relPath}`, data);
-                count++;
+                manifest.push(entry.relPath.replace(/\\/g, '/'));
             } catch (e) { console.warn(`[R2-BRIDGE] backup-dir: failed ${entry.relPath}: ${e.message}`); }
         }
-        return { count };
+        const body = JSON.stringify({ files: manifest, timestamp: new Date().toISOString(), count: manifest.length });
+        await uploadBufferToR2FFI(client, `${r2Prefix}_manifest.json`, Buffer.from(body))
+            .catch(e => console.error(`[R2-BRIDGE] ⚠️ MANIFEST WRITE FAILED: ${e.message}`));
+        console.log(`[R2-BRIDGE] backup-dir: ${manifest.length} files + manifest written`);
+        return { count: manifest.length };
     }
     const { backupDirectoryToR2 } = await import('./r2-handoff.js');
     return backupDirectoryToR2(absDir, r2Prefix, opts);
@@ -220,17 +218,15 @@ export async function backupFileToR2FFI(localPath, r2Key, opts = {}) {
     return backupFileToR2(localPath, r2Key, opts);
 }
 
-/** Restore a single file from R2. */
+/** Restore a single file from R2. Rust-first, JS fallback on Rust failure. */
 export async function restoreFileFromR2FFI(r2Key, localPath, opts = {}) {
     if (_r2Engine) {
         const client = createR2ClientFFI();
         if (client) {
-            const result = await _r2Engine.downloadFromR2(client, r2Key, localPath);
-            if (result.success) {
-                console.log(`[R2-BRIDGE] Restored ${r2Key} -> ${localPath}`);
-                return { success: true, size: result.size };
-            }
-            return { success: false };
+            try {
+                const result = await _r2Engine.downloadFromR2(client, r2Key, localPath);
+                if (result.success) return { success: true, size: result.size };
+            } catch {}
         }
     }
     const { restoreFileFromR2 } = await import('./r2-handoff.js');
