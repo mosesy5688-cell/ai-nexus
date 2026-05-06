@@ -42,7 +42,8 @@ async function fetchSelect(task, limit = 200) {
 
 function isNonEmpty(value) {
     if (value === null || value === undefined) return false;
-    if (value === 0 || value === false) return false;
+    if (typeof value === 'boolean') return true;
+    if (value === 0) return false;
     if (value === '' || value === 'unknown') return false;
     if (Array.isArray(value) && value.length === 0) return false;
     return true;
@@ -80,7 +81,8 @@ async function main() {
 
     // Enrichment coverage gate (dedup.db)
     try {
-        const Database = require('better-sqlite3');
+        const { createRequire } = await import('module');
+        const Database = createRequire(import.meta.url)('better-sqlite3');
         const dedupPath = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
         const db = new Database(dedupPath, { readonly: true });
         const { total, enriched } = db.prepare('SELECT COUNT(*) as total, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as enriched FROM ledger WHERE status="active"').get();
