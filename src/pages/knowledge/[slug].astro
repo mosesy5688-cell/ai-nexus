@@ -89,6 +89,7 @@ if (!article) {
 }
 
 Astro.response.headers.set('X-Data-Source', knowledgeDataSource);
+Astro.response.headers.set('Cache-Control', article ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
 
 const pageTitle = article ? `${article.title} - AI Knowledge Base` : 'Article Not Found';
 const pageDescription = article?.description 

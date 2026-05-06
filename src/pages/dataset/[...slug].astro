@@ -65,6 +65,7 @@ try {
   console.error("[DatasetPage] Error loading dataset:", e);
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
+Astro.response.headers.set('Cache-Control', dataset ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
 
 // dataset=null → EntityLayout renders "Entity Being Indexed" fallback
 
