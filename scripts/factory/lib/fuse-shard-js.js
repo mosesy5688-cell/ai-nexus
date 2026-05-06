@@ -62,7 +62,7 @@ export async function fuseShardJS(shardPath, allValidIds, fniThresholds, entityE
                     entity.has_fulltext = fulltext.length > 1000 && (fulltext.match(/^#{1,3}\s/gm) || []).length >= 2;
                     enrichedInShard++;
                 }
-            } catch { /* file not downloaded for this shard — skip */ }
+            } catch (e) { if (e.code !== 'ENOENT') console.warn(`[FUSE] Enrichment load failed for ${entity.id}: ${e.message}`); }
         }
         fusedEntities.push(projectEntity(entity, false));
     }

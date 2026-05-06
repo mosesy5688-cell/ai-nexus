@@ -525,19 +525,6 @@ jobs:
           mkdir -p cache/registry cache/fni-history cache/daily-accum
           node scripts/factory/lib/r2-registry-restore.js
 
-      # V25.8.3: Purge legacy .json.gz ghost files from registry directory to prevent reader collision.
-      - name: Purge Legacy Registry Ghosts
-        run: |
-          if [ -d "cache/registry" ]; then
-            GHOST_COUNT=$(find cache/registry -name 'part-*.json.gz' -o -name 'part-*.json' 2>/dev/null | wc -l)
-            if [ "$GHOST_COUNT" -gt 0 ]; then
-              echo "🧹 Purging $GHOST_COUNT legacy .json.gz ghost files from cache/registry/"
-              find cache/registry -name 'part-*.json.gz' -delete 2>/dev/null || true
-              find cache/registry -name 'part-*.json' -delete 2>/dev/null || true
-            fi
-            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
-            echo "✅ Registry: $BIN_COUNT binary shards, 0 legacy ghosts"
-          fi
 
       - name: Merge Batches
         env:

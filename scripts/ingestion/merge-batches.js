@@ -118,11 +118,11 @@ async function mergeBatches() {
     await saveEntityChecksums(checksums);
 
     if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
-        throw new Error(`Registry Load Failure - Emergency Abort to Protect 85k Baseline`);
+        throw new Error(`Registry Load Failure - Emergency Abort to Protect Baseline`);
     }
-
-    if (registryState.count < 85000) {
-        throw new Error(`CRITICAL: Entity count dropped to ${registryState.count} (Expected >85k).`);
+    const ENTITY_FLOOR = parseInt(process.env.ENTITY_BASELINE_FLOOR || '85000');
+    if (registryState.count < ENTITY_FLOOR) {
+        throw new Error(`CRITICAL: Entity count ${registryState.count} < floor ${ENTITY_FLOOR}. Data loss suspected.`);
     }
 
     // V56.1: NDJSON streaming export — 1000 entities/shard, per-entity write,

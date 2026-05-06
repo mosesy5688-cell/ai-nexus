@@ -141,7 +141,7 @@ export function streamAggregateFFI(shardDir, outputPath) {
         try {
             return _streamAggregator.streamAggregate(shardDir, outputPath);
         } catch (e) {
-            console.warn(`[RUST-BRIDGE] streamAggregate failed: ${e.message}. Falling back to JS.`);
+            console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): streamAggregate: ${e.message}`);
             return null;
         }
     }
@@ -152,14 +152,14 @@ export function streamAggregateFFI(shardDir, outputPath) {
 export function buildSearchIndexFromDirFFI(shardDir, outputDir) {
     if (_satelliteTasks?.buildSearchIndexFromDir) {
         try { return _satelliteTasks.buildSearchIndexFromDir(shardDir, outputDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildSearchIndexFromDir: ${e.message}`); }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildSearchIndexFromDir: ${e.message}`); }
     }
     return null;
 }
 export function buildSearchIndexFFI(entitiesJson) {
     if (_satelliteTasks) {
         try { return _satelliteTasks.buildSearchIndex(entitiesJson); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildSearchIndex: ${e.message}`); return null; }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildSearchIndex: ${e.message}`); return null; }
     }
     return null;
 }
@@ -168,14 +168,14 @@ export function buildSearchIndexFFI(entitiesJson) {
 export function buildRelationsGraphFromFilesFFI(nodesPath, relationsPath, outputDir) {
     if (_satelliteTasks?.buildRelationsGraphFromFiles) {
         try { return _satelliteTasks.buildRelationsGraphFromFiles(nodesPath, relationsPath, outputDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildRelationsGraphFromFiles: ${e.message}`); }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildRelationsGraphFromFiles: ${e.message}`); }
     }
     return null;
 }
 export function buildRelationsGraphFFI(nodesJson, relationsJson) {
     if (_satelliteTasks) {
         try { return _satelliteTasks.buildRelationsGraph(nodesJson, relationsJson); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildRelationsGraph: ${e.message}`); return null; }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildRelationsGraph: ${e.message}`); return null; }
     }
     return null;
 }
@@ -184,14 +184,14 @@ export function buildRelationsGraphFFI(nodesJson, relationsJson) {
 export function computeKnowledgeLinksFromDirFFI(shardDir, outputDir) {
     if (_satelliteTasks?.computeKnowledgeLinksFromDir) {
         try { return _satelliteTasks.computeKnowledgeLinksFromDir(shardDir, outputDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] computeKnowledgeLinksFromDir: ${e.message}`); }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): computeKnowledgeLinksFromDir: ${e.message}`); }
     }
     return null;
 }
 export function computeKnowledgeLinksFFI(entitiesJson) {
     if (_satelliteTasks) {
         try { return _satelliteTasks.computeKnowledgeLinks(entitiesJson); }
-        catch (e) { console.warn(`[RUST-BRIDGE] computeKnowledgeLinks: ${e.message}`); return null; }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): computeKnowledgeLinks: ${e.message}`); return null; }
     }
     return null;
 }
@@ -200,14 +200,14 @@ export function computeKnowledgeLinksFFI(entitiesJson) {
 export function computeAltRelationsFromDirFFI(shardDir, outputDir) {
     if (_satelliteTasks?.computeAltRelationsFromDir) {
         try { return _satelliteTasks.computeAltRelationsFromDir(shardDir, outputDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] computeAltRelationsFromDir: ${e.message}`); }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): computeAltRelationsFromDir: ${e.message}`); }
     }
     return null;
 }
 export function computeAltRelationsFFI(entitiesJson) {
     if (_satelliteTasks) {
         try { return _satelliteTasks.computeAltRelations(entitiesJson); }
-        catch (e) { console.warn(`[RUST-BRIDGE] computeAltRelations: ${e.message}`); return null; }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): computeAltRelations: ${e.message}`); return null; }
     }
     return null;
 }
@@ -216,7 +216,7 @@ export function computeAltRelationsFFI(entitiesJson) {
 export function fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outputPath) {
     if (_streamAggregator?.fuseShard) {
         try { return _streamAggregator.fuseShard(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outputPath); }
-        catch (e) { console.warn(`[RUST-BRIDGE] fuseShard: ${e.message}`); }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): fuseShard: ${e.message}`); }
     }
     return null;
 }
@@ -225,14 +225,14 @@ export function fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichment
 export function buildMeshGraphFromFilesFFI(explicitPath, knowledgePath, reportsPath, outputDir) {
     if (_satelliteTasks?.buildMeshGraphFromFiles) {
         try { return _satelliteTasks.buildMeshGraphFromFiles(explicitPath, knowledgePath, reportsPath, outputDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildMeshGraphFromFiles: ${e.message}`); }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildMeshGraphFromFiles: ${e.message}`); }
     }
     return null;
 }
 export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson) {
     if (_satelliteTasks) {
         try { return _satelliteTasks.buildMeshGraph(explicitJson, knowledgeLinksJson, reportsJson); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildMeshGraph: ${e.message}`); return null; }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildMeshGraph: ${e.message}`); return null; }
     }
     return null;
 }
@@ -241,10 +241,10 @@ export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson)
 export async function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDir, outputDir) {
     if (_streamAggregator?.buildStatsAndRouteDeltas) {
         try { return await _streamAggregator.buildStatsAndRouteDeltas(shardDir, artifactDir, deltaDir, outputDir); }
-        catch (e) { console.warn(`[RUST-BRIDGE] buildStatsAndRouteDeltas: ${e.message}`); }
+        catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildStatsAndRouteDeltas: ${e.message}`); }
     }
     return null;
 }
 // V25.12: Markdown -> sanitized HTML via Rust (pulldown-cmark + ammonia). Null = caller falls back to JS.
-export function renderHtmlFFI(md) { if (!_markdownRenderer) return null; try { return _markdownRenderer.renderHtml(md); } catch (e) { console.warn(`[RUST-BRIDGE] renderHtml: ${e.message}`); return null; } }
+export function renderHtmlFFI(md) { if (!_markdownRenderer) return null; try { return _markdownRenderer.renderHtml(md); } catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): renderHtml: ${e.message}`); return null; } }
 export function getRustMode() { return _mode; }
