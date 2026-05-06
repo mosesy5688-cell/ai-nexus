@@ -84,11 +84,9 @@ export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, 
     try {
         const content = await fs.readFile(localPath);
 
-        // V16.11: Detect pre-compressed Gzip content (Magic number 1f 8b)
+        // Serve .gz files as binary (Content-Type: application/gzip, NO Content-Encoding)
+        // Setting Content-Encoding: gzip causes R2 to reject or transparently decode
         let contentEncoding = undefined;
-        if (content[0] === 0x1f && content[1] === 0x8b) {
-            contentEncoding = 'gzip';
-        }
 
         const localMD5 = crypto.createHash('md5').update(content).digest('hex');
 

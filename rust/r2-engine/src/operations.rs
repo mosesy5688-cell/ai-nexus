@@ -172,9 +172,9 @@ async fn upload_file_inner(
         .body(body)
         .content_type(content_type);
 
-    if let Some(enc) = content_encoding {
-        req = req.content_encoding(enc);
-    }
+    // Content-Encoding removed: .gz files are binary objects (Content-Type: application/gzip),
+    // NOT gzip-encoded transport. Setting Content-Encoding causes R2 to reject the upload.
+    let _ = content_encoding;
 
     match req.send().await {
         Ok(_) => Ok(UploadResult {
