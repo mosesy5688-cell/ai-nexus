@@ -810,7 +810,6 @@ jobs:
           echo "✅ Proactive Warming Complete."
       - name: Data Quality Check
         run: node scripts/factory/data-quality-check.js
-        continue-on-error: true
       - name: Trigger Health Check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

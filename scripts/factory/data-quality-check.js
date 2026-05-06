@@ -25,7 +25,7 @@ const FIELD_THRESHOLDS = {
     rationale:         { min: 90, critical: true },
 };
 
-async function fetchSelect(task, limit = 20) {
+async function fetchSelect(task, limit = 200) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT);
     try {
@@ -54,7 +54,7 @@ async function main() {
     let criticalFailures = 0;
 
     for (const audit of AUDITS) {
-        console.log(`--- ${audit.label} (top 20) ---`);
+        console.log(`--- ${audit.label} (top 200) ---`);
         let data;
         try { data = await fetchSelect(audit.task); } catch (e) {
             console.error(`  SKIP: API error — ${e.message}`);
@@ -78,7 +78,20 @@ async function main() {
         console.log('');
     }
 
-    console.log(`=== RESULT: ${failures} failures (${criticalFailures} critical) ===`);
+    // Enrichment coverage gate (dedup.db)
+    try {
+        const Database = require('better-sqlite3');
+        const dedupPath = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
+        const db = new Database(dedupPath, { readonly: true });
+        const { total, enriched } = db.prepare('SELECT COUNT(*) as total, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as enriched FROM ledger WHERE status="active"').get();
+        db.close();
+        const pct = total > 0 ? Math.round(enriched / total * 100) : 0;
+        console.log(`--- Enrichment Coverage ---`);
+        console.log(`  ${pct >= 30 ? 'OK  ' : 'WARN'} fulltext enrichment: ${enriched}/${total} (${pct}%) [min: 30%]`);
+        if (pct < 10 && total > 100000) { console.error('  CRIT enrichment < 10% at scale'); criticalFailures++; }
+    } catch (e) { console.warn(`  SKIP enrichment check: ${e.message}`); }
+
+    console.log(`\n=== RESULT: ${failures} failures (${criticalFailures} critical) ===`);
     if (criticalFailures > 0) {
         console.error('CRITICAL DATA QUALITY FAILURE — check field extraction pipeline');
         process.exit(1);
