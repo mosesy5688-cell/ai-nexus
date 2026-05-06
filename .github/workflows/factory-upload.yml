@@ -282,15 +282,18 @@ jobs:
             exit 1
           fi
           echo "✅ Shard gate passed: $SHARD_COUNT files / $SENTINEL_PROCESSED reported ≥ $THRESHOLD (≈$((SHARD_COUNT * 1000)) entities)"
-      - name: Tar Fused Entities
-        run: tar -cf fused-entities.tar -C output/cache fused
       - name: Save Fused Entities to Cache
         uses: actions/cache/save@v4
         with:
-          path: fused-entities.tar
-          key: intra-4-4-${{ github.run_id }}-fused-tar
+          path: output/cache/fused/
+          key: intra-4-4-${{ github.run_id }}-fused
       - name: Backup Fused Entities to R2
-        run: node scripts/factory/r2-workflow-cli.js upload-buffer fused-entities.tar state/fused-entities.tar --content-type=application/x-tar
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/fused/ state/fused-entities/
 
   vfs-packing:
     name: VFS Packing (Stable 1.0)
@@ -347,12 +350,18 @@ jobs:
         id: cache-fused
         uses: actions/cache/restore@v4
         with:
-          path: fused-entities.tar
-          key: intra-4-4-${{ github.run_id }}-fused-tar
+          path: output/cache/fused/
+          key: intra-4-4-${{ github.run_id }}-fused
       - name: R2 Fallback for Fused Entities
         if: steps.cache-fused.outputs.cache-hit != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-file state/fused-entities.tar fused-entities.tar || echo "⚠️ No fused-entities on R2"
+          mkdir -p output/cache/fused
+          node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
       - name: Restore Embedding Shards (Cache)
         id: cache-embedding
         uses: actions/cache/restore@v4
@@ -395,12 +404,6 @@ jobs:
           else
             echo "[MIGRATE] ${SHARD_COUNT} shards present — no migration needed."
           fi
-      - name: Extract Fused Entities
-        run: |
-          mkdir -p output/cache/fused
-          tar -xf fused-entities.tar -C output/cache
-          rm -f fused-entities.tar
-          echo "Disk after extract+cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
       - name: Download Hosted-On Data from R2
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -433,8 +436,11 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           node scripts/factory/r2-workflow-cli.js backup-dir output/cache/embeddings/ state/embeddings/ --extensions=.bin.zst
-          [ -f "output/cache/pack-state.db" ] && node scripts/factory/r2-workflow-cli.js upload-file output/cache/pack-state.db state/pack-state.db
-          echo "[R2] Embedding shards + pack-state backed up"
+          if [ -f "output/cache/pack-state.db" ]; then
+            node -e "const D=require('better-sqlite3')('./output/cache/pack-state.db');D.exec('DROP TABLE IF EXISTS html_cache');D.exec('VACUUM');D.close();"
+            node scripts/factory/r2-workflow-cli.js upload-file output/cache/pack-state.db state/pack-state.db
+          fi
+          echo "[R2] Embedding shards + pack-state (no html_cache) backed up"
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
       # V25.13: RSS gen moved here from separate rss-feeds job (architectural fix).
@@ -524,8 +530,8 @@ jobs:
         id: cache-fused-upload
         uses: actions/cache/restore@v4
         with:
-          path: fused-entities.tar
-          key: intra-4-4-${{ github.run_id }}-fused-tar
+          path: output/cache/fused/
+          key: intra-4-4-${{ github.run_id }}-fused
       - name: R2 Fallback for Fused Entities (Upload Job)
         if: steps.cache-fused-upload.outputs.cache-hit != 'true'
         env:
@@ -533,7 +539,9 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
-        run: node scripts/factory/r2-workflow-cli.js restore-file state/fused-entities.tar fused-entities.tar || echo "::warning::fused-entities.tar not on R2"
+        run: |
+          mkdir -p output/cache/fused
+          node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
       - name: Restore Global Registry Cache (V22.8 Cycle)
         uses: actions/cache/restore@v4
         with:
@@ -584,10 +592,10 @@ jobs:
           mkdir -p cache/daily-accum
           node scripts/factory/r2-workflow-cli.js restore-dir meta/backup/daily-accum/ cache/daily-accum/ || echo "⚠️ R2 daily-accum fallback unavailable"
           node scripts/factory/r2-workflow-cli.js restore-file meta/backup/daily-accum.json.zst cache/daily-accum.json.zst || true
-      - name: Extract Fused Entities
+      - name: Verify Fused Entities
         run: |
-          mkdir -p output/cache
-          tar -xf fused-entities.tar -C output/cache
+          FUSED=$(find output/cache/fused -name '*.json.zst' 2>/dev/null | wc -l)
+          echo "Fused shards present: $FUSED"
       - name: Restore Baked Profiles from Cache
         id: cache-baked-upload
         uses: actions/cache/restore@v4
