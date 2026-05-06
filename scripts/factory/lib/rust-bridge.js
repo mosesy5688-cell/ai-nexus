@@ -213,9 +213,9 @@ export function computeAltRelationsFFI(entitiesJson) {
 }
 
 /** V26.5: Shard fusion — Rust-native per-shard processing for master-fusion. */
-export function fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outputPath) {
+export function fuseShardFFI(shardPath, validIdsJson, thresholdsPath, enrichmentDir, outputPath) {
     if (_streamAggregator?.fuseShard) {
-        try { return _streamAggregator.fuseShard(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outputPath); }
+        try { return _streamAggregator.fuseShard(shardPath, validIdsJson, thresholdsPath, enrichmentDir, outputPath); }
         catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): fuseShard: ${e.message}`); }
     }
     return null;
