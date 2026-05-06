@@ -122,12 +122,14 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
         uploaded += results.filter(r => r.status === 'fulfilled' && r.value.success).length;
     }
 
-    // Write manifest for efficient restore — failure here causes stale manifest bugs
-    const manifestKey = r2Prefix + '_manifest.json';
+    // Write manifest with FRESH client + retry (original client stale after 2000+ ops)
     const manifestBody = JSON.stringify({ files: manifest, timestamp: new Date().toISOString(), count: manifest.length });
-    try {
-        await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: manifestKey, Body: manifestBody, ContentType: 'application/json' }));
-    } catch (e) { console.error(`[R2-HANDOFF] ⚠️ MANIFEST WRITE FAILED (${manifest.length} entries): ${e.message}`); }
+    let mOk = false;
+    for (let i = 0; i < 3 && !mOk; i++) {
+        try { const fc = createR2Client(); await fc.send(new PutObjectCommand({ Bucket: BUCKET, Key: r2Prefix + '_manifest.json', Body: manifestBody, ContentType: 'application/json' })); mOk = true; }
+        catch (e) { console.error(`[R2-HANDOFF] Manifest attempt ${i+1}/3: ${e.message || e.Code || JSON.stringify(e.$metadata || {})}`); if (i < 2) await new Promise(r => setTimeout(r, 2000*(i+1))); }
+    }
+    if (!mOk) console.error(`[R2-HANDOFF] ⚠️ MANIFEST WRITE FAILED (${manifest.length} entries)`);
 
     console.log(`[R2-HANDOFF] Directory backup: ${uploaded}/${files.length} files (${(totalSize/1024/1024).toFixed(1)}MB)`);
     return { success: uploaded > 0, count: uploaded, totalSize };
@@ -159,9 +161,8 @@ export async function restoreDirectoryFromR2(r2Prefix, localDir, opts = {}) {
         const manifest = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
         fileKeys = (manifest.files || []).map(f => ({ key: r2Prefix + f, rel: f }));
         console.log(`[R2-HANDOFF] Manifest found: ${fileKeys.length} files`);
-    } catch {
-        // Fallback: list all objects under prefix
-        console.log(`[R2-HANDOFF] No manifest. Listing ${r2Prefix}...`);
+    } catch (e) {
+        console.log(`[R2-HANDOFF] No manifest for ${r2Prefix} (${e.name || 'error'}). Listing...`);
         let token;
         do {
             const resp = await s3.send(new ListObjectsV2Command({
