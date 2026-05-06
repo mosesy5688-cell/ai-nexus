@@ -38,7 +38,7 @@ async function main() {
 
         console.log(`[BAKER] Loaded ${nodeIds.length} nodes from graph.`);
 
-        let bakedCount = 0;
+        let bakedCount = 0, skippedInvalid = 0;
         for (let nodeId of nodeIds) {
             // V22.0 Phase 3: Synchronize all entity IDs with V2.1 prefixes
             const node = nodeRegistry[nodeId];
@@ -47,7 +47,7 @@ async function main() {
 
             // Ensure ID is normalized per SPEC-V2.1
             const syncedId = normalizeId(nodeId, getNodeSource(nodeId, typeValue), typeValue);
-            if (!syncedId) continue; // Skip nodes with invalid IDs
+            if (!syncedId) { skippedInvalid++; continue; }
 
             const entityRelations = edgeRegistry[nodeId] || [];
             const canonUrl = getRouteFromId(syncedId, typeValue);
@@ -90,6 +90,7 @@ async function main() {
             bakedCount++;
             if (bakedCount % 10000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles...`);
         }
+        if (skippedInvalid > 0) console.warn(`[BAKER] ⚠️ Skipped ${skippedInvalid} nodes with invalid IDs`);
         console.log(`[BAKER] ✅ Successfully baked ${bakedCount} Mesh Profiles.`);
     } catch (error) {
         console.error('[BAKER] ❌ Baking failed:', error.message);
