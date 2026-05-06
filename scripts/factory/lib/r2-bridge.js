@@ -10,7 +10,7 @@ function tryLoadR2Engine() {
     if (process.env.R2_FORCE_JS === 'true') return null;
     try {
         return require('../../../rust/r2-engine/r2-engine-rust.node');
-    } catch { return null; }
+    } catch (e) { console.warn(`[R2-BRIDGE] Rust FFI load failed: ${e.message}`); return null; }
 }
 
 /** Initialize R2 bridge. Call once at startup. */
@@ -71,7 +71,7 @@ export async function uploadFileFFI(client, localPath, remotePath, remoteETag) {
         try {
             const { stat } = await import('fs/promises');
             if ((await stat(localPath)).size > 2147483648) return _r2Engine.uploadFileMultipart(client, localPath, remotePath);
-        } catch { /* stat failed — fall through */ }
+        } catch { /* stat failed — use non-multipart path */ }
         return _r2Engine.uploadFile(client, localPath, remotePath, remoteETag || null, 3);
     }
     const { uploadFile } = await import('./r2-helpers.js');
@@ -192,9 +192,13 @@ export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = 
             } catch (e) { console.warn(`[R2-BRIDGE] backup-dir: failed ${entry.relPath}: ${e.message}`); }
         }
         const body = JSON.stringify({ files: manifest, timestamp: new Date().toISOString(), count: manifest.length });
-        await uploadBufferToR2FFI(client, `${r2Prefix}_manifest.json`, Buffer.from(body))
-            .catch(e => console.error(`[R2-BRIDGE] ⚠️ MANIFEST WRITE FAILED: ${e.message}`));
-        console.log(`[R2-BRIDGE] backup-dir: ${manifest.length} files + manifest written`);
+        let mOk = false;
+        for (let i = 0; i < 3 && !mOk; i++) {
+            try { await uploadBufferToR2FFI(client, `${r2Prefix}_manifest.json`, Buffer.from(body)); mOk = true; }
+            catch (e) { console.error(`[R2-BRIDGE] Manifest write attempt ${i+1}/3: ${e.message || e.Code || 'unknown'}`); if (i < 2) await new Promise(r => setTimeout(r, 2000*(i+1))); }
+        }
+        if (!mOk) console.error(`[R2-BRIDGE] ⚠️ MANIFEST WRITE FAILED after 3 attempts`);
+        console.log(`[R2-BRIDGE] backup-dir: ${manifest.length} files, manifest: ${mOk ? 'OK' : 'FAILED'}`);
         return { count: manifest.length };
     }
     const { backupDirectoryToR2 } = await import('./r2-handoff.js');
@@ -226,7 +230,7 @@ export async function restoreFileFromR2FFI(r2Key, localPath, opts = {}) {
             try {
                 const result = await _r2Engine.downloadFromR2(client, r2Key, localPath);
                 if (result.success) return { success: true, size: result.size };
-            } catch {}
+            } catch (e) { console.warn(`[R2-BRIDGE] Rust download failed for ${r2Key}: ${e.message || 'unknown'}`); }
         }
     }
     const { restoreFileFromR2 } = await import('./r2-handoff.js');
