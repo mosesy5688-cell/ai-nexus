@@ -65,14 +65,12 @@ export async function restoreFileFromR2(r2Key, localPath, opts = {}) {
         return { success: false };
     }
     try {
-        const dir = path.dirname(localPath);
-        await fs.mkdir(dir, { recursive: true });
-        const { Body } = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: r2Key }));
-        const chunks = [];
-        for await (const c of Body) chunks.push(c);
+        await fs.mkdir(path.dirname(localPath), { recursive: true });
+        const resp = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: r2Key }));
+        const chunks = []; for await (const c of resp.Body) chunks.push(c);
         const data = Buffer.concat(chunks);
+        if (resp.ContentLength && data.length < resp.ContentLength * 0.9) { console.error(`[R2-HANDOFF] Truncated: ${r2Key} (${data.length}/${resp.ContentLength}B)`); return { success: false }; }
         await fs.writeFile(localPath, data);
-        console.log(`[R2-HANDOFF] Restored ${r2Key} -> ${localPath} (${(data.length/1024/1024).toFixed(1)}MB)`);
         return { success: true, size: data.length };
     } catch (e) {
         console.error(`[R2-HANDOFF] Restore failed for ${r2Key}: ${e.message}`);
@@ -195,8 +193,8 @@ export async function restoreDirectoryFromR2(r2Prefix, localDir, opts = {}) {
         restored += results.filter(r => r.status === 'fulfilled' && r.value.success).length;
     }
     const failed = fileKeys.length - restored;
-    if (failed > 10 && failed / fileKeys.length > 0.05) {
-        console.warn(`[R2-HANDOFF] Manifest stale (${failed} miss). Supplementing via ListObjects...`);
+    if (failed > 0) {
+        console.warn(`[R2-HANDOFF] ${failed} files missed from manifest. Supplementing via ListObjects...`);
         let token;
         do {
             const resp = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, Prefix: r2Prefix, MaxKeys: 1000, ContinuationToken: token }));
@@ -204,7 +202,11 @@ export async function restoreDirectoryFromR2(r2Prefix, localDir, opts = {}) {
                 if (obj.Key.endsWith('_manifest.json')) continue;
                 const rel = obj.Key.slice(r2Prefix.length);
                 if (restoredPaths.has(rel)) continue;
-                try { const r = await restoreFileFromR2(obj.Key, path.join(localDir, rel)); if (r.success) { restored++; restoredPaths.add(rel); } } catch (e) { console.warn(`[R2-HANDOFF] fallback restore failed: ${rel}: ${e.message}`); }
+                for (let retry = 0; retry < 2; retry++) {
+                    const r = await restoreFileFromR2(obj.Key, path.join(localDir, rel)).catch(() => ({ success: false }));
+                    if (r.success) { restored++; restoredPaths.add(rel); break; }
+                    if (retry === 0) await new Promise(r => setTimeout(r, 1000));
+                }
             }
             token = resp.NextContinuationToken;
         } while (token);
