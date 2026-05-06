@@ -32,6 +32,13 @@ export function createR2Client() {
     });
 }
 
+/** Fetch R2 ETags for a prefix — shared by backup-dir incremental upload. */
+export async function fetchR2Etags(s3, bucket, prefix) {
+    const map = new Map(); let tk;
+    do { const r = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, MaxKeys: 1000, ContinuationToken: tk })); for (const o of r.Contents || []) map.set(o.Key, o.ETag?.replace(/"/g, '')); tk = r.NextContinuationToken; } while (tk);
+    return map;
+}
+
 /**
  * Surgical fetch - only list objects matching the allowed prefixes
  */

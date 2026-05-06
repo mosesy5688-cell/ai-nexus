@@ -1,7 +1,7 @@
 // V25.8.3 R2 Handoff — Reusable backup/restore for inter-workflow data.
 import fs from 'fs/promises';
 import path from 'path';
-import { createR2Client } from './r2-helpers.js';
+import { createR2Client, fetchR2Etags } from './r2-helpers.js';
 import { PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
@@ -42,7 +42,6 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
         await s3.send(new PutObjectCommand({
             Bucket: BUCKET, Key: r2Key, Body: data, ContentType: contentType
         }));
-        console.log(`[R2-HANDOFF] Backed up ${localPath} -> ${r2Key} (${(data.length/1024/1024).toFixed(1)}MB)`);
         return { success: true, size: data.length };
     } catch (e) {
         console.error(`[R2-HANDOFF] Backup failed: ${e.message}`);
@@ -100,24 +99,24 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
         return { success: false, count: 0, totalSize: 0 };
     }
 
-    console.log(`[R2-HANDOFF] Backing up ${files.length} files from ${localDir} to ${r2Prefix}...`);
-    let uploaded = 0, totalSize = 0;
+    const crypto = await import('crypto');
+    const r2Etags = await fetchR2Etags(s3, BUCKET, r2Prefix).catch(() => new Map());
+    console.log(`[R2-HANDOFF] Incremental backup: ${files.length} local, ${r2Etags.size} on R2`);
+    let uploaded = 0, skipped = 0, totalSize = 0;
     const manifest = [];
-
-    // Process in batches for concurrency control
     for (let i = 0; i < files.length; i += concurrency) {
         const batch = files.slice(i, i + concurrency);
         const results = await Promise.allSettled(batch.map(async (relPath) => {
             const localPath = path.join(localDir, relPath);
             const r2Key = r2Prefix + relPath.replace(/\\/g, '/');
+            manifest.push(relPath.replace(/\\/g, '/'));
+            const data = await fs.readFile(localPath);
+            if (r2Etags.get(r2Key) === crypto.createHash('md5').update(data).digest('hex')) { skipped++; return { success: true, skipped: true }; }
             const result = await backupFileToR2(localPath, r2Key);
-            if (result.success) {
-                manifest.push(relPath.replace(/\\/g, '/'));
-                totalSize += result.size || 0;
-            }
+            if (result.success) totalSize += result.size || 0;
             return result;
         }));
-        uploaded += results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+        uploaded += results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
     }
 
     // Write manifest with FRESH client + retry (original client stale after 2000+ ops)
@@ -129,7 +128,7 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
     }
     if (!mOk) console.error(`[R2-HANDOFF] ⚠️ MANIFEST WRITE FAILED (${manifest.length} entries)`);
 
-    console.log(`[R2-HANDOFF] Directory backup: ${uploaded}/${files.length} files (${(totalSize/1024/1024).toFixed(1)}MB)`);
+    console.log(`[R2-HANDOFF] Directory backup: ${uploaded} new + ${skipped} unchanged / ${files.length} total (${(totalSize/1024/1024).toFixed(1)}MB uploaded)`);
     return { success: uploaded > 0, count: uploaded, totalSize };
 }
 
