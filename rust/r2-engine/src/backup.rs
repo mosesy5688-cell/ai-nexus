@@ -85,39 +85,38 @@ pub async fn restore_directory_from_r2(
     let _conc = concurrency.unwrap_or(5) as usize;
     let mut file_keys: Vec<(String, String)> = Vec::new();
 
+    // Try manifest first, fall back to ListObjects if manifest fails or yields 0 entries
     let manifest_key = format!("{}_manifest.json", r2_prefix);
-    match client.client.get_object().bucket(&client.bucket).key(&manifest_key).send().await {
-        Ok(resp) => {
-            let body = resp.body.collect().await.ok();
-            if let Some(b) = body {
-                let json: serde_json::Value = serde_json::from_slice(&b.into_bytes()).unwrap_or_default();
-                if let Some(files) = json["files"].as_array() {
-                    for f in files {
-                        if let Some(rel) = f.as_str() {
-                            file_keys.push((format!("{}{}", r2_prefix, rel), rel.to_string()));
-                        }
+    if let Ok(resp) = client.client.get_object().bucket(&client.bucket).key(&manifest_key).send().await {
+        if let Ok(body) = resp.body.collect().await {
+            let json: serde_json::Value = serde_json::from_slice(&body.into_bytes()).unwrap_or_default();
+            if let Some(files) = json["files"].as_array() {
+                for f in files {
+                    if let Some(rel) = f.as_str() {
+                        file_keys.push((format!("{}{}", r2_prefix, rel), rel.to_string()));
                     }
                 }
             }
         }
-        Err(_) => {
-            let mut token: Option<String> = None;
-            loop {
-                let mut req = client.client.list_objects_v2()
-                    .bucket(&client.bucket).prefix(&r2_prefix).max_keys(1000);
-                if let Some(t) = &token { req = req.continuation_token(t); }
-                let resp = req.send().await.map_err(|e| Error::from_reason(format!("{e}")))?;
-                for obj in resp.contents() {
-                    if let Some(key) = obj.key() {
-                        if key.ends_with("_manifest.json") { continue; }
-                        let rel = &key[r2_prefix.len()..];
-                        file_keys.push((key.to_string(), rel.to_string()));
-                    }
+    }
+    // §18.22.7 fix: if manifest yielded 0 entries (GET failed, body failed, or empty), use ListObjects
+    if file_keys.is_empty() {
+        let mut token: Option<String> = None;
+        loop {
+            let mut req = client.client.list_objects_v2()
+                .bucket(&client.bucket).prefix(&r2_prefix).max_keys(1000);
+            if let Some(t) = &token { req = req.continuation_token(t); }
+            let resp = req.send().await.map_err(|e| Error::from_reason(format!("{e}")))?;
+            for obj in resp.contents() {
+                if let Some(key) = obj.key() {
+                    if key.ends_with("_manifest.json") { continue; }
+                    let rel = &key[r2_prefix.len()..];
+                    file_keys.push((key.to_string(), rel.to_string()));
                 }
-                if resp.is_truncated() == Some(true) {
-                    token = resp.next_continuation_token().map(|s| s.to_string());
-                } else { break; }
             }
+            if resp.is_truncated() == Some(true) {
+                token = resp.next_continuation_token().map(|s| s.to_string());
+            } else { break; }
         }
     }
 
