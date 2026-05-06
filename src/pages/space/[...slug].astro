@@ -65,6 +65,7 @@ try {
   error = e;
 }
 Astro.response.headers.set('X-Data-Source', dataSource);
+Astro.response.headers.set('Cache-Control', space ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
 
 // space=null → EntityLayout renders "Entity Being Indexed" fallback
 
