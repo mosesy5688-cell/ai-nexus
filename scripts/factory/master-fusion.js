@@ -35,14 +35,9 @@ async function main() {
     }, { slim: true });
     console.log(`  [OK] ${allValidIds.size} valid entities across ${shardEntityIds.size} shards`);
 
-    // Write valid IDs to temp file for Rust fuseShardFFI
-    const validIdsPath = path.join(CONFIG.OUTPUT_DIR, '.valid-ids.json.zst');
+    // P1-4: pass valid IDs as JSON string directly to Rust (no intermediate file)
     await fs.mkdir(CONFIG.OUTPUT_DIR, { recursive: true });
-    try {
-        await fs.writeFile(validIdsPath, await zstdCompress(JSON.stringify([...allValidIds])));
-    } catch (e) {
-        console.warn(`  [WARN] Valid IDs file write failed (JS fallback will use in-memory Set): ${e.message}`);
-    }
+    const validIdsJson = JSON.stringify([...allValidIds]);
 
     // Phase 2: FNI Thresholds
     let fniThresholds = { scorePercentiles: {}, citationCounts: {} };
@@ -100,7 +95,7 @@ async function main() {
     // Phase 4: Per-shard fusion (single shard read, per-shard download O(1) disk)
     const artifactFiles = await fs.readdir(CONFIG.ARTIFACT_DIR).catch(() => []);
     const allShardFiles = artifactFiles.filter(f =>
-        f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json.gz') || f.endsWith('.json'))
+        f.startsWith('part-') && (f.endsWith('.bin') || f.endsWith('.json.zst') || f.endsWith('.json'))
     ).sort();
 
     const expectedIndices = new Set(shardEntityIds.keys());
@@ -205,7 +200,7 @@ async function main() {
         }
 
         try {
-            const result = fuseShardFFI(shardPath, validIdsPath, thresholdsPath, enrichmentDir, outPath);
+            const result = fuseShardFFI(shardPath, validIdsJson, thresholdsPath, enrichmentDir, outPath);
             if (result) {
                 totalEnriched += result.enrichedCount;
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${coldWritten} cold, ${result.enrichedCount} enriched)`);
@@ -229,7 +224,6 @@ async function main() {
     assertCompletion(processedCount, expectedFusionCount);
 
     shardEntityIds.clear(); entityEnrichMap.clear(); enrichmentMap.clear(); coldShardKeys = [];
-    await fs.unlink(validIdsPath).catch(() => {});
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
     process.removeListener('exit', exitGuard);
     await writeSentinel(outDir, { processedShards: processedCount, expectedShards: expectedFusionCount, enriched: totalEnriched, downloaded: totalDl });

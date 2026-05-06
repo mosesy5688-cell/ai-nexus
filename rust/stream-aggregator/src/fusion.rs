@@ -43,14 +43,14 @@ pub struct FuseShardResult {
 #[napi]
 pub fn fuse_shard(
     shard_path: String,
-    valid_ids_path: String,
+    valid_ids_json: String,
     fni_thresholds_path: String,
     enrichment_dir: String,
     output_path: String,
 ) -> Result<FuseShardResult> {
-    // 1. Load valid IDs
-    let ids_val = nxvf_core::load_json_file(&valid_ids_path)
-        .map_err(|e| Error::from_reason(format!("load valid_ids: {e}")))?;
+    // 1. Parse valid IDs from N-API string (no intermediate file)
+    let ids_val: serde_json::Value = serde_json::from_str(&valid_ids_json)
+        .map_err(|e| Error::from_reason(format!("parse valid_ids: {e}")))?;
     let valid_ids: HashSet<String> = ids_val
         .as_array()
         .ok_or_else(|| Error::from_reason("valid_ids must be JSON array"))?
