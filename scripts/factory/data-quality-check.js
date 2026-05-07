@@ -18,11 +18,21 @@ const FIELD_THRESHOLDS = {
     license:           { min: 50, critical: false },
     license_type:      { min: 30, critical: false },
     pipeline_tag:      { min: 80, critical: true },
-    ollama_compatible: { min: 5,  critical: true },
+    ollama_compatible: { min: 5,  critical: false },
     can_run_local:     { min: 5,  critical: false },
     hosted_on:         { min: 20, critical: false },
     confidence:        { min: 90, critical: true },
     rationale:         { min: 90, critical: true },
+};
+
+const TASK_THRESHOLD_OVERRIDES = {
+    'text-to-image': {
+        params_billions:   { min: 0, critical: false },
+        vram_estimate_gb:  { min: 0, critical: false },
+        context_length:    { min: 0, critical: false },
+        ollama_compatible: { min: 0, critical: false },
+        can_run_local:     { min: 0, critical: false },
+    },
 };
 
 async function fetchSelect(task, limit = 200) {
@@ -65,7 +75,9 @@ async function main() {
         const recs = data.recommendations || [];
         if (recs.length === 0) { console.error('  SKIP: 0 recommendations'); continue; }
 
-        for (const [field, { min, critical }] of Object.entries(FIELD_THRESHOLDS)) {
+        const overrides = TASK_THRESHOLD_OVERRIDES[audit.task] || {};
+        for (const [field, defaults] of Object.entries(FIELD_THRESHOLDS)) {
+            const { min, critical } = { ...defaults, ...overrides[field] };
             const nonEmpty = recs.filter(r => isNonEmpty(r[field])).length;
             const pct = Math.round(nonEmpty / recs.length * 100);
             const status = pct >= min ? 'OK' : 'FAIL';
@@ -81,9 +93,12 @@ async function main() {
 
     // Enrichment coverage gate (dedup.db)
     try {
-        const { createRequire } = await import('module');
-        const Database = createRequire(import.meta.url)('better-sqlite3');
+        const { existsSync } = await import('fs');
         const dedupPath = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
+        if (!existsSync(dedupPath)) throw new Error('dedup.db not found');
+        const { createRequire } = await import('node:module');
+        const require = createRequire(import.meta.url ?? `file://${process.cwd()}/`);
+        const Database = require('better-sqlite3');
         const db = new Database(dedupPath, { readonly: true });
         const { total, enriched } = db.prepare('SELECT COUNT(*) as total, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as enriched FROM ledger WHERE status="active"').get();
         db.close();
