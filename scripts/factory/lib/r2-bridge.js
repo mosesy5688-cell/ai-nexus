@@ -239,13 +239,10 @@ export async function restoreFileFromR2FFI(r2Key, localPath, opts = {}) {
     return restoreFileFromR2(r2Key, localPath, opts);
 }
 
-/** Purge uncompressed files that have Gzip equivalents (Zero Deletion Policy: disabled by default). */
 export async function purgeEntropyFFI(client, etagMap) {
     if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        const etagObj = etagMap instanceof Map ? Object.fromEntries(etagMap) : etagMap;
-        return _r2Engine.purgeEntropy(client, JSON.stringify(etagObj));
+        return _r2Engine.purgeEntropy(client, JSON.stringify(etagMap instanceof Map ? Object.fromEntries(etagMap) : etagMap));
     }
     const { purgeEntropy } = await import('./r2-helpers.js');
-    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    return purgeEntropy(client, bucket, etagMap);
+    return purgeEntropy(client, process.env.R2_BUCKET || 'ai-nexus-assets', etagMap);
 }
