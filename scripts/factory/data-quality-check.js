@@ -100,7 +100,7 @@ async function main() {
         const require = createRequire(import.meta.url ?? `file://${process.cwd()}/`);
         const Database = require('better-sqlite3');
         const db = new Database(dedupPath, { readonly: true });
-        const { total, enriched } = db.prepare('SELECT COUNT(*) as total, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as enriched FROM ledger WHERE status="active"').get();
+        const { total, enriched } = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as enriched FROM ledger WHERE status='active'").get();
         db.close();
         const pct = total > 0 ? Math.round(enriched / total * 100) : 0;
         console.log(`--- Enrichment Coverage ---`);
