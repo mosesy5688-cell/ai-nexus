@@ -52,7 +52,7 @@ export class RegistryManager {
         if (!this.db) await this.initAccumulator();
 
         console.log('[REGISTRY] Hydrating accumulator from sharded registry...');
-        const insert = this.db.prepare('INSERT INTO registry (id, data, fni_score, status, last_seen) VALUES (?, ?, ?, ?, ?)');
+        const insert = this.db.prepare('INSERT OR IGNORE INTO registry (id, data, fni_score, status, last_seen) VALUES (?, ?, ?, ?, ?)');
 
         let total = 0;
         await loadRegistryShardsSequentially(async (entities) => {

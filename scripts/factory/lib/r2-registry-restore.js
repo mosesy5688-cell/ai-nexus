@@ -51,8 +51,10 @@ async function downloadObject(s3, key, localPath) {
     return buffer.length;
 }
 
+const ZSTD_MAGIC = Buffer.from([0x28, 0xB5, 0x2F, 0xFD]);
+
 /**
- * Validate shard file format (NXVF binary or gzip).
+ * Validate shard file format (NXVF binary, Zstd, or gzip).
  */
 async function validateShard(filePath) {
     try {
@@ -61,7 +63,9 @@ async function validateShard(filePath) {
         await fh.read(header, 0, 4, 0);
         await fh.close();
         if (header.equals(NXVF_MAGIC)) return 'nxvf';
+        if (header.equals(ZSTD_MAGIC)) return 'zstd';
         if (header[0] === 0x1f && header[1] === 0x8b) return 'gzip';
+        if (header[0] === 0x7B || header[0] === 0x5B) return 'json';
         return null;
     } catch (e) { console.warn(`[R2-RESTORE] validateShard ${filePath}: ${e.message}`); return null; }
 }
@@ -70,11 +74,11 @@ async function validateShard(filePath) {
  * Restore registry shards from a specific R2 prefix.
  * Returns count of valid shards downloaded.
  */
-async function restoreFromPrefix(s3, prefix, label) {
+async function restoreFromPrefix(s3, prefix, label, targetDir = REGISTRY_DIR) {
     console.log(`[R2-RESTORE] Scanning ${label}: ${prefix}`);
     const objects = await listR2Objects(s3, prefix);
     const allShards = objects.filter(o =>
-        (o.Key.endsWith('.bin') || o.Key.endsWith('.json.gz')) &&
+        (o.Key.endsWith('.bin') || o.Key.endsWith('.json.gz') || o.Key.endsWith('.json.zst')) &&
         o.Key.includes('part-') && o.Size > 0
     );
 
@@ -95,13 +99,14 @@ async function restoreFromPrefix(s3, prefix, label) {
         return 0;
     }
 
+    await fs.mkdir(targetDir, { recursive: true });
     const skipped = allShards.length - shards.length;
     console.log(`[R2-RESTORE] Found ${shards.length} shards at ${label}${skipped > 0 ? ` (skipped ${skipped} legacy .json.gz)` : ''}`);
     let valid = 0;
 
     for (const obj of shards) {
         const filename = path.basename(obj.Key);
-        const localPath = path.join(REGISTRY_DIR, filename);
+        const localPath = path.join(targetDir, filename);
 
         // Skip if local file exists and is non-empty
         try {
@@ -180,7 +185,8 @@ export async function restoreRegistryFromR2() {
     }
 
     // Also restore FNI history and checksums
-    await restoreFromPrefix(s3, 'meta/backup/fni-history/', 'FNI History');
+    const fniDir = path.join(CACHE_DIR, 'fni-history');
+    await restoreFromPrefix(s3, 'meta/backup/fni-history/', 'FNI History', fniDir);
 
     // V55.9: Try .zst first, then legacy .gz
     const checksumPath = path.join(CACHE_DIR, 'entity-checksums.json.zst');
