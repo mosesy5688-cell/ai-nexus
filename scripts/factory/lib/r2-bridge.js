@@ -39,30 +39,14 @@ export function createR2ClientFFI() {
     return createR2Client();
 }
 
-/** Fetch all R2 ETags with optional prefix filtering.
- *  §18.22.7 pattern: Rust-first → JS fallback on 0/error → divergence log. */
+/** Fetch all R2 ETags with optional prefix filtering. P2: directory-level LIST → S3 SDK. */
 export async function fetchAllR2ETagsFFI(client, prefixFilter = []) {
-    const isRust = _r2Engine && client?.constructor?.name === 'R2Client';
-    let rustFailed = false;
-    if (isRust) {
-        try {
-            const map = await _r2Engine.fetchAllR2Etags(client, prefixFilter);
-            const rustResult = new Map(Object.entries(map));
-            if (rustResult.size > 0) return rustResult;
-            console.warn(`[R2-BRIDGE] Rust fetchAllR2Etags returned 0 entries — falling back to JS`);
-        } catch (e) {
-            console.warn(`[R2-BRIDGE] Rust fetchAllR2Etags error: ${e.message} — falling back to JS`);
-        }
-        rustFailed = true;
-    }
     const { fetchAllR2ETags } = await import('./r2-helpers.js');
     const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    const jsClient = isRust ? (_cachedJsClient ||= require('./r2-helpers.js').createR2Client()) : client;
-    const jsResult = await fetchAllR2ETags(jsClient, bucket, prefixFilter);
-    if (rustFailed && jsResult.size > 0) {
-        console.error(`[R2-BRIDGE] Rust/JS divergence — fetchAllR2Etags: rust=0, js=${jsResult.size}`);
-    }
-    return jsResult;
+    const s3 = (_r2Engine && client?.constructor?.name === 'R2Client')
+        ? (_cachedJsClient ||= (await import('./r2-helpers.js')).createR2Client())
+        : client;
+    return fetchAllR2ETags(s3, bucket, prefixFilter);
 }
 
 // V25.13: Single-part with MD5 skip; auto-routes to multipart for files >2GB (R2's 5GB cap). Both paths stream from disk.
@@ -184,16 +168,10 @@ export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = 
     return backupDirectoryToR2(absDir, r2Prefix, opts);
 }
 
+/** Restore directory from R2. P2: directory-level ops → AWS S3 SDK (reliable). */
 export async function restoreDirectoryFromR2FFI(client, r2Prefix, localDir, opts = {}) {
-    const { restoreDirectoryFromR2: restoreJS } = await import('./r2-handoff.js');
-    if (!_r2Engine || client?.constructor?.name !== 'R2Client') return restoreJS(r2Prefix, localDir, opts);
-    const rust = await _r2Engine.restoreDirectoryFromR2(client, r2Prefix, localDir, opts.concurrency);
-    const rustCount = rust?.success || 0;
-    if (rustCount > 0) return { ...rust, count: rustCount };
-    console.warn(`[R2-BRIDGE] Rust restore-dir returned 0 for ${r2Prefix} — falling back to JS`);
-    const js = await restoreJS(r2Prefix, localDir, opts);
-    if ((js?.count || 0) > 0) console.error(`[R2-BRIDGE] Rust/JS divergence for ${r2Prefix}: rust=0, js=${js.count}`);
-    return js;
+    const { restoreDirectoryFromR2 } = await import('./r2-handoff.js');
+    return restoreDirectoryFromR2(r2Prefix, localDir, opts);
 }
 
 /** Backup a single file to R2. */
@@ -217,10 +195,8 @@ export async function restoreFileFromR2FFI(r2Key, localPath, opts = {}) {
     return restoreFileFromR2(r2Key, localPath, opts);
 }
 
+/** Purge entropy. P2: cross-key batch op → S3 SDK. */
 export async function purgeEntropyFFI(client, etagMap) {
-    if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        return _r2Engine.purgeEntropy(client, JSON.stringify(etagMap instanceof Map ? Object.fromEntries(etagMap) : etagMap));
-    }
     const { purgeEntropy } = await import('./r2-helpers.js');
     return purgeEntropy(client, process.env.R2_BUCKET || 'ai-nexus-assets', etagMap);
 }
