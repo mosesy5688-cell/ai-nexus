@@ -112,13 +112,6 @@ jobs:
         with:
           path: output/cache/mesh/profiles/
           key: intra-4-4-${{ github.run_id }}-baked
-      - name: Backup Baked Profiles to R2
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profiles/ state/mesh-profiles/
 
   master-fusion:
     name: Master Fusion
@@ -185,19 +178,10 @@ jobs:
           fi
           echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings"
       - name: Restore Baked Profiles from Cache
-        id: cache-baked
         uses: actions/cache/restore@v4
         with:
           path: output/cache/mesh/profiles/
           key: intra-4-4-${{ github.run_id }}-baked
-      - name: R2 Fallback for Baked Profiles
-        if: steps.cache-baked.outputs.cache-hit != 'true'
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profiles/ output/cache/mesh/profiles/
       - name: Restore Global Registry Cache
         uses: actions/cache/restore@v4
         with:
@@ -591,19 +575,10 @@ jobs:
           FUSED=$(find output/cache/fused -name '*.json.zst' 2>/dev/null | wc -l)
           echo "Fused shards present: $FUSED"
       - name: Restore Baked Profiles from Cache
-        id: cache-baked-upload
         uses: actions/cache/restore@v4
         with:
           path: output/cache/mesh/profiles/
           key: intra-4-4-${{ github.run_id }}-baked
-      - name: R2 Fallback for Baked Profiles (Upload Job)
-        if: steps.cache-baked-upload.outputs.cache-hit != 'true'
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profiles/ output/cache/mesh/profiles/
       - name: Restore VFS Assets from Cache
         uses: actions/cache/restore@v4
         with:
