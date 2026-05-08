@@ -122,11 +122,13 @@ export class SemanticScholarAdapter extends BaseAdapter {
      * V16.8.3: Critical fix to avoid duplicate overwriting
      */
     normalize(raw) {
-        const paperId = raw.paper_id;
-        const arxivId = raw.arxiv_id || this.extractArxivId(paperId);
+        const paperId = raw.paperId || raw.paper_id;
+        const arxivId = raw.arxiv_id || raw.externalIds?.ArXiv || this.extractArxivId(paperId);
 
         const tldrText = raw.tldr?.text || '';
         const abstract = raw.abstract || raw.description || '';
+        const citations = raw.citationCount || raw.citation_count || 0;
+        const influentialCitations = raw.influentialCitationCount || raw.influential_citation_count || 0;
         const entity = {
             id: this.generateId('unknown', paperId, 'paper'),
             type: 'paper',
@@ -139,15 +141,15 @@ export class SemanticScholarAdapter extends BaseAdapter {
             author: raw.authors || 'Unknown',
             license_spdx: 'ArXiv',
             meta_json: {
-                citation_count: raw.citation_count || 0,
-                influential_count: raw.influential_citation_count || 0,
+                citation_count: citations,
+                influential_count: influentialCitations,
                 year: raw.year,
                 venue: raw.venue || '',
                 publication_types: raw.publicationTypes || [],
-                publication_date: raw.publicationDate || ''
+                publication_date: raw.publicationDate || raw.publication_date || ''
             },
-            citation_count: raw.citation_count || 0,
-            popularity: raw.citation_count || 0,
+            citation_count: citations,
+            popularity: citations,
             downloads: 0,
             arxiv_id: arxivId,
             arxiv_url: arxivId ? `https://arxiv.org/abs/${arxivId}` : null,
