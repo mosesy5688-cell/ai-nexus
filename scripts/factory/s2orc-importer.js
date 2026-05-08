@@ -32,8 +32,10 @@ async function getS2orcFileUrls() {
     const res = await fetch(`${S2_DATASETS_BASE}/release/latest`, { headers: s2Headers() });
     if (!res.ok) throw new Error(`Datasets API: ${res.status}`);
     const data = await res.json();
+    const available = (data.datasets || []).map(d => d.name).join(', ');
+    console.log(`[S2ORC] Available datasets: ${available}`);
     const s2orc = data.datasets?.find(d => d.name === 's2orc') || data.datasets?.find(d => d.name === 's2orc_v2');
-    if (!s2orc) throw new Error('s2orc dataset not found in latest release');
+    if (!s2orc) throw new Error(`s2orc dataset not found. Available: ${available}`);
 
     const detailRes = await fetch(s2orc.url || `${S2_DATASETS_BASE}/release/latest/dataset/s2orc`, { headers: s2Headers() });
     if (!detailRes.ok) throw new Error(`Dataset detail: ${detailRes.status}`);
@@ -43,7 +45,8 @@ async function getS2orcFileUrls() {
 
 function extractArxivId(externalIds) {
     if (!externalIds) return null;
-    if (externalIds.ArXiv) return externalIds.ArXiv.replace(/v\d+$/, '');
+    const id = externalIds.ArXiv || externalIds.arxiv || externalIds.ARXIV;
+    if (id) return id.replace(/v\d+$/, '');
     return null;
 }
 
@@ -69,6 +72,7 @@ async function streamS2orcFile(fileUrl, arxivLookup, s3) {
     let scanned = 0, matched = 0;
     const enrichedUmids = [];
 
+    let debugSampled = 0;
     for await (const line of rl) {
         scanned++;
         if (scanned % 100000 === 0) console.log(`[S2ORC]   Scanned ${scanned} papers, matched ${matched}`);
@@ -76,10 +80,21 @@ async function streamS2orcFile(fileUrl, arxivLookup, s3) {
         let paper;
         try { paper = JSON.parse(line); } catch { continue; }
 
-        const arxivId = extractArxivId(paper.externalids || paper.externalIds);
+        if (debugSampled < 3) {
+            const keys = Object.keys(paper).join(',');
+            const extIds = paper.externalids || paper.externalIds || paper.external_ids;
+            const extKeys = extIds ? Object.keys(extIds).join(',') : 'null';
+            const contentKeys = paper.content ? Object.keys(paper.content).join(',') : 'null';
+            console.log(`[S2ORC-DEBUG] paper keys: ${keys}`);
+            console.log(`[S2ORC-DEBUG] externalIds keys: ${extKeys}`);
+            console.log(`[S2ORC-DEBUG] content keys: ${contentKeys}`);
+            debugSampled++;
+        }
+
+        const arxivId = extractArxivId(paper.externalids || paper.externalIds || paper.external_ids);
         if (!arxivId || !arxivLookup.has(arxivId)) continue;
 
-        const fulltext = paper.content?.text || paper.fullText || '';
+        const fulltext = paper.content?.text || paper.fullText || paper.full_text || '';
         if (fulltext.length < 200) continue;
 
         const entry = arxivLookup.get(arxivId);
