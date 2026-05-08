@@ -3,6 +3,7 @@ import { getEnrichmentQueue, markEnriched } from './lib/dedup-manager.js';
 import { initRustBridge, extractAndClassifyFFI } from './lib/rust-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
 import { primeSession, extractArxivId, fetchOfficialHtml, fetchAr5ivHtml } from './lib/arxiv-fetchers.js';
+import { fetchCoreFulltext } from './lib/core-fetcher.js';
 import { writeBoosterStats } from './lib/booster-stats.js';
 import fs from 'fs/promises';
 
@@ -86,7 +87,7 @@ async function main() {
     let processed = 0, success = 0, partial = 0, skipped = 0, failed = 0;
     const enrichedUmids = [];
 
-    // V26.5: S2-first waterfall — S2 fulltext (2s) → arXiv HTML (10s). PDF removed.
+    // V26.6: Waterfall — arXiv HTML → ar5iv → CORE fulltext. PDF/S2 removed.
     const paperStart = { processed: 0, success, skipped, failed };
     for (const paper of papers) {
         processed++;
@@ -123,6 +124,16 @@ async function main() {
                 result = extractAndClassifyFFI(htmlResult.html);
                 if (result.classification === 'SKIP') result = null;
                 else if (htmlResult.source === 'ar5iv') console.log(`   [AR5IV] ${arxivId}`);
+            }
+            // Layer 2: CORE fulltext (for papers without arXiv HTML)
+            if (!result && htmlResult.type === 'SKIP') {
+                const coreResult = await fetchCoreFulltext(arxivId);
+                if (coreResult.type === 'TEXT' && coreResult.text) {
+                    result = { text: coreResult.text, classification: coreResult.text.length >= 1000 ? 'SUCCESS' : 'PARTIAL' };
+                    console.log(`   [CORE] ${arxivId} (${coreResult.text.length} chars)`);
+                } else if (coreResult.type === 'FAILURE') {
+                    await handleFailure(); failed++; continue;
+                }
             }
             if (!result) {
                 if (htmlResult.type === 'FAILURE') {

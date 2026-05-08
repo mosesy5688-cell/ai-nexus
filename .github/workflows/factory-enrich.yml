@@ -117,6 +117,7 @@ jobs:
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           UMID_SALT: ${{ secrets.UMID_SALT }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CORE_API_KEY: ${{ secrets.CORE_API_KEY }}
           DEDUP_DIR: ./output/data/dedup
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
