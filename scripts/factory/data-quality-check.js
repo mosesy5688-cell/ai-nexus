@@ -91,17 +91,26 @@ async function main() {
         console.log('');
     }
 
-    // Enrichment coverage gate (dedup.db)
+    // Enrichment coverage gate (sharded dedup ledger)
     try {
-        const { existsSync } = await import('fs');
-        const dedupPath = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
-        if (!existsSync(dedupPath)) throw new Error('dedup.db not found');
+        const { existsSync, readdirSync } = await import('fs');
+        const dedupDir = process.env.DEDUP_DIR || './output/data/dedup';
+        const legacyPath = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
         const { createRequire } = await import('node:module');
         const require = createRequire(import.meta.url ?? `file://${process.cwd()}/`);
         const Database = require('better-sqlite3');
-        const db = new Database(dedupPath, { readonly: true });
-        const { total, enriched } = db.prepare("SELECT COUNT(*) as total, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as enriched FROM ledger WHERE status='active'").get();
-        db.close();
+        let total = 0, enriched = 0;
+        if (existsSync(dedupDir)) {
+            for (const f of readdirSync(dedupDir).filter(f => f.endsWith('.db'))) {
+                const db = new Database(`${dedupDir}/${f}`, { readonly: true });
+                const r = db.prepare("SELECT COUNT(*) as t, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as e FROM ledger WHERE status='active'").get();
+                total += r.t; enriched += r.e || 0; db.close();
+            }
+        } else if (existsSync(legacyPath)) {
+            const db = new Database(legacyPath, { readonly: true });
+            const r = db.prepare("SELECT COUNT(*) as t, SUM(CASE WHEN has_fulltext=1 THEN 1 ELSE 0 END) as e FROM ledger WHERE status='active'").get();
+            total = r.t; enriched = r.e || 0; db.close();
+        } else throw new Error('no dedup shards or legacy dedup.db found');
         const pct = total > 0 ? Math.round(enriched / total * 100) : 0;
         console.log(`--- Enrichment Coverage ---`);
         console.log(`  ${pct >= 30 ? 'OK  ' : 'WARN'} fulltext enrichment: ${enriched}/${total} (${pct}%) [min: 30%]`);

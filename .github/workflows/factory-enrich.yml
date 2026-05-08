@@ -91,7 +91,7 @@ jobs:
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
 
-      # Download dedup.db from R2
+      # V26.6: Restore sharded dedup ledger from R2
       - name: Restore Dedup Ledger from R2
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -99,8 +99,13 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          mkdir -p output/data
-          node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || echo "⚠️ dedup.db not found on R2"
+          mkdir -p output/data/dedup
+          node scripts/factory/r2-workflow-cli.js restore-dir state/dedup/ output/data/dedup/ || echo "⚠️ No sharded dedup on R2"
+          # Legacy fallback
+          if [ -z "$(ls output/data/dedup/*.db 2>/dev/null)" ]; then
+            node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || true
+            [ -f "output/data/dedup.db" ] && node scripts/factory/lib/dedup-manager.js migrate
+          fi
 
       # Run Density Booster
       - name: Run Booster [${{ matrix.partition.start }}..${{ matrix.partition.end }}]
@@ -112,7 +117,7 @@ jobs:
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           UMID_SALT: ${{ secrets.UMID_SALT }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          DEDUP_DB_PATH: ./output/data/dedup.db
+          DEDUP_DIR: ./output/data/dedup
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           node scripts/factory/density-booster.js \
