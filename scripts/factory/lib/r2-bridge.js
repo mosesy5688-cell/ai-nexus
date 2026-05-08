@@ -173,35 +173,13 @@ export async function batchUploadFFI(client, files, etagMap, concurrency) {
     return { success, failed, skipped: 0, unchanged, totalSize: 0 };
 }
 
-/** Backup directory to R2 with manifest. */
+/** Backup directory to R2 with manifest. P2: directory-level ops → AWS S3 SDK (reliable). */
 export async function backupDirectoryToR2FFI(client, localDir, r2Prefix, opts = {}) {
     const path = await import('path');
     const fs = await import('fs');
     const absDir = path.resolve(localDir);
     if (!fs.existsSync(absDir)) { console.warn(`[R2-BRIDGE] backup-dir: '${absDir}' not found`); return { count: 0 }; }
     console.log(`[R2-BRIDGE] backup-dir: ${fs.readdirSync(absDir).length} entries in ${absDir}`);
-    if (_r2Engine && client?.constructor?.name === 'R2Client') {
-        const walkResult = await _r2Engine.walkDirWithMd5(absDir, opts.extensions || null);
-        const r2Etags = new Map();
-        try { const etags = await fetchAllR2ETagsFFI(client, [r2Prefix]); for (const [k, v] of etags) r2Etags.set(k, v); } catch {}
-        const manifest = []; let uploaded = 0, skipped = 0;
-        for (const entry of walkResult) {
-            const r2Key = `${r2Prefix}${entry.relPath}`;
-            manifest.push(entry.relPath.replace(/\\/g, '/'));
-            if (r2Etags.get(r2Key) === entry.md5) { skipped++; continue; }
-            try { const data = fs.readFileSync(`${absDir}/${entry.relPath}`); await uploadBufferToR2FFI(client, r2Key, data); uploaded++; }
-            catch (e) { console.warn(`[R2-BRIDGE] backup-dir: failed ${entry.relPath}: ${e.message}`); }
-        }
-        const body = JSON.stringify({ files: manifest, timestamp: new Date().toISOString(), count: manifest.length });
-        let mOk = false;
-        for (let i = 0; i < 3 && !mOk; i++) {
-            try { await uploadBufferToR2FFI(client, `${r2Prefix}_manifest.json`, Buffer.from(body)); mOk = true; }
-            catch (e) { console.error(`[R2-BRIDGE] Manifest write attempt ${i+1}/3: ${e.message || e.Code || 'unknown'}`); if (i < 2) await new Promise(r => setTimeout(r, 2000*(i+1))); }
-        }
-        if (!mOk) console.error(`[R2-BRIDGE] ⚠️ MANIFEST WRITE FAILED after 3 attempts`);
-        console.log(`[R2-BRIDGE] backup-dir: ${uploaded} new + ${skipped} unchanged / ${manifest.length} total, manifest: ${mOk ? 'OK' : 'FAILED'}`);
-        return { count: manifest.length };
-    }
     const { backupDirectoryToR2 } = await import('./r2-handoff.js');
     return backupDirectoryToR2(absDir, r2Prefix, opts);
 }
