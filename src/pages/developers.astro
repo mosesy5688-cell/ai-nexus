@@ -12,10 +12,21 @@ const pageDescription = 'Integrate Free2AI into your apps and AI agents. REST AP
 const searchExample = JSON.stringify({
   version: "fni_v2.0",
   results: [
-    { id: "meta-llama/Llama-3-8B", name: "Llama 3 8B", type: "model", fni_score: 87.2 },
-    { id: "deepseek-ai/DeepSeek-V3", name: "DeepSeek V3", type: "model", fni_score: 83.5 }
+    { id: "hf-model--meta-llama--llama-3-8b", name: "Llama 3 8B", type: "model", fni_score: 87.2 },
+    { id: "hf-model--deepseek-ai--deepseek-v3", name: "DeepSeek V3", type: "model", fni_score: 83.5 }
   ],
   meta: { elapsed_ms: 42, total: 2 }
+}, null, 2);
+
+const selectExample = JSON.stringify({
+  task_interpreted: "text-generation",
+  recommendations: [{
+    rank: 1, model_id: "hf-model--nvidia--gemma-4-31b-it-nvfp4",
+    name: "Gemma-4-31B-IT-NVFP4", fni_score: 49.3,
+    params_billions: 20.87, vram_estimate_gb: 17,
+    fni_factors: { semantic: 50, authority: 0, popularity: 70.5, recency: 98.1, quality: 65 },
+    rationale: "#1 for text-generation: strong recency, fits 24GB VRAM"
+  }]
 }, null, 2);
 
 const mcpConfig = JSON.stringify({
@@ -177,6 +188,12 @@ const jsonLd = JSON.stringify({
               <pre set:html={`curl -X POST ${SITE}/api/v1/select \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify({task:"text-generation",constraints:{max_vram_gb:24}})}'`} />
             </div>
           </div>
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Response</h4>
+            <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+              <pre>{selectExample}</pre>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -192,7 +209,7 @@ const jsonLd = JSON.stringify({
               <table class="w-full text-sm">
                 <thead><tr class="text-left border-b border-gray-200 dark:border-gray-700"><th class="py-2 pr-4">Param</th><th class="py-2 pr-4">Type</th><th class="py-2">Description</th></tr></thead>
                 <tbody class="text-gray-600 dark:text-gray-400">
-                  <tr><td class="py-1 pr-4 font-mono">ids</td><td class="pr-4">string</td><td>Comma-separated model IDs (2-10)</td></tr>
+                  <tr><td class="py-1 pr-4 font-mono">ids</td><td class="pr-4">string</td><td>Comma-separated entity IDs (2-10). Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">model_id</code> from the Select API or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">id</code> from Search.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -200,7 +217,7 @@ const jsonLd = JSON.stringify({
           <div>
             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl</h4>
             <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
-              <pre set:html={`curl "${SITE}/api/v1/compare?ids=meta-llama/Llama-3-8B,google/gemma-2-27b"`} />
+              <pre set:html={`curl "${SITE}/api/v1/compare?ids=hf-model--meta-llama--llama-3-8b,hf-model--google--gemma-2-27b"`} />
             </div>
           </div>
         </div>

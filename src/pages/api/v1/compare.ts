@@ -58,29 +58,29 @@ export const GET: APIRoute = async ({ url }) => {
     const manifest = await loadManifest(r2Bucket, isDev);
     const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
 
-    const shardGroups = new Map<number, string[]>();
+    const slugMap = new Map<string, string>();
+    const shardGroups = new Map<number, Set<string>>();
     for (const id of ids) {
       const slug = deriveSlug(id);
-      const shard = xxhash64Mod(slug, metaShards);
-      if (!shardGroups.has(shard)) shardGroups.set(shard, []);
-      shardGroups.get(shard)!.push(id);
-      if (slug !== id.toLowerCase()) {
-        const idShard = xxhash64Mod(id, metaShards);
-        if (idShard !== shard) {
-          if (!shardGroups.has(idShard)) shardGroups.set(idShard, []);
-          shardGroups.get(idShard)!.push(id);
-        }
+      slugMap.set(id, slug);
+      const allKeys = new Set([id.toLowerCase(), slug]);
+      for (const key of allKeys) {
+        const shard = xxhash64Mod(key, metaShards);
+        if (!shardGroups.has(shard)) shardGroups.set(shard, new Set());
+        shardGroups.get(shard)!.add(id.toLowerCase());
+        shardGroups.get(shard)!.add(slug);
       }
     }
 
     const entityMap = new Map<string, any>();
-    for (const [shardIdx, shardIds] of shardGroups) {
+    for (const [shardIdx, queryKeys] of shardGroups) {
       const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
       const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
-      const placeholders = shardIds.map(() => '?').join(',');
+      const keys = [...queryKeys];
+      const placeholders = keys.map(() => '?').join(',');
       const rows = await executeSql(engine.sqlite3, engine.db,
         `SELECT ${COMPARE_COLS} FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders})`,
-        [...shardIds, ...shardIds]);
+        [...keys, ...keys]);
       for (const row of rows) {
         entityMap.set(row.id, row);
         if (row.slug) entityMap.set(row.slug, row);
@@ -88,7 +88,7 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     const entities = ids.map(id => {
-      const e = entityMap.get(id);
+      const e = entityMap.get(id) || entityMap.get(id.toLowerCase()) || entityMap.get(slugMap.get(id)!);
       if (!e) return { id, found: false };
       return {
         id: e.id, name: e.name, author: e.author, type: e.type,
