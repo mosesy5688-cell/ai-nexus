@@ -107,19 +107,20 @@ export async function exportRankingsDbs(groups, outputDir) {
         db.exec(RANKINGS_SCHEMA);
         const insert = db.prepare(INSERT_SQL);
         db.exec('BEGIN');
+        const str = v => typeof v === 'string' ? v : (Array.isArray(v) || typeof v === 'object') ? JSON.stringify(v) : String(v || '');
         for (const e of entities) {
             insert.run(
                 e.id, e.slug || '', e.name || e.slug || '', e.type || 'model',
-                e.author || '', (e.description || e.summary || '').substring(0, 500),
+                str(e.author), (str(e.description || e.summary)).substring(0, 500),
                 e.fni_score || e.fni || 0, e.pipeline_tag || '', e.license || '',
                 e.vram_estimate_gb || 0, e.params_billions ?? 0, e.context_length ?? 0,
                 e.stars || 0, e.downloads || 0, e.raw_pop || 0,
                 e.fni_s ?? 50.0, e.fni_a ?? 0, e.fni_p ?? 0, e.fni_r ?? 0, e.fni_q ?? 0,
                 e.bundle_key || '', e.bundle_offset ?? 0, e.bundle_size ?? 0,
-                e.last_modified || '', e.category || '', e.architecture || '',
-                e.task_categories || '', e.forks || 0, e.citation_count || 0,
+                e.last_modified || '', e.category || '', str(e.architecture),
+                str(e.task_categories), e.forks || 0, e.citation_count || 0,
                 e.ollama_compatible ?? (e.has_ollama || e.has_gguf ? 1 : 0),
-                e.hosted_on || '[]',
+                str(e.hosted_on) || '[]',
                 e.license_type || classifyLicense(e.license),
                 e.can_run_local ?? (((e.has_ollama || e.has_gguf) && ((e.params_billions ?? 0) <= 13 || !e.params_billions)) ? 1 : 0),
                 e.hosted_on_checked_at || null
