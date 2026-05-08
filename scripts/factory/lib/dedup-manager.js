@@ -1,21 +1,22 @@
 /**
- * V25.8 Dedup Manager - Master Ledger Authority
+ * V26.6 Dedup Manager — Sharded Master Ledger
  *
- * Manages `dedup.db` — the persistent master SQLite ledger on R2.
- * Ensures zero-deletion via SQL UPSERT on UMID.
- * New entities are appended; existing entities are enriched.
- *
- * Tracks `last_refresh_at` for the Evergreen Refresh Protocol.
+ * Manages dedup ledger as 16 SQLite shards (shard-0.db to shard-f.db).
+ * Shard key = first hex character of UMID.
+ * Zero-deletion via SQL UPSERT on canonical_id.
  */
 
 import Database from 'better-sqlite3';
 import fsSync from 'fs';
-import fs from 'fs/promises';
 import path from 'path';
 import { setupDatabasePragmas } from './pack-utils.js';
 import { generateUMID } from './umid-generator.js';
 
-const DEDUP_DB_PATH = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
+const DEDUP_DIR = process.env.DEDUP_DB_PATH
+    ? path.dirname(process.env.DEDUP_DB_PATH)
+    : (process.env.DEDUP_DIR || './output/data/dedup');
+const LEGACY_PATH = process.env.DEDUP_DB_PATH || './output/data/dedup.db';
+const SHARD_COUNT = 16;
 
 const DEDUP_SCHEMA = `
     CREATE TABLE IF NOT EXISTS ledger (
@@ -38,171 +39,194 @@ const DEDUP_SCHEMA = `
     CREATE INDEX IF NOT EXISTS idx_enrichment ON ledger(type, has_fulltext) WHERE status = 'active';
 `;
 
-/**
- * Open or create the dedup ledger. Applies schema migration for has_fulltext.
- */
-export function openLedger(dbPath = DEDUP_DB_PATH) {
-    const dir = path.dirname(dbPath);
-    if (!fsSync.existsSync(dir)) fsSync.mkdirSync(dir, { recursive: true });
+function shardIndex(umid) { return parseInt(umid[0], 16); }
 
-    const db = new Database(dbPath);
+function shardPath(idx) { return path.join(DEDUP_DIR, `shard-${idx.toString(16)}.db`); }
+
+function shardPathForUmid(umid) { return shardPath(shardIndex(umid)); }
+
+function ensureDir() {
+    if (!fsSync.existsSync(DEDUP_DIR)) fsSync.mkdirSync(DEDUP_DIR, { recursive: true });
+}
+
+function openShard(idx) {
+    ensureDir();
+    const db = new Database(shardPath(idx));
     setupDatabasePragmas(db, { vfsPageSize: false });
     db.exec(DEDUP_SCHEMA);
-
-    // V25.8.3: Migrate existing DBs — add has_fulltext if missing
     const cols = db.pragma('table_info(ledger)').map(c => c.name);
     if (!cols.includes('has_fulltext')) {
         db.exec('ALTER TABLE ledger ADD COLUMN has_fulltext INTEGER DEFAULT 0');
-        db.exec('CREATE INDEX IF NOT EXISTS idx_enrichment ON ledger(type, has_fulltext) WHERE status = \'active\'');
+        db.exec("CREATE INDEX IF NOT EXISTS idx_enrichment ON ledger(type, has_fulltext) WHERE status = 'active'");
     }
     return db;
 }
 
-/**
- * Upsert entities into the master ledger.
- * New records are inserted; existing records are refreshed (never deleted).
- *
- * @param {Array} entities - Entity array
- * @param {string} dbPath - Path to dedup.db
- * @returns {{ inserted: number, refreshed: number, total: number }}
- */
-export function upsertEntities(entities, dbPath = DEDUP_DB_PATH) {
-    const db = openLedger(dbPath);
+export function openLedger(dbPath) {
+    if (dbPath && dbPath !== LEGACY_PATH) {
+        ensureDir();
+        const db = new Database(dbPath);
+        setupDatabasePragmas(db, { vfsPageSize: false });
+        db.exec(DEDUP_SCHEMA);
+        return db;
+    }
+    return openShard(0);
+}
+
+export function upsertEntities(entities, _dbPath) {
     const now = new Date().toISOString();
-
-    // V25.9.6: has_fulltext propagated from search.db (fusion-authoritative).
-    // MAX(old, new) semantics — once enriched, never regress to 0 (defensive against
-    // transient R2/enrichment-file outages where fusion might fail to detect fulltext).
-    const upsert = db.prepare(`
-        INSERT INTO ledger (umid, canonical_id, type, source, name, author, first_seen_at, last_refresh_at, refresh_count, fni_score, has_fulltext, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'active')
-        ON CONFLICT(canonical_id) DO UPDATE SET
-            umid = excluded.umid,
-            last_refresh_at = excluded.last_refresh_at,
-            refresh_count = refresh_count + 1,
-            fni_score = excluded.fni_score,
-            name = COALESCE(excluded.name, name),
-            author = COALESCE(excluded.author, author),
-            has_fulltext = MAX(has_fulltext, excluded.has_fulltext),
-            status = 'active'
-    `);
-
-    let inserted = 0, refreshed = 0;
-
-    db.exec('BEGIN TRANSACTION');
-
+    const groups = new Map();
     for (const entity of entities) {
         const id = entity.id || entity.slug;
         if (!id) continue;
-
         const umid = entity.umid || generateUMID(id);
-        const author = Array.isArray(entity.author) ? entity.author.join(', ') : (entity.author || '');
-
-        const changes = upsert.run(
-            umid, id, entity.type || 'model', entity.source || '',
-            entity.name || '', author, now, now,
-            entity.fni_score || 0,
-            entity.has_fulltext ? 1 : 0
-        );
-
-        if (changes.changes > 0) {
-            // Check if it was an insert or update
-            const existing = db.prepare('SELECT refresh_count FROM ledger WHERE umid = ?').get(umid);
-            if (existing && existing.refresh_count === 0) inserted++;
-            else refreshed++;
-        }
+        const idx = shardIndex(umid);
+        if (!groups.has(idx)) groups.set(idx, []);
+        groups.get(idx).push({ ...entity, umid });
     }
 
-    db.exec('COMMIT');
-
-    const total = db.prepare('SELECT COUNT(*) as c FROM ledger').get().c;
-    db.close();
-
+    let inserted = 0, refreshed = 0, total = 0;
+    for (const [idx, batch] of groups) {
+        const db = openShard(idx);
+        const upsert = db.prepare(`
+            INSERT INTO ledger (umid, canonical_id, type, source, name, author, first_seen_at, last_refresh_at, refresh_count, fni_score, has_fulltext, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'active')
+            ON CONFLICT(canonical_id) DO UPDATE SET
+                umid = excluded.umid, last_refresh_at = excluded.last_refresh_at,
+                refresh_count = refresh_count + 1, fni_score = excluded.fni_score,
+                name = COALESCE(excluded.name, name), author = COALESCE(excluded.author, author),
+                has_fulltext = MAX(has_fulltext, excluded.has_fulltext), status = 'active'
+        `);
+        db.exec('BEGIN TRANSACTION');
+        for (const e of batch) {
+            const author = Array.isArray(e.author) ? e.author.join(', ') : (e.author || '');
+            const changes = upsert.run(
+                e.umid, e.id || e.slug, e.type || 'model', e.source || '',
+                e.name || '', author, now, now, e.fni_score || 0, e.has_fulltext ? 1 : 0
+            );
+            if (changes.changes > 0) {
+                const row = db.prepare('SELECT refresh_count FROM ledger WHERE umid = ?').get(e.umid);
+                if (row && row.refresh_count === 0) inserted++;
+                else refreshed++;
+            }
+        }
+        db.exec('COMMIT');
+        total += db.prepare('SELECT COUNT(*) as c FROM ledger').get().c;
+        db.close();
+    }
     console.log(`[DEDUP] Ledger updated: +${inserted} new, ~${refreshed} refreshed, ${total} total`);
     return { inserted, refreshed, total };
 }
 
-/**
- * Get the oldest entities that need refreshing (Evergreen Protocol).
- * @param {number} limit - Number of entities to return
- * @param {string} dbPath - Path to dedup.db
- * @returns {Array} Entities needing refresh (oldest first)
- */
-export function getRefreshCandidates(limit = 15000, dbPath = DEDUP_DB_PATH) {
-    const db = openLedger(dbPath);
-    const candidates = db.prepare(`
-        SELECT umid, canonical_id, type, source, last_refresh_at, refresh_count
-        FROM ledger
-        WHERE status = 'active'
-        ORDER BY last_refresh_at ASC
-        LIMIT ?
-    `).all(limit);
-    db.close();
-    return candidates;
+export function getEnrichmentQueue(prefixStart, prefixEnd, limit = 5000, _dbPath, types = ['paper']) {
+    const startIdx = parseInt(prefixStart[0], 16);
+    const endIdx = parseInt(prefixEnd[0], 16);
+    const allResults = [];
+    for (let idx = startIdx; idx <= endIdx && allResults.length < limit; idx++) {
+        const dbFile = shardPath(idx);
+        if (!fsSync.existsSync(dbFile)) continue;
+        const db = openShard(idx);
+        const placeholders = types.map(() => '?').join(',');
+        const rows = db.prepare(`
+            SELECT umid, canonical_id, source, type FROM ledger
+            WHERE type IN (${placeholders}) AND has_fulltext = 0 AND status = 'active'
+              AND umid >= ? AND umid < ?
+            ORDER BY fni_score DESC LIMIT ?
+        `).all(...types, prefixStart, prefixEnd + 'g', limit - allResults.length);
+        db.close();
+        allResults.push(...rows);
+    }
+    console.log(`[DEDUP] Enrichment queue: ${allResults.length} entities (${types.join(',')}) in [${prefixStart}..${prefixEnd}]`);
+    return allResults;
 }
 
-/**
- * V25.8.3→V25.9: Get entities needing fulltext enrichment (Density Booster queue).
- * Filters by UMID hex prefix range for partition-parallel workers.
- * @param {string} prefixStart - Hex prefix start (e.g. '00')
- * @param {string} prefixEnd - Hex prefix end (e.g. '0f')
- * @param {number} limit - Max entities to return
- * @param {string} dbPath - Path to dedup.db
- * @param {string[]} types - Entity types to enrich (default: paper only — models get README at 1/4 harvest)
- * @returns {Array<{umid: string, canonical_id: string, source: string, type: string}>}
- */
-export function getEnrichmentQueue(prefixStart, prefixEnd, limit = 5000, dbPath = DEDUP_DB_PATH, types = ['paper']) {
-    const db = openLedger(dbPath);
-    const placeholders = types.map(() => '?').join(',');
-    const queue = db.prepare(`
-        SELECT umid, canonical_id, source, type
-        FROM ledger
-        WHERE type IN (${placeholders}) AND has_fulltext = 0 AND status = 'active'
-          AND umid >= ? AND umid < ?
-        ORDER BY fni_score DESC
-        LIMIT ?
-    `).all(...types, prefixStart, prefixEnd + 'g', limit);
-    db.close();
-    console.log(`[DEDUP] Enrichment queue: ${queue.length} entities (${types.join(',')}) in [${prefixStart}..${prefixEnd}]`);
-    return queue;
-}
-
-/**
- * V25.8.3: Mark UMIDs as enriched (has_fulltext = 1).
- * @param {string[]} umids - Array of enriched UMIDs
- * @param {string} dbPath - Path to dedup.db
- */
-export function markEnriched(umids, dbPath = DEDUP_DB_PATH) {
+export function markEnriched(umids, _dbPath) {
     if (!umids.length) return;
-    const db = openLedger(dbPath);
-    const stmt = db.prepare('UPDATE ledger SET has_fulltext = 1 WHERE umid = ?');
-    db.exec('BEGIN TRANSACTION');
-    for (const umid of umids) stmt.run(umid);
-    db.exec('COMMIT');
-    db.close();
-    console.log(`[DEDUP] Marked ${umids.length} UMIDs as enriched`);
+    const groups = new Map();
+    for (const umid of umids) {
+        const idx = shardIndex(umid);
+        if (!groups.has(idx)) groups.set(idx, []);
+        groups.get(idx).push(umid);
+    }
+    let total = 0;
+    for (const [idx, batch] of groups) {
+        const db = openShard(idx);
+        const stmt = db.prepare('UPDATE ledger SET has_fulltext = 1 WHERE umid = ?');
+        db.exec('BEGIN TRANSACTION');
+        for (const umid of batch) stmt.run(umid);
+        db.exec('COMMIT');
+        db.close();
+        total += batch.length;
+    }
+    console.log(`[DEDUP] Marked ${total} UMIDs as enriched`);
 }
 
-/**
- * Verify ledger parity against entity count.
- * @param {number} expectedMin - Minimum expected count
- * @param {string} dbPath - Path to dedup.db
- * @returns {boolean} True if parity check passes
- */
-export function verifyParity(expectedMin, dbPath = DEDUP_DB_PATH) {
-    const db = openLedger(dbPath);
-    const count = db.prepare('SELECT COUNT(*) as c FROM ledger WHERE status = ?').get('active').c;
-    db.close();
+export function getRefreshCandidates(limit = 15000) {
+    const all = [];
+    for (let i = 0; i < SHARD_COUNT && all.length < limit; i++) {
+        if (!fsSync.existsSync(shardPath(i))) continue;
+        const db = openShard(i);
+        const rows = db.prepare(`SELECT umid, canonical_id, type, source, last_refresh_at, refresh_count
+            FROM ledger WHERE status = 'active' ORDER BY last_refresh_at ASC LIMIT ?`).all(limit - all.length);
+        db.close();
+        all.push(...rows);
+    }
+    return all;
+}
 
-    const pass = count >= expectedMin;
-    console.log(`[DEDUP] Parity check: ${count} active (min: ${expectedMin}) -> ${pass ? 'PASS' : 'FAIL'}`);
+export function aggregateStats() {
+    let totalActive = 0, enriched = 0;
+    const needByType = {};
+    for (let i = 0; i < SHARD_COUNT; i++) {
+        if (!fsSync.existsSync(shardPath(i))) continue;
+        const db = openShard(i);
+        totalActive += db.prepare("SELECT COUNT(*) as c FROM ledger WHERE status='active'").get().c;
+        enriched += db.prepare("SELECT COUNT(*) as c FROM ledger WHERE has_fulltext=1 AND status='active'").get().c;
+        const rows = db.prepare("SELECT type, COUNT(*) as c FROM ledger WHERE has_fulltext=0 AND status='active' AND type='paper' GROUP BY type").all();
+        for (const r of rows) needByType[r.type] = (needByType[r.type] || 0) + r.c;
+        db.close();
+    }
+    return { totalActive, enriched, needByType };
+}
+
+export function verifyParity(expectedMin) {
+    const { totalActive } = aggregateStats();
+    const pass = totalActive >= expectedMin;
+    console.log(`[DEDUP] Parity check: ${totalActive} active (min: ${expectedMin}) -> ${pass ? 'PASS' : 'FAIL'}`);
     return pass;
 }
 
+export function migrateLegacyToShards() {
+    if (!fsSync.existsSync(LEGACY_PATH)) return false;
+    console.log(`[DEDUP] Migrating legacy dedup.db → 16 shards...`);
+    ensureDir();
+    const legacy = new Database(LEGACY_PATH, { readonly: true });
+    const count = legacy.prepare('SELECT COUNT(*) as c FROM ledger').get().c;
+    let migrated = 0;
+    const shardDbs = new Map();
+    const getDb = (idx) => { if (!shardDbs.has(idx)) { const d = openShard(idx); d.exec('BEGIN'); shardDbs.set(idx, d); } return shardDbs.get(idx); };
+    for (const row of legacy.prepare('SELECT * FROM ledger').iterate()) {
+        const idx = shardIndex(row.umid);
+        const db = getDb(idx);
+        db.prepare(`INSERT OR IGNORE INTO ledger (umid,canonical_id,type,source,name,author,first_seen_at,last_refresh_at,refresh_count,fni_score,has_fulltext,status)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+            row.umid, row.canonical_id, row.type, row.source, row.name, row.author,
+            row.first_seen_at, row.last_refresh_at, row.refresh_count, row.fni_score, row.has_fulltext, row.status
+        );
+        migrated++;
+        if (migrated % 50000 === 0) console.log(`[DEDUP]   Migrated: ${migrated}/${count}`);
+    }
+    for (const [, db] of shardDbs) { db.exec('COMMIT'); db.close(); }
+    legacy.close();
+    console.log(`[DEDUP] Migration complete: ${migrated} entities → 16 shards`);
+    return true;
+}
+
 if (process.argv[1]?.endsWith('dedup-manager.js')) {
-    console.log('[DEDUP] Standalone mode: Creating empty ledger...');
-    const db = openLedger();
-    const count = db.prepare('SELECT COUNT(*) as c FROM ledger').get().c;
-    console.log(`[DEDUP] Ledger has ${count} entries.`);
-    db.close();
+    if (process.argv[2] === 'migrate') {
+        migrateLegacyToShards();
+    } else {
+        const stats = aggregateStats();
+        console.log(`[DEDUP] ${stats.totalActive} active, ${stats.enriched} enriched`);
+    }
 }
