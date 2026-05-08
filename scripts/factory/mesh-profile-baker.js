@@ -38,14 +38,28 @@ async function main() {
 
         console.log(`[BAKER] Loaded ${nodeIds.length} nodes from graph.`);
 
-        let bakedCount = 0, skippedInvalid = 0;
+        const SHARD_SIZE = 1000;
+        const shardDir = path.join(CACHE_DIR, 'mesh', 'profile-shards');
+        await fs.mkdir(shardDir, { recursive: true });
+
+        let bakedCount = 0, skippedInvalid = 0, shardIndex = 0;
+        let shardBuffer = [];
+
+        const flushShard = async () => {
+            if (shardBuffer.length === 0) return;
+            const { zstdCompress } = await import('./lib/zstd-helper.js');
+            const jsonl = shardBuffer.map(p => JSON.stringify(p)).join('\n');
+            const compressed = await zstdCompress(jsonl);
+            const shardFile = path.join(shardDir, `shard-${String(shardIndex).padStart(4, '0')}.jsonl.zst`);
+            await fs.writeFile(shardFile, compressed);
+            shardIndex++;
+            shardBuffer = [];
+        };
+
         for (let nodeId of nodeIds) {
-            // V22.0 Phase 3: Synchronize all entity IDs with V2.1 prefixes
             const node = nodeRegistry[nodeId];
             if (!node) continue;
             const typeValue = node.type || node.t || 'model';
-
-            // Ensure ID is normalized per SPEC-V2.1
             const syncedId = normalizeId(nodeId, getNodeSource(nodeId, typeValue), typeValue);
             if (!syncedId) { skippedInvalid++; continue; }
 
@@ -57,41 +71,30 @@ async function main() {
                 const targetType = (rel.type || rel.t || 'model').toLowerCase();
                 const syncedTargetId = normalizeId(targetIdRaw, getNodeSource(targetIdRaw, targetType), targetType);
                 const bakedUrl = getRouteFromId(syncedTargetId, targetType);
-
-                // V25.1 Compute Shift-Left: Zero-Placeholder Registry Lookup
                 const registryNode = nodeRegistry[targetIdRaw] || nodeRegistry[syncedTargetId] || {};
-                const finalTargetName = rel.name || rel.target_name || registryNode.name || registryNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown');
-                const finalTargetIcon = rel.icon || registryNode.icon || '📦';
-
                 return {
-                    ...rel,
-                    url: bakedUrl,
+                    ...rel, url: bakedUrl,
                     target_id: syncedTargetId || targetIdRaw,
-                    target_name: finalTargetName,
-                    icon: finalTargetIcon
+                    target_name: rel.name || rel.target_name || registryNode.name || registryNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
+                    icon: rel.icon || registryNode.icon || '📦'
                 };
             });
 
-            // V25.1 Compute Shift-Left: Enforce High-Fidelity Naming
-            const profile = {
+            shardBuffer.push({
                 id: syncedId,
                 name: node.name || node.displayName || syncedId.split('--').pop(),
-                type: typeValue,
-                url: canonUrl,
-                icon: node.icon || '📦',
+                type: typeValue, url: canonUrl, icon: node.icon || '📦',
                 relations: bakedRelations,
-                _generated_at: new Date().toISOString(),
-                _version: '22.0.0-synced-baker'
-            };
-
-            const targetKey = `mesh/profiles/${syncedId}.json`;
-            await smartWriteWithVersioning(targetKey, profile, CACHE_DIR, { compress: true });
+                _generated_at: new Date().toISOString(), _version: '22.0.0-synced-baker'
+            });
 
             bakedCount++;
-            if (bakedCount % 10000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles...`);
+            if (shardBuffer.length >= SHARD_SIZE) await flushShard();
+            if (bakedCount % 50000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles (${shardIndex} shards)...`);
         }
+        await flushShard();
         if (skippedInvalid > 0) console.warn(`[BAKER] ⚠️ Skipped ${skippedInvalid} nodes with invalid IDs`);
-        console.log(`[BAKER] ✅ Successfully baked ${bakedCount} Mesh Profiles.`);
+        console.log(`[BAKER] ✅ ${bakedCount} profiles → ${shardIndex} shards (${SHARD_SIZE}/shard).`);
     } catch (error) {
         console.error('[BAKER] ❌ Baking failed:', error.message);
         process.exit(1);

@@ -107,18 +107,13 @@ jobs:
         env:
           CACHE_DIR: ./output/cache
         run: node scripts/factory/mesh-profile-baker.js
-      - name: Save Baked Profiles to Cache
+      - name: Save Baked Profile Shards to Cache
         uses: actions/cache/save@v4
         with:
-          path: output/cache/mesh/profiles/
+          path: output/cache/mesh/profile-shards/
           key: intra-4-4-${{ github.run_id }}-baked
-      - name: Backup Baked Profiles to R2
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profiles/ state/mesh-profiles/
+      - name: Backup Profile Shards to R2
+        run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profile-shards/ state/mesh-profile-shards/
 
   master-fusion:
     name: Master Fusion
@@ -184,20 +179,15 @@ jobs:
             exit 1
           fi
           echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings"
-      - name: Restore Baked Profiles from Cache
+      - name: Restore Baked Profile Shards from Cache
         id: cache-baked
         uses: actions/cache/restore@v4
         with:
-          path: output/cache/mesh/profiles/
+          path: output/cache/mesh/profile-shards/
           key: intra-4-4-${{ github.run_id }}-baked
-      - name: R2 Fallback for Baked Profiles
+      - name: R2 Fallback for Profile Shards
         if: steps.cache-baked.outputs.cache-hit != 'true'
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profiles/ output/cache/mesh/profiles/
+        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
       - name: Restore Global Registry Cache
         uses: actions/cache/restore@v4
         with:
@@ -590,20 +580,15 @@ jobs:
         run: |
           FUSED=$(find output/cache/fused -name '*.json.zst' 2>/dev/null | wc -l)
           echo "Fused shards present: $FUSED"
-      - name: Restore Baked Profiles from Cache
+      - name: Restore Baked Profile Shards from Cache
         id: cache-baked-upload
         uses: actions/cache/restore@v4
         with:
-          path: output/cache/mesh/profiles/
+          path: output/cache/mesh/profile-shards/
           key: intra-4-4-${{ github.run_id }}-baked
-      - name: R2 Fallback for Baked Profiles (Upload Job)
+      - name: R2 Fallback for Profile Shards (Upload Job)
         if: steps.cache-baked-upload.outputs.cache-hit != 'true'
-        env:
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_BUCKET: ai-nexus-assets
-        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profiles/ output/cache/mesh/profiles/
+        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
       - name: Restore VFS Assets from Cache
         uses: actions/cache/restore@v4
         with:
