@@ -1,10 +1,10 @@
-# Factory S2ORC — Bulk Paper Fulltext Import
+# Factory S2ORC — Bulk Paper Fulltext Import (8-worker parallel)
 #
-# Independent workflow: downloads S2ORC bulk dataset files,
+# Independent workflow: downloads S2ORC bulk dataset files in parallel,
 # streams each file, extracts fulltext for papers matching
 # our unenriched arXiv IDs, writes to R2.
 #
-# Trigger: workflow_dispatch only (manual or scheduled)
+# Architecture: setup job gets file count → 8 parallel workers split evenly.
 # Does NOT block Factory 1/4-4/4 or 1.5.
 
 name: Factory — S2ORC Import
@@ -14,22 +14,49 @@ permissions:
   contents: read
 
 on:
+  schedule:
+    - cron: '0 12 1 * *'  # Monthly: 1st of each month 12:00 UTC
   workflow_dispatch:
-    inputs:
-      max_files:
-        description: 'Max S2ORC files to process (1-30, each ~6GB)'
-        required: false
-        default: '10'
 
 concurrency:
   group: factory-s2orc
   cancel-in-progress: false
 
 jobs:
+  setup:
+    name: Get File Count
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      total: ${{ steps.count.outputs.total }}
+      per_worker: ${{ steps.count.outputs.per_worker }}
+    steps:
+      - name: Query S2ORC file count
+        id: count
+        env:
+          S2_API_KEY: ${{ secrets.S2_API_KEY }}
+        run: |
+          for i in 1 2 3; do
+            TOTAL=$(curl -sf -H "x-api-key: $S2_API_KEY" \
+              "https://api.semanticscholar.org/datasets/v1/release/latest/dataset/s2orc" \
+              | jq '.files | length' 2>/dev/null) && break
+            echo "Retry $i..." && sleep $((i * 5))
+          done
+          TOTAL=${TOTAL:-572}
+          PER_WORKER=$(( (TOTAL + 7) / 8 ))
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "per_worker=$PER_WORKER" >> $GITHUB_OUTPUT
+          echo "S2ORC files: $TOTAL, per worker: $PER_WORKER"
+
   import:
-    name: S2ORC Bulk Import
+    name: S2ORC [${{ matrix.worker }}]
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    strategy:
+      matrix:
+        worker: [0, 1, 2, 3, 4, 5, 6, 7]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -75,10 +102,8 @@ jobs:
             node scripts/factory/r2-workflow-cli.js restore-file state/dedup.db output/data/dedup.db || true
             [ -f "output/data/dedup.db" ] && node scripts/factory/lib/dedup-manager.js migrate
           fi
-          SHARD_COUNT=$(ls output/data/dedup/*.db 2>/dev/null | wc -l)
-          echo "✅ Dedup ledger: $SHARD_COUNT shards"
 
-      - name: Run S2ORC Import
+      - name: Run S2ORC Import [Worker ${{ matrix.worker }}]
         env:
           S2_API_KEY: ${{ secrets.S2_API_KEY }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -88,4 +113,11 @@ jobs:
           DEDUP_DIR: ./output/data/dedup
           UMID_SALT: ${{ secrets.UMID_SALT }}
           NODE_OPTIONS: '--max-old-space-size=8192'
-        run: node scripts/factory/s2orc-importer.js --max-files=${{ inputs.max_files || 10 }}
+        run: |
+          PER=${{ needs.setup.outputs.per_worker }}
+          START=$(( ${{ matrix.worker }} * PER ))
+          END=$(( START + PER - 1 ))
+          TOTAL=${{ needs.setup.outputs.total }}
+          [ $END -ge $TOTAL ] && END=$(( TOTAL - 1 ))
+          echo "Worker ${{ matrix.worker }}: files $START-$END"
+          node scripts/factory/s2orc-importer.js --file-start=$START --file-end=$END

@@ -19,7 +19,8 @@ import { generateUMID } from './lib/umid-generator.js';
 
 const S2_API_KEY = process.env.S2_API_KEY || '';
 const S2_DATASETS_BASE = 'https://api.semanticscholar.org/datasets/v1';
-const MAX_FILES = parseInt(process.argv.find(a => a.startsWith('--max-files='))?.split('=')[1] || '30');
+const FILE_START = parseInt(process.argv.find(a => a.startsWith('--file-start='))?.split('=')[1] || '0');
+const FILE_END = parseInt(process.argv.find(a => a.startsWith('--file-end='))?.split('=')[1] || process.argv.find(a => a.startsWith('--max-files='))?.split('=')[1] || '571');
 const MAX_RUNTIME_MS = 5 * 60 * 60 * 1000;
 
 function s2Headers() {
@@ -141,22 +142,23 @@ async function main() {
         console.error(`[S2ORC] Failed to get file list: ${e.message}`);
         process.exit(1);
     }
-    console.log(`[S2ORC] ${fileUrls.length} S2ORC files available (processing max ${MAX_FILES})`);
+    const end = Math.min(FILE_END, fileUrls.length - 1);
+    const filesToProcess = fileUrls.slice(FILE_START, end + 1);
+    console.log(`[S2ORC] ${fileUrls.length} files available, processing ${FILE_START}-${end} (${filesToProcess.length} files)`);
 
     let totalScanned = 0, totalMatched = 0;
-    const filesToProcess = fileUrls.slice(0, MAX_FILES);
 
     for (let i = 0; i < filesToProcess.length; i++) {
         if (Date.now() - startTime > MAX_RUNTIME_MS) { console.log('[S2ORC] Runtime limit reached'); break; }
         if (arxivLookup.size === 0) { console.log('[S2ORC] All papers matched!'); break; }
 
-        console.log(`[S2ORC] File ${i + 1}/${filesToProcess.length} (${arxivLookup.size} remaining)`);
+        console.log(`[S2ORC] File ${FILE_START + i}/${end} (${arxivLookup.size} remaining)`);
         try {
             const { scanned, matched } = await streamS2orcFile(filesToProcess[i], arxivLookup, s3);
             totalScanned += scanned;
             totalMatched += matched;
         } catch (e) {
-            console.warn(`[S2ORC] File ${i + 1} failed: ${e.message}`);
+            console.warn(`[S2ORC] File ${FILE_START + i} failed: ${e.message}`);
         }
     }
 
