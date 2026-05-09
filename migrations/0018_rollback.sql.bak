@@ -1,2 +1,0 @@
--- Rollback migration 0018
-DROP TABLE IF EXISTS graph_edges;
