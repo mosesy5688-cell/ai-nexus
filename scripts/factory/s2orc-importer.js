@@ -29,17 +29,23 @@ function s2Headers() {
 }
 
 async function getS2orcFileUrls() {
-    const res = await fetch(`${S2_DATASETS_BASE}/release/latest`, { headers: s2Headers() });
-    if (!res.ok) throw new Error(`Datasets API: ${res.status}`);
-    const data = await res.json();
+    const fetchWithRetry = async (url, label) => {
+        for (let i = 0; i < 3; i++) {
+            if (i > 0) await new Promise(r => setTimeout(r, 5000 * i));
+            const res = await fetch(url, { headers: s2Headers() });
+            if (res.ok) return res.json();
+            if (res.status === 429) { console.warn(`[S2ORC] ${label}: 429, retry ${i+1}/3...`); continue; }
+            throw new Error(`${label}: ${res.status}`);
+        }
+        throw new Error(`${label}: 429 after 3 retries`);
+    };
+    const data = await fetchWithRetry(`${S2_DATASETS_BASE}/release/latest`, 'Releases API');
     const available = (data.datasets || []).map(d => d.name).join(', ');
     console.log(`[S2ORC] Available datasets: ${available}`);
     const s2orc = data.datasets?.find(d => d.name === 's2orc') || data.datasets?.find(d => d.name === 's2orc_v2');
     if (!s2orc) throw new Error(`s2orc dataset not found. Available: ${available}`);
 
-    const detailRes = await fetch(s2orc.url || `${S2_DATASETS_BASE}/release/latest/dataset/s2orc`, { headers: s2Headers() });
-    if (!detailRes.ok) throw new Error(`Dataset detail: ${detailRes.status}`);
-    const detail = await detailRes.json();
+    const detail = await fetchWithRetry(s2orc.url || `${S2_DATASETS_BASE}/release/latest/dataset/s2orc`, 'Dataset detail');
     return detail.files || [];
 }
 
