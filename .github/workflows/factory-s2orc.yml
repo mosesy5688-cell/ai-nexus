@@ -4,7 +4,7 @@
 # streams each file, extracts fulltext for papers matching
 # our unenriched arXiv IDs, writes to R2.
 #
-# Architecture: 8 parallel workers, each processing ~72 files.
+# Architecture: setup job gets file count → 8 parallel workers split evenly.
 # Does NOT block Factory 1/4-4/4 or 1.5.
 
 name: Factory — S2ORC Import
@@ -23,21 +23,39 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  setup:
+    name: Get File Count
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      total: ${{ steps.count.outputs.total }}
+      per_worker: ${{ steps.count.outputs.per_worker }}
+    steps:
+      - name: Query S2ORC file count
+        id: count
+        env:
+          S2_API_KEY: ${{ secrets.S2_API_KEY }}
+        run: |
+          for i in 1 2 3; do
+            TOTAL=$(curl -sf -H "x-api-key: $S2_API_KEY" \
+              "https://api.semanticscholar.org/datasets/v1/release/latest/dataset/s2orc" \
+              | jq '.files | length' 2>/dev/null) && break
+            echo "Retry $i..." && sleep $((i * 5))
+          done
+          TOTAL=${TOTAL:-572}
+          PER_WORKER=$(( (TOTAL + 7) / 8 ))
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "per_worker=$PER_WORKER" >> $GITHUB_OUTPUT
+          echo "S2ORC files: $TOTAL, per worker: $PER_WORKER"
+
   import:
-    name: S2ORC [${{ matrix.partition.start }}-${{ matrix.partition.end }}]
+    name: S2ORC [${{ matrix.worker }}]
+    needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 330
     strategy:
       matrix:
-        partition:
-          - { start: 0, end: 71 }
-          - { start: 72, end: 143 }
-          - { start: 144, end: 215 }
-          - { start: 216, end: 287 }
-          - { start: 288, end: 359 }
-          - { start: 360, end: 431 }
-          - { start: 432, end: 503 }
-          - { start: 504, end: 571 }
+        worker: [0, 1, 2, 3, 4, 5, 6, 7]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +103,7 @@ jobs:
             [ -f "output/data/dedup.db" ] && node scripts/factory/lib/dedup-manager.js migrate
           fi
 
-      - name: Run S2ORC Import [${{ matrix.partition.start }}-${{ matrix.partition.end }}]
+      - name: Run S2ORC Import [Worker ${{ matrix.worker }}]
         env:
           S2_API_KEY: ${{ secrets.S2_API_KEY }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -95,4 +113,11 @@ jobs:
           DEDUP_DIR: ./output/data/dedup
           UMID_SALT: ${{ secrets.UMID_SALT }}
           NODE_OPTIONS: '--max-old-space-size=8192'
-        run: node scripts/factory/s2orc-importer.js --file-start=${{ matrix.partition.start }} --file-end=${{ matrix.partition.end }}
+        run: |
+          PER=${{ needs.setup.outputs.per_worker }}
+          START=$(( ${{ matrix.worker }} * PER ))
+          END=$(( START + PER - 1 ))
+          TOTAL=${{ needs.setup.outputs.total }}
+          [ $END -ge $TOTAL ] && END=$(( TOTAL - 1 ))
+          echo "Worker ${{ matrix.worker }}: files $START-$END"
+          node scripts/factory/s2orc-importer.js --file-start=$START --file-end=$END
