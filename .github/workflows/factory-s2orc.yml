@@ -14,12 +14,14 @@ permissions:
   contents: read
 
 on:
+  schedule:
+    - cron: '0 12 1 * *'  # Monthly: 1st of each month 12:00 UTC
   workflow_dispatch:
     inputs:
       max_files:
-        description: 'Max S2ORC files to process (1-30, each ~6GB)'
+        description: 'Max S2ORC files to process (1-572, each ~6GB)'
         required: false
-        default: '10'
+        default: '572'
 
 concurrency:
   group: factory-s2orc
