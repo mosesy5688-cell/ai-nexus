@@ -1,29 +1,40 @@
 # Free2AITools — The Open-Source AI Registry
 
-Discover, rank, and integrate 460,000+ AI models, datasets, papers, and tools from across the open-source ecosystem. Updated daily, scored by the Free2AITools Nexus Index (FNI).
+Discover, rank, and compare 500,000+ AI models, datasets, papers, and tools from 13+ platforms. Updated daily, scored by the Free2AITools Nexus Index (FNI).
 
 **Website**: [free2aitools.com](https://free2aitools.com)
 
 ## What It Does
 
-- **Comprehensive AI Index** — Aggregates models, datasets, papers, agents, tools, spaces, and prompts from HuggingFace, GitHub, ArXiv, Semantic Scholar, Civitai, Replicate, and more
-- **FNI Ranking** — Every entity scored by a 5-factor index (Semantic, Authority, Popularity, Recency, Quality) for objective, explainable ranking
-- **Daily Reports** — AI-generated industry briefings highlighting trends and breakthroughs
-- **Knowledge Base** — 30+ articles on AI architectures, deployment guides, and benchmarks
+- **500K+ Entities** — Models, datasets, papers, agents, tools, spaces, and prompts from HuggingFace, GitHub, ArXiv, Ollama, Replicate, Civitai, and more
+- **FNI Ranking** — 5-factor composite score (Semantic, Authority, Popularity, Recency, Quality) with full breakdown in every API response
+- **Hardware-Aware Selection** — Find models that fit your VRAM, license, and task constraints
+- **Daily Updates** — Automated pipeline refreshes all data daily
 
 ## For Developers & AI Agents
 
-Free2AITools exposes its full index as infrastructure for AI agents and developer tools:
+### Model Selection API
+```bash
+curl -s https://free2aitools.com/api/v1/select \
+  -H "Content-Type: application/json" \
+  -d '{"task":"text-generation","constraints":{"max_vram_gb":8}}'
+```
+Returns ranked recommendations with params, VRAM estimates, license, and rationale.
 
-### REST API
+### Model Comparison API
+```bash
+curl "https://free2aitools.com/api/v1/compare?ids=hf-model--meta-llama--llama-3-8b,hf-model--google--gemma-2-27b"
 ```
-GET /api/v1/search?q=text+generation&type=model&limit=5
+Side-by-side comparison with FNI factor decomposition.
+
+### Search API
+```bash
+curl "https://free2aitools.com/api/v1/search?q=code+generation&limit=5"
 ```
-Free, no auth required. Returns FNI-scored results with factor breakdown.
 
 ### MCP Server
+Add to Claude, Cursor, Windsurf, or any MCP-compatible client:
 ```json
-// Claude Desktop / Cursor / Windsurf config
 {
   "mcpServers": {
     "free2aitools": {
@@ -32,12 +43,12 @@ Free, no auth required. Returns FNI-scored results with factor breakdown.
   }
 }
 ```
-5 tools: `free2aitools_search`, `free2aitools_rank`, `free2aitools_explain`, `free2aitools_select_model`, `free2aitools_compare`. Auto-discoverable via `/.well-known/mcp.json`.
+5 tools: `free2aitools_search`, `free2aitools_rank`, `free2aitools_explain`, `free2aitools_select_model`, `free2aitools_compare`.
 
 ### FNI Badge
-Embed in any README:
+Embed live FNI score in your README:
 ```markdown
-![FNI Score](https://free2aitools.com/api/v1/badge/meta-llama--llama-3.3-70b-instruct)
+![FNI Score](https://free2aitools.com/api/v1/badge/hf-model--meta-llama--llama-3.3-70b-instruct)
 ```
 
 ### Open Data
@@ -47,7 +58,9 @@ Parquet exports available for offline analysis with DuckDB, Pandas, or Spark.
 
 - [Developer Docs](https://free2aitools.com/developers) — API reference, MCP setup, Badge integration
 - [FNI Methodology](https://free2aitools.com/methodology) — Scoring formula, sub-factors, anti-manipulation
-- [Knowledge Base](https://free2aitools.com/knowledge) — AI concepts and deployment guides
+- [Trends](https://free2aitools.com/trends) — Weekly AI model intelligence
+
+No auth required. Free to use.
 
 ## License
 
