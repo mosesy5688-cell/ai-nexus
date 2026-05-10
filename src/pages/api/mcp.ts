@@ -19,63 +19,75 @@ const JSONRPC_HEADERS = {
 const TOOLS = [
     {
         name: 'free2aitools_search',
-        description: 'Search and rank AI tools, models, datasets, and papers by FNI score. Returns ranked results.',
+        description: 'Search 500K+ AI models, datasets, papers, and tools by keyword. Returns results ranked by FNI (Free2AITools Nexus Index), a 5-factor score combining Semantic relevance, Authority, Popularity, Recency, and Quality. Read-only, no side effects. Use this for broad discovery; use free2aitools_select_model instead when you have specific hardware or license constraints.',
         inputSchema: {
             type: 'object',
             properties: {
-                query: { type: 'string', description: 'Natural language search query' },
-                limit: { type: 'number', default: 10 },
-                type: { type: 'string', enum: ['all', 'model', 'tool', 'dataset', 'paper'] }
+                query: { type: 'string', description: 'Natural language search query (e.g. "code generation", "image segmentation")' },
+                limit: { type: 'number', default: 10, description: 'Max results to return (1-20, default 10)' },
+                type: { type: 'string', enum: ['all', 'model', 'tool', 'dataset', 'paper'], description: 'Filter by entity type (default: all)' }
             },
             required: ['query']
         }
     },
     {
         name: 'free2aitools_rank',
-        description: 'Rank AI tools by FNI score for a given task context. Ideal for AI agents selecting the best tool.',
+        description: 'Rank AI entities by FNI score for a specific task. Returns a sorted list with scores and metadata. Read-only, no side effects. Use this when you know the task category and want a ranked list; use free2aitools_search for keyword-based discovery, or free2aitools_select_model when you need hardware-constrained recommendations with rationale.',
         inputSchema: {
             type: 'object',
             properties: {
-                task: { type: 'string', description: 'The task to rank tools for' },
-                constraints: { type: 'array', items: { type: 'string' } },
-                query: { type: 'string' },
-                limit: { type: 'number', default: 10 }
+                query: { type: 'string', description: 'Search query describing what to rank (e.g. "text generation", "object detection")' },
+                task: { type: 'string', description: 'Optional task context to combine with query for more targeted ranking' },
+                limit: { type: 'number', default: 10, description: 'Max results to return (1-20, default 10)' },
+                constraints: { type: 'array', items: { type: 'string' }, description: 'Optional keyword filters applied to results' }
             },
             required: ['query']
         }
     },
     {
         name: 'free2aitools_explain',
-        description: 'Explain why a specific AI tool received its FNI ranking score. Search by name to get factor breakdown.',
+        description: 'Explain why a specific entity received its FNI ranking score by showing the 5-factor breakdown: Semantic (S), Authority (A), Popularity (P), Recency (R), Quality (Q). FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q. Read-only. Use this after search or rank to understand why an entity scored high or low; use free2aitools_compare instead for side-by-side differences between multiple entities.',
         inputSchema: {
             type: 'object',
             properties: {
-                id: { type: 'string', description: 'Entity name or ID to explain (e.g. "Llama-3")' }
+                id: { type: 'string', description: 'Entity name or ID to explain (e.g. "Llama-3", "hf-model--meta-llama--llama-3-8b")' }
             },
             required: ['id']
         }
     },
     {
         name: 'free2aitools_select_model',
-        description: 'Select the best AI model for a task with hardware/license constraints. Returns ranked recommendations with rationale.',
+        description: 'Find the best AI model for a task given hardware and license constraints. Returns ranked recommendations with per-model rationale explaining why each was selected. Read-only, no side effects. Use this when the user specifies VRAM, parameter count, or license requirements; use free2aitools_search for unconstrained keyword search, or free2aitools_rank for task-based ranking without hardware filters.',
         inputSchema: {
             type: 'object',
             properties: {
-                task: { type: 'string', description: 'Task name or description (e.g. "text-generation", "code assistant")' },
-                constraints: { type: 'object', properties: { max_vram_gb: { type: 'number' }, max_params_b: { type: 'number' }, license: { type: 'string' }, min_context_length: { type: 'number' }, ollama_compatible: { type: 'boolean' }, can_run_local: { type: 'boolean' }, hosted_on: { type: 'string' }, license_type: { type: 'string', enum: ['permissive', 'copyleft', 'non-commercial', 'any'] } } },
-                limit: { type: 'number', default: 5 },
-                explain: { type: 'boolean', default: true }
+                task: { type: 'string', description: 'Task name or natural language description (e.g. "text-generation", "code assistant", "image classification")' },
+                constraints: {
+                    type: 'object', description: 'Hardware and license filters (all optional)',
+                    properties: {
+                        max_vram_gb: { type: 'number', description: 'Maximum GPU VRAM in GB (e.g. 8, 24)' },
+                        max_params_b: { type: 'number', description: 'Maximum model parameters in billions' },
+                        license: { type: 'string', description: 'Specific license (e.g. "Apache-2.0", "MIT")' },
+                        license_type: { type: 'string', enum: ['permissive', 'copyleft', 'non-commercial', 'any'], description: 'License category filter' },
+                        min_context_length: { type: 'number', description: 'Minimum context window in tokens' },
+                        ollama_compatible: { type: 'boolean', description: 'Only models runnable via Ollama' },
+                        can_run_local: { type: 'boolean', description: 'Only models that can run locally' },
+                        hosted_on: { type: 'string', description: 'Hosting platform filter (e.g. "hf-inference")' }
+                    }
+                },
+                limit: { type: 'number', default: 5, description: 'Max recommendations (1-20, default 5)' },
+                explain: { type: 'boolean', default: true, description: 'Include per-model rationale text (default true)' }
             },
             required: ['task']
         }
     },
     {
         name: 'free2aitools_compare',
-        description: 'Compare 2-10 AI models side-by-side with FNI factor decomposition.',
+        description: 'Compare 2-10 AI models side-by-side showing FNI scores, factor breakdown (Semantic, Authority, Popularity, Recency, Quality), specs (params, VRAM, context length), and license. Read-only, no side effects. Use this when the user wants to decide between specific known models; use free2aitools_select_model to discover models first, then compare the top candidates.',
         inputSchema: {
             type: 'object',
             properties: {
-                ids: { type: 'array', items: { type: 'string' }, description: 'Model IDs to compare (2-10)' }
+                ids: { type: 'array', items: { type: 'string' }, description: 'Entity IDs to compare (2-10). Use model_id from select_model results or id from search results (e.g. ["hf-model--meta-llama--llama-3-8b", "hf-model--google--gemma-2-27b"])' }
             },
             required: ['ids']
         }
