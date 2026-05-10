@@ -1,5 +1,7 @@
 # Free2AITools — The Open-Source AI Registry
 
+[![smithery badge](https://smithery.ai/badge/mosesy5688/free2aitools)](https://smithery.ai/servers/mosesy5688/free2aitools)
+
 Discover, rank, and compare 500,000+ AI models, datasets, papers, and tools from 13+ platforms. Updated daily, scored by the Free2AITools Nexus Index (FNI).
 
 **Website**: [free2aitools.com](https://free2aitools.com)
