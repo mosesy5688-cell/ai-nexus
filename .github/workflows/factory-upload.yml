@@ -235,7 +235,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -f output/cache/fused/.complete ]; then
-            echo "::error::Master Fusion did not produce .complete sentinel — silent early-exit suspected (see execution memo §18.22.4)"
+            echo "::error::Master Fusion did not produce .complete sentinel — silent early-exit suspected"
             ls -la output/cache/fused/ 2>/dev/null || echo "(fused/ dir missing)"
             exit 1
           fi

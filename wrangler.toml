@@ -1,23 +1,12 @@
-# Cloudflare Configuration for AI Nexus
+# Cloudflare Configuration
 name = "ai-nexus"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat_v2"]
 
-# Specify the output directory for Cloudflare Pages
 pages_build_output_dir = "dist"
 
 [build]
-# V16.0: watch_paths handled by Astro internally, removed from wrangler.toml to fix build warnings.
 
-# V14.2: D1 Database REMOVED per Zero-Cost Constitution Art 2.1
-# D1 FTS5 caused $106/month cost explosion - PERMANENTLY BANNED
-
-# V14.4 Zero-Entropy: KV Namespaces REMOVED (Art 2.1)
-# All caching now via R2 static files - no runtime KV needed
-
-# R2 Bucket Bindings
 [[r2_buckets]]
 binding = "R2_ASSETS"
 bucket_name = "ai-nexus-assets"
-
-# Triggering a fresh deployment at 2025-11-26
