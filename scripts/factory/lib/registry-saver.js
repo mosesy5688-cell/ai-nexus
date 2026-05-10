@@ -133,11 +133,7 @@ export async function saveGlobalRegistry(input) {
     console.log(`[CACHE] Registry persisted. Shards: ${shardCount} (Binary), Monolith: OK (Zstd).`);
 
     // 3a. Purge stale .bin shards from LOCAL registry dir.
-    // Critical: when a run produces fewer shards than a prior run (e.g. entity count
-    // drop), prior `part-NNN.bin` files for index >= shardCount are NOT overwritten
-    // and persist via GHA cache. Master Fusion's readdir then sweeps them up and
-    // silently fuses garbage. See execution memo §18.22.4 for the 80% data-loss
-    // incident this prevents.
+    // Purge stale shards from prior runs that produced more shards than current.
     try {
         const cacheDir = process.env.CACHE_DIR || './cache';
         const registryDir = path.join(cacheDir, 'registry');

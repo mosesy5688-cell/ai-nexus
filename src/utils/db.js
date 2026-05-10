@@ -5,11 +5,8 @@ import { getModelFromCache } from './entity-cache-reader.js';
 import { env } from 'cloudflare:workers';
 
 /**
- * V14.2: D1 Database has been PERMANENTLY REMOVED per Zero-Cost Constitution Art 2.1
- * 
- * This function now uses R2 static JSON cache instead of D1 database.
- * D1 FTS5 caused $106/month cost explosion and is constitutionally banned.
- * 
+ * Resolve entity by slug from VFS meta shards.
+ *
  * @param {string} slug - The model slug to look up
  * @param {object} locals - Astro locals containing runtime env
  * @returns {object|null} Model data from R2 cache or null if not found
