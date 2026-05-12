@@ -574,6 +574,13 @@ jobs:
             cache/
           key: cycle-${{ github.run_id }}-harvest
 
+      - name: Params Backfill (HF API)
+        continue-on-error: true
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CACHE_DIR: ./cache
+          PARAMS_CACHE_PATH: ./output/data/params-cache.json
+        run: node scripts/factory/params-backfill.js --limit=2000
       - name: Upload Params Cache to R2
         continue-on-error: true
         env:

@@ -44,7 +44,7 @@ async function fetchParamsFromHF(modelId) {
         const paramsRaw = data.safetensors?.total || data.config?.num_parameters;
         if (paramsRaw) return parseFloat((paramsRaw / 1e9).toFixed(2));
         return extractParamsFromName(data.modelId || hfId);
-    } catch { return null; }
+    } catch (e) { console.warn(`[PARAMS-BACKFILL] ${modelId}: ${e.message}`); return null; }
 }
 
 async function main() {
