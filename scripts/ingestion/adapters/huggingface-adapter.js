@@ -257,8 +257,11 @@ export class HuggingFaceAdapter extends BaseAdapter {
                                     }
                                 }
                                 if (!m.params_billions || m.params_billions === 0) {
-                                    const nameMatch = (m.modelId || m.id || '').match(/(\d+(?:\.\d+)?)\s*[Bb]/);
-                                    if (nameMatch) m.params_billions = parseFloat(nameMatch[1]);
+                                    const nameMatch = (m.modelId || m.id || '').match(/(\d+(?:\.\d+)?)\s*[Bb](?![a-zA-Z])/);
+                                    if (nameMatch) {
+                                        const v = parseFloat(nameMatch[1]);
+                                        if (v >= 0.1 && v <= 2000) m.params_billions = v;
+                                    }
                                 }
                             } catch (e) {
                                 console.warn(`   ⚠️ Warning: Meta extraction failed for ${m.id}:`, e.message);

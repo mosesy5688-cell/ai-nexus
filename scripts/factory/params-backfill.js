@@ -29,8 +29,12 @@ function hfHeaders() {
 }
 
 function extractParamsFromName(name) {
-    const match = (name || '').match(/(\d+(?:\.\d+)?)\s*[Bb]/);
-    return match ? parseFloat(match[1]) : null;
+    const s = name || '';
+    const match = s.match(/(\d+(?:\.\d+)?)\s*[Bb](?![a-zA-Z])/);
+    if (!match) return null;
+    const v = parseFloat(match[1]);
+    if (v < 0.1 || v > 2000) return null;
+    return v;
 }
 
 async function fetchParamsFromHF(modelId) {
