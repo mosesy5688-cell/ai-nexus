@@ -256,6 +256,10 @@ export class HuggingFaceAdapter extends BaseAdapter {
                                         if (meta.params_billions) m.params_billions = meta.params_billions;
                                     }
                                 }
+                                if (!m.params_billions || m.params_billions === 0) {
+                                    const nameMatch = (m.modelId || m.id || '').match(/(\d+(?:\.\d+)?)\s*[Bb]/);
+                                    if (nameMatch) m.params_billions = parseFloat(nameMatch[1]);
+                                }
                             } catch (e) {
                                 console.warn(`   ⚠️ Warning: Meta extraction failed for ${m.id}:`, e.message);
                             }

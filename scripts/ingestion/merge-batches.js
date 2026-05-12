@@ -38,19 +38,10 @@ async function mergeBatches() {
     const files = await fs.readdir(DATA_DIR);
     const batchFiles = files.filter(f => f.startsWith('raw_batch_') && f.endsWith('.json'));
 
-    // V22.7: Load Deduplication Map EARLY for persistent canonical ID mapping
-    let dedupMap = {};
     const fsSync = await import('fs');
-    try {
-        const dedupPath = path.join(process.cwd(), 'public/api/cache/deduplication-map.json');
-        if (fsSync.existsSync(dedupPath)) {
-            const dedupData = JSON.parse(fsSync.readFileSync(dedupPath, 'utf8'));
-            dedupMap = dedupData.canonical_map || {};
-            console.log(`   🔗 [Merge] Loaded deduplication map with ${Object.keys(dedupMap).length} entries.`);
-        }
-    } catch (e) {
-        console.warn(`   ⚠️ [Merge] Failed to load deduplication map: ${e.message}`);
-    }
+    const loadJsonCache = (p, key) => { try { const d = JSON.parse(fsSync.readFileSync(p, 'utf8')); const m = key ? (d[key] || {}) : d; console.log(`   🔗 [Merge] Loaded ${Object.keys(m).length} entries from ${path.basename(p)}`); return m; } catch { return {}; } };
+    const dedupMap = loadJsonCache(path.join(process.cwd(), 'public/api/cache/deduplication-map.json'), 'canonical_map');
+    const paramsCache = loadJsonCache(path.join(process.cwd(), 'output/data/params-cache.json'), null);
 
     if (batchFiles.length === 0) {
         console.log('⚠️ No batch files found in data/');
@@ -91,6 +82,10 @@ async function mergeBatches() {
                 }
                 if (entity.source_trail && typeof entity.source_trail !== 'string') {
                     entity.source_trail = JSON.stringify(entity.source_trail);
+                }
+                // V26.6: Apply params cache backfill
+                if ((!entity.params_billions || entity.params_billions === 0) && paramsCache[entity.id]) {
+                    entity.params_billions = paramsCache[entity.id];
                 }
             }
 
