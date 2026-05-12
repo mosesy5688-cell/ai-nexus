@@ -526,6 +526,16 @@ jobs:
           node scripts/factory/lib/r2-registry-restore.js
 
 
+      - name: Restore Params Cache from R2
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/data
+          node scripts/factory/r2-workflow-cli.js restore-file state/params-cache.json.zst output/data/params-cache.json.zst || echo "⚠️ No params cache on R2 — first run"
       - name: Merge Batches
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -564,6 +574,22 @@ jobs:
             cache/
           key: cycle-${{ github.run_id }}-harvest
 
+      - name: Params Backfill (HF API)
+        continue-on-error: true
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CACHE_DIR: ./cache
+          PARAMS_CACHE_PATH: ./output/data/params-cache.json.zst
+        run: node scripts/factory/params-backfill.js --limit=2000
+      - name: Upload Params Cache to R2
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          [ -f "output/data/params-cache.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-file output/data/params-cache.json.zst state/params-cache.json.zst || true
       # V25.8 §6.1: Dual-write harvest output to R2 (cross-workflow resilience)
       # P0-R4: Removed continue-on-error — this is the primary R2 backup for harvest data
       - name: Backup Harvest Cycle to R2
