@@ -89,3 +89,35 @@ export function mapTaskToTag(input: string): TaskMapResult {
 export function getRankingsDbForTask(tag: string): string {
   return 'rankings-model.db';
 }
+
+/**
+ * Map task tag to task_category for narrowing (coding/chat/reasoning/etc).
+ * Used to filter beyond just pipeline_tag (e.g. "code-generation" → category "coding").
+ */
+const TAG_TO_CATEGORY: Record<string, string> = {
+  'code-generation': 'coding',
+  'translation': 'translation',
+  'summarization': 'summarization',
+  'feature-extraction': 'embedding',
+  'sentence-similarity': 'embedding',
+  'text-to-image': 'image-generation',
+  'image-to-image': 'image-generation',
+  'automatic-speech-recognition': 'speech',
+  'text-to-speech': 'speech',
+};
+
+export function getCategoryForTag(tag: string): string | null {
+  return TAG_TO_CATEGORY[tag] || null;
+}
+
+export function getCategoryForInput(input: string): string | null {
+  if (!input) return null;
+  const n = input.toLowerCase().trim();
+  if (n.includes('cod')) return 'coding';
+  if (n.includes('reason') || n.includes('math')) return 'reasoning';
+  if (n.includes('multimodal') || n.includes('vision') || n.includes('vlm')) return 'multimodal';
+  if (n.includes('embed') || n.includes('rerank')) return 'embedding';
+  if (n.includes('chat') || n.includes('assistant') || n.includes('instruct')) return 'chat';
+  if (n.includes('translat')) return 'translation';
+  return null;
+}

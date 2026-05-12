@@ -2,6 +2,7 @@ import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import crypto from 'crypto';
 import { renderHtmlFFI } from './rust-bridge.js';
+import { deriveTaskCategories } from './task-classifier.js';
 
 let isMarkedConfigured = false;
 let sanitizeConfig = null;
@@ -95,7 +96,11 @@ function renderHtmlWithCache(rawReadme) {
 export function distillEntity(e, pBillions, entityLookup) {
     // V24.12: Promote meta_json fields to top-level for DB storage
     const meta = typeof e.meta_json === 'string' ? JSON.parse(e.meta_json || '{}') : (e.meta_json || {});
-    e.task_categories ??= Array.isArray(meta.task_categories) ? meta.task_categories.join(', ') : (meta.task_categories || '');
+    if (!e.task_categories || e.task_categories === '' || (Array.isArray(e.task_categories) && e.task_categories.length === 0)) {
+        e.tags ??= meta.tags;
+        const derived = deriveTaskCategories(e);
+        e.task_categories = derived.length > 0 ? derived.join(', ') : (Array.isArray(meta.task_categories) ? meta.task_categories.join(', ') : (meta.task_categories || ''));
+    }
     e.num_rows ??= meta.rows_count || 0;
     e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || '');
     e.forks ??= meta.forks || 0;

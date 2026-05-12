@@ -49,8 +49,8 @@ export function buildRationale(input: RationaleInput): RationaleResult {
     caveats.push(`License (${e.license}) may have restrictions — verify before commercial use`);
   }
 
-  if (constraints?.ollama_compatible) {
-    caveats.push('Ollama compatibility inferred from model size — not explicitly verified');
+  if (constraints?.ollama_compatible && !e.has_ollama) {
+    caveats.push('Ollama compatibility based on GGUF availability — verify direct Ollama support before deployment');
   }
 
   if (constraints?.min_context_length && e.context_length) {
