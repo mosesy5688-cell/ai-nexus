@@ -20,10 +20,10 @@ const CACHE_HEADERS_MISS = {
 
 const DISPLAY_COLS = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.fni_a, e.fni_p, e.fni_r, e.fni_q, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length`;
 
-function respond(results: any[], tier: string, startMs: number) {
+function respond(results: any[], tier: string, startMs: number, totalCount?: number) {
     const headers = results.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
     return new Response(
-        JSON.stringify({ results, tier, elapsed_ms: Date.now() - startMs }),
+        JSON.stringify({ results, total_count: totalCount ?? results.length, tier, elapsed_ms: Date.now() - startMs }),
         { headers }
     );
 }
@@ -145,8 +145,8 @@ export const GET: APIRoute = async ({ url }) => {
                 // Type filter: apply post-merge via shard hydration filtering
                 if (candidates.length > 0) {
                     const offset = (page - 1) * limit;
-                    // Fetch more than needed to account for type filtering
-                    const fetchCount = type !== 'all' ? Math.min(candidates.length, (offset + limit) * 3) : offset + limit;
+                    // Type filter: hydrate ALL candidates (up to merge cap 200) to find type-matching results
+                    const fetchCount = type !== 'all' ? candidates.length : offset + limit;
                     const toHydrate = candidates.slice(0, fetchCount);
                     let hydrated = await hydrateCandidates(toHydrate, r2Bucket, shouldSimulate);
 
@@ -171,7 +171,7 @@ export const GET: APIRoute = async ({ url }) => {
                         hydrated = hydrated.filter((r: any) => r.type === type);
                     }
                     const paged = hydrated.slice(offset, offset + limit);
-                    response = respond(paged, 'inverted_index', start);
+                    response = respond(paged, 'inverted_index', start, hydrated.length);
                     if (edgeCache && paged.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
                     return response;
                 }

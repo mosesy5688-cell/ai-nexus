@@ -12,7 +12,7 @@ const API_VERSION = 'fni_v2.0';
 const MAX_LIMIT = 20;
 const DEFAULT_LIMIT = 5;
 const CORS_HEADERS = {
-  'Content-Type': 'application/json',
+  'Content-Type': 'application/json; charset=utf-8',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',

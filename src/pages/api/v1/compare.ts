@@ -31,14 +31,14 @@ function deriveSlug(id: string): string {
 }
 
 const CORS_HEADERS = {
-  'Content-Type': 'application/json',
+  'Content-Type': 'application/json; charset=utf-8',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Cache-Control': 'public, max-age=300, s-maxage=3600',
 };
 
-const COMPARE_COLS = `id, name, author, type, fni_score,
+const COMPARE_COLS = `id, slug, name, author, type, fni_score,
   fni_s, fni_a, fni_p, fni_r, fni_q,
   params_billions, context_length, vram_estimate_gb, license, pipeline_tag,
   downloads, stars, last_modified, architecture`;
