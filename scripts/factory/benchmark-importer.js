@@ -22,13 +22,6 @@ function hfHeaders() {
     return h;
 }
 
-async function fetchLeaderboardRows() {
-    const url = `https://datasets-server.huggingface.co/rows?dataset=open-llm-leaderboard%2Fcontents&config=default&split=train&offset=0&length=100`;
-    const res = await fetch(url, { headers: hfHeaders(), signal: AbortSignal.timeout(30000) });
-    if (!res.ok) throw new Error(`Leaderboard fetch ${res.status}`);
-    return res.json();
-}
-
 function normalizeBenchmarks(row) {
     const r = row?.row || row || {};
     const out = {};
@@ -66,10 +59,14 @@ async function main() {
         let data;
         try {
             const res = await fetch(url, { headers: hfHeaders(), signal: AbortSignal.timeout(30000) });
-            if (!res.ok) { console.warn(`[BENCHMARK] page ${offset}: ${res.status}`); break; }
+            if (!res.ok) {
+                console.error(`[BENCHMARK] FATAL: page offset=${offset} HTTP ${res.status} — stopping import (collected ${fetched} rows, ${added} new)`);
+                break;
+            }
             data = await res.json();
         } catch (e) {
-            console.warn(`[BENCHMARK] page ${offset} error: ${e.message}`); break;
+            console.error(`[BENCHMARK] FATAL: page offset=${offset} ${e.message} — stopping import (collected ${fetched} rows, ${added} new)`);
+            break;
         }
         const rows = data?.rows || [];
         if (rows.length === 0) break;

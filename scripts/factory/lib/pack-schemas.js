@@ -23,7 +23,8 @@ export const entitiesTableSql = `
         hosted_on TEXT DEFAULT '[]',
         license_type TEXT DEFAULT 'unknown',
         can_run_local INTEGER DEFAULT 0,
-        hosted_on_checked_at TEXT
+        hosted_on_checked_at TEXT,
+        benchmarks TEXT
     );
 
 `;
