@@ -39,9 +39,10 @@ async function mergeBatches() {
     const batchFiles = files.filter(f => f.startsWith('raw_batch_') && f.endsWith('.json'));
 
     const fsSync = await import('fs');
-    const loadJsonCache = (p, key) => { try { const d = JSON.parse(fsSync.readFileSync(p, 'utf8')); const m = key ? (d[key] || {}) : d; console.log(`   🔗 [Merge] Loaded ${Object.keys(m).length} entries from ${path.basename(p)}`); return m; } catch (e) { if (e.code !== 'ENOENT') console.warn(`   ⚠️ [Merge] Failed to load ${path.basename(p)}: ${e.message}`); return {}; } };
-    const dedupMap = loadJsonCache(path.join(process.cwd(), 'public/api/cache/deduplication-map.json'), 'canonical_map');
-    const paramsCache = loadJsonCache(path.join(process.cwd(), 'output/data/params-cache.json'), null);
+    const { autoDecompress } = await import('../factory/lib/zstd-helper.js');
+    const loadCache = async (p, key) => { try { const raw = fsSync.readFileSync(p); const buf = p.endsWith('.zst') ? await autoDecompress(raw) : raw; const d = JSON.parse(buf.toString('utf-8')); const m = key ? (d[key] || {}) : d; console.log(`   🔗 [Merge] Loaded ${Object.keys(m).length} entries from ${path.basename(p)}`); return m; } catch (e) { if (e.code !== 'ENOENT') console.warn(`   ⚠️ [Merge] Failed to load ${path.basename(p)}: ${e.message}`); return {}; } };
+    const dedupMap = await loadCache(path.join(process.cwd(), 'public/api/cache/deduplication-map.json'), 'canonical_map');
+    const paramsCache = await loadCache(path.join(process.cwd(), 'output/data/params-cache.json.zst'), null);
 
     if (batchFiles.length === 0) {
         console.log('⚠️ No batch files found in data/');

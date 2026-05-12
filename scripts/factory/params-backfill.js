@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
+import { zstdCompress, autoDecompress } from './lib/zstd-helper.js';
 
 const HF_TOKEN = process.env.HF_TOKEN || '';
 const HF_API = 'https://huggingface.co/api/models';
@@ -19,7 +20,7 @@ const BATCH_SIZE = 50;
 const DELAY_MS = 500;
 const LIMIT = parseInt(process.argv.find(a => a.startsWith('--limit='))?.split('=')[1] || '5000');
 const DRY_RUN = process.argv.includes('--dry-run');
-const CACHE_PATH = process.env.PARAMS_CACHE_PATH || './output/data/params-cache.json';
+const CACHE_PATH = process.env.PARAMS_CACHE_PATH || './output/data/params-cache.json.zst';
 
 function hfHeaders() {
     const h = { 'Accept': 'application/json', 'User-Agent': 'Free2AITools/2.1' };
@@ -51,7 +52,12 @@ async function main() {
     console.log(`[PARAMS-BACKFILL] Scanning registry for missing params...`);
 
     let cache = {};
-    try { cache = JSON.parse(fs.readFileSync(CACHE_PATH, 'utf-8')); } catch {}
+    try {
+        const buf = await autoDecompress(fs.readFileSync(CACHE_PATH));
+        cache = JSON.parse(buf.toString('utf-8'));
+    } catch (e) {
+        if (e.code !== 'ENOENT') console.warn(`[PARAMS-BACKFILL] Cache load failed (${e.code || 'unknown'}): ${e.message}`);
+    }
     console.log(`[PARAMS-BACKFILL] Loaded ${Object.keys(cache).length} cached entries`);
 
     const missing = [];
@@ -83,8 +89,9 @@ async function main() {
     }
 
     fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
-    fs.writeFileSync(CACHE_PATH, JSON.stringify(cache));
-    console.log(`[PARAMS-BACKFILL] ✅ Complete: ${found}/${fetched} resolved, cache size: ${Object.keys(cache).length}`);
+    const compressed = await zstdCompress(Buffer.from(JSON.stringify(cache)));
+    fs.writeFileSync(CACHE_PATH, compressed);
+    console.log(`[PARAMS-BACKFILL] ✅ Complete: ${found}/${fetched} resolved, cache size: ${Object.keys(cache).length} (${(compressed.length/1024).toFixed(1)}KB Zstd)`);
 }
 
 main().catch(err => { console.error('[PARAMS-BACKFILL] Fatal:', err); process.exit(1); });
