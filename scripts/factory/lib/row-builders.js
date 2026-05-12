@@ -94,6 +94,7 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.hosted_on || '[]'),
         classifyLicense(e.license || e.license_spdx),
         ((e.has_ollama || e.has_gguf) && (pBillions <= 13 || !pBillions)) ? 1 : 0,
-        s(e.hosted_on_checked_at)
+        s(e.hosted_on_checked_at),
+        e.benchmarks ? JSON.stringify(e.benchmarks) : null
     ];
 }

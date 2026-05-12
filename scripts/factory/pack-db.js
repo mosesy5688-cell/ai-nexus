@@ -80,7 +80,7 @@ async function packDatabase() {
     Object.values(metaDbs).forEach(db => db.exec(dbSchemas));
     ftsDb.exec(ftsDbSchema);
 
-    const placeholder = Array(59).fill('?').join(', ');
+    const placeholder = Array(60).fill('?').join(', ');
     const prepInserts = {};
     for (const [key, db] of Object.entries(metaDbs)) prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
     const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);

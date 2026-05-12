@@ -43,6 +43,8 @@ async function mergeBatches() {
     const loadCache = async (p, key) => { try { const raw = fsSync.readFileSync(p); const buf = p.endsWith('.zst') ? await autoDecompress(raw) : raw; const d = JSON.parse(buf.toString('utf-8')); const m = key ? (d[key] || {}) : d; console.log(`   🔗 [Merge] Loaded ${Object.keys(m).length} entries from ${path.basename(p)}`); return m; } catch (e) { if (e.code !== 'ENOENT') console.warn(`   ⚠️ [Merge] Failed to load ${path.basename(p)}: ${e.message}`); return {}; } };
     const dedupMap = await loadCache(path.join(process.cwd(), 'public/api/cache/deduplication-map.json'), 'canonical_map');
     const paramsCache = await loadCache(path.join(process.cwd(), 'output/data/params-cache.json.zst'), null);
+    const benchmarkCache = await loadCache(path.join(process.cwd(), 'output/data/benchmark-cache.json.zst'), null);
+    const benchKey = (name) => (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     if (batchFiles.length === 0) {
         console.log('⚠️ No batch files found in data/');
@@ -87,6 +89,11 @@ async function mergeBatches() {
                 // V26.6: Apply params cache backfill
                 if ((!entity.params_billions || entity.params_billions === 0) && paramsCache[entity.id]) {
                     entity.params_billions = paramsCache[entity.id];
+                }
+                // V26.7: Apply benchmark cache (HumanEval/MBPP/MMLU/etc.)
+                if (entity.name || entity.id) {
+                    const b = benchmarkCache[benchKey(entity.name || entity.id)];
+                    if (b) { entity.benchmarks = b; }
                 }
             }
 

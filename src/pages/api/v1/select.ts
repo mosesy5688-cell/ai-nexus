@@ -5,7 +5,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { getCachedDbConnection, executeSql, loadManifest } from '../../../lib/sqlite-engine.js';
-import { mapTaskToTag } from '../../../lib/task-mapper.js';
+import { mapTaskToTag, getCategoryForInput } from '../../../lib/task-mapper.js';
 import { buildRationale } from '../../../lib/rationale-builder.js';
 
 const API_VERSION = 'fni_v2.0';
@@ -36,6 +36,7 @@ export const POST: APIRoute = async ({ request }) => {
   const explain = body.explain !== false;
   const constraints = body.constraints || {};
   const taskMap = mapTaskToTag(body.task);
+  const taskCategory = getCategoryForInput(body.task);
 
   try {
     const r2Bucket = env?.R2_ASSETS;
@@ -48,7 +49,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     const dbName = 'rankings-model.db';
     const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
-    const { sql, params } = buildQuery(taskMap.tag, constraints, limit);
+    const { sql, params } = buildQuery(taskMap.tag, constraints, limit, taskCategory);
     const rows = await executeSql(engine.sqlite3, engine.db, sql, params);
 
     const recommendations = rows.map((row: any, i: number) => {
@@ -102,11 +103,14 @@ export const POST: APIRoute = async ({ request }) => {
 
 export const OPTIONS: APIRoute = async () => new Response(null, { status: 204, headers: CORS_HEADERS });
 
-function buildQuery(tag: string, c: any, limit: number) {
+function buildQuery(tag: string, c: any, limit: number, category: string | null = null) {
   const clauses: string[] = [];
   const params: any[] = [];
 
   if (tag) { clauses.push('pipeline_tag = ?'); params.push(tag); }
+  if (category && category !== 'chat') {
+    clauses.push('task_categories LIKE ?'); params.push(`%${category}%`);
+  }
   if (c.max_vram_gb != null) { clauses.push('(vram_estimate_gb <= ? OR vram_estimate_gb IS NULL OR vram_estimate_gb = 0)'); params.push(c.max_vram_gb); }
   if (c.max_params_b != null) { clauses.push('(params_billions <= ? OR params_billions IS NULL OR params_billions = 0)'); params.push(c.max_params_b); }
   if (c.min_context_length != null) { clauses.push('context_length >= ?'); params.push(c.min_context_length); }
