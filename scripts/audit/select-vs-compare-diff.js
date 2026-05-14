@@ -1,5 +1,5 @@
 /**
- * Agent Data Quality Audit
+ * Select vs Compare API Divergence Check
  *
  * Compares the Select API path (reads rankings-NN.db) against the Compare API
  * path (reads meta-NN.db) for the same top text-generation models.
@@ -14,8 +14,8 @@
  * even if neither path errors.
  *
  * Usage:
- *   node scripts/audit/agent-data-quality-audit.js
- *   API_BASE=https://free2aitools.com node scripts/audit/agent-data-quality-audit.js
+ *   node scripts/audit/select-vs-compare-diff.js
+ *   API_BASE=https://free2aitools.com node scripts/audit/select-vs-compare-diff.js
  *
  * Exit codes:
  *   0 — no field divergence detected
