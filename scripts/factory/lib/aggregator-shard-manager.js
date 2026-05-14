@@ -30,7 +30,7 @@ const SLIM_FIELDS = [
     'fni_trend_7d', 'is_rising_star', 'primary_category',
     'pipeline_tag', 'published_date', 'last_modified',
     'last_updated', 'lastModified', '_updated',
-    'params_billions', 'context_length', 'architecture',
+    'params_billions', 'context_length', 'vram_estimate_gb', 'architecture',
     'mmlu', 'gsm8k', 'avg_score', 'humaneval',
     'deploy_score', 'has_gguf', 'has_ollama', 'ollama_id',
     'benchmark_avg', 'license', 'source',
