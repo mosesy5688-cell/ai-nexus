@@ -122,7 +122,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
                     const expandParams = [
                         'author', 'cardData', 'config', 'createdAt', 'downloads',
-                        'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
+                        'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'siblings', 'tags'
                     ].map(e => `expand[]=${e}`).join('&');
 
                     const url = `${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&${expandParams}`;
@@ -203,7 +203,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
                         const batchLimit = Math.min(PAGE_SIZE, strategy.budget - tagModels);
                         const expandParams = [
                             'author', 'cardData', 'config', 'createdAt', 'downloads',
-                            'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'tags'
+                            'likes', 'lastModified', 'pipeline_tag', 'safetensors', 'siblings', 'tags'
                         ].map(e => `expand[]=${e}`).join('&');
 
                         const url = `${HF_API_BASE}/models?filter=${tag}&sort=${strategy.sort}&direction=-1&limit=${batchLimit}&skip=${skip}&${expandParams}`;
@@ -332,7 +332,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
             const [modelRes, readmeRes, configRes] = await Promise.all([
                 // If we already have full expandedData, we can skip modelRes
                 expandedData ? Promise.resolve({ ok: true, json: () => Promise.resolve(expandedData) }) :
-                    fetch(`${HF_API_BASE}/models/${modelId}?expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() }),
+                    fetch(`${HF_API_BASE}/models/${modelId}?expand[]=safetensors&expand[]=siblings&expand[]=config`, { headers: this.getHeaders() }),
                 fetch(`${HF_RAW_BASE}/${modelId}/raw/main/README.md`, { headers: this.getHeaders() }),
                 fetch(`${HF_RAW_BASE}/${modelId}/raw/main/config.json`, { headers: this.getHeaders() })
             ]);

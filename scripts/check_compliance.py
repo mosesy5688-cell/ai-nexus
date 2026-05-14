@@ -31,10 +31,11 @@ FORBIDDEN_FILES = [
     r".*AUDIT.*"
 ]
 
-# Files/Dirs to Ignore (Vendor code, locks, build artifacts)
+# Files/Dirs to Ignore (Vendor code, locks, build artifacts, cloud-sync temp)
 IGNORE_DIRS = {
-    'node_modules', '.git', 'dist', '.wrangler', '.astro', 
-    'coverage', 'venv', '__pycache__', 'output'
+    'node_modules', '.git', 'dist', '.wrangler', '.astro',
+    'coverage', 'venv', '__pycache__', 'output',
+    '.tmp.driveupload', '.claude', 'tmp'
 }
 
 # Directories exempt from Art 9.1 Confidentiality check (e.g., knowledge articles can use "prompt" in title)
