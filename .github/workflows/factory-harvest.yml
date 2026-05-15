@@ -581,6 +581,10 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           CACHE_DIR: ./cache
           PARAMS_CACHE_PATH: ./output/data/params-cache.json.zst
+          # AES_CRYPTO_KEY required to decrypt binary shards via registry-binary-reader.
+          # Missing key previously caused every entity JSON.parse to fail silently,
+          # so the script reported "Missing: 0 models" while scanning the entire registry.
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: node scripts/factory/params-backfill.js --limit=2000
       - name: Benchmark Importer (Open LLM Leaderboard)
         continue-on-error: true

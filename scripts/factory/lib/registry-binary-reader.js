@@ -182,6 +182,17 @@ export async function readBinaryShard(filePath) {
         }
     }
 
+    // V25.8.4: fail-fast on mass-decode failure. Encrypted shard + missing
+    // AES_CRYPTO_KEY previously yielded 0 parsed entities silently, which
+    // upstream callers (e.g. params-backfill) consumed as "no work to do".
+    // Threshold 95% caters to the natural ~1/65536 false-positive rate
+    // documented above without firing on real-world data.
+    if (entityCount >= 100 && entities.length / entityCount < 0.05) {
+        throw new Error(`[BINARY-READER] ${entityCount - entities.length}/${entityCount} entities failed to decode in ${shardName}. ` +
+            `Likely AES_CRYPTO_KEY missing or invalid (encryption enabled=${isEncryptionEnabled()}). ` +
+            `Caller must supply the same key used to encrypt the shard.`);
+    }
+
     return { entities, count: entityCount, slotId: header.slotId, version: header.version };
 }
 
