@@ -398,6 +398,28 @@ jobs:
           for p in replicate together hf-inference; do
             node scripts/factory/r2-workflow-cli.js restore-file "state/hosted-on/hosted-on-${p}.json" "output/cache/hosted-on-${p}.json" || echo "⚠️ hosted-on-${p}.json not in R2 (first run?)"
           done
+      # V27.2: fail-fast before pack-db if essential metadata files are missing.
+      # Saves ~2h of wasted runner time on cycle cache miss (run 25896561032).
+      - name: Verify Essential Metadata Cache
+        run: |
+          REQUIRED=(
+            "output/cache/mesh/graph.json"
+            "output/cache/search-core.json"
+            "output/cache/category_stats.json"
+          )
+          MISSING=()
+          for f in "${REQUIRED[@]}"; do
+            if [ ! -f "$f" ] && [ ! -f "${f}.zst" ] && [ ! -f "${f}.gz" ]; then
+              MISSING+=("$f")
+            fi
+          done
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "❌ Essential metadata cache files missing — pack-db would produce content-stripped meta DBs:"
+            printf '  %s\n' "${MISSING[@]}"
+            echo "Upstream cycle cache (cycle-<aggregate-run-id>-output) must contain these files."
+            exit 1
+          fi
+          echo "✅ All essential metadata cache files present"
       - name: Execute Stable 1.0 Packer
         env:
           CACHE_DIR: ./output/cache

@@ -175,41 +175,33 @@ export function setupFtsPragmas(db) {
     setupDatabasePragmas(db, { wal: true });
 }
 
-/**
- * Inject essential site metadata into all database partitions
- */
+// V27.2: keys whose absence guarantees content-stripped meta DBs (run 25896561032 lesson)
+const REQUIRED_META_KEYS = ['mesh_graph', 'search_core', 'category_stats'];
+
+/** Inject essential site metadata; throws if any REQUIRED_META_KEYS file is missing. */
 export async function injectMetadata(metaDbs, searchDb, cacheDir) {
     const metaFiles = [
-        { key: 'category_stats', file: 'category_stats.json' },
-        { key: 'trending', file: 'trending.json' },
-        { key: 'trend_data', file: 'trend-data.json' },
-        { key: 'relations', file: 'relations/explicit.json' },
-        { key: 'knowledge_links', file: 'relations/knowledge-links.json' },
-        { key: 'mesh_stats', file: 'mesh/stats.json' },
-        { key: 'mesh_graph', file: 'mesh/graph.json' },
-        { key: 'search_core', file: 'search-core.json' },
+        { key: 'category_stats', file: 'category_stats.json' }, { key: 'trending', file: 'trending.json' },
+        { key: 'trend_data', file: 'trend-data.json' }, { key: 'relations', file: 'relations/explicit.json' },
+        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }, { key: 'mesh_stats', file: 'mesh/stats.json' },
+        { key: 'mesh_graph', file: 'mesh/graph.json' }, { key: 'search_core', file: 'search-core.json' },
         { key: 'search_manifest', file: 'search-manifest.json' }
     ];
-
+    const missing = [];
     for (const meta of metaFiles) {
-        try {
-            const possiblePaths = [path.join(cacheDir, meta.file), path.join(cacheDir, `${meta.file}.zst`), path.join(cacheDir, `${meta.file}.gz`)];
-            let content = null;
-            for (const p of possiblePaths) {
-                try {
-                    const raw = await fs.readFile(p);
-                    content = (await autoDecompress(raw)).toString('utf-8');
-                    break;
-                } catch (err) { continue; }
-            }
-            if (content) {
-                Object.values(metaDbs).forEach(db => {
-                    db.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
-                });
-                if (searchDb) searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
-            }
-        } catch (e) { }
+        let content = null, lastErr = null;
+        for (const p of [path.join(cacheDir, meta.file), path.join(cacheDir, `${meta.file}.zst`), path.join(cacheDir, `${meta.file}.gz`)]) {
+            try { const raw = await fs.readFile(p); content = (await autoDecompress(raw)).toString('utf-8'); break; }
+            catch (err) { lastErr = err; }
+        }
+        if (content) {
+            Object.values(metaDbs).forEach(db => db.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content));
+            if (searchDb) searchDb.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)').run(meta.key, content);
+        } else if (REQUIRED_META_KEYS.includes(meta.key)) {
+            missing.push(`${meta.key} (${meta.file}${lastErr ? `, ${lastErr.code || lastErr.message}` : ''})`);
+        }
     }
+    if (missing.length) throw new Error(`[VFS] Required site_metadata missing — refusing to publish content-stripped DBs: ${missing.join('; ')}. Upstream cycle cache must populate ${cacheDir}.`);
 }
 
 /**

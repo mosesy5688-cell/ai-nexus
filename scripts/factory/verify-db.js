@@ -151,7 +151,22 @@ if (heavySample) {
     check('Shard Format', isShardFormat, heavySample.bundle_key);
 }
 
-// 7. Binary Shard Validation (V25.8.2: NXVF V4.1 Header Check)
+// 7. Site Metadata Required Keys (V27.2: guard against silent injectMetadata fail-through)
+if (hasEntitiesTable) {
+    const hasSiteMeta = !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='site_metadata'").get();
+    if (hasSiteMeta) {
+        const REQUIRED_META = ['mesh_graph', 'search_core', 'category_stats'];
+        const rows = db.prepare('SELECT key, LENGTH(value) as sz FROM site_metadata').all();
+        const keyMap = new Map(rows.map(r => [r.key, r.sz]));
+        const missing = REQUIRED_META.filter(k => !keyMap.has(k));
+        check('Required Metadata Keys', missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : `${rows.length}/9 keys present`);
+        // Content-strip canary: a healthy mesh_graph is in the MB range
+        const meshSz = keyMap.get('mesh_graph') || 0;
+        check('Mesh Graph Size', meshSz > 100 * 1024, `${(meshSz / 1024).toFixed(0)} KB (floor: 100KB)`);
+    }
+}
+
+// 8. Binary Shard Validation (V25.8.2: NXVF V4.1 Header Check)
 const shardDir = path.join(dirPath, '..', 'cache', 'registry');
 if (fs.existsSync(shardDir)) {
     const binShards = fs.readdirSync(shardDir).filter(f => f.endsWith('.bin'));
