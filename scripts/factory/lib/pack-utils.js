@@ -10,6 +10,14 @@ import zlib from 'zlib';
 import { PackAccumulator } from './pack-accumulator.js';
 import { autoDecompress } from './zstd-helper.js';
 import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
+// V27.1: stale meta-*.db rows from restored cache make probe-vfs Range past EOF → 416.
+export function resetPackOutputDbs(shardDir, metaShardCount) {
+    const targets = Array.from({ length: metaShardCount }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`).concat('fts.db');
+    for (const f of targets) {
+        try { fsSync.unlinkSync(path.join(shardDir, f)); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+    }
+}
+
 /**
  * Load Trending Context for entity prioritization
  */

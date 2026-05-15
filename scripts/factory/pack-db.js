@@ -5,7 +5,7 @@ import path from 'path';
 const fsp = fs, VEC_DIM = 768;
 import { configureDistiller, distillEntity, flushDistillerCache, getDistillerStats } from './lib/v25-distiller.js';
 import { cleanAbstract } from './lib/abstract-cleaner.js';
-import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary } from './lib/pack-utils.js';
+import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary, resetPackOutputDbs } from './lib/pack-utils.js';
 import { computeMetaShardSlot } from './lib/meta-shard-router.js';
 import { dbSchemas, ftsDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
@@ -68,7 +68,7 @@ async function packDatabase() {
     const lookupAccess = createEntityLookupAccess(cacheDb);
     console.log(`[VFS] entity_lookup ready (${getEntityLookupSize(cacheDb)} persisted), ${cachedIdSet.size} sharded embeddings.`);
 
-    // Prepare DBs
+    resetPackOutputDbs(SHARD_PATH_DIR, META_SHARD_COUNT);
     const partitionCounts = { meta_shards: META_SHARD_COUNT };
     const metaDbs = {};
     for (let i = 0; i < META_SHARD_COUNT; i++) {
