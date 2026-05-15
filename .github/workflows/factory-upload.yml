@@ -281,7 +281,7 @@ jobs:
 
   vfs-packing:
     name: VFS Packing (Stable 1.0)
-    needs: master-fusion
+    needs: [master-fusion, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
@@ -317,7 +317,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
           restore-keys: cycle-
       - name: R2 Fallback for Trending Data
         env:
