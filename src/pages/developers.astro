@@ -131,7 +131,10 @@ const jsonLd = JSON.stringify({
                     <td class="py-2 font-mono text-blue-600 dark:text-blue-400">type</td>
                     <td>string</td>
                     <td>all</td>
-                    <td>Filter: model, tool, dataset, paper</td>
+                    <td>
+                      Filter by entity type. Canonical values: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">model</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">tool</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">dataset</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">paper</code>.
+                      Common source-prefixed aliases also accepted: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">hf-model</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">gh-model</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">arxiv-paper</code>, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">gh-tool</code>, etc. (auto-mapped to canonical).
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -215,16 +218,71 @@ const jsonLd = JSON.stringify({
             </div>
           </div>
           <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl (HF-native id form, internal form, or slug — all accepted)</h4>
+            <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
+              <pre set:html={`curl "${SITE}/api/v1/compare?ids=meta-llama/Llama-3-8B-Instruct,google/gemma-2-27b"`} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">GET /api/v1/entity/:id</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          Full structured metadata for a single entity. Use this after search to fetch the complete detail you need to make a decision: FNI factors, technical specs, VRAM estimates, license, links, relations.
+        </p>
+        <div class="space-y-4">
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Accepted id forms</h4>
+            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
+              <li>HuggingFace-native: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">meta-llama/Llama-3-8B-Instruct</code></li>
+              <li>Bare name (auto-prefixes common sources): <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">Llama-3-8B-Instruct</code></li>
+              <li>Internal canonical: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">hf-model--meta-llama--Llama-3-8B-Instruct</code></li>
+              <li>Slug form (from search response): <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">meta-llama--Llama-3-8B-Instruct</code></li>
+            </ul>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Case-insensitive. Lookup probes the matching shards in parallel and returns the first hit.</p>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Query parameters</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead><tr class="text-left border-b border-gray-200 dark:border-gray-700"><th class="py-2 pr-4">Param</th><th class="py-2 pr-4">Default</th><th class="py-2">Description</th></tr></thead>
+                <tbody class="text-gray-600 dark:text-gray-400">
+                  <tr><td class="py-1 pr-4 font-mono">include</td><td class="pr-4">(empty)</td><td>Comma list. <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">include=body</code> adds the rendered README (can be up to 250KB). Default response is lean.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Status codes</h4>
+            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
+              <li><code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">200</code> — entity found</li>
+              <li><code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">404</code> — no entity matches any candidate form (genuine miss; don't retry)</li>
+              <li><code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">503</code> — all probed shards errored (transient infra; retry after a short delay)</li>
+              <li><code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">400 / 500</code> — bad request / unexpected server error</li>
+            </ul>
+          </div>
+          <div>
             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl</h4>
             <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
-              <pre set:html={`curl "${SITE}/api/v1/compare?ids=hf-model--meta-llama--llama-3-8b,hf-model--google--gemma-2-27b"`} />
+              <pre set:html={`curl "${SITE}/api/v1/entity/meta-llama/Llama-3-8B-Instruct"`} />
             </div>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Response shape (lean default)</h4>
+            <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+              <pre>{JSON.stringify({ version: "fni_v2.0", entity: { id: "hf-model--meta-llama--Llama-3-8B-Instruct", slug: "meta-llama--Llama-3-8B-Instruct", type: "model", name: "Llama-3-8B-Instruct", author: "meta-llama", fni: { score: 87.5, factors: { semantic: 92, authority: 95, popularity: 88, recency: 85, quality: 80 } }, specs: { params_billions: 8, context_length: 8192, vram: { fp16_gb: 16 }, ollama_compatible: true }, stats: { downloads: 1234567, last_modified: "..." }, links: { detail_url: "...", badge_url: "..." }, relations: { datasets_used: [], related: [] } }, meta: { elapsed_ms: 142, candidates_tried: 3 } }, null, 2)}</pre>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Field semantics: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">0</code> means measured-zero, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">null</code> means not-measured. Treat them differently when scoring downstream.</p>
           </div>
         </div>
       </div>
 
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
         <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — no authentication required. CDN cached. max 5 results for search, max 20 for select.
+        <span class="block mt-2">
+          <strong class="text-gray-900 dark:text-white">Machine-readable docs:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/llms.txt" class="text-blue-600 dark:text-blue-400 hover:underline">/llms.txt</a></code> (plain markdown index per <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">llmstxt.org</a>), <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline">/.well-known/mcp.json</a></code> (MCP manifest with tool catalog).
+        </span>
       </div>
     </section>
 
