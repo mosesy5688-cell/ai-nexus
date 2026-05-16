@@ -156,6 +156,33 @@ function project(e: any, includeBody: boolean) {
     return entity;
 }
 
+const AUTO_PREFIXES = ['hf-model', 'gh-model', 'gh-tool', 'arxiv-paper', 'replicate-model',
+    'hf-dataset', 'kaggle-model', 'civitai-model', 'ollama-model'];
+
+/**
+ * Generate candidate id/slug variants from a raw user input. Agents rarely
+ * know the internal `hf-model--<author>--<name>` form; they typically know
+ * the HuggingFace-native `author/name` form, or just `name`, or upper/mixed
+ * case. Producing multiple candidates and matching any of them via SQL IN()
+ * makes the endpoint tolerant of these forms without forcing an extra
+ * roundtrip through /search first.
+ */
+function generateCandidates(rawId: string): string[] {
+    const lower = rawId.toLowerCase();
+    const candidates = new Set<string>();
+    candidates.add(lower);
+    candidates.add(lower.replace(/\//g, '--').replace(/--+/g, '--'));
+    const slug = deriveSlug(rawId);
+    if (slug) candidates.add(slug);
+    const hasPrefix = SLUG_PREFIXES.some(p =>
+        lower.startsWith(`${p}--`) || lower.startsWith(`${p}:`) || lower.startsWith(`${p}/`)
+    );
+    if (!hasPrefix && slug) {
+        for (const p of AUTO_PREFIXES) candidates.add(`${p}--${slug}`);
+    }
+    return [...candidates].filter(Boolean);
+}
+
 export const GET: APIRoute = async ({ params, url }) => {
     const start = Date.now();
     const rawId = (params.id || '').trim();
@@ -169,30 +196,45 @@ export const GET: APIRoute = async ({ params, url }) => {
         const manifest = await loadManifest(r2Bucket, isDev);
         const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
 
-        // Pack-db routes by slug || id, so probe both shards (typically 1-2).
-        const idLower = rawId.toLowerCase();
-        const slug = deriveSlug(rawId);
+        const candidates = generateCandidates(rawId);
         const shardsToProbe = new Set<number>();
-        shardsToProbe.add(xxhash64Mod(idLower, metaShards));
-        shardsToProbe.add(xxhash64Mod(slug, metaShards));
+        for (const c of candidates) shardsToProbe.add(xxhash64Mod(c, metaShards));
 
-        const keys = [idLower, slug, rawId];
+        const placeholders = candidates.map(() => '?').join(',');
+        const sql = `SELECT * FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders}) OR umid IN (${placeholders}) LIMIT 1`;
+        const bindings = [...candidates, ...candidates, ...candidates];
+
+        // Per-shard try/catch: a single shard error (transient VFS / SQL) must
+        // not 500 the whole request if another shard might satisfy the lookup.
         let row: any = null;
+        const shardErrors: string[] = [];
         for (const shardIdx of shardsToProbe) {
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
-            const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
-            const rows = await executeSql(engine.sqlite3, engine.db,
-                'SELECT * FROM entities WHERE id = ? OR slug = ? OR umid = ? OR id = ? LIMIT 1',
-                [keys[0], keys[1], keys[2], keys[2]]);
-            if (rows.length > 0) { row = rows[0]; break; }
+            try {
+                const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
+                const rows = await executeSql(engine.sqlite3, engine.db, sql, bindings);
+                if (rows.length > 0) { row = rows[0]; break; }
+            } catch (e: any) {
+                console.warn('[ENTITY] shard probe error', dbName, e.message);
+                shardErrors.push(`${dbName}: ${e.message}`);
+            }
         }
 
-        if (!row) return error(404, `Entity not found: ${rawId}`);
+        if (!row) {
+            // If every probed shard errored, surface 503 (transient) instead of
+            // 404 — caller can retry, vs 404 which means "this id genuinely does
+            // not exist, do not retry".
+            if (shardErrors.length === shardsToProbe.size && shardErrors.length > 0) {
+                console.error('[ENTITY] all shards errored', rawId, shardErrors.join('; '));
+                return error(503, 'All probed shards errored; retry later');
+            }
+            return error(404, `Entity not found: ${rawId}`);
+        }
 
         return new Response(JSON.stringify({
             version: API_VERSION,
             entity: project(row, includeBody),
-            meta: { elapsed_ms: Date.now() - start, etag: manifest?._etag || null },
+            meta: { elapsed_ms: Date.now() - start, etag: manifest?._etag || null, candidates_tried: candidates.length },
         }), { headers: CORS_HEADERS });
     } catch (e: any) {
         console.error('[ENTITY]', rawId, e.message, e.stack);
