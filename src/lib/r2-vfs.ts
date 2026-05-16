@@ -134,6 +134,18 @@ export class R2RangeVFS extends FacadeVFS {
                     chunk = new Uint8Array(await res.arrayBuffer());
                 }
 
+                // V27.5: Validate chunk size before caching. A short read here (R2 / CDN
+                // returning partial body with 200 OK) used to silently pass through, get
+                // written to L1 Cloudflare Cache API under the ETag-keyed key, and live
+                // there for the 1-year TTL — SQLite reading the poisoned chunk threw
+                // "database disk image is malformed", surfacing as /api/v1/compare 500.
+                // Expected size = full CHUNK_SIZE except for the final partial chunk
+                // at end of file (state.size - start).
+                const expectedSize = Math.min(CHUNK_SIZE, Math.max(0, state.size - start));
+                if (chunk.length !== expectedSize) {
+                    throw new Error(`Short read: got ${chunk.length} bytes, expected ${expectedSize} for data/${fileName}@${start} (etag=${state.etag}). Refusing to cache poisoned chunk.`);
+                }
+
                 // Write back to Edge Cache (1-year Immutable TTL)
                 if (chunk) await putChunkToCacheAPI(chunkIndex, chunk, state.etag, fileName);
             }
