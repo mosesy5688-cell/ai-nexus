@@ -245,22 +245,22 @@ export class HuggingFaceAdapter extends BaseAdapter {
                         // V2.1: Add NSFW filter
                         const safeModels = newModels.filter(m => this.isSafeForWork(m));
 
-                        // V22.10: Data Richness Recovery (Zero-cost config extraction)
+                        // V22.10: Data Richness Recovery (Zero-cost config extraction).
+                        // V27.4: name-regex fallback now lives inside buildMetaJson so
+                        // normalizeModel (the canonical writer) applies it consistently;
+                        // the separate name-regex patch that used to live here was
+                        // overwritten by normalizeModel's re-call of buildMetaJson and is
+                        // removed. The buildMetaJson call below still produces meta_json /
+                        // context_length / params_billions on raw for any consumer that
+                        // reads raw before normalize.
                         for (let m of safeModels) {
                             try {
-                                if (!m.meta_json && (m.config || m.safetensors)) {
+                                if (!m.meta_json && (m.config || m.safetensors || m.modelId || m.id)) {
                                     const meta = buildMetaJson(m);
                                     if (meta) {
                                         m.meta_json = meta;
                                         if (meta.context_length) m.context_length = meta.context_length;
                                         if (meta.params_billions) m.params_billions = meta.params_billions;
-                                    }
-                                }
-                                if (!m.params_billions || m.params_billions === 0) {
-                                    const nameMatch = (m.modelId || m.id || '').match(/(\d+(?:\.\d+)?)\s*[Bb](?![a-zA-Z])/);
-                                    if (nameMatch) {
-                                        const v = parseFloat(nameMatch[1]);
-                                        if (v >= 0.1 && v <= 2000) m.params_billions = v;
                                     }
                                 }
                             } catch (e) {
@@ -319,6 +319,13 @@ export class HuggingFaceAdapter extends BaseAdapter {
                     existing.popularity = expandedData.likes || existing.popularity;
                     existing.downloads = expandedData.downloads || existing.downloads;
                     existing.updated_at = expandedData.lastModified;
+                    // V27.4: params_billions must be refreshed from expandedData.safetensors.total
+                    // when missing/zero, otherwise a model that was harvested before expand[]=safetensors
+                    // was wired (or before AES_CRYPTO_KEY landed) has its 0 frozen forever in registry.
+                    if ((!existing.params_billions || existing.params_billions === 0)
+                        && expandedData.safetensors?.total) {
+                        existing.params_billions = parseFloat((expandedData.safetensors.total / 1e9).toFixed(2)) || existing.params_billions;
+                    }
                     // Backfill context_length from architecture if missing
                     if (!existing.context_length && existing.architecture) {
                         const { lookupContextLength } = await import('./hf-utils.js');
