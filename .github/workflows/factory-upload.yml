@@ -427,6 +427,15 @@ jobs:
           UMID_SALT: ${{ secrets.UMID_SALT }}
           NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
         run: node scripts/factory/pack-db.js
+      # V27.2 fail-loud gate: meta-NN.db and fused-shard-NNN.bin must be
+      # deterministic products of the same pack-db.js loop. If any meta row's
+      # (bundle_offset, bundle_size) is not present in its target shard's
+      # offset table, halt before cache save and before R2 upload — bad state
+      # must never reach production. Run 25919708145 surfaced this divergence
+      # post-upload via HTTP 416 on data/fused-shard-579.bin; this gate moves
+      # detection to the build zone.
+      - name: V27.2 Verify Shard-Meta Consistency
+        run: node scripts/factory/verify-shard-meta-consistency.js
       - name: Save Embedding Shards to Cache
         if: always()
         uses: actions/cache/save@v4
