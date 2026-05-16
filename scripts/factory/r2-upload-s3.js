@@ -152,10 +152,19 @@ async function main() {
     // R2 storage is append-only. Manual cleanup via wrangler CLI if needed.
     // await purgeEntropyFFI(s3, r2ETagMap);
 
-    // V25.9: Output purge-list.json for targeted CDN invalidation
+    // V27.3: purge-list covers ALL current-manifest paths (post PREFIX_FILTER), not only
+    // freshly uploaded ones. Files whose MD5 matched the existing R2 ETag still leave us
+    // unable to confirm CDN edge freshness — a prior R2 version of the same path may have
+    // a stale Content-Length cached at the edge (Run 25952696104 shard-579 416 class).
+    // Comprehensive purge by current-manifest closes that surface deterministically.
     const purgeListPath = path.join(process.env.CACHE_DIR || './cache', 'purge-list.json');
-    await fs.writeFile(purgeListPath, JSON.stringify({ changed: changedPaths, ts: new Date().toISOString() }));
-    console.log(`[PURGE-LIST] ${changedPaths.length} changed paths → ${purgeListPath}`);
+    const allManifestPaths = allFiles
+        .map(f => toRemotePath(f.path))
+        .filter(p => CONFIG.PREFIX_FILTER.length === 0 || CONFIG.PREFIX_FILTER.some(pf => p.startsWith(pf)));
+    await fs.writeFile(purgeListPath, JSON.stringify({
+        changed: allManifestPaths, fresh_uploads: changedPaths, ts: new Date().toISOString(),
+    }));
+    console.log(`[PURGE-LIST] ${allManifestPaths.length} paths (full manifest, ${changedPaths.length} fresh) → ${purgeListPath}`);
 
     console.log(`\n✅ Upload Complete! New: ${success}, Locally Skipped: ${locallySkipped}, Unchanged on R2: ${unchanged}, Fail: ${fail}`);
     if (fail > 0) process.exit(1);

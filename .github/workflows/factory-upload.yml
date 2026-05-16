@@ -750,16 +750,17 @@ jobs:
         with:
           path: output/cache/last-upload-manifest.json
           key: r2-upload-manifest-${{ github.run_id }}
-      # V19.0: 60s Drain Wait — let CDN edge caches expire before purge
-      - name: CDN Drain Wait (90s)
-        run: |
-          echo "⏳ [V19.2] Waiting 90s for CDN edge cache TTL expiry..."
-          sleep 90
-          echo "✅ Drain wait complete. Commencing Probing."
-      - name: V19.2 Production Health Probe
+      # V27.3 three-tier verification order:
+      #   Upload -> L2 R2 origin probe -> Purge -> Drain -> L3 CDN probe
+      # L2 confirms R2-side integrity (orthogonal to CDN), so a later CDN failure
+      # is unambiguously an edge-cache issue and a CDN PASS is unambiguously real.
+      - name: V27.3 L2 R2 Origin Probe
         env:
-          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-        run: node scripts/factory/probe-vfs.js
+          R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+        run: node scripts/factory/probe-r2-direct.js
       - name: Purge & Warm CDN
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -775,7 +776,7 @@ jobs:
 
           if [ -f "$PURGE_LIST" ]; then
             TOTAL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$PURGE_LIST','utf-8')).changed.length)")
-            echo "📡 [V25.9] Targeted CDN Purge: $TOTAL changed files (batch=30)"
+            echo "📡 [V27.3] Targeted CDN Purge: $TOTAL manifest files (batch=30)"
             # Extract URLs, batch 30 per API call
             node -e "
               const list = JSON.parse(require('fs').readFileSync('$PURGE_LIST','utf-8')).changed;
@@ -798,7 +799,7 @@ jobs:
               --data '{"prefixes":["data/","cache/"]}' > purge_res.json
             cat purge_res.json
           fi
-          
+
           echo -e "\n🔥 [V25.1] Commencing Proactive CDN Warming..."
           
           # V25.8: Initialize with global configs, core DB, and new V25.8 assets
@@ -838,6 +839,18 @@ jobs:
             curl -s -o /dev/null --max-time 30 -H "User-Agent: Nexus-Warmer/1.0" "$url" || true
           done
           echo "✅ Proactive Warming Complete."
+      # V27.3: Drain wait now bridges purge -> probe (was: TTL expiry -> probe).
+      # Cloudflare purge is fast at origin but propagation to every edge POP
+      # takes seconds; 90s leaves headroom before the L3 probe samples 583 edges.
+      - name: CDN Drain Wait (90s)
+        run: |
+          echo "⏳ [V27.3] Waiting 90s for purge propagation across CDN edges..."
+          sleep 90
+          echo "✅ Drain wait complete. Commencing L3 CDN Probing."
+      - name: V19.2 Production Health Probe
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: node scripts/factory/probe-vfs.js
       - name: Data Quality Check
         run: node scripts/factory/data-quality-check.js
       - name: Trigger Health Check
