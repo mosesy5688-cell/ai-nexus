@@ -96,11 +96,23 @@ async function hydrateCandidates(
     return allRows;
 }
 
+// P0-4: type aliases — entity rows use canonical `model`/`paper`/`tool`, but
+// Agents naturally try the id-prefix form (hf-model / arxiv-paper / etc.) seen
+// in search response IDs. Without these aliases ?type=hf-model returned 0/150K.
+const TYPE_ALIASES: Record<string, string> = {
+    'hf-model':'model','hf_model':'model','huggingface':'model','hf':'model',
+    'gh-model':'model','gh_model':'model','github-model':'model','github':'model',
+    'replicate-model':'model','ollama-model':'model','civitai-model':'model','kaggle-model':'model',
+    'arxiv-paper':'paper','arxiv':'paper','hf-paper':'paper','semantic-scholar':'paper',
+    'gh-tool':'tool','hf-tool':'tool','hf-dataset':'dataset','kaggle-dataset':'dataset',
+};
+const normalizeType = (t: string) => TYPE_ALIASES[t.toLowerCase()] || t.toLowerCase();
+
 export const GET: APIRoute = async ({ url }) => {
     const start = Date.now();
     const q = url.searchParams.get('q') || '';
     const sort = url.searchParams.get('sort') || 'fni';
-    const type = url.searchParams.get('type') || 'all';
+    const type = normalizeType(url.searchParams.get('type') || 'all');
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '12'), 50);
     const page = Math.max(parseInt(url.searchParams.get('page') || '1'), 1);
 

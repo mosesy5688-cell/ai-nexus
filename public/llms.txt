@@ -1,0 +1,140 @@
+# Free2AItools
+
+> Agent-native structured index of 500K+ AI models, datasets, papers, and tools.
+> Cross-source aggregator (HuggingFace, GitHub, ArXiv, Replicate, Civitai, etc.)
+> ranked by FNI (Free2AITools Nexus Index) — designed for AI agents, not human browsing.
+
+This file follows the llms.txt convention (llmstxt.org). It is the canonical
+discovery surface for autonomous agents, MCP clients, and LLM-based tooling
+that need to consume Free2AItools data programmatically.
+
+## What you can do here
+
+- Search and rank 500K+ AI entities by FNI score
+- Compare 2-10 models side-by-side with technical specs and license breakdown
+- Fetch full structured metadata for any entity by ID
+- Get FNI badges (SVG) for any entity for README embedding
+- Discover via MCP (Model Context Protocol) — drop-in for Claude Desktop, Cursor, and similar
+
+## Primary API surface
+
+All endpoints return JSON unless noted. CORS open. Free tier hard-cap: 5 results
+per search; auth/paid tiers (TBD) raise the cap.
+
+### Discovery
+
+- `GET /.well-known/mcp.json` — MCP server manifest (transport, protocol version,
+  tool catalog with input schemas)
+- `GET /llms.txt` — this file
+- `GET /sitemap.xml` — full URL index
+
+### MCP server (JSON-RPC 2.0)
+
+- `POST /api/mcp` — JSON-RPC dispatch
+  - `method: initialize` → server info + capabilities
+  - `method: tools/list` → 5 tools: free2aitools_search / _rank / _explain /
+    _select_model / _compare
+  - `method: tools/call` → invoke a tool with arguments
+
+### Search and lookup
+
+- `GET /api/v1/search?q=<query>[&type=<type>][&limit=N]` — FNI-ranked search
+  - `type` accepts canonical values (`model`, `paper`, `tool`, `dataset`) AND
+    common id-prefix aliases (`hf-model`, `arxiv-paper`, `gh-model`,
+    `replicate-model`, etc.) — both resolve to the canonical type
+  - `limit` clamped to 1-5 for free tier
+  - Response includes FNI score breakdown (semantic / authority / popularity /
+    recency / quality) per result
+
+- `GET /api/v1/entity/<id>[?include=body]` — full structured metadata for one
+  entity (search → detail Agent journey)
+  - Lean default response: ~30 Agent-relevant fields grouped into identity /
+    classification / fni / specs / stats / links / relations
+  - `?include=body` adds readme_html (~250KB)
+  - 404 with `{"error":"Entity not found: <id>"}` when no match
+
+- `GET /api/v1/compare?ids=<id1>,<id2>[,...]` — side-by-side comparison of 2-10
+  entities. Returns FNI factors + technical specs + license per entity.
+
+- `GET /api/v1/badge/<slug-or-id>` — SVG badge with FNI score, color-coded
+  (green ≥ 90 excellent, blue ≥ 70 good, yellow ≥ 50 average, red below).
+  Suitable for README embedding.
+
+## FNI score interpretation
+
+FNI v2.0 = `min(99.9, 0.35·S + 0.25·A + 0.15·P + 0.15·R + 0.10·Q)`
+
+- `S` Semantic relevance (ANN cosine similarity, query-time)
+- `A` Authority (mesh gravity / cross-source corroboration)
+- `P` Popularity (log-compressed downloads / stars / citations)
+- `R` Recency (exponential decay on last-modified)
+- `Q` Quality (completeness + utility signals)
+
+Scoring is deterministic per snapshot; daily snapshots are taken at 00:00 UTC.
+
+## Update cadence
+
+- Factory cron: Mon and Thu at 02:00 UTC — full harvest + enrichment +
+  aggregation + R2 upload + CDN purge + probe
+- Daily Snapshot: 00:00 UTC — snapshot the current registry to time-series
+  archive for FNI trend analysis
+
+## Entity types
+
+Canonical types (use in `?type=` filter):
+
+- `model` — AI models (HF / GH / Replicate / Civitai / Kaggle / Ollama sources)
+- `paper` — research papers (ArXiv, Hugging Face papers, Semantic Scholar)
+- `tool` — open-source developer tools (GitHub repos)
+- `dataset` — public datasets
+- `space` — interactive demos
+- `agent` — agent frameworks and templates
+- `prompt` — prompt templates / instruction collections
+
+## ID format
+
+Entity IDs use the `<source>-<type>--<author>--<name>` convention:
+
+- `hf-model--meta-llama--Llama-3-8B-Instruct`
+- `arxiv-paper--unknown--<arxiv-id>`
+- `gh-tool--<org>--<repo>`
+- `replicate-model--<owner>--<model>`
+
+IDs are stable across snapshots; `slug` (lowercase normalized form) is the
+canonical sharding key.
+
+## Project positioning
+
+Free2AItools is the **structured knowledge layer between raw AI ecosystem
+sources and AI agents**. Raw data lives at HuggingFace, GitHub, ArXiv, etc.
+This project adds:
+
+- Unified schema across sources
+- FNI ranking (deterministic, time-stable, explainable)
+- Mesh-graph relations between entities (base_model, datasets_used, citations)
+- Daily snapshot archive (FNI trends over time)
+- Agent-first API (this file, MCP, structured JSON)
+
+Comparable in posture to Bloomberg Terminal for finance: not the data source,
+but the canonical structured query layer that downstream consumers depend on.
+
+## Contact
+
+- Site: https://free2aitools.com
+- Strategic positioning + roadmap: see Free2AItools V∞ Roadmap (internal)
+- Free tier supports anonymous public API access; auth + raised limits TBD.
+
+## Notes for agent implementers
+
+- Prefer MCP (`POST /api/mcp`) for first-class Agent integration — JSON-RPC 2.0,
+  tool catalog discoverable via `tools/list`, structured tool responses
+- For HTTP-only flows: `search` → `entity` → optional `compare`
+- All scoring is FNI v2.0; the `fni_version` field in responses identifies the
+  exact algorithm version (forward-compatible across snapshots)
+- Field semantics: `0` means measured-zero, `null` means not-measured. Treat
+  them differently when scoring downstream
+- Booleans (ollama_compatible, can_run_local, is_trending) are tri-state:
+  `true` / `false` / `null` (unknown)
+
+This file is updated when the API contract changes. Last revision tracks the
+state of MCP tool catalog + endpoint surface as of the current deploy.
