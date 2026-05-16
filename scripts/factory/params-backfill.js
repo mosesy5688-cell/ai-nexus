@@ -22,6 +22,16 @@ const LIMIT = parseInt(process.argv.find(a => a.startsWith('--limit='))?.split('
 const DRY_RUN = process.argv.includes('--dry-run');
 const CACHE_PATH = process.env.PARAMS_CACHE_PATH || './output/data/params-cache.json.zst';
 
+// V27.6: Persistent retry-queue for failed CIDs.
+// Without this, every cron re-queries known-failed CIDs (401 gated / 404
+// deleted / 200_no_params / etc.) burning HF API quota on entries that
+// will keep failing for the same reason. Same shape as Sciweon
+// harvest-retry-queue.js (PR #19), adapted to Free2AITools scale.
+const FAILED_CACHE_PATH = process.env.PARAMS_FAILED_CACHE_PATH || './output/data/params-failed-cids.json.zst';
+const MAX_FAILURE_ATTEMPTS = 5;             // After N attempts, mark exhausted
+const RETRY_AFTER_HOURS = 168;              // Exhausted CIDs retry after 7 days
+const RETRY_AFTER_MS = RETRY_AFTER_HOURS * 3600 * 1000;
+
 function hfHeaders() {
     const h = { 'Accept': 'application/json', 'User-Agent': 'Free2AITools/2.1' };
     if (HF_TOKEN) h['Authorization'] = `Bearer ${HF_TOKEN}`;
@@ -56,24 +66,45 @@ async function fetchParamsFromHF(modelId, counts) {
         if (s === 200) {
             const data = await res.json();
             const paramsRaw = data.safetensors?.total || data.config?.num_parameters;
-            if (paramsRaw) { counts['200_with_params']++; return parseFloat((paramsRaw / 1e9).toFixed(2)); }
+            if (paramsRaw) { counts['200_with_params']++; return { params: parseFloat((paramsRaw / 1e9).toFixed(2)), bucket: '200_with_params' }; }
             const fromName = extractParamsFromName(data.modelId || hfId);
-            counts[fromName ? '200_with_params' : '200_no_params']++;
-            return fromName;
+            const bucket = fromName ? '200_with_params' : '200_no_params';
+            counts[bucket]++;
+            return { params: fromName, bucket };
         }
-        if (s === 401) counts['401_gated']++;
-        else if (s === 403) counts['403_forbidden']++;
-        else if (s === 404) counts['404_not_found']++;
-        else if (s === 429) counts['429_rate_limited']++;
-        else if (s >= 500) counts['5xx']++;
-        else counts['other']++;
-        return null;
+        let bucket = 'other';
+        if (s === 401) bucket = '401_gated';
+        else if (s === 403) bucket = '403_forbidden';
+        else if (s === 404) bucket = '404_not_found';
+        else if (s === 429) bucket = '429_rate_limited';
+        else if (s >= 500) bucket = '5xx';
+        counts[bucket]++;
+        return { params: null, bucket };
     } catch (e) {
         const isTimeout = e.name === 'TimeoutError' || /timeout|aborted/i.test(e.message);
-        counts[isTimeout ? 'timeout' : 'network_error']++;
+        const bucket = isTimeout ? 'timeout' : 'network_error';
+        counts[bucket]++;
         console.warn(`[PARAMS-BACKFILL] ${modelId}: ${e.message}`);
-        return null;
+        return { params: null, bucket };
     }
+}
+
+// V27.6: Retry-queue helpers. Failures stored as {bucket, attempts, first, last}.
+// Eligibility rule: until attempts >= MAX, retry every cycle. After MAX,
+// wait RETRY_AFTER_MS before next attempt — turns retries from O(N*cycles)
+// into O(N) + sparse polling.
+function shouldRetryFailure(entry) {
+    if (!entry || entry.attempts < MAX_FAILURE_ATTEMPTS) return true;
+    const last = Date.parse(entry.last || 0);
+    return (Date.now() - last) > RETRY_AFTER_MS;
+}
+
+function recordFailure(failures, id, bucket) {
+    const now = new Date().toISOString();
+    const existing = failures[id];
+    failures[id] = existing
+        ? { ...existing, bucket, attempts: existing.attempts + 1, last: now }
+        : { bucket, attempts: 1, first: now, last: now };
 }
 
 async function main() {
@@ -88,6 +119,19 @@ async function main() {
     }
     console.log(`[PARAMS-BACKFILL] Loaded ${Object.keys(cache).length} cached entries`);
 
+    // V27.6: Load persistent retry-queue. CIDs that previously failed are
+    // skipped unless eligible for retry (attempts < MAX, or cooldown elapsed).
+    let failures = {};
+    try {
+        const buf = await autoDecompress(fs.readFileSync(FAILED_CACHE_PATH));
+        failures = JSON.parse(buf.toString('utf-8'));
+    } catch (e) {
+        if (e.code !== 'ENOENT') console.warn(`[PARAMS-BACKFILL] Failures cache load failed (${e.code || 'unknown'}): ${e.message}`);
+    }
+    const failuresIn = Object.keys(failures).length;
+    let skippedByRetryQueue = 0;
+    console.log(`[PARAMS-BACKFILL] Loaded ${failuresIn} failure entries (skip eligible: ${Object.values(failures).filter(f => !shouldRetryFailure(f)).length})`);
+
     const missing = [];
     await loadRegistryShardsSequentially(async (entities) => {
         for (const e of entities) {
@@ -96,6 +140,11 @@ async function main() {
                 if (cache[e.id]) continue;
                 const nameParams = extractParamsFromName(e.name || e.id);
                 if (nameParams) { cache[e.id] = nameParams; continue; }
+                // V27.6: skip known-failed CIDs not yet eligible for retry
+                if (failures[e.id] && !shouldRetryFailure(failures[e.id])) {
+                    skippedByRetryQueue++;
+                    continue;
+                }
                 missing.push(e.id);
             }
         }
@@ -109,9 +158,15 @@ async function main() {
     for (let i = 0; i < missing.length; i += BATCH_SIZE) {
         const batch = missing.slice(i, i + BATCH_SIZE);
         for (const id of batch) {
-            const params = await fetchParamsFromHF(id, counts);
+            const { params, bucket } = await fetchParamsFromHF(id, counts);
             fetched++;
-            if (params) { cache[id] = params; found++; }
+            if (params != null) {
+                cache[id] = params;
+                delete failures[id]; // V27.6: success clears any prior failure record
+                found++;
+            } else {
+                recordFailure(failures, id, bucket);
+            }
         }
         if (i + BATCH_SIZE < missing.length) await new Promise(r => setTimeout(r, DELAY_MS));
         if (fetched % 200 === 0) console.log(`[PARAMS-BACKFILL] Progress: ${fetched}/${missing.length} fetched, ${found} found`);
@@ -120,7 +175,14 @@ async function main() {
     fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
     const compressed = await zstdCompress(Buffer.from(JSON.stringify(cache)));
     fs.writeFileSync(CACHE_PATH, compressed);
+    // V27.6: persist failure queue alongside resolved cache so next cycle reads it
+    fs.mkdirSync(path.dirname(FAILED_CACHE_PATH), { recursive: true });
+    const failuresCompressed = await zstdCompress(Buffer.from(JSON.stringify(failures)));
+    fs.writeFileSync(FAILED_CACHE_PATH, failuresCompressed);
+    const failuresOut = Object.keys(failures).length;
+    const exhausted = Object.values(failures).filter(f => f.attempts >= MAX_FAILURE_ATTEMPTS).length;
     console.log(`[PARAMS-BACKFILL] ✅ Complete: ${found}/${fetched} resolved, cache size: ${Object.keys(cache).length} (${(compressed.length/1024).toFixed(1)}KB Zstd)`);
+    console.log(`[PARAMS-BACKFILL] Retry queue: ${failuresIn} in -> ${failuresOut} out, ${exhausted} exhausted (>=${MAX_FAILURE_ATTEMPTS} attempts, ${RETRY_AFTER_HOURS}h cooldown), ${skippedByRetryQueue} skipped this cycle (${(failuresCompressed.length/1024).toFixed(1)}KB Zstd)`);
     const breakdown = STATUS_BUCKETS.filter(k => counts[k] > 0).map(k => `${k}=${counts[k]}`).join(', ');
     console.log(`[PARAMS-BACKFILL] HF response breakdown: ${breakdown || '(no fetches)'}`);
     const blocked = counts['401_gated'] + counts['403_forbidden'] + counts['404_not_found']
