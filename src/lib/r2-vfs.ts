@@ -118,32 +118,39 @@ export class R2RangeVFS extends FacadeVFS {
             // The utility uses: https://vfs-cache.internal/${etag}/chunk/${chunkIndex}
             let chunk = await getChunkFromCacheAPI(chunkIndex, state.etag, fileName);
 
-            // --- L2 Origin (R2 Storage, ~50ms) ---
+            // --- L2 Origin (R2 Storage, ~50ms) with retry-on-short-read ---
             if (!chunk) {
                 const start = chunkIndex * CHUNK_SIZE;
                 const end = start + CHUNK_SIZE - 1;
-
-                if (this.bucket && !this.options.simulate) {
-                    const obj = await this.bucket.get(`data/${fileName}`, { range: { offset: start, length: CHUNK_SIZE } });
-                    if (!obj) throw new Error(`R2 miss data/${fileName}@${start}`);
-                    chunk = new Uint8Array(await obj.arrayBuffer());
-                } else {
-                    const res = await fetch(`https://cdn.free2aitools.com/data/${fileName}`, { headers: { Range: `bytes=${start}-${end}` } });
-                    // V26.3: Validate HTTP status — 5xx body would be treated as valid data and poison the cache.
-                    if (!res.ok) throw new Error(`CDN fetch ${res.status} for data/${fileName}@${start}`);
-                    chunk = new Uint8Array(await res.arrayBuffer());
-                }
-
-                // V27.5: Validate chunk size before caching. A short read here (R2 / CDN
-                // returning partial body with 200 OK) used to silently pass through, get
-                // written to L1 Cloudflare Cache API under the ETag-keyed key, and live
-                // there for the 1-year TTL — SQLite reading the poisoned chunk threw
-                // "database disk image is malformed", surfacing as /api/v1/compare 500.
-                // Expected size = full CHUNK_SIZE except for the final partial chunk
-                // at end of file (state.size - start).
                 const expectedSize = Math.min(CHUNK_SIZE, Math.max(0, state.size - start));
-                if (chunk.length !== expectedSize) {
-                    throw new Error(`Short read: got ${chunk.length} bytes, expected ${expectedSize} for data/${fileName}@${start} (etag=${state.etag}). Refusing to cache poisoned chunk.`);
+                // V27.8: retry on short read. Transient causes (CF rate-limit throttle,
+                // R2 binding hiccup, TCP drop mid-stream) typically resolve within
+                // ~1s — retry burns a few hundred ms instead of throwing SQLITE_IOERR
+                // and surfacing as 503 / 500 to the caller.
+                const RETRY_BACKOFFS_MS = [200, 500];
+                let lastSize = -1;
+                for (let attempt = 0; attempt <= RETRY_BACKOFFS_MS.length; attempt++) {
+                    let candidate: Uint8Array;
+                    if (this.bucket && !this.options.simulate) {
+                        const obj = await this.bucket.get(`data/${fileName}`, { range: { offset: start, length: CHUNK_SIZE } });
+                        if (!obj) throw new Error(`R2 miss data/${fileName}@${start}`);
+                        candidate = new Uint8Array(await obj.arrayBuffer());
+                    } else {
+                        const res = await fetch(`https://cdn.free2aitools.com/data/${fileName}`, { headers: { Range: `bytes=${start}-${end}` } });
+                        // V26.3: Validate HTTP status — 5xx body would be treated as valid data and poison the cache.
+                        if (!res.ok) throw new Error(`CDN fetch ${res.status} for data/${fileName}@${start}`);
+                        candidate = new Uint8Array(await res.arrayBuffer());
+                    }
+                    // V27.5: chunk size must match expected (full CHUNK_SIZE, or
+                    // file-end remainder for the trailing chunk).
+                    if (candidate.length === expectedSize) { chunk = candidate; break; }
+                    lastSize = candidate.length;
+                    if (attempt < RETRY_BACKOFFS_MS.length) {
+                        console.warn(`[R2 VFS] Short read attempt ${attempt + 1}: got ${candidate.length}, expected ${expectedSize} for ${fileName}@${start}. Retry in ${RETRY_BACKOFFS_MS[attempt]}ms`);
+                        await new Promise(r => setTimeout(r, RETRY_BACKOFFS_MS[attempt]));
+                        continue;
+                    }
+                    throw new Error(`Short read after ${RETRY_BACKOFFS_MS.length + 1} attempts: last ${lastSize} bytes, expected ${expectedSize} for data/${fileName}@${start} (etag=${state.etag}). Refusing to cache poisoned chunk.`);
                 }
 
                 // Write back to Edge Cache (1-year Immutable TTL)
@@ -168,7 +175,12 @@ export class R2RangeVFS extends FacadeVFS {
             }
             return VFS.SQLITE_IOERR_READ;
         } catch (e) {
-            console.error(`[R2 VFS] jRead Error:`, e);
+            // V27.8: single-isolate self-heal. Evict the cacheKey from L0 so the
+            // next jRead for this chunk re-fetches from L2 instead of replaying the
+            // potentially-poisoned in-memory entry. Does not require an isolate
+            // restart or a Cloudflare deploy to recover from one-off chunk corruption.
+            L0_CACHE.delete(cacheKey);
+            console.error(`[R2 VFS] jRead Error (L0 evicted: ${cacheKey}):`, e);
             return VFS.SQLITE_IOERR_READ;
         }
     }
