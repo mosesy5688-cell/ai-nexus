@@ -1,6 +1,7 @@
 # Free2AITools — The Open-Source AI Registry
 
 [![smithery badge](https://smithery.ai/badge/mosesy5688/free2aitools)](https://smithery.ai/servers/mosesy5688/free2aitools)
+[![SafeSkill 20/100](https://img.shields.io/badge/SafeSkill-20%2F100_Blocked-red)](https://safeskill.dev/scan/mosesy5688-cell-ai-nexus)
 
 Discover, rank, and compare 500,000+ AI models, datasets, papers, and tools from 13+ platforms. Updated daily, scored by the Free2AITools Nexus Index (FNI).
 
