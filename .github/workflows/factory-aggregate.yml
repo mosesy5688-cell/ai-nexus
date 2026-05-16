@@ -901,6 +901,15 @@ jobs:
       # Refuse to write a partial cycle-output to GHA cache or R2. R2 must NEVER
       # hold incomplete state. Validates 3/4-actual outputs only — reports/index
       # is 4/4 vfs-packing's job, registry shards live in cache/ (not output/).
+      #
+      # 2026-05-16 extension: also validate the 3 files 4/4 pack-db.js depends on
+      # via its V27.2 pre-flight (vfs-packing's `Verify Essential Metadata Cache`).
+      # Without this gate, 3/4 could silently produce cycle-output missing any of
+      # cache/mesh/graph.json | cache/search-core.json | cache/category_stats.json
+      # and still save it to GHA cache + R2 — fine until cache evicts, then 4/4's
+      # R2 fallback restore comes back missing the file and pack-db halts. Fail
+      # here instead so the gap surfaces at the producer, not at the consumer.
+      # Accept any of .json | .json.zst | .json.gz (same logic as 4/4 pre-flight).
       - name: Verify Cycle Output Completeness (Pre-Save)
         run: |
           set -e
@@ -913,12 +922,18 @@ jobs:
           [ "$RANKINGS_COUNT" -lt 5 ] && MISSING+=("rankings (got $RANKINGS_COUNT, need ≥5)")
           [ "$ARTICLES_COUNT" -lt 10 ] && MISSING+=("knowledge articles (got $ARTICLES_COUNT, need ≥10)")
           [ "$DAILY_COUNT" -lt 1 ] && MISSING+=("daily reports (got $DAILY_COUNT, need ≥1)")
+          # 4/4-required metadata files (must be present in any of .json / .json.zst / .json.gz form)
+          for f in "output/cache/mesh/graph.json" "output/cache/search-core.json" "output/cache/category_stats.json"; do
+            if [ ! -f "$f" ] && [ ! -f "${f}.zst" ] && [ ! -f "${f}.gz" ]; then
+              MISSING+=("$(basename "$f") (required by 4/4 pack-db.js)")
+            fi
+          done
           if [ "${#MISSING[@]}" -gt 0 ]; then
             echo "::error::Cycle output incomplete — refusing to save bad state to GHA cache or R2."
             for m in "${MISSING[@]}"; do echo "  - $m"; done
             exit 1
           fi
-          echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings, $DAILY_COUNT daily reports"
+          echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings, $DAILY_COUNT daily reports + 3/3 4/4-required metadata files"
 
       # V17.1: Save COMPLETE output (with all satellite results) to Cache for Factory 4/4
       - name: Save Complete Cycle Output to Cache
