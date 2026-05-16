@@ -61,9 +61,11 @@ export function normalizeTags(tags) {
 export function buildMetaJson(raw) {
     const config = raw.config || {};
 
-    // Extract params (safetensors.total or config)
+    // V27.4: params from safetensors.total / config.num_parameters / model-id name regex
     const paramsRaw = raw.safetensors?.total || config.num_parameters || null;
-    const paramsBillions = paramsRaw ? (paramsRaw / 1e9).toFixed(2) : null;
+    let paramsBillions = paramsRaw ? (paramsRaw / 1e9).toFixed(2) : null;
+    const nameMatch = !paramsBillions && String(raw.modelId || raw.id || raw.name || '').match(/(\d+(?:\.\d+)?)\s*[Bb](?![a-zA-Z])/);
+    if (nameMatch) { const v = parseFloat(nameMatch[1]); if (v >= 0.1 && v <= 2000) paramsBillions = v.toFixed(2); }
 
     // Extract architecture from config (used for both context_length fallback and entity field)
     const architectures = config.architectures || [];
