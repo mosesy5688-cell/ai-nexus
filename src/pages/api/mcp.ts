@@ -7,6 +7,7 @@ import type { APIRoute } from 'astro';
 import { GET as searchHandler } from './search.js';
 import { POST as selectHandler } from './v1/select.js';
 import { GET as compareHandler } from './v1/compare.js';
+import { GET as entityHandler } from './v1/entity/[...id].js';
 
 const SERVER_INFO = { name: 'free2aitools', version: '2.0.0' };
 const JSONRPC_HEADERS = {
@@ -114,6 +115,18 @@ async function callSearch(context: any, params: Record<string, string>): Promise
     return response.json();
 }
 
+/** Call internal entity handler — exact-match by id with multi-form tolerance.
+ *  PR #1999 accepts HF-native / bare-name / canonical / slug forms, so the
+ *  same `args.id` an agent received from search now resolves directly via
+ *  the entity endpoint instead of being passed through fuzzy keyword search.
+ */
+async function callEntity(context: any, id: string): Promise<any> {
+    const url = new URL(context.url.href);
+    url.pathname = `/api/v1/entity/${encodeURIComponent(id)}`;
+    const response = await entityHandler({ ...context, url, params: { id } });
+    return response.json();
+}
+
 async function handleToolCall(context: any, toolName: string, args: any) {
     switch (toolName) {
         case 'free2aitools_search': {
@@ -133,23 +146,28 @@ async function handleToolCall(context: any, toolName: string, args: any) {
             return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
         }
         case 'free2aitools_explain': {
-            const data = await callSearch(context, { q: args.id, limit: '1' });
-            const entity = data.results?.[0];
-            if (!entity) {
+            // V27.10: exact-match by id via entity endpoint instead of fuzzy
+            // keyword search. Previously callSearch(q=args.id) failed to match
+            // slug-form ids reliably (e.g. "vllm-project--vllm" returned "no
+            // entity found" because keyword search tokenized the slug).
+            const data = await callEntity(context, args.id);
+            const e = data?.entity;
+            if (!e) {
                 return { content: [{ type: 'text', text: `No entity found matching "${args.id}".` }] };
             }
+            const f = e.fni?.factors || {};
             const explanation = {
-                id: entity.id, name: entity.name, type: entity.type,
-                fni_score: entity.fni_score, author: entity.author,
+                id: e.id, name: e.name, type: e.type, author: e.author,
+                fni_score: e.fni?.score,
                 factors: {
-                    note: 'FNI V2.0 = min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q)',
-                    S: 'Semantic (ANN cosine similarity, query-time)',
-                    A: 'Authority (mesh gravity)',
-                    P: 'Popularity (log-compressed metrics)',
-                    R: 'Recency (exponential decay)',
-                    Q: 'Quality (completeness + utility)'
+                    S_semantic: f.semantic ?? null,
+                    A_authority: f.authority ?? null,
+                    P_popularity: f.popularity ?? null,
+                    R_recency: f.recency ?? null,
+                    Q_quality: f.quality ?? null,
+                    formula: 'min(99.9, 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q)',
                 },
-                detail_url: `https://free2aitools.com/${entity.type}s/${entity.slug || entity.id}`
+                detail_url: e.links?.detail_url || `https://free2aitools.com/${e.type}s/${e.slug || e.id}`,
             };
             return { content: [{ type: 'text', text: JSON.stringify(explanation, null, 2) }] };
         }
