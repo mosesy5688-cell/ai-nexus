@@ -17,6 +17,19 @@ const CHUNK_SIZE = 256 * 1024; // 256KB chunks
 const L0_CACHE = new Map<string, Uint8Array>();
 const MAX_L0_CHUNKS = 128; // ~32MB in-memory per isolate
 
+// V27.9: per-isolate counters surfaced via getVfsHealth() for /api/v1/_health.
+// Each Cloudflare isolate has independent state, so these are local samples,
+// not global metrics. Sufficient for spot-checking during incidents.
+const VFS_COUNTERS = {
+    jread_total: 0, jread_errors: 0,
+    short_read_attempts: 0, short_read_recovered: 0, short_read_exhausted: 0,
+    l0_hits: 0, l1_hits: 0, l2_fetches: 0,
+};
+const VFS_ISOLATE_START_MS = Date.now();
+export function getVfsHealth() {
+    return { ...VFS_COUNTERS, l0_size: L0_CACHE.size, l0_max: MAX_L0_CHUNKS, isolate_uptime_ms: Date.now() - VFS_ISOLATE_START_MS };
+}
+
 export class R2RangeVFS extends FacadeVFS {
     private fileStates = new Map<string, { size: number, etag: string, sizePromise: Promise<number> | null }>();
     private handleMap = new Map<number, string>();
@@ -90,6 +103,7 @@ export class R2RangeVFS extends FacadeVFS {
     }
 
     async jRead(pFile: number, pData: Uint8Array, iOffset: number): Promise<number> {
+        VFS_COUNTERS.jread_total++;
         const fileName = this.handleMap.get(pFile);
         if (!fileName) return VFS.SQLITE_IOERR_READ;
         const state = this.fileStates.get(fileName);
@@ -104,6 +118,7 @@ export class R2RangeVFS extends FacadeVFS {
         try {
             // --- L0 Cache (In-Memory, 0ms) ---
             if (L0_CACHE.has(cacheKey)) {
+                VFS_COUNTERS.l0_hits++;
                 const cachedChunk = L0_CACHE.get(cacheKey)!;
                 const avail = cachedChunk.length - chunkOffset;
                 const toCopy = Math.max(0, Math.min(avail, length));
@@ -117,9 +132,11 @@ export class R2RangeVFS extends FacadeVFS {
             // --- L1 Cache (Cloudflare Cache API, ~10ms) ---
             // The utility uses: https://vfs-cache.internal/${etag}/chunk/${chunkIndex}
             let chunk = await getChunkFromCacheAPI(chunkIndex, state.etag, fileName);
+            if (chunk) VFS_COUNTERS.l1_hits++;
 
             // --- L2 Origin (R2 Storage, ~50ms) with retry-on-short-read ---
             if (!chunk) {
+                VFS_COUNTERS.l2_fetches++;
                 const start = chunkIndex * CHUNK_SIZE;
                 const end = start + CHUNK_SIZE - 1;
                 const expectedSize = Math.min(CHUNK_SIZE, Math.max(0, state.size - start));
@@ -143,13 +160,19 @@ export class R2RangeVFS extends FacadeVFS {
                     }
                     // V27.5: chunk size must match expected (full CHUNK_SIZE, or
                     // file-end remainder for the trailing chunk).
-                    if (candidate.length === expectedSize) { chunk = candidate; break; }
+                    if (candidate.length === expectedSize) {
+                        chunk = candidate;
+                        if (attempt > 0) VFS_COUNTERS.short_read_recovered++;
+                        break;
+                    }
                     lastSize = candidate.length;
+                    VFS_COUNTERS.short_read_attempts++;
                     if (attempt < RETRY_BACKOFFS_MS.length) {
                         console.warn(`[R2 VFS] Short read attempt ${attempt + 1}: got ${candidate.length}, expected ${expectedSize} for ${fileName}@${start}. Retry in ${RETRY_BACKOFFS_MS[attempt]}ms`);
                         await new Promise(r => setTimeout(r, RETRY_BACKOFFS_MS[attempt]));
                         continue;
                     }
+                    VFS_COUNTERS.short_read_exhausted++;
                     throw new Error(`Short read after ${RETRY_BACKOFFS_MS.length + 1} attempts: last ${lastSize} bytes, expected ${expectedSize} for data/${fileName}@${start} (etag=${state.etag}). Refusing to cache poisoned chunk.`);
                 }
 
@@ -180,6 +203,7 @@ export class R2RangeVFS extends FacadeVFS {
             // potentially-poisoned in-memory entry. Does not require an isolate
             // restart or a Cloudflare deploy to recover from one-off chunk corruption.
             L0_CACHE.delete(cacheKey);
+            VFS_COUNTERS.jread_errors++;
             console.error(`[R2 VFS] jRead Error (L0 evicted: ${cacheKey}):`, e);
             return VFS.SQLITE_IOERR_READ;
         }

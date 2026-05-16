@@ -122,8 +122,54 @@ async function probeOne(s3, sample) {
     }
 }
 
+// V27.9: also probe each meta-NN.db file at R2 origin. The original V27.3
+// probe samples (offset, size) from LOCAL meta DBs and verifies bytes are
+// fetchable from `data/fused-shard-NNN.bin`. That validates the shard
+// binaries but skips the meta DB files themselves — a meta-NN.db that's
+// truncated or corrupted at R2 origin would NOT be detected because
+// production reads it via R2 binding and the probe never touches that path.
+// This extension compares R2 size to local size + verifies SQLite magic
+// header for every meta-NN.db, catching:
+//   - upload never landed (404 / object missing)
+//   - upload truncated (size mismatch)
+//   - upload corrupted (magic header wrong)
+async function probeMetaDbs(s3) {
+    const metaFiles = fs.readdirSync(DATA_DIR)
+        .filter(f => /^meta-\d+\.db$/.test(f))
+        .map(f => ({ name: f, localPath: path.join(DATA_DIR, f), localSize: fs.statSync(path.join(DATA_DIR, f)).size }));
+    if (metaFiles.length === 0) return { total: 0, failures: 0 };
+    console.log(`[R2-PROBE] Probing ${metaFiles.length} meta-NN.db files at R2 origin (size + SQLite magic)...`);
+    let failures = 0;
+    for (const m of metaFiles) {
+        try {
+            const head = await s3.send(new (await import('@aws-sdk/client-s3')).HeadObjectCommand({
+                Bucket: BUCKET, Key: `data/${m.name}`,
+            }));
+            if (head.ContentLength !== m.localSize) {
+                console.error(`  FAIL ${m.name}: R2 size ${head.ContentLength} != local size ${m.localSize}`);
+                failures++; continue;
+            }
+            const res = await s3.send(new GetObjectCommand({
+                Bucket: BUCKET, Key: `data/${m.name}`, Range: 'bytes=0-15',
+            }));
+            const header = await streamToBuffer(res.Body);
+            const magic = Buffer.from(header).toString('ascii', 0, 15);
+            if (magic !== 'SQLite format 3') {
+                console.error(`  FAIL ${m.name}: bad magic header '${magic}' (expected 'SQLite format 3')`);
+                failures++; continue;
+            }
+            console.log(`  OK ${m.name} (${m.localSize} bytes, magic OK)`);
+        } catch (err) {
+            const msg = classifyRangeError(err);
+            console.error(`  FAIL ${m.name}: ${msg}`);
+            failures++;
+        }
+    }
+    return { total: metaFiles.length, failures };
+}
+
 async function main() {
-    console.log('[R2-PROBE] V27.3 R2 Origin Direct Probe (L2 verification)');
+    console.log('[R2-PROBE] V27.9 R2 Origin Direct Probe (L2 verification: shards + meta DBs)');
 
     if (!process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
         console.warn('[R2-PROBE] R2 credentials missing - skipping (CI dry run)');
@@ -131,6 +177,16 @@ async function main() {
     }
 
     const s3 = makeClient();
+
+    // Phase 1: probe meta-NN.db files themselves
+    const metaResult = await probeMetaDbs(s3);
+    if (metaResult.failures > 0) {
+        console.error(`[R2-PROBE] FAIL ${metaResult.failures}/${metaResult.total} meta DBs. R2 origin corrupt — re-upload meta DBs before continuing.`);
+        process.exit(1);
+    }
+    if (metaResult.total > 0) console.log(`[R2-PROBE] PASS - all ${metaResult.total} meta DBs coherent at R2 origin.`);
+
+    // Phase 2: probe one entity per shard against the shard binary
     const samples = collectSamplesFromShards();
     if (samples.length === 0) {
         console.error('[R2-PROBE] No sharded entities in meta DBs. Probe failed.');
