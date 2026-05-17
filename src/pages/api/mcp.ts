@@ -184,6 +184,7 @@ async function handleToolCall(context: any, toolName: string, args: any) {
             compareUrl.pathname = '/api/v1/compare';
             compareUrl.searchParams.set('ids', ids);
             const res = await compareHandler({ ...context, url: compareUrl });
+            if (!res.ok) throw new Error(`Compare failed: HTTP ${res.status}`);
             const data = await res.json();
             return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
         }
