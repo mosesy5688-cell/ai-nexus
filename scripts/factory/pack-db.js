@@ -5,7 +5,7 @@ import path from 'path';
 const fsp = fs, VEC_DIM = 768;
 import { configureDistiller, distillEntity, flushDistillerCache, getDistillerStats } from './lib/v25-distiller.js';
 import { cleanAbstract } from './lib/abstract-cleaner.js';
-import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary, resetPackOutputDbs } from './lib/pack-utils.js';
+import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary, resetPackOutputDbs, resolveEntitySpecs } from './lib/pack-utils.js';
 import { computeMetaShardSlot } from './lib/meta-shard-router.js';
 import { dbSchemas, ftsDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
@@ -117,9 +117,7 @@ async function packDatabase() {
         }
 
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
-        const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
-        const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
-        const arch = e.architecture ?? e.technical?.architecture ?? '';
+        const { pBillions, ctxLen, arch } = resolveEntitySpecs(e);
 
         e = distillEntity(e, pBillions, lookupAccess.lookup);
         enrichHostedOn(e, hostedOnMap, hostedOnTs);

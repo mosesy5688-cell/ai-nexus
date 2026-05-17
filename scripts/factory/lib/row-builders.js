@@ -2,6 +2,25 @@
  * V23.1 Shard-DB Row and Bundle Builders
  * Extracted to satisfy CES Art 5.1 (250-line limit)
  */
+import { lookupContextLength } from '../../ingestion/adapters/hf-arch-lookup.js';
+
+const PARAMS_NAME_RE = /(\d+(?:\.\d+)?)\s*[Bb](?![a-zA-Z])/;
+
+/**
+ * V27.11: Resolve params_billions, context_length, architecture with fallbacks.
+ * Prevents null→0 silent coercion: applies name-regex and arch-lookup when fields are absent.
+ */
+export function resolveEntitySpecs(e) {
+    const arch = e.architecture ?? e.technical?.architecture ?? '';
+    let pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? null;
+    if (!pBillions) {
+        const m = String(e.name || e.id || '').match(PARAMS_NAME_RE);
+        if (m) { const v = parseFloat(m[1]); if (v >= 0.1 && v <= 2000) pBillions = v; }
+    }
+    let ctxLen = e.context_length ?? e.technical?.context_length ?? null;
+    if (!ctxLen && arch) ctxLen = lookupContextLength(arch) || null;
+    return { pBillions: pBillions || 0, ctxLen: ctxLen || 0, arch };
+}
 
 /**
  * V22.8: Build complete bundle JSON for VFS shard packing
