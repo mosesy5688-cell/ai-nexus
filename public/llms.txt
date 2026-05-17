@@ -56,6 +56,9 @@ per search; auth/paid tiers (TBD) raise the cap.
 - `GET /api/v1/compare?ids=<id1>,<id2>[,...]` — side-by-side comparison of 2-10
   entities. Returns FNI factors + technical specs + license per entity.
 
+- `GET /api/v1/health` — VFS layer observability snapshot: cache-hit counters
+  (L0/L1/L2), short-read retry stats, isolate uptime. No auth, not cached.
+
 - `GET /api/v1/badge/<slug-or-id>` — SVG badge with FNI score, color-coded
   (green ≥ 90 excellent, blue ≥ 70 good, yellow ≥ 50 average, red below).
   Suitable for README embedding.
