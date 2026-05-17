@@ -197,6 +197,12 @@ function estimateMeshPoints(entity, sourcePrefix) {
     else if (sourcePrefix === 'gh') points += citations * 5;
     else points += citations;
     points += meshDegree;
+    // V27.12: HF/Replicate models have 0 citations; use log-compressed likes as authority proxy
+    // (community corroboration signal, distinct from raw downloads used in P)
+    if ((sourcePrefix === 'hf' || sourcePrefix === 'default') && citations === 0) {
+        const likes = parseInt(entity.likes || entity.like_count) || 0;
+        if (likes > 0) points += Math.floor(Math.log10(likes + 1) * 10);
+    }
     return points;
 }
 
