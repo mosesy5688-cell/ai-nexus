@@ -105,7 +105,7 @@ export const GET: APIRoute = async ({ url }) => {
         popularity: { downloads: e.downloads ?? 0, stars: e.stars ?? 0 },
         last_modified: e.last_modified,
         detail_url: `https://free2aitools.com/model/${e.id}`,
-        badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(e.id)}`,
+        badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(e.slug || e.id)}`,
         found: true,
       };
     });
