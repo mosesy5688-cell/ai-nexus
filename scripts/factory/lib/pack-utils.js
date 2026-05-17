@@ -148,7 +148,7 @@ export async function streamFusedEntities(cacheDir, trendingMap, trendMap, consu
 }
 
 // V23.1: Builders extracted to satisfy CES Art 5.1
-export { buildBundleJson, buildEntityRow } from './row-builders.js';
+export { buildBundleJson, buildEntityRow, resolveEntitySpecs } from './row-builders.js';
 
 // ── V23.1: Shard DB Extracted Utilities ─────────
 
