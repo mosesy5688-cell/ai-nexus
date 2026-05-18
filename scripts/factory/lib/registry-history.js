@@ -6,7 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { SHARD_SIZE, purgeStaleShards } from './registry-utils.js';
-import { loadWithFallback, saveWithBackup } from './cache-core.js';
+import { saveWithBackup } from './cache-core.js';
 import { autoDecompress } from './zstd-helper.js';
 
 /**
@@ -42,8 +42,7 @@ export async function loadFniHistory() {
         }
     }
 
-    console.warn('[CACHE] ⚠️ FNI history shards unavailable, falling back to monolithic file');
-    return loadWithFallback('fni-history.json.zst', { entities: {}, lastUpdated: null });
+    return { entities: {}, lastUpdated: null };
 }
 
 /**
@@ -71,8 +70,9 @@ export async function saveFniHistory(history) {
         }, { compress: true });
     }
 
-    // Monolith fallback
-    await saveWithBackup('fni-history.json.zst', { ...history, lastUpdated: timestamp }, { compress: true });
+    // V27.16: Monolith write removed. JSON.stringify of full history (>500k entities × 90 days)
+    // exceeds V8 String.MaxLength (~512MB) and crashes finalization. Shards above are authoritative;
+    // R2 backup of cache/fni-history/ via workflow's backup-dir step covers durability.
 
     // Purge stale local shards (prevent backup-dir re-uploading corrupted files)
     const historyDir = path.join(process.env.CACHE_DIR || './cache', 'fni-history');
