@@ -117,5 +117,9 @@ export function initRankingInfiniteScroll() {
     }, { once: true });
 }
 
-// Auto-init on DOMContentLoaded
-document.addEventListener('DOMContentLoaded', initRankingInfiniteScroll);
+// Auto-init deferred to idle time — keeps IntersectionObserver setup out of TTI window
+document.addEventListener('DOMContentLoaded', () =>
+    'requestIdleCallback' in window
+        ? requestIdleCallback(initRankingInfiniteScroll, { timeout: 2000 })
+        : setTimeout(initRankingInfiniteScroll, 0)
+);
