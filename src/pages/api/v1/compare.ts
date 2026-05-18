@@ -73,7 +73,7 @@ export const GET: APIRoute = async ({ url }) => {
     }
 
     const entityMap = new Map<string, any>();
-    for (const [shardIdx, queryKeys] of shardGroups) {
+    await Promise.all([...shardGroups.entries()].map(async ([shardIdx, queryKeys]) => {
       const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
       const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
       const keys = [...queryKeys];
@@ -85,7 +85,7 @@ export const GET: APIRoute = async ({ url }) => {
         entityMap.set(row.id, row);
         if (row.slug) entityMap.set(row.slug, row);
       }
-    }
+    }));
 
     const entities = ids.map(id => {
       const e = entityMap.get(id) || entityMap.get(id.toLowerCase()) || entityMap.get(slugMap.get(id)!);

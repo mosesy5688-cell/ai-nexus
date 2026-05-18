@@ -80,17 +80,17 @@ async function _fetchCatalogDataInner(type, start) {
         shardList = [...priority, ...(expansion || [])].slice(0, 4);
     }
 
-    // Query single priority shard for SSR (speed-safe)
-    let allRows = [];
-    for (const dbName of shardList) {
-        try {
+    // Parallel shard fetch — Promise.allSettled so one slow/failed shard doesn't block others
+    const shardResults = await Promise.allSettled(
+        shardList.map(async (dbName) => {
             const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-            const rows = await executeSql(engine.sqlite3, engine.db, sql, sqlParams);
-            allRows = allRows.concat(rows);
-        } catch (e) {
-            console.warn(`[CatalogFetcher] Shard ${dbName} failed:`, e.message);
-        }
-    }
+            return executeSql(engine.sqlite3, engine.db, sql, sqlParams);
+        })
+    );
+    const allRows = shardResults.flatMap((r, i) => {
+        if (r.status === 'rejected') console.warn(`[CatalogFetcher] Shard ${shardList[i]} failed:`, r.reason?.message);
+        return r.status === 'fulfilled' ? r.value : [];
+    });
 
     // Sort & Deduplicate
     allRows.sort((a, b) => b.fni_score - a.fni_score);

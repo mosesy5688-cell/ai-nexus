@@ -211,11 +211,14 @@ async function initMiniTrends() {
     });
 }
 
-// Global Inits
+// Global Inits — defer to idle so chart setup doesn't block TTI
+const deferMini = () => 'requestIdleCallback' in window
+    ? requestIdleCallback(initMiniTrends, { timeout: 2000 })
+    : setTimeout(initMiniTrends, 0);
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMiniTrends);
+    document.addEventListener('DOMContentLoaded', deferMini);
 } else {
-    initMiniTrends();
+    deferMini();
 }
-document.addEventListener('astro:page-load', initMiniTrends);
+document.addEventListener('astro:page-load', initMiniTrends); // view-transition: run immediately
 </script>

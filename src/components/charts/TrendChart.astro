@@ -172,10 +172,13 @@ const {
     }
   }
   
+  const deferChart = () => 'requestIdleCallback' in window
+    ? requestIdleCallback(initChart, { timeout: 2000 })
+    : setTimeout(initChart, 0);
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initChart);
+    document.addEventListener('DOMContentLoaded', deferChart);
   } else {
-    initChart();
+    deferChart();
   }
 </script>
 
