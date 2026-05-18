@@ -58,7 +58,8 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir, ranki
     const backupDir = path.join(outputDir, 'meta', 'backup');
     await fs.mkdir(backupDir, { recursive: true });
 
-    const monoliths = ['global-registry.json.zst', 'fni-history.json.zst', 'daily-accum.json.zst', 'entity-checksums.json.zst'];
+    // V27.16: fni-history.json.zst removed — exceeded V8 String.MaxLength at 500k+ entities
+    const monoliths = ['global-registry.json.zst', 'daily-accum.json.zst', 'entity-checksums.json.zst'];
     for (const file of monoliths) {
         const src = path.join(cacheDir, file);
         try {
