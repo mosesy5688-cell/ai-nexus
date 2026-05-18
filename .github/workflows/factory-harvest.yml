@@ -3,7 +3,7 @@
 # V14.5: 4 parallel job groups for 3x faster harvesting
 # Based on proven L1 Harvester pattern (loop1-harvester-v42.yml)
 # 
-# Triggers: Schedule Mon/Thu 03:00 UTC (11:00 Beijing)
+# Triggers: Schedule daily 02:47 UTC (10:47 Beijing)
 # Outputs: merged.json artifact for downstream processing
 # 
 # Constitution: Art 3.1 (Factory Pipeline)
@@ -16,7 +16,7 @@ permissions:
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # Daily 03:00 UTC
+    - cron: '47 2 * * *'  # Daily 02:47 UTC
   workflow_dispatch:
     inputs:
       skip_harvest:

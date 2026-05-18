@@ -12,7 +12,7 @@ permissions:
 
 on:
   schedule:
-    - cron: '30 2 * * *'  # Daily 02:30 UTC (before 1/4 Harvest at 03:00)
+    - cron: '17 2 * * *'  # Daily 02:17 UTC (before 1/4 Harvest at 02:47)
   workflow_dispatch:
 
 concurrency:
