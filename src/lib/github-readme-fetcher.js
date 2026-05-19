@@ -19,6 +19,7 @@
  */
 
 import { githubFetch } from './github-fetch-retry.js';
+import { checkCache, updateCache } from './github-readme-cache.js';
 
 const GH_API_BASE = 'https://api.github.com';
 
@@ -108,12 +109,17 @@ export async function fetchReadme({ owner, name, token, logPrefix = '      ' }) 
 }
 
 /**
- * Bounded-concurrency batch README fetch.
+ * Bounded-concurrency batch README fetch with optional pushedAt-keyed cache.
  * Mutates each repo: sets repo.readme = string (empty string if missing/failed).
- * Returns stats: { ok, notFound, failed }.
+ * Returns stats: { ok, notFound, failed, cached }.
+ *
+ * When `cache` is supplied (Map from loadReadmeCache), repos whose pushedAt
+ * matches the cached entry skip GitHub entirely. Successful fetches and
+ * confirmed not-found results update the cache so the next run sees the hit.
+ * Failed fetches are NOT cached — they should retry next run.
  */
-export async function fetchReadmesBatch(repos, { token, concurrency = 5 } = {}) {
-    const stats = { ok: 0, notFound: 0, failed: 0 };
+export async function fetchReadmesBatch(repos, { token, concurrency = 5, cache = null } = {}) {
+    const stats = { ok: 0, notFound: 0, failed: 0, cached: 0 };
     const queue = repos.slice();
 
     async function worker() {
@@ -122,13 +128,25 @@ export async function fetchReadmesBatch(repos, { token, concurrency = 5 } = {}) 
             if (!repo) break;
             const owner = repo.owner?.login;
             const name = repo.name;
+            const repoId = repo.id;
+            const pushedAt = repo.pushed_at;
+
+            const cached = checkCache(cache, repoId, pushedAt);
+            if (cached !== null) {
+                repo.readme = cached;
+                stats.cached++;
+                continue;
+            }
+
             const result = await fetchReadme({ owner, name, token });
             if (result.status === 'ok') {
                 repo.readme = result.content || '';
                 stats.ok++;
+                updateCache(cache, repoId, pushedAt, repo.readme);
             } else if (result.status === 'not-found') {
                 repo.readme = '';
                 stats.notFound++;
+                updateCache(cache, repoId, pushedAt, '');
             } else {
                 repo.readme = '';
                 stats.failed++;

@@ -14,6 +14,7 @@
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 import { fetchReadmesBatch } from '../../../src/lib/github-readme-fetcher.js';
+import { loadReadmeCache, saveReadmeCache } from '../../../src/lib/github-readme-cache.js';
 
 const GH_API_BASE = 'https://api.github.com';
 
@@ -84,7 +85,8 @@ export class GitHubAdapter extends BaseAdapter {
 
         const allRepos = [];
         const seenIds = new Set();
-        const readmeStats = { ok: 0, notFound: 0, failed: 0 }; // V27.23
+        const readmeStats = { ok: 0, notFound: 0, failed: 0, cached: 0 }; // V27.23
+        const readmeCache = await loadReadmeCache(); // V27.23 layer 3
         const perPage = 25; // V27.23: halved from 50 — keeps search query under 10s GQL timeout under load
 
         const GQL_QUERY = `
@@ -195,8 +197,8 @@ export class GitHubAdapter extends BaseAdapter {
 
                     // V27.23: enrich page with READMEs via separate REST/GQL fetcher BEFORE yielding
                     if (batch.length > 0) {
-                        const rs = await fetchReadmesBatch(batch, { token: this.token, concurrency: 5 });
-                        readmeStats.ok += rs.ok; readmeStats.notFound += rs.notFound; readmeStats.failed += rs.failed;
+                        const rs = await fetchReadmesBatch(batch, { token: this.token, concurrency: 5, cache: readmeCache });
+                        readmeStats.ok += rs.ok; readmeStats.notFound += rs.notFound; readmeStats.failed += rs.failed; readmeStats.cached += rs.cached;
                         for (const r of batch) if (r.readme) r.quick_start = this.extractQuickStartFromReadme(r.readme);
                     }
 
@@ -273,8 +275,11 @@ export class GitHubAdapter extends BaseAdapter {
             }
         }
 
+        await saveReadmeCache(readmeCache); // V27.23 layer 3
+        const totalReadmeProcessed = readmeStats.ok + readmeStats.cached + readmeStats.notFound + readmeStats.failed;
+        const cacheHitPct = totalReadmeProcessed > 0 ? ((readmeStats.cached / totalReadmeProcessed) * 100).toFixed(1) : '0';
         console.log(`✅ [GitHub] GraphQL Fetch Complete: ${allRepos.length} repositories`);
-        console.log(`📚 [GitHub] README: ${readmeStats.ok} ok / ${readmeStats.notFound} not-found / ${readmeStats.failed} failed`);
+        console.log(`📚 [GitHub] README: ${readmeStats.cached} cached (${cacheHitPct}%) / ${readmeStats.ok} fetched / ${readmeStats.notFound} not-found / ${readmeStats.failed} failed`);
         return options.onBatch ? [] : allRepos;
     }
 

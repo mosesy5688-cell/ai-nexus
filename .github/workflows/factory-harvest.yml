@@ -3,7 +3,7 @@
 # V14.5: 4 parallel job groups for 3x faster harvesting
 # Based on proven L1 Harvester pattern (loop1-harvester-v42.yml)
 # 
-# Triggers: Schedule daily 02:47 UTC (10:47 Beijing)
+# Triggers: Schedule daily 02:47 UTC
 # Outputs: merged.json artifact for downstream processing
 # 
 # Constitution: Art 3.1 (Factory Pipeline)
@@ -101,6 +101,11 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # V27.23: README cache lives in R2 — needs read+write during harvest
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
           echo "📥 [Parallel] Harvesting GitHub (V19: 10K)..."
           node scripts/ingestion/harvest-single.js github --limit 10000 --no-bridge
