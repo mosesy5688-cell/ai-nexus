@@ -197,10 +197,11 @@ function estimateMeshPoints(entity, sourcePrefix) {
     else if (sourcePrefix === 'gh') points += citations * 5;
     else points += citations;
     points += meshDegree;
-    // V27.12: HF/Replicate models have 0 citations; use log-compressed likes as authority proxy
-    // (community corroboration signal, distinct from raw downloads used in P)
+    // V27.12 → V27.17: HF/Replicate models have 0 citations; use log-compressed likes as authority proxy.
+    // HF adapter stores raw.likes under entity.popularity (hf-normalizer.js:47/191 + huggingface-adapter.js:319);
+    // entity.likes does not exist on HF entities, so the V27.12 fallback chain missed every HF model.
     if ((sourcePrefix === 'hf' || sourcePrefix === 'default') && citations === 0) {
-        const likes = parseInt(entity.likes || entity.like_count) || 0;
+        const likes = parseInt(entity.likes || entity.like_count || entity.popularity) || 0;
         if (likes > 0) points += Math.floor(Math.log10(likes + 1) * 10);
     }
     return points;
