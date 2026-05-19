@@ -13,6 +13,7 @@
  */
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { fetchReadmesBatch } from '../../../src/lib/github-readme-fetcher.js';
 
 const GH_API_BASE = 'https://api.github.com';
 
@@ -56,8 +57,10 @@ export class GitHubAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch ML/AI repositories from GitHub using GraphQL
-     * V22.4: 66% request reduction via single-query metadata + README block
+     * Fetch ML/AI repositories from GitHub using GraphQL.
+     * V27.23: README content fetched separately (REST + GQL fallback) — see
+     * src/lib/github-readme-fetcher.js. Inlining README blobs in the search
+     * query pushed combined cost past GitHub's 10s timeout under load → 502.
      */
     async fetch(options = {}) {
         const {
@@ -81,7 +84,8 @@ export class GitHubAdapter extends BaseAdapter {
 
         const allRepos = [];
         const seenIds = new Set();
-        const perPage = 50; // GraphQL recommendation for stable performance
+        const readmeStats = { ok: 0, notFound: 0, failed: 0 }; // V27.23
+        const perPage = 25; // V27.23: halved from 50 — keeps search query under 10s GQL timeout under load
 
         const GQL_QUERY = `
             query($queryString: String!, $after: String, $first: Int!) {
@@ -111,12 +115,6 @@ export class GitHubAdapter extends BaseAdapter {
                     pushedAt
                     defaultBranchRef { name }
                     owner { login avatarUrl }
-                    readme: object(expression: "HEAD:README.md") {
-                      ... on Blob { text }
-                    }
-                    readmeLower: object(expression: "HEAD:readme.md") {
-                      ... on Blob { text }
-                    }
                   }
                 }
               }
@@ -195,6 +193,13 @@ export class GitHubAdapter extends BaseAdapter {
                         }
                     }
 
+                    // V27.23: enrich page with READMEs via separate REST/GQL fetcher BEFORE yielding
+                    if (batch.length > 0) {
+                        const rs = await fetchReadmesBatch(batch, { token: this.token, concurrency: 5 });
+                        readmeStats.ok += rs.ok; readmeStats.notFound += rs.notFound; readmeStats.failed += rs.failed;
+                        for (const r of batch) if (r.readme) r.quick_start = this.extractQuickStartFromReadme(r.readme);
+                    }
+
                     if (options.onBatch && batch.length > 0) {
                         await options.onBatch(batch);
                     }
@@ -250,6 +255,11 @@ export class GitHubAdapter extends BaseAdapter {
                                 allRepos.push(mappedRepo);
                             }
                         }
+                        if (batch.length > 0) {
+                            const rs = await fetchReadmesBatch(batch, { token: this.token, concurrency: 5 });
+                            readmeStats.ok += rs.ok; readmeStats.notFound += rs.notFound; readmeStats.failed += rs.failed;
+                            for (const r of batch) if (r.readme) r.quick_start = this.extractQuickStartFromReadme(r.readme);
+                        }
                         if (options.onBatch && batch.length > 0) await options.onBatch(batch);
                         console.log(`   [Retry] ${topic} p${page}: +${batch.length} repos (total: ${allRepos.length})`);
                         if (!searchData.pageInfo.hasNextPage) break;
@@ -264,6 +274,7 @@ export class GitHubAdapter extends BaseAdapter {
         }
 
         console.log(`✅ [GitHub] GraphQL Fetch Complete: ${allRepos.length} repositories`);
+        console.log(`📚 [GitHub] README: ${readmeStats.ok} ok / ${readmeStats.notFound} not-found / ${readmeStats.failed} failed`);
         return options.onBatch ? [] : allRepos;
     }
 
@@ -399,8 +410,8 @@ export class GitHubAdapter extends BaseAdapter {
             pushed_at: node.pushedAt,
             default_branch: node.defaultBranchRef?.name || 'main',
             owner: { login: node.owner?.login, avatar_url: node.owner?.avatarUrl },
-            readme: node.readme?.text || node.readmeLower?.text || '',
-            quick_start: this.extractQuickStartFromReadme(node.readme?.text || node.readmeLower?.text || '')
+            readme: '', // V27.23: populated by _enrichBatchWithReadmes after search returns
+            quick_start: null
         };
     }
 
