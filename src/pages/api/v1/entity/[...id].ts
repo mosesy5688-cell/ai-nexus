@@ -23,6 +23,8 @@ import { env } from 'cloudflare:workers';
 import { getCachedDbConnection, executeSql, loadManifest } from '../../../../lib/sqlite-engine.js';
 import { xxhash64Mod } from '../../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
+import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
+import { generateCandidates } from '../../../../lib/slug-helper.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -33,27 +35,6 @@ const CORS_HEADERS = {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'public, max-age=600, s-maxage=3600, stale-while-revalidate=86400',
 };
-
-const SLUG_PREFIXES = [
-    'hf-model', 'hf-agent', 'hf-tool', 'hf-dataset', 'hf-space', 'hf-paper', 'hf-collection',
-    'gh-model', 'gh-agent', 'gh-tool', 'gh-repo',
-    'arxiv-paper', 'arxiv', 'paper',
-    'replicate-model', 'replicate-agent', 'replicate-space',
-    'civitai-model', 'ollama-model', 'kaggle-dataset', 'kaggle-model',
-    'langchain-prompt', 'langchain-agent',
-    'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt',
-];
-
-function deriveSlug(id: string): string {
-    let r = (id || '').toLowerCase();
-    for (const p of SLUG_PREFIXES) {
-        if (r.startsWith(`${p}--`) || r.startsWith(`${p}:`) || r.startsWith(`${p}/`)) {
-            r = r.slice(p.length + (r[p.length] === '-' ? 2 : 1));
-            break;
-        }
-    }
-    return r.replace(/[:\/]/g, '--').replace(/^--|--$/g, '').replace(/--+/g, '--');
-}
 
 function safeJsonParse(s: any, fallback: any = null) {
     if (s == null || s === '') return fallback;
@@ -156,34 +137,7 @@ function project(e: any, includeBody: boolean) {
     return entity;
 }
 
-const AUTO_PREFIXES = ['hf-model', 'gh-model', 'gh-tool', 'arxiv-paper', 'replicate-model',
-    'hf-dataset', 'kaggle-model', 'civitai-model', 'ollama-model'];
-
-/**
- * Generate candidate id/slug variants from a raw user input. Agents rarely
- * know the internal `hf-model--<author>--<name>` form; they typically know
- * the HuggingFace-native `author/name` form, or just `name`, or upper/mixed
- * case. Producing multiple candidates and matching any of them via SQL IN()
- * makes the endpoint tolerant of these forms without forcing an extra
- * roundtrip through /search first.
- */
-function generateCandidates(rawId: string): string[] {
-    const lower = rawId.toLowerCase();
-    const candidates = new Set<string>();
-    candidates.add(lower);
-    candidates.add(lower.replace(/\//g, '--').replace(/--+/g, '--'));
-    const slug = deriveSlug(rawId);
-    if (slug) candidates.add(slug);
-    const hasPrefix = SLUG_PREFIXES.some(p =>
-        lower.startsWith(`${p}--`) || lower.startsWith(`${p}:`) || lower.startsWith(`${p}/`)
-    );
-    if (!hasPrefix && slug) {
-        for (const p of AUTO_PREFIXES) candidates.add(`${p}--${slug}`);
-    }
-    return [...candidates].filter(Boolean);
-}
-
-export const GET: APIRoute = async ({ params, url }) => {
+export const GET: APIRoute = async ({ params, url, request }) => {
     const start = Date.now();
     const rawId = (params.id || '').trim();
     if (!rawId) return error(400, 'Missing required path parameter: id');
@@ -195,6 +149,12 @@ export const GET: APIRoute = async ({ params, url }) => {
         const isDev = !!import.meta.env?.DEV;
         const manifest = await loadManifest(r2Bucket, isDev);
         const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
+
+        // V27.22: ETag = manifest._etag + (id, include flag) — cross-cycle
+        // invalidation handled by manifest bump; ?include=body has different
+        // payload so it gets a different ETag bucket.
+        const etag = buildEtag(manifest?._etag, rawId.toLowerCase(), includeBody ? 'body' : '');
+        if (matchesIfNoneMatch(request, etag)) return notModified(etag, CORS_HEADERS);
 
         const candidates = generateCandidates(rawId);
         const shardsToProbe = new Set<number>();
@@ -235,7 +195,7 @@ export const GET: APIRoute = async ({ params, url }) => {
             version: API_VERSION,
             entity: project(row, includeBody),
             meta: { elapsed_ms: Date.now() - start, etag: manifest?._etag || null, candidates_tried: candidates.length },
-        }), { headers: CORS_HEADERS });
+        }), { headers: { ...CORS_HEADERS, ETag: etag } });
     } catch (e: any) {
         console.error('[ENTITY]', rawId, e.message, e.stack);
         return error(500, 'Internal error');
