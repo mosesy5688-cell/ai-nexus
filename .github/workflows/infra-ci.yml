@@ -193,17 +193,20 @@ jobs:
             echo "✅ Model page test passed"
           fi
 
-      - name: Test Models Page
+      - name: Test Category Page
         run: |
-          echo "🧪 Testing models page..."
+          echo "🧪 Testing /text-generation category page..."
 
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/models)
+          # V27.18: /models is a Cloudflare-side rewrite (not in git source),
+          # so CI's local `npx serve dist` returns 404. /text-generation is a
+          # real [category].astro route present in dist/.
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/text-generation)
           if [ "$STATUS" != "200" ]; then
-            echo "❌ Models page returned $STATUS"
+            echo "❌ Category page returned $STATUS"
             exit 1
           fi
 
-          echo "✅ Models page test passed"
+          echo "✅ Category page test passed"
 
       - name: Test API Endpoints
         run: |
@@ -316,9 +319,13 @@ jobs:
       - name: Run Lighthouse
         uses: treosh/lighthouse-ci-action@v11
         with:
+          # V27.18: /models is a Cloudflare-side rewrite (not in git source),
+          # so CI's local `npx serve dist` returns 404. /text-generation is a
+          # real [category].astro route present in dist/ and is also the page
+          # V27.15 optimized (catalog parallel shard fetch + idle-defer init).
           urls: |
             http://localhost:4321/
-            http://localhost:4321/models
+            http://localhost:4321/text-generation
           uploadArtifacts: true
           temporaryPublicStorage: true
           runs: 3
