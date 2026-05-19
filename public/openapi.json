@@ -64,6 +64,22 @@
                 "schema": { "$ref": "#/components/schemas/Error" }
               }
             }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "503": {
+            "description": "Rankings data not yet available — retry after next pipeline run",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
           }
         }
       }
@@ -141,7 +157,20 @@
             }
           },
           "400": {
-            "description": "Missing ids or fewer than 2"
+            "description": "Missing ids parameter, fewer than 2, or more than 10",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
           }
         }
       }
@@ -234,11 +263,68 @@
         }
       }
     },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Runtime observability snapshot",
+        "description": "Per-isolate VFS counters + Node runtime info. Cloudflare isolates have independent state, so each call returns metrics from the isolate that handled the request — useful for spot-checking during incidents, not global aggregation. `Cache-Control: no-store` (CDN does not cache).",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Health snapshot",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets": {
+      "get": {
+        "operationId": "listDatasets",
+        "summary": "List open datasets (parquet format)",
+        "description": "Returns JSON manifest of FNI-scored AI entity datasets. Pass `?file=<id>` to redirect (302) to the parquet download URL.",
+        "tags": ["Datasets"],
+        "parameters": [
+          {
+            "name": "file",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Dataset ID — when present, server returns 302 redirect to CDN download URL",
+            "example": "fni_lite_latest"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset manifest",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetsResponse" }
+              }
+            }
+          },
+          "302": {
+            "description": "Redirect to dataset download URL (only when ?file= is present and recognized)"
+          },
+          "404": {
+            "description": "Unknown file ID",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mcp": {
       "post": {
         "operationId": "mcpEndpoint",
         "summary": "MCP Server (JSON-RPC 2.0)",
-        "description": "Model Context Protocol endpoint. Supports tools/list and tools/call for 5 tools: free2aitools_search, free2aitools_rank, free2aitools_explain, free2aitools_select_model, free2aitools_compare. Tool names MUST include the free2aitools_ prefix when invoking tools/call.",
+        "description": "Model Context Protocol endpoint. Supports tools/list and tools/call for 5 tools: free2aitools_search, free2aitools_rank, free2aitools_explain, free2aitools_select_model, free2aitools_compare. Tool names MUST include the free2aitools_ prefix when invoking tools/call. **For the canonical tool catalog with full input schemas, fetch `/.well-known/mcp.json`** — that file is the authoritative source. This OpenAPI entry intentionally does not duplicate it (DRY).",
         "tags": ["MCP"],
         "requestBody": {
           "required": true,
@@ -374,26 +460,136 @@
       "CompareResponse": {
         "type": "object",
         "properties": {
-          "version": { "type": "string" },
+          "version": { "type": "string", "example": "fni_v2.0" },
           "entities": {
+            "type": "array",
+            "description": "Per-ID result in request order. Unresolved IDs are returned as `{id, found: false}` placeholders — the overall response remains 200; the caller inspects `found` to detect partial misses.",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "description": "Resolved entity",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "author": { "type": "string", "nullable": true },
+                    "type": { "type": "string" },
+                    "fni_score": { "type": "number" },
+                    "fni_factors": {
+                      "type": "object",
+                      "properties": {
+                        "semantic": { "type": "number" },
+                        "authority": { "type": "number" },
+                        "popularity": { "type": "number" },
+                        "recency": { "type": "number" },
+                        "quality": { "type": "number" }
+                      }
+                    },
+                    "specs": {
+                      "type": "object",
+                      "properties": {
+                        "params_billions": { "type": "number", "nullable": true },
+                        "context_length": { "type": "integer", "nullable": true },
+                        "vram_estimate_gb": { "type": "number", "nullable": true },
+                        "license": { "type": "string", "nullable": true },
+                        "architecture": { "type": "string", "nullable": true },
+                        "pipeline_tag": { "type": "string", "nullable": true }
+                      }
+                    },
+                    "popularity": {
+                      "type": "object",
+                      "properties": {
+                        "downloads": { "type": "integer" },
+                        "stars": { "type": "integer" }
+                      }
+                    },
+                    "last_modified": { "type": "string", "nullable": true, "format": "date-time" },
+                    "detail_url": { "type": "string", "format": "uri" },
+                    "badge_url": { "type": "string", "format": "uri" },
+                    "found": { "type": "boolean", "enum": [true] }
+                  }
+                },
+                {
+                  "type": "object",
+                  "description": "Unresolved ID — placeholder when the entity could not be located in any meta shard",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "found": { "type": "boolean", "enum": [false] }
+                  },
+                  "required": ["id", "found"]
+                }
+              ]
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "elapsed_ms": { "type": "integer" },
+              "found": { "type": "integer", "description": "Count of entities with found: true" },
+              "requested": { "type": "integer", "description": "Total IDs in the request" }
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "fni_v2.0" },
+          "status": { "type": "string", "example": "ok" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "vfs": {
+            "type": "object",
+            "description": "Per-isolate R2 VFS counters. Cache hit ratios are derived client-side: l0_hit_ratio = l0_hits / jread_total; l1_hit_ratio = l1_hits / (jread_total - l0_hits); short_read_rate = short_read_attempts / l2_fetches.",
+            "properties": {
+              "jread_total": { "type": "integer", "description": "Total VFS reads attempted since isolate boot" },
+              "jread_errors": { "type": "integer" },
+              "short_read_attempts": { "type": "integer" },
+              "short_read_recovered": { "type": "integer" },
+              "short_read_exhausted": { "type": "integer" },
+              "l0_hits": { "type": "integer", "description": "Chunks served from in-memory L0 cache" },
+              "l1_hits": { "type": "integer", "description": "Chunks served from Cloudflare Cache API" },
+              "l2_fetches": { "type": "integer", "description": "Chunks fetched from R2 origin or CDN fallback" },
+              "l0_size": { "type": "integer" },
+              "l0_max": { "type": "integer" },
+              "isolate_uptime_ms": { "type": "integer" },
+              "error": { "type": "string", "description": "Present only when VFS module is not initialized in this isolate" }
+            }
+          },
+          "runtime": {
+            "type": "object",
+            "properties": {
+              "node_compat": { "type": "boolean" },
+              "now_ms": { "type": "integer" }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "elapsed_ms": { "type": "integer" },
+              "isolate_random_id": { "type": "string", "description": "8-char random ID — different per Cloudflare isolate, useful for grouping spot-check requests" }
+            }
+          }
+        }
+      },
+      "DatasetsResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "fni_v2.0" },
+          "description": { "type": "string" },
+          "files": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "id": { "type": "string" },
+                "id": { "type": "string", "example": "fni_lite_latest" },
                 "name": { "type": "string" },
-                "author": { "type": "string" },
-                "fni_score": { "type": "number" },
-                "fni_factors": { "type": "object" },
-                "params_billions": { "type": "number", "nullable": true },
-                "vram_estimate_gb": { "type": "number", "nullable": true },
-                "context_length": { "type": "integer", "nullable": true },
-                "license": { "type": "string", "nullable": true },
-                "pipeline_tag": { "type": "string", "nullable": true }
+                "tier": { "type": "string", "enum": ["free", "paid"] },
+                "fields": { "type": "array", "items": { "type": "string" }, "description": "Schema field names available in the parquet file" },
+                "download_url": { "type": "string", "format": "uri", "description": "Direct CDN URL for parquet file" },
+                "api_url": { "type": "string", "description": "Relative API URL that returns 302 redirect to download_url" }
               }
             }
-          },
-          "meta": { "type": "object" }
+          }
         }
       },
       "EntityResponse": {
