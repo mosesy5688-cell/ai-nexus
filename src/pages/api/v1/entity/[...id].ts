@@ -23,6 +23,7 @@ import { env } from 'cloudflare:workers';
 import { getCachedDbConnection, executeSql, loadManifest } from '../../../../lib/sqlite-engine.js';
 import { xxhash64Mod } from '../../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
+import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -183,7 +184,7 @@ function generateCandidates(rawId: string): string[] {
     return [...candidates].filter(Boolean);
 }
 
-export const GET: APIRoute = async ({ params, url }) => {
+export const GET: APIRoute = async ({ params, url, request }) => {
     const start = Date.now();
     const rawId = (params.id || '').trim();
     if (!rawId) return error(400, 'Missing required path parameter: id');
@@ -195,6 +196,12 @@ export const GET: APIRoute = async ({ params, url }) => {
         const isDev = !!import.meta.env?.DEV;
         const manifest = await loadManifest(r2Bucket, isDev);
         const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
+
+        // V27.22: ETag = manifest._etag + (id, include flag) — cross-cycle
+        // invalidation handled by manifest bump; ?include=body has different
+        // payload so it gets a different ETag bucket.
+        const etag = buildEtag(manifest?._etag, rawId.toLowerCase(), includeBody ? 'body' : '');
+        if (matchesIfNoneMatch(request, etag)) return notModified(etag, CORS_HEADERS);
 
         const candidates = generateCandidates(rawId);
         const shardsToProbe = new Set<number>();
@@ -235,7 +242,7 @@ export const GET: APIRoute = async ({ params, url }) => {
             version: API_VERSION,
             entity: project(row, includeBody),
             meta: { elapsed_ms: Date.now() - start, etag: manifest?._etag || null, candidates_tried: candidates.length },
-        }), { headers: CORS_HEADERS });
+        }), { headers: { ...CORS_HEADERS, ETag: etag } });
     } catch (e: any) {
         console.error('[ENTITY]', rawId, e.message, e.stack);
         return error(500, 'Internal error');

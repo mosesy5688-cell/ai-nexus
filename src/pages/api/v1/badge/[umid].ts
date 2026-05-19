@@ -19,6 +19,7 @@ import { getCachedDbConnection, executeSql, loadManifest } from '../../../../lib
 import { xxhash64Mod } from '../../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { env } from 'cloudflare:workers';
+import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
 
 const BADGE_CACHE = 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400';
 
@@ -67,7 +68,7 @@ const NOT_FOUND_BADGE = `<svg xmlns="http://www.w3.org/2000/svg" width="130" hei
   </g>
 </svg>`;
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, request }) => {
     // V25.9.1: URL segment is legacy-named `:umid` but is treated as slug||id to
     // match the packer's routing key. See file header.
     const routeKey = (params.umid || '').toLowerCase();
@@ -77,6 +78,13 @@ export const GET: APIRoute = async ({ params }) => {
         const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
         const manifest = await loadManifest(r2Bucket, isDev);
+
+        // V27.22: ETag = manifest._etag + routeKey. Covers both found and
+        // not-found cases — if manifest hasn't bumped, a missing badge is
+        // still missing, so 304 is safe.
+        const etag = buildEtag(manifest?._etag, routeKey);
+        if (matchesIfNoneMatch(request, etag)) return notModified(etag, BADGE_HEADERS);
+
         const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
         const shardIdx = xxhash64Mod(routeKey, metaShards);
         const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
@@ -85,19 +93,22 @@ export const GET: APIRoute = async ({ params }) => {
             'SELECT fni_score FROM entities WHERE slug = ? OR id = ? OR umid = ? LIMIT 1',
             [routeKey, routeKey, routeKey]);
         if (rows.length > 0 && rows[0].fni_score != null) {
-            return svgResponse(renderBadge(Number(rows[0].fni_score)));
+            return svgResponse(renderBadge(Number(rows[0].fni_score)), etag);
         }
-    } catch { /* fall through to not-found */ }
+        return svgResponse(NOT_FOUND_BADGE, etag);
+    } catch { /* fall through to not-found, no ETag (manifest may have failed) */ }
 
     return svgResponse(NOT_FOUND_BADGE);
 };
 
-function svgResponse(svg: string): Response {
-    return new Response(svg, {
-        headers: {
-            'Content-Type': 'image/svg+xml',
-            'Cache-Control': BADGE_CACHE,
-            'Access-Control-Allow-Origin': '*'
-        }
-    });
+const BADGE_HEADERS: Record<string, string> = {
+    'Content-Type': 'image/svg+xml',
+    'Cache-Control': BADGE_CACHE,
+    'Access-Control-Allow-Origin': '*',
+};
+
+function svgResponse(svg: string, etag?: string): Response {
+    const headers: Record<string, string> = { ...BADGE_HEADERS };
+    if (etag) headers.ETag = etag;
+    return new Response(svg, { headers });
 }

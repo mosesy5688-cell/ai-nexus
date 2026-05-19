@@ -7,6 +7,7 @@ import { env } from 'cloudflare:workers';
 import { getCachedDbConnection, executeSql, loadManifest } from '../../../lib/sqlite-engine.js';
 import { xxhash64Mod } from '../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../constants/shard-constants.js';
+import { buildEtag, matchesIfNoneMatch, notModified } from '../../../lib/etag-helper.js';
 
 const API_VERSION = 'fni_v2.0';
 const MAX_IDS = 10;
@@ -43,7 +44,7 @@ const COMPARE_COLS = `id, slug, name, author, type, fni_score,
   params_billions, context_length, vram_estimate_gb, license, pipeline_tag,
   downloads, stars, last_modified, architecture`;
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, request }) => {
   const start = Date.now();
   const idsParam = url.searchParams.get('ids');
   if (!idsParam) return error(400, 'Missing required parameter: ids');
@@ -57,6 +58,12 @@ export const GET: APIRoute = async ({ url }) => {
     const isDev = !!import.meta.env?.DEV;
     const manifest = await loadManifest(r2Bucket, isDev);
     const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
+
+    // V27.22: ETag = manifest._etag + sorted ids — sorting normalizes order
+    // so `?ids=a,b` and `?ids=b,a` share an ETag (same logical resource).
+    const sortedIds = [...ids].map(s => s.toLowerCase()).sort().join(',');
+    const etag = buildEtag(manifest?._etag, sortedIds);
+    if (matchesIfNoneMatch(request, etag)) return notModified(etag, CORS_HEADERS);
 
     const slugMap = new Map<string, string>();
     const shardGroups = new Map<number, Set<string>>();
@@ -116,7 +123,7 @@ export const GET: APIRoute = async ({ url }) => {
       version: API_VERSION,
       entities,
       meta: { elapsed_ms: Date.now() - start, found: entities.filter((e: any) => e.found).length, requested: ids.length },
-    }), { headers: CORS_HEADERS });
+    }), { headers: { ...CORS_HEADERS, ETag: etag } });
   } catch (e: any) {
     console.error('[COMPARE]', e.message);
     return error(500, 'Internal error');
