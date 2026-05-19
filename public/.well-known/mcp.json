@@ -27,7 +27,6 @@
         "properties": {
           "query": { "type": "string", "description": "Search query" },
           "task": { "type": "string", "description": "The task to rank tools for" },
-          "constraints": { "type": "array", "items": { "type": "string" }, "description": "Filtering constraints" },
           "limit": { "type": "number", "default": 10, "description": "Max results (1-20)" }
         },
         "required": ["query"]

@@ -174,11 +174,71 @@
         }
       }
     },
+    "/api/v1/entity/{id}": {
+      "get": {
+        "operationId": "getEntity",
+        "summary": "Single-entity detail lookup",
+        "description": "Returns full structured metadata for one entity. Closes the search -> detail chain so Agents don't have to scrape HTML. Tolerant of multiple ID forms: internal canonical (hf-model--author--name), HF-native (author/name), bare name, slug, or umid.",
+        "tags": ["Entity"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Entity ID in any tolerated form",
+            "example": "meta-llama/Llama-3.1-8B-Instruct"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Comma-separated optional sections. Currently supports: body (adds readme_html, up to 250KB)",
+            "example": "body"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entity detail grouped into identity / classification / fni / specs / stats / links / relations",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EntityResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing required path parameter: id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "404": {
+            "description": "Entity not found (all probed shards returned 0 rows successfully)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "503": {
+            "description": "All probed shards errored — transient infrastructure issue, caller may retry",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mcp": {
       "post": {
         "operationId": "mcpEndpoint",
         "summary": "MCP Server (JSON-RPC 2.0)",
-        "description": "Model Context Protocol endpoint. Supports tools/list and tools/call for 5 tools: search, rank, explain, select_model, compare.",
+        "description": "Model Context Protocol endpoint. Supports tools/list and tools/call for 5 tools: free2aitools_search, free2aitools_rank, free2aitools_explain, free2aitools_select_model, free2aitools_compare. Tool names MUST include the free2aitools_ prefix when invoking tools/call.",
         "tags": ["MCP"],
         "requestBody": {
           "required": true,
@@ -334,6 +394,121 @@
             }
           },
           "meta": { "type": "object" }
+        }
+      },
+      "EntityResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "fni_v2.0" },
+          "entity": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "slug": { "type": "string" },
+              "type": { "type": "string", "description": "model | dataset | paper | tool | agent | space | prompt | knowledge" },
+              "name": { "type": "string" },
+              "author": { "type": "string", "nullable": true },
+              "source": { "type": "string", "nullable": true, "description": "huggingface | github | arxiv | replicate | etc." },
+              "summary": { "type": "string", "nullable": true },
+              "category": { "type": "string", "nullable": true },
+              "tags": { "type": "array", "items": { "type": "string" } },
+              "license": { "type": "string", "nullable": true },
+              "license_type": { "type": "string", "nullable": true },
+              "pipeline_tag": { "type": "string", "nullable": true },
+              "task_categories": { "type": "array", "items": { "type": "string" } },
+              "primary_language": { "type": "string", "nullable": true },
+              "fni": {
+                "type": "object",
+                "properties": {
+                  "score": { "type": "number", "nullable": true },
+                  "percentile": { "type": "string", "nullable": true },
+                  "factors": {
+                    "type": "object",
+                    "properties": {
+                      "semantic": { "type": "number", "nullable": true },
+                      "authority": { "type": "number", "nullable": true },
+                      "popularity": { "type": "number", "nullable": true },
+                      "recency": { "type": "number", "nullable": true },
+                      "quality": { "type": "number", "nullable": true }
+                    }
+                  },
+                  "is_trending": { "type": "boolean" },
+                  "trend_7d": { "type": "string", "nullable": true, "description": "Comma-separated FNI scores for last 7 days, or null" }
+                }
+              },
+              "specs": {
+                "type": "object",
+                "properties": {
+                  "params_billions": { "type": "number", "nullable": true },
+                  "context_length": { "type": "integer", "nullable": true },
+                  "architecture": { "type": "string", "nullable": true },
+                  "vocab_size": { "type": "integer", "nullable": true },
+                  "num_layers": { "type": "integer", "nullable": true },
+                  "hidden_size": { "type": "integer", "nullable": true },
+                  "vram": {
+                    "type": "object",
+                    "properties": {
+                      "estimate_gb": { "type": "number", "nullable": true },
+                      "fp16_gb": { "type": "number", "nullable": true },
+                      "int8_gb": { "type": "number", "nullable": true },
+                      "int4_gb": { "type": "number", "nullable": true }
+                    }
+                  },
+                  "ollama_compatible": { "type": "boolean", "nullable": true },
+                  "can_run_local": { "type": "boolean", "nullable": true },
+                  "hosted_on": { "type": "array", "items": { "type": "string" }, "nullable": true },
+                  "runtime_hardware": { "type": "string", "nullable": true }
+                }
+              },
+              "stats": {
+                "type": "object",
+                "properties": {
+                  "downloads": { "type": "integer" },
+                  "stars": { "type": "integer" },
+                  "forks": { "type": "integer" },
+                  "citation_count": { "type": "integer" },
+                  "num_rows": { "type": "integer", "nullable": true },
+                  "last_modified": { "type": "string", "nullable": true, "format": "date-time" }
+                }
+              },
+              "links": {
+                "type": "object",
+                "properties": {
+                  "source_url": { "type": "string", "nullable": true, "format": "uri" },
+                  "canonical_url": { "type": "string", "nullable": true, "format": "uri" },
+                  "image_url": { "type": "string", "nullable": true, "format": "uri" },
+                  "detail_url": { "type": "string", "format": "uri" },
+                  "badge_url": { "type": "string", "format": "uri" }
+                }
+              },
+              "relations": {
+                "type": "object",
+                "properties": {
+                  "datasets_used": { "type": "array", "items": { "type": "string" } },
+                  "benchmarks": { "type": "object", "nullable": true },
+                  "related": { "type": "array", "items": { "type": "object" } }
+                }
+              },
+              "citation": { "type": "string", "nullable": true },
+              "quick_start": { "type": "string", "nullable": true },
+              "body": {
+                "type": "object",
+                "description": "Only present when ?include=body",
+                "properties": {
+                  "readme_html": { "type": "string", "nullable": true },
+                  "has_fulltext": { "type": "boolean" }
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "elapsed_ms": { "type": "integer" },
+              "etag": { "type": "string", "nullable": true },
+              "candidates_tried": { "type": "integer" }
+            }
+          }
         }
       },
       "Error": {
