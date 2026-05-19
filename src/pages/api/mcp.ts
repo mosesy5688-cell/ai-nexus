@@ -39,8 +39,7 @@ const TOOLS = [
             properties: {
                 query: { type: 'string', description: 'Search query describing what to rank (e.g. "text generation", "object detection")' },
                 task: { type: 'string', description: 'Optional task context to combine with query for more targeted ranking' },
-                limit: { type: 'number', default: 10, description: 'Max results to return (1-20, default 10)' },
-                constraints: { type: 'array', items: { type: 'string' }, description: 'Optional keyword filters applied to results' }
+                limit: { type: 'number', default: 10, description: 'Max results to return (1-20, default 10)' }
             },
             required: ['query']
         }
