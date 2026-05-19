@@ -75,8 +75,10 @@ export const POST: APIRoute = async ({ request }) => {
         hosted_on: parseHostedOn(row.hosted_on),
         license_type: row.license_type || 'unknown',
         can_run_local: !!row.can_run_local,
-        detail_url: `https://free2aitools.com/model/${row.id}`,
-        badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(row.id)}`,
+        // V27.21: type+slug routing — was hardcoded `/model/${row.id}` + badge by id.
+        // Same fix as compare.ts; entity.ts:135 already uses this pattern.
+        detail_url: `https://free2aitools.com/${row.type || 'model'}/${row.slug || row.id}`,
+        badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(row.slug || row.id)}`,
       };
       if (explain) {
         const r = buildRationale({ entity: row, rank: i + 1, taskTag: taskMap.tag, constraints });
@@ -131,7 +133,7 @@ function buildQuery(tag: string, c: any, limit: number, category: string | null 
   params.push(limit);
 
   return {
-    sql: `SELECT id, name, author, type, fni_score, pipeline_tag, license,
+    sql: `SELECT id, slug, name, author, type, fni_score, pipeline_tag, license,
       vram_estimate_gb, params_billions, context_length, downloads,
       fni_s, fni_a, fni_p, fni_r, fni_q, last_modified, architecture, summary,
       ollama_compatible, hosted_on, license_type, can_run_local
