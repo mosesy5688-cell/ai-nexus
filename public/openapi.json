@@ -193,7 +193,15 @@
         ],
         "responses": {
           "200": {
-            "description": "SVG badge image",
+            "description": "SVG badge image for an entity with a computed FNI score.",
+            "content": {
+              "image/svg+xml": {
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "404": {
+            "description": "Entity not found or has no FNI score. Response body is still an SVG placeholder ('FNI: not found') so README <img> embeds render gracefully, but the 404 status lets programmatic callers (Agents) distinguish missing entities from low-scoring ones.",
             "content": {
               "image/svg+xml": {
                 "schema": { "type": "string" }

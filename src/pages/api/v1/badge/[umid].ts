@@ -72,7 +72,7 @@ export const GET: APIRoute = async ({ params, request }) => {
     // V25.9.1: URL segment is legacy-named `:umid` but is treated as slug||id to
     // match the packer's routing key. See file header.
     const routeKey = (params.umid || '').toLowerCase();
-    if (!routeKey) return svgResponse(NOT_FOUND_BADGE);
+    if (!routeKey) return svgResponse(NOT_FOUND_BADGE, undefined, 404);
 
     try {
         const r2Bucket = env?.R2_ASSETS;
@@ -93,12 +93,16 @@ export const GET: APIRoute = async ({ params, request }) => {
             'SELECT fni_score FROM entities WHERE slug = ? OR id = ? OR umid = ? LIMIT 1',
             [routeKey, routeKey, routeKey]);
         if (rows.length > 0 && rows[0].fni_score != null) {
-            return svgResponse(renderBadge(Number(rows[0].fni_score)), etag);
+            return svgResponse(renderBadge(Number(rows[0].fni_score)), etag, 200);
         }
-        return svgResponse(NOT_FOUND_BADGE, etag);
+        // V27.24: honest contract — unknown entity returns 404 status so Agents
+        // can distinguish "exists with low FNI" vs "not in catalog". SVG body
+        // retained so README <img> embeds still render the "not found" placeholder
+        // (most renderers ignore status on image responses).
+        return svgResponse(NOT_FOUND_BADGE, etag, 404);
     } catch { /* fall through to not-found, no ETag (manifest may have failed) */ }
 
-    return svgResponse(NOT_FOUND_BADGE);
+    return svgResponse(NOT_FOUND_BADGE, undefined, 404);
 };
 
 const BADGE_HEADERS: Record<string, string> = {
@@ -107,8 +111,8 @@ const BADGE_HEADERS: Record<string, string> = {
     'Access-Control-Allow-Origin': '*',
 };
 
-function svgResponse(svg: string, etag?: string): Response {
+function svgResponse(svg: string, etag: string | undefined, status: number): Response {
     const headers: Record<string, string> = { ...BADGE_HEADERS };
     if (etag) headers.ETag = etag;
-    return new Response(svg, { headers });
+    return new Response(svg, { status, headers });
 }
