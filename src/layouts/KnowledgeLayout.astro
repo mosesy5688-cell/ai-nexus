@@ -8,6 +8,8 @@ import KnowledgeHeader from '../components/knowledge/KnowledgeHeader.astro';
 import KnowledgeSidebar from '../components/knowledge/KnowledgeSidebar.astro';
 import NeuralGraphExplorer from '../components/NeuralGraphExplorer.astro';
 import { getArticleBySlug } from '../data/knowledge-base-config';
+import { env } from 'cloudflare:workers';
+import { getTotalEntities, formatTotalEntities } from '../utils/site-stats.js';
 
 // Load styles
 import '../styles/knowledge.css';
@@ -21,6 +23,13 @@ const articleConfig = configResult?.article;
 
 const pageTitle = `${frontmatter.title} - AI Knowledge Base`;
 const meshId = `knowledge--${slug}`;
+
+// V27.26: opt-in live catalog count banner for articles that talk about
+// catalog scale (e.g. fni.md). Frontmatter sets `showCatalogCount: true`.
+const showCatalogCount = !!frontmatter.showCatalogCount;
+const catalogCountPhrase = showCatalogCount
+    ? formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !!import.meta.env?.DEV))
+    : null;
 ---
 
 <Layout title={pageTitle} description={frontmatter.description}>
@@ -38,6 +47,12 @@ const meshId = `knowledge--${slug}`;
             refs={0} 
           />
           
+          {catalogCountPhrase && (
+            <div class="mt-6 px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-sm text-indigo-900 dark:text-indigo-200">
+              <strong>{catalogCountPhrase}</strong> AI entities currently indexed across HuggingFace, GitHub, ArXiv, Ollama, Replicate, Civitai, and other sources.
+            </div>
+          )}
+
           <div class="article-content mt-8">
             <slot />
           </div>
