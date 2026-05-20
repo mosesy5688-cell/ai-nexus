@@ -1,10 +1,11 @@
-/** V55.9 Zstd Helper — Unified Compression (Rust FFI → WASM fallback) */
+/** V55.9 Zstd Helper — Unified Compression (Rust FFI → native binary → WASM). */
 import { Transform } from 'stream';
 import { createRequire } from 'module';
 import { createReadStream, createWriteStream, unlinkSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import zlib from 'zlib';
+import { tryNativeCompress, tryNativeCompressSync, tryNativeDecompress } from './zstd-native.js';
 
 let _rust = null;
 let _rustProbed = false;
@@ -41,37 +42,39 @@ function getTmpPath(suffix) {
 
 function safeUnlink(p) { try { unlinkSync(p); } catch {} }
 
-/** Compress data with Zstd. Rust FFI → WASM fallback. */
+/** Compress data with Zstd. Rust FFI → native binary → WASM. */
 export async function zstdCompress(data, level = 3) {
     const input = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
     const rust = probeRust();
-    if (rust?.zstdCompressBuffer) {
-        return Buffer.from(rust.zstdCompressBuffer(input, level));
-    }
+    if (rust?.zstdCompressBuffer) return Buffer.from(rust.zstdCompressBuffer(input, level));
+    const native = await tryNativeCompress(input, level);
+    if (native) return native;
     const codec = await getCodec();
     return Buffer.from(codec.compress(input, level));
 }
 
-/** Synchronous compress. Rust FFI → WASM fallback. */
+/** Synchronous compress. Rust FFI → native binary → WASM. */
 export function zstdCompressSync(data, level = 3) {
     const input = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data;
     const rust = probeRust();
-    if (rust?.zstdCompressBuffer) {
-        return Buffer.from(rust.zstdCompressBuffer(input, level));
-    }
+    if (rust?.zstdCompressBuffer) return Buffer.from(rust.zstdCompressBuffer(input, level));
+    const native = tryNativeCompressSync(input, level);
+    if (native) return native;
     if (!_simple) throw new Error('[ZSTD] Codec not initialized. Call zstdCompress() first.');
     return Buffer.from(_simple.compress(input, level));
 }
 
-/** Decompress Zstd data. Rust FFI → WASM fallback (handles non-standard frames). */
+/** Decompress Zstd data. Rust FFI → native binary → WASM. */
 export async function zstdDecompress(data) {
     const rust = probeRust();
     if (rust?.zstdDecompressBuffer) {
-        try { return Buffer.from(rust.zstdDecompressBuffer(data)); } catch { /* fall through to WASM */ }
+        try { return Buffer.from(rust.zstdDecompressBuffer(data)); } catch { /* fall through */ }
     }
+    const native = await tryNativeDecompress(data);
+    if (native) return native;
     const codec = await getCodec();
     const result = codec.decompress(data);
-    if (!result) throw new Error(`[ZSTD] WASM decompress returned null (input: ${data.length} bytes). Rust FFI required for large files.`);
+    if (!result) throw new Error(`[ZSTD] WASM decompress returned null (input: ${data.length} bytes). Rust FFI or native zstd required for large files.`);
     return Buffer.from(result);
 }
 
@@ -100,23 +103,14 @@ export async function autoDecompress(data) {
 /** V55.9: True streaming Zstd compress Transform via temp-file + Rust FFI. O(1) memory. */
 export function createZstdCompressStream(level = 3) {
     const rust = probeRust();
-    if (!rust?.zstdCompressFile) {
-        console.warn('[ZSTD] ⚠️ Rust zstdCompressFile unavailable — WASM fallback produces non-standard frames');
-    }
-
     if (rust?.zstdCompressFile) {
         const tmpIn = getTmpPath('.json');
         const tmpOut = getTmpPath('.json.zst');
         const ws = createWriteStream(tmpIn);
-
         return new Transform({
             transform(chunk, encoding, callback) {
                 const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
-                if (!ws.write(buf)) {
-                    ws.once('drain', callback);
-                } else {
-                    callback();
-                }
+                if (!ws.write(buf)) ws.once('drain', callback); else callback();
             },
             flush(callback) {
                 ws.end(() => {
@@ -143,7 +137,7 @@ export function createZstdCompressStream(level = 3) {
         });
     }
 
-    // WASM fallback: buffer then compress (OOM risk on large data)
+    // Stream WASM fallback: buffer then compress (OOM risk). V27.28: try native binary first.
     const chunks = [];
     return new Transform({
         transform(chunk, encoding, callback) {
@@ -151,10 +145,14 @@ export function createZstdCompressStream(level = 3) {
             callback();
         },
         flush(callback) {
-            getCodec().then(codec => {
-                this.push(Buffer.from(codec.compress(Buffer.concat(chunks), level)));
+            (async () => {
+                const input = Buffer.concat(chunks);
+                const native = await tryNativeCompress(input, level);
+                if (native) { this.push(native); return callback(); }
+                const codec = await getCodec();
+                this.push(Buffer.from(codec.compress(input, level)));
                 callback();
-            }).catch(callback);
+            })().catch(callback);
         }
     });
 }
