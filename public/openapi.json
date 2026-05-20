@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across 464K+ AI entities, ranked by FNI score. Free tier returns up to 5 results.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, agents, spaces, and prompts, ranked by FNI score. Free tier returns up to 5 results.",
         "tags": ["Search"],
         "parameters": [
           {
