@@ -4,6 +4,7 @@ title: "FNI: Free2AITools Nexus Index"
 slug: fni
 description: How the Free2AITools Nexus Index (FNI) V2.0 objectively ranks AI entities using five factors — Semantic, Authority, Popularity, Recency, Quality — plus Agent structured tags.
 keywords: fni score, free2aitools nexus index, ai ranking, model selection, agent tags, S.A.P.R.Q
+showCatalogCount: true
 ---
 
 # Free2AITools Nexus Index (FNI)

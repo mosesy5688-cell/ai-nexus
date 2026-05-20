@@ -77,6 +77,19 @@ SECRET_PATTERNS = [
     (r"(?:^|[^a-zA-Z0-9_-])sk-[a-zA-Z0-9]{20,}", "OpenAI/API Key"),  # Requires 20+ chars after sk-
 ]
 
+# [V27.26] Honest-contract: public surfaces must source catalog size from
+# manifest.partitions.total_entities via src/utils/site-stats.js, not hardcode.
+# huggingface.md excluded — it describes HF Hub's own size, not our catalog.
+ENTITY_COUNT_FILES = {
+    'llms-template.txt', 'openapi-schema.json',
+    'openapi.json.ts', 'llms.txt.ts',
+    'methodology.astro', 'fni.md', 'mcp.ts',
+}
+ENTITY_COUNT_REGEX = re.compile(
+    r'\b(\d{2,3}[Kk]\+?|\d{3,},\d{3}\+?|\d{6,}\+?)\b.{0,30}?(?i:entit|ai\s+model|ai\s+entit|catalog|index)|'
+    r'(?i:entit|ai\s+model|ai\s+entit|catalog|index).{0,30}?\b(\d{2,3}[Kk]\+?|\d{3,},\d{3}\+?|\d{6,}\+?)\b'
+)
+
 # --- Logic ---
 
 class Violations:
@@ -107,6 +120,27 @@ def is_text_file(filepath):
         return True
     except UnicodeDecodeError:
         return False
+
+def check_no_hardcoded_entity_counts(content, filepath, violations):
+    """[V27.26 Honest-Contract] Public-facing surfaces must source the catalog
+    size from manifest.partitions.total_entities at SSR, not hardcode it.
+
+    Runs only on the whitelist in ENTITY_COUNT_FILES. The dynamic flow lives
+    in src/utils/site-stats.js and the /openapi.json + /llms.txt routes.
+    """
+    filename = os.path.basename(filepath)
+    if filename not in ENTITY_COUNT_FILES:
+        return
+    line_num = 0
+    for line in content.splitlines():
+        line_num += 1
+        if ENTITY_COUNT_REGEX.search(line):
+            violations.add(
+                filepath,
+                "V27.26 Honest-Contract",
+                f"Hardcoded entity-count at line {line_num}: {line.strip()[:80]} (use getTotalEntities from src/utils/site-stats.js)"
+            )
+            return  # one violation per file is enough
 
 def check_english_only(content, filepath, violations):
     """[Art 8.1] Enforce English-Only.
@@ -153,6 +187,15 @@ def check_file(filepath, violations):
                 return # Critical fail, stop scanning content
 
     ext = os.path.splitext(filename)[1]
+    # V27.26: honest-contract scan runs on whitelist regardless of extension
+    # (covers .txt + .json + .md + .astro + .ts in one rule).
+    if filename in ENTITY_COUNT_FILES:
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                check_no_hardcoded_entity_counts(f.read(), filepath, violations)
+        except Exception:
+            pass
+
     if ext not in SCAN_EXTENSIONS:
         return
 

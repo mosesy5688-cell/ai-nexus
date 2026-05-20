@@ -21,6 +21,13 @@ export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, sha
 
     await injectMetadata(metaDbs, null, cacheDir);
     try { if (fsSync.readdirSync(shardDir).some(f => f.startsWith('rankings-') && f.endsWith('.db'))) partitionCounts.rankings_dbs = true; } catch {};
+    // V27.26: total_entities = authoritative global catalog size, derived from
+    // stats.packed (count of entities written across all meta DBs). Surfaces
+    // can read this via manifest.partitions.total_entities to render an honest
+    // live count instead of fabricated marketing numbers.
+    if (stats && typeof stats.packed === 'number' && stats.packed > 0) {
+        partitionCounts.total_entities = stats.packed;
+    }
     const fullManifest = { shards: manifest, partitions: partitionCounts };
     const manifestJson = JSON.stringify(fullManifest, null, 2);
     const manifestBytes = Buffer.byteLength(manifestJson, 'utf8');

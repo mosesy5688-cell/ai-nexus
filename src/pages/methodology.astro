@@ -9,9 +9,14 @@
  */
 
 import Layout from '@/layouts/Layout.astro';
+import { env } from 'cloudflare:workers';
+import { getTotalEntities, formatTotalEntities } from '../utils/site-stats.js';
 
 const pageTitle = "FNI Methodology | Free2AITools Nexus Index";
 const pageDescription = "Learn about the Free2AITools Nexus Index (FNI) methodology. How we objectively, transparently, and fairly evaluate the comprehensive impact of open-source AI models.";
+
+// V27.26: live catalog size from manifest. Renders nothing when not yet published.
+const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !!import.meta.env?.DEV));
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -208,7 +213,7 @@ const pageDescription = "Learn about the Free2AITools Nexus Index (FNI) methodol
         </div>
         <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
           <h3 class="font-bold text-blue-800 dark:text-blue-300 mb-1">V2.0 (2026) — Free2AITools Nexus Index <span class="text-xs bg-blue-100 dark:bg-blue-800 px-2 py-0.5 rounded">Current</span></h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms. Agent structured tags for machine-readable model selection.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms.{totalPhrase ? ` ${totalPhrase} entities indexed.` : ''} Agent structured tags for machine-readable model selection.</p>
         </div>
       </div>
     </section>
