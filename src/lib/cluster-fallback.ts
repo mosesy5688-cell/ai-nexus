@@ -1,6 +1,6 @@
 /**
  * V26.7 Cluster Semantic Fallback — Tier 2 replacement for broken vector-core.bin brute-force.
- * Uses cluster centroid routing to find semantically similar entities across all 464K.
+ * Uses cluster centroid routing to find semantically similar entities across the full catalog.
  */
 import { initClusterSemantic, rankCentroids, isReady } from './cluster-semantic-engine.js';
 import { embedQuery } from './semantic-engine.js';

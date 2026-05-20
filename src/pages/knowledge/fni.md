@@ -2,13 +2,13 @@
 layout: ../../layouts/KnowledgeLayout.astro
 title: "FNI: Free2AITools Nexus Index"
 slug: fni
-description: How the Free2AITools Nexus Index (FNI) V2.0 objectively ranks 464K+ AI entities using five factors — Semantic, Authority, Popularity, Recency, Quality — plus Agent structured tags.
+description: How the Free2AITools Nexus Index (FNI) V2.0 objectively ranks AI entities using five factors — Semantic, Authority, Popularity, Recency, Quality — plus Agent structured tags.
 keywords: fni score, free2aitools nexus index, ai ranking, model selection, agent tags, S.A.P.R.Q
 ---
 
 # Free2AITools Nexus Index (FNI)
 
-The **FNI** is the ranking algorithm behind Free2AITools. It evaluates 464,000+ AI entities (models, datasets, papers, tools, agents, spaces, prompts) across five weighted factors to produce a single 0-100 score.
+The **FNI** is the ranking algorithm behind Free2AITools. It evaluates the full catalog of AI entities (models, datasets, papers, tools, agents, spaces, prompts) across five weighted factors to produce a single 0-100 score.
 
 **Current version:** V2.0
 
@@ -54,7 +54,7 @@ These tags power the [`select_model` API](/developers) — AI agents can filter 
 
 **V1.0 (2025)** — Originally called "Freshness-Novelty Index." Four-factor P.V.C.U formula (Popularity, Velocity, Context, Uniqueness). Single-source HuggingFace data. No semantic component.
 
-**V2.0 (2026)** — Renamed to "Free2AITools Nexus Index." Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms. 464K+ entities evaluated daily. Agent structured tags for `select_model` API. Factor scores included in every API response.
+**V2.0 (2026)** — Renamed to "Free2AITools Nexus Index." Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms. Catalog re-evaluated daily. Agent structured tags for `select_model` API. Factor scores included in every API response.
 
 ## Anti-Gaming
 

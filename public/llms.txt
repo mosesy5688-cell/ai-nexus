@@ -1,6 +1,6 @@
 # Free2AItools
 
-> Agent-native structured index of 500K+ AI models, datasets, papers, and tools.
+> Agent-native structured index of AI models, datasets, papers, agents, spaces, tools, and prompts.
 > Cross-source aggregator (HuggingFace, GitHub, ArXiv, Replicate, Civitai, etc.)
 > ranked by FNI (Free2AITools Nexus Index) — designed for AI agents, not human browsing.
 
@@ -10,7 +10,7 @@ that need to consume Free2AItools data programmatically.
 
 ## What you can do here
 
-- Search and rank 500K+ AI entities by FNI score
+- Search and rank AI entities by FNI score across HuggingFace, GitHub, ArXiv, Ollama, Replicate, Civitai, and other sources
 - Compare 2-10 models side-by-side with technical specs and license breakdown
 - Fetch full structured metadata for any entity by ID
 - Get FNI badges (SVG) for any entity for README embedding
