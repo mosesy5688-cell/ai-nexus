@@ -21,6 +21,13 @@ import { spawn, spawnSync } from 'child_process';
 let _probed = false;
 let _available = false;
 
+// V27.29: small inputs go to WASM path (downstream fzstd readers can't always
+// parse native zstd CLI frame headers — V27.28 regression caused 3/4 EOF when
+// shard-writer.js wrote per-entity payloads via native and registry-binary-
+// reader.js read via fzstd directly). 16 KiB threshold: above this, native's
+// OOM-avoidance benefit dominates; below, WASM is fine and reader-symmetric.
+const NATIVE_MIN_BYTES = 16 * 1024;
+
 export function probeNativeAvailable() {
     if (_probed) return _available;
     _probed = true;
@@ -71,11 +78,13 @@ function runNativeSync(args, input) {
 }
 
 export async function tryNativeCompress(buffer, level = 3) {
+    if (!buffer || buffer.length < NATIVE_MIN_BYTES) return null;
     if (!probeNativeAvailable()) return null;
     return runNative([`-${level}`, '-q'], buffer);
 }
 
 export function tryNativeCompressSync(buffer, level = 3) {
+    if (!buffer || buffer.length < NATIVE_MIN_BYTES) return null;
     if (!probeNativeAvailable()) return null;
     return runNativeSync([`-${level}`, '-q'], buffer);
 }
