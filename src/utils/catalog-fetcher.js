@@ -77,7 +77,17 @@ async function _fetchCatalogDataInner(type, start) {
         sql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, num_rows, primary_language, forks, citation_count FROM entities WHERE type = ? ORDER BY fni_score DESC, raw_pop DESC, slug ASC LIMIT 48`;
         sqlParams = [type];
         const { priority, expansion } = determineTargetDbs(type, '', 1, manifest);
-        shardList = [...priority, ...(expansion || [])].slice(0, 4);
+        // V27.32: sparse types (prompt, sometimes paper/space) get 0 results when only the first
+        // 4 xxhash-distributed meta-NN.db shards are queried — the type may be unevenly distributed
+        // or its entity count too low to surface in any one shard. For browse mode (no query),
+        // scan ALL meta shards from the manifest. L0/L1 R2 cache makes warm-path subsequent shards
+        // cheap; cold path pays once. SSR_TIMEOUT_MS (15s) easily covers 48 parallel R2 reads.
+        const metaShards = manifest?.partitions?.meta_shards;
+        if (metaShards) {
+            shardList = Array.from({ length: metaShards }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
+        } else {
+            shardList = [...priority, ...(expansion || [])].slice(0, 4);
+        }
     }
 
     // Parallel shard fetch — Promise.allSettled so one slow/failed shard doesn't block others
@@ -105,7 +115,13 @@ async function _fetchCatalogDataInner(type, start) {
     }
 
     const normalized = DataNormalizer.normalizeCollection(uniqueItems, type);
-    console.log(`[CatalogFetcher] VFS Resolved ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
+    // V27.32: explicit empty-result diagnostic so /prompts-style regressions surface
+    // in CF logs rather than silently rendering empty pages.
+    if (normalized.length === 0) {
+        console.warn(`[CatalogFetcher] VFS Empty result for type=${type} | shards=${shardList.length} | rows=${allRows.length} | elapsed=${Date.now() - start}ms`);
+    } else {
+        console.log(`[CatalogFetcher] VFS Resolved ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
+    }
 
     return {
         items: normalized,

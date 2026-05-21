@@ -9,7 +9,9 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allPrompts = [] } = await fetchCatalogData('prompt');
+// V27.32: destructure totalPages + totalEntities so header count badge has them in scope
+// (prior code only pulled items → {totalEntities} > 0 at line 33 silently evaluated against undefined).
+const { items: allPrompts = [], totalPages, totalEntities } = await fetchCatalogData('prompt');
 const prompts = allPrompts.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Prompts & Templates Catalog | Free2AI";
