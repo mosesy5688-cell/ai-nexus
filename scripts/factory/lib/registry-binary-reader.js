@@ -130,7 +130,15 @@ export async function readBinaryShard(filePath) {
         // Zstd decompression (detect via magic bytes)
         if (payload.length >= 4 && payload.subarray(0, 4).equals(ZSTD_MAGIC)) {
             if (_zstdDecompress) {
-                payload = _zstdDecompress(payload);
+                // V27.30 DIAG: wrap fzstd to capture EOF context (was uncaught → killed whole shard load)
+                try {
+                    payload = _zstdDecompress(payload);
+                } catch (err) {
+                    const head = payload.subarray(0, Math.min(16, payload.length)).toString('hex');
+                    const tail = payload.subarray(Math.max(0, payload.length - 4)).toString('hex');
+                    console.warn(`[BINARY-READER-DIAG] fzstd FAIL shard=${shardName} ent=${i}/${entityCount} ofs=${offset} sz=${size} head16=${head} tail4=${tail} err=${err.message}`);
+                    continue;
+                }
             } else {
                 console.error(`[BINARY-READER] Zstd payload but fzstd unavailable: ${shardName}`);
                 continue;
