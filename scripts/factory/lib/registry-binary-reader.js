@@ -121,10 +121,19 @@ export async function readBinaryShard(filePath) {
         const size = offsetTable.readUInt32LE(i * 8 + 4);
         let payload = Buffer.from(data.subarray(offset, offset + size));
 
-        // AES-CTR decryption — check raw first, only decrypt if not already valid
-        if (!isValidPayload(payload)) {
-            const decrypted = decryptPayload(shardName, payload, offset);
-            if (isValidPayload(decrypted)) payload = decrypted;
+        // V27.31: when AES is enabled, always decrypt first.
+        // Prior "check raw first, decrypt if invalid" path had a 1/2^32 false-positive
+        // per entity: encrypted bytes occasionally start with Zstd magic (28 b5 2f fd),
+        // isValidPayload returned true, decryption was skipped, fzstd then EOF'd on
+        // garbage. At ~527K entities/cron that's ~1/cron silent failure (V27.30
+        // instrumentation confirmed exactly this — single hit on part-182 ent 148,
+        // FHD descriptor 0x63 with bogus Dictionary_ID encoded in random bytes).
+        // AES-CTR is symmetric; if a legacy unencrypted shard ever appears, the
+        // line 190 fail-fast (95% threshold) still fires loud rather than silently
+        // skipping. isValidPayload remains as the magic-bytes router for zstd vs gzip
+        // vs raw JSON downstream.
+        if (isEncryptionEnabled()) {
+            payload = decryptPayload(shardName, payload, offset);
         }
 
         // Zstd decompression (detect via magic bytes)
@@ -164,37 +173,20 @@ export async function readBinaryShard(filePath) {
         try {
             entities.push(JSON.parse(payload.toString('utf-8')));
         } catch (e) {
-            // V25.8.3: Retry with forced decryption — handles isValidPayload false positives
-            // where encrypted bytes randomly start with 0x7B22 ("{"), ~1/65536 chance per entity
-            let recovered = false;
-            if (isEncryptionEnabled()) {
-                try {
-                    let retry = decryptPayload(shardName, Buffer.from(data.subarray(offset, offset + size)), offset);
-                    if (retry.length >= 4 && retry.subarray(0, 4).equals(ZSTD_MAGIC) && _zstdDecompress) {
-                        retry = _zstdDecompress(retry);
-                    }
-                    entities.push(JSON.parse(retry.toString('utf-8')));
-                    recovered = true;
-                } catch { /* forced decrypt also failed */ }
-            }
-            if (!recovered) {
-                try {
-                    const repaired = entityBuf.toString('utf-8').replace(/\\u[0-9a-fA-F]{0,3}$/g, '').replace(/\\u[0-9a-fA-F]{0,3}(["\s,}\]])/g, '$1');
-                    entities.push(JSON.parse(repaired));
-                    recovered = true;
-                } catch { /* repair also failed */ }
-            }
-            if (!recovered) {
-                console.warn(`[BINARY-READER] Entity parse error in ${shardName}[${i}]: ${e.message}`);
-            }
+            // V27.31: removed V25.8.3 "forced-decrypt retry" path — it was a workaround
+            // for the same isValidPayload false-positive that always-decrypt-first above
+            // now prevents at source. Also removed the orphaned `entityBuf` repair branch
+            // (entityBuf was undefined → ReferenceError on every miss, masking the real
+            // parse error).
+            console.warn(`[BINARY-READER] Entity parse error in ${shardName}[${i}]: ${e.message}`);
         }
     }
 
-    // V25.8.4: fail-fast on mass-decode failure. Encrypted shard + missing
-    // AES_CRYPTO_KEY previously yielded 0 parsed entities silently, which
-    // upstream callers (e.g. params-backfill) consumed as "no work to do".
-    // Threshold 95% caters to the natural ~1/65536 false-positive rate
-    // documented above without firing on real-world data.
+    // V25.8.4 / V27.31: fail-fast on mass-decode failure. The 95% threshold survives
+    // from the pre-V27.31 era when isValidPayload false-positives could lose a small
+    // fraction per shard; with always-decrypt-first that false-positive is gone, so
+    // a mass miss now most likely means an AES_CRYPTO_KEY mismatch between writer and
+    // reader (or a genuinely unencrypted legacy shard reaching an encryption-on reader).
     if (entityCount >= 100 && entities.length / entityCount < 0.05) {
         throw new Error(`[BINARY-READER] ${entityCount - entities.length}/${entityCount} entities failed to decode in ${shardName}. ` +
             `Likely AES_CRYPTO_KEY missing or invalid (encryption enabled=${isEncryptionEnabled()}). ` +
