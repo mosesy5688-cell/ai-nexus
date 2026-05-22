@@ -938,7 +938,8 @@ jobs:
           DAILY_COUNT=$(ls output/daily 2>/dev/null | wc -l)
           [ "$RANKINGS_COUNT" -lt 5 ] && MISSING+=("rankings (got $RANKINGS_COUNT, need ≥5)")
           [ "$ARTICLES_COUNT" -lt 10 ] && MISSING+=("knowledge articles (got $ARTICLES_COUNT, need ≥10)")
-          [ "$DAILY_COUNT" -lt 1 ] && MISSING+=("daily reports (got $DAILY_COUNT, need ≥1)")
+          # V27.38: daily reports gate removed — V27.36 disabled shouldGenerateReport() (Gemini budget pause).
+          # Reports are off Agent contract; re-enable in lockstep with scripts/factory/lib/daily-report.js.
           # 4/4-required metadata files (must be present in any of .json / .json.zst / .json.gz form)
           for f in "output/cache/mesh/graph.json" "output/cache/search-core.json" "output/cache/category_stats.json"; do
             if [ ! -f "$f" ] && [ ! -f "${f}.zst" ] && [ ! -f "${f}.gz" ]; then
@@ -950,7 +951,7 @@ jobs:
             for m in "${MISSING[@]}"; do echo "  - $m"; done
             exit 1
           fi
-          echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings, $DAILY_COUNT daily reports + 3/3 4/4-required metadata files"
+          echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings, $DAILY_COUNT daily reports (gate disabled V27.38) + 3/3 4/4-required metadata files"
 
       # V17.1: Save COMPLETE output (with all satellite results) to Cache for Factory 4/4
       - name: Save Complete Cycle Output to Cache
