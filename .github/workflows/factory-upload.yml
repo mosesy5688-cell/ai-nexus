@@ -348,7 +348,7 @@ jobs:
           mkdir -p output/cache
           [ ! -f "output/cache/trending.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trending.json.zst output/cache/trending.json.zst || true
           [ ! -f "output/cache/trend-data.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trend-data.json.zst output/cache/trend-data.json.zst || true
-          [ ! -f "output/cache/trends-summary.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trends-summary.json.zst output/cache/trends-summary.json.zst || true
+          # V27.38: trends-summary.json.zst fallback removed (V27.36 paused generation)
       - name: Restore Fused Entities
         id: cache-fused
         uses: actions/cache/restore@v4

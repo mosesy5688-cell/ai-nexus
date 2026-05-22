@@ -602,6 +602,8 @@ jobs:
             cache/fni-history.json.zst
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
+      # V27.38: trends-summary task + GEMINI_API_KEY env removed (V27.36 paused
+      # the Gemini call in aggregator-tasks.js; this was dead invocation).
       - name: Generate Trending & Trends
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -611,23 +613,16 @@ jobs:
           CACHE_DIR: ./cache
           ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
-          # 2026-05-03: GEMINI_API_KEY required for trends-summary's Gemini narrative
-          # generation. Without this, callGemini() returns null silently with
-          # "[TITAN] GEMINI_API_KEY not set. Skipping AI generation." warning,
-          # causing /trends page to show without headline/analysis text.
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
           node scripts/factory/aggregator.js --task=trend
-          node scripts/factory/aggregator.js --task=trends-summary
       - name: Save Trending Results to Cache
         uses: actions/cache/save@v4
         with:
           path: |
             output/cache/trending.json.zst
             output/cache/trend-data.json.zst
-            output/cache/trends-summary.json.zst
           key: intra-cycle-${{ github.run_id }}-trending
       # R2 backup for trending satellite (P0-R2: R2-primary resilience)
       - name: Backup Trending Results to R2
@@ -639,7 +634,6 @@ jobs:
         run: |
           [ -f "output/cache/trending.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trending.json.zst state/satellite-trending/trending.json.zst
           [ -f "output/cache/trend-data.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trend-data.json.zst state/satellite-trending/trend-data.json.zst
-          [ -f "output/cache/trends-summary.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/trends-summary.json.zst state/satellite-trending/trends-summary.json.zst
           echo "✅ Trending results backed up to R2"
 
   aggregate-relations:
@@ -704,16 +698,8 @@ jobs:
           node scripts/factory/aggregator.js --task=alt
           node scripts/factory/aggregator.js --task=knowledge-links
           node scripts/factory/aggregator.js --task=mesh
-      - name: Generate Knowledge AI Articles
-        continue-on-error: true
-        env:
-          GEMINI_MODEL: gemini-3.1-pro-preview
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
-          CACHE_DIR: ./cache
-        run: |
-          export NODE_OPTIONS="--max-old-space-size=4096"
-          node scripts/factory/aggregator.js --task=knowledge-ai
+      # V27.38: knowledge-ai task + Gemini env removed (V27.36 removed the task
+      # in aggregator-tasks.js; this was dead invocation).
       - name: Save Relations Results to Cache
         uses: actions/cache/save@v4
         with:
@@ -798,7 +784,7 @@ jobs:
           mkdir -p output/cache
           node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trending.json.zst output/cache/trending.json.zst || echo "⚠️ R2 trending.json.zst missing"
           node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trend-data.json.zst output/cache/trend-data.json.zst || echo "⚠️ R2 trend-data.json.zst missing"
-          node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trends-summary.json.zst output/cache/trends-summary.json.zst 2>/dev/null || true
+          # V27.38: trends-summary.json.zst fallback removed (V27.36 paused generation)
       - name: Restore Relations Results
         id: cache-relations-finalize
         uses: actions/cache/restore@v4
@@ -938,7 +924,8 @@ jobs:
           DAILY_COUNT=$(ls output/daily 2>/dev/null | wc -l)
           [ "$RANKINGS_COUNT" -lt 5 ] && MISSING+=("rankings (got $RANKINGS_COUNT, need ≥5)")
           [ "$ARTICLES_COUNT" -lt 10 ] && MISSING+=("knowledge articles (got $ARTICLES_COUNT, need ≥10)")
-          [ "$DAILY_COUNT" -lt 1 ] && MISSING+=("daily reports (got $DAILY_COUNT, need ≥1)")
+          # V27.38: daily reports gate removed — V27.36 disabled shouldGenerateReport() (Gemini budget pause).
+          # Reports are off Agent contract; re-enable in lockstep with scripts/factory/lib/daily-report.js.
           # 4/4-required metadata files (must be present in any of .json / .json.zst / .json.gz form)
           for f in "output/cache/mesh/graph.json" "output/cache/search-core.json" "output/cache/category_stats.json"; do
             if [ ! -f "$f" ] && [ ! -f "${f}.zst" ] && [ ! -f "${f}.gz" ]; then
@@ -950,7 +937,7 @@ jobs:
             for m in "${MISSING[@]}"; do echo "  - $m"; done
             exit 1
           fi
-          echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings, $DAILY_COUNT daily reports + 3/3 4/4-required metadata files"
+          echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings, $DAILY_COUNT daily reports (gate disabled V27.38) + 3/3 4/4-required metadata files"
 
       # V17.1: Save COMPLETE output (with all satellite results) to Cache for Factory 4/4
       - name: Save Complete Cycle Output to Cache
