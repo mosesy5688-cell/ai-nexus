@@ -171,6 +171,11 @@ async function generateKnowledgeRss(outputDir) {
  * V25.13: Hard-fails (throws) when both feeds end up empty — used to silently
  * produce 0-item RSS for months because input indexes weren't reachable from
  * the runner. P6 principle: no silent failure.
+ * V27.39: Soft-warn when both empty. V27.36 intentionally paused daily reports
+ * + knowledge-ai (Gemini budget); RSS for these is now legitimately empty by
+ * design. Original P6 intent was "fail when upstream broken", not "fail when
+ * upstream intentionally paused". Re-enable hard-fail when re-enabling either
+ * daily-report.js shouldGenerateReport() or aggregator-tasks.js knowledge-ai.
  */
 export async function generateRssFeeds(outputDir = './output') {
     console.log('[RSS V16.2] Generating RSS feeds...');
@@ -181,10 +186,9 @@ export async function generateRssFeeds(outputDir = './output') {
     console.log(`[RSS] Generated feeds: ${reportsCount} reports, ${knowledgeCount} articles`);
 
     if (reportsCount === 0 && knowledgeCount === 0) {
-        throw new Error(
-            '[RSS] Both feeds empty — input indexes missing or unreadable. ' +
-            'Expected ./output/cache/reports/index.json[.zst] and ./output/cache/knowledge/index.json[.zst]. ' +
-            'This is a hard failure (P6 no silent failure). Check upstream pipeline produced these files.'
+        console.warn(
+            '[RSS] Both feeds empty — expected post-V27.36 (daily reports + knowledge-ai paused). ' +
+            'If unexpected, check ./output/cache/reports/index.json[.zst] + ./output/cache/knowledge/index.json[.zst].'
         );
     }
 
