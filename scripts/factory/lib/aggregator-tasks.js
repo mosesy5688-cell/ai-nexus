@@ -12,27 +12,15 @@ import { generateMeshGraph } from './mesh-graph-generator.js';
 import { computeAltRelations } from './alt-linker.js';
 import { computeKnowledgeLinks } from './knowledge-linker.js';
 import { generateKnowledgeData } from './knowledge-data-generator.js';
-import { generateWithGemini, getKnownTopics } from './knowledge-ai.js';
+// V27.36: KnowledgeAI + TrendsSummary tasks removed (Gemini-dependent).
+// $3/month Gemini budget cap exhausts mid-month, leaving all calls in 429 +
+// 60s stagger retry that wastes ~3-5min cron wall-time per run. Tasks have been
+// removed from the registry below. generateWithGemini/getKnownTopics/
+// generateTrendsSummary/isFresh stay on disk for future re-enable.
 import { loadFniHistory } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
-import { generateTrendsSummary } from './trends-summary-generator.js';
 import { smartWriteWithVersioning } from './smart-writer.js';
-import { autoDecompress } from './zstd-helper.js';
 import path from 'path';
-
-async function isFresh(filename, dir, maxDays) {
-    for (const ext of ['.zst', '.gz', '']) {
-        try {
-            const raw = await (await import('fs/promises')).readFile(path.join(dir, filename + ext));
-            const data = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
-            if (data._ts) {
-                const age = (Date.now() - new Date(data._ts).getTime()) / 86400000;
-                if (age < maxDays) { console.log(`[KnowledgeAI] ${filename}: fresh (${age.toFixed(1)}d < ${maxDays}d), skipping`); return true; }
-            }
-        } catch { continue; }
-    }
-    return false;
-}
 
 /**
  * Build the list of satellite tasks for the aggregator.
@@ -59,37 +47,8 @@ export function buildTaskList(shardReader, outputDir, opts = {}) {
                 const history = await loadFniHistory();
                 await generateTrendData(history, path.join(outputDir, 'cache'));
             }
-        },
-        {
-            name: 'TrendsSummary', id: 'trends-summary', fn: async () => {
-                const summary = await generateTrendsSummary(shardReader);
-                await smartWriteWithVersioning('trends-summary.json', summary, path.join(outputDir, 'cache'), { compress: true });
-            }
-        },
-        {
-            name: 'KnowledgeAI', id: 'knowledge-ai', fn: async () => {
-                const knowledgeDir = path.join(outputDir, 'cache', 'knowledge', 'ai');
-                const { mkdir, readFile } = await import('fs/promises');
-                await mkdir(knowledgeDir, { recursive: true });
-                const topicMap = getKnownTopics();
-                const topics = Object.values(topicMap).flat();
-                const FRESHNESS_DAYS = 14;
-                let generated = 0, skipped = 0;
-                for (const topic of topics) {
-                    try {
-                        const cached = await isFresh(`${topic.slug}.json`, knowledgeDir, FRESHNESS_DAYS);
-                        if (cached) { skipped++; continue; }
-                        const result = await generateWithGemini(topic);
-                        if (result) {
-                            await smartWriteWithVersioning(`${topic.slug}.json`, { ...result, _topic: topic.slug, _ts: new Date().toISOString() }, knowledgeDir, { compress: true });
-                            generated++;
-                        }
-                    } catch (e) {
-                        console.warn(`[KnowledgeAI] Skipping ${topic.slug}: ${e.message}`);
-                    }
-                }
-                console.log(`[KnowledgeAI] Generated ${generated}, skipped ${skipped} fresh (< ${FRESHNESS_DAYS}d), total ${topics.length}`);
-            }
         }
+        // V27.36: TrendsSummary + KnowledgeAI removed (Gemini-dependent under $3/mo budget cap).
+        // To re-enable, reinstate the task blocks here and add back the imports above.
     ];
 }

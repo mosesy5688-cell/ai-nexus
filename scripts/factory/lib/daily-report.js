@@ -51,11 +51,11 @@ export async function updateDailyAccumulator(entities, outputDir = './output') {
     console.log(`  [DAILY] Accumulated ${accumulator.entries.length} entries total`);
 }
 
-/**
- * V16.7.2: Always generate report on every Factory run
- */
+// V27.36: disabled. $3/mo Gemini cap was exhausting mid-month and leaving cron
+// stuck in 429+stagger loops. Reports are off the Agent contract; archive remains
+// accessible via meta-report.db. Re-enable: return true.
 export function shouldGenerateReport() {
-    return true;
+    return false;
 }
 
 /**
