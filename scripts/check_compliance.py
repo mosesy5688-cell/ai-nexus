@@ -64,7 +64,9 @@ IGNORE_FILES = {
     # Tier 6: Public Prompt Entities (False Positive Bypasses for Art 9.1)
     'prompts.astro', 'PromptDeepDive.astro',
     # Tier 7: Content Pages (Documentation — exempt from monolith check)
-    'developers.astro', 'methodology.astro'
+    'developers.astro', 'methodology.astro',
+    # Tier 8: The linter itself (meta-tool, exempt from its own monolith check)
+    'check_compliance.py'
 }
 
 # File extensions to scan for code quality
@@ -165,6 +167,29 @@ def check_english_only(content, filepath, violations):
             violations.add(filepath, "Art 8.1 English Mandate", f"CJK text at line {line_num}: {line.strip()[:30]}...")
             break  # One error per file is enough
 
+def check_knowledge_config_integrity(violations):
+    """[V27.33] Every KNOWLEDGE_CATEGORIES slug must have either a .md file at
+    src/pages/knowledge/<slug>.md or a non-stub entry in src/data/knowledge-articles.ts.
+    Stub-only slugs forced the [slug].astro SSR path which exceeded CF Worker 50ms
+    CPU budget and returned 503/1102. Build-time check prevents regression."""
+    config_path = 'src/data/knowledge-base-config.ts'
+    articles_path = 'src/data/knowledge-articles.ts'
+    md_dir = 'src/pages/knowledge'
+    if not (os.path.exists(config_path) and os.path.exists(articles_path) and os.path.isdir(md_dir)):
+        return
+    with open(config_path, encoding='utf-8') as f:
+        config_src = f.read()
+    with open(articles_path, encoding='utf-8') as f:
+        articles_src = f.read()
+    config_slugs = set(re.findall(r"slug:\s*'([a-z0-9-]+)'", config_src))
+    md_slugs = {os.path.splitext(f)[0] for f in os.listdir(md_dir) if f.endswith('.md')}
+    # Real content keys: 'foo': <identifier-not-createStub>
+    real_keys = set(re.findall(r"'([a-z0-9-]+)':\s*(?!createStub)[a-zA-Z_]", articles_src))
+    for slug in sorted(config_slugs):
+        if slug not in md_slugs and slug not in real_keys:
+            violations.add(config_path, "V27.33 Stub-Only Knowledge Slug",
+                f"'{slug}' has no .md and no real content import (CF Worker 1102 risk)")
+
 def check_file(filepath, violations):
     filename = os.path.basename(filepath)
     
@@ -228,10 +253,13 @@ def main():
     for root, dirs, files in os.walk(root_dir):
         # Filter directories
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
-        
+
         for file in files:
             filepath = os.path.join(root, file)
             check_file(filepath, violations)
+
+    # [V27.33] Repo-level check: knowledge config must not advertise stub-only slugs
+    check_knowledge_config_integrity(violations)
 
     if violations.report():
         sys.exit(0)

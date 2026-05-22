@@ -88,15 +88,23 @@ if (!article) {
     }
 }
 
+// V27.33: when no article resolves (unknown slug), short-circuit before the
+// expensive getMeshProfile + related-articles computation. Prior code ran both
+// for null-article paths, exhausting CF Worker's 50ms CPU budget and returning
+// 503/1102 instead of a clean 404. Stub-only config entries used to hit this
+// path; they have been removed but the guard remains as defense-in-depth.
+if (!article) {
+    Astro.response.status = 404;
+}
 Astro.response.headers.set('X-Data-Source', knowledgeDataSource);
-Astro.response.headers.set('Cache-Control', article ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
+Astro.response.headers.set('Cache-Control', article ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=3600');
 
 const pageTitle = article ? `${article.title} - AI Knowledge Base` : 'Article Not Found';
-const pageDescription = article?.description 
+const pageDescription = article?.description
   ? `${article.description}${cdnStats?.refs ? ` (Referenced by ${cdnStats.refs} models/papers)` : ''}`
   : 'This article was not found.';
 
-// Related articles (same category)
+// Related articles (same category) — skipped entirely when article is null
 const relatedArticles = article ? Object.entries(articles)
   .filter(([key, a]) => {
      const conf = getArticleBySlug(key);
@@ -104,17 +112,18 @@ const relatedArticles = article ? Object.entries(articles)
   })
   .slice(0, 3) : [];
 
-// FETCH LINKED ENTITIES (Mesh Integration)
+// FETCH LINKED ENTITIES (Mesh Integration) — only run when we have a real article
 import { getMeshProfile } from '../../utils/mesh-orchestrator';
-const meshId = article ? `knowledge--${article.slug}` : `knowledge--${slug}`;
-
 let meshTiers = null;
-try {
-  // V21.5: Pass article metadata to enable structural injections
-  const profile = await getMeshProfile(Astro.locals, meshId, article, { type: 'knowledge' });
-  meshTiers = profile.tiers;
-} catch (e) {
-  console.error('[KnowledgeMesh] Orchestration failed:', e);
+if (article) {
+    const meshId = `knowledge--${article.slug}`;
+    try {
+      // V21.5: Pass article metadata to enable structural injections
+      const profile = await getMeshProfile(Astro.locals, meshId, article, { type: 'knowledge' });
+      meshTiers = profile.tiers;
+    } catch (e) {
+      console.error('[KnowledgeMesh] Orchestration failed:', e);
+    }
 }
 
 import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';

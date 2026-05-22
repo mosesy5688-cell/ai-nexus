@@ -20,18 +20,8 @@ export interface KnowledgeCategory {
 }
 
 export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
-    {
-        id: 'organizations',
-        title: 'Organizations',
-        icon: '🏢',
-        description: 'Leading entities in the AI ecosystem',
-        articles: [
-            { slug: 'meta', title: 'Meta AI', description: 'Creators of Llama and pioneers of open-weights research', difficulty: 'Beginner', effort: '3 min' },
-            { slug: 'google', title: 'Google DeepMind', description: 'Pioneers of Transformers and Gemini', difficulty: 'Beginner', effort: '4 min' },
-            { slug: 'openai', title: 'OpenAI', description: 'Creators of GPT-4 and ChatGPT ecosystem', difficulty: 'Beginner', effort: '5 min' },
-            { slug: 'mistral-ai', title: 'Mistral AI', description: 'European leader in efficient MoE models', difficulty: 'Beginner', effort: '3 min' }
-        ]
-    },
+    // V27.33: 'organizations' category removed — all 4 articles (meta, google, openai, mistral-ai)
+    // were stub-only (no .md, only createStub placeholder content), triggering CF Worker 503/1102.
     {
         id: 'benchmarks',
         title: 'Benchmarks',
@@ -39,9 +29,8 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
         description: 'Understanding AI model evaluation metrics',
         articles: [
             { slug: 'what-is-mmlu', title: 'What is MMLU?', description: 'Massive Multitask Language Understanding benchmark explained', difficulty: 'Intermediate', effort: '5 min' },
-            { slug: 'what-is-humaneval', title: 'What is HumanEval?', description: 'Code generation benchmark for evaluating programming ability', difficulty: 'Intermediate', effort: '4 min' },
-            { slug: 'what-is-hellaswag', title: 'What is HellaSwag?', description: 'Commonsense reasoning benchmark explained', difficulty: 'Intermediate', effort: '3 min' },
-            { slug: 'what-is-arc', title: 'What is ARC?', description: 'AI2 Reasoning Challenge for grade-school science questions', difficulty: 'Intermediate', effort: '4 min' }
+            { slug: 'what-is-humaneval', title: 'What is HumanEval?', description: 'Code generation benchmark for evaluating programming ability', difficulty: 'Intermediate', effort: '4 min' }
+            // V27.33: what-is-hellaswag, what-is-arc removed — stub-only (no real content)
         ]
     },
     {
@@ -51,7 +40,7 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
         description: 'Technical concepts behind AI models',
         articles: [
             { slug: 'what-is-context-length', title: 'What is Context Length?', description: 'Understanding token windows and memory in LLMs', difficulty: 'Beginner', effort: '3 min' },
-            { slug: 'what-is-parameters', title: 'What are Model Parameters?', description: 'Why 7B, 70B, and model size matters', difficulty: 'Beginner', effort: '4 min' },
+            // V27.33: what-is-parameters removed — stub-only (no real content)
             { slug: 'rag', title: 'What is RAG?', description: 'Retrieval Augmented Generation for knowledge-grounded AI', difficulty: 'Intermediate', effort: '6 min' }
         ]
     },
@@ -92,26 +81,16 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
             { slug: 'model-merging', title: 'Model Merging', description: 'Combining fine-tuned models effectively', difficulty: 'Intermediate', effort: '6 min' }
         ]
     },
-    {
-        id: 'families',
-        title: 'Model Families',
-        icon: '🦙',
-        description: 'Guide to major AI model families',
-        articles: [
-            { slug: 'llama-family-guide', title: 'Llama Family Guide', description: "Meta's LLaMA series from 7B to 70B", difficulty: 'Beginner', effort: '5 min' },
-            { slug: 'qwen-family-guide', title: 'Qwen Family Guide', description: "Alibaba's Qwen series and capabilities", difficulty: 'Beginner', effort: '5 min' },
-            { slug: 'mistral-family-guide', title: 'Mistral Family Guide', description: "Mistral AI's efficient model lineup", difficulty: 'Beginner', effort: '5 min' }
-        ]
-    },
+    // V27.33: 'families' category removed — all 3 articles (llama-family-guide,
+    // qwen-family-guide, mistral-family-guide) were stub-only.
     {
         id: 'deployment',
         title: 'Local Deployment',
         icon: '⚡',
         description: 'Running AI models on your own hardware',
         articles: [
-            { slug: 'how-to-run-locally', title: 'How to Run LLMs Locally', description: 'Complete guide to running models on your machine', difficulty: 'Intermediate', effort: '8 min' },
-            { slug: 'what-is-gguf', title: 'What is GGUF?', description: 'Quantized model formats for efficient local inference', difficulty: 'Advanced', effort: '6 min' },
-            { slug: 'what-is-ollama', title: 'What is Ollama?', description: 'Easy local LLM deployment tool explained', difficulty: 'Beginner', effort: '3 min' }
+            // V27.33: how-to-run-locally, what-is-ollama removed — stub-only
+            { slug: 'what-is-gguf', title: 'What is GGUF?', description: 'Quantized model formats for efficient local inference', difficulty: 'Advanced', effort: '6 min' }
         ]
     },
     {
@@ -138,9 +117,8 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
             { slug: 'multimodal', title: 'Multimodal AI', description: 'Processing text, images, and audio seamlessly', difficulty: 'Intermediate', effort: '6 min' },
             { slug: 'rag', title: 'RAG Systems', description: 'Retrieval Augmented Generation architecture', difficulty: 'Intermediate', effort: '7 min' },
             { slug: 'inference-optimization', title: 'Inference Optimization', description: 'Accelerating AI performance and deployment', difficulty: 'Intermediate', effort: '7 min' },
-            { slug: 'fundamentals', title: 'AI Fundamentals', description: 'Core concepts and architectures', difficulty: 'Beginner', effort: '5 min' },
-            { slug: 'llm-benchmarks', title: 'LLM Evaluation', description: 'How model performance is measured', difficulty: 'Intermediate', effort: '5 min' },
-            { slug: 'large-language-model', title: 'Large Language Model (LLM)', description: 'Foundational concept of modern AI systems', difficulty: 'Beginner', effort: '5 min' }
+            // V27.33: fundamentals, large-language-model removed — stub-only
+            { slug: 'llm-benchmarks', title: 'LLM Evaluation', description: 'How model performance is measured', difficulty: 'Intermediate', effort: '5 min' }
         ]
     }
 ];
@@ -161,6 +139,8 @@ export function getArticleBySlug(slug: string): { category: KnowledgeCategory; a
     }
 
     // 2. Alias match (e.g. 'mmlu' -> 'what-is-mmlu')
+    // V27.33: removed aliases pointing to deleted stub-only slugs:
+    //   'ollama' → 'what-is-ollama', 'llm' → 'large-language-model', 'meta-ai' → 'meta'
     const aliasMap: Record<string, string> = {
         'mmlu': 'what-is-mmlu',
         'fni': 'what-is-fni',
@@ -169,13 +149,10 @@ export function getArticleBySlug(slug: string): { category: KnowledgeCategory; a
         'deploy-score': 'what-is-deploy-score',
         'gguf': 'what-is-gguf',
         'vram': 'vram',
-        'ollama': 'what-is-ollama',
-        'llm': 'large-language-model',
         'transformer': 'transformer',
         'what-is-transformer': 'transformer',
         'moe': 'moe',
-        'what-is-moe': 'moe',
-        'meta-ai': 'meta'
+        'what-is-moe': 'moe'
     };
 
     const canonicalSlug = aliasMap[slug];

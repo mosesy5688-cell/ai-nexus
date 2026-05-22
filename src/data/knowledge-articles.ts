@@ -32,16 +32,13 @@ export const articles: Record<string, KnowledgeArticle> = {
   'what-is-deploy-score': deploy,
   'what-is-gguf': gguf,
 
-  // Stubs for remaining articles (V15.5 connectivity)
-  'what-is-hellaswag': createStub('What is HellaSwag?', 'Commonsense reasoning benchmark for LLMs', 'benchmarks'),
-  'what-is-arc': createStub('What is ARC?', 'AI2 Reasoning Challenge for science questions', 'benchmarks'),
-  'what-is-parameters': createStub('What are Model Parameters?', 'Understanding 7B, 70B and model scale', 'architecture'),
+  // V27.33: 14 stub-only slugs removed (caused CF Worker 503/1102 on SSR cold path).
+  // Removed: what-is-hellaswag, what-is-arc, what-is-parameters, llama-family-guide,
+  // qwen-family-guide, mistral-family-guide, how-to-run-locally, what-is-ollama,
+  // fundamentals, large-language-model, meta, google, openai, mistral-ai.
+  // Stubs kept below have .md-backed slugs in KNOWLEDGE_CATEGORIES, so the .md
+  // pre-render takes the route — the stub is only used as mesh-related-articles content.
   'what-is-transformer': createStub('What is a Transformer?', 'The architecture behind modern LLMs', 'architecture'),
-  'llama-family-guide': createStub('Llama Family Guide', "Meta's open weights model series", 'model-families'),
-  'qwen-family-guide': createStub('Qwen Family Guide', "Alibaba's efficient LLM series", 'model-families'),
-  'mistral-family-guide': createStub('Mistral Family Guide', "Mistral AI's high-performance models", 'model-families'),
-  'how-to-run-locally': createStub('How to Run LLMs Locally', 'Running AI models on consumer hardware', 'deployment'),
-  'what-is-ollama': createStub('What is Ollama?', 'Easy local model deployment tool', 'deployment'),
   'moe': createStub('Mixture of Experts (MoE)', 'Scaling models with switchable layers', 'fundamentals'),
   'quantization': createStub('Model Quantization', 'Compressing models for efficient inference', 'fundamentals'),
   'vram': createStub('VRAM Requirements', 'Memory needs for running AI models', 'fundamentals'),
@@ -59,18 +56,8 @@ export const articles: Record<string, KnowledgeArticle> = {
   'fni': fni,
   'deploy-score': deploy,
   'gguf': gguf,
-  'hellaswag': createStub('What is HellaSwag?', 'Commonsense reasoning benchmark', 'benchmarks'),
-  'arc': createStub('What is ARC?', 'AI2 Reasoning Challenge', 'benchmarks'),
-  'parameters': createStub('What are Parameters?', 'Understanding model size', 'architecture'),
-  'ollama': createStub('What is Ollama?', 'Local deployment tool', 'deployment'),
   'inference-optimization': createStub('Inference Optimization', 'How to speed up LLMs', 'inference_tech'),
-  'fundamentals': createStub('AI Fundamentals', 'Core concepts and architectures', 'fundamentals'),
   'rlhf': createStub('RLHF', 'Reinforcement Learning from Human Feedback', 'training'),
-  'large-language-model': createStub('Large Language Model (LLM)', 'Deep learning models trained on vast amounts of text data.', 'fundamentals'),
-  'meta': createStub('Meta AI', 'Creators of the Llama series and leading open-weights research.', 'organizations'),
-  'google': createStub('Google DeepMind', 'Pioneers of the Transformer architecture and Gemini models.', 'organizations'),
-  'openai': createStub('OpenAI', 'Creators of GPT-4, DALL-E and the ChatGPT ecosystem.', 'organizations'),
-  'mistral-ai': createStub('Mistral AI', 'European AI leader focused on efficient Mixture-of-Experts models.', 'organizations'),
 
   // Technical Aliases & Mesh Support (Resolved to canonicals)
   'instruction-tuning': createStub('Instruction Tuning', 'See Fine-Tuning for details.', 'training'),
