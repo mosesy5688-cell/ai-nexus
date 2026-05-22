@@ -743,11 +743,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      # V27.37: Align with sibling agg jobs — finalize was the only one missing free-disk,
+      # causing "No space left on device" failure in run 26282626532
+      - name: Free Runner Disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/local/share/powershell /usr/share/az* /opt/microsoft 2>/dev/null || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
+          docker system prune -af 2>/dev/null || true
+          sudo apt-get clean 2>/dev/null || true
+          echo "Available after free-disk: $(df -h / | tail -1 | awk '{print $4}')"
       - name: Checkout Repository
         uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
+      - name: Disk usage after npm ci
+        run: df -h /
       # V22.8: Restore satellite results from cache
       - name: Restore Search Results
         id: cache-search-finalize
@@ -821,6 +832,8 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: node scripts/factory/consolidate-health.js
 
+      - name: Disk usage before Core Registry restore
+        run: df -h /
       # V17.1: Restore core-registry from Cache (Restores directly to output/)
       - name: Restore Core Registry
         uses: actions/cache/restore@v4
@@ -830,6 +843,8 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
+      - name: Disk usage after Core Registry restore
+        run: df -h /
 
       - name: Restore Rankings (post-core, path must match save exactly)
         id: cache-rankings
@@ -855,6 +870,8 @@ jobs:
             node scripts/factory/r2-workflow-cli.js restore-file "state/satellite-rankings/rankings-${t}.db" "output/data/rankings-${t}.db" 2>/dev/null || true
           done
           echo "✅ Rankings restored from R2: $(ls output/data/rankings-*.db 2>/dev/null | wc -l) DBs"
+      - name: Disk usage after Rankings restore (peak)
+        run: df -h /
       - name: Merge Core with Satellite Outputs
         run: |
           # V17.5: Entities.json and meta are already restored to output/ by the previous step
