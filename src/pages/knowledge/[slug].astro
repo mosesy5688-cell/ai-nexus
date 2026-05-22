@@ -11,7 +11,14 @@ import KnowledgeHeader from '../../components/knowledge/KnowledgeHeader.astro';
 import KnowledgeContent from '../../components/knowledge/KnowledgeContent.astro';
 import KnowledgeSidebar from '../../components/knowledge/KnowledgeSidebar.astro';
 import KnowledgeRelated from '../../components/knowledge/KnowledgeRelated.astro';
-import KnowledgeGroundedEntities from '../../components/knowledge/KnowledgeGroundedEntities.astro';
+// V27.35: KnowledgeGroundedEntities + NeuralGraphExplorer (mesh) removed from SSR.
+// Mesh integration was the dominant CPU cost on the dynamic [slug].astro path —
+// 8 production slugs continued to return CF Worker 503/1102 after the V27.33
+// stub purge because their non-VFS render still ran getMeshProfile's 6 parallel
+// R2 fetches inside the 50ms Worker budget. Mesh is human-discovery UX, not
+// part of the Agent-readable contract; Agents query /api/v1/search or
+// /api/v1/entity for related entities. Future re-add should be async client-
+// side fetch (Phase 0.5b pattern), not SSR-blocking.
 import ReadStatusManager from '../../components/knowledge/ReadStatusManager.astro';
 import { articles } from '../../data/knowledge-articles';
 import { getArticleBySlug, getCategoryById } from '../../data/knowledge-base-config';
@@ -112,21 +119,10 @@ const relatedArticles = article ? Object.entries(articles)
   })
   .slice(0, 3) : [];
 
-// FETCH LINKED ENTITIES (Mesh Integration) — only run when we have a real article
-import { getMeshProfile } from '../../utils/mesh-orchestrator';
-let meshTiers = null;
-if (article) {
-    const meshId = `knowledge--${article.slug}`;
-    try {
-      // V21.5: Pass article metadata to enable structural injections
-      const profile = await getMeshProfile(Astro.locals, meshId, article, { type: 'knowledge' });
-      meshTiers = profile.tiers;
-    } catch (e) {
-      console.error('[KnowledgeMesh] Orchestration failed:', e);
-    }
-}
-
-import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
+// V27.35: getMeshProfile call + NeuralGraphExplorer import removed.
+// See top of frontmatter for rationale (CF Worker CPU exhaustion on dynamic
+// [slug].astro renders). mesh-orchestrator.js + NeuralGraphExplorer.astro files
+// remain on disk — used by entity detail pages + KnowledgeSidebar elsewhere.
 ---
 
 <Layout title={pageTitle} description={pageDescription} canonical={`/knowledge/${canonicalSlug}`}>
@@ -144,17 +140,12 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 
         <KnowledgeContent content={article.content} />
 
-        <div class="mt-16 pt-12 border-t border-[var(--border-hairline)]">
-          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-8 flex items-center gap-2">
-            <span>🕸️</span> Knowledge Mesh Network
-          </h2>
-          <div class="rounded-sm border border-[var(--border-hairline)] bg-[var(--bg-surface)] overflow-hidden" id="mesh-hydration-root">
-            <NeuralGraphExplorer currentModelId={meshId} meshTiers={meshTiers} type="concept" />
-          </div>
-        </div>
-
-        {/* Linked Entities (Tabular View) - V16.2 Extracted */}
-        <KnowledgeGroundedEntities meshTiers={meshTiers} />
+        {/* V27.35: Knowledge Mesh Network + Linked Entities (Tabular View) removed.
+            Mesh fetches were the dominant CPU cost on dynamic [slug].astro renders
+            and caused CF Worker 503/1102 on 8 production slugs. Agent contract for
+            related entities is /api/v1/search and /api/v1/entity, not HTML scraping.
+            Re-add as async client-side fetch (Phase 0.5b) if user-retention data
+            justifies the visual graph component. */}
 
         {relatedArticles.length > 0 && (
           <KnowledgeRelated articles={relatedArticles} />
