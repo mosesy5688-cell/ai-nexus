@@ -316,6 +316,7 @@ jobs:
           with-rust-ffi: 'false'
 
       - name: Restore Intra-Cycle Core (UNPRUNED from compute)
+        id: cache-restore-core
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -323,6 +324,15 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
+
+      # V27.40.1: fail-fast if same-run cache miss. Avoids empty-workspace
+      # poisoning downstream caches with empty satellite/global-registry/etc.
+      # If this fires, "Re-run failed jobs" via GHA UI usually recovers (run_id stable).
+      - name: Verify Cache Hit (defensive)
+        if: steps.cache-restore-core.outputs.cache-hit != 'true'
+        run: |
+          echo "::error::Cache miss on intra-cycle-${{ github.run_id }}-core. merge-core-compute should have written this seconds ago. Aborting persist to avoid empty-cache poisoning. Recovery: 'Re-run failed jobs' in GHA UI."
+          exit 1
 
       - name: Prune for Satellite Cache (drop deltas/artifacts/fni/meta)
         run: |
