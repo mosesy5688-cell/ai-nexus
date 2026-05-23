@@ -91,6 +91,7 @@ jobs:
           CACHE_DIR: ./output/cache
         run: node scripts/factory/mesh-profile-baker.js
       - name: Save Baked Profile Shards to Cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: output/cache/mesh/profile-shards/
@@ -256,10 +257,17 @@ jobs:
           aggressive-disk-cleanup: 'false'
           with-rust-ffi: 'false'
       - name: Restore Fused Entities from intra-cache
+        id: cache-restore-fused
         uses: actions/cache/restore@v4
         with:
           path: output/cache/fused/
           key: intra-4-4-${{ github.run_id }}-fused
+      # V27.40.1: fail-fast on same-run cache miss → avoids R2 backup of empty dir.
+      - name: Verify Cache Hit (defensive)
+        if: steps.cache-restore-fused.outputs.cache-hit != 'true'
+        run: |
+          echo "::error::Cache miss on intra-4-4-${{ github.run_id }}-fused. master-fusion-compute should have written this. Aborting persist to avoid R2 empty-state upload. Recovery: 'Re-run failed jobs' in GHA UI."
+          exit 1
       - name: Backup Fused Entities to R2
         if: success()
         env:
@@ -477,6 +485,7 @@ jobs:
           aggressive-disk-cleanup: 'false'
           with-rust-ffi: 'false'
       - name: Restore VFS Pack Output from intra-cache
+        id: cache-restore-vfs-pack
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -486,6 +495,12 @@ jobs:
             output/cache/knowledge/
             output/cache/mesh/
           key: intra-4-4-${{ github.run_id }}-vfs-pack
+      # V27.40.1: fail-fast on same-run cache miss → avoids empty sitemap/RSS output.
+      - name: Verify Cache Hit (defensive)
+        if: steps.cache-restore-vfs-pack.outputs.cache-hit != 'true'
+        run: |
+          echo "::error::Cache miss on intra-4-4-${{ github.run_id }}-vfs-pack. vfs-pack-db should have written this. Aborting derived job to avoid empty sitemap/RSS output. Recovery: 'Re-run failed jobs' in GHA UI."
+          exit 1
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
       # V25.13: RSS gen requires output/cache/reports/index.json.zst (from pack-db meta-anchors)
