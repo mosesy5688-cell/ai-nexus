@@ -65,27 +65,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-            rust/markdown-renderer/markdown-renderer-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'false'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         run: |
@@ -115,33 +98,18 @@ jobs:
       - name: Backup Profile Shards to R2
         run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profile-shards/ state/mesh-profile-shards/
 
-  master-fusion:
-    name: Master Fusion
+  # V27.40: master-fusion was a 1h20m monolithic job — split into compute + persist.
+  # R2 backup failure no longer redoes 1h20m fusion.
+  master-fusion-compute:
+    name: Master Fusion (Compute)
     needs: [mesh-baking, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-            rust/markdown-renderer/markdown-renderer-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         run: |
@@ -266,12 +234,34 @@ jobs:
             exit 1
           fi
           echo "✅ Shard gate passed: $SHARD_COUNT files / $SENTINEL_PROCESSED reported ≥ $THRESHOLD (≈$((SHARD_COUNT * 1000)) entities)"
+      # V27.40: end of master-fusion-compute. Save fused entities to cache;
+      # R2 backup moved to master-fusion-persist (cheap retry on transient R2 failure).
       - name: Save Fused Entities to Cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: output/cache/fused/
           key: intra-4-4-${{ github.run_id }}-fused
+
+  # V27.40: master-fusion-persist isolates R2 backup from heavy compute.
+  # Transient R2 failure → re-run only persist (~3-5m), not 1h20m fusion.
+  master-fusion-persist:
+    name: Master Fusion (Persist R2)
+    needs: master-fusion-compute
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: ./.github/actions/factory-setup
+        with:
+          aggressive-disk-cleanup: 'false'
+          with-rust-ffi: 'false'
+      - name: Restore Fused Entities from intra-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/fused/
+          key: intra-4-4-${{ github.run_id }}-fused
       - name: Backup Fused Entities to R2
+        if: success()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -279,35 +269,18 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/fused/ state/fused-entities/
 
-  vfs-packing:
-    name: VFS Packing (Stable 1.0)
-    needs: [master-fusion, check-upstream]
+  # V27.40: vfs-packing renamed to vfs-pack-db; sitemap/RSS/health moved to vfs-derived.
+  # Pack-db heavy step + verify-gate stay here; derived artifacts split into separate job.
+  vfs-pack-db:
+    name: VFS Packing (Stable 1.0) — Compute
+    needs: [master-fusion-persist, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
-          echo "Disk: $(df -h / | tail -1 | awk '{print $4}') available"
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-            rust/markdown-renderer/markdown-renderer-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         run: |
@@ -456,13 +429,13 @@ jobs:
       - name: V27.2 Verify Shard-Meta Consistency
         run: node scripts/factory/verify-shard-meta-consistency.js
       - name: Save Embedding Shards to Cache
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: output/cache/embeddings/
           key: embedding-shards-v1-${{ github.run_id }}
       - name: Backup Embedding Shards to R2
-        if: always()
+        if: success()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -475,13 +448,49 @@ jobs:
             node scripts/factory/r2-workflow-cli.js upload-file output/cache/pack-state.db state/pack-state.db
           fi
           echo "[R2] Embedding shards + pack-state (no html_cache) backed up"
+      # V27.40: end of vfs-pack-db. Save VFS pack output (data/meta/reports/knowledge/mesh)
+      # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
+      - name: Save VFS Pack Output to Cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            output/data/
+            output/meta/
+            output/cache/reports/
+            output/cache/knowledge/
+            output/cache/mesh/
+          key: intra-4-4-${{ github.run_id }}-vfs-pack
+
+  # V27.40: vfs-derived = sitemap-gen + RSS-gen + SQL-health + cache saves.
+  # ~2m; failure here costs minutes, not hours (vs old vfs-packing 2h10m blast radius).
+  # Recovery: GHA UI "Re-run failed jobs" — run_id stable, vfs-pack cache hits within ~5min window.
+  # No R2 fallback for vfs-pack cache miss (state/cycle-output/ does NOT contain meta-NN.db).
+  vfs-derived:
+    name: VFS Derived (Sitemap + RSS + Health)
+    needs: vfs-pack-db
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: ./.github/actions/factory-setup
+        with:
+          aggressive-disk-cleanup: 'false'
+          with-rust-ffi: 'false'
+      - name: Restore VFS Pack Output from intra-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/data/
+            output/meta/
+            output/cache/reports/
+            output/cache/knowledge/
+            output/cache/mesh/
+          key: intra-4-4-${{ github.run_id }}-vfs-pack
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
-      # V25.13: RSS gen moved here from separate rss-feeds job (architectural fix).
-      # Reason: meta-anchors (run by pack-db) generates output/cache/reports/index.json.zst
-      # in THIS runner. The old parallel rss-feeds job ran on a different runner
-      # without that file, producing 0 reports/articles silently. Now both indexes
-      # are guaranteed present at this point.
+      # V25.13: RSS gen requires output/cache/reports/index.json.zst (from pack-db meta-anchors)
+      # — guaranteed present via vfs-pack cache restore above.
+      # V27.39: soft-warn when both feeds empty (V27.36 paused daily reports + knowledge-ai).
       - name: Generate RSS feeds
         run: node scripts/factory/lib/rss-generator.js ./output
       - name: V23.1 SQL Health Check
@@ -492,6 +501,7 @@ jobs:
             node scripts/factory/verify-db.js "$db"
           done
       - name: Save VFS Assets to Cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -501,43 +511,25 @@ jobs:
             output/sitemap.xml
           key: intra-4-4-${{ github.run_id }}-vfs-assets
       - name: Save RSS Feeds to Cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: output/rss/
           key: intra-4-4-${{ github.run_id }}-rss-feeds
 
-  # V25.13: rss-feeds job DELETED — RSS gen moved into vfs-packing job (after meta-anchors).
-  # The old parallel job ran on a different runner without access to fresh
-  # output/cache/reports/index.json.zst (which only exists in vfs-packing's runner)
-  # and silently produced 0-feed RSS output every cycle. See PR fix/rss-feeds-pipeline.
+  # V25.13: rss-feeds job DELETED — RSS gen moved into vfs-packing (now vfs-derived).
+  # V27.40: vfs-packing further split into vfs-pack-db (heavy compute) + vfs-derived (light).
 
   upload:
     name: Final Upload to R2
-    needs: [mesh-baking, master-fusion, vfs-packing, check-upstream]
+    needs: [mesh-baking, master-fusion-persist, vfs-derived, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /opt/hostedtoolcache /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-            rust/markdown-renderer/markdown-renderer-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'false'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         run: |
