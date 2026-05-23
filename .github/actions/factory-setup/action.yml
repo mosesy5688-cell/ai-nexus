@@ -22,6 +22,9 @@ inputs:
 runs:
   using: composite
   steps:
+    # V27.40.2: NO checkout step here — local composite actions require the repo
+    # to be checked out BEFORE the `uses: ./.github/actions/factory-setup` line can
+    # resolve action.yml. Callers MUST do `- uses: actions/checkout@v4` before this.
     - name: Free Runner Disk
       shell: bash
       run: |
@@ -35,9 +38,6 @@ runs:
         docker system prune -af 2>/dev/null || true
         sudo apt-get clean 2>/dev/null || true
         echo "Disk after factory-setup cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
-
-    - name: Checkout Repository
-      uses: actions/checkout@v4
 
     - name: Setup Node.js
       uses: actions/setup-node@v4

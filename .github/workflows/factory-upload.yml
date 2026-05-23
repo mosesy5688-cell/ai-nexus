@@ -65,6 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
@@ -107,6 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -252,6 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
@@ -285,6 +288,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -480,6 +484,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
@@ -541,6 +546,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
