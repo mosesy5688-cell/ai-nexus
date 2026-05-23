@@ -65,45 +65,21 @@ jobs:
           echo "✅ Resolved Process ID (Main): $PROCESS_RUN_ID"
 
   # Job 1: Core Merge (The Pivot - SPEC V2.0)
-  merge-core:
-    name: Merge Core Registry
+  # V27.40: merge-core was a 1h41m monolithic job — split into compute + persist.
+  # Save-step failure no longer redoes 1h merge.
+  # See plan: brain/3de56fa3.../V27.40-factory-optimization-review.md
+  merge-core-compute:
+    name: Merge Core Registry (Compute)
     needs: check-upstream
     runs-on: ubuntu-22.04
     timeout-minutes: 330
     env:
       NODE_OPTIONS: "--max-old-space-size=4096 --expose-gc"
     steps:
-      - name: Free Runner Disk (pre-installed tools not needed)
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby 2>/dev/null || true
-          docker system prune -af 2>/dev/null || true
-          sudo apt-get clean 2>/dev/null || true
-          echo "Disk after cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          node-version: '22'
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-
-      # V25.8.3: Restore Rust FFI binaries for stream-aggregator
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         env:
@@ -114,7 +90,7 @@ jobs:
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           if [ "$FOUND" -lt 7 ]; then
-            echo "⚠️ Only $FOUND/7 Rust binaries. Restoring from R2 vault..."
+            echo "⚠️ Only $FOUND/8 Rust binaries. Restoring from R2 vault..."
             node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           fi
 
@@ -310,9 +286,12 @@ jobs:
         run: |
           echo "✅ Core registry and fragments verified. Ready for handoff."
 
-      # V4.2: Internal Cache for same-workflow satellite jobs
-      # V22.8 FIX: Must include cache/ and artifacts/ for satellite shard loading
+      # V27.40: end of merge-core-compute. Save UNPRUNED full snapshot for downstream:
+      # - trending (uses -core for full registry access)
+      # - finalize (uses -core for final core registry restore)
+      # merge-core-persist restores this, prunes, and writes -satellite key separately.
       - name: Save Intra-Cycle Core to Cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -320,11 +299,38 @@ jobs:
             cache/
             artifacts/
           key: intra-cycle-${{ github.run_id }}-core
-      - name: Save Satellite-Only Cache (no deltas/artifacts)
+
+  # V27.40: merge-core-persist isolates Save / R2-backup from heavy compute.
+  # Failure here costs ~10-15m rerun, not 1h merge. Restores unpruned -core cache,
+  # prunes (artifacts/ + cache/deltas/ + cache/fni-history/ + output/meta/),
+  # then writes -satellite (pruned) + 4 monolith caches + R2 FNI backup.
+  merge-core-persist:
+    name: Merge Core Registry (Persist)
+    needs: merge-core-compute
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: ./.github/actions/factory-setup
+        with:
+          aggressive-disk-cleanup: 'false'
+          with-rust-ffi: 'false'
+
+      - name: Restore Intra-Cycle Core (UNPRUNED from compute)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/
+            cache/
+            artifacts/
+          key: intra-cycle-${{ github.run_id }}-core
+
+      - name: Prune for Satellite Cache (drop deltas/artifacts/fni/meta)
         run: |
           rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null
           echo "Satellite cache pruned: $(du -sh cache/ output/ 2>/dev/null | paste -s)"
-      - name: Save Satellite Cache
+
+      - name: Save Satellite Cache (pruned)
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -334,6 +340,7 @@ jobs:
 
       # V4.1: Save Global Registry for next cycle's 1/4 Harvest
       - name: Save Global Registry to Cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -342,14 +349,17 @@ jobs:
           key: global-registry-${{ github.run_id }}
 
       - name: Save FNI History to Cache (Self-Healing)
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
             cache/fni-history.json.zst
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
+
       # P1-R9: R2 backup for FNI history (was cache-only, no R2 copy for current cycle)
       - name: Backup FNI History to R2
+        if: success()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -363,6 +373,7 @@ jobs:
           echo "✅ FNI history backed up to R2 + daily snapshot archived"
 
       - name: Save Daily Accumulator to Cache (Self-Healing)
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -371,6 +382,7 @@ jobs:
           key: daily-accum-${{ github.run_id }}
 
       - name: Save Checksums to Cache
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: |
@@ -378,37 +390,17 @@ jobs:
             cache/task-checksums.json.zst
           key: checksums-${{ github.run_id }}
 
-  # Parallel Satellite Jobs (SPEC V2.0)
+  # Parallel Satellite Jobs (SPEC V2.0) — all `needs: merge-core-persist` per V27.40
   aggregate-search:
     name: "Agg: Search Index"
-    needs: merge-core
+    needs: merge-core-persist
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/local/share/powershell /usr/share/az* /opt/microsoft 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
-          docker system prune -af 2>/dev/null || true
-          sudo apt-get clean 2>/dev/null || true
-          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         env:
@@ -456,34 +448,14 @@ jobs:
 
   aggregate-rankings:
     name: "Agg: Rankings"
-    needs: merge-core
+    needs: merge-core-persist
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/local/share/powershell /usr/share/az* /opt/microsoft 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
-          docker system prune -af 2>/dev/null || true
-          sudo apt-get clean 2>/dev/null || true
-          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         env:
@@ -542,39 +514,21 @@ jobs:
         run: |
           node scripts/factory/r2-workflow-cli.js backup-dir output/cache/rankings/ state/satellite-rankings/rankings/
           [ -f "output/cache/category_stats.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/category_stats.json.zst state/satellite-rankings/category_stats.json.zst
-          for db in output/data/rankings-*.db; do [ -f "$db" ] && node scripts/factory/r2-workflow-cli.js upload-buffer "$db" "state/satellite-rankings/$(basename $db)" || true; done
-          echo "✅ Rankings results + DBs backed up to R2"
+          # V27.40: 13 serial uploads -> 6-way parallel xargs (saves ~2-3m)
+          ls output/data/rankings-*.db 2>/dev/null | xargs -I{} -P 6 -n 1 bash -c \
+            'node scripts/factory/r2-workflow-cli.js upload-buffer "$1" "state/satellite-rankings/$(basename "$1")" || true' _ {}
+          echo "✅ Rankings results + DBs backed up to R2 (parallel)"
 
   aggregate-trending:
     name: "Agg: Trending"
-    needs: merge-core
+    needs: merge-core-persist
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/local/share/powershell /usr/share/az* /opt/microsoft 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
-          docker system prune -af 2>/dev/null || true
-          sudo apt-get clean 2>/dev/null || true
-          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         env:
@@ -638,34 +592,14 @@ jobs:
 
   aggregate-relations:
     name: "Agg: Knowledge Mesh"
-    needs: merge-core
+    needs: merge-core-persist
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/local/share/powershell /usr/share/az* /opt/microsoft 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
-          docker system prune -af 2>/dev/null || true
-          sudo apt-get clean 2>/dev/null || true
-          echo "Available: $(df -h / | tail -1 | awk '{print $4}')"
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
         env:
@@ -729,21 +663,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      # V27.37: Align with sibling agg jobs — finalize was the only one missing free-disk,
-      # causing "No space left on device" failure in run 26282626532
-      - name: Free Runner Disk
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/share/swift /usr/local/julia* /usr/local/.ghcup /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/local/share/powershell /usr/share/az* /opt/microsoft 2>/dev/null || true
-          sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
-          docker system prune -af 2>/dev/null || true
-          sudo apt-get clean 2>/dev/null || true
-          echo "Available after free-disk: $(df -h / | tail -1 | awk '{print $4}')"
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'npm' }
-      - run: npm ci
-      - name: Disk usage after npm ci
+      # V27.40: composite setup replaces V27.37 inline free-disk + V25 setup blocks
+      - uses: ./.github/actions/factory-setup
+        with:
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'false'
+      - name: Disk usage after composite setup
         run: df -h /
       # V22.8: Restore satellite results from cache
       - name: Restore Search Results

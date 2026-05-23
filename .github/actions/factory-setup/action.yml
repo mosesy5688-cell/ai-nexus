@@ -1,0 +1,70 @@
+# Composite action: Factory pipeline shared setup (V27.40)
+# DRY for ~10 jobs across factory-aggregate.yml + factory-upload.yml
+# Steps: free-disk + checkout + setup-node + npm ci + (cond) Rust FFI cache restore
+#
+# R2 fallback for Rust FFI is NOT included here — caller workflows keep their
+# inline R2 fallback step right after `uses: ./.github/actions/factory-setup`
+# because composite actions can't access workflow secrets directly. This is a
+# deliberate boundary: composite handles secret-free DRY, callers handle creds.
+name: Factory Setup
+description: Shared setup for factory pipeline jobs — disk cleanup, node, npm ci, optional Rust FFI cache
+
+inputs:
+  aggressive-disk-cleanup:
+    description: 'true adds julia/graalvm/miniconda/az/microsoft removal (used by heavy compute jobs)'
+    required: false
+    default: 'false'
+  with-rust-ffi:
+    description: 'true to restore Rust FFI binaries from cache (compute jobs need; persist/derived usually do not)'
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Free Runner Disk
+      shell: bash
+      run: |
+        # V27.40: composite — base list always; aggressive adds extras for heavy jobs
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
+        sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
+        sudo rm -rf /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
+        if [ "${{ inputs.aggressive-disk-cleanup }}" = "true" ]; then
+          sudo rm -rf /usr/local/julia* /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/share/az* /opt/microsoft 2>/dev/null || true
+        fi
+        docker system prune -af 2>/dev/null || true
+        sudo apt-get clean 2>/dev/null || true
+        echo "Disk after factory-setup cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
+
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      shell: bash
+      run: npm ci
+
+    # V27.40: restore 8 .node files (incl markdown-renderer). Extra file harmless
+    # in aggregate-jobs context — cache restore is no-op when path isn't artifact.
+    # Callers add their own "R2 Fallback for Rust FFI" step right after this
+    # composite if they need cred-bearing R2 fallback (composite has no secrets).
+    - name: Restore Rust FFI Binaries
+      if: inputs.with-rust-ffi == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          rust/shard-router/shard-router-rust.node
+          rust/fni-calc/fni-calc-rust.node
+          rust/mesh-engine/mesh-engine-rust.node
+          rust/content-extractor/content-extractor-rust.node
+          rust/stream-aggregator/stream-aggregator-rust.node
+          rust/satellite-tasks/satellite-tasks-rust.node
+          rust/r2-engine/r2-engine-rust.node
+          rust/markdown-renderer/markdown-renderer-rust.node
+        key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+        # No restore-keys: prevent stale binary fallback (V25.8.5)
