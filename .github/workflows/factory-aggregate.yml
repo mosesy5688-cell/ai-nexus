@@ -76,6 +76,7 @@ jobs:
     env:
       NODE_OPTIONS: "--max-old-space-size=4096 --expose-gc"
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -310,6 +311,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
@@ -407,6 +409,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -462,6 +465,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -535,6 +539,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -606,6 +611,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -674,6 +680,7 @@ jobs:
     timeout-minutes: 120
     steps:
       # V27.40: composite setup replaces V27.37 inline free-disk + V25 setup blocks
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
