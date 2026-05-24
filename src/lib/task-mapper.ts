@@ -113,11 +113,16 @@ export function getCategoryForTag(tag: string): string | null {
 export function getCategoryForInput(input: string): string | null {
   if (!input) return null;
   const n = input.toLowerCase().trim();
-  if (n.includes('cod')) return 'coding';
-  if (n.includes('reason') || n.includes('math')) return 'reasoning';
-  if (n.includes('multimodal') || n.includes('vision') || n.includes('vlm')) return 'multimodal';
-  if (n.includes('embed') || n.includes('rerank')) return 'embedding';
-  if (n.includes('chat') || n.includes('assistant') || n.includes('instruct')) return 'chat';
-  if (n.includes('translat')) return 'translation';
+  // V27.44: explicit token match instead of substring — avoids false positives like
+  // 'codec-classification'.includes('cod') → 'coding', or 'human-instruction'.includes('instruct')
+  // → 'chat' when the user actually wants something else.
+  const tokens = n.split(/[\s\-_]+/);
+  const has = (...needles: string[]) => needles.some(needle => tokens.includes(needle) || n === needle);
+  if (has('code', 'coding', 'codegen', 'code-generation')) return 'coding';
+  if (has('reasoning', 'reason', 'math', 'mathematics')) return 'reasoning';
+  if (has('multimodal', 'vision', 'vlm', 'image', 'visual')) return 'multimodal';
+  if (has('embedding', 'embed', 'rerank', 'reranker')) return 'embedding';
+  if (has('chat', 'chatbot', 'assistant', 'instruct', 'instruction')) return 'chat';
+  if (has('translation', 'translate')) return 'translation';
   return null;
 }

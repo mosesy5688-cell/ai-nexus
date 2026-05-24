@@ -18,7 +18,10 @@ const CACHE_HEADERS_MISS = {
     'Cache-Control': 'public, max-age=0, s-maxage=10'
 };
 
-const DISPLAY_COLS = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.fni_a, e.fni_p, e.fni_r, e.fni_q, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length`;
+// V27.44: include fni_s (Semantic factor) — was omitted pre-V27.44, hiding 35%-weight
+// FNI factor from API response. Per llms.txt FNI v2.0 contract, all 5 factors should
+// be exposed for ranking transparency.
+const DISPLAY_COLS = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.fni_s, e.fni_a, e.fni_p, e.fni_r, e.fni_q, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length`;
 
 function respond(results: any[], tier: string, startMs: number, totalCount?: number) {
     const headers = results.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
@@ -171,6 +174,10 @@ export const GET: APIRoute = async ({ url }) => {
                                 if (qEmb) {
                                     for (const r of hydrated) {
                                         const S = getClusterSemanticScore(qEmb, r.id);
+                                        // V27.44: persist recomputed semantic factor — pre-V27.44
+                                        // only fni_score was updated; fni_s remained at build-time
+                                        // value, hiding query-time semantic contribution from API.
+                                        r.fni_s = Math.round(S * 10) / 10;
                                         r.fni_score = Math.min(99.9, Math.round((0.35 * S + 0.25 * (r.fni_a || 0) + 0.15 * (r.fni_p || 0) + 0.15 * (r.fni_r || 0) + 0.10 * (r.fni_q || 0)) * 10) / 10);
                                     }
                                     hydrated.sort((a: any, b: any) => (b.fni_score || 0) - (a.fni_score || 0));
