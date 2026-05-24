@@ -460,6 +460,28 @@ jobs:
             node scripts/factory/r2-workflow-cli.js upload-file output/cache/pack-state.db state/pack-state.db
           fi
           echo "[R2] Embedding shards + pack-state (no html_cache) backed up"
+
+      # V27.51: backup meta-NN.db + sitemaps to R2 — vfs-pack → vfs-derived → upload cache
+      # chain hit GHA 10GB cache-entry limit on the V27.40 first real cron (run
+      # 26362048142, vfs-assets save silently failed because vfs-pack restore had
+      # already used 12.8GB). upload's cache restore returned empty → output/data/
+      # had no meta-NN.db → L2 probe failed → cycle broke after 4h+ compute.
+      # R2 is source-of-truth (P2 principle); backing up meta DBs here decouples
+      # upload-job correctness from inter-job cache success.
+      - name: Backup VFS Data to R2 (V27.51)
+        if: success()
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          node scripts/factory/r2-workflow-cli.js backup-dir output/data/ state/vfs-data/
+          if [ -d "output/meta" ]; then
+            node scripts/factory/r2-workflow-cli.js backup-dir output/meta/ state/vfs-meta/ || true
+          fi
+          META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
+          echo "[R2] VFS data backed up: ${META_COUNT} meta-NN.db files to state/vfs-data/"
       # V27.40: end of vfs-pack-db. Save VFS pack output (data/meta/reports/knowledge/mesh)
       # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
       - name: Save VFS Pack Output to Cache
@@ -653,6 +675,7 @@ jobs:
         if: steps.cache-baked-upload.outputs.cache-hit != 'true'
         run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
       - name: Restore VFS Assets from Cache
+        id: cache-vfs-assets
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -661,6 +684,35 @@ jobs:
             output/sitemaps/
             output/sitemap.xml
           key: intra-4-4-${{ github.run_id }}-vfs-assets
+      # V27.51: R2 fallback when vfs-assets cache miss OR cache restored empty
+      # output/data (the failure mode in run 26362048142 — vfs-derived's cache
+      # save silently failed at 12.8GB, upload's restore returned no error but
+      # no meta-NN.db either). meta-NN.db files are required by upload-s3 +
+      # L2 R2 Origin Probe + Data Quality Check. R2 backup is now done by
+      # vfs-pack-db (see "Backup VFS Data to R2" step) so state/vfs-data/ has
+      # the fresh files from this cycle's pack-db.
+      - name: R2 Fallback for VFS Data (V27.51)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
+          if [ "$META_COUNT" -lt 1 ]; then
+            echo "⚠️ output/data/meta-NN.db missing post-restore (cache hit: ${{ steps.cache-vfs-assets.outputs.cache-hit }}). Falling back to R2 state/vfs-data/"
+            mkdir -p output/data output/meta
+            node scripts/factory/r2-workflow-cli.js restore-dir state/vfs-data/ output/data/ || echo "⚠️ R2 vfs-data restore failed"
+            node scripts/factory/r2-workflow-cli.js restore-dir state/vfs-meta/ output/meta/ 2>/dev/null || true
+            META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
+            if [ "$META_COUNT" -lt 1 ]; then
+              echo "::error::R2 fallback also empty — state/vfs-data/ not populated by vfs-pack-db. Cannot proceed without meta-NN.db."
+              exit 1
+            fi
+            echo "✅ R2 fallback restored $META_COUNT meta-NN.db files from state/vfs-data/"
+          else
+            echo "✅ output/data/ has $META_COUNT meta-NN.db files from cache (no R2 fallback needed)"
+          fi
       - name: Restore RSS Feeds from Cache
         uses: actions/cache/restore@v4
         with:
