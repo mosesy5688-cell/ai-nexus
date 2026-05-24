@@ -85,14 +85,11 @@ export function getR2PathCandidates(type, normalizedSlug) {
     candidates.push(`cache/mesh/profiles/${lowerSlug}.json.gz`);
     candidates.push(`cache/mesh/profiles/${lowerSlug}.json`);
 
-    // V21.0: Removed dotted-to-hyphenated fallback for papers. 
+    // V21.0: Removed dotted-to-hyphenated fallback for papers.
     // We strictly preserve dots for all versioned assets (ArXiv/Llama).
 
-    // V16.9.1: Reports Daily Subfolder Alignment
-    if (singular === 'report') {
-        candidates.push(`cache/reports/daily/${lowerSlug}.json.gz`);
-        candidates.push(`cache/reports/daily/${lowerSlug}.json`);
-    }
+    // V27.43: Removed cache/reports/daily/ candidates — /reports 410 Gone (V27.42).
+    // 'report' singular no longer queried; dead branch.
 
     candidates.push(`cache/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/${singular}/${lowerSlug}.json`);
