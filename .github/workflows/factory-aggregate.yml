@@ -336,19 +336,10 @@ jobs:
           echo "::error::Cache miss on intra-cycle-${{ github.run_id }}-core. merge-core-compute should have written this seconds ago. Aborting persist to avoid empty-cache poisoning. Recovery: 'Re-run failed jobs' in GHA UI."
           exit 1
 
-      - name: Prune for Satellite Cache (drop deltas/artifacts/fni/meta)
-        run: |
-          rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null
-          echo "Satellite cache pruned: $(du -sh cache/ output/ 2>/dev/null | paste -s)"
-
-      - name: Save Satellite Cache (pruned)
-        if: success()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            output/
-            cache/
-          key: intra-cycle-${{ github.run_id }}-satellite
+      # V27.43: Reordered — save monoliths/shards FIRST while disk state is intact,
+      # THEN prune + save satellite cache. Pre-V27.43 order pruned cache/fni-history/
+      # before Save FNI History → "Path Validation Error: ... do(es) not exist" warning
+      # and silent shard backup loss (monolith .zst still saved OK).
 
       # V4.1: Save Global Registry for next cycle's 1/4 Harvest
       - name: Save Global Registry to Cache
@@ -401,6 +392,23 @@ jobs:
             cache/entity-checksums.json.zst
             cache/task-checksums.json.zst
           key: checksums-${{ github.run_id }}
+
+      # V27.43: Prune AFTER all individual monolith/shard saves are done — earlier
+      # this ran before Save FNI History which silently lost the shard dir backup.
+      - name: Prune for Satellite Cache (drop deltas/artifacts/fni/meta)
+        if: success()
+        run: |
+          rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null
+          echo "Satellite cache pruned: $(du -sh cache/ output/ 2>/dev/null | paste -s)"
+
+      - name: Save Satellite Cache (pruned)
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            output/
+            cache/
+          key: intra-cycle-${{ github.run_id }}-satellite
 
   # Parallel Satellite Jobs (SPEC V2.0) — all `needs: merge-core-persist` per V27.40
   aggregate-search:
