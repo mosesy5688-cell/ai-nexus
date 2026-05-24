@@ -135,7 +135,10 @@ async function packDatabase() {
             stats.heavy++; stats.bytes += size;
         }
 
-        const rawSummary = e.summary || e.description || e.clean_summary || cleanAbstract(e.body_content, 500) || '';
+        // V27.46: raise body_content cleanAbstract char limit (500→800) to recover
+        // summary for minimal-card entities where description fallback didn't produce content.
+        // Final truncation to 500 + ellipsis kept for SQL row size discipline.
+        const rawSummary = e.summary || e.description || e.clean_summary || cleanAbstract(e.body_content, 800) || '';
         const truncatedSummary = rawSummary.length > 500 ? rawSummary.substring(0, 500) + '...' : rawSummary;
         const category = getV6Category(e);
         const tags = Array.isArray(e.tags) ? e.tags.join(', ') : (e.tags || '');

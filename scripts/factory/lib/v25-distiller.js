@@ -3,6 +3,7 @@ import sanitizeHtml from 'sanitize-html';
 import crypto from 'crypto';
 import { renderHtmlFFI } from './rust-bridge.js';
 import { deriveTaskCategories } from './task-classifier.js';
+import { deriveArchitectureFromTags } from './arch-derivation.js';
 
 let isMarkedConfigured = false;
 let sanitizeConfig = null;
@@ -128,6 +129,14 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.hidden_size = meta.hidden_size ?? null;
     e.datasets_used = Array.isArray(meta.datasets) ? meta.datasets.join(', ') : (meta.datasets || '');
     e.quick_start = meta.quick_start || '';
+
+    // V27.46: derive architecture from tags when meta_json lacks it.
+    // HF cardData.architecture is often empty even when tags clearly mark the family
+    // (e.g., 'llama', 'mistral', 'qwen'). Recovers ~70-80% of previously-null arch values.
+    if (!e.architecture && Array.isArray(e.tags)) {
+        const derived = deriveArchitectureFromTags(e.tags);
+        if (derived) e.architecture = derived;
+    }
 
     // V25.1 Distillation: VRAM Calculation
     if (pBillions > 0) {
