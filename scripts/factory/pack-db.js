@@ -102,6 +102,9 @@ async function packDatabase() {
     const uncachedByShard = new Map();
 
     console.log('[VFS] Single-pass streaming pack...');
+    // V27.41: per-50K-batch timing + heap log for I/O vs CPU vs GC bottleneck diagnosis
+    const pack_t0 = Date.now();
+    let lastBatchTs = pack_t0, lastBatchPacked = 0;
     await streamFusedEntities(CACHE_DIR, trendingMap, trendMap, (e, shardIdx) => {
         const umidKey = e.umid || e.id;
         if (seenUmids.has(umidKey)) { dupSkipped++; return; }
@@ -149,13 +152,28 @@ async function packDatabase() {
         insertFts.run(stats.packed + 1, String(e.umid || e.id), nameStr, String(truncatedSummary), authorStr, ftsTagStr, String(category));
 
         stats.packed++;
+
+        // V27.41: emit per-50K-batch profile line — non-zero check avoids first-entity log
+        if (stats.packed > 0 && stats.packed % 50000 === 0) {
+            const now = Date.now();
+            const batchSec = (now - lastBatchTs) / 1000;
+            const batchRate = (stats.packed - lastBatchPacked) / batchSec;
+            const totalSec = (now - pack_t0) / 1000;
+            const totalRate = stats.packed / totalSec;
+            const heapMB = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0);
+            console.log(`[VFS-PROF] @${stats.packed}: batch=${batchSec.toFixed(1)}s (${batchRate.toFixed(0)} e/sec), cumulative=${totalSec.toFixed(0)}s (${totalRate.toFixed(0)} e/sec), heap=${heapMB}MB`);
+            lastBatchTs = now; lastBatchPacked = stats.packed;
+        }
     });
 
     cachedIdSet.clear();
 
+    // V27.41: per-phase timing wrappers (commit-tx onward)
+    console.time('[VFS-PROF] phase=commit-tx');
     Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
     ftsDb.exec("COMMIT");
     shardWriter.finalize();
+    console.timeEnd('[VFS-PROF] phase=commit-tx');
     if (dupSkipped > 0) console.warn(`[VFS] Pack loop skipped ${dupSkipped} duplicate-umid entities`);
 
     // V27.0: Post-pass — compute embeddings per-shard, write binary shards
@@ -163,6 +181,7 @@ async function packDatabase() {
     const uncachedEntities = [];
     for (const [si, arr] of uncachedByShard) { for (const e of arr) { idToShardIdx.set(e.id, si); uncachedEntities.push(e); } }
     const pendingByShardIdx = new Map();
+    console.time('[VFS-PROF] phase=finalize-streaming-pack');
     await finalizeStreamingPack({
         cacheDb, lookupAccess, uncachedEntities,
         computeEmbeddings, saveBatch: (_db, batch) => {
@@ -173,25 +192,34 @@ async function packDatabase() {
             }
         }, flushDistillerCache, getDistillerStats
     });
+    console.timeEnd('[VFS-PROF] phase=finalize-streaming-pack');
+
+    console.time('[VFS-PROF] phase=embedding-shard-write');
     for (const [si, items] of pendingByShardIdx) {
         const existing = await readEmbeddingShard(EMBED_SHARD_DIR, si) || new Map();
         for (const it of items) { const int8 = new Int8Array(it.embedding.length); for (let i = 0; i < it.embedding.length; i++) int8[i] = Math.max(-128, Math.min(127, Math.round(it.embedding[i] * 127))); existing.set(it.id, Buffer.from(int8.buffer)); }
         await writeEmbeddingShard(EMBED_SHARD_DIR, si, [...existing.entries()].map(([id, vector]) => ({ id, vector })));
     }
     console.log(`[VFS] Wrote ${pendingByShardIdx.size} embedding shards (${uncachedEntities.length} new vectors)`);
+    console.timeEnd('[VFS-PROF] phase=embedding-shard-write');
 
     // V25.12: Mesh fix-up — re-resolve forward refs that missed the streaming
     // SQLite proxy during main pass. Runs AFTER lookupAccess.flush so
     // entity_lookup is complete; runs BEFORE finalizePack VACUUM to avoid
     // re-fragmenting the meta DBs.
+    console.time('[VFS-PROF] phase=mesh-fixup');
     const meshFix = resolveMeshFixup(cacheDb, metaDbs);
     if (meshFix.rowsUpdated > 0) {
         console.log(`[VFS] Mesh fix-up: ${meshFix.refsResolved} refs re-resolved across ${meshFix.rowsUpdated} entities.`);
     }
+    console.timeEnd('[VFS-PROF] phase=mesh-fixup');
 
+    console.time('[VFS-PROF] phase=finalize-pack');
     await finalizePack(metaDbs, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary);
+    console.timeEnd('[VFS-PROF] phase=finalize-pack');
 
     // FNI sanity check
+    console.time('[VFS-PROF] phase=fni-sanity-check');
     let totalFni = 0, zeroFni = 0, maxFni = 0;
     const allScores = [];
     for (const db of Object.values(metaDbs)) for (const r of db.prepare('SELECT fni_score FROM entities').iterate()) { const s = r.fni_score || 0; if (s === 0) zeroFni++; if (s > maxFni) maxFni = s; allScores.push(s); totalFni++; }
@@ -199,11 +227,15 @@ async function packDatabase() {
     const median = allScores[Math.floor(allScores.length / 2)] || 0, zeroRatio = totalFni > 0 ? zeroFni / totalFni : 0;
     console.log(`[FNI-CHECK] total=${totalFni} zero=${zeroFni} (${(zeroRatio * 100).toFixed(1)}%) median=${median.toFixed(1)} max=${maxFni.toFixed(1)}`);
     if (zeroRatio > 0.05 || maxFni > 99.9 || median < 10) { console.error('[VFS] BUILD HALTED: FNI sanity check failed.'); process.exit(1); }
+    console.timeEnd('[VFS-PROF] phase=fni-sanity-check');
 
+    console.time('[VFS-PROF] phase=parquet-export');
     const { exportParquetFromShards, exportLiteParquetFromShards } = await import('./lib/parquet-exporter.js');
     await exportParquetFromShards(metaDbs); await exportLiteParquetFromShards(metaDbs);
+    console.timeEnd('[VFS-PROF] phase=parquet-export');
 
     // Top-30k from meta shards (SQLite indexed query, fast)
+    console.time('[VFS-PROF] phase=top30k-recovery');
     console.log('[VFS] Recovering Top-30k vectors from meta shards...');
     const top30k = [];
     for (const db of Object.values(metaDbs)) {
@@ -229,18 +261,29 @@ async function packDatabase() {
     const withVec = top30k.filter(r => r.embedding).length;
     console.log(`[VFS] Top-30k vectors: ${withVec}/${top30k.length} from embedding shards`);
     closeCache(cacheDb);
+    console.timeEnd('[VFS-PROF] phase=top30k-recovery');
+
+    console.time('[VFS-PROF] phase=hot-shard-vector-core');
     await generateHotShard(top30k);
     await generateVectorCore(top30k);
+    console.timeEnd('[VFS-PROF] phase=hot-shard-vector-core');
 
+    console.time('[VFS-PROF] phase=cluster-ann-build');
     const { buildClusterAnnIndex } = await import('./lib/cluster-ann-builder.js');
     await buildClusterAnnIndex(EMBED_SHARD_DIR);
+    console.timeEnd('[VFS-PROF] phase=cluster-ann-build');
+
+    console.time('[VFS-PROF] phase=edge-index-meta-anchors');
     const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
     const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
     await generateEdgeIndex();
     await generateMetaAnchors();
+    console.timeEnd('[VFS-PROF] phase=edge-index-meta-anchors');
 
+    console.time('[VFS-PROF] phase=inverted-index');
     const { buildInvertedIndexFromShards } = await import('./lib/inverted-index-builder.js');
     await buildInvertedIndexFromShards(metaDbs, path.join(SHARD_PATH_DIR, 'term_index'));
+    console.timeEnd('[VFS-PROF] phase=inverted-index');
     Object.values(metaDbs).forEach(db => db.close());
     if (global.gc) global.gc();
     console.log('[VFS] V26.7 Streaming Packer Complete (zero accumulator).');
