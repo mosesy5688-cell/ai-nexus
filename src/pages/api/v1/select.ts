@@ -98,8 +98,17 @@ export const POST: APIRoute = async ({ request }) => {
       meta: { elapsed_ms: Date.now() - start },
     }), { headers: CORS_HEADERS });
   } catch (e: any) {
-    console.error('[SELECT]', e.message);
-    return error(500, 'Internal error');
+    // V27.44: surface diagnostics. Pre-V27.44 'Internal error' masked everything —
+    // 500s in production were undiagnosable without wrangler tail.
+    const errMsg = e?.message || String(e);
+    const errStack = e?.stack || '(no stack)';
+    console.error('[SELECT] error:', errMsg);
+    console.error('[SELECT] stack:', errStack);
+    console.error('[SELECT] task:', body?.task, 'taskCategory:', taskCategory, 'constraints:', JSON.stringify(constraints || {}));
+    return new Response(
+      JSON.stringify({ error: 'Internal error', detail: errMsg, hint: 'check task field + constraints; see CF Worker logs for stack' }),
+      { status: 500, headers: CORS_HEADERS }
+    );
   }
 };
 

@@ -106,7 +106,11 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.runtime_hardware), n(e.vocab_size), n(e.num_layers), n(e.hidden_size),
         tr(e.datasets_used, 500), tr(e.quick_start, 1000),
         n(e.vram_fp16_gb), n(e.vram_int8_gb), n(e.vram_int4_gb),
-        '', '', s(e.search_vector),
+        // V27.44: was hardcoded `'', ''` — silently destroyed readme_html + ui_related_mesh
+        // for every packed entity, leaving `relations.related: []` universally empty across
+        // the catalog. Distiller (v25-distiller.js:147-154) populates these; row-builder
+        // must propagate them through to the meta-NN.db row.
+        s(e.readme_html), s(e.ui_related_mesh), s(e.search_vector),
         s(e.canonical_url), tr(e.citation, 500),
         e.has_fulltext ? 1 : 0,
         (e.has_ollama || e.has_gguf) ? 1 : 0,
