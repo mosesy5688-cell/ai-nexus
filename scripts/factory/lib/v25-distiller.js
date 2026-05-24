@@ -101,11 +101,13 @@ export function distillEntity(e, pBillions, entityLookup) {
         const derived = deriveTaskCategories(e);
         e.task_categories = derived.length > 0 ? derived.join(', ') : (Array.isArray(meta.task_categories) ? meta.task_categories.join(', ') : (meta.task_categories || ''));
     }
-    e.num_rows ??= meta.rows_count || 0;
-    e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || '');
-    e.forks ??= meta.forks || 0;
-    e.citation_count ??= meta.citation_count || 0;
-    e.stars ??= meta.stars || 0;
+    // V27.45: honest-contract — preserve null when source data unavailable
+    // (vs explicit zero). Per llms.txt: 0 = measured-zero, null = not-measured.
+    e.num_rows ??= meta.rows_count ?? null;
+    e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || null);
+    e.forks ??= meta.forks ?? null;
+    e.citation_count ??= meta.citation_count ?? null;
+    e.stars ??= meta.stars ?? null;
 
     // V2.0: FNI Pillar Promotion (S-A-P-R-Q Alignment)
     const fMetrics = e.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
@@ -119,10 +121,11 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.fni_score ??= 0;
 
     // V25.1 Distillation: Goldmine
+    // V27.45: vocab/layers/hidden preserve null when meta_json lacks them.
     e.runtime_hardware = meta.runtime_hardware || meta.hardware || '';
-    e.vocab_size = meta.vocab_size || 0;
-    e.num_layers = meta.num_hidden_layers || meta.num_layers || 0;
-    e.hidden_size = meta.hidden_size || 0;
+    e.vocab_size = meta.vocab_size ?? null;
+    e.num_layers = meta.num_hidden_layers ?? meta.num_layers ?? null;
+    e.hidden_size = meta.hidden_size ?? null;
     e.datasets_used = Array.isArray(meta.datasets) ? meta.datasets.join(', ') : (meta.datasets || '');
     e.quick_start = meta.quick_start || '';
 
