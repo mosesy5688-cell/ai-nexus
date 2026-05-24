@@ -11,6 +11,7 @@ import {
 } from './lib/aggregator-maintenance.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
+import { deriveSourceUrl } from './lib/source-url-deriver.js';
 import { initRustBridge, calculateFniFFI, buildStatsAndRouteDeltasFFI } from './lib/rust-bridge.js';
 
 const CONFIG = {
@@ -133,8 +134,21 @@ async function runStreamingCore(loadShards, saveShard,
             const id = e.id || e.slug;
             if (id) {
                 if (!e.umid) e.umid = generateUMID(id);
-                if (!e.canonical_url) e.canonical_url = generateCanonicalUrl(e);
-                if (!e.citation) e.citation = generateCitation(e);
+                // V27.48: re-derive canonical_url + citation every cycle (idempotent).
+                // Pre-V27.48 the `if (!e.canonical_url)` guard meant baseline-shard
+                // entities packed before these fields existed never got watermarked.
+                // Both helpers are pure functions of (id, type, slug, name, author),
+                // so re-deriving is safe + recovers pre-V27 entities.
+                e.canonical_url = generateCanonicalUrl(e);
+                e.citation = generateCitation(e);
+                // V27.48: backfill source_url for entities harvested before
+                // adapter set the field (pre-V27 baseline). Honest-contract:
+                // only set when we can derive it from a known source prefix;
+                // leave null otherwise (don't fabricate).
+                if (!e.source_url) {
+                    const derived = deriveSourceUrl(e);
+                    if (derived) e.source_url = derived;
+                }
                 watermarked++;
             }
             const score = e.fni_score || 0;
