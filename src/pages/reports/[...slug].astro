@@ -1,85 +1,25 @@
 ---
-import Layout from '@/layouts/Layout.astro';
-import { marked } from 'marked';
-import { getRouteFromId } from '@/utils/mesh-routing-core';
-import { getCachedDbConnection, loadManifest, executeSql } from '@/lib/sqlite-engine';
-import { env } from 'cloudflare:workers';
-
-const { slug } = Astro.params;
-const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-const reportSlug = slugStr.replace(/^daily\//, '');
-
-let report: any = null;
-
-const r2Bucket = env?.R2_ASSETS;
-const shouldSimulate = !!import.meta.env?.DEV;
-
-try {
-    await loadManifest(r2Bucket, shouldSimulate);
-    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-report.db');
-    const rows = await executeSql(engine.sqlite3, engine.db,
-        `SELECT * FROM articles WHERE slug = ? OR id = ? OR id LIKE ? LIMIT 1`,
-        [reportSlug, reportSlug, `%${reportSlug}%`]);
-    if (rows.length > 0) report = rows[0];
-} catch (e: any) {
-    console.warn(`[Report] VFS query failed: ${e?.message}`);
-}
-
-let highlights: any[] = [];
-if (report?.highlights_json) {
-    try { highlights = JSON.parse(report.highlights_json); } catch {}
-}
-
-Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=3600');
-
-const pageTitle = report?.title || `AI Daily Report - ${reportSlug}`;
-const pageDescription = (report?.summary || report?.subtitle || '').substring(0, 160);
-const contentHtml = report?.content ? marked.parse(report.content) : '';
+// V27.42: /reports/* returns 410 Gone — daily reports + archive discontinued
+Astro.response.status = 410;
+Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
 ---
-
-<Layout title={pageTitle} description={pageDescription} canonical={`/reports/${reportSlug}`}>
-  <div class="container mx-auto px-4 py-12">
-    {!report ? (
-      <div class="py-24 text-center max-w-2xl mx-auto">
-        <div class="text-4xl mb-6">📡</div>
-        <h1 class="text-xl font-bold text-[var(--text-strong)] mb-2 uppercase">Report Not Found</h1>
-        <p class="text-xs text-zinc-400 mb-8">The report for {reportSlug} is not yet available.</p>
-        <a href="/reports" class="text-xs font-bold text-indigo-400 hover:text-indigo-300 uppercase tracking-widest">← All Reports</a>
-      </div>
-    ) : (
-      <article class="prose dark:prose-invert max-w-4xl mx-auto">
-        <header class="mb-8 not-prose">
-          <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">{(report.published_at || reportSlug).substring(0, 10)}</p>
-          <h1 class="text-2xl md:text-3xl font-black text-[var(--text-strong)] tracking-tight">{report.title}</h1>
-          {report.subtitle && <p class="text-base text-zinc-400 mt-2">{report.subtitle}</p>}
-        </header>
-        {contentHtml ? (
-          <Fragment set:html={contentHtml} />
-        ) : highlights.length > 0 ? (
-          <div class="space-y-12 not-prose">
-            {highlights.map((item: any) => (
-              <div class="group border-b border-zinc-800 pb-10 last:border-0">
-                <div class="flex items-center gap-3 mb-4">
-                  <span class="px-2 py-0.5 text-[10px] font-black bg-indigo-500 text-white rounded uppercase tracking-widest">
-                    {item.type || 'Highlight'}
-                  </span>
-                  {item.fni_score && (
-                    <span class="text-[10px] font-bold text-emerald-500">FNI: {Math.round(item.fni_score)}</span>
-                  )}
-                </div>
-                <h2 class="text-3xl font-black text-white mb-4 tracking-tight group-hover:text-indigo-400 transition-colors">
-                  <a href={getRouteFromId(item.id, item.type)}>{item.name || item.id}</a>
-                </h2>
-                <p class="text-lg text-zinc-400 leading-relaxed mb-6">
-                  {item.description || item.summary || 'Details available on the entity page.'}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p class="text-zinc-500">No detailed content available for this report.</p>
-        )}
-      </article>
-    )}
-  </div>
-</Layout>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Reports Discontinued — Free2AITools</title>
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="5;url=/trending">
+    <style>
+        body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+        a { color: #93c5fd; }
+        code { background: #272727; padding: 0.1em 0.3em; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>410 — Reports Discontinued</h1>
+    <p>The <code>/reports</code> surface has been permanently removed.</p>
+    <p>For trending data, see <a href="/trending">/trending</a>. For programmatic access, see <a href="/llms.txt">/llms.txt</a>.</p>
+    <p style="margin-top:2rem;opacity:0.5;font-size:0.9em">Redirecting to /trending in 5 seconds…</p>
+</body>
+</html>
