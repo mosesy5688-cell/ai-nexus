@@ -3,7 +3,7 @@ import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/searc
 import { searchSemantic, embedQuery } from '../../lib/semantic-engine.js';
 import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
 import { fetchAllTermPostings, mergePostings, groupByShard } from '../../lib/term-index-engine.js';
-import { initClusterSemantic, getClusterSemanticScore, isReady as isClusterReady } from '../../lib/cluster-semantic-engine.js';
+import { applyClusterSemanticRerank } from '../../lib/cluster-rerank.js';
 import { clusterFallbackSearch } from '../../lib/cluster-fallback.js';
 import { env } from 'cloudflare:workers';
 
@@ -165,26 +165,8 @@ export const GET: APIRoute = async ({ url }) => {
                     const toHydrate = candidates.slice(0, fetchCount);
                     let hydrated = await hydrateCandidates(toHydrate, r2Bucket, shouldSimulate);
 
-                    // V26.7 Phase 6: Cluster semantic rerank (S factor)
-                    if (env?.AI && hydrated.length > 0) {
-                        try {
-                            await initClusterSemantic(r2Bucket, isDev);
-                            if (isClusterReady()) {
-                                const qEmb = await embedQuery(q, env);
-                                if (qEmb) {
-                                    for (const r of hydrated) {
-                                        const S = getClusterSemanticScore(qEmb, r.id);
-                                        // V27.44: persist recomputed semantic factor — pre-V27.44
-                                        // only fni_score was updated; fni_s remained at build-time
-                                        // value, hiding query-time semantic contribution from API.
-                                        r.fni_s = Math.round(S * 10) / 10;
-                                        r.fni_score = Math.min(99.9, Math.round((0.35 * S + 0.25 * (r.fni_a || 0) + 0.15 * (r.fni_p || 0) + 0.15 * (r.fni_r || 0) + 0.10 * (r.fni_q || 0)) * 10) / 10);
-                                    }
-                                    hydrated.sort((a: any, b: any) => (b.fni_score || 0) - (a.fni_score || 0));
-                                }
-                            }
-                        } catch (e: any) { console.warn(`[SSR Search] Cluster semantic rerank failed: ${e.message}`); }
-                    }
+                    // V26.7 Phase 6 / V27.44: Cluster semantic rerank (S factor) — extracted helper
+                    await applyClusterSemanticRerank(hydrated, q, env, r2Bucket, isDev);
 
                     if (type !== 'all') {
                         hydrated = hydrated.filter((r: any) => r.type === type);
