@@ -101,10 +101,12 @@ function project(e: any, includeBody: boolean) {
         },
 
         stats: {
-            downloads: e.downloads ?? 0,
-            stars: e.stars ?? 0,
-            forks: e.forks ?? 0,
-            citation_count: e.citation_count ?? 0,
+            // V27.45: honest-contract — null when not-measured, 0 only when explicitly zero.
+            // Per llms.txt: '0 means measured-zero, null means not-measured'.
+            downloads: e.downloads ?? null,
+            stars: e.stars ?? null,
+            forks: e.forks ?? null,
+            citation_count: e.citation_count ?? null,
             num_rows: e.num_rows ?? null,
             last_modified: e.last_modified || null,
         },

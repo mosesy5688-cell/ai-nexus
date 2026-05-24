@@ -91,21 +91,30 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         const parsed = Number(v);
         return isNaN(parsed) ? fallback : parsed;
     };
+    // V27.45: honest-contract — preserves null/undefined as null (vs coercing to 0).
+    // Use for columns where llms.txt distinguishes measured-zero (0) from not-measured (null).
+    const nOrNull = (v) => {
+        if (v == null || v === '') return null;
+        if (typeof v === 'number' && !isNaN(v)) return v;
+        const parsed = Number(v);
+        return isNaN(parsed) ? null : parsed;
+    };
 
     return [
         s(e.id), s(e.umid || e.id), s(e.slug), s(e.name || e.displayName), s(e.type, 'model'),
         s(e.author), s(summary), s(category), tr(tags, 500), n(e.fni_score), s(e.fni_percentile),
         n(e.fni_s ?? fniMetrics.s), n(e.fni_a ?? fniMetrics.a), n(e.fni_p ?? fniMetrics.p),
         n(e.fni_r ?? fniMetrics.r), n(e.fni_q ?? fniMetrics.q), n(e.raw_pop),
-        n(pBillions), s(arch), n(ctxLen), e.is_trending ? 1 : 0,
-        n(e.stars || e.likes), n(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
+        nOrNull(pBillions), s(arch), nOrNull(ctxLen), e.is_trending ? 1 : 0,
+        // V27.45: stars=null on HF (no stars concept per V27.25 honest-contract); 0 only when explicitly measured (e.g., GH with star_count=0)
+        nOrNull(e.stars ?? e.likes), nOrNull(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
         s(e._trend_7d),
         s(e.license || e.license_spdx), s(e.source_url), s(e.pipeline_tag),
-        s(e.raw_image_url || e.image_url), n(e.vram_estimate_gb), s(e.source || e.source_platform),
-        tr(e.task_categories, 500), n(e.num_rows), s(e.primary_language), n(e.forks), n(e.citation_count),
-        s(e.runtime_hardware), n(e.vocab_size), n(e.num_layers), n(e.hidden_size),
+        s(e.raw_image_url || e.image_url), nOrNull(e.vram_estimate_gb), s(e.source || e.source_platform),
+        tr(e.task_categories, 500), nOrNull(e.num_rows), s(e.primary_language), nOrNull(e.forks), nOrNull(e.citation_count),
+        s(e.runtime_hardware), nOrNull(e.vocab_size), nOrNull(e.num_layers), nOrNull(e.hidden_size),
         tr(e.datasets_used, 500), tr(e.quick_start, 1000),
-        n(e.vram_fp16_gb), n(e.vram_int8_gb), n(e.vram_int4_gb),
+        nOrNull(e.vram_fp16_gb), nOrNull(e.vram_int8_gb), nOrNull(e.vram_int4_gb),
         // V27.44: was hardcoded `'', ''` — silently destroyed readme_html + ui_related_mesh
         // for every packed entity, leaving `relations.related: []` universally empty across
         // the catalog. Distiller (v25-distiller.js:147-154) populates these; row-builder
