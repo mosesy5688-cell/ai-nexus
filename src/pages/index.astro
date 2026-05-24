@@ -8,7 +8,6 @@ import Layout from '../layouts/Layout.astro';
 
 // Components
 import HomeTechnicalHeader from '../components/home/HomeTechnicalHeader.astro';
-import HomeDailyBanner from '../components/home/HomeDailyBanner.astro';
 import HomeSkeleton from '../components/home/HomeSkeleton.astro';
 import HomeCategoryGrid from '../components/home/HomeCategoryGrid.astro';
 import CatalogCard from '../components/common/CatalogCard.astro';
@@ -52,8 +51,6 @@ const { searchParams } = Astro.url;
         data-initial-tag={initialTag}
     >
         <HomeTechnicalHeader initialQuery={initialQuery} />
-        
-        <HomeDailyBanner />
 
         <!-- V9.0: Search Results Grid (appears immediately after search) -->
         <div id="models-grid" class="flex flex-col gap-1 hidden mb-8 mt-8">
@@ -117,14 +114,11 @@ const { searchParams } = Astro.url;
     </div>
 
     <script>
-        import { loadHotModels, loadDailyReport } from '../scripts/home-client.js';
+        import { loadHotModels } from '../scripts/home-client.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             // V19.4: Hydrate dynamic components if SSR was bypassed
             loadHotModels();
-
-            // V4.9.1 Step 2.3: Load Daily Report Banner
-            loadDailyReport();
         });
     </script>
 </Layout>

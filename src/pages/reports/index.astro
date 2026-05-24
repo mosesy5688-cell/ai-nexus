@@ -1,84 +1,27 @@
 ---
-/**
- * Reports Index — VFS-Only (V26.11)
- * VFS-compliant list via Discovery Anchor DB (meta-report.db, articles table).
- * Replaces legacy R2.list('cache/reports/daily/') direct bucket read.
- */
-import Layout from '@/layouts/Layout.astro';
-import { getRouteFromId } from '@/utils/mesh-routing-core';
-import { getCachedDbConnection, loadManifest, executeSql } from '@/lib/sqlite-engine';
-import { env } from 'cloudflare:workers';
-
-const r2Bucket = env?.R2_ASSETS;
-const shouldSimulate = !!import.meta.env?.DEV;
-
-let reports: Array<{ id: string; title: string; date: string; slug: string }> = [];
-
-try {
-    await loadManifest(r2Bucket, shouldSimulate);
-    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-report.db');
-    const rows = await executeSql(engine.sqlite3, engine.db,
-        `SELECT id, title, published_at, slug FROM articles ORDER BY published_at DESC LIMIT 100`, []);
-    reports = rows.map((r: any) => ({
-        id: r.id,
-        title: r.title || `AI Daily Report - ${r.published_at || r.id}`,
-        date: r.published_at || r.id,
-        slug: r.slug || r.id
-    }));
-} catch (e: any) {
-    console.warn('[Reports] VFS query failed:', e?.message || e);
-}
-
-const pageTitle = "AI Industry Daily Reports";
-const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape.";
-
-Astro.response.headers.set('Cache-Control', reports.length > 0
-    ? 'public, max-age=60, s-maxage=3600, stale-while-revalidate=604800'
-    : 'public, max-age=0, s-maxage=0');
+// V27.42: /reports/* returns 410 Gone — daily reports + archive discontinued
+// (V27.36 paused Gemini-based generation; V27.42 makes the surface honest)
+Astro.response.status = 410;
+Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
 ---
-
-<Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-16 max-w-3xl">
-    <header class="mb-12">
-      <h1 class="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-[var(--text-strong)] tracking-tight mb-3 uppercase">
-        Intelligence Reports
-      </h1>
-      <p class="text-base text-zinc-500 dark:text-zinc-400 font-medium leading-normal">
-        Daily technical briefings from the AI ecosystem.
-      </p>
-    </header>
-
-    {reports.length > 0 ? (
-      <div class="border border-[var(--border-hairline)] bg-[var(--bg-surface)] rounded-sm overflow-hidden">
-        <div class="p-4 border-b border-[var(--border-hairline)] bg-black/40 flex items-center justify-between">
-          <h2 class="text-xs font-bold text-[var(--text-strong)] uppercase tracking-widest">Archive</h2>
-          <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{reports.length} Reports</span>
-        </div>
-        <ul class="divide-y divide-[var(--border-hairline)]">
-          {reports.map((report) => (
-            <li class="group transition-colors hover:bg-black/20">
-              <a href={getRouteFromId(report.id, 'report')} class="flex items-center p-4 gap-6">
-                <span class="flex-shrink-0 w-28 text-[10px] font-bold tabular-nums text-zinc-500 tracking-widest group-hover:text-indigo-400 transition-colors">
-                  {(report.date || '').substring(0, 10)}
-                </span>
-                <h3 class="flex-1 min-w-0 text-sm font-bold text-[var(--text-strong)] truncate group-hover:text-[#bdc3ff] transition-colors">
-                  {report.title}
-                </h3>
-                <span class="flex-shrink-0 text-[#bdc3ff] text-xs opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
-                  &rarr;
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    ) : (
-      <div class="py-24 text-center">
-        <div class="text-4xl mb-6">📡</div>
-        <p class="text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-widest text-xs">
-          No daily reports available yet. Check back soon.
-        </p>
-      </div>
-    )}
-  </div>
-</Layout>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Reports Discontinued — Free2AITools</title>
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="5;url=/trending">
+    <style>
+        body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+        a { color: #93c5fd; }
+        code { background: #272727; padding: 0.1em 0.3em; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>410 — Reports Discontinued</h1>
+    <p>The <code>/reports</code> surface (daily reports, archive, annual) has been permanently removed.</p>
+    <p>For trending data and FNI velocity leaders, see <a href="/trending">/trending</a>.</p>
+    <p>For programmatic access, see <a href="/llms.txt">/llms.txt</a> or <a href="/openapi.json">/openapi.json</a>.</p>
+    <p style="margin-top:2rem;opacity:0.5;font-size:0.9em">Redirecting to /trending in 5 seconds…</p>
+</body>
+</html>
