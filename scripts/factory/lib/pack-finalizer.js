@@ -28,6 +28,39 @@ export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, sha
     if (stats && typeof stats.packed === 'number' && stats.packed > 0) {
         partitionCounts.total_entities = stats.packed;
     }
+
+    // V27.49: type-count sanity warning — surface entity-type underrepresentation
+    // in cron logs. Catches harvester/adapter regressions early (e.g., dataset
+    // adapter throwing silently, prompt adapter not yet built, space adapter
+    // mis-typing). Threshold 0.1% (vs the planned 1%) tuned to catch real
+    // catalog-wide gaps without false-firing on naturally-rare types.
+    try {
+        const typeCounts = {};
+        for (const db of Object.values(metaDbs)) {
+            for (const row of db.prepare('SELECT type, COUNT(*) AS n FROM entities GROUP BY type').iterate()) {
+                typeCounts[row.type || '?'] = (typeCounts[row.type || '?'] || 0) + row.n;
+            }
+        }
+        const total = Object.values(typeCounts).reduce((a, b) => a + b, 0);
+        partitionCounts.type_counts = typeCounts;
+        if (total > 0) {
+            for (const [t, n] of Object.entries(typeCounts)) {
+                const pct = (n / total) * 100;
+                const tag = pct < 0.1 ? '⚠️ UNDER-REPRESENTED' : 'ok';
+                console.log(`[VFS-TYPES] ${t}: ${n} (${pct.toFixed(2)}%) ${tag}`);
+            }
+            // Expected types — warn if completely absent (count=0). Knowledge entities
+            // are surface routes (30 static .md), not packed in meta-NN.db — exclude.
+            const expectedTypes = ['model', 'paper', 'tool', 'dataset', 'agent', 'space', 'prompt'];
+            const missing = expectedTypes.filter(t => !typeCounts[t]);
+            if (missing.length > 0) {
+                console.warn(`[VFS-TYPES] ⚠️ Expected types absent from catalog: ${missing.join(', ')}`);
+            }
+        }
+    } catch (e) {
+        console.warn(`[VFS-TYPES] Sanity check skipped: ${e.message}`);
+    }
+
     const fullManifest = { shards: manifest, partitions: partitionCounts };
     const manifestJson = JSON.stringify(fullManifest, null, 2);
     const manifestBytes = Buffer.byteLength(manifestJson, 'utf8');
