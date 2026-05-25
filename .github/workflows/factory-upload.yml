@@ -369,7 +369,7 @@ jobs:
   # Transient R2 failure → re-run only persist (~3-5m), not 1h20m fusion.
   master-fusion-persist:
     name: Master Fusion (Persist R2)
-    needs: master-fusion-compute
+    needs: [master-fusion-compute, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -664,7 +664,7 @@ jobs:
   # No R2 fallback for vfs-pack cache miss (state/cycle-output/ does NOT contain meta-NN.db).
   vfs-derived:
     name: VFS Derived (Sitemap + RSS + Health)
-    needs: vfs-pack-db
+    needs: [vfs-pack-db, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -765,7 +765,6 @@ jobs:
           restore-keys: |
             r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-
             r2-upload-manifest-
-          restore-keys: r2-upload-manifest-
       - name: Restore Fused Entities from Cache
         id: cache-fused-upload
         uses: actions/cache/restore@v4
