@@ -21,15 +21,16 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
     }
     try {
         const data = await fs.readFile(localPath);
-        // V25.13: Lowered from 1024B to 256B. Empirical: zstd-compressed index
-        // JSON for ~30 entries ≈ 700-800B, well-formed. The 1024B guard was
-        // false-positiving legitimate small indexes (e.g., RSS source files
-        // got blocked → RSS empty for months). 256B still catches obviously
-        // broken writes (empty file, single-byte).
+        // V27.63: zstd magic check replaces 256B floor for .zst (false-positived
+        // legit small payloads: manifest 216B, tail chunks 80-200B, health 121B).
         const minBytes = opts.minSize ?? 256;
-        if (data.length < minBytes) {
-            console.error(`[R2-HANDOFF] BLOCKED: ${localPath} is only ${data.length}B (min ${minBytes}B). Refusing upload to prevent state wipe.`);
-            return { success: false, reason: 'below_minimum_size' };
+        const isZst = localPath.endsWith('.zst');
+        const hasZstdMagic = isZst && data.length >= 4 && data.readUInt32LE(0) === 0xFD2FB528;
+        const passes = isZst ? (hasZstdMagic && data.length >= 16) : (data.length >= minBytes);
+        if (!passes) {
+            const reason = isZst ? `invalid zstd (${data.length}B)` : `${data.length}B < min ${minBytes}B`;
+            console.error(`[R2-HANDOFF] BLOCKED: ${localPath} ${reason}. Refusing upload to prevent state wipe.`);
+            return { success: false, reason: 'integrity_check_failed' };
         }
         const ext = path.extname(r2Key).toLowerCase();
         const contentType = {
