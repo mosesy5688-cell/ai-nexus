@@ -11,7 +11,8 @@ import { buildEtag, matchesIfNoneMatch, notModified } from '../../../lib/etag-he
 import { deriveSlug } from '../../../lib/slug-helper.js';
 
 const API_VERSION = 'fni_v2.0';
-const MAX_IDS = 10;
+// V27.60: 10→25 Layer 0 surface generosity for Agent-driven bulk compare.
+const MAX_IDS = 25;
 
 const CORS_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',

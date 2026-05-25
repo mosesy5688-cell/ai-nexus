@@ -1,7 +1,8 @@
 /**
  * V∞ Phase 1C: Free Public API — /api/v1/search
  * Wraps internal /api/search with versioned response format.
- * Zero auth (Phase 3), CDN cached, limit hard-capped at 5.
+ * Zero auth (Phase 1 Pure Free), CDN cached, limit hard-capped at 20.
+ * V27.60: 5→20 align with MCP search default; Layer 0 surface generosity.
  */
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
@@ -9,7 +10,7 @@ import { GET as internalSearch } from '../search.js';
 import { loadManifest } from '../../../lib/sqlite-engine.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../lib/etag-helper.js';
 
-const FREE_TIER_MAX = 5;
+const FREE_TIER_MAX = 20;
 const API_VERSION = 'fni_v2.0';
 
 export const GET: APIRoute = async (context) => {
