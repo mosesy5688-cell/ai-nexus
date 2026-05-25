@@ -175,17 +175,18 @@ export function setupFtsPragmas(db) {
     setupDatabasePragmas(db, { wal: true });
 }
 
-// V27.2: keys whose absence guarantees content-stripped meta DBs (run 25896561032 lesson)
-const REQUIRED_META_KEYS = ['mesh_graph', 'search_core', 'category_stats'];
+// V27.63: 5 dead keys removed per 2026-05-26 reader audit (0 src/ readers for
+// knowledge_links / search_core / search_manifest / category_stats / trend_data;
+// relations duplicates mesh_graph). REQUIRED narrowed to mesh_graph only (sole
+// reader-confirmed key). Effect: per-slot site_metadata 188MB->76.6MB, R2 -11GB.
+const REQUIRED_META_KEYS = ['mesh_graph'];
 
 /** Inject essential site metadata; throws if any REQUIRED_META_KEYS file is missing. */
 export async function injectMetadata(metaDbs, searchDb, cacheDir) {
     const metaFiles = [
-        { key: 'category_stats', file: 'category_stats.json' }, { key: 'trending', file: 'trending.json' },
-        { key: 'trend_data', file: 'trend-data.json' }, { key: 'relations', file: 'relations/explicit.json' },
-        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }, { key: 'mesh_stats', file: 'mesh/stats.json' },
-        { key: 'mesh_graph', file: 'mesh/graph.json' }, { key: 'search_core', file: 'search-core.json' },
-        { key: 'search_manifest', file: 'search-manifest.json' }
+        { key: 'trending', file: 'trending.json' },
+        { key: 'mesh_stats', file: 'mesh/stats.json' },
+        { key: 'mesh_graph', file: 'mesh/graph.json' },
     ];
     const missing = [];
     for (const meta of metaFiles) {

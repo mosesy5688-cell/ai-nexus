@@ -155,11 +155,11 @@ if (heavySample) {
 if (hasEntitiesTable) {
     const hasSiteMeta = !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='site_metadata'").get();
     if (hasSiteMeta) {
-        const REQUIRED_META = ['mesh_graph', 'search_core', 'category_stats'];
+        const REQUIRED_META = ['mesh_graph'];  // V27.63: synced with pack-utils.js dead-key removal
         const rows = db.prepare('SELECT key, LENGTH(value) as sz FROM site_metadata').all();
         const keyMap = new Map(rows.map(r => [r.key, r.sz]));
         const missing = REQUIRED_META.filter(k => !keyMap.has(k));
-        check('Required Metadata Keys', missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : `${rows.length}/9 keys present`);
+        check('Required Metadata Keys', missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : `${rows.length}/3 keys present`);
         // Content-strip canary: a healthy mesh_graph is in the MB range
         const meshSz = keyMap.get('mesh_graph') || 0;
         check('Mesh Graph Size', meshSz > 100 * 1024, `${(meshSz / 1024).toFixed(0)} KB (floor: 100KB)`);

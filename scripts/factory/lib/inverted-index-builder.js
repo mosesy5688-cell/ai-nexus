@@ -120,9 +120,15 @@ export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
         const bucketDir = join(outputDir, prefix);
         mkdirSync(bucketDir, { recursive: true });
         if (df > HIGH_FREQ_THRESHOLD) {
-            const chunks = Math.ceil(postings.length / HIGH_FREQ_CHUNK_SIZE);
+            // V27.63: avoid tiny tail chunks (df just over threshold → 1-10
+            // postings in last chunk → 80-200B compressed, breached 256B floor).
+            // Merge undersized tail into previous chunk if < 500 postings.
+            let chunks = Math.ceil(postings.length / HIGH_FREQ_CHUNK_SIZE);
+            if (chunks > 1 && (postings.length - (chunks - 1) * HIGH_FREQ_CHUNK_SIZE) < 500) chunks -= 1;
             for (let i = 0; i < chunks; i++) {
-                const chunk = postings.slice(i * HIGH_FREQ_CHUNK_SIZE, (i + 1) * HIGH_FREQ_CHUNK_SIZE);
+                const start = i * HIGH_FREQ_CHUNK_SIZE;
+                const end = (i === chunks - 1) ? postings.length : start + HIGH_FREQ_CHUNK_SIZE;
+                const chunk = postings.slice(start, end);
                 const compressed = await zstdCompress(Buffer.from(JSON.stringify({ term, df, chunk: i, chunks, postings: chunk })), 3);
                 writeFileSync(join(bucketDir, `${term}_${i}.json.zst`), compressed);
                 highFreqFiles++; highFreqBytes += compressed.length;

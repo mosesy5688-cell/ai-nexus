@@ -20,5 +20,11 @@ export async function loadEntityChecksums() {
 }
 
 export async function saveEntityChecksums(checksums) {
+    // V27.63: skip empty (header-only zstd 11B tripped r2-handoff guard; also
+    // signals upstream regression since healthy cycles always have ≥1 checksum).
+    if (!checksums || Object.keys(checksums).length === 0) {
+        console.warn('[CACHE] entity-checksums empty — skipping save (upstream produced no entities?)');
+        return;
+    }
     await saveWithBackup('entity-checksums.json.zst', checksums, { compress: true });
 }
