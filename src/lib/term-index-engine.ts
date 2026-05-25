@@ -14,20 +14,24 @@ interface TermIndexManifest {
 }
 
 let cachedManifest: TermIndexManifest | null = null;
+let cachedManifestAt = 0;
+// V27.60 H3: 60s TTL so cross-cron rollover (Mon+Thu) refreshes within 1 min.
+// Cost: 1 R2 Class B GET per 60s per isolate (~$0.0000003/min, negligible).
+const MANIFEST_TTL_MS = 60_000;
 
-/** Fetch term_index manifest from R2 (cached per isolate lifetime) */
+/** Fetch term_index manifest from R2 (60s TTL, falls back to stale on transient err) */
 async function fetchManifest(r2Bucket: any, isDev: boolean): Promise<TermIndexManifest | null> {
-    if (cachedManifest) return cachedManifest;
+    if (cachedManifest && (Date.now() - cachedManifestAt) < MANIFEST_TTL_MS) return cachedManifest;
     const key = 'data/term_index/_manifest.json.zst';
     try {
         let compressed: Uint8Array;
         if (r2Bucket && !isDev) {
             const obj = await r2Bucket.get(key);
-            if (!obj) return null;
+            if (!obj) return cachedManifest;  // V27.60: 404 → keep stale (better than no manifest)
             compressed = new Uint8Array(await obj.arrayBuffer());
         } else {
             const res = await fetch(`https://cdn.free2aitools.com/${key}`);
-            if (!res.ok) return null;
+            if (!res.ok) return cachedManifest;  // V27.60: any non-ok → keep stale
             compressed = new Uint8Array(await res.arrayBuffer());
         }
         const parsed = JSON.parse(new TextDecoder().decode(decompress(compressed)));
@@ -36,10 +40,12 @@ async function fetchManifest(r2Bucket: any, isDev: boolean): Promise<TermIndexMa
             avg_doc_length: parsed.avg_doc_length,
             version: parsed.version || 'inverted_v1',
         };
+        cachedManifestAt = Date.now();
         return cachedManifest;
     } catch (err: any) {
         console.error(`[Term Index] fetchManifest failed: ${err?.message || err}`);
-        return null;
+        // V27.60 H3 resilience: transient err → keep serving last good manifest.
+        return cachedManifest;
     }
 }
 
