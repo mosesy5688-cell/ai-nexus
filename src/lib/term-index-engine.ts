@@ -43,30 +43,6 @@ async function fetchManifest(r2Bucket: any, isDev: boolean): Promise<TermIndexMa
     }
 }
 
-/** Fetch a single term's posting list from R2 (with CDN fallback for dev) */
-async function fetchTermFile(term: string, r2Bucket: any, isDev: boolean): Promise<TermData | null> {
-    const prefix = termPrefix(term);
-    const key = `data/term_index/${prefix}/${term}.json.zst`;
-
-    try {
-        let compressed: Uint8Array;
-        if (r2Bucket && !isDev) {
-            const obj = await r2Bucket.get(key);
-            if (!obj) return null;
-            compressed = new Uint8Array(await obj.arrayBuffer());
-        } else {
-            const res = await fetch(`https://cdn.free2aitools.com/${key}`);
-            if (!res.ok) return null;
-            compressed = new Uint8Array(await res.arrayBuffer());
-        }
-        const decompressed = decompress(compressed);
-        return JSON.parse(new TextDecoder().decode(decompressed));
-    } catch (err: any) {
-        console.error(`[Term Index] fetchTermFile("${term}") key=${key} failed: ${err?.message || err}`);
-        return null;
-    }
-}
-
 /** Fetch high-frequency term chunks (term_0.json.zst, term_1.json.zst, ...) */
 async function fetchHighFreqTerm(
     term: string, r2Bucket: any, isDev: boolean
@@ -106,26 +82,15 @@ export async function fetchAllTermPostings(
     if (terms.length === 0) return { terms: [], results: new Map(), manifest: null };
 
     const results = new Map<string, TermData>();
-    // V27.58: manifest must be fetched first so we know whether to try v2 bucket path.
+    // V27.59: 2-tier read — high-freq chunked file → prefix bucket.
+    // v1 individual-file legacy fallback removed (double-track scaffolding gone with V27.58 builder v1 write).
     const manifest = await fetchManifest(r2Bucket, isDev);
-    const useV2Bucket = manifest?.version === 'inverted_v2_bucketed';
 
-    let v1FallbackHits = 0;  // observability — should reach 0 after cron N+1, gate for follow-up cleanup PR
     await Promise.all(terms.map(async (term) => {
-        // Tier 1: high-frequency chunked file (unchanged across v1/v2)
         let data = await fetchHighFreqTerm(term, r2Bucket, isDev);
-        // Tier 2 (v2 only): prefix bucket. Also covers Cron N boundary race —
-        // bucket file present (200 OK) but builder still streaming, in-progress
-        // bucket may not yet contain a very cold term → bucket.has(term)===false.
-        // Must fall through to v1 legacy, NOT only on bucket-fetch-failure.
-        if (!data && useV2Bucket) {
+        if (!data) {
             const bucket = await fetchPrefixBucket(termPrefix(term), r2Bucket, isDev);
             if (bucket && bucket.has(term)) data = bucket.get(term) ?? null;
-        }
-        // Tier 3: v1 individual file (legacy fallback during cron-N transition).
-        if (!data) {
-            data = await fetchTermFile(term, r2Bucket, isDev);
-            if (data && useV2Bucket) v1FallbackHits++;
         }
         if (data) results.set(term, data);
     }));
@@ -134,9 +99,6 @@ export async function fetchAllTermPostings(
     const missed = terms.filter(t => !results.has(t));
     if (missed.length > 0) {
         console.warn(`[Term Index] query="${query}" terms=${terms.length} found=[${found.join(',')}] missed=[${missed.join(',')}]`);
-    }
-    if (v1FallbackHits > 0) {
-        console.warn(`[Term Index] v1-legacy-fallback fired ${v1FallbackHits}/${terms.length} times — expected 0 after cron N+1.`);
     }
 
     return { terms, results, manifest };
