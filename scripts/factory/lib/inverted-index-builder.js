@@ -104,11 +104,12 @@ export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
     const avgDl = totalDocs > 0 ? totalLen / totalDocs : 1;
     console.log(`[InvIdx] ${totalDocs} docs, ${termMap.size} unique terms, avgDl=${avgDl.toFixed(1)}`);
 
-    // V27.58: Two-tier consolidation eliminates the ~382K-file-per-cron problem.
-    // - df > HIGH_FREQ_THRESHOLD → individual chunked files (unchanged, hot-cache locality)
-    // - else → accumulated per 2-char prefix and written as one _bucket.json.zst
-    // Double-write of v1 individual files kept for 1 cron cycle (reader fallback safety).
-    let filesWritten = 0, totalBytes = 0;
+    // V27.59: Bucket-only path. df > HIGH_FREQ_THRESHOLD → individual chunked
+    // files (hot-cache locality preserved); else → accumulated per 2-char prefix
+    // and written as one _bucket.json.zst. V27.58 double-write of v1 individual
+    // files removed: it added 382K per-file PUTs to V27.51 backup-dir each cycle
+    // and crashed the 256B BLOCKED guard on long-tail (df≤3) terms.
+    let highFreqFiles = 0, highFreqBytes = 0;
     let highFreqCount = 0, bucketedTermCount = 0;
     const bucketAccum = new Map();  // prefix -> { term: postings[] }
 
@@ -124,15 +125,10 @@ export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
                 const chunk = postings.slice(i * HIGH_FREQ_CHUNK_SIZE, (i + 1) * HIGH_FREQ_CHUNK_SIZE);
                 const compressed = await zstdCompress(Buffer.from(JSON.stringify({ term, df, chunk: i, chunks, postings: chunk })), 3);
                 writeFileSync(join(bucketDir, `${term}_${i}.json.zst`), compressed);
-                filesWritten++; totalBytes += compressed.length;
+                highFreqFiles++; highFreqBytes += compressed.length;
             }
             highFreqCount++;
         } else {
-            // V27.58: v1 double-write (cron N reader fallback) — drop in follow-up PR.
-            const compressed = await zstdCompress(Buffer.from(JSON.stringify({ term, df, postings })), 3);
-            writeFileSync(join(bucketDir, `${term}.json.zst`), compressed);
-            filesWritten++; totalBytes += compressed.length;
-            // V27.58: accumulate into prefix bucket for v2 write.
             let bucket = bucketAccum.get(prefix);
             if (!bucket) { bucket = {}; bucketAccum.set(prefix, bucket); }
             bucket[term] = { df, postings };
@@ -140,26 +136,26 @@ export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
         }
     }
 
-    // V27.58: write v2 prefix buckets via extracted helper.
+    // V27.59: write v2 prefix buckets via extracted helper.
     const { bucketsWritten, bucketBytes, maxBucketBytes, maxBucketPrefix } = await writeBucketAccum(bucketAccum, outputDir);
     console.log(`[InvIdx] v2_bucketed: ${bucketsWritten} prefix buckets, ${bucketedTermCount} terms, ${(bucketBytes/1024/1024).toFixed(2)}MB; max bucket '${maxBucketPrefix}'=${(maxBucketBytes/1024).toFixed(1)}KB`);
-    console.log(`[InvIdx] high-freq: ${highFreqCount} terms in individual chunked files`);
+    console.log(`[InvIdx] high-freq: ${highFreqCount} terms, ${highFreqFiles} chunked files, ${(highFreqBytes/1024/1024).toFixed(2)}MB`);
 
     const manifest = {
         version: 'inverted_v2_bucketed',
         built: new Date().toISOString(),
         total_docs: totalDocs,
         total_terms: termMap.size,
-        total_files: filesWritten,
-        total_bytes: totalBytes,
         bucketed_term_count: bucketedTermCount,
         bucket_count: bucketsWritten,
         high_freq_term_count: highFreqCount,
+        high_freq_file_count: highFreqFiles,
+        total_bytes: highFreqBytes + bucketBytes,
         avg_doc_length: Math.round(avgDl * 10) / 10,
         high_freq_threshold: HIGH_FREQ_THRESHOLD,
         shard_count: META_SHARD_COUNT
     };
     writeFileSync(join(outputDir, '_manifest.json.zst'), await zstdCompress(Buffer.from(JSON.stringify(manifest, null, 2)), 3));
-    console.log(`[InvIdx] ✅ Complete: ${filesWritten} v1 files + ${bucketsWritten} v2 buckets, ${((totalBytes + bucketBytes)/1024/1024).toFixed(1)}MB total`);
+    console.log(`[InvIdx] ✅ Total buckets written: ${bucketsWritten} + ${highFreqFiles} high-freq chunks = ${bucketsWritten + highFreqFiles} files, ${((highFreqBytes + bucketBytes)/1024/1024).toFixed(1)}MB total`);
     return manifest;
 }
