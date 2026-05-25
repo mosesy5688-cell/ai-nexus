@@ -5,18 +5,12 @@
  */
 import { decompress } from 'fzstd';
 import { tokenizeQuery, termPrefix } from '../utils/search-tokenizer.js';
+import { fetchPrefixBucket, type Posting, type TermData } from './term-index-bucket-cache.js';
 
-type Posting = [string, number, number]; // [umid, fni_score, shard_slot]
-interface TermData {
-    term: string;
-    df: number;
-    postings: Posting[];
-    chunk?: number;
-    chunks?: number;
-}
 interface TermIndexManifest {
     total_docs: number;
     avg_doc_length: number;
+    version: string;
 }
 
 let cachedManifest: TermIndexManifest | null = null;
@@ -37,7 +31,11 @@ async function fetchManifest(r2Bucket: any, isDev: boolean): Promise<TermIndexMa
             compressed = new Uint8Array(await res.arrayBuffer());
         }
         const parsed = JSON.parse(new TextDecoder().decode(decompress(compressed)));
-        cachedManifest = { total_docs: parsed.total_docs, avg_doc_length: parsed.avg_doc_length };
+        cachedManifest = {
+            total_docs: parsed.total_docs,
+            avg_doc_length: parsed.avg_doc_length,
+            version: parsed.version || 'inverted_v1',
+        };
         return cachedManifest;
     } catch (err: any) {
         console.error(`[Term Index] fetchManifest failed: ${err?.message || err}`);
@@ -108,19 +106,37 @@ export async function fetchAllTermPostings(
     if (terms.length === 0) return { terms: [], results: new Map(), manifest: null };
 
     const results = new Map<string, TermData>();
-    const [, manifest] = await Promise.all([
-        Promise.all(terms.map(async (term) => {
-            let data = await fetchHighFreqTerm(term, r2Bucket, isDev);
-            if (!data) data = await fetchTermFile(term, r2Bucket, isDev);
-            if (data) results.set(term, data);
-        })),
-        fetchManifest(r2Bucket, isDev)
-    ]);
+    // V27.58: manifest must be fetched first so we know whether to try v2 bucket path.
+    const manifest = await fetchManifest(r2Bucket, isDev);
+    const useV2Bucket = manifest?.version === 'inverted_v2_bucketed';
+
+    let v1FallbackHits = 0;  // observability — should reach 0 after cron N+1, gate for follow-up cleanup PR
+    await Promise.all(terms.map(async (term) => {
+        // Tier 1: high-frequency chunked file (unchanged across v1/v2)
+        let data = await fetchHighFreqTerm(term, r2Bucket, isDev);
+        // Tier 2 (v2 only): prefix bucket. Also covers Cron N boundary race —
+        // bucket file present (200 OK) but builder still streaming, in-progress
+        // bucket may not yet contain a very cold term → bucket.has(term)===false.
+        // Must fall through to v1 legacy, NOT only on bucket-fetch-failure.
+        if (!data && useV2Bucket) {
+            const bucket = await fetchPrefixBucket(termPrefix(term), r2Bucket, isDev);
+            if (bucket && bucket.has(term)) data = bucket.get(term) ?? null;
+        }
+        // Tier 3: v1 individual file (legacy fallback during cron-N transition).
+        if (!data) {
+            data = await fetchTermFile(term, r2Bucket, isDev);
+            if (data && useV2Bucket) v1FallbackHits++;
+        }
+        if (data) results.set(term, data);
+    }));
 
     const found = [...results.keys()];
     const missed = terms.filter(t => !results.has(t));
     if (missed.length > 0) {
         console.warn(`[Term Index] query="${query}" terms=${terms.length} found=[${found.join(',')}] missed=[${missed.join(',')}]`);
+    }
+    if (v1FallbackHits > 0) {
+        console.warn(`[Term Index] v1-legacy-fallback fired ${v1FallbackHits}/${terms.length} times — expected 0 after cron N+1.`);
     }
 
     return { terms, results, manifest };

@@ -3,12 +3,12 @@
  * Builds offline term_index/*.json.zst files for CDN/R2-based search.
  * Runs in GHA CI after shard packing (Phase 7 of pack-db.js).
  */
-import Database from 'better-sqlite3';
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { zstdCompress } from './zstd-helper.js';
 import { computeMetaShardSlot } from './meta-shard-router.js';
 import { META_SHARD_COUNT } from '../../../src/constants/shard-constants.js';
+import { writeBucketAccum } from './inverted-index-bucket-writer.js';
 
 // V∞ fix: shard slot MUST align with pack-db's META_SHARD_COUNT (currently 96).
 // Prior hardcoded SHARD_COUNT=40 left ~58% of entities unreachable via Tier 1
@@ -77,96 +77,7 @@ function tokenize(text) {
     return [...new Set(raw.map(porterStem).filter(t => t.length >= 2 && t.length <= 40))];
 }
 
-/**
- * Build static inverted index from search.db.
- * @param {string} searchDbPath - Path to search.db
- * @param {string} outputDir - Output directory (e.g. ./output/term_index)
- */
-export async function buildInvertedIndex(searchDbPath, outputDir) {
-    console.log('[InvIdx] Building static inverted index...');
-    const db = new Database(searchDbPath, { readonly: true });
-
-    const stmt = db.prepare(
-        `SELECT id, slug, name, type, author, summary, tags, category, fni_score
-         FROM entities ORDER BY fni_score DESC`
-    );
-
-    // ── Pass 1: Build term → postings map + collect doc lengths ──
-    const termMap = new Map();
-    let totalDocs = 0, totalLen = 0;
-
-    for (const row of stmt.iterate()) {
-        const fields = [row.name, row.summary, row.tags, row.category, row.author];
-        const terms = tokenize(fields.join(' '));
-        if (terms.length === 0) continue;
-
-        totalDocs++;
-        totalLen += terms.length;
-        const shard = computeMetaShardSlot(row.slug || row.id, META_SHARD_COUNT);
-
-        for (const term of terms) {
-            let entry = termMap.get(term);
-            if (!entry) { entry = []; termMap.set(term, entry); }
-            entry.push([row.id, Math.round(row.fni_score || 0), shard]);
-        }
-    }
-    db.close();
-
-    const avgDl = totalDocs > 0 ? totalLen / totalDocs : 1;
-    console.log(`[InvIdx] ${totalDocs} docs, ${termMap.size} unique terms, avgDl=${avgDl.toFixed(1)}`);
-
-    // ── Pass 2: Write term files (pure FNI scores — BM25 computed at query time) ──
-    let filesWritten = 0, totalBytes = 0;
-
-    for (const [term, postings] of termMap) {
-        const df = postings.length;
-        postings.sort((a, b) => b[1] - a[1]);
-
-        // Prefix bucket: 2-char prefix directory
-        const prefix = term.length >= 2 ? term.slice(0, 2) : term.padEnd(2, '_');
-        const bucketDir = join(outputDir, prefix);
-        mkdirSync(bucketDir, { recursive: true });
-
-        if (df > HIGH_FREQ_THRESHOLD) {
-            // High-frequency term: shard into chunks
-            const chunks = Math.ceil(postings.length / HIGH_FREQ_CHUNK_SIZE);
-            for (let i = 0; i < chunks; i++) {
-                const chunk = postings.slice(i * HIGH_FREQ_CHUNK_SIZE, (i + 1) * HIGH_FREQ_CHUNK_SIZE);
-                const json = JSON.stringify({ term, df, chunk: i, chunks, postings: chunk });
-                const compressed = await zstdCompress(Buffer.from(json), 3);
-                const fname = `${term}_${i}.json.zst`;
-                writeFileSync(join(bucketDir, fname), compressed);
-                filesWritten++; totalBytes += compressed.length;
-            }
-        } else {
-            const json = JSON.stringify({ term, df, postings });
-            const compressed = await zstdCompress(Buffer.from(json), 3);
-            writeFileSync(join(bucketDir, `${term}.json.zst`), compressed);
-            filesWritten++; totalBytes += compressed.length;
-        }
-    }
-
-    // ── Write manifest ──
-    const manifest = {
-        version: 'inverted_v1',
-        built: new Date().toISOString(),
-        total_docs: totalDocs,
-        total_terms: termMap.size,
-        total_files: filesWritten,
-        total_bytes: totalBytes,
-        avg_doc_length: Math.round(avgDl * 10) / 10,
-        high_freq_threshold: HIGH_FREQ_THRESHOLD,
-        shard_count: META_SHARD_COUNT
-    };
-    const mJson = JSON.stringify(manifest, null, 2);
-    const mCompressed = await zstdCompress(Buffer.from(mJson), 3);
-    writeFileSync(join(outputDir, '_manifest.json.zst'), mCompressed);
-
-    console.log(`[InvIdx] ✅ Complete: ${filesWritten} files, ${(totalBytes / 1024 / 1024).toFixed(1)}MB compressed`);
-    return manifest;
-}
-
-/** V26.5: Build inverted index from meta-NN.db shards (search.db eliminated) */
+/** V26.5: Build inverted index from meta-NN.db shards (search.db eliminated). V27.58: 2-tier with prefix-bucket consolidation. */
 export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
     console.log('[InvIdx] Building static inverted index from meta shards...');
     const termMap = new Map();
@@ -193,7 +104,14 @@ export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
     const avgDl = totalDocs > 0 ? totalLen / totalDocs : 1;
     console.log(`[InvIdx] ${totalDocs} docs, ${termMap.size} unique terms, avgDl=${avgDl.toFixed(1)}`);
 
+    // V27.58: Two-tier consolidation eliminates the ~382K-file-per-cron problem.
+    // - df > HIGH_FREQ_THRESHOLD → individual chunked files (unchanged, hot-cache locality)
+    // - else → accumulated per 2-char prefix and written as one _bucket.json.zst
+    // Double-write of v1 individual files kept for 1 cron cycle (reader fallback safety).
     let filesWritten = 0, totalBytes = 0;
+    let highFreqCount = 0, bucketedTermCount = 0;
+    const bucketAccum = new Map();  // prefix -> { term: postings[] }
+
     for (const [term, postings] of termMap) {
         const df = postings.length;
         postings.sort((a, b) => b[1] - a[1]);
@@ -208,15 +126,40 @@ export async function buildInvertedIndexFromShards(metaDbs, outputDir) {
                 writeFileSync(join(bucketDir, `${term}_${i}.json.zst`), compressed);
                 filesWritten++; totalBytes += compressed.length;
             }
+            highFreqCount++;
         } else {
+            // V27.58: v1 double-write (cron N reader fallback) — drop in follow-up PR.
             const compressed = await zstdCompress(Buffer.from(JSON.stringify({ term, df, postings })), 3);
             writeFileSync(join(bucketDir, `${term}.json.zst`), compressed);
             filesWritten++; totalBytes += compressed.length;
+            // V27.58: accumulate into prefix bucket for v2 write.
+            let bucket = bucketAccum.get(prefix);
+            if (!bucket) { bucket = {}; bucketAccum.set(prefix, bucket); }
+            bucket[term] = { df, postings };
+            bucketedTermCount++;
         }
     }
 
-    const manifest = { version: 'inverted_v1', built: new Date().toISOString(), total_docs: totalDocs, total_terms: termMap.size, total_files: filesWritten, total_bytes: totalBytes, avg_doc_length: Math.round(avgDl * 10) / 10, high_freq_threshold: HIGH_FREQ_THRESHOLD, shard_count: META_SHARD_COUNT };
+    // V27.58: write v2 prefix buckets via extracted helper.
+    const { bucketsWritten, bucketBytes, maxBucketBytes, maxBucketPrefix } = await writeBucketAccum(bucketAccum, outputDir);
+    console.log(`[InvIdx] v2_bucketed: ${bucketsWritten} prefix buckets, ${bucketedTermCount} terms, ${(bucketBytes/1024/1024).toFixed(2)}MB; max bucket '${maxBucketPrefix}'=${(maxBucketBytes/1024).toFixed(1)}KB`);
+    console.log(`[InvIdx] high-freq: ${highFreqCount} terms in individual chunked files`);
+
+    const manifest = {
+        version: 'inverted_v2_bucketed',
+        built: new Date().toISOString(),
+        total_docs: totalDocs,
+        total_terms: termMap.size,
+        total_files: filesWritten,
+        total_bytes: totalBytes,
+        bucketed_term_count: bucketedTermCount,
+        bucket_count: bucketsWritten,
+        high_freq_term_count: highFreqCount,
+        avg_doc_length: Math.round(avgDl * 10) / 10,
+        high_freq_threshold: HIGH_FREQ_THRESHOLD,
+        shard_count: META_SHARD_COUNT
+    };
     writeFileSync(join(outputDir, '_manifest.json.zst'), await zstdCompress(Buffer.from(JSON.stringify(manifest, null, 2)), 3));
-    console.log(`[InvIdx] ✅ Complete: ${filesWritten} files, ${(totalBytes / 1024 / 1024).toFixed(1)}MB compressed`);
+    console.log(`[InvIdx] ✅ Complete: ${filesWritten} v1 files + ${bucketsWritten} v2 buckets, ${((totalBytes + bucketBytes)/1024/1024).toFixed(1)}MB total`);
     return manifest;
 }
