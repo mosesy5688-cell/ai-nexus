@@ -99,7 +99,7 @@ jobs:
       # Skipped on force_fresh so compute is forced.
       - name: Restore Baked Profile Shards from Cache (V27.52)
         id: cache-baked-restore
-        if: ${{ !inputs.force_fresh }}
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_fresh) }}
         uses: actions/cache/restore@v4
         with:
           path: output/cache/mesh/profile-shards/
@@ -271,7 +271,7 @@ jobs:
       # V27.52: restore cycle-scoped fused cache for re-dispatch reuse.
       - name: Restore Fused Cache (V27.52)
         id: cache-fused-restore
-        if: ${{ !inputs.force_fresh }}
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_fresh) }}
         uses: actions/cache/restore@v4
         with:
           path: output/cache/fused/
@@ -565,7 +565,7 @@ jobs:
       # V27.52: restore cycle-scoped vfs-pack cache for skip detection
       - name: Restore VFS Pack Output for Skip Detection (V27.52)
         id: cache-vfs-pack-restore
-        if: ${{ !inputs.force_fresh }}
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force_fresh) }}
         uses: actions/cache/restore@v4
         with:
           path: |
