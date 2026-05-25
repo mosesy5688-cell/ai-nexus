@@ -77,7 +77,7 @@
   let dbFallbackTimer: ReturnType<typeof setTimeout> | null = null;
   let currentTier: 'shard' | 'db' | 'semantic' | 'loading' = 'shard';
 
-  // 当人类开始动鼠标、滚屏幕或按任意键时，大概率几秒内就会用到搜索，提前开始异步加载（Lighthouse 不触发这些事件，4.3MB shard 不进 audit 关键路径）
+  // Real users emit pointer/key/touch within seconds — prewarm the 4.3MB shard then. Lighthouse fires none of these, so the shard stays off the audit critical path.
   const prewarmSignals = ['pointerdown', 'keydown', 'touchstart'] as const;
   const prewarmHotShard = () => {
     loadHotShard();
