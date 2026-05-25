@@ -351,6 +351,34 @@ jobs:
             cache/registry/
           key: global-registry-${{ github.run_id }}
 
+      # V27.53: backup registry shards to R2 — 4/4 master-fusion's R2 fallback
+      # previously got STALE bootstrap-era data (meta/backup/registry/ only
+      # populated by registry-bootstrap.js once, never refreshed). After eviction
+      # of GHA cache `global-registry-${run_id}` (LRU 24h+), 4/4 fell back to
+      # stale R2 → 0 entities → master-fusion produced 0 fused shards → cycle
+      # broken (4h+ wasted on run 26376590873).
+      - name: Backup Registry Shards to R2 (V27.53)
+        if: success()
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ -d "cache/registry" ]; then
+            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+            if [ "$BIN_COUNT" -gt 0 ]; then
+              node scripts/factory/r2-workflow-cli.js backup-dir cache/registry/ state/registry/
+              echo "[R2] Registry: ${BIN_COUNT} .bin shards backed up to state/registry/"
+            else
+              echo "::warning::No .bin shards in cache/registry — skipping R2 backup"
+            fi
+          fi
+          if [ -f "cache/global-registry.json.zst" ]; then
+            node scripts/factory/r2-workflow-cli.js upload-buffer cache/global-registry.json.zst state/global-registry.json.zst
+            echo "[R2] global-registry.json.zst monolith backed up"
+          fi
+
       - name: Save FNI History to Cache (Self-Healing)
         if: success()
         uses: actions/cache/save@v4

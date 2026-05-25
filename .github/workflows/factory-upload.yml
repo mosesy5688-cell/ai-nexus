@@ -203,6 +203,7 @@ jobs:
             node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
           fi
       - name: Restore Global Registry Cache
+        id: cache-global-registry
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -210,6 +211,57 @@ jobs:
             cache/registry/
           key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: global-registry-
+      # V27.53: Purge legacy .json.gz ghost files (mirror 3/4's V25.8.3 protection).
+      # cache restore-keys partial match may pull pre-V25.8.3 era caches that contain
+      # legacy gzip shards. registry-loader.js rejects .json.gz (line 34), so leaving
+      # them in place is harmless — but explicit purge makes diag log cleaner and
+      # prevents future confusion.
+      - name: Purge Legacy Registry Ghosts (V27.53)
+        run: |
+          if [ -d "cache/registry" ]; then
+            GHOST_COUNT=$(find cache/registry -name 'part-*.json.gz' -o -name 'part-*.json' 2>/dev/null | wc -l)
+            if [ "$GHOST_COUNT" -gt 0 ]; then
+              echo "🧹 Purging ${GHOST_COUNT} legacy .json.gz ghost files from cache/registry/"
+              find cache/registry -name 'part-*.json.gz' -delete 2>/dev/null || true
+              find cache/registry -name 'part-*.json' -delete 2>/dev/null || true
+            fi
+            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+            echo "[V27.53] cache/registry: ${BIN_COUNT} .bin shards, 0 legacy ghosts"
+          fi
+      # V27.53: Ensure registry .bin shards present — if GHA cache miss AND restore-keys
+      # didn't catch a usable cache, restore from R2 state/registry/ (populated by 3/4's
+      # new Backup Registry Shards to R2 step). Mirror 3/4's V26.9 fallback pattern.
+      # Prevents master-fusion 0-entities scenario when GHA cache evicts mid-cycle.
+      - name: Ensure Registry Shards Present (V27.53)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+          if [ "$BIN_COUNT" -ge 100 ]; then
+            echo "✅ Registry: ${BIN_COUNT} .bin shards present (no R2 restore needed)"
+          else
+            echo "⚠️ Only ${BIN_COUNT} .bin shards (need ≥100). Restoring from R2 state/registry/..."
+            mkdir -p cache/registry
+            # Try V27.53 fresh path (state/registry/) first
+            node scripts/factory/r2-workflow-cli.js restore-dir state/registry/ cache/registry/ || echo "⚠️ state/registry/ unavailable (3/4 V27.53 may not have run yet)"
+            # Also try monolith download
+            node scripts/factory/r2-workflow-cli.js restore-file state/global-registry.json.zst cache/global-registry.json.zst 2>/dev/null || true
+            # Last-resort: V25.8 bootstrap script (handles legacy meta/backup/registry/ + format mismatch)
+            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+            if [ "$BIN_COUNT" -lt 100 ]; then
+              echo "⚠️ Still ${BIN_COUNT} after state/ restore — invoking r2-registry-restore.js for legacy/bootstrap paths"
+              node scripts/factory/lib/r2-registry-restore.js || echo "⚠️ Bootstrap restore failed"
+            fi
+            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+            echo "[V27.53] Final: ${BIN_COUNT} .bin shards in cache/registry/"
+            if [ "$BIN_COUNT" -lt 100 ]; then
+              echo "::error::Registry restore failed all paths (cache + state/registry/ + bootstrap). master-fusion will fail with 0 entities."
+              exit 1
+            fi
+          fi
       - name: Align Registry Cache for Fusion
         run: |
           mkdir -p output/cache/registry
