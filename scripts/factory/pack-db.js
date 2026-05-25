@@ -10,6 +10,7 @@ import { computeMetaShardSlot } from './lib/meta-shard-router.js';
 import { dbSchemas, ftsDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
+import { loadMeshProfileMap } from './lib/mesh-profile-loader.js';
 import { generateVectorCore } from './lib/vector-core-generator.js';
 import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
@@ -99,9 +100,8 @@ async function packDatabase() {
     configureDistiller(cacheDb);  // V25.12: pass cacheDb for HTML render cache
 
     const { map: hostedOnMap, timestamp: hostedOnTs } = loadHostedOnMap(CACHE_DIR);
-
-    // V27.0: Track uncached entities with their shard index for per-shard embedding write
-    const uncachedByShard = new Map();
+    const meshProfileMap = await loadMeshProfileMap(CACHE_DIR);  // V27.62: orphan-write fix
+    const uncachedByShard = new Map();  // V27.0: per-shard embedding write track
 
     console.log('[VFS] Single-pass streaming pack...');
     startBatchProf();
@@ -118,6 +118,8 @@ async function packDatabase() {
             if (!uncachedByShard.has(shardIdx)) uncachedByShard.set(shardIdx, []);
             uncachedByShard.get(shardIdx).push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
         }
+
+        const mp = meshProfileMap.get(e.id); if (mp) e.mesh_profile = mp;  // V27.62
 
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const { pBillions, ctxLen, arch } = resolveEntitySpecs(e);
