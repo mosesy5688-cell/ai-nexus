@@ -129,18 +129,47 @@ fn nested_f64(e: &Value, direct: &[&str], nested_path: &[&str; 2]) -> f64 {
         .unwrap_or(0.0)
 }
 
-/// Full-mode projection for fusion — includes body_content and has_fulltext.
+/// Full-mode projection for fusion — pass through every field pack-db /
+/// distiller / row-builders / bundle-builder need downstream.
+///
+/// V27.61: prior to this PR the whitelist silently dropped ~30 SQL schema
+/// columns, including all 4 confirmed (citation/benchmarks/datasets_used/
+/// quick_start) plus ~26 others (specs.*, stats.*, links.*, etc).
+/// V27.44-V27.49 JS-side data-quality PRs all delivered net zero impact
+/// because the field never survived this projection step. See brain memo
+/// 2026-05-26 后段三连 audit for evidence.
+///
+/// Slim `project_entity` above is unchanged — `project_and_write` callers
+/// (rankings NDJSON) intentionally need the slim form for FNI compute.
 pub(crate) fn project_entity_for_fusion(e: &Value, fni_percentile: u8) -> Value {
     let mut base = project_entity(e, fni_percentile);
-    if let Some(bc) = e.get("body_content") {
-        base["body_content"] = bc.clone();
-    }
-    if let Some(hf) = e.get("has_fulltext") {
-        base["has_fulltext"] = hf.clone();
-    }
-    // Keep relations for downstream mesh building
-    if let Some(rels) = e.get("relations") {
-        base["relations"] = rels.clone();
+    const PASSTHROUGH: &[&str] = &[
+        // Cold-tier essentials (existing 3, now in the list for consistency)
+        "body_content", "has_fulltext", "relations",
+        // Structured metadata used by distiller / row-builders
+        "category", "summary", "params_billions", "architecture", "context_length",
+        "is_trending", "trend_7d", "_trend_7d",
+        "source_url", "image_url", "raw_image_url", "canonical_url",
+        "vram_estimate_gb", "vram_fp16_gb", "vram_int8_gb", "vram_int4_gb",
+        "task_categories", "num_rows", "primary_language", "forks", "citation_count",
+        "runtime_hardware", "vocab_size", "num_layers", "hidden_size",
+        "datasets_used", "quick_start", "citation",
+        "has_ollama", "has_gguf", "ollama_compatible", "can_run_local",
+        "hosted_on", "hosted_on_checked_at",
+        "ui_related_mesh", "search_vector",
+        // Fields the distiller re-reads as fallback inputs
+        "meta_json", "fni_metrics", "license_spdx", "source_platform",
+        // Bundle JSON fields (row-builders.js:28-50 builds .bin shards from these)
+        "benchmarks", "paper_abstract", "mesh_profile", "changelog",
+        "quick_insights", "use_cases", "quantization", "html_readme",
+        "created_at", "display_description", "readme",
+        // Adapter raw fields used as fallback inputs
+        "base_model", "gguf_variants",
+    ];
+    for key in PASSTHROUGH {
+        if let Some(v) = e.get(*key) {
+            base[*key] = v.clone();
+        }
     }
     base
 }

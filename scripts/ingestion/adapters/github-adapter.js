@@ -304,8 +304,8 @@ export class GitHubAdapter extends BaseAdapter {
             body_content: (raw.readme || '') + (raw.quick_start ? `\n\n### 🚀 Quick Start\n\`\`\`bash\n${raw.quick_start}\n\`\`\`` : ''),
             tags: this.extractTags(raw),
 
-            // Structural Top-Level Promotion
-            github_quick_start: raw.quick_start || null,
+            // V27.61: was github_quick_start, distiller reads quick_start.
+            quick_start: raw.quick_start || null,
 
             pipeline_tag: this.inferPipelineTag(raw.topics, entityType),
 
