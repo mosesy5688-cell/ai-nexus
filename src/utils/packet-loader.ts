@@ -1,4 +1,3 @@
-import { R2_CACHE_URL } from '../config/constants.js';
 import { normalizeEntitySlug } from './entity-cache-reader-core.js';
 import { fetchBundleRange } from './vfs-fetcher.js';
 import { resolveVfsMetadata } from './vfs-metadata-provider.js';
@@ -6,9 +5,53 @@ import { initShardDecrypt, decryptShardRange } from '../lib/shard-decrypt.js';
 import { env } from 'cloudflare:workers';
 
 /**
+ * Cold-tier readme/mesh fetch from .bin fused-shard via range read.
+ * Used by loadEntityStreams (frontend) and /api/v1/entity?include=body.
+ * Memory discipline: drop the compressed buffer before parsing JSON so CF
+ * Worker GC can reclaim before the 50ms CPU budget runs out on hot calls.
+ */
+export async function fetchBundleReadme(
+    bundle_key: string, bundle_offset: number, bundle_size: number
+): Promise<{ readme: string | null; mesh: any[] }> {
+    if (!bundle_key || !bundle_size || bundle_size <= 0) return { readme: null, mesh: [] };
+    const r2 = env?.R2_ASSETS;
+    if (r2) {
+        const obj = await r2.get(bundle_key, { range: { offset: bundle_offset, length: bundle_size } });
+        if (!obj) return { readme: null, mesh: [] };
+        let raw: Uint8Array | null = new Uint8Array(await (obj as any).arrayBuffer());
+        if (bundle_key.endsWith('.bin') && (env as any)?.AES_CRYPTO_KEY) {
+            await initShardDecrypt((env as any).AES_CRYPTO_KEY);
+            raw = new Uint8Array(await decryptShardRange(bundle_key.split('/').pop() || '', raw.buffer, bundle_offset));
+        }
+        let decoded: string;
+        if (raw.length >= 4 && raw[0] === 0x28 && raw[1] === 0xB5 && raw[2] === 0x2F && raw[3] === 0xFD) {
+            const { decompress } = await import('fzstd');
+            decoded = new TextDecoder().decode(decompress(raw));
+        } else if (raw.length >= 2 && raw[0] === 0x1F && raw[1] === 0x8B) {
+            const pako = await import('pako');
+            decoded = pako.ungzip(raw, { to: 'string' });
+        } else {
+            decoded = new TextDecoder().decode(raw);
+        }
+        raw = null;
+        const bundle = JSON.parse(decoded);
+        return {
+            readme: bundle.readme || bundle.html_readme || null,
+            mesh: bundle.mesh_profile?.relations || bundle.relations || [],
+        };
+    }
+    const bundle = await fetchBundleRange(bundle_key, bundle_offset, bundle_size);
+    if (!bundle) return { readme: null, mesh: [] };
+    return {
+        readme: bundle.readme || bundle.html_readme || null,
+        mesh: bundle.mesh_profile?.relations || bundle.relations || [],
+    };
+}
+
+/**
  * V26.5 C1: VFS-Only Entity Loader
  * TIER 0 (meta-NN.db SQLite) is authoritative.
- * Bundle hydration via fetchBundleRange for README/mesh/relations.
+ * Bundle hydration via fetchBundleReadme for README/mesh/relations.
  */
 export async function loadEntityStreams(type: string, slug: string, locals: any = null) {
     const normalized = normalizeEntitySlug(slug, type).toLowerCase();
@@ -36,50 +79,14 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     }
     if (!entityPack.id) entityPack.id = normalized.includes('--') ? normalized.replace(/--/g, '/') : normalized;
 
-    // Bundle hydration: fetch README + mesh from fused-shard binary via R2 direct
     let html: string | null = null;
     let mesh: any[] = entityPack.relations ? JSON.parse(entityPack.relations) : [];
 
     if (entityPack.bundle_key && entityPack.bundle_size > 0) {
         try {
-            const r2 = env?.R2_ASSETS;
-            if (r2) {
-                console.log(`[Loader] R2 direct: key=${entityPack.bundle_key} offset=${entityPack.bundle_offset} size=${entityPack.bundle_size}`);
-                const obj = await r2.get(entityPack.bundle_key, {
-                    range: { offset: entityPack.bundle_offset, length: entityPack.bundle_size }
-                });
-                if (obj) {
-                    let raw = new Uint8Array(await (obj as any).arrayBuffer());
-                    console.log(`[Loader] R2 got ${raw.length} bytes, first4: ${raw[0]?.toString(16)} ${raw[1]?.toString(16)} ${raw[2]?.toString(16)} ${raw[3]?.toString(16)}`);
-                    if (entityPack.bundle_key.endsWith('.bin') && (env as any)?.AES_CRYPTO_KEY) {
-                        await initShardDecrypt((env as any).AES_CRYPTO_KEY);
-                        raw = new Uint8Array(await decryptShardRange(entityPack.bundle_key.split('/').pop() || '', raw.buffer, entityPack.bundle_offset));
-                        console.log(`[Loader] Decrypted ${raw.length} bytes, first4: ${raw[0]?.toString(16)} ${raw[1]?.toString(16)} ${raw[2]?.toString(16)} ${raw[3]?.toString(16)}`);
-                    }
-                    let decoded: string;
-                    if (raw.length >= 4 && raw[0] === 0x28 && raw[1] === 0xB5 && raw[2] === 0x2F && raw[3] === 0xFD) {
-                        const { decompress } = await import('fzstd');
-                        decoded = new TextDecoder().decode(decompress(raw));
-                    } else if (raw.length >= 2 && raw[0] === 0x1F && raw[1] === 0x8B) {
-                        const pako = await import('pako');
-                        decoded = pako.ungzip(raw, { to: 'string' });
-                    } else {
-                        decoded = new TextDecoder().decode(raw);
-                    }
-                    const bundle = JSON.parse(decoded);
-                    html = bundle.readme || bundle.html_readme || null;
-                    mesh = bundle.mesh_profile?.relations || bundle.relations || mesh;
-                    console.log(`[Loader] Bundle OK: readme=${!!html} (${(html||'').length} chars), mesh=${mesh.length} relations`);
-                } else {
-                    console.warn(`[Loader] R2 returned null for ${entityPack.bundle_key}`);
-                }
-            } else {
-                const bundle = await fetchBundleRange(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
-                if (bundle) {
-                    html = bundle.readme || bundle.html_readme || null;
-                    mesh = bundle.mesh_profile?.relations || bundle.relations || mesh;
-                }
-            }
+            const bundle = await fetchBundleReadme(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
+            html = bundle.readme;
+            if (bundle.mesh.length > 0) mesh = bundle.mesh;
         } catch (e: any) {
             console.warn(`[Loader] Bundle hydration failed for ${entityPack.id}:`, e.message);
         }
