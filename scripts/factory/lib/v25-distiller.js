@@ -122,13 +122,14 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.fni_score ??= 0;
 
     // V25.1 Distillation: Goldmine
-    // V27.45: vocab/layers/hidden preserve null when meta_json lacks them.
-    e.runtime_hardware = meta.runtime_hardware || meta.hardware || '';
-    e.vocab_size = meta.vocab_size ?? null;
-    e.num_layers = meta.num_hidden_layers ?? meta.num_layers ?? null;
-    e.hidden_size = meta.hidden_size ?? null;
-    e.datasets_used = Array.isArray(meta.datasets) ? meta.datasets.join(', ') : (meta.datasets || '');
-    e.quick_start = meta.quick_start || '';
+    // V27.45: preserve null when meta_json lacks them. V27.61: ??= so adapter-set
+    // values aren't clobbered (matches honest-contract pattern on lines 107-111).
+    e.runtime_hardware ??= meta.runtime_hardware || meta.hardware || null;
+    e.vocab_size ??= meta.vocab_size ?? null;
+    e.num_layers ??= meta.num_hidden_layers ?? meta.num_layers ?? null;
+    e.hidden_size ??= meta.hidden_size ?? null;
+    e.datasets_used ??= Array.isArray(meta.datasets) ? meta.datasets.join(', ') : (meta.datasets || null);
+    e.quick_start ??= meta.quick_start || null;
 
     // V27.46: derive architecture from tags when meta_json lacks it.
     // HF cardData.architecture is often empty even when tags clearly mark the family
