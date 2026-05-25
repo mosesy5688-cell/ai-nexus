@@ -15,8 +15,9 @@
  * relations. Omits internal storage fields (bundle_key/offset/size,
  * search_vector, readme_html) per feedback_no_architecture_exposure.
  *
- * Optional ?include=body adds readme_html (can be up to 250KB per entity);
- * default omits it to keep Agent calls lean.
+ * Optional ?include=body lazy-loads readme_html from the .bin fused-shard
+ * (cold tier) via packet-loader.fetchBundleReadme — the SQL row only stores
+ * bundle pointers, not the full HTML, to keep meta-NN.db slots small.
  */
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
@@ -25,6 +26,7 @@ import { xxhash64Mod } from '../../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
 import { generateCandidates } from '../../../../lib/slug-helper.js';
+import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -49,7 +51,7 @@ function parseTags(s: any): string[] {
     return [];
 }
 
-function project(e: any, includeBody: boolean) {
+function project(e: any) {
     const entity: any = {
         id: e.id,
         slug: e.slug,
@@ -129,13 +131,6 @@ function project(e: any, includeBody: boolean) {
         quick_start: e.quick_start || null,
     };
 
-    if (includeBody) {
-        entity.body = {
-            readme_html: e.readme_html || null,
-            has_fulltext: !!e.has_fulltext,
-        };
-    }
-
     return entity;
 }
 
@@ -193,9 +188,24 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             return error(404, `Entity not found: ${rawId}`);
         }
 
+        const entity = project(row);
+        if (includeBody) {
+            if (row.bundle_key && row.bundle_size > 0) {
+                try {
+                    const bundleData = await fetchBundleReadme(row.bundle_key, row.bundle_offset, row.bundle_size);
+                    entity.body = { readme_html: bundleData.readme, has_fulltext: !!row.has_fulltext };
+                } catch (err: any) {
+                    console.warn(`[entity] cold-tier readme fetch failed for ${row.id}:`, err?.message);
+                    entity.body = { readme_html: null, has_fulltext: !!row.has_fulltext };
+                }
+            } else {
+                entity.body = { readme_html: null, has_fulltext: !!row.has_fulltext };
+            }
+        }
+
         return new Response(JSON.stringify({
             version: API_VERSION,
-            entity: project(row, includeBody),
+            entity,
             meta: { elapsed_ms: Date.now() - start, etag: manifest?._etag || null, candidates_tried: candidates.length },
         }), { headers: { ...CORS_HEADERS, ETag: etag } });
     } catch (e: any) {

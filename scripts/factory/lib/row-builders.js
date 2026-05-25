@@ -115,11 +115,13 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.runtime_hardware), nOrNull(e.vocab_size), nOrNull(e.num_layers), nOrNull(e.hidden_size),
         tr(e.datasets_used, 500), tr(e.quick_start, 1000),
         nOrNull(e.vram_fp16_gb), nOrNull(e.vram_int8_gb), nOrNull(e.vram_int4_gb),
-        // V27.44: was hardcoded `'', ''` — silently destroyed readme_html + ui_related_mesh
-        // for every packed entity, leaving `relations.related: []` universally empty across
-        // the catalog. Distiller (v25-distiller.js:147-154) populates these; row-builder
-        // must propagate them through to the meta-NN.db row.
-        s(e.readme_html), s(e.ui_related_mesh), s(e.search_vector),
+        // ARCHITECTURE GUARD — DO NOT inline e.readme_html here.
+        // Full HTML lives in the .bin fused-shard (cold tier); the SQL row keeps
+        // an empty string and points to .bin via bundle_key/offset/size (line 110).
+        // V27.44 co-restored readme_html alongside the real fix (ui_related_mesh),
+        // inflating each meta-NN.db slot ~40MB → ~340MB and breaching the R2↔GHA
+        // ≤50MB rule by 6.8×. Read via packet-loader.fetchBundleReadme on demand.
+        '', s(e.ui_related_mesh), s(e.search_vector),
         s(e.canonical_url), tr(e.citation, 500),
         e.has_fulltext ? 1 : 0,
         (e.has_ollama || e.has_gguf) ? 1 : 0,
