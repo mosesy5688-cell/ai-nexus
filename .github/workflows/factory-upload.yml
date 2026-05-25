@@ -19,9 +19,17 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: 'Aggregate workflow run ID'
+        description: 'Aggregate workflow run ID (3/4 upstream)'
         required: false
         type: string
+      # V27.52: force rebuild even when cycle-scoped cache hit. Pass when shipping
+      # code changes that affect heavy-compute output (pack-db.js / master-fusion.js)
+      # — cycle-cache restore would yield stale data otherwise.
+      force_fresh:
+        description: 'Force rebuild all compute (ignore cycle-scoped cache restores)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -87,17 +95,44 @@ jobs:
         if: steps.cache-output-mesh.outputs.cache-hit != 'true'
         run: |
           node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ --strict
+      # V27.52: restore cycle-scoped baked cache (per-dispatch key + cycle-prefix restore-keys).
+      # Skipped on force_fresh so compute is forced.
+      - name: Restore Baked Profile Shards from Cache (V27.52)
+        id: cache-baked-restore
+        if: ${{ !inputs.force_fresh }}
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/mesh/profile-shards/
+          key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # V27.52: file-existence detection (cache-hit output false-negatives on restore-keys partial match).
+      - name: Detect baked output present
+        id: detect-baked
+        run: |
+          COUNT=$(find output/cache/mesh/profile-shards -type f 2>/dev/null | wc -l)
+          if [ "$COUNT" -ge 100 ]; then
+            echo "skip_compute=true" >> "$GITHUB_OUTPUT"
+            echo "[V27.52] ${COUNT} baked profile shards present → skip Bake compute"
+          else
+            echo "skip_compute=false" >> "$GITHUB_OUTPUT"
+            echo "[V27.52] ${COUNT} baked profile shards present (need ≥100) → fresh Bake"
+          fi
       - name: Bake atomized Mesh Profiles
+        if: steps.detect-baked.outputs.skip_compute != 'true'
         env:
           CACHE_DIR: ./output/cache
         run: node scripts/factory/mesh-profile-baker.js
+      # V27.52: Save uses per-dispatch unique key (cycle+run_id); cycle-prefix restore-keys
+      # gives soft hit on next dispatch. Save runs ONLY when fresh compute happened.
       - name: Save Baked Profile Shards to Cache
-        if: success()
+        if: success() && steps.detect-baked.outputs.skip_compute != 'true'
         uses: actions/cache/save@v4
         with:
           path: output/cache/mesh/profile-shards/
-          key: intra-4-4-${{ github.run_id }}-baked
+          key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
       - name: Backup Profile Shards to R2
+        if: success() && steps.detect-baked.outputs.skip_compute != 'true'
         run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profile-shards/ state/mesh-profile-shards/
 
   # V27.40: master-fusion was a 1h20m monolithic job — split into compute + persist.
@@ -155,10 +190,18 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/cache/mesh/profile-shards/
-          key: intra-4-4-${{ github.run_id }}-baked
+          key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # V27.52: file-existence (cache-hit false-fires on restore-keys partial match)
       - name: R2 Fallback for Profile Shards
-        if: steps.cache-baked.outputs.cache-hit != 'true'
-        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
+        run: |
+          if find output/cache/mesh/profile-shards -type f 2>/dev/null | head -1 | grep -q .; then
+            echo "✅ Baked profile shards present from cache"
+          else
+            echo "⚠️ Baked profile shards missing — falling back to R2"
+            node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
+          fi
       - name: Restore Global Registry Cache
         uses: actions/cache/restore@v4
         with:
@@ -173,7 +216,30 @@ jobs:
           [ -f "cache/global-registry.json.zst" ] && cp cache/global-registry.json.zst output/cache/ || true
           [ -d "cache/registry" ] && cp -r cache/registry/* output/cache/registry/ 2>/dev/null || true
           echo "✅ Registry aligned: $(ls output/cache/registry/ 2>/dev/null | wc -l) shards"
+      # V27.52: restore cycle-scoped fused cache for re-dispatch reuse.
+      - name: Restore Fused Cache (V27.52)
+        id: cache-fused-restore
+        if: ${{ !inputs.force_fresh }}
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/fused/
+          key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      - name: Detect fused output present
+        id: detect-fused
+        run: |
+          # Reuse Verify Shard Count threshold (400 shards) so skip only when sentinel-passing data is present.
+          FUSED_COUNT=$(find output/cache/fused -name 'part-*.json.zst' 2>/dev/null | wc -l)
+          if [ "$FUSED_COUNT" -ge 400 ] && [ -f output/cache/fused/.complete ]; then
+            echo "skip_compute=true" >> "$GITHUB_OUTPUT"
+            echo "[V27.52] ${FUSED_COUNT} fused shards + sentinel present → skip Master Fusion compute"
+          else
+            echo "skip_compute=false" >> "$GITHUB_OUTPUT"
+            echo "[V27.52] ${FUSED_COUNT} fused shards present (need ≥400 + .complete sentinel) → fresh Fusion"
+          fi
       - name: Execute Master Fusion
+        if: steps.detect-fused.outputs.skip_compute != 'true'
         env:
           CACHE_DIR: ./output/cache
           ARTIFACT_DIR: ./output/cache/registry
@@ -237,14 +303,15 @@ jobs:
             exit 1
           fi
           echo "✅ Shard gate passed: $SHARD_COUNT files / $SENTINEL_PROCESSED reported ≥ $THRESHOLD (≈$((SHARD_COUNT * 1000)) entities)"
-      # V27.40: end of master-fusion-compute. Save fused entities to cache;
-      # R2 backup moved to master-fusion-persist (cheap retry on transient R2 failure).
+      # V27.40 end of master-fusion-compute. V27.52: per-dispatch unique save key
+      # gated on detect-fused (mirrors Compute condition — fires when fresh compute
+      # ran, skips when restore-keys hit and Verify gates already validated cached data).
       - name: Save Fused Entities to Cache
-        if: success()
+        if: success() && steps.detect-fused.outputs.skip_compute != 'true'
         uses: actions/cache/save@v4
         with:
           path: output/cache/fused/
-          key: intra-4-4-${{ github.run_id }}-fused
+          key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
 
   # V27.40: master-fusion-persist isolates R2 backup from heavy compute.
   # Transient R2 failure → re-run only persist (~3-5m), not 1h20m fusion.
@@ -264,13 +331,19 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/cache/fused/
-          key: intra-4-4-${{ github.run_id }}-fused
-      # V27.40.1: fail-fast on same-run cache miss → avoids R2 backup of empty dir.
-      - name: Verify Cache Hit (defensive)
-        if: steps.cache-restore-fused.outputs.cache-hit != 'true'
+          key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # V27.40.1 + V27.52: fail-fast on missing files. V27.52 swapped from cache-hit
+      # (which false-fires on restore-keys partial match) to file-existence detection.
+      - name: Verify Fused Files Present (defensive)
         run: |
-          echo "::error::Cache miss on intra-4-4-${{ github.run_id }}-fused. master-fusion-compute should have written this. Aborting persist to avoid R2 empty-state upload. Recovery: 'Re-run failed jobs' in GHA UI."
-          exit 1
+          FUSED_COUNT=$(find output/cache/fused -name 'part-*.json.zst' 2>/dev/null | wc -l)
+          if [ "$FUSED_COUNT" -lt 1 ]; then
+            echo "::error::No fused/part-*.json.zst found post-restore. master-fusion-compute should have written via primary key OR restore-keys partial hit. Aborting persist to avoid R2 empty-state upload."
+            exit 1
+          fi
+          echo "✅ Fused entities present: $FUSED_COUNT files"
       - name: Backup Fused Entities to R2
         if: success()
         env:
@@ -339,9 +412,20 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/cache/fused/
-          key: intra-4-4-${{ github.run_id }}-fused
+          key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # V27.52: file-existence check (cache-hit false-fires on restore-keys partial match)
+      - name: Detect fused for R2 fallback
+        id: detect-fused-vfs
+        run: |
+          if find output/cache/fused -name 'part-*.json.zst' 2>/dev/null | head -1 | grep -q .; then
+            echo "needs_r2=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_r2=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: R2 Fallback for Fused Entities
-        if: steps.cache-fused.outputs.cache-hit != 'true'
+        if: steps.detect-fused-vfs.outputs.needs_r2 == 'true'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -355,8 +439,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/cache/embeddings/
-          key: embedding-shards-v1-${{ github.run_id }}
-          restore-keys: embedding-shards-v1-
+          key: embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-
+            embedding-shards-v1-
       - name: R2 Fallback for Embedding Shards
         if: steps.cache-embedding.outputs.cache-hit != 'true'
         env:
@@ -424,30 +510,52 @@ jobs:
             exit 1
           fi
           echo "✅ All essential metadata cache files present"
+      # V27.52: restore cycle-scoped vfs-pack cache for skip detection
+      - name: Restore VFS Pack Output for Skip Detection (V27.52)
+        id: cache-vfs-pack-restore
+        if: ${{ !inputs.force_fresh }}
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/data/
+            output/meta/
+            output/cache/reports/
+            output/cache/knowledge/
+            output/cache/mesh/
+          key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      - name: Detect vfs-pack output present
+        id: detect-vfs-pack
+        run: |
+          # Reuse Verify Essential Metadata Cache threshold (3 files) + meta-NN.db count
+          META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
+          if [ "$META_COUNT" -ge 20 ] && [ -f output/cache/mesh/graph.json -o -f output/cache/mesh/graph.json.zst ]; then
+            echo "skip_compute=true" >> "$GITHUB_OUTPUT"
+            echo "[V27.52] ${META_COUNT} meta-NN.db + mesh graph present → skip pack-db.js compute"
+          else
+            echo "skip_compute=false" >> "$GITHUB_OUTPUT"
+            echo "[V27.52] ${META_COUNT} meta-NN.db present (need ≥20 + mesh/graph) → fresh pack-db"
+          fi
       - name: Execute Stable 1.0 Packer
+        if: steps.detect-vfs-pack.outputs.skip_compute != 'true'
         env:
           CACHE_DIR: ./output/cache
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           UMID_SALT: ${{ secrets.UMID_SALT }}
           NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
         run: node scripts/factory/pack-db.js
-      # V27.2 fail-loud gate: meta-NN.db and fused-shard-NNN.bin must be
-      # deterministic products of the same pack-db.js loop. If any meta row's
-      # (bundle_offset, bundle_size) is not present in its target shard's
-      # offset table, halt before cache save and before R2 upload — bad state
-      # must never reach production. Run 25919708145 surfaced this divergence
-      # post-upload via HTTP 416 on data/fused-shard-579.bin; this gate moves
-      # detection to the build zone.
+      # V27.2 fail-loud gate (always runs as sanity check on both fresh + cached data)
       - name: V27.2 Verify Shard-Meta Consistency
         run: node scripts/factory/verify-shard-meta-consistency.js
       - name: Save Embedding Shards to Cache
-        if: success()
+        if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
         uses: actions/cache/save@v4
         with:
           path: output/cache/embeddings/
-          key: embedding-shards-v1-${{ github.run_id }}
+          key: embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
       - name: Backup Embedding Shards to R2
-        if: success()
+        if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -468,8 +576,10 @@ jobs:
       # had no meta-NN.db → L2 probe failed → cycle broke after 4h+ compute.
       # R2 is source-of-truth (P2 principle); backing up meta DBs here decouples
       # upload-job correctness from inter-job cache success.
+      # V27.51 + V27.52: backup meta-NN.db + sitemaps to R2. Gated on detect-vfs-pack
+      # so re-dispatch cache-hit doesn't re-upload identical state (R2 has it).
       - name: Backup VFS Data to R2 (V27.51)
-        if: success()
+        if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -485,7 +595,7 @@ jobs:
       # V27.40: end of vfs-pack-db. Save VFS pack output (data/meta/reports/knowledge/mesh)
       # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
       - name: Save VFS Pack Output to Cache
-        if: success()
+        if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -494,7 +604,7 @@ jobs:
             output/cache/reports/
             output/cache/knowledge/
             output/cache/mesh/
-          key: intra-4-4-${{ github.run_id }}-vfs-pack
+          key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
 
   # V27.40: vfs-derived = sitemap-gen + RSS-gen + SQL-health + cache saves.
   # ~2m; failure here costs minutes, not hours (vs old vfs-packing 2h10m blast radius).
@@ -521,13 +631,19 @@ jobs:
             output/cache/reports/
             output/cache/knowledge/
             output/cache/mesh/
-          key: intra-4-4-${{ github.run_id }}-vfs-pack
-      # V27.40.1: fail-fast on same-run cache miss → avoids empty sitemap/RSS output.
-      - name: Verify Cache Hit (defensive)
-        if: steps.cache-restore-vfs-pack.outputs.cache-hit != 'true'
+          key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # V27.40.1 + V27.52: fail-fast on missing meta-NN.db. File-existence detection
+      # (cache-hit output false-fires on restore-keys partial match).
+      - name: Verify VFS Pack Files Present (defensive)
         run: |
-          echo "::error::Cache miss on intra-4-4-${{ github.run_id }}-vfs-pack. vfs-pack-db should have written this. Aborting derived job to avoid empty sitemap/RSS output. Recovery: 'Re-run failed jobs' in GHA UI."
-          exit 1
+          META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
+          if [ "$META_COUNT" -lt 1 ]; then
+            echo "::error::No meta-NN.db found post-restore. vfs-pack-db should have written via primary key OR restore-keys partial hit. Aborting vfs-derived to avoid empty sitemap/RSS output."
+            exit 1
+          fi
+          echo "✅ VFS pack present: $META_COUNT meta-NN.db files"
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
       # V25.13: RSS gen requires output/cache/reports/index.json.zst (from pack-db meta-anchors)
@@ -551,13 +667,13 @@ jobs:
             output/meta/
             output/sitemaps/
             output/sitemap.xml
-          key: intra-4-4-${{ github.run_id }}-vfs-assets
+          key: intra-4-4-vfs-assets-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
       - name: Save RSS Feeds to Cache
         if: success()
         uses: actions/cache/save@v4
         with:
           path: output/rss/
-          key: intra-4-4-${{ github.run_id }}-rss-feeds
+          key: intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
 
   # V25.13: rss-feeds job DELETED — RSS gen moved into vfs-packing (now vfs-derived).
   # V27.40: vfs-packing further split into vfs-pack-db (heavy compute) + vfs-derived (light).
@@ -593,16 +709,30 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/cache/last-upload-manifest.json
-          key: r2-upload-manifest-${{ github.run_id }}
+          key: r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-
+            r2-upload-manifest-
           restore-keys: r2-upload-manifest-
       - name: Restore Fused Entities from Cache
         id: cache-fused-upload
         uses: actions/cache/restore@v4
         with:
           path: output/cache/fused/
-          key: intra-4-4-${{ github.run_id }}-fused
+          key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # V27.52: file-existence check for R2 fallback decision
+      - name: Detect fused for upload R2 fallback
+        id: detect-fused-upload
+        run: |
+          if find output/cache/fused -name 'part-*.json.zst' 2>/dev/null | head -1 | grep -q .; then
+            echo "needs_r2=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_r2=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: R2 Fallback for Fused Entities (Upload Job)
-        if: steps.cache-fused-upload.outputs.cache-hit != 'true'
+        if: steps.detect-fused-upload.outputs.needs_r2 == 'true'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -670,10 +800,17 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/cache/mesh/profile-shards/
-          key: intra-4-4-${{ github.run_id }}-baked
+          key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # V27.52: file-existence check
       - name: R2 Fallback for Profile Shards (Upload Job)
-        if: steps.cache-baked-upload.outputs.cache-hit != 'true'
-        run: node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
+        run: |
+          if find output/cache/mesh/profile-shards -type f 2>/dev/null | head -1 | grep -q .; then
+            echo "✅ Baked profile shards present from cache"
+          else
+            node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
+          fi
       - name: Restore VFS Assets from Cache
         id: cache-vfs-assets
         uses: actions/cache/restore@v4
@@ -683,7 +820,9 @@ jobs:
             output/meta/
             output/sitemaps/
             output/sitemap.xml
-          key: intra-4-4-${{ github.run_id }}-vfs-assets
+          key: intra-4-4-vfs-assets-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-vfs-assets-${{ needs.check-upstream.outputs.upstream-run-id }}-
       # V27.51: R2 fallback when vfs-assets cache miss OR cache restored empty
       # output/data (the failure mode in run 26362048142 — vfs-derived's cache
       # save silently failed at 12.8GB, upload's restore returned no error but
@@ -717,7 +856,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/rss/
-          key: intra-4-4-${{ github.run_id }}-rss-feeds
+          key: intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-
       - name: Consolidate Enrichment Artifacts
         run: |
           # V22.8: RSS feeds restored directly to output/rss/ via cache
@@ -814,7 +955,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: output/cache/last-upload-manifest.json
-          key: r2-upload-manifest-${{ github.run_id }}
+          key: r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
       # V27.3 three-tier verification order:
       #   Upload -> L2 R2 origin probe -> Purge -> Drain -> L3 CDN probe
       # L2 confirms R2-side integrity (orthogonal to CDN), so a later CDN failure
