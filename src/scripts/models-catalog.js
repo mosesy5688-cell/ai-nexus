@@ -1,8 +1,10 @@
 /**
  * models-catalog.js
- * 
- * Client-side logic for /models catalog page
- * Fetches from trending.json and applies filters/sorting
+ *
+ * Client-side logic for /models catalog page.
+ * V27.65: cache/trending.json retired -> /api/v1/search (data/* VFS).
+ * Layer-0 cap = 20/page; "Load more" button bumps ?page=N (1-indexed,
+ * matches internal /api/search OFFSET=(page-1)*limit at search.ts:120,162).
  */
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
 import { escapeHtml } from '../utils/escape-html.js';
@@ -17,40 +19,33 @@ export async function initModelsCatalog(initialData = []) {
 
   let allModels = initialData;
   let filteredModels = [...allModels];
-  let currentPage = 1;
-  const pageSize = 24;
+  let currentPage = 1;          // 1-indexed, locked literal (off-by-one guard)
+  let apiPage = 1;              // backend ?page=N cursor for Load-more
+  let apiTotal = null;          // total_count from API for Load-more gating
+  const pageSize = 20;          // align with /api/v1/search FREE_TIER_MAX
 
-  // Fetch models from cache if no SSR data
-  async function fetchModels() {
-    if (allModels.length > 0) return; // Skip if already hydrated
-
+  // Fetch models from /api/v1/search (V27.65 Phase 0.5b)
+  async function fetchModels(append = false) {
+    if (!append && allModels.length > 0) return; // SSR-hydrated, skip initial
     try {
-      // V18.2: Support compressed trending-data
-      const { decompress: zstdDecompress } = await import('fzstd');
-      const paths = ['https://cdn.free2aitools.com/cache/trending.json.zst', 'https://cdn.free2aitools.com/cache/trending.json'];
-      let data = null;
-      for (const p of paths) {
-        const res = await fetch(p);
-        if (!res.ok) continue;
-        const buffer = await res.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
-        data = JSON.parse(new TextDecoder().decode(isZstd ? zstdDecompress(bytes) : bytes));
-        break;
-      }
-      if (!data) throw new Error('Failed to fetch');
-      allModels = data.models || [];
+      const sort = sortBy?.value === 'recent' ? 'last_updated' : (sortBy?.value || 'fni');
+      const res = await fetch(`/api/v1/search?type=model&sort=${encodeURIComponent(sort)}&limit=${pageSize}&page=${apiPage}`, { headers: { Accept: 'application/json' } });
+      if (!res.ok) throw new Error(`HTTP_${res.status}`);
+      const body = await res.json();
+      const items = body.results || body.models || [];
+      if (!Array.isArray(items)) throw new TypeError(`Expected array, got ${typeof items}`);
+      apiTotal = body.total_count ?? body.total ?? null;
+      allModels = append ? allModels.concat(items) : items;
       filteredModels = [...allModels];
       render();
     } catch (err) {
-      console.error('Failed to load models:', err);
-      if (grid) {
+      console.error('[models-catalog:fetchModels]', err?.message);
+      if (grid && !append) {
         grid.innerHTML = `
-            <div class="col-span-full text-center py-12">
-              <p class="text-gray-500 dark:text-gray-400">Failed to load models. Please try again.</p>
+            <div class="col-span-full text-center py-12 api-fallback-err" data-component="models-catalog">
+              <p class="text-gray-500 dark:text-gray-400">[catalog currently unavailable]</p>
               <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg">Retry</button>
-            </div>
-          `;
+            </div>`;
       }
     }
   }
@@ -191,13 +186,18 @@ export async function initModelsCatalog(initialData = []) {
 
     // Add event listeners
     pagination.querySelectorAll('button[data-page]').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const page = parseInt(btn.dataset.page);
-        if (page >= 1 && page <= totalPages) {
+        if (page < 1) return;
+        // Local end + API has more -> fetch next API page then advance local cursor
+        if (page > totalPages && apiTotal != null && allModels.length < apiTotal) {
+          await window.__catalogLoadMore?.();
           currentPage = page;
-          render();
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (page <= totalPages) {
+          currentPage = page;
         }
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     });
   }
@@ -208,10 +208,28 @@ export async function initModelsCatalog(initialData = []) {
     return num.toString();
   }
 
+  // Append "Load more" handler — only fires when local pagination hits end + API has more
+  async function loadMoreFromApi() {
+    if (apiTotal != null && allModels.length >= apiTotal) return;
+    apiPage += 1;
+    await fetchModels(true);
+  }
+
+  // Sort change re-queries the API to honor server-side ranking on the full corpus
+  async function onSortChange() {
+    apiPage = 1;
+    currentPage = 1;
+    allModels = [];
+    await fetchModels(false);
+  }
+
   // Event listeners
   searchInput?.addEventListener('input', debounce(applyFilters, 300));
   categoryFilter?.addEventListener('change', applyFilters);
-  sortBy?.addEventListener('change', applyFilters);
+  sortBy?.addEventListener('change', onSortChange);
+
+  // Expose for the pagination Next button to call when local end reached
+  window.__catalogLoadMore = loadMoreFromApi;
 
   function debounce(fn, delay) {
     let timer;

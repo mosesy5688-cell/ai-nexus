@@ -101,53 +101,54 @@ const {
 </style>
 
 <script>
-import { R2_CACHE_URL } from '../../config/constants.ts';
-import { normalizeTrendId, findTrendMatch, drawSparkline, updateBadge } from '../../utils/trend-helpers.js';
+import { drawSparkline, updateBadge } from '../../utils/trend-helpers.js';
 
-// Singleton cache for trend data
-let _trendCache: Record<string, any> | null = null;
-let _loadPromise: Promise<Record<string, any>> | null = null;
+// V27.65 trend index swapped to /api/v1/trends/batch (data/* VFS via existing
+// V27.27 trend-fetcher.js). Per-id lazy fetch with isolate-shared dedupe cache
+// keyed by id; batched fan-out caps 16 ids per URL (CF edge 414 guard).
+const MAX_BATCH_IDS = 16;
+const _trendIndex: Record<string, any> = {};
+const _inflight: Map<string, Promise<any>> = new Map();
 
-async function loadTrendData(): Promise<Record<string, any>> {
-    if (_trendCache) return _trendCache;
-    if (_loadPromise) return _loadPromise;
-    
-    const urls = [`${R2_CACHE_URL}/cache/trend-data.json.zst`, `${R2_CACHE_URL}/cache/trend-data.json`];
-    _loadPromise = (async () => {
-        for (const url of urls) {
-            try {
-                const res = await fetch(url);
-                if (!res.ok) continue;
-                const buffer = await res.arrayBuffer();
-                const bytes = new Uint8Array(buffer);
-                const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
-                if (isZstd) {
-                    const { decompress } = await import('fzstd');
-                    _trendCache = JSON.parse(new TextDecoder().decode(decompress(bytes)));
-                } else {
-                    _trendCache = JSON.parse(new TextDecoder().decode(bytes));
-                }
-                return _trendCache;
-            } catch { continue; }
-        }
-        return {};
-    })();
-    
-    return _loadPromise;
+async function fetchTrendBatch(ids: string[]): Promise<void> {
+    const fresh = ids.filter(i => !(i in _trendIndex));
+    if (fresh.length === 0) return;
+    const safeIds = fresh.slice(0, MAX_BATCH_IDS).map(encodeURIComponent).join(',');
+    if (!safeIds) return;
+    try {
+        const res = await fetch(`/api/v1/trends/batch?ids=${safeIds}`, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(`HTTP_${res.status}`);
+        const body = await res.json();
+        const trends = body.trends || {};
+        for (const k of Object.keys(trends)) _trendIndex[k] = trends[k];
+        // Mark missing ids as null so subsequent calls don't re-fetch
+        for (const id of fresh) if (!(id in _trendIndex)) _trendIndex[id] = null;
+    } catch (e) {
+        console.error('[MiniTrendChart:fetchTrendBatch]', (e as any)?.message);
+        for (const id of fresh) _trendIndex[id] = null;
+    }
+}
+
+async function getTrendFor(id: string): Promise<any> {
+    if (id in _trendIndex) return _trendIndex[id];
+    if (_inflight.has(id)) return _inflight.get(id);
+    const p = fetchTrendBatch([id]).then(() => _trendIndex[id]);
+    _inflight.set(id, p);
+    try { return await p; } finally { _inflight.delete(id); }
 }
 
 async function initMiniTrends() {
     const containers = document.querySelectorAll('.mini-trend-container:not(.inited)');
     if (!containers.length) return;
-    
-    // V18.2.4: Optimization - Check for initial data before loading central index
-    const hasCentralNeeded = Array.from(containers).some(c => !(c as HTMLElement).dataset.initial);
-    if (!hasCentralNeeded) {
-        // All containers have pre-injected data, skip central loading!
-    } else {
-        await loadTrendData();
-    }
-    
+
+    // V27.65: pre-fetch batch for containers without SSR data-initial (1 round-trip
+    // covers up to MAX_BATCH_IDS=16; remainder fall back to per-id lazy on demand)
+    const idsNeedingFetch = Array.from(containers)
+        .filter(c => !(c as HTMLElement).dataset.initial)
+        .map(c => (c as HTMLElement).dataset.entityId)
+        .filter((v): v is string => !!v);
+    if (idsNeedingFetch.length > 0) await fetchTrendBatch(idsNeedingFetch);
+
     containers.forEach(async (container) => {
         const el = container as HTMLElement;
         const id = el.dataset.entityId;
@@ -173,21 +174,14 @@ async function initMiniTrends() {
             } catch (e) { console.error('Initial trend parse fail', e); }
         }
 
-        // Priority 2 - Central Index (Fallback for lists)
-        if (!entityTrend) {
-            const data = await loadTrendData();
-            const dataKeys = Object.keys(data);
-            const dataKeysLower = dataKeys.map(k => k.toLowerCase());
-            const targetId = findTrendMatch(id, data, dataKeys, dataKeysLower);
-            entityTrend = targetId ? data[targetId] : null;
-        }
+        // Priority 2 - API per-id (V27.65 lazy fetch via /api/v1/trends/batch)
+        if (!entityTrend) entityTrend = await getTrendFor(id);
 
         const fallback = container.parentElement?.querySelector('#trend-fallback');
-        
+
         if (!entityTrend || !Array.isArray(entityTrend.scores) || entityTrend.scores.length === 0) {
-            console.log(`[MiniTrend] No trend record for ${id} (final target: ${targetId})`);
             if (fallback) {
-                fallback.innerHTML = `<span class="opacity-60 italic">Trend data indexing pending for this node...</span>`;
+                fallback.innerHTML = `<span class="opacity-60 italic api-fallback-err" data-component="mini-trend">Trend data unavailable</span>`;
                 fallback.classList.remove('hidden');
             }
             return;
