@@ -514,6 +514,41 @@ jobs:
         run: |
           mkdir -p output/cache
           node scripts/factory/r2-workflow-cli.js restore-file state/pack-state.db output/cache/pack-state.db || echo "⚠️ No pack-state.db — cold start"
+      # V27.67: bridge mesh-profile-shards into this job. V27.62 mesh-attach in
+      # pack-db.js silently skipped each cycle ("[MESH] profile-shards dir missing
+      # — skip mesh attach") because vfs-pack-db runs in an isolated GHA workspace
+      # and never restored output/cache/mesh/profile-shards/ that mesh-baking job
+      # (line 130) saved to cache + R2. Same GHA-cache + R2-fallback pattern as
+      # master-fusion-compute (lines 190-204) which already has it.
+      - name: Restore Baked Profile Shards from Cache (V27.67)
+        id: cache-mesh-profile-vfs
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/mesh/profile-shards/
+          key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          restore-keys: |
+            intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      - name: R2 Fallback for Profile Shards (V27.67)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if find output/cache/mesh/profile-shards -type f 2>/dev/null | head -1 | grep -q .; then
+            COUNT=$(find output/cache/mesh/profile-shards -type f | wc -l)
+            echo "✅ Profile shards present from cache: ${COUNT} files"
+          else
+            echo "⚠️ Profile shards missing from cache — falling back to R2"
+            mkdir -p output/cache/mesh/profile-shards
+            node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
+            COUNT=$(find output/cache/mesh/profile-shards -type f 2>/dev/null | wc -l)
+            echo "[V27.67] R2 restore: ${COUNT} profile shards"
+            if [ "${COUNT}" -eq 0 ]; then
+              echo "::error::Profile shards still missing after R2 fallback — pack-db mesh-attach will silent-skip and ui_related_mesh will be empty. Aborting to avoid releasing degraded data."
+              exit 1
+            fi
+          fi
       - name: Migrate Legacy Embedding Cache (one-time)
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
