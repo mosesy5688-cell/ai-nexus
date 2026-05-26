@@ -1,6 +1,5 @@
 // src/scripts/home-client.js
 import { createModelCardHTML } from './ui-utils.js';
-import { loadCachedJSON } from '../utils/loadCachedJSON.js';
 
 // Function to fetch and render hot models (Constitution: FNI-sorted)
 export async function loadHotModels() {
@@ -16,34 +15,30 @@ export async function loadHotModels() {
     }
 
     try {
-        // V23.1: Try Tier 1 Binary Hot Shard first (Speed + Reliability)
+        // Tier 1: Binary Hot Shard (fastest, in-process)
         const { loadHotShard, searchShardPool } = await import('./search-shard-engine.js');
         await loadHotShard();
         const binaryModels = searchShardPool('', 12, { entityType: 'model', sort: 'fni' });
-
         if (binaryModels && binaryModels.length > 0) {
-            console.log('[Home] Hot models loaded from Tier 1 Binary Shard.');
             renderModelsToGrid(binaryModels, gridEl, loadingSkeleton);
             return;
         }
 
-        // V18.12.5.4: Legacy JSON Fallback (if Binary Shard is not ready)
-        const loadPromise = loadCachedJSON('cache/trending.json');
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
-
-        const { data } = await Promise.race([loadPromise, timeoutPromise]);
-        const models = (data?.models || data || []).slice(0, 12);
-
-        if (models && models.length > 0) {
-            console.log('[Home] Hot models loaded from Legacy JSON.');
-            renderModelsToGrid(models, gridEl, loadingSkeleton);
+        // V27.65: Tier 2 fallback via /api/v1/search (data/* VFS); cache/trending.json retired.
+        const res = await fetch('/api/v1/search?type=model&sort=fni&limit=12', { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(`HTTP_${res.status}`);
+        const body = await res.json();
+        const results = body.results || [];
+        if (!Array.isArray(results)) throw new TypeError(`Expected array, got ${typeof results}`);
+        if (results.length > 0) {
+            renderModelsToGrid(results, gridEl, loadingSkeleton);
         } else {
-            console.warn('[Home] All hot model sources failed.');
-            if (gridEl) gridEl.innerHTML = '<p class="col-span-full text-center text-gray-500 py-12">No models available at the moment.</p>';
+            if (gridEl) gridEl.innerHTML = '<div class="col-span-full text-center text-gray-500 py-12 api-fallback-err" data-component="hot-models">No models available right now</div>';
+            if (loadingSkeleton) loadingSkeleton.classList.add('hidden');
         }
-
     } catch (e) {
-        console.error("Failed to load hot models:", e);
+        console.error('[home-client:loadHotModels]', e?.message);
+        if (gridEl) gridEl.innerHTML = '<div class="col-span-full text-center text-gray-500 py-12 api-fallback-err" data-component="hot-models">[content currently unavailable]</div>';
         if (loadingSkeleton) loadingSkeleton.classList.add('hidden');
     }
 }

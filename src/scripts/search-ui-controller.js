@@ -4,11 +4,36 @@
 
 import { initSearch, performSearch, getSearchStatus } from './home-search.js';
 import { getRouteFromId } from '../utils/mesh-routing-core.js';
-import { decompress as zstdDecompress } from 'fzstd';
 import { escapeHtml } from '../utils/escape-html.js';
 
 /** @type {IntersectionObserver|null} Module-level ref to prevent observer accumulation across renderResults calls */
 let _hydrationObserver = null;
+
+// V27.65 scroll-burst debounce + isDraining-guarded drain: prevent N+1 hydration
+// requests saturating browser per-host conn pool when user fast-scrolls (which
+// triggers head-of-line blocking on main search box). 80ms coalesce window +
+// 6-concurrency cap. isDraining flag isolates queue self-pacing from
+// outer-trigger clearTimeout (starvation guard).
+const _hydrationQueue = new Set();
+let _hydrationTimer = null;
+let _isDraining = false;
+
+function queueEntityHydration(el) {
+    _hydrationQueue.add(el);
+    if (_isDraining) return; // drain self-paces; outer trigger must not clobber
+    if (_hydrationTimer) clearTimeout(_hydrationTimer);
+    _hydrationTimer = setTimeout(drainHydrationQueue, 80);
+}
+
+async function drainHydrationQueue() {
+    if (_hydrationQueue.size === 0) { _isDraining = false; return; }
+    _isDraining = true;
+    const batch = Array.from(_hydrationQueue).slice(0, 6);
+    batch.forEach(el => _hydrationQueue.delete(el));
+    try { await Promise.all(batch.map(el => hydrateSearchResult(el))); }
+    catch (e) { console.error('[search-ui-controller:drainBatch]', e?.message); }
+    _hydrationTimer = setTimeout(drainHydrationQueue, 40);
+}
 
 export function setupSearchUI(dom) {
     if (!dom) return;
@@ -156,7 +181,7 @@ export function setupHydrationObserver() {
     _hydrationObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                hydrateSearchResult(entry.target);
+                queueEntityHydration(entry.target);
                 _hydrationObserver.unobserve(entry.target);
             }
         });
@@ -169,57 +194,38 @@ export function setupHydrationObserver() {
 
 export async function hydrateSearchResult(el) {
     const id = el.getAttribute('data-id');
-    const type = el.getAttribute('data-type');
-    if (!id || !type) return;
-
+    if (!id) return;
     try {
-        const cleanId = id.replace(/[:/]/g, '--').toLowerCase();
-
-        // V55.9: Zstd-first hydration with magic byte detection
-        const paths = [
-            `https://cdn.free2aitools.com/cache/fused/${cleanId}.json.zst`,
-            `https://cdn.free2aitools.com/cache/fused/${cleanId}.json`
-        ];
-
-        let data = null;
-        for (const p of paths) {
-            const res = await fetch(p);
-            if (!res.ok) continue;
-
-            const buffer = await res.arrayBuffer();
-            const bytes = new Uint8Array(buffer);
-            const isZstd = bytes.length >= 4 && bytes[0] === 0x28 && bytes[1] === 0xB5 && bytes[2] === 0x2F && bytes[3] === 0xFD;
-
-            if (isZstd) {
-                data = JSON.parse(new TextDecoder().decode(zstdDecompress(bytes)));
-            } else {
-                data = JSON.parse(new TextDecoder().decode(bytes));
-            }
-            if (data) break;
+        // V27.65: cache/fused/<id>.json.zst retired -> /api/v1/entity (data/* VFS).
+        // Existing entity endpoint already provides description + fni_score in
+        // the projected shape; no ?include=body needed for hydration purposes.
+        const res = await fetch(`/api/v1/entity/${encodeURIComponent(id)}`, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error(`HTTP_${res.status}`);
+        const data = await res.json();
+        const inner = data.entity || data;
+        const descEl = el.querySelector('.result-desc');
+        const fniEl = el.querySelector('.fni-badge');
+        const rawDesc = inner.description || inner.summary || inner.body_content || '';
+        if (descEl && rawDesc && (!descEl.textContent.trim() || descEl.textContent.length < 10)) {
+            const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '');
+            descEl.textContent = cleanDesc.substring(0, 160) + (cleanDesc.length > 160 ? '...' : '');
+            descEl.classList.remove('italic', 'opacity-70');
         }
-
-        if (data) {
-            const inner = data.entity || data;
-            const descEl = el.querySelector('.result-desc');
-            const fniEl = el.querySelector('.fni-badge');
-
-            const rawDesc = inner.description || inner.summary || inner.body_content || '';
-
-            if (descEl && rawDesc && (!descEl.textContent.trim() || descEl.textContent.length < 10)) {
-                let cleanDesc = rawDesc.replace(/<[^>]*>?/gm, ''); // Strip HTML
-                descEl.textContent = cleanDesc.substring(0, 160) + (cleanDesc.length > 160 ? '...' : '');
-                descEl.classList.remove('italic', 'opacity-70');
-            }
-
-            const fniScore = inner.fni_score || inner.fni || 0;
-            if (fniEl && fniScore > 0) {
-                fniEl.textContent = `FNI ${Math.round(fniScore)}`;
-                fniEl.classList.remove('hidden');
-            }
-
-            el.setAttribute('data-hydrated', 'true');
+        const fniScore = inner.fni?.score ?? inner.fni_score ?? inner.fni ?? 0;
+        if (fniEl && fniScore > 0) {
+            fniEl.textContent = `FNI ${Math.round(fniScore)}`;
+            fniEl.classList.remove('hidden');
         }
+        el.setAttribute('data-hydrated', 'true');
     } catch (e) {
-        console.warn(`[SearchHydro] Failed for ${id}:`, e.message);
+        console.error(`[search-ui-controller:hydrateSearchResult] ${id} failed:`, e?.message);
+        // P4 precision: per-card visible degradation, not infinite shimmer
+        const descEl = el.querySelector('.result-desc');
+        if (descEl && (!descEl.textContent.trim() || descEl.textContent.length < 10)) {
+            descEl.textContent = '[preview unavailable]';
+            descEl.classList.add('opacity-50');
+        }
+        el.setAttribute('data-hydrated', 'failed');
+        el.classList.add('is-failed');
     }
 }
