@@ -1,0 +1,60 @@
+# V27.69 — One-shot R2 data migration: fni-history weekly monolith dead archive
+# → vault/. workflow_dispatch only, never auto-triggered. Pair with
+# scripts/factory/migrate-fni-history-vault.js. Delete this workflow + script
+# in a follow-up PR once migration is confirmed complete.
+name: V27.69 - R2 Migrate FNI History Weekly Monoliths to Vault
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — list targets only, NO R2 mutation'
+        type: boolean
+        required: true
+        default: true
+      commit_migration:
+        description: 'Commit — execute CopyObject + DeleteObjects (DESTRUCTIVE)'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Migrate fni-history-W* monoliths
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Guard — refuse contradictory inputs
+        run: |
+          DRY="${{ github.event.inputs.dry_run }}"
+          CMT="${{ github.event.inputs.commit_migration }}"
+          if [ "$DRY" = "true" ] && [ "$CMT" = "true" ]; then
+            echo "::error::Cannot set both dry_run=true and commit_migration=true. Pick one."
+            exit 1
+          fi
+          if [ "$DRY" = "false" ] && [ "$CMT" = "false" ]; then
+            echo "::error::Neither dry_run nor commit_migration is true — nothing to do."
+            exit 1
+          fi
+          echo "dry_run=$DRY commit_migration=$CMT"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install S3 SDK
+        run: npm install --no-save @aws-sdk/client-s3
+      - name: Execute migration script
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ "${{ github.event.inputs.commit_migration }}" = "true" ]; then
+            node scripts/factory/migrate-fni-history-vault.js --commit
+          else
+            node scripts/factory/migrate-fni-history-vault.js --dry-run
+          fi
