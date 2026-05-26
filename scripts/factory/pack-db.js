@@ -119,7 +119,9 @@ async function packDatabase() {
             uncachedByShard.get(shardIdx).push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
         }
 
-        const mp = meshProfileMap.get(e.id); if (mp) e.mesh_profile = mp;  // V27.62
+        // V27.71: case-insensitive (baker normalizeId lowercases keys, e.id keeps source case).
+        const mp = meshProfileMap.get(e.id) || meshProfileMap.get(e.id?.toLowerCase());
+        if (mp) e.mesh_profile = mp;
 
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
         const { pBillions, ctxLen, arch } = resolveEntitySpecs(e);
