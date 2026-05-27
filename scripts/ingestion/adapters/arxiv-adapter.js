@@ -22,6 +22,7 @@ import {
     calculatePaperQuality
 } from './arxiv-parser.js';
 import { fetchAr5ivHtml } from './ar5iv-fetcher.js';
+import { extractDatasetsFromText } from '../../../src/utils/dataset-extractor.js';
 
 const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
 const ARXIV_OAI_BASE = 'https://oaipmh.arxiv.org/oai';
@@ -207,6 +208,9 @@ export class ArXivAdapter extends BaseAdapter {
         const arxivId = raw.arxiv_id;
         const primaryAuthor = raw.authors?.[0] || 'unknown';
 
+        // V27.72: regex-extract datasets from abstract/full-text (arxiv API has
+        // no structured datasets field; whitelist guards against poisoning).
+        const corpus = `${raw.title || ''} ${raw.summary || ''} ${raw.full_html || ''}`;
         const entity = {
             id: this.generateId('arxiv', arxivId, 'paper'),
             type: 'paper',
@@ -218,6 +222,7 @@ export class ArXivAdapter extends BaseAdapter {
                 ? `## Abstract\n${raw.summary}\n\n## Full Paper Content\n${raw.full_html}`
                 : raw.summary || '',
             tags: extractTags(raw),
+            datasets_used: extractDatasetsFromText(corpus),
             author: primaryAuthor,
             license_spdx: 'arXiv',
             meta_json: buildMetaJson(raw),

@@ -12,6 +12,7 @@
  */
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { extractDatasetsFromText } from '../../../src/utils/dataset-extractor.js';
 
 const OLLAMA_LIBRARY_URL = 'https://ollama.com/library';
 
@@ -90,6 +91,9 @@ export class OllamaAdapter extends BaseAdapter {
         const ollamaId = raw.ollama_id || raw.name || 'unknown';
         const modelfileText = raw.modelfile ? `\n\n## Modelfile\n\`\`\`dockerfile\n${raw.modelfile}\n\`\`\`\n` : '';
         const paramsText = raw.parameters ? `\n\n## Parameters\n\`\`\`text\n${raw.parameters}\n\`\`\`\n` : '';
+        // V27.72: regex-extract datasets from description/modelfile/params (ollama
+        // metadata has no structured datasets field; whitelist guards against poisoning).
+        const corpus = `${raw.description || ''} ${raw.modelfile || ''} ${raw.parameters || ''}`;
         const entity = {
             // Identity
             id: this.generateId('ollama', ollamaId, 'model'),
@@ -102,6 +106,7 @@ export class OllamaAdapter extends BaseAdapter {
             description: this.truncate(raw.description || `Ollama model: ${ollamaId}. Run locally with: ollama run ${ollamaId}`, 500),
             body_content: `${raw.description || ''}\n${modelfileText}${paramsText}`.trim(),
             tags: ['ollama', 'local-deployment'],
+            datasets_used: extractDatasetsFromText(corpus),  // V27.72
 
             // V6.0: Pipeline tag for category assignment (all Ollama models are text-generation LLMs)
             pipeline_tag: 'text-generation',

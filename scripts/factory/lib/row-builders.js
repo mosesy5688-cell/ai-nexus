@@ -113,7 +113,8 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         s(e.raw_image_url || e.image_url), nOrNull(e.vram_estimate_gb), s(e.source || e.source_platform),
         tr(e.task_categories, 500), nOrNull(e.num_rows), s(e.primary_language), nOrNull(e.forks), nOrNull(e.citation_count),
         s(e.runtime_hardware), nOrNull(e.vocab_size), nOrNull(e.num_layers), nOrNull(e.hidden_size),
-        tr(e.datasets_used, 500), tr(e.quick_start, 1000),
+        // V27.72: JSON.stringify (was comma-join via s()) — API parseTags handles both forms.
+        tr(JSON.stringify(Array.isArray(e.datasets_used) ? e.datasets_used.map(x => String(x).toLowerCase()) : (typeof e.datasets_used === 'string' && e.datasets_used.trim() ? e.datasets_used.split(',').map(x => x.trim().toLowerCase()).filter(Boolean) : [])), 500), tr(e.quick_start, 1000),
         nOrNull(e.vram_fp16_gb), nOrNull(e.vram_int8_gb), nOrNull(e.vram_int4_gb),
         // ARCHITECTURE GUARD — DO NOT inline e.readme_html here.
         // Full HTML lives in the .bin fused-shard (cold tier); the SQL row keeps
