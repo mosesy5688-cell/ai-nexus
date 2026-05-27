@@ -156,7 +156,10 @@ export function distillEntity(e, pBillions, entityLookup) {
     // V25.12: Mark unresolved refs with _unresolved=1 for post-pass fix-up.
     // Forward refs to same-run new entities miss the SQLite lookup proxy
     // (entity not yet flushed); resolveMeshFixup() repairs them after main pass.
-    const relations = Array.isArray(e.relations) ? e.relations : (e.mesh_profile?.relations || []);
+    // V27.73: check non-empty, not just isArray — adapters initialize relations=[]
+    // which made the mesh_profile branch dead. Hit-rate was 0% post-V27.71 verified.
+    const relations = (Array.isArray(e.relations) && e.relations.length > 0)
+        ? e.relations : (e.mesh_profile?.relations || []);
     e.ui_related_mesh = JSON.stringify(relations.map(rel => {
         const targetId = rel.target || rel.target_id || rel.id;
         const t = entityLookup.get(targetId);
