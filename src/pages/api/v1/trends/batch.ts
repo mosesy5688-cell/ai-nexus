@@ -20,7 +20,7 @@ import { getTrendsForIds } from '../../../../utils/trend-fetcher.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
 
 const API_VERSION = 'fni_v2.0';
-const MAX_IDS = 50;
+const MAX_IDS = 25;  // V27.76 Phase 1 Gating 2c — align with compare.ts for contract uniformity
 
 const CORS_HEADERS: Record<string, string> = {
     'Content-Type': 'application/json; charset=utf-8',
