@@ -200,6 +200,9 @@ export async function hydrateSearchResult(el) {
         // Existing entity endpoint already provides description + fni_score in
         // the projected shape; no ?include=body needed for hydration purposes.
         const res = await fetch(`/api/v1/entity/${encodeURIComponent(id)}`, { headers: { Accept: 'application/json' } });
+        // V27.76: explicit 429 marker so per-card degradation distinguishes rate-limit
+        // from generic 5xx (no redirect to any upgrade page — L0 is forever-free open).
+        if (res.status === 429) throw new Error('HTTP_429_RATE_LIMITED');
         if (!res.ok) throw new Error(`HTTP_${res.status}`);
         const data = await res.json();
         const inner = data.entity || data;
@@ -219,13 +222,13 @@ export async function hydrateSearchResult(el) {
         el.setAttribute('data-hydrated', 'true');
     } catch (e) {
         console.error(`[search-ui-controller:hydrateSearchResult] ${id} failed:`, e?.message);
-        // P4 precision: per-card visible degradation, not infinite shimmer
+        const isRateLimit = e?.message === 'HTTP_429_RATE_LIMITED';
         const descEl = el.querySelector('.result-desc');
         if (descEl && (!descEl.textContent.trim() || descEl.textContent.length < 10)) {
-            descEl.textContent = '[preview unavailable]';
+            descEl.textContent = isRateLimit ? '[rate limited — slow down agent loop]' : '[preview unavailable]';
             descEl.classList.add('opacity-50');
         }
-        el.setAttribute('data-hydrated', 'failed');
-        el.classList.add('is-failed');
+        el.setAttribute('data-hydrated', isRateLimit ? 'rate-limited' : 'failed');
+        el.classList.add(isRateLimit ? 'is-rate-limited' : 'is-failed');
     }
 }
