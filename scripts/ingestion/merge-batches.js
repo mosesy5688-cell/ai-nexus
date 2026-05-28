@@ -90,10 +90,13 @@ async function mergeBatches() {
                 if ((!entity.params_billions || entity.params_billions === 0) && paramsCache[entity.id]) {
                     entity.params_billions = paramsCache[entity.id];
                 }
-                // V26.7: Apply benchmark cache (HumanEval/MBPP/MMLU/etc.)
+                // V27.75: multi-key lookup. Importer keys on row.fullname (author/modelId full form); entity.name short form → ~95% HF miss without author+name + hf-id-parsed candidates.
                 if (entity.name || entity.id) {
-                    const b = benchmarkCache[benchKey(entity.name || entity.id)];
-                    if (b) { entity.benchmarks = b; }
+                    const cands = [entity.name, entity.author && entity.name && `${entity.author}/${entity.name}`];
+                    const p = entity.id?.startsWith('hf-model--') ? entity.id.slice(10).split('--') : [];
+                    if (p.length >= 2) cands.push(`${p[0]}/${p.slice(1).join('-')}`);
+                    cands.push(entity.id);
+                    for (const c of cands) { const b = c && benchmarkCache[benchKey(c)]; if (b) { entity.benchmarks = b; break; } }
                 }
             }
 
