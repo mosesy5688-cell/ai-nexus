@@ -339,28 +339,16 @@ jobs:
       NODE_OPTIONS: '--max-old-space-size=10240 --expose-gc'
     
     steps:
+      # V27.77: composite supplies Free Runner Disk + Node + npm ci + Rust FFI restore.
+      # Fix for run 26559091640 Merge & Upload "[FATAL] database or disk is full" —
+      # 4 sub-harvest jobs each only handle 1 batch (no disk pressure), but Merge &
+      # Upload aggregates all 4 → ENOSPC. Other heavy jobs in 3/4 + 4/4 already use
+      # this composite with aggressive-disk-cleanup=true; sibling consistency fix.
       - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: ./.github/actions/factory-setup
         with:
-          node-version: '22'
-          cache: 'npm'
-      - run: npm ci
-
-      # V55.9: Restore Rust FFI binaries for native Zstd compression
-      - name: Restore Rust FFI
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            rust/shard-router/shard-router-rust.node
-            rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
-            rust/content-extractor/content-extractor-rust.node
-            rust/stream-aggregator/stream-aggregator-rust.node
-            rust/satellite-tasks/satellite-tasks-rust.node
-            rust/r2-engine/r2-engine-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
-          # No restore-keys: prevent stale binary fallback (V25.8.5)
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'true'
       # P1-R13: R2 fallback for Rust FFI (was cache-only, no fallback)
       - name: R2 Fallback for Rust FFI
         continue-on-error: true
