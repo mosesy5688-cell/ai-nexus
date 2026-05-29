@@ -44,6 +44,21 @@ def handle_response(res):
         raise gr.Error(f"API Error ({res.status_code}): {err or str(e)}")
 
 
+def derive_detail_url(r):
+    if r.get("detail_url"):
+        return r["detail_url"]
+    eid = r.get("id", "")
+    etype = r.get("type", "model")
+    slug = r.get("slug") or (eid.split("--", 1)[1] if "--" in eid else eid)
+    return f"https://free2aitools.com/{etype}/{slug}"
+
+
+def link(r):
+    url = derive_detail_url(r)
+    name = r.get("name") or r.get("id", "?")
+    return f"[{name}]({url})"
+
+
 def do_recommend(task, vram, params, limit):
     payload = {
         "task": task,
@@ -57,7 +72,7 @@ def do_recommend(task, vram, params, limit):
         return pd.DataFrame(), "No matching models found.", ""
     df = pd.DataFrame([{
         "Rank": r["rank"],
-        "Name": r["name"],
+        "Name": link(r),
         "FNI": r["fni_score"],
         "Params(B)": r.get("params_billions"),
         "VRAM(GB)": r.get("vram_estimate_gb"),
@@ -77,7 +92,7 @@ def do_search(q, t, limit):
     results = data.get("results", [])
     return pd.DataFrame([{
         "ID": r.get("id"),
-        "Name": r.get("name"),
+        "Name": link(r),
         "Type": r.get("type"),
         "FNI": r.get("fni_score"),
     } for r in results])
@@ -106,6 +121,7 @@ def do_compare(ids_str):
         row("Context", lambda e: e.get("specs", {}).get("context_length", "N/A")),
         row("License", lambda e: e.get("specs", {}).get("license") or "N/A"),
         row("Type", lambda e: e.get("type", "N/A")),
+        row("Detail", lambda e: f"[open]({derive_detail_url(e)})" if e.get("found") else "—"),
     ])
 
 
@@ -137,7 +153,11 @@ with gr.Blocks(title="Free2AITools", theme=gr.themes.Soft()) as demo:
             params = gr.Slider(1, 400, value=70, step=1, label="Max params (B)")
             limit = gr.Slider(1, 10, value=5, step=1, label="Number of recommendations")
         btn = gr.Button("Find models", variant="primary")
-        df_out = gr.DataFrame(label="Top recommendations")
+        df_out = gr.Dataframe(
+            headers=["Rank", "Name", "FNI", "Params(B)", "VRAM(GB)", "License"],
+            datatype=["number", "markdown", "number", "number", "number", "str"],
+            label="Top recommendations (click Name to open detail page)",
+        )
         rat_out = gr.Markdown()
         cav_out = gr.Markdown()
         btn.click(do_recommend, [task, vram, params, limit], [df_out, rat_out, cav_out])
@@ -153,7 +173,11 @@ with gr.Blocks(title="Free2AITools", theme=gr.themes.Soft()) as demo:
             )
             slim = gr.Slider(1, 20, value=10, step=1, label="Limit")
         sbtn = gr.Button("Search", variant="primary")
-        sout = gr.DataFrame(label="Results")
+        sout = gr.Dataframe(
+            headers=["ID", "Name", "Type", "FNI"],
+            datatype=["str", "markdown", "str", "number"],
+            label="Results (click Name to open detail; copy ID for Compare tab)",
+        )
         sbtn.click(do_search, [q, t, slim], sout)
 
     with gr.Tab("⚖️ Compare"):
@@ -164,7 +188,10 @@ with gr.Blocks(title="Free2AITools", theme=gr.themes.Soft()) as demo:
             lines=3,
         )
         cbtn = gr.Button("Compare", variant="primary")
-        cout = gr.DataFrame(label="Comparison")
+        cout = gr.Dataframe(
+            datatype="markdown",
+            label="Comparison (Detail row links to free2aitools.com)",
+        )
         cbtn.click(do_compare, ids_input, cout)
 
     with gr.Tab("🤖 MCP Install"):
