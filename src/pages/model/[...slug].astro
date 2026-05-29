@@ -14,6 +14,7 @@ import { getModelFromCache } from '../../utils/entity-cache-reader.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON.js';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { toMetricRows } from '../../utils/benchmark-labels.js';
 
 // V16.7.0: Component Restoration for High-Density Display
 import UniversalCore from '../../components/entity/UniversalCore.astro';
@@ -75,7 +76,10 @@ Astro.response.headers.set('Cache-Control', model ? 'public, max-age=0, must-rev
 // Capability Gating
 const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
 const hasBenchmarks = hasCapability(model, 'benchmarks');
-const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmark_hellaswag || model?.benchmark_arc);
+// V27.88: blob-aware gating. v1-key-only checks silently short-circuited v2 data
+// (mmlu_pro/ifeval/...). toMetricRows is schema-agnostic; legacy OR stays defensive.
+const benchBlob = model?.benchmarks || model?.meta_json?.benchmarks;
+const hasBench = toMetricRows(benchBlob).length > 0 || Boolean(model?.mmlu || model?.benchmark_mmlu);
 // SEO: og:image — prefer entity image_url, fall back to Free2AITools default hero.
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = model?.image_url || placeholderImage;

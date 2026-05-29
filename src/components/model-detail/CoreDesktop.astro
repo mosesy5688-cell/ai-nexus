@@ -34,9 +34,10 @@ const { model, tagsArray, hasBench, modelId, modelName, similarModels } = Astro.
         </div>
         <div class="space-y-6">
            {hasBench && (
-             <BenchmarkCard 
+             <BenchmarkCard
                umid={modelId}
                name={modelName}
+               benchmarks={model?.benchmarks || model?.meta_json?.benchmarks}
                mmlu={model?.mmlu || model?.benchmark_mmlu}
                humaneval={model?.humaneval || model?.benchmark_humaneval}
                hellaswag={model?.hellaswag || model?.benchmark_hellaswag}
