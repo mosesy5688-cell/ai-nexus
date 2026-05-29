@@ -1145,6 +1145,18 @@ jobs:
         run: node scripts/factory/probe-vfs.js
       - name: Data Quality Check
         run: node scripts/factory/data-quality-check.js
+      # V27.84: IndexNow incremental push. Runs only after upload + purge + drain +
+      # health probe + quality check all pass, so engines are pinged for a verified-live
+      # deploy. Non-blocking (continue-on-error) — an IndexNow hiccup never fails the cycle.
+      # URL source = freshly generated output/sitemaps/sitemap-*.xml (recent <lastmod>),
+      # NOT purge-list.json (which is R2 asset paths, not crawlable pages).
+      - name: Push Incremental Deltas via IndexNow
+        continue-on-error: true
+        env:
+          INDEXNOW_LOOKBACK_HOURS: '48'
+        run: |
+          echo "=== V27.84 IndexNow Sync Protocol ==="
+          node scripts/factory/indexnow-push.js
       - name: Trigger Health Check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
