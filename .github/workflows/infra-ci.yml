@@ -314,7 +314,7 @@ jobs:
           done
       
       - name: Run Lighthouse
-        uses: treosh/lighthouse-ci-action@v11
+        uses: treosh/lighthouse-ci-action@v12
         with:
           urls: |
             http://localhost:4321/
@@ -348,7 +348,7 @@ jobs:
           echo "⚠️ Security audit completed (warnings allowed)"
       
       - name: Check for Secrets
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@v3.95.3
         with:
           path: ./
           base: ${{ github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '' }}
