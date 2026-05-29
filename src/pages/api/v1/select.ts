@@ -19,9 +19,11 @@ const CORS_HEADERS = {
   'Cache-Control': 'public, max-age=60, s-maxage=300',
 };
 
+// V27.81: aligned to LICENSE_MAP output casing (base-adapter.js:64-91).
+// SQL uses LOWER() on both sides so this list is defense-in-depth.
 const COMMERCIAL_LICENSES = [
-  'apache-2.0', 'mit', 'bsd-3-clause', 'bsd-2-clause',
-  'cc-by-4.0', 'cc0-1.0', 'unlicense', 'openrail',
+  'Apache-2.0', 'MIT', 'BSD-3-Clause', 'BSD-2-Clause',
+  'CC-BY-4.0', 'CC0-1.0', 'Unlicense', 'OpenRAIL',
 ];
 
 export const POST: APIRoute = async ({ request }) => {
@@ -127,10 +129,10 @@ function buildQuery(tag: string, c: any, limit: number, category: string | null 
   if (c.min_context_length != null) { clauses.push('context_length >= ?'); params.push(c.min_context_length); }
   if (c.license) {
     if (c.license === 'commercial') {
-      clauses.push(`license IN (${COMMERCIAL_LICENSES.map(() => '?').join(',')})`);
+      clauses.push(`LOWER(license) IN (${COMMERCIAL_LICENSES.map(() => 'LOWER(?)').join(',')})`);
       params.push(...COMMERCIAL_LICENSES);
     } else if (c.license !== 'any') {
-      clauses.push('license = ?'); params.push(c.license);
+      clauses.push('LOWER(license) = LOWER(?)'); params.push(c.license);
     }
   }
   if (c.ollama_compatible) { clauses.push('ollama_compatible = 1'); }
