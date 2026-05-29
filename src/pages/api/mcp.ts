@@ -83,11 +83,11 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_compare',
-        description: 'Compare 2-10 AI models side-by-side showing FNI scores, factor breakdown (Semantic, Authority, Popularity, Recency, Quality), specs (params, VRAM, context length), and license. Read-only, no side effects. Use this when the user wants to decide between specific known models; use free2aitools_select_model to discover models first, then compare the top candidates.',
+        description: 'Compare 2-25 AI models side-by-side showing FNI scores, factor breakdown (Semantic, Authority, Popularity, Recency, Quality), specs (params, VRAM, context length), and license. Read-only, no side effects. Use this when the user wants to decide between specific known models; use free2aitools_select_model to discover models first, then compare the top candidates.',
         inputSchema: {
             type: 'object',
             properties: {
-                ids: { type: 'array', items: { type: 'string' }, description: 'Entity IDs to compare (2-10). Use model_id from select_model results or id from search results (e.g. ["hf-model--meta-llama--llama-3-8b", "hf-model--google--gemma-2-27b"])' }
+                ids: { type: 'array', items: { type: 'string' }, description: 'Entity IDs to compare (2-25). Use model_id from select_model results or id from search results (e.g. ["hf-model--meta-llama--llama-3-8b", "hf-model--google--gemma-2-27b"])' }
             },
             required: ['ids']
         }
