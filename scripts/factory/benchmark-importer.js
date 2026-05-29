@@ -22,16 +22,31 @@ function hfHeaders() {
     return h;
 }
 
+// V27.88: Open LLM Leaderboard v2 schema. The v1 columns (HumanEval/MBPP/GSM8K/
+// HellaSwag/ARC) no longer exist in open-llm-leaderboard/contents; the live dataset
+// exposes IFEval/BBH/MATH Lvl 5/GPQA/MUSR/MMLU-PRO (+ 'Average <emoji>'). Reading v1
+// names was a silent-strip: only MMLU-PRO matched (mislabeled 'mmlu'), rest dropped.
+const V2_COLUMNS = {
+    'IFEval': 'ifeval',
+    'BBH': 'bbh',
+    'MATH Lvl 5': 'math_lvl5',
+    'GPQA': 'gpqa',
+    'MUSR': 'musr',
+    'MMLU-PRO': 'mmlu_pro',
+};
+
 function normalizeBenchmarks(row) {
     const r = row?.row || row || {};
+    const toNum = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : undefined; };
     const out = {};
-    if (r['HumanEval']) out.humaneval = parseFloat(r['HumanEval']);
-    if (r['MBPP']) out.mbpp = parseFloat(r['MBPP']);
-    if (r['MMLU-PRO'] || r['MMLU']) out.mmlu = parseFloat(r['MMLU-PRO'] || r['MMLU']);
-    if (r['GSM8K']) out.gsm8k = parseFloat(r['GSM8K']);
-    if (r['HellaSwag']) out.hellaswag = parseFloat(r['HellaSwag']);
-    if (r['ARC']) out.arc = parseFloat(r['ARC']);
-    if (r['Average']) out.average = parseFloat(r['Average']);
+    for (const [col, key] of Object.entries(V2_COLUMNS)) {
+        const v = toNum(r[col]);
+        if (v !== undefined) out[key] = v;
+    }
+    // 'Average' column carries a trailing unicode emoji + whitespace ('Average <emoji>'),
+    // so match tolerantly by prefix instead of an exact literal that could silently drop.
+    const avgCol = Object.keys(r).find((k) => /^average/i.test(k.trim()));
+    if (avgCol) { const v = toNum(r[avgCol]); if (v !== undefined) out.average = v; }
     return Object.keys(out).length > 0 ? out : null;
 }
 
@@ -42,6 +57,11 @@ function normalizeModelKey(name) {
 async function main() {
     console.log('[BENCHMARK] V26.7 Open LLM Leaderboard Importer');
 
+    // V27.88: cache self-heal. The append-only guard below (`if (!cache[key])`) traps
+    // old v1-schema stubs forever, so a schema bump must discard the stale cache once.
+    // The '__schema' stamp auto-rebuilds on the next cron without a manual dispatch.
+    const SCHEMA = 'v2';
+    const forceRebuild = process.argv.includes('--force-rebuild');
     let cache = {};
     try {
         const buf = await autoDecompress(fs.readFileSync(CACHE_PATH));
@@ -49,7 +69,13 @@ async function main() {
     } catch (e) {
         if (e.code !== 'ENOENT') console.warn(`[BENCHMARK] Cache load: ${e.message}`);
     }
-    console.log(`[BENCHMARK] Loaded ${Object.keys(cache).length} cached benchmarks`);
+    if (forceRebuild || cache.__schema !== SCHEMA) {
+        const stale = Object.keys(cache).filter((k) => k !== '__schema').length;
+        console.log(`[BENCHMARK] Schema rebuild: ${cache.__schema || 'none'} -> ${SCHEMA} (force=${forceRebuild}); discarding ${stale} stale entries.`);
+        cache = {};
+    }
+    cache.__schema = SCHEMA;
+    console.log(`[BENCHMARK] Loaded ${Object.keys(cache).length - 1} cached benchmarks (schema ${SCHEMA})`);
 
     let offset = 0, fetched = 0, added = 0;
     const PAGE_SIZE = 100;
@@ -89,7 +115,7 @@ async function main() {
     fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
     const compressed = await zstdCompress(Buffer.from(JSON.stringify(cache)));
     fs.writeFileSync(CACHE_PATH, compressed);
-    console.log(`[BENCHMARK] ✅ Complete: ${added} new, cache=${Object.keys(cache).length} (${(compressed.length/1024).toFixed(1)}KB Zstd)`);
+    console.log(`[BENCHMARK] ✅ Complete: ${added} new, cache=${Object.keys(cache).length - 1} (${(compressed.length/1024).toFixed(1)}KB Zstd)`);
 }
 
 main().catch(err => { console.error('[BENCHMARK] Fatal:', err); process.exit(1); });

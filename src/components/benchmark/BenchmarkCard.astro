@@ -1,11 +1,14 @@
 ---
 // src/components/benchmark/BenchmarkCard.astro
 // V21.0: Professional technical performance datasheet
+// V27.88: generic schema-agnostic rendering via toMetricRows (Open LLM v2 + future).
 import { getRouteFromId } from '../../utils/knowledge-cache-reader.js';
+import { toMetricRows } from '../../utils/benchmark-labels.js';
 
 interface Props {
   umid?: string;
   name: string;
+  benchmarks?: Record<string, any>;
   mmlu?: number;
   humaneval?: number;
   truthfulqa?: number;
@@ -19,12 +22,13 @@ interface Props {
   scores?: Record<string, number>;
 }
 
-const { 
+const {
   umid,
-  name, 
-  mmlu, 
-  humaneval, 
-  hellaswag, 
+  name,
+  benchmarks,
+  mmlu,
+  humaneval,
+  hellaswag,
   arc_challenge,
   truthfulqa,
   winogrande,
@@ -35,17 +39,21 @@ const {
   scores = {}
 } = Astro.props;
 
-// Aggregate all available scores
-const allMetrics = [
-  { id: 'avg', label: 'Average', value: avg_score || scores?.avg?.score || scores?.avg || scores?.average?.score || scores?.average },
-  { id: 'mmlu', label: 'MMLU', value: mmlu || scores?.mmlu?.score || scores?.mmlu },
-  { id: 'humaneval', label: 'HumanEval', value: humaneval || scores?.humaneval?.score || scores?.humaneval || scores?.human_eval?.score || scores?.human_eval },
-  { id: 'hellaswag', label: 'HellaSwag', value: hellaswag || scores?.hellaswag?.score || scores?.hellaswag },
-  { id: 'arc', label: 'ARC-C', value: arc_challenge || scores?.arc_challenge?.score || scores?.arc_challenge || scores?.arc?.score || scores?.arc },
-  { id: 'gsm8k', label: 'GSM8K', value: gsm8k || scores?.gsm8k?.score || scores?.gsm8k },
-  { id: 'truthfulqa', label: 'TruthfulQA', value: truthfulqa || scores?.truthfulqa?.score || scores?.truthfulqa },
-  { id: 'winogrande', label: 'Winogrande', value: winogrande || scores?.winogrande?.score || scores?.winogrande },
+// V27.88: prefer the raw benchmarks blob (schema-agnostic). toMetricRows keeps only
+// finite-number metrics and labels unknown keys via humanized fallback (no silent drop).
+// Legacy individual props remain a fallback for any caller not passing the blob.
+const blobRows = toMetricRows(benchmarks || scores);
+const legacyMetrics = [
+  { id: 'avg', label: 'Average', value: avg_score },
+  { id: 'mmlu', label: 'MMLU', value: mmlu },
+  { id: 'humaneval', label: 'HumanEval', value: humaneval },
+  { id: 'hellaswag', label: 'HellaSwag', value: hellaswag },
+  { id: 'arc', label: 'ARC-C', value: arc_challenge },
+  { id: 'gsm8k', label: 'GSM8K', value: gsm8k },
+  { id: 'truthfulqa', label: 'TruthfulQA', value: truthfulqa },
+  { id: 'winogrande', label: 'Winogrande', value: winogrande },
 ].filter(m => m.value !== undefined && m.value !== null);
+const allMetrics = blobRows.length > 0 ? blobRows : legacyMetrics;
 
 function getScoreColor(val: number): string {
   if (val >= 80) return 'text-emerald-600 dark:text-emerald-400';

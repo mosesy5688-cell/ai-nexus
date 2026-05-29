@@ -2,6 +2,7 @@
 // src/utils/builders/seo-builder.js
 import { getDisplayName, getBestDescription } from './model-getters.js';
 import { truncate } from './parsing-utils.js';
+import { toMetricRows } from '../benchmark-labels.js';
 
 // Build full JSON-LD SEO schema (S-Grade with Dataset)
 export function buildSEOSchema(model, benchmarks, specs) {
@@ -19,19 +20,19 @@ export function buildSEOSchema(model, benchmarks, specs) {
         "url": url,
         "aggregateRating": {
             "@type": "AggregateRating",
-            "ratingValue": benchmarks.avg_score || 0,
+            // V27.88: v2 'average' (fallback to legacy avg_score)
+            "ratingValue": benchmarks?.average ?? benchmarks?.avg_score ?? 0,
             "bestRating": 100,
             "worstRating": 0,
             "ratingCount": Math.max(1, specs.ollama_pulls || 0) // Use pulls as proxy for count
         },
-        "customMetric": [
-            {
-                "@type": "PropertyValue",
-                "name": "MMLU",
-                "value": benchmarks.mmlu || 0,
-                "maxValue": 100
-            }
-        ]
+        // V27.88: one PropertyValue per real metric, schema-agnostic (no hardcoded MMLU)
+        "customMetric": toMetricRows(benchmarks).map((r) => ({
+            "@type": "PropertyValue",
+            "name": r.label,
+            "value": r.value,
+            "maxValue": 100,
+        }))
     };
 
     // Add Dataset schema if it's a dataset type (future proofing)

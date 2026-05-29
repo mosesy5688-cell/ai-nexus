@@ -11,6 +11,7 @@ import ConnectivityMatrix from './ConnectivityMatrix.astro';
 import { normalizeSlug, stripPrefix } from '../../utils/knowledge-cache-reader.js';
 import { getMeshProfile } from '../../utils/mesh-orchestrator.js';
 import { processRelationsIntoTiers } from '../../utils/mesh-processor.js';
+import { toMetricRows } from '../../utils/benchmark-labels.js';
 
 interface Props {
   entityId: string;
@@ -86,7 +87,9 @@ if (propRelations && propRelations.length > 0) {
     }
 }
 
-const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
+// V27.88: blob-aware gating (schema-agnostic); legacy OR stays defensive for old data.
+const hasBench = toMetricRows(entity?.benchmarks || entity?.meta_json?.benchmarks).length > 0
+  || !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
 const similarEntities = entity?.similar_models || entity?.similar_entities || entity?.relations?.links || [];
 const renderedNodes = new Set();
 if (tiers) {
