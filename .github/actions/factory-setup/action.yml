@@ -24,7 +24,7 @@ runs:
   steps:
     # V27.40.2: NO checkout step here — local composite actions require the repo
     # to be checked out BEFORE the `uses: ./.github/actions/factory-setup` line can
-    # resolve action.yml. Callers MUST do `- uses: actions/checkout@v4` before this.
+    # resolve action.yml. Callers MUST do `- uses: actions/checkout@v5` before this.
     - name: Free Runner Disk
       shell: bash
       run: |
@@ -40,7 +40,7 @@ runs:
         echo "Disk after factory-setup cleanup: $(df -h / | tail -1 | awk '{print $4}') available"
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v5
       with:
         node-version: '22'
         cache: 'npm'
@@ -55,7 +55,7 @@ runs:
     # composite if they need cred-bearing R2 fallback (composite has no secrets).
     - name: Restore Rust FFI Binaries
       if: inputs.with-rust-ffi == 'true'
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: |
           rust/shard-router/shard-router-rust.node

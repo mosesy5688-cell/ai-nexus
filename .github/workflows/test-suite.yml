@@ -11,7 +11,7 @@ jobs:
   iron-gates:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: CES Check (Constitution)
         run: npm run ces-check
@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: iron-gates
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
