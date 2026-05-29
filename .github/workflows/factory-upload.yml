@@ -51,7 +51,7 @@ jobs:
       upstream-run-id: ${{ steps.get-id.outputs.id }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Verify Upstream Conclusion
         if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
         run: |
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
@@ -85,7 +85,7 @@ jobs:
           [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Complete Cycle Output from Cache
         id: cache-output-mesh
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
@@ -100,7 +100,7 @@ jobs:
       - name: Restore Baked Profile Shards from Cache (V27.52)
         id: cache-baked-restore
         if: ${{ !inputs.force_fresh }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/mesh/profile-shards/
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -127,7 +127,7 @@ jobs:
       # gives soft hit on next dispatch. Save runs ONLY when fresh compute happened.
       - name: Save Baked Profile Shards to Cache
         if: success() && steps.detect-baked.outputs.skip_compute != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: output/cache/mesh/profile-shards/
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -143,7 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -155,7 +155,7 @@ jobs:
           [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output from Cache
         id: cache-output-fusion
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
@@ -187,7 +187,7 @@ jobs:
           echo "✅ Cycle output complete: $ARTICLES_COUNT articles, $RANKINGS_COUNT rankings"
       - name: Restore Baked Profile Shards from Cache
         id: cache-baked
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/mesh/profile-shards/
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -204,7 +204,7 @@ jobs:
           fi
       - name: Restore Global Registry Cache
         id: cache-global-registry
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             cache/global-registry.json.zst
@@ -272,7 +272,7 @@ jobs:
       - name: Restore Fused Cache (V27.52)
         id: cache-fused-restore
         if: ${{ !inputs.force_fresh }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -360,7 +360,7 @@ jobs:
       # ran, skips when restore-keys hit and Verify gates already validated cached data).
       - name: Save Fused Entities to Cache
         if: success() && steps.detect-fused.outputs.skip_compute != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -373,14 +373,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
           with-rust-ffi: 'false'
       - name: Restore Fused Entities from intra-cache
         id: cache-restore-fused
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -413,7 +413,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -425,7 +425,7 @@ jobs:
           [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output (Trending Context)
         id: cache-output-vfs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
@@ -461,7 +461,7 @@ jobs:
           # V27.38: trends-summary.json.zst fallback removed (V27.36 paused generation)
       - name: Restore Fused Entities
         id: cache-fused
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -488,7 +488,7 @@ jobs:
           node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
       - name: Restore Embedding Shards (Cache)
         id: cache-embedding
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/embeddings/
           key: embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -522,7 +522,7 @@ jobs:
       # master-fusion-compute (lines 190-204) which already has it.
       - name: Restore Baked Profile Shards from Cache (V27.67)
         id: cache-mesh-profile-vfs
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/mesh/profile-shards/
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -601,7 +601,7 @@ jobs:
       - name: Restore VFS Pack Output for Skip Detection (V27.52)
         id: cache-vfs-pack-restore
         if: ${{ !inputs.force_fresh }}
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             output/data/
@@ -637,7 +637,7 @@ jobs:
         run: node scripts/factory/verify-shard-meta-consistency.js
       - name: Save Embedding Shards to Cache
         if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: output/cache/embeddings/
           key: embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -683,7 +683,7 @@ jobs:
       # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
       - name: Save VFS Pack Output to Cache
         if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             output/data/
@@ -703,14 +703,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
           with-rust-ffi: 'false'
       - name: Restore VFS Pack Output from intra-cache
         id: cache-restore-vfs-pack
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             output/data/
@@ -747,7 +747,7 @@ jobs:
           done
       - name: Save VFS Assets to Cache
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             output/data/
@@ -757,7 +757,7 @@ jobs:
           key: intra-4-4-vfs-assets-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
       - name: Save RSS Feeds to Cache
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: output/rss/
           key: intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -771,7 +771,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
@@ -783,7 +783,7 @@ jobs:
           [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output from Cache
         id: cache-output-upload
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
@@ -793,7 +793,7 @@ jobs:
         run: |
           node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
       - name: Restore Upload Manifest from Cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/last-upload-manifest.json
           key: r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -802,7 +802,7 @@ jobs:
             r2-upload-manifest-
       - name: Restore Fused Entities from Cache
         id: cache-fused-upload
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -828,7 +828,7 @@ jobs:
           mkdir -p output/cache/fused
           node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
       - name: Restore Global Registry Cache (V22.8 Cycle)
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             cache/global-registry.json.zst
@@ -837,7 +837,7 @@ jobs:
           restore-keys: global-registry-
       - name: Restore FNI History Cache
         id: cache-fni-history
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             cache/fni-history.json.zst
@@ -858,7 +858,7 @@ jobs:
           node scripts/factory/r2-workflow-cli.js restore-file meta/backup/fni-history.json.zst cache/fni-history.json.zst || true
       - name: Restore Daily Accumulator Cache
         id: cache-daily-accum
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             cache/daily-accum.json.zst
@@ -883,7 +883,7 @@ jobs:
           echo "Fused shards present: $FUSED"
       - name: Restore Baked Profile Shards from Cache
         id: cache-baked-upload
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/cache/mesh/profile-shards/
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -899,7 +899,7 @@ jobs:
           fi
       - name: Restore VFS Assets from Cache
         id: cache-vfs-assets
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             output/data/
@@ -939,7 +939,7 @@ jobs:
             echo "✅ output/data/ has $META_COUNT meta-NN.db files from cache (no R2 fallback needed)"
           fi
       - name: Restore RSS Feeds from Cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: output/rss/
           key: intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
@@ -1038,7 +1038,7 @@ jobs:
         run: node scripts/factory/r2-upload-s3.js
       - name: Save Upload Manifest to Cache
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: output/cache/last-upload-manifest.json
           key: r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}

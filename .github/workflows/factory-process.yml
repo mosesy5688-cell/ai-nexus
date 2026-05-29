@@ -34,7 +34,7 @@ jobs:
       upstream-run-id: ${{ steps.get-run-id.outputs.run_id }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Verify Upstream Conclusion
         if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
         run: |
@@ -67,12 +67,12 @@ jobs:
     timeout-minutes: 330
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+        uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: '22', cache: 'npm' }
       - run: npm ci
       - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             rust/shard-router/shard-router-rust.node
@@ -123,7 +123,7 @@ jobs:
 
       - name: Restore Entity Data from Cache
         id: cache-harvest
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             data/merged_shard_*.json.zst
@@ -181,7 +181,7 @@ jobs:
           echo "🔪 Consolidating natural shards → 20 processing shards..."
           node scripts/factory/split-registry.js
       - name: Save Prepared Data to Cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/
@@ -211,10 +211,10 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -224,7 +224,7 @@ jobs:
 
       # V25.8.3: Restore Rust FFI binaries for shard processing
       - name: Restore Rust FFI Binaries
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             rust/shard-router/shard-router-rust.node
@@ -253,7 +253,7 @@ jobs:
       # V22.8: Restore from cache (replaces download-artifact for privacy)
       - name: Restore Entity Data from Cache
         id: cache-prepared
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             data/
@@ -311,7 +311,7 @@ jobs:
       # Restore entity checksums for incremental processing
       - name: Restore Entity Checksums
         id: cache-checksums
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache/entity-checksums.json.zst
           key: entity-checksums-${{ github.run_id }}
@@ -349,7 +349,7 @@ jobs:
 
       # V22.8: Save shard to cache (replaces upload-artifact for privacy)
       - name: Save Shard to Cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: artifacts/shard-${{ matrix.shard }}.json.zst
           key: shard-${{ matrix.shard }}-${{ github.run_id }}
@@ -375,9 +375,9 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -407,7 +407,7 @@ jobs:
           fi
 
       - name: Save Shards to Cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: output/shards
           key: cycle-${{ github.run_id }}-shards
@@ -420,11 +420,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # V22.8: Restore shard-0 from cache for checksum data
       - name: Restore Shard 0 from Cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: artifacts/shard-0.json.zst
           key: shard-0-${{ github.run_id }}

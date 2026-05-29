@@ -71,13 +71,13 @@ jobs:
     
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust Dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -92,7 +92,7 @@ jobs:
         run: cargo build --release
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
@@ -107,7 +107,7 @@ jobs:
 
       # V4.1: Restore from Cache (Not Artifact)
       - name: Restore Cycle Output from Cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ./registry-context/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
@@ -197,7 +197,7 @@ jobs:
           
       # V17.0: Isolated cache key to prevent pollution of global-registry-v2 prefix
       - name: Save Image Processor Progress
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: cache/
           key: image-processor-v2-${{ github.run_id }}

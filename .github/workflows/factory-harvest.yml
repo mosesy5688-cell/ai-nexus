@@ -43,8 +43,8 @@ jobs:
     timeout-minutes: 330
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -61,7 +61,7 @@ jobs:
           
       - name: Solidify HuggingFace Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/huggingface_master.ndjson
           key: harvest-raw-huggingface-${{ github.run_id }}
@@ -90,8 +90,8 @@ jobs:
     timeout-minutes: 330
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -112,7 +112,7 @@ jobs:
           
       - name: Solidify GitHub Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/github_master.ndjson
           key: harvest-raw-github-${{ github.run_id }}
@@ -141,8 +141,8 @@ jobs:
     timeout-minutes: 300
     
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -174,7 +174,7 @@ jobs:
 
       - name: Solidify Academic Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/*_master.ndjson
           key: harvest-raw-academic-${{ github.run_id }}
@@ -205,8 +205,8 @@ jobs:
     timeout-minutes: 330
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
@@ -235,7 +235,7 @@ jobs:
       # V14.5.2: Setup Python for Kaggle models sidecar (REST API deprecated)
       - name: Setup Python for Kaggle
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           
@@ -304,7 +304,7 @@ jobs:
 
       - name: Solidify Ecosystem Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: data/*_master.ndjson
           key: harvest-raw-ecosystem-${{ github.run_id }}
@@ -344,7 +344,7 @@ jobs:
       # 4 sub-harvest jobs each only handle 1 batch (no disk pressure), but Merge &
       # Upload aggregates all 4 → ENOSPC. Other heavy jobs in 3/4 + 4/4 already use
       # this composite with aggressive-disk-cleanup=true; sibling consistency fix.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'true'
@@ -377,28 +377,28 @@ jobs:
         run: mkdir -p data/
       - name: Recover Solidified Batches (Cache Fallback)
         if: github.event.inputs.skip_harvest == 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/huggingface_master.ndjson
           key: harvest-raw-huggingface-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-huggingface-
       - name: Recover Solidified Batches (GitHub)
         if: github.event.inputs.skip_harvest == 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/github_master.ndjson
           key: harvest-raw-github-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-github-
       - name: Recover Solidified Batches (Academic)
         if: github.event.inputs.skip_harvest == 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/*_master.ndjson
           key: harvest-raw-academic-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-academic-
       - name: Recover Solidified Batches (Ecosystem)
         if: github.event.inputs.skip_harvest == 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/*_master.ndjson
           key: harvest-raw-ecosystem-${{ github.event.inputs.source_run_id }}
@@ -407,25 +407,25 @@ jobs:
       # V22.8: Restore current batch data from cache (replaces download-artifact for privacy)
       - name: Restore HuggingFace Batch (Current Run)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/huggingface_master.ndjson
           key: harvest-raw-huggingface-${{ github.run_id }}
       - name: Restore GitHub Batch (Current Run)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/github_master.ndjson
           key: harvest-raw-github-${{ github.run_id }}
       - name: Restore Academic Batch (Current Run)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/*_master.ndjson
           key: harvest-raw-academic-${{ github.run_id }}
       - name: Restore Ecosystem Batch (Current Run)
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: data/*_master.ndjson
           key: harvest-raw-ecosystem-${{ github.run_id }}
@@ -463,7 +463,7 @@ jobs:
           ls -la data/raw_batch_*.json 2>/dev/null || echo "⚠️ No batch files found in data/"
           
       - name: Restore FNI History
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             cache/fni-history.json.zst
@@ -473,7 +473,7 @@ jobs:
             fni-history-
 
       - name: Restore Daily Accumulator
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             cache/daily-accum.json.zst
@@ -483,7 +483,7 @@ jobs:
             daily-accum-
 
       - name: Restore Checksums
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             cache/entity-checksums.json.zst
@@ -495,7 +495,7 @@ jobs:
       # V4.1: Restore global registry (Immutable Key + Prefix Match)
       - name: Restore Global Registry (Cache-First)
         id: cache-registry
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             cache/global-registry.json.zst
@@ -560,7 +560,7 @@ jobs:
 
       # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       - name: Save Entity Data to Cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             data/merged_shard_*.json.zst
