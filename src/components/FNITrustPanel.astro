@@ -53,7 +53,7 @@ const formattedDate = fniCalculatedAt
   <div class="flex items-center justify-between mb-6">
     <h3 class="text-sm font-black text-white flex items-center gap-2 uppercase tracking-tighter">
       <span class="opacity-60">⚖️</span>
-      Nexus Index <span class="text-[10px] font-bold text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded ml-1">V2.0</span>
+      Free2AITools Nexus Index <span class="text-[10px] font-bold text-zinc-500 bg-white/5 px-1.5 py-0.5 rounded ml-1">V2.0</span>
     </h3>
     <div class="flex items-center gap-4">
       <a href="/methodology" class="text-[9px] font-black text-[#bdc3ff] hover:underline uppercase tracking-widest">
@@ -68,15 +68,9 @@ const formattedDate = fniCalculatedAt
   <div class="grid md:grid-cols-2 gap-8">
     <!-- Left: Score & Radar -->
     <div class="text-center md:text-left">
-      <!-- Big Score -->
-      <div class="flex flex-col mb-6">
-        <div class="text-6xl font-black text-white tabular-nums tracking-tighter leading-none">
-          {fniScore.toFixed(1)}
-        </div>
-        <div class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mt-2">
-          {fniPillarsSynthesized ? 'ESTIMATED IMPACT TIER' : `TOP ${Math.max(1, 100 - Math.round(fniPercentile))}% SYSTEM IMPACT`}
-        </div>
-      </div>
+      {/* V27.83: big-score block removed -- score already displayed in hero
+          EntityMetricGrid. FNITrustPanel keeps the unique pillar bars,
+          commentary, and Free2AITools verification block below. */}
 
       <!-- V2.0 Bar Chart: S/A/P/R/Q -->
       <div class="space-y-4 text-left">

@@ -1,17 +1,20 @@
 ---
 /**
  * OnboardingTour.astro
- * 
- * Phase 12: New User Onboarding Component
- * Shows a quick tour for first-time visitors
- * Uses localStorage to track if user has seen the tour
- * 
- * @component
+ *
+ * V27.83: server-side route allow-list. Modal only renders on homepage +
+ * listing/ranking pages where onboarding helps. Detail pages (/model/*,
+ * /dataset/*, /paper/*, /agent/*, /space/*, /tool/*, /prompt/*) get
+ * traffic from HF Space / search engines and are skipped. The Header
+ * Guide button still calls window.openOnboardingTour(); when the modal
+ * is absent, openModal() redirects to /knowledge#fni so the click
+ * doesn't silently no-op.
  */
-
-// No props needed — opened via window.openOnboardingTour()
+const TOUR_ROUTES = ['/', '/models', '/datasets', '/papers', '/agents', '/spaces', '/tools', '/prompts', '/rankings'];
+const showTour = TOUR_ROUTES.includes(Astro.url.pathname);
 ---
 
+{showTour && (
 <!-- Onboarding Modal -->
 <div id="onboarding-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
   <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
@@ -118,6 +121,7 @@
     </div>
   </div>
 </div>
+)}
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
@@ -141,9 +145,13 @@
     }
 
     function openModal() {
+      // V27.83: on detail pages the modal is server-side stripped.
+      // Redirect to the FNI knowledge anchor instead of silently no-op.
+      if (!modal) { window.location.href = '/knowledge#fni'; return; }
       currentStep = 1;
       updateStep();
-      if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
     }
 
     function closeModal() {
