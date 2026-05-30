@@ -6,6 +6,7 @@ import { saveRegistryShard } from './registry-saver.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 import { SHARD_SIZE } from './registry-utils.js';
+import { writeIndexNowDelta } from './indexnow-delta.js';
 
 export class RegistryManager {
     constructor() {
@@ -13,6 +14,8 @@ export class RegistryManager {
         this.db = null;
         this.count = 0;
         this.didLoadFromStorage = false;
+        // V27.89: ids newly added across this session's batches → IndexNow true-delta.
+        this.sessionAddedIds = [];
     }
 
     /**
@@ -110,6 +113,7 @@ export class RegistryManager {
                 } else {
                     finalData = { ...e, id, status: 'active', _last_seen: now };
                     added++;
+                    this.sessionAddedIds.push({ id, type: e.type });
                 }
 
                 upsert.run({
@@ -185,6 +189,9 @@ export class RegistryManager {
         }
 
         console.log(`  [REGISTRY] Saved ${shardIndex} shards.`);
+
+        // V27.89: emit the IndexNow true-delta manifest (new-this-cycle page URLs).
+        await writeIndexNowDelta(this.sessionAddedIds);
 
         // Cleanup
         this.db.close();

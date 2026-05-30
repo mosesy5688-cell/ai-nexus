@@ -1,25 +1,24 @@
 /**
- * IndexNow Incremental Push (V27.84)
+ * IndexNow Incremental Push (V27.89 — true-delta manifest)
  *
  * Notifies IndexNow-participating engines (Bing / Yandex / Seznam / Naver; NOT Google)
- * about recently-changed pages, so they re-crawl without waiting for sitemap polling.
+ * about pages that genuinely changed this cycle.
  *
- * URL source: the page URLs the frozen V19.2 sitemap generator already emits into
- * output/sitemaps/sitemap-*.xml, filtered by recent <lastmod>. (NOT purge-list.json,
- * which is R2 asset-path cache invalidation on the cdn. subdomain, not crawlable pages.)
+ * URL source: state/indexnow-delta.json — an array of page URLs emitted by the harvest
+ * (merge-batches.js) for entities NEW this cycle, restored from R2 by the 4/4 job.
+ * This replaces V27.84's sitemap <lastmod> scan, which submitted the whole catalog
+ * (~459K URLs/cycle) because ingestion re-stamps last_modified catalog-wide — a quota/
+ * blacklist risk. Deriving the delta at the change-memory layer is the correct source.
  *
- * Design: O(1) streaming line-parse (no XML DOM), zero non-stdlib deps. Fully
- * non-blocking — every failure path exits 0 so it can never stall the daily cycle.
- * Verification key is read from public/f2ai_indexnow_verify_key.txt FILE CONTENT
- * (public by design; the engine fetches it to verify ownership). Skip-if-absent.
+ * Design: zero non-stdlib deps, fully non-blocking — every failure path exits 0 so it
+ * can never stall the daily cycle. Verification key read from the public key file
+ * (public by design; the engine fetches it to verify ownership). Skip-if-absent/empty.
  *
  * Flags: --dry-run (or INDEXNOW_DRY_RUN=1) prints the payload instead of posting.
- * Env:   INDEXNOW_LOOKBACK_HOURS (default 48).
  */
 
 import fs from 'fs';
 import path from 'path';
-import readline from 'readline';
 import https from 'https';
 import { fileURLToPath } from 'url';
 
@@ -28,9 +27,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HOST = 'free2aitools.com';
 const KEY_FILENAME = 'f2ai_indexnow_verify_key.txt';
 const KEY_FILE_PATH = path.join(__dirname, '../../public/', KEY_FILENAME);
-const SITEMAPS_DIR = path.join(__dirname, '../../output/sitemaps');
+const DELTA_MANIFEST_PATH = path.join(__dirname, '../../state/indexnow-delta.json');
 const KEY_LOCATION = `https://${HOST}/${KEY_FILENAME}`;
-const LOOKBACK_HOURS = parseFloat(process.env.INDEXNOW_LOOKBACK_HOURS || '48');
 const BATCH_SIZE = 10000;
 const DRY_RUN = process.argv.includes('--dry-run') || process.env.INDEXNOW_DRY_RUN === '1';
 
@@ -78,66 +76,36 @@ function postBatch(key, urlList) {
     });
 }
 
-async function parseSitemapFile(filePath, cutoffTime, urls) {
-    if (!fs.existsSync(filePath)) return;
-    const fileStream = fs.createReadStream(filePath);
-    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
-
-    let currentLoc = null;
-    let currentLastMod = null;
-
-    for await (const line of rl) {
-        const locMatch = line.match(/<loc>(.*?)<\/loc>/);
-        const lastmodMatch = line.match(/<lastmod>(.*?)<\/lastmod>/);
-        if (locMatch) currentLoc = locMatch[1].trim();
-        if (lastmodMatch) currentLastMod = lastmodMatch[1].trim();
-        if (line.includes('</url>')) {
-            if (currentLoc && currentLastMod) {
-                const modTime = new Date(currentLastMod).getTime();
-                if (!isNaN(modTime) && modTime >= cutoffTime) {
-                    urls.push(currentLoc);
-                }
-            }
-            currentLoc = null;
-            currentLastMod = null;
-        }
-    }
-}
-
 async function run() {
     if (!fs.existsSync(KEY_FILE_PATH)) {
         console.log('[IndexNow] Invariant verify key file absent. Gating execution smoothly.');
         process.exit(0);
     }
-
     const key = fs.readFileSync(KEY_FILE_PATH, 'utf8').trim();
     if (!key || !/^[a-z0-9]{32,40}$/i.test(key)) {
         console.error('[IndexNow] Key failed sanity pattern matching. Aborting script.');
         process.exit(0);
     }
 
-    if (!fs.existsSync(SITEMAPS_DIR)) {
-        console.log('[IndexNow] Sitemaps build directory missing. Zero mutations to push.');
+    if (!fs.existsSync(DELTA_MANIFEST_PATH)) {
+        console.log('[IndexNow] True-delta manifest absent. Nothing to push this cycle.');
         process.exit(0);
     }
 
-    const files = fs.readdirSync(SITEMAPS_DIR)
-        .filter((f) => f.startsWith('sitemap-') && f.endsWith('.xml'));
-    const urls = [];
-    const cutoffTime = Date.now() - (LOOKBACK_HOURS * 60 * 60 * 1000);
-    console.log(`[IndexNow] Analyzing ${files.length} sitemap shards for lookback: ${LOOKBACK_HOURS}h`);
-
-    for (const file of files) {
-        await parseSitemapFile(path.join(SITEMAPS_DIR, file), cutoffTime, urls);
+    let urls;
+    try {
+        urls = JSON.parse(fs.readFileSync(DELTA_MANIFEST_PATH, 'utf8') || '[]');
+    } catch (err) {
+        console.error(`[IndexNow] Manifest parse failed: ${err.message}. Safe exit.`);
+        process.exit(0);
     }
-
-    if (urls.length === 0) {
-        console.log('[IndexNow] Zero mutated pages found within lookback window. Execution clean.');
+    if (!Array.isArray(urls) || urls.length === 0) {
+        console.log('[IndexNow] Zero changed pages in manifest this cycle. Execution clean.');
         process.exit(0);
     }
 
     const uniqueUrls = [...new Set(urls)];
-    console.log(`[IndexNow] Discovered ${uniqueUrls.length} unique filtered changes to dispatch.`);
+    console.log(`[IndexNow] True-delta: ${uniqueUrls.length} changed page URLs to dispatch.`);
 
     for (let i = 0; i < uniqueUrls.length; i += BATCH_SIZE) {
         const batch = uniqueUrls.slice(i, i + BATCH_SIZE);
