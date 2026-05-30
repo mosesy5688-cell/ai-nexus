@@ -595,6 +595,8 @@ jobs:
         run: |
           [ -f "output/data/params-cache.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-file output/data/params-cache.json.zst state/params-cache.json.zst || true
           [ -f "output/data/benchmark-cache.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-file output/data/benchmark-cache.json.zst state/benchmark-cache.json.zst || true
+          # V27.89: IndexNow true-delta manifest (new-page URLs this cycle) for the 4/4 push step.
+          [ -f "output/data/indexnow-delta.json" ] && node scripts/factory/r2-workflow-cli.js upload-file output/data/indexnow-delta.json state/indexnow-delta.json || true
       # V25.8 §6.1: Dual-write harvest output to R2 (cross-workflow resilience)
       # P0-R4: Removed continue-on-error — this is the primary R2 backup for harvest data
       - name: Backup Harvest Cycle to R2

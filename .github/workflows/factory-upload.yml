@@ -1145,17 +1145,25 @@ jobs:
         run: node scripts/factory/probe-vfs.js
       - name: Data Quality Check
         run: node scripts/factory/data-quality-check.js
-      # V27.84: IndexNow incremental push. Runs only after upload + purge + drain +
-      # health probe + quality check all pass, so engines are pinged for a verified-live
-      # deploy. Non-blocking (continue-on-error) — an IndexNow hiccup never fails the cycle.
-      # URL source = freshly generated output/sitemaps/sitemap-*.xml (recent <lastmod>),
-      # NOT purge-list.json (which is R2 asset paths, not crawlable pages).
-      - name: Push Incremental Deltas via IndexNow
+      # V27.89: restore the true-delta manifest (new-page URLs this cycle) emitted by the
+      # 1/4 harvest. Replaces V27.84's catalog-wide sitemap-lastmod scan (459K URLs/cycle).
+      - name: Restore IndexNow Delta Manifest from R2
         continue-on-error: true
         env:
-          INDEXNOW_LOOKBACK_HOURS: '48'
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          echo "=== V27.84 IndexNow Sync Protocol ==="
+          mkdir -p state
+          node scripts/factory/r2-workflow-cli.js restore-file state/indexnow-delta.json state/indexnow-delta.json || echo "⚠️ No IndexNow delta manifest on R2 — push will safe-skip"
+      # V27.84/V27.89: IndexNow push. Runs only after upload + purge + drain + health probe +
+      # quality check all pass, so engines are pinged for a verified-live deploy. Non-blocking.
+      # URL source = state/indexnow-delta.json (entities NEW this cycle), NOT sitemap lastmod.
+      - name: Push Incremental Deltas via IndexNow
+        continue-on-error: true
+        run: |
+          echo "=== V27.89 IndexNow True-Delta Push ==="
           node scripts/factory/indexnow-push.js
       - name: Trigger Health Check
         env:
