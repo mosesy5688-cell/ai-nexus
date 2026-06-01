@@ -31,11 +31,16 @@ const {
   fniPillarsSynthesized,
   paramsB,
   contextLength,
-  downloads = 0,
+  downloads,
   svgPath,
   trendColor,
   trendPercent
 } = Astro.props;
+// V27.92 Honest-contract: treat only a real positive value as a genuine downloads metric.
+const downloadsNum = Number(downloads) || 0;
+const hasDownloads = downloadsNum > 0;
+// Trend is fabricated as "0.0" when there is no trend_7d history; only show a measured movement.
+const hasTrend = Number(trendPercent) !== 0;
 const fniScore = Number(_fniScore) || 0;
 const fniPercentile = Number(_fniPercentile) || 0;
 const fniS = Number(_fniS) || 50;
@@ -51,7 +56,10 @@ const fniQ = Number(_fniQ) || 0;
     <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest whitespace-nowrap">Free2AITools Nexus Index</span>
     <div class="flex items-baseline gap-2">
        <span class="text-4xl font-black font-mono text-white leading-none tracking-tighter tabular-nums">{fniScore.toFixed(1)}</span>
-       <span class="text-[10px] font-black font-mono text-rose-600">Top {100 - fniPercentile}%</span>
+       {/* V27.92 Honest-contract: only show "Top X%" for a real computed percentile (>0). 0/absent = no rank, hide. */}
+       {fniPercentile > 0 && (
+         <span class="text-[10px] font-black font-mono text-rose-600">Top {100 - fniPercentile}%</span>
+       )}
     </div>
   </div>
 
@@ -129,23 +137,33 @@ const fniQ = Number(_fniQ) || 0;
   <!-- Vital Stats -->
   <div class="bg-[var(--bg-surface)] p-2 flex flex-col justify-center md:col-span-2 lg:col-span-2">
      <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-2">Vital Performance</span>
-     <div class="flex items-center gap-6">
-        <div class="flex flex-col">
-           <span class="text-[14px] font-black font-mono text-white tabular-nums">
-             {downloads >= 1000000 ? (downloads / 1000000).toFixed(1) + 'M' : downloads >= 1000 ? (downloads / 1000).toFixed(1) + 'K' : downloads?.toLocaleString()}
-           </span>
-           <span class="text-[8px] text-zinc-500 uppercase font-black">DL / 30D</span>
-        </div>
-        <div class="flex-1 max-w-[80px]">
-           {svgPath && (
-             <svg width="80" height="24" viewBox="0 0 80 32" class="opacity-100">
-               <path d={svgPath} fill="none" stroke="#bdc3ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
-             </svg>
-           )}
-        </div>
-        <span class={`text-[10px] font-black font-mono ${trendColor} tabular-nums`}>
-          {trendPercent}%
-        </span>
-     </div>
+     {/* V27.92 Honest-contract: only render real metrics. Hide DL tile when no real downloads;
+         hide sparkline/trend when no real trend. Show an honest dash if nothing measured. */}
+     {(hasDownloads || svgPath || hasTrend) ? (
+       <div class="flex items-center gap-6">
+          {hasDownloads && (
+            <div class="flex flex-col">
+               <span class="text-[14px] font-black font-mono text-white tabular-nums">
+                 {downloadsNum >= 1000000 ? (downloadsNum / 1000000).toFixed(1) + 'M' : downloadsNum >= 1000 ? (downloadsNum / 1000).toFixed(1) + 'K' : downloadsNum.toLocaleString()}
+               </span>
+               <span class="text-[8px] text-zinc-500 uppercase font-black">DL / 30D</span>
+            </div>
+          )}
+          {svgPath && (
+            <div class="flex-1 max-w-[80px]">
+              <svg width="80" height="24" viewBox="0 0 80 32" class="opacity-100">
+                <path d={svgPath} fill="none" stroke="#bdc3ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+          )}
+          {hasTrend && (
+            <span class={`text-[10px] font-black font-mono ${trendColor} tabular-nums`}>
+              {trendPercent}%
+            </span>
+          )}
+       </div>
+     ) : (
+       <span class="text-[14px] font-black font-mono text-zinc-600">&mdash;</span>
+     )}
   </div>
 </div>

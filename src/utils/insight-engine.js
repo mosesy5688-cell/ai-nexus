@@ -95,7 +95,8 @@ export function getQuickInsights(entity, type) {
             insights.push({ label: 'FNI Score', value: entity.fni_score, highlight: true, badge: 'Logic Audit' });
         }
         insights.push({ label: 'Tools', value: entity.tools_count || '-', badge: entity.tools_count > 5 ? 'Power' : null });
-        insights.push({ label: 'Language', value: entity.language || 'Python', highlight: true });
+        // V27.92 Honest-contract: don't default agent language to "Python" when unknown.
+        insights.push({ label: 'Language', value: entity.language || '-', highlight: !!entity.language });
         insights.push({ label: 'Stars', value: formatMetricNumber(entity.stars || entity.github_stars), badge: (entity.stars > 1000) ? 'Popular' : null });
         insights.push({ label: 'Capability', value: entity.verified ? 'Verified' : 'Community', highlight: entity.verified });
         if (entity.license) insights.push({ label: 'License', value: entity.license });
@@ -107,31 +108,43 @@ export function getQuickInsights(entity, type) {
         }
         insights.push({ label: 'Size', value: entity.size_gb ? `${entity.size_gb} GB` : '-', badge: entity.size_gb > 100 ? 'Large' : null });
         insights.push({ label: 'Rows', value: formatMetricNumber(entity.rows) });
-        insights.push({ label: 'Format', value: entity.format || 'Parquet', highlight: true });
+        // V27.92 Honest-contract: don't default dataset format to "Parquet" when unknown.
+        if (entity.format) insights.push({ label: 'Format', value: entity.format, highlight: true });
         insights.push({ label: 'Tokens', value: entity.token_count ? formatMetricNumber(entity.token_count) : '-', badge: entity.token_count > 1e12 ? '1T+' : null });
     }
 
     else if (safeType === 'paper') {
-        insights.push({ label: 'Citations', value: formatMetricNumber(entity.citations || entity.citation_count), highlight: true, badge: 'High Impact' });
-        insights.push({ label: 'Year', value: entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || '2024') });
-        insights.push({ label: 'Venue', value: entity.venue || 'ArXiv', badge: entity.venue ? 'Peer-Reviewed' : null });
+        // V27.92 Honest-contract: only badge "High Impact" with a real citation count; only show
+        // Year when a real date/year exists; only show Venue when the venue is actually known.
+        const citations = Number(entity.citations || entity.citation_count) || 0;
+        insights.push({
+            label: 'Citations',
+            value: citations > 0 ? formatMetricNumber(citations) : '-',
+            highlight: citations > 0,
+            badge: citations >= 100 ? 'High Impact' : null
+        });
+        const year = entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || null);
+        if (year) insights.push({ label: 'Year', value: year });
+        if (entity.venue) insights.push({ label: 'Venue', value: entity.venue, badge: 'Peer-Reviewed' });
 
         const percentile = entity.fni_percentile || 0;
-        insights.push({ label: 'FNI Rank', value: percentile > 0 ? `Top ${100 - percentile}%` : '-', highlight: true });
+        if (percentile > 0) insights.push({ label: 'FNI Rank', value: `Top ${100 - percentile}%`, highlight: true });
     }
 
     else if (safeType === 'space') {
-        insights.push({ label: 'SDK', value: entity.sdk || 'Gradio', highlight: true });
-        insights.push({ label: 'Hardware', value: entity.hardware || 'CPU', badge: entity.hardware?.includes('gpu') ? 'GPU Accel' : null });
-        insights.push({ label: 'Status', value: entity.runtime?.stage || 'Running', highlight: true });
+        // V27.92 Honest-contract: don't fabricate SDK/Hardware/Status when no real runtime data.
+        if (entity.sdk) insights.push({ label: 'SDK', value: entity.sdk, highlight: true });
+        if (entity.hardware) insights.push({ label: 'Hardware', value: entity.hardware, badge: entity.hardware?.includes('gpu') ? 'GPU Accel' : null });
+        if (entity.runtime?.stage) insights.push({ label: 'Status', value: entity.runtime.stage, highlight: true });
         insights.push({ label: 'Activity', value: formatMetricNumber(entity.likes), badge: entity.likes > 100 ? 'Active' : null });
     }
 
     else if (safeType === 'tool') {
-        insights.push({ label: 'Lang', value: entity.language || '-', highlight: true });
-        insights.push({ label: 'Stars', value: formatMetricNumber(entity.stars || entity.github_stars), badge: 'Open Source' });
-        insights.push({ label: 'Version', value: entity.version || 'v1.0.0' });
-        insights.push({ label: 'Reliability', value: entity.fni_score > 80 ? 'Stable' : 'Alpha', highlight: true });
+        // V27.92 Honest-contract: don't fabricate version "v1.0.0" or imply "Open Source" without data.
+        insights.push({ label: 'Lang', value: entity.language || '-', highlight: !!entity.language });
+        insights.push({ label: 'Stars', value: formatMetricNumber(entity.stars || entity.github_stars), badge: entity.license ? 'Open Source' : null });
+        if (entity.version) insights.push({ label: 'Version', value: entity.version });
+        if (entity.fni_score > 0) insights.push({ label: 'Reliability', value: entity.fni_score > 80 ? 'Stable' : 'Alpha', highlight: true });
     }
 
     return insights;

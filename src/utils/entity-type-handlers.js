@@ -94,13 +94,15 @@ export function handleGenericType(hydrated, entity, type, meta, derivedName) {
     } else if (type === 'agent' || type === 'tool') {
         hydrated.github_stars = entity.github_stars || entity.stars || meta.stars || meta.stargazers_count || meta.extended?.stars;
         hydrated.github_forks = entity.github_forks || entity.forks || meta.forks || meta.forks_count || meta.extended?.forks;
-        hydrated.language = entity.language || meta.language || meta.extended?.language || meta.info?.language || 'Python';
-        hydrated.version = entity.version || meta.version || meta.extended?.version || '1.0.0';
+        // V27.92 Honest-contract: do not fabricate language/version when no real source provides them.
+        hydrated.language = entity.language || meta.language || meta.extended?.language || meta.info?.language || null;
+        hydrated.version = entity.version || meta.version || meta.extended?.version || null;
         hydrated.framework = entity.framework || meta.framework || meta.extended?.framework || meta.info?.framework;
     } else if (type === 'space') {
-        hydrated.sdk = entity.sdk || meta.sdk || meta.extended?.sdk || meta.sdk_version || 'gradio';
-        hydrated.hardware = entity.hardware || meta.hardware || meta.extended?.hardware || 'CPU';
-        hydrated.running_status = entity.running_status || meta.running_status || meta.extended?.runtime_stage || 'RUNNING';
+        // V27.92 Honest-contract: do not fabricate sdk/hardware/runtime status when no real source provides them.
+        hydrated.sdk = entity.sdk || meta.sdk || meta.extended?.sdk || meta.sdk_version || null;
+        hydrated.hardware = entity.hardware || meta.hardware || meta.extended?.hardware || null;
+        hydrated.running_status = entity.running_status || meta.running_status || meta.extended?.runtime_stage || null;
     }
 
     if (!hydrated.source && hydrated.id) {

@@ -66,16 +66,18 @@ if (type === 'model') {
     });
   }
 
-  if (lang === 'javascript' || lang === 'typescript' || entity.tags?.includes('npm')) {
+  // V27.92 Honest-contract: only emit an install command when we can derive a real package name.
+  // Do not emit a non-functional `npm/pip install package-name` literal.
+  if (packageName && (lang === 'javascript' || lang === 'typescript' || entity.tags?.includes('npm'))) {
     commands.push({
       label: 'NPM Install',
-      cmd: `npm install ${packageName || 'package-name'}`,
+      cmd: `npm install ${packageName}`,
       icon: '📦'
     });
-  } else if (lang === 'python' || entity.tags?.includes('pip') || type === 'agent') {
+  } else if (packageName && (lang === 'python' || entity.tags?.includes('pip') || type === 'agent')) {
     commands.push({
       label: 'PIP Install',
-      cmd: `pip install ${packageName || 'package-name'}`,
+      cmd: `pip install ${packageName}`,
       icon: '🐍'
     });
   }
@@ -99,8 +101,10 @@ if (repoUrl && repoUrl.includes('github.com') && commands.length < 2) {
     });
 }
 
-// Fallback: ensure models always have at least basic commands
-if (type === 'model' && commands.length === 0) {
+// V27.92 Honest-contract: only emit the HF fallback for genuinely HF-sourced models with a real id.
+// Non-HF (e.g. GitHub) models must not get a huggingface-cli command that does not work.
+const isHfModel = entity?.source === 'huggingface' || repoUrl.includes('huggingface.co');
+if (type === 'model' && commands.length === 0 && isHfModel && cleanId) {
     commands.push(
       { label: 'HF Download', cmd: `huggingface-cli download ${cleanId}`, icon: '🤗' },
       { label: 'Install Lib', cmd: `pip install -U transformers`, icon: '📦' }

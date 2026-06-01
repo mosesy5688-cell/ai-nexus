@@ -73,8 +73,9 @@ if (type === 'model') {
   }
 } else if (type === 'agent' || type === 'tool') {
   hardwareSpecs.push({ label: 'GitHub Stars', value: (entity?.github_stars || entity?.stars || entity?.meta?.extended?.stars)?.toLocaleString() || '-', highlight: true });
-  hardwareSpecs.push({ label: 'Language', value: entity?.language || entity?.meta?.extended?.language || 'Python' });
-  hardwareSpecs.push({ label: 'Version', value: entity?.version || entity?.meta?.extended?.version || 'v1.0.0' });
+  // V27.92 Honest-contract: honest dash instead of fabricated Python / v1.0.0.
+  hardwareSpecs.push({ label: 'Language', value: entity?.language || entity?.meta?.extended?.language || '-' });
+  hardwareSpecs.push({ label: 'Version', value: entity?.version || entity?.meta?.extended?.version || '-' });
   
   // V16.96: Repo Size (Promoted from meta.storage_bytes)
   const repoSize = entity?.size_kb || entity?.meta_json?.size_kb;
@@ -85,9 +86,10 @@ if (type === 'model') {
   if (entity?.downloads) hardwareSpecs.push({ label: 'Downloads', value: Number(entity.downloads) >= 1e6 ? `${(Number(entity.downloads)/1e6).toFixed(1)}M` : Number(entity.downloads).toLocaleString() });
   if (entity?.likes) hardwareSpecs.push({ label: 'Likes', value: Number(entity.likes).toLocaleString() });
 } else if (type === 'space') {
+  // V27.92 Honest-contract: honest dash instead of fabricated V100 hardware / Running status.
   hardwareSpecs.push({ label: 'SDK', value: entity?.sdk || entity?.meta?.extended?.sdk || '-', highlight: true });
-  hardwareSpecs.push({ label: 'Hardware', value: entity?.hardware || entity?.meta?.extended?.hardware || 'V100' });
-  hardwareSpecs.push({ label: 'Status', value: entity?.runtime?.stage || 'Running' });
+  hardwareSpecs.push({ label: 'Hardware', value: entity?.hardware || entity?.meta?.extended?.hardware || '-' });
+  hardwareSpecs.push({ label: 'Status', value: entity?.runtime?.stage || entity?.running_status || '-' });
   // V19: Popularity metrics
   if (entity?.likes) hardwareSpecs.push({ label: 'Likes', value: Number(entity.likes).toLocaleString() });
 }
@@ -96,12 +98,14 @@ if (type === 'model') {
 const trainingSpecs = [];
 if (type === 'model') {
   trainingSpecs.push({ label: 'Library', value: entity?.library_name || entity?.config?.library_name || '-' });
-  trainingSpecs.push({ label: 'Precision', value: entity?.precision || entity?.config?.torch_dtype || 'float16' });
+  // V27.92 Honest-contract: honest dash instead of fabricated float16 precision.
+  trainingSpecs.push({ label: 'Precision', value: entity?.precision || entity?.config?.torch_dtype || '-' });
   trainingSpecs.push({ label: 'Tokenizer', value: entity?.config?.tokenizer_class || entity?.config?.model_type || '-' });
 }
  else if (type === 'dataset') {
-  trainingSpecs.push({ label: 'Format', value: entity?.format || 'Parquet' });
-  trainingSpecs.push({ label: 'Cleaning', value: entity?.cleaned ? 'Pre-cleaned' : 'Raw' });
+  // V27.92 Honest-contract: honest dash instead of fabricated Parquet format.
+  trainingSpecs.push({ label: 'Format', value: entity?.format || '-' });
+  if (entity?.cleaned !== undefined) trainingSpecs.push({ label: 'Cleaning', value: entity.cleaned ? 'Pre-cleaned' : 'Raw' });
 } else if (type === 'agent' || type === 'tool') {
   trainingSpecs.push({ label: 'License', value: entity?.license });
   trainingSpecs.push({ label: 'Forks', value: entity?.github_forks || entity?.forks });
@@ -139,9 +143,10 @@ if (entity?.arxiv_id || entity?.arxiv_ref) {
 }
 
 // 5. Cloud & Access Rights
+// V27.92 Honest-contract: only show Source/License when a real value exists (no fabricated HuggingFace / Open Access).
 const cloudSpecs = [
-  { label: 'Source', value: entity?.source || 'HuggingFace' },
-  { label: 'License', value: entity?.license_spdx || entity?.license || 'Open Access' },
+  { label: 'Source', value: entity?.source },
+  { label: 'License', value: entity?.license_spdx || entity?.license },
 ].filter(s => s.value);
 
 ---
