@@ -6,7 +6,7 @@ const fsp = fs;
 import { configureDistiller, distillEntity, flushDistillerCache, getDistillerStats } from './lib/v25-distiller.js';
 import { cleanAbstract } from './lib/abstract-cleaner.js';
 import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary, resetPackOutputDbs, resolveEntitySpecs } from './lib/pack-utils.js';
-import { computeMetaShardSlot } from './lib/meta-shard-router.js';
+import { computeMetaShardSlot, assertMetaShardRoutable } from './lib/meta-shard-router.js';
 import { dbSchemas, ftsDbSchema } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
@@ -51,8 +51,8 @@ const EMBEDDING_MODEL = 'Xenova/bge-base-en-v1.5';
 
 async function packDatabase() {
     const rustStatus = initRustBridge();
-    console.log(`[VFS] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'})`);
-    console.log('[VFS] Commencing V26.7 Streaming Packer (zero accumulator)...');
+    console.log(`[VFS] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'}) | Commencing V26.7 Streaming Packer (zero accumulator)...`);
+    assertMetaShardRoutable(); // V27.95: fail loud pre-loop if meta-shard routing can't use xxhash64 (writer==reader)
 
     await fs.mkdir(SHARD_PATH_DIR, { recursive: true });
     for (const f of await fs.readdir(SHARD_PATH_DIR)) {
