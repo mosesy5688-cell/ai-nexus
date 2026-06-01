@@ -95,3 +95,67 @@ export function generatePaperCandidates(normalized: string): string[] {
     }
     return [...candidates].filter(Boolean);
 }
+
+/** Bare arxiv id shape, e.g. 2604.22294 (mirrors utils/slug-utils.isArxivId). */
+const ARXIV_ID_RE = /^\d{4}\.\d{4,5}$/;
+/** Source prefixes that indicate a paper lookup even with a prefix present. */
+const PAPER_PREFIXES = ['arxiv-paper', 'arxiv', 'paper', 'hf-paper'];
+
+/**
+ * V27.93: detect whether a raw entity id should be treated as a paper lookup.
+ * True for a bare arxiv id (2604.22294) or any paper-source-prefixed form
+ * (arxiv--<id>, arxiv-paper--<id>, paper:<id>, hf-paper/<id>).
+ */
+export function looksLikePaper(rawId: string): boolean {
+    const lower = (rawId || '').toLowerCase();
+    if (ARXIV_ID_RE.test(lower)) return true;
+    return PAPER_PREFIXES.some(p =>
+        lower.startsWith(`${p}--`) || lower.startsWith(`${p}:`) || lower.startsWith(`${p}/`)
+    );
+}
+
+/**
+ * V27.93 (D1+D2): ordered probe plan for /api/v1/entity/:id.
+ *
+ * Returns candidates ordered HIGHEST-probability first so a wall-clock budget
+ * in a FLAT (non-primary-first) probe loop never bails before reaching the
+ * shard that actually holds the entity (the page-resolver asymmetry trap:
+ * the page resolver probes a privileged primary shard first, this API does
+ * not, so order must be enforced here instead).
+ *
+ * Order: (1) exact lowered input + slash-normalized form (caller passed the
+ * stored id/slug), (2) derived canonical slug, (3) for paper-shaped inputs the
+ * stored paper forms (arxiv--<id>, bare, unknown--<id>) via generatePaperCandidates,
+ * (4) AUTO_PREFIX fan-out LAST — and for paper inputs trimmed to paper prefixes
+ * only, so we never blindly open ~10 cold non-paper shards for a paper id.
+ */
+export function buildEntityProbePlan(rawId: string): string[] {
+    const lower = (rawId || '').toLowerCase();
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    const add = (c: string | undefined | null) => {
+        if (c && !seen.has(c)) { seen.add(c); ordered.push(c); }
+    };
+
+    add(lower);
+    add(lower.replace(/\//g, '--').replace(/--+/g, '--'));
+    const slug = deriveSlug(rawId);
+    add(slug);
+
+    const isPaper = looksLikePaper(rawId);
+    if (isPaper && slug) {
+        for (const c of generatePaperCandidates(slug)) add(c);
+    }
+
+    const hasPrefix = SLUG_PREFIXES.some(p =>
+        lower.startsWith(`${p}--`) || lower.startsWith(`${p}:`) || lower.startsWith(`${p}/`)
+    );
+    if (!hasPrefix && slug) {
+        // Fan-out LAST. For paper-shaped ids the stored forms above already
+        // cover the corpus, so skip the non-paper AUTO_PREFIX cold-shard storm.
+        if (!isPaper) {
+            for (const p of AUTO_PREFIXES) add(`${p}--${slug}`);
+        }
+    }
+    return ordered;
+}
