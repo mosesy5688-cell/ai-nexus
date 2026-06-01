@@ -65,3 +65,33 @@ export function generateCandidates(rawId: string): string[] {
     }
     return [...candidates].filter(Boolean);
 }
+
+/**
+ * V27.92 T3(b): candidate lookup keys for a /paper/<urlslug> page request.
+ *
+ * The paper page route emits /paper/<bare-arxiv-id> (dots preserved, e.g.
+ * 2307.01952). The page resolver normalizes that to the same bare form. But
+ * real arxiv papers store slug='arxiv--<id>' (~75%) or bare '<id>' no-sep
+ * (~20%), while only content-hash papers store 'unknown--<sha>' (~3.2%).
+ * Hashing only the legacy 'unknown--<id>' form lands on the wrong meta shard,
+ * so the entity is unreachable. Returning every plausible stored form lets the
+ * caller hash each to ITS OWN shard and recover the link.
+ *
+ * `normalized` is the already-normalized bare urlslug (no source prefix). Out
+ * of scope: old-style category tail `arxiv--cs--<id>` (~3K, needs `.`->`--`
+ * reversal) — documented follow-up.
+ */
+export function generatePaperCandidates(normalized: string): string[] {
+    const bare = (normalized || '').toLowerCase();
+    if (!bare) return [];
+    const candidates = new Set<string>();
+    if (bare.includes('--')) {
+        // Already a prefixed/canonical form (e.g. unknown--<sha>): query as-is.
+        candidates.add(bare);
+    } else {
+        candidates.add(`arxiv--${bare}`);   // ~75% real arxiv papers
+        candidates.add(bare);               // ~20% bare no-sep
+        candidates.add(`unknown--${bare}`); // ~3.2% content-hash papers
+    }
+    return [...candidates].filter(Boolean);
+}
