@@ -102,6 +102,9 @@ const jsonld = dataset ? {
 } : null;
 
 const canonicalPath = dataset ? getEntityRoute(dataset, 'dataset') : undefined;
+
+// V27.102: Derived Use Cases (correct getUseCases signature: tags, pipeline_tag, type, fni)
+const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.fni_score) : { goodFor: [], limits: [] };
 ---
 
 <EntityLayout 
@@ -157,9 +160,10 @@ const canonicalPath = dataset ? getEntityRoute(dataset, 'dataset') : undefined;
     
     {/* Zone 1.5: Use Cases */}
     {dataset && (
-      <ZoneUseCases 
-        slot="use-cases" 
-        usecases={getUseCases(dataset)} 
+      <ZoneUseCases
+        slot="use-cases"
+        goodFor={derivedUseCases.goodFor}
+        limits={derivedUseCases.limits}
       />
     )}
 

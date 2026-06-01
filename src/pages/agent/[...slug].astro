@@ -103,6 +103,9 @@ const jsonld = agent ? {
 } : null;
 
 const canonicalPath = agent ? getEntityRoute(agent, 'agent') : undefined;
+
+// V27.102: Derived Use Cases (correct getUseCases signature: tags, pipeline_tag, type, fni)
+const derivedUseCases = agent ? getUseCases(tagsArray, '', 'agent', agent.fni_score) : { goodFor: [], limits: [] };
 ---
 
 <EntityLayout 
@@ -159,9 +162,10 @@ const canonicalPath = agent ? getEntityRoute(agent, 'agent') : undefined;
     
     {/* Zone 1.5: Use Cases */}
     {agent && (
-      <ZoneUseCases 
-        slot="use-cases" 
-        usecases={getUseCases(agent)} 
+      <ZoneUseCases
+        slot="use-cases"
+        goodFor={derivedUseCases.goodFor}
+        limits={derivedUseCases.limits}
       />
     )}
 

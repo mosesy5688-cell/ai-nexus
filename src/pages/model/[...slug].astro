@@ -164,9 +164,10 @@ const canonicalPath = model ? getEntityRoute(model, 'model') : undefined;
     
     {/* Zone 1.5: Use Cases */}
     {model && (
-      <ZoneUseCases 
-        slot="use-cases" 
-        usecases={getUseCases(model)} 
+      <ZoneUseCases
+        slot="use-cases"
+        goodFor={derivedUseCases.goodFor}
+        limits={derivedUseCases.limits}
       />
     )}
 
