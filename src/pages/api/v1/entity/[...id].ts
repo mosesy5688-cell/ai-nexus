@@ -25,10 +25,19 @@ import { getCachedDbConnection, executeSql, loadManifest } from '../../../../lib
 import { xxhash64Mod } from '../../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
-import { generateCandidates } from '../../../../lib/slug-helper.js';
+import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 
 const API_VERSION = 'fni_v2.0';
+
+// V27.93 (D2): wall-clock budget for the multi-shard cold-VFS probe loop.
+// Mirrors the page resolver (vfs-metadata-provider FALLBACK_BUDGET_MS): an
+// un-budgeted fan-out can chain many cold R2-VFS opens (19/31/88s observed)
+// into CF's ~30s limit -> 524. Safe here only because buildEntityProbePlan
+// orders highest-probability candidates first, so a real entity is reached
+// before the budget is spent. Bailing on budget yields a retryable 503, never
+// a hard 404 (honest-contract: a slow/transient miss is not "does not exist").
+const PROBE_BUDGET_MS = 6000;
 
 const CORS_HEADERS = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -153,20 +162,38 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         const etag = buildEtag(manifest?._etag, rawId.toLowerCase(), includeBody ? 'body' : '');
         if (matchesIfNoneMatch(request, etag)) return notModified(etag, CORS_HEADERS);
 
-        const candidates = generateCandidates(rawId);
-        const shardsToProbe = new Set<number>();
-        for (const c of candidates) shardsToProbe.add(xxhash64Mod(c, metaShards));
+        // V27.93 (D1+D2): ordered, paper-aware candidate plan. buildEntityProbePlan
+        // injects stored paper forms (arxiv--<id> / bare / unknown--<id>) for
+        // arxiv-shaped ids so ~270K papers stop 404ing, and orders the most-
+        // likely-correct forms first so the budget below never starves the
+        // correct shard.
+        const candidates = buildEntityProbePlan(rawId);
 
-        const placeholders = candidates.map(() => '?').join(',');
-        const sql = `SELECT * FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders}) OR umid IN (${placeholders}) LIMIT 1`;
-        const bindings = [...candidates, ...candidates, ...candidates];
+        // Per-candidate -> its OWN shard (packer shards by xxhash64(slug); a
+        // single form lands on the wrong shard). Map preserves insertion order,
+        // so the highest-probability shards are probed first. We bind only the
+        // forms that hashed to each shard, matching the page-resolver pattern.
+        const shardForms = new Map<number, string[]>();
+        for (const c of candidates) {
+            const idx = xxhash64Mod(c, metaShards);
+            const arr = shardForms.get(idx);
+            if (arr) arr.push(c); else shardForms.set(idx, [c]);
+        }
 
         // Per-shard try/catch: a single shard error (transient VFS / SQL) must
         // not 500 the whole request if another shard might satisfy the lookup.
+        // Track errors + budget-bail so a transient miss is not a false 404.
         let row: any = null;
+        let probedShards = 0;
+        let budgetBailed = false;
         const shardErrors: string[] = [];
-        for (const shardIdx of shardsToProbe) {
+        for (const [shardIdx, forms] of shardForms) {
+            if (Date.now() - start > PROBE_BUDGET_MS) { budgetBailed = true; break; }
+            probedShards++;
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
+            const placeholders = forms.map(() => '?').join(',');
+            const sql = `SELECT * FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders}) OR umid IN (${placeholders}) LIMIT 1`;
+            const bindings = [...forms, ...forms, ...forms];
             try {
                 const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
                 const rows = await executeSql(engine.sqlite3, engine.db, sql, bindings);
@@ -178,12 +205,13 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         }
 
         if (!row) {
-            // If every probed shard errored, surface 503 (transient) instead of
-            // 404 — caller can retry, vs 404 which means "this id genuinely does
-            // not exist, do not retry".
-            if (shardErrors.length === shardsToProbe.size && shardErrors.length > 0) {
-                console.error('[ENTITY] all shards errored', rawId, shardErrors.join('; '));
-                return error(503, 'All probed shards errored; retry later');
+            // Honest-contract: 404 means "genuinely absent, do not retry" and is
+            // only safe when every intended shard was probed cleanly with no row.
+            // If we bailed on budget or any shard errored, the entity MAY exist
+            // on an un-probed/errored shard -> retryable 503, never a false 404.
+            if (budgetBailed || shardErrors.length > 0) {
+                console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${shardForms.size}`, shardErrors.join('; '));
+                return error(503, 'Lookup inconclusive (transient/budget); retry later');
             }
             return error(404, `Entity not found: ${rawId}`);
         }
