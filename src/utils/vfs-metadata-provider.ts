@@ -3,6 +3,12 @@ import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-e
 import { xxhash64Mod } from './xxhash64.js';
 import { env } from 'cloudflare:workers';
 
+// V27.91: wall-clock budget for the adjacent-shard fallback below. A primary-shard miss
+// (genuinely-dead URL, e.g. /paper/<arxivid> not in corpus) must not run the full cold
+// R2-VFS open sequence into CF's ~30s limit and 524 Googlebot. Real entities hit the
+// primary probe and return before the fallback loop, so this cannot regress them.
+const FALLBACK_BUDGET_MS = 6000;
+
 export async function resolveVfsMetadata(type: string, slug: string, locals: any = null) {
     const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
     const isSimulatingRemote = !!(typeof process !== 'undefined' && process.env.SIMULATE_PRODUCTION);
@@ -36,6 +42,7 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
     if (!isDev || isSimulatingRemote) {
         const r2Bucket = env?.R2_ASSETS;
         const shouldSimulate = isDev;
+        const start = Date.now(); // V27.91: bound total miss latency (primary + fallback)
 
         try {
             const manifest = await loadManifest(r2Bucket, shouldSimulate);
@@ -52,9 +59,12 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
                 return { data: rows[0], source: `vfs:${dbName}` };
             }
 
-            // Fallback: try adjacent shards (hash collision or slug mismatch)
-            for (let offset = 1; offset <= 2; offset++) {
+            // Fallback: try adjacent shards (hash collision or slug mismatch).
+            // V27.91: budget-gated — bail before a probe once the wall-clock budget is spent,
+            // so a dead-URL miss returns a fast soft-404 instead of timing out into a 524.
+            fallback: for (let offset = 1; offset <= 2; offset++) {
                 for (const delta of [offset, -offset]) {
+                    if (Date.now() - start > FALLBACK_BUDGET_MS) break fallback;
                     const fallbackIdx = ((shardIdx + delta) % shardCount + shardCount) % shardCount;
                     const fallbackDb = `meta-${String(fallbackIdx).padStart(2, '0')}.db`;
                     try {
