@@ -128,32 +128,14 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
                 }
             }
 
-            // Fallback: adjacent shards of the primary candidate (hash collision
-            // or slug mismatch not covered by the candidate forms). Budget-gated.
-            const primaryIdx = xxhash64Mod(candidates[0], shardCount);
-            fallback: for (let offset = 1; offset <= 2; offset++) {
-                for (const delta of [offset, -offset]) {
-                    if (Date.now() - start > FALLBACK_BUDGET_MS) { inconclusive = true; break fallback; }
-                    const fallbackIdx = ((primaryIdx + delta) % shardCount + shardCount) % shardCount;
-                    if (shardForms.has(fallbackIdx)) continue; // already probed
-                    const fallbackDb = `meta-${String(fallbackIdx).padStart(2, '0')}.db`;
-                    try {
-                        const eng = await withOpTimeout(
-                            getCachedDbConnection(r2Bucket, shouldSimulate, fallbackDb),
-                            OP_TIMEOUT_MS, `open:${fallbackDb}`);
-                        for (const form of candidates) {
-                            const rows = await withOpTimeout(
-                                executeSql(eng.sqlite3, eng.db, SELECT_SQL, [form, form]),
-                                OP_TIMEOUT_MS, `sql:${fallbackDb}`);
-                            if (rows.length > 0) {
-                                return { data: rows[0], source: `vfs:${fallbackDb}(fallback)` };
-                            }
-                        }
-                    } catch (e: any) {
-                        inconclusive = true;
-                    }
-                }
-            }
+            // V27.99: the +/-2 adjacent-shard fallback was removed. The V27.98
+            // read-only population probe over all 547,137 prod entities found it
+            // uniquely resolves ZERO (fallback-only = 0.00%) — per-candidate
+            // sharding already covers every routable entity. Dropping it means a
+            // cold dead non-paper URL does just its 1 primary candidate open (not
+            // 1 + up to 4 cold fallback opens), completes inside the budget, and
+            // reaches clean exhaustion -> reliable notFound/404 instead of a
+            // budget-bail soft-200/transient.
         } catch (e: any) {
             // Manifest load / unexpected failure: inconclusive, never a clean miss.
             console.warn(`[VFS-Metadata] SQLite query failed for ${normalized}:`, e.message);
