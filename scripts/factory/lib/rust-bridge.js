@@ -36,6 +36,17 @@ export function computeShardSlotFFI(umid, totalSlots = 4096) {
     return computeShardSlot(umid, totalSlots);
 }
 
+/** True when the Rust xxhash64 shard-router native module is loaded. */
+export function isShardRouterRustLoaded() { return _shardRouter !== null; }
+
+// V27.95: meta-shard routing via Rust xxhash64 (primary) or the SHARED JS
+// xxhash64 core (verified parity with src/utils/xxhash64.ts reader). NEVER the
+// legacy MD5 fallback (umid-generator.js) — writer MUST match reader.
+export function computeMetaShardSlotFFI(slug, totalShards) {
+    if (_shardRouter) return _shardRouter.computeShardSlot(slug, totalShards);
+    return require('../../../src/utils/xxhash64-core.js').xxhash64Mod(slug, totalShards);
+}
+
 /** Batch shard slot computation. */
 export function batchComputeShardSlotsFFI(umids, totalSlots = 4096) {
     if (_shardRouter) return _shardRouter.batchComputeShardSlots(Buffer.from(umids.join('\n')), totalSlots);
@@ -122,30 +133,16 @@ export function validateFusionContentFFI(fulltext, originalBody) {
 }
 
 /** V55.9: Zstd file/buffer compress/decompress via Rust. */
-export function zstdCompressFileFFI(inputPath, outputPath, level = 3) {
-    return _streamAggregator?.zstdCompressFile?.(inputPath, outputPath, level) ?? null;
-}
-export function zstdCompressBufferFFI(data, level = 3) {
-    return _streamAggregator?.zstdCompressBuffer?.(data, level) ?? null;
-}
-export function zstdDecompressBufferFFI(data) {
-    return _streamAggregator?.zstdDecompressBuffer?.(data) ?? null;
-}
-export function zstdDecompressFileFFI(inputPath, outputPath) {
-    return _streamAggregator?.zstdDecompressFile?.(inputPath, outputPath) ?? null;
-}
+export function zstdCompressFileFFI(inputPath, outputPath, level = 3) { return _streamAggregator?.zstdCompressFile?.(inputPath, outputPath, level) ?? null; }
+export function zstdCompressBufferFFI(data, level = 3) { return _streamAggregator?.zstdCompressBuffer?.(data, level) ?? null; }
+export function zstdDecompressBufferFFI(data) { return _streamAggregator?.zstdDecompressBuffer?.(data) ?? null; }
+export function zstdDecompressFileFFI(inputPath, outputPath) { return _streamAggregator?.zstdDecompressFile?.(inputPath, outputPath) ?? null; }
 
 /** Streaming shard aggregation (Rust). OOM-safe for 400K+ entities. */
 export function streamAggregateFFI(shardDir, outputPath) {
-    if (_streamAggregator) {
-        try {
-            return _streamAggregator.streamAggregate(shardDir, outputPath);
-        } catch (e) {
-            console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): streamAggregate: ${e.message}`);
-            return null;
-        }
-    }
-    return null;
+    if (!_streamAggregator) return null;
+    try { return _streamAggregator.streamAggregate(shardDir, outputPath); }
+    catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): streamAggregate: ${e.message}`); return null; }
 }
 
 /** V26.5: Search index — prefer direct shard reading, fallback to Buffer. */
