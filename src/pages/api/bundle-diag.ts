@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { initShardDecrypt, decryptShardRange } from '../../lib/shard-decrypt.js';
-import { resolveVfsMetadata } from '../../utils/vfs-metadata-provider.js';
+import { resolveVfsMetadata, isVfsFound } from '../../utils/vfs-metadata-provider.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 export const prerender = false;
@@ -18,8 +18,8 @@ export const GET: APIRoute = async ({ url }) => {
         steps.push({ step: 'normalize', slug: normalized, dbSlug });
 
         const vfs = await resolveVfsMetadata(type, slug);
-        if (!vfs?.data) {
-            steps.push({ step: 'vfs', status: 'NOT_FOUND' });
+        if (!isVfsFound(vfs)) {
+            steps.push({ step: 'vfs', status: 'transient' in vfs ? 'TRANSIENT' : 'NOT_FOUND' });
             return json(steps);
         }
         const e = vfs.data;

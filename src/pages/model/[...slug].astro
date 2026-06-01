@@ -37,6 +37,7 @@ let pageDescription = "Explore comprehensive information about this AI model.";
 let cleanedDesc = "";
 let meshRelations = [];
 let dataSource = 'error';
+let isTransient = false;
 
 try {
   if (!slug) throw new Error("No slug provided");
@@ -45,6 +46,7 @@ try {
   // V16.5: Static Assembly Architecture
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
   dataSource = _meta.dataSource || '404';
+  isTransient = !!_meta.transient;
 
   if (!_meta.available || !entity) {
     console.warn(`[Astro] Entity not found: ${slugStr}`);
@@ -68,10 +70,20 @@ try {
   console.error("Error loading model:", e);
   error = e;
 }
+// V27.97: honest 404/503 split. found -> EntityLayout sets full s-maxage CC.
+// genuine miss (confirmed-dead URL) -> 404 + brief edge cache (stops repeat cold
+// opens without risking a false 404). transient (timeout/error) -> soft 200,
+// NO cache, retryable; a real entity's flaky lookup must never be cached or 404'd.
 Astro.response.headers.set('X-Data-Source', dataSource);
-Astro.response.headers.set('Cache-Control', model ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
-
-// model=null → EntityLayout renders "Entity Being Indexed" fallback
+if (model) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
+} else if (isTransient) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=0');
+} else {
+  Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
+}
+// model=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
 
 // Capability Gating
 const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);

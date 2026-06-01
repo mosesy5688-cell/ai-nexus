@@ -39,6 +39,7 @@ let pageTitle = "AI Agent Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI agent.";
 let cleanedDesc = "";
 let dataSource = 'error';
+let isTransient = false;
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
@@ -46,6 +47,7 @@ try {
   const type = 'agent';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
   dataSource = _meta.dataSource || '404';
+  isTransient = !!_meta.transient;
 
   if (!entity || !_meta.available) {
     console.warn(`[Astro] Entity not found: ${slugStr}`);
@@ -67,10 +69,18 @@ try {
   console.error("[AgentPage] Error loading agent:", e);
   error = e;
 }
+// V27.97: honest 404/503 split (see model page). found -> full CC; genuine
+// miss -> 404 + brief edge cache; transient -> soft 200, NO cache, retryable.
 Astro.response.headers.set('X-Data-Source', dataSource);
-Astro.response.headers.set('Cache-Control', agent ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
-
-// agent=null → EntityLayout renders "Entity Being Indexed" fallback
+if (agent) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
+} else if (isTransient) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=0');
+} else {
+  Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
+}
+// agent=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
 
 const agentName = agent?.name || 'Unknown Agent';
 const entityId = agent?.id || slugStr;

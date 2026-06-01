@@ -2,6 +2,7 @@ import { normalizeEntitySlug } from './entity-cache-reader-core.js';
 import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine.js';
 import { xxhash64Mod } from './xxhash64.js';
 import { generatePaperCandidates } from '../lib/slug-helper.js';
+import { withOpTimeout, isOpTimeout } from '../lib/op-timeout.js';
 import { env } from 'cloudflare:workers';
 
 // V27.91: wall-clock budget for the multi-shard probing below. A miss
@@ -11,9 +12,35 @@ import { env } from 'cloudflare:workers';
 // cannot regress them.
 const FALLBACK_BUDGET_MS = 6000;
 
+// V27.97: per-op timeout firewall. The budget above bounds the LOOP (between
+// probes); this bounds a SINGLE cold op that hangs (e.g. a stalled R2 range
+// read inside one open/SQL). Must stay <= FALLBACK_BUDGET_MS so a single slow
+// op cannot push past the total budget, and worst-case (per-op x probes, itself
+// gated by the total budget) stays well under CF's ~25s. On timeout the op is
+// NOT cancelled (see op-timeout.ts header) — it finishes in the background,
+// releases its own SQLite lock, and warms the cache for the retry.
+const OP_TIMEOUT_MS = 5000;
+
 const SELECT_SQL = 'SELECT * FROM entities WHERE slug = ? OR id = ? LIMIT 1';
 
-export async function resolveVfsMetadata(type: string, slug: string, locals: any = null) {
+/**
+ * V27.97: 3-way discriminated result. The old contract (`{data,source}` | null)
+ * conflated a genuine miss with a transient error/timeout, so a flaky lookup of
+ * a REAL entity could be cached as a false 404 (SEO harm). Callers MUST branch:
+ *   - found     -> { data, source }          render normally (cache OK)
+ *   - notFound  -> { notFound: true }         confirmed-dead URL -> 404 + brief edge cache
+ *   - transient -> { transient: true }        timeout/error/budget-bail -> 503/soft + NO cache, retryable
+ */
+export type VfsMetadataResult =
+    | { data: any; source: string }
+    | { notFound: true }
+    | { transient: true };
+
+export function isVfsFound(r: VfsMetadataResult): r is { data: any; source: string } {
+    return 'data' in r;
+}
+
+export async function resolveVfsMetadata(type: string, slug: string, locals: any = null): Promise<VfsMetadataResult> {
     const isDev = !!(process.env.NODE_ENV === 'development' || import.meta.env?.DEV);
     const isSimulatingRemote = !!(typeof process !== 'undefined' && process.env.SIMULATE_PRODUCTION);
     let normalized = normalizeEntitySlug(slug, type).toLowerCase();
@@ -46,8 +73,10 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
             }
         } catch (e: any) {
             console.warn('[VFS-Metadata] Local DB failed:', e.message);
+            // Local-dev infra failure is transient, not a confirmed miss.
+            return { transient: true };
         }
-        return null;
+        return { notFound: true };
     }
 
     // Strategy 2: Production VFS — query meta-NN.db via R2 Range Read SQLite
@@ -55,6 +84,10 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
         const r2Bucket = env?.R2_ASSETS;
         const shouldSimulate = isDev;
         const start = Date.now(); // V27.91: bound total miss latency across probes
+        // V27.97: any per-op timeout / shard error / budget-bail leaves a shard
+        // un-probed-cleanly, so the result is inconclusive -> transient, never a
+        // false 404. Only an all-clean exhaustion may report notFound.
+        let inconclusive = false;
 
         try {
             const manifest = await loadManifest(r2Bucket, shouldSimulate);
@@ -75,18 +108,23 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
             // budget is spent, so a dead-URL miss returns a fast soft-404 instead
             // of timing out into a 524.
             for (const [shardIdx, forms] of shardForms) {
-                if (Date.now() - start > FALLBACK_BUDGET_MS) break;
+                if (Date.now() - start > FALLBACK_BUDGET_MS) { inconclusive = true; break; }
                 const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
                 try {
-                    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
+                    const engine = await withOpTimeout(
+                        getCachedDbConnection(r2Bucket, shouldSimulate, dbName),
+                        OP_TIMEOUT_MS, `open:${dbName}`);
                     for (const form of forms) {
-                        const rows = await executeSql(engine.sqlite3, engine.db, SELECT_SQL, [form, form]);
+                        const rows = await withOpTimeout(
+                            executeSql(engine.sqlite3, engine.db, SELECT_SQL, [form, form]),
+                            OP_TIMEOUT_MS, `sql:${dbName}`);
                         if (rows.length > 0) {
                             return { data: rows[0], source: `vfs:${dbName}` };
                         }
                     }
                 } catch (e: any) {
-                    console.warn(`[VFS-Metadata] shard probe failed ${dbName}:`, e.message);
+                    inconclusive = true; // timeout OR shard error -> not a clean miss
+                    console.warn(`[VFS-Metadata] shard probe ${isOpTimeout(e) ? 'timeout' : 'failed'} ${dbName}:`, e.message);
                 }
             }
 
@@ -95,25 +133,35 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
             const primaryIdx = xxhash64Mod(candidates[0], shardCount);
             fallback: for (let offset = 1; offset <= 2; offset++) {
                 for (const delta of [offset, -offset]) {
-                    if (Date.now() - start > FALLBACK_BUDGET_MS) break fallback;
+                    if (Date.now() - start > FALLBACK_BUDGET_MS) { inconclusive = true; break fallback; }
                     const fallbackIdx = ((primaryIdx + delta) % shardCount + shardCount) % shardCount;
                     if (shardForms.has(fallbackIdx)) continue; // already probed
                     const fallbackDb = `meta-${String(fallbackIdx).padStart(2, '0')}.db`;
                     try {
-                        const eng = await getCachedDbConnection(r2Bucket, shouldSimulate, fallbackDb);
+                        const eng = await withOpTimeout(
+                            getCachedDbConnection(r2Bucket, shouldSimulate, fallbackDb),
+                            OP_TIMEOUT_MS, `open:${fallbackDb}`);
                         for (const form of candidates) {
-                            const rows = await executeSql(eng.sqlite3, eng.db, SELECT_SQL, [form, form]);
+                            const rows = await withOpTimeout(
+                                executeSql(eng.sqlite3, eng.db, SELECT_SQL, [form, form]),
+                                OP_TIMEOUT_MS, `sql:${fallbackDb}`);
                             if (rows.length > 0) {
                                 return { data: rows[0], source: `vfs:${fallbackDb}(fallback)` };
                             }
                         }
-                    } catch {}
+                    } catch (e: any) {
+                        inconclusive = true;
+                    }
                 }
             }
         } catch (e: any) {
+            // Manifest load / unexpected failure: inconclusive, never a clean miss.
             console.warn(`[VFS-Metadata] SQLite query failed for ${normalized}:`, e.message);
+            return { transient: true };
         }
+
+        return inconclusive ? { transient: true } : { notFound: true };
     }
 
-    return null;
+    return { notFound: true };
 }
