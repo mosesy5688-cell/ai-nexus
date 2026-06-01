@@ -99,6 +99,9 @@ const jsonld = tool ? {
 } : null;
 
 const canonicalPath = tool ? getEntityRoute(tool, 'tool') : undefined;
+
+// V27.102: Derived Use Cases (correct getUseCases signature: tags, pipeline_tag, type, fni)
+const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score) : { goodFor: [], limits: [] };
 ---
 
 <EntityLayout 
@@ -153,9 +156,10 @@ const canonicalPath = tool ? getEntityRoute(tool, 'tool') : undefined;
     
     {/* Zone 1.5: Use Cases */}
     {tool && (
-      <ZoneUseCases 
-        slot="use-cases" 
-        usecases={getUseCases(tool)} 
+      <ZoneUseCases
+        slot="use-cases"
+        goodFor={derivedUseCases.goodFor}
+        limits={derivedUseCases.limits}
       />
     )}
 

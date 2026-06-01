@@ -100,6 +100,9 @@ const jsonld = paper ? {
 } : null;
 
 const canonicalPath = paper ? getRouteFromId(paper.id || paperId, 'paper') : undefined;
+
+// V27.102: Derived Use Cases (correct getUseCases signature: tags, pipeline_tag, type, fni)
+const derivedUseCases = paper ? getUseCases(tagsArray, '', 'paper', paper.fni_score) : { goodFor: [], limits: [] };
 ---
 
 <EntityLayout 
@@ -154,9 +157,10 @@ const canonicalPath = paper ? getRouteFromId(paper.id || paperId, 'paper') : und
     
     {/* Zone 1.5: Use Cases */}
     {paper && (
-      <ZoneUseCases 
-        slot="use-cases" 
-        usecases={getUseCases(paper)} 
+      <ZoneUseCases
+        slot="use-cases"
+        goodFor={derivedUseCases.goodFor}
+        limits={derivedUseCases.limits}
       />
     )}
 
