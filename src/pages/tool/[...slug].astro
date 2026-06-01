@@ -19,7 +19,7 @@ import QuickCommands from '../../components/common/QuickCommands.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
-import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { getEntityRoute } from '../../utils/mesh-routing-core.js';
 import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
 import { getUseCases } from '../../utils/inference.js';
@@ -98,7 +98,7 @@ const jsonld = tool ? {
   }
 } : null;
 
-const canonicalPath = tool ? getRouteFromId(tool.id || toolId, 'tool') : undefined;
+const canonicalPath = tool ? getEntityRoute(tool, 'tool') : undefined;
 ---
 
 <EntityLayout 

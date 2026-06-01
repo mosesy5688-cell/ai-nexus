@@ -20,7 +20,7 @@ import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
-import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { getEntityRoute } from '../../utils/mesh-routing-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
 
 const { slug } = Astro.params;
@@ -100,7 +100,7 @@ const jsonld = space ? {
   "license": space?.license_spdx || space?.license
 } : null;
 
-const canonicalPath = space ? getRouteFromId(space.id || spaceId, 'space') : undefined;
+const canonicalPath = space ? getEntityRoute(space, 'space') : undefined;
 ---
 
 <EntityLayout 

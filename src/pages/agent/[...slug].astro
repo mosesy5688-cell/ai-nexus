@@ -24,8 +24,7 @@ import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
-import { getRouteFromId } from '../../utils/mesh-routing-core.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { getEntityRoute } from '../../utils/mesh-routing-core.js';
 
 
 const { slug } = Astro.params;
@@ -56,7 +55,6 @@ try {
     meshRelations = mesh || [];
     tagsArray = agent?.tags || [];
 
-    const normalizedSlug = normalizeEntitySlug(slugStr, type);
     const displayAgentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
     pageTitle = `${displayAgentName} - AI Agent Insights`;
     cleanedDesc = cleanDescription(agent?.description || '');
@@ -104,7 +102,7 @@ const jsonld = agent ? {
   }
 } : null;
 
-const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent') : undefined;
+const canonicalPath = agent ? getEntityRoute(agent, 'agent') : undefined;
 ---
 
 <EntityLayout 

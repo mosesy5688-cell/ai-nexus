@@ -13,7 +13,7 @@ import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
 import Database from 'better-sqlite3';
-import { getRouteFromId, getTypeFromId } from '../../../src/utils/mesh-routing-core.js';
+import { getEntityRoute, getTypeFromId } from '../../../src/utils/mesh-routing-core.js';
 
 const gzip = promisify(zlib.gzip);
 
@@ -143,7 +143,7 @@ export async function generateSitemap(source, outputDir = './output') {
         for (const dbPath of dbPaths) {
             const db = new Database(dbPath, { readonly: true });
             const stmt = db.prepare(`
-                SELECT id, type, fni_score, last_modified FROM entities
+                SELECT id, slug, type, fni_score, last_modified FROM entities
                 WHERE (LENGTH(COALESCE(readme_html, '')) + LENGTH(COALESCE(summary, ''))) > 3600
                    OR fni_score >= 20
                    OR type = 'paper'
@@ -151,7 +151,7 @@ export async function generateSitemap(source, outputDir = './output') {
             for (const entity of stmt.iterate()) {
                 const id = entity.id;
                 const entityType = entity.type || getTypeFromId(id);
-                const route = getRouteFromId(id, entityType);
+                const route = getEntityRoute(entity, entityType);
                 if (!route || route === '#') continue;
                 await addUrl({ loc: route, priority: calculatePriority(entity.fni_score), changefreq: 'daily', lastmod: entity.last_modified });
             }
@@ -180,7 +180,7 @@ export async function generateSitemap(source, outputDir = './output') {
         for (const entity of source) {
             const id = entity.id || entity.slug || '';
             const entityType = entity.type || entity.entity_type || getTypeFromId(id);
-            const route = getRouteFromId(id, entityType);
+            const route = getEntityRoute(entity, entityType);
 
             if (!route || route === '#') continue;
 

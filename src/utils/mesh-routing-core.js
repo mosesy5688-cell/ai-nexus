@@ -160,6 +160,42 @@ export function getRouteFromId(id, type = null) {
 }
 
 /**
+ * V27.101: Entity-aware routing for divergent-slug sources (civitai).
+ *
+ * Most sources store slug === stripPrefix(id), so getRouteFromId(id) normalizes
+ * back to the slug and resolves. Civitai is the exception: id is short
+ * (civitai-model--428826) while slug is descriptive
+ * (civitai-428826-<name>) and the entity is SHARDED by that descriptive slug.
+ *
+ * getRouteFromId(id) yields /model/428826 (short), which is DEAD because the
+ * resolver normalizes any candidate to stripPrefix() and the entity is keyed
+ * by stripPrefix(slug). When stripPrefix(id) !== stripPrefix(slug), route by
+ * the resolvable slug instead. Papers keep their own special handling.
+ *
+ * @param {{ id?: string, slug?: string, type?: string }} entity
+ * @param {string|null} [type]
+ * @returns {string}
+ */
+export function getEntityRoute(entity, type = null) {
+    const id = (entity && (entity.id || entity.slug)) || '';
+    const slug = entity && entity.slug;
+    const resolvedType = type || getTypeFromId(id);
+
+    // Papers keep their special handling (V27.92-100); never reroute them here.
+    if (resolvedType === 'paper' || !slug) return getRouteFromId(id, type);
+
+    // Short URL from getRouteFromId(id) only resolves to this entity if the
+    // resolver's normalize of it equals the stored slug. Resolver nets out to
+    // stripPrefix(id); if that differs from stripPrefix(slug) the short URL is
+    // dead for this entity (civitai), so route by the resolvable slug.
+    if (stripPrefix(id) !== stripPrefix(slug)) {
+        const slugRoute = stripPrefix(slug);
+        if (slugRoute) return `/${resolvedType}/${slugRoute}`;
+    }
+    return getRouteFromId(id, type);
+}
+
+/**
  * V16.4: Consistent slug normalization for tags and relations.
  */
 export function normalizeSlug(tag) {

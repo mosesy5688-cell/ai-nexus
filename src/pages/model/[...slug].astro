@@ -13,7 +13,7 @@ import { cleanDescription, generateModelJsonLd, hasCapability } from '../../util
 import { getModelFromCache } from '../../utils/entity-cache-reader.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON.js';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
-import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { getEntityRoute } from '../../utils/mesh-routing-core.js';
 import { toMetricRows } from '../../utils/benchmark-labels.js';
 
 // V16.7.0: Component Restoration for High-Density Display
@@ -103,7 +103,7 @@ const modelId = entityId;
 // V15.0: Derived Use Cases and Limits
 const derivedUseCases = model ? getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
-const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 'model') : undefined;
+const canonicalPath = model ? getEntityRoute(model, 'model') : undefined;
 ---
 
 <EntityLayout 
