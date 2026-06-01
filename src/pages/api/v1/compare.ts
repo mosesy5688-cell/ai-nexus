@@ -8,7 +8,7 @@ import { getCachedDbConnection, executeSql, loadManifest } from '../../../lib/sq
 import { xxhash64Mod } from '../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../lib/etag-helper.js';
-import { deriveSlug } from '../../../lib/slug-helper.js';
+import { deriveSlug, looksLikePaper, generatePaperCandidates } from '../../../lib/slug-helper.js';
 
 const API_VERSION = 'fni_v2.0';
 // V27.60: 10→25 Layer 0 surface generosity for Agent-driven bulk compare.
@@ -48,17 +48,27 @@ export const GET: APIRoute = async ({ url, request }) => {
     const etag = buildEtag(manifest?._etag, sortedIds);
     if (matchesIfNoneMatch(request, etag)) return notModified(etag, CORS_HEADERS);
 
-    const slugMap = new Map<string, string>();
+    // Per-id candidate key set, reused for BOTH shard grouping (which shards to
+    // query) and final result resolution (which keys map a row back to the id).
+    const keysMap = new Map<string, string[]>();
     const shardGroups = new Map<number, Set<string>>();
     for (const id of ids) {
       const slug = deriveSlug(id);
-      slugMap.set(id, slug);
+      // V27.94 (FIX B): a bare arxiv id (2604.22294) or content-hash sha derives
+      // to slug=<id>, but real papers store 'arxiv--<id>'/'unknown--<sha>' on a
+      // DIFFERENT shard -> not-found. For paper-shaped ids ONLY, add the stored
+      // paper forms so each lands on its own shard. Targeted (no AUTO_PREFIX
+      // fan-out) to stay well under CF's ~50-subrequest limit across N ids.
       const allKeys = new Set([id.toLowerCase(), slug]);
+      if (looksLikePaper(id)) {
+        for (const form of generatePaperCandidates(slug)) allKeys.add(form);
+      }
+      keysMap.set(id, [...allKeys].filter(Boolean));
       for (const key of allKeys) {
+        if (!key) continue;
         const shard = xxhash64Mod(key, metaShards);
         if (!shardGroups.has(shard)) shardGroups.set(shard, new Set());
-        shardGroups.get(shard)!.add(id.toLowerCase());
-        shardGroups.get(shard)!.add(slug);
+        shardGroups.get(shard)!.add(key);
       }
     }
 
@@ -78,7 +88,16 @@ export const GET: APIRoute = async ({ url, request }) => {
     }));
 
     const entities = ids.map(id => {
-      const e = entityMap.get(id) || entityMap.get(id.toLowerCase()) || entityMap.get(slugMap.get(id)!);
+      // Resolve via any candidate key the row was indexed under (row.id /
+      // row.slug). For papers the matched row.slug is 'arxiv--<id>'/'unknown--<sha>'
+      // which is one of keysMap's candidates, not the bare derived slug.
+      let e = entityMap.get(id) || entityMap.get(id.toLowerCase());
+      if (!e) {
+        for (const key of keysMap.get(id) || []) {
+          e = entityMap.get(key);
+          if (e) break;
+        }
+      }
       if (!e) return { id, found: false };
       return {
         id: e.id, name: e.name, author: e.author, type: e.type,
