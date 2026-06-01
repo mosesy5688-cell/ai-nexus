@@ -36,6 +36,7 @@ let pageDescription = "Explore high-quality datasets for AI training and evaluat
 let meshRelations = [];
 let cleanedDesc = "";
 let dataSource = 'error';
+let isTransient = false;
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
@@ -43,6 +44,7 @@ try {
   const type = 'dataset';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
   dataSource = _meta.dataSource || '404';
+  isTransient = !!_meta.transient;
 
   if (!entity || !_meta.available) {
     console.warn(`[Astro] Entity not found: ${slugStr}`);
@@ -64,10 +66,18 @@ try {
 } catch (e) {
   console.error("[DatasetPage] Error loading dataset:", e);
 }
+// V27.97: honest 404/503 split (see model page). found -> full CC; genuine
+// miss -> 404 + brief edge cache; transient -> soft 200, NO cache, retryable.
 Astro.response.headers.set('X-Data-Source', dataSource);
-Astro.response.headers.set('Cache-Control', dataset ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
-
-// dataset=null → EntityLayout renders "Entity Being Indexed" fallback
+if (dataset) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
+} else if (isTransient) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=0');
+} else {
+  Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
+}
+// dataset=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
 
 const datasetName = dataset?.name || 'Unknown Dataset';
 const entityId = model?.id || slugStr;

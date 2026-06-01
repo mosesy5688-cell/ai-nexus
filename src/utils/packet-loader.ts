@@ -1,6 +1,6 @@
 import { normalizeEntitySlug } from './entity-cache-reader-core.js';
 import { fetchBundleRange } from './vfs-fetcher.js';
-import { resolveVfsMetadata } from './vfs-metadata-provider.js';
+import { resolveVfsMetadata, isVfsFound } from './vfs-metadata-provider.js';
 import { initShardDecrypt, decryptShardRange } from '../lib/shard-decrypt.js';
 import { env } from 'cloudflare:workers';
 
@@ -57,20 +57,32 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     const normalized = normalizeEntitySlug(slug, type).toLowerCase();
     let dataSource = '404';
 
-    // TIER 0: VFS Primary — meta-NN.db SQLite query (authoritative)
+    // TIER 0: VFS Primary — meta-NN.db SQLite query (authoritative).
+    // V27.97: the resolver now returns a 3-way result. A transient timeout/error
+    // MUST be surfaced as `_meta.transient` so the page renders a retryable
+    // soft response (no cache, no 404) instead of caching a false 404 for a real
+    // entity. A genuine miss is `available:false` + `transient:false`.
     let entityPack: any = null;
+    let transient = false;
     try {
         const vfsMatch = await resolveVfsMetadata(type, normalized, locals);
-        if (vfsMatch?.data) {
+        if (isVfsFound(vfsMatch)) {
             entityPack = vfsMatch.data;
             dataSource = vfsMatch.source || 'vfs-primary';
+        } else if ('transient' in vfsMatch) {
+            transient = true;
         }
     } catch (e: any) {
+        // Defensive: an unexpected throw is inconclusive, never a confirmed miss.
+        transient = true;
         console.warn(`[Loader] VFS query failed for ${normalized}:`, e.message);
     }
 
     if (!entityPack) {
-        return { entity: null, html: null, mesh: null, _meta: { available: false, dataSource: '404', source: '404' } };
+        return {
+            entity: null, html: null, mesh: null,
+            _meta: { available: false, transient, dataSource: transient ? 'transient' : '404', source: transient ? 'transient' : '404' }
+        };
     }
 
     // Validate identity

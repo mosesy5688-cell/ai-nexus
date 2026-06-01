@@ -34,6 +34,7 @@ let pageTitle = "AI Research Paper - Free AI Tools";
 let pageDescription = "Explore the latest breakthroughs in AI research and architectures.";
 let meshRelations = [];
 let dataSource = 'error';
+let isTransient = false;
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
@@ -41,6 +42,7 @@ try {
   const type = 'paper';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
   dataSource = _meta.dataSource || '404';
+  isTransient = !!_meta.transient;
 
   if (!entity || !_meta.available) {
     console.warn(`[Astro] Entity not found: ${slugStr}`);
@@ -60,15 +62,22 @@ try {
   console.error("[PaperPage] Error loading paper:", e);
   error = e;
 }
+// V27.92 T3(b): the resolver multi-form/multi-shard probes every plausible
+// stored paper slug, so a CLEAN null means the URL is genuinely dead (not a
+// shard-routing miss). V27.97 adds the transient split: a timeout/error during
+// probing is inconclusive and must NOT 404 or cache (a real paper's flaky
+// lookup must stay retryable). found -> full CC; genuine miss -> 404 + brief
+// edge cache (stop repeat crawl); transient -> soft 200, NO cache.
 Astro.response.headers.set('X-Data-Source', dataSource);
-Astro.response.headers.set('Cache-Control', paper ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
-
-// V27.92 T3(b): the resolver now multi-form/multi-shard probes every plausible
-// stored paper slug, so a null result means the URL is genuinely dead (not a
-// shard-routing miss). Return a real 404 status so Googlebot stops indexing it,
-// while EntityLayout still renders the "Entity Being Indexed" body for humans.
-if (!paper) {
+if (paper) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
+} else if (isTransient) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=0');
+} else {
+  // Genuinely dead URL: real 404 so Googlebot stops indexing it, while
+  // EntityLayout still renders the "Entity Being Indexed" body for humans.
   Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 }
 
 const paperTitle = paper?.name || paper?.title || 'Unknown Research Paper';
