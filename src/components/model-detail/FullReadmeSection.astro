@@ -40,6 +40,12 @@ const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Do
 const content = usePrecompiledHtml ? htmlReadme! : rawContent;
 
 const hasLongContent = content.length > maxPreviewLength;
+
+// V27.92 Honest-contract: the loading shimmer must ONLY show when there is a genuine
+// client-side recovery source (a real model id). On non-model pages model?.id is empty
+// (initVfsRecovery early-returns), so the shimmer would be permanent and fake "loading".
+// When no content AND no recoverable id, render an honest empty state instead.
+const canRecover = !!(model?.id);
 ---
 
 {/* V22.8: Hybrid Hydration Gate. If content is missing at SSR, we render a VFS-Recovery skeleton. */}
@@ -82,13 +88,15 @@ const hasLongContent = content.length > maxPreviewLength;
         ) : (
           <MarkdownRenderer content={content} />
         )
-      ) : (
+      ) : canRecover ? (
         <div class="space-y-6 py-4">
           <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-3/4 animate-shimmer"></div>
           <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-full animate-shimmer" style="animation-delay: 0.2s"></div>
           <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-5/6 animate-shimmer" style="animation-delay: 0.4s"></div>
           <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded-full w-4/5 animate-shimmer" style="animation-delay: 0.6s"></div>
         </div>
+      ) : (
+        <p class="text-zinc-400 dark:text-zinc-500 text-sm italic py-4">No documentation available for this entry.</p>
       )}
     </div>
 
