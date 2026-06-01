@@ -53,9 +53,16 @@ export function deriveSlug(id: string): string {
  * so the entity is unreachable. Returning every plausible stored form lets the
  * caller hash each to ITS OWN shard and recover the link.
  *
- * `normalized` is the already-normalized bare urlslug (no source prefix). Out
- * of scope: old-style category tail `arxiv--cs--<id>` (~3K, needs `.`->`--`
- * reversal) — documented follow-up.
+ * `normalized` is the already-normalized bare urlslug (no source prefix).
+ *
+ * V27.100: category-tail recovery. Old-style arxiv ids carry a category prefix
+ * (e.g. stored slug `arxiv--cs--9999.99999`). getRouteFromId's paper branch
+ * (mesh-routing-core.js: `.replace(/^arxiv--/,'').replace(/--/g,'.')`) is LOSSY
+ * — it turns the category-boundary `--` into `.`, emitting `/paper/cs.9999.99999`,
+ * which normalizes to bare `cs.9999.99999`. The plain `arxiv--<bare>` candidate
+ * is then `arxiv--cs.9999.99999` (with `cs.`), which can NEVER match the stored
+ * `arxiv--cs--9999.99999` (with `cs--`). We reverse the category-boundary dot
+ * back to `--` so the recovered candidate matches the stored form (~2,972 papers).
  */
 export function generatePaperCandidates(normalized: string): string[] {
     const bare = (normalized || '').toLowerCase();
@@ -68,12 +75,29 @@ export function generatePaperCandidates(normalized: string): string[] {
         candidates.add(`arxiv--${bare}`);   // ~75% real arxiv papers
         candidates.add(bare);               // ~20% bare no-sep
         candidates.add(`unknown--${bare}`); // ~3.2% content-hash papers
+        const cat = bare.match(CATEGORY_TAIL_RE);
+        if (cat) {
+            // Reverse the lossy `.` back to the stored category boundary `--`.
+            candidates.add(`arxiv--${cat[1]}--${cat[2]}`);
+        }
     }
     return [...candidates].filter(Boolean);
 }
 
 /** Bare arxiv id shape, e.g. 2604.22294 (mirrors utils/slug-utils.isArxivId). */
 const ARXIV_ID_RE = /^\d{4}\.\d{4,5}$/;
+/**
+ * V27.100: category-tail shape produced by getRouteFromId's lossy `--`->`.`
+ * on stored `arxiv--<category>--<arxivid>`. Group 1 = the category, which MUST
+ * be NON-NUMERIC (letters + optional hyphens: `cs`, `cmp-lg`, `cond-mat`,
+ * `q-bio`, `quant-ph`, `astro-ph`, `hep-lat`, `math-ph`, ...). The non-numeric
+ * lead is the discriminant: a normal new-style id `2604.22294` has a NUMERIC
+ * first segment, so it does NOT match and we never emit a bogus category form.
+ * Group 2 = the arxiv id at the END: new-style `\d{4}\.\d{4,5}` OR old-style
+ * 7-digit `\d{7}`. The `.` between the category and the id is the boundary we
+ * reverse back to `--`.
+ */
+const CATEGORY_TAIL_RE = /^([a-z][a-z-]*)\.(\d{4}\.\d{4,5}|\d{7})$/;
 /**
  * V27.94 (FIX A): content-hash paper shape. Content-hash papers (~3.2%) have no
  * native arxiv id, so they store slug='unknown--<sha>' (id arxiv-paper--unknown--<sha>)
