@@ -63,7 +63,13 @@ try {
 Astro.response.headers.set('X-Data-Source', dataSource);
 Astro.response.headers.set('Cache-Control', paper ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800' : 'public, max-age=0, s-maxage=0');
 
-// paper=null → EntityLayout renders "Entity Being Indexed" fallback
+// V27.92 T3(b): the resolver now multi-form/multi-shard probes every plausible
+// stored paper slug, so a null result means the URL is genuinely dead (not a
+// shard-routing miss). Return a real 404 status so Googlebot stops indexing it,
+// while EntityLayout still renders the "Entity Being Indexed" body for humans.
+if (!paper) {
+  Astro.response.status = 404;
+}
 
 const paperTitle = paper?.name || paper?.title || 'Unknown Research Paper';
 const entityId = paper?.id || slugStr;
