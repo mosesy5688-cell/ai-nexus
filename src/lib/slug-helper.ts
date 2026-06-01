@@ -43,30 +43,6 @@ export function deriveSlug(id: string): string {
 }
 
 /**
- * Generate candidate id/slug variants from a raw user input. Agents rarely
- * know the internal `hf-model--<author>--<name>` form; they typically know
- * the HuggingFace-native `author/name` form, or just `name`, or upper/mixed
- * case. Producing multiple candidates and matching any of them via SQL IN()
- * makes the endpoint tolerant of these forms without forcing an extra
- * roundtrip through /search first.
- */
-export function generateCandidates(rawId: string): string[] {
-    const lower = rawId.toLowerCase();
-    const candidates = new Set<string>();
-    candidates.add(lower);
-    candidates.add(lower.replace(/\//g, '--').replace(/--+/g, '--'));
-    const slug = deriveSlug(rawId);
-    if (slug) candidates.add(slug);
-    const hasPrefix = SLUG_PREFIXES.some(p =>
-        lower.startsWith(`${p}--`) || lower.startsWith(`${p}:`) || lower.startsWith(`${p}/`)
-    );
-    if (!hasPrefix && slug) {
-        for (const p of AUTO_PREFIXES) candidates.add(`${p}--${slug}`);
-    }
-    return [...candidates].filter(Boolean);
-}
-
-/**
  * V27.92 T3(b): candidate lookup keys for a /paper/<urlslug> page request.
  *
  * The paper page route emits /paper/<bare-arxiv-id> (dots preserved, e.g.
@@ -98,17 +74,30 @@ export function generatePaperCandidates(normalized: string): string[] {
 
 /** Bare arxiv id shape, e.g. 2604.22294 (mirrors utils/slug-utils.isArxivId). */
 const ARXIV_ID_RE = /^\d{4}\.\d{4,5}$/;
+/**
+ * V27.94 (FIX A): content-hash paper shape. Content-hash papers (~3.2%) have no
+ * native arxiv id, so they store slug='unknown--<sha>' (id arxiv-paper--unknown--<sha>)
+ * and their /paper/<sha> URL emits the BARE sha. A bare sha is pure hex with no
+ * `--`/`/` separator and no `.` (so it cannot collide with the arxiv-id shape or
+ * any normal `author--name`/`author/name` slug, which always carry non-hex chars
+ * or separators). 32 = md5, 40 = sha1; both observed in the corpus.
+ */
+const CONTENT_HASH_RE = /^[0-9a-f]{32,40}$/;
 /** Source prefixes that indicate a paper lookup even with a prefix present. */
 const PAPER_PREFIXES = ['arxiv-paper', 'arxiv', 'paper', 'hf-paper'];
 
 /**
  * V27.93: detect whether a raw entity id should be treated as a paper lookup.
- * True for a bare arxiv id (2604.22294) or any paper-source-prefixed form
- * (arxiv--<id>, arxiv-paper--<id>, paper:<id>, hf-paper/<id>).
+ * True for a bare arxiv id (2604.22294), a bare content-hash sha (V27.94 FIX A),
+ * or any paper-source-prefixed form (arxiv--<id>, arxiv-paper--<id>, paper:<id>,
+ * hf-paper/<id>). For a bare sha, looksLikePaper=true routes it through
+ * generatePaperCandidates which injects the matching stored 'unknown--<sha>' form
+ * (the extra 'arxiv--<sha>'/bare candidates are harmless misses, +1 cold shard).
  */
 export function looksLikePaper(rawId: string): boolean {
     const lower = (rawId || '').toLowerCase();
     if (ARXIV_ID_RE.test(lower)) return true;
+    if (CONTENT_HASH_RE.test(lower)) return true;
     return PAPER_PREFIXES.some(p =>
         lower.startsWith(`${p}--`) || lower.startsWith(`${p}:`) || lower.startsWith(`${p}/`)
     );
