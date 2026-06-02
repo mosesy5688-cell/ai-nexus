@@ -8,6 +8,7 @@ import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { getV6Category } from './category-stats-generator.js';
 import { exportRankingsDbs } from './rankings-db-exporter.js';
+import { emitListPreload } from './list-preload-emitter.js';
 import { loadHostedOnMap, enrichHostedOn } from './hosted-on-enricher.js';
 
 const CATEGORIES = [
@@ -49,6 +50,15 @@ export async function generateRankings(shardReader, outputDir = './output') {
     }
 
     await exportRankingsDbs(groups, outputDir);
+
+    // Architecture B Phase 1: also emit a fresh static top-N artifact from the
+    // same build-sorted groups so SSR list pages can bypass cold wa-sqlite.
+    // Additive; failure here must not break the rankings pipeline.
+    try {
+        await emitListPreload(groups, outputDir);
+    } catch (e) {
+        console.warn(`[LIST-PRELOAD] emit failed (non-fatal): ${e.message}`);
+    }
 }
 
 function boundedInsert(arr, item, maxSize) {
