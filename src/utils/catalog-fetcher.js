@@ -5,6 +5,7 @@
 import { DataNormalizer } from '../scripts/lib/DataNormalizer.js';
 import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine';
 import { determineTargetDbs } from './search-query-builder';
+import { readListPreload } from './list-preload-reader.js';
 // V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
 import { env } from 'cloudflare:workers';
 
@@ -40,6 +41,30 @@ async function _fetchCatalogDataInner(type, start) {
 
     // V23.6: Detect category vs entity type
     const isCategory = !ENTITY_TYPES.includes(type);
+
+    // Architecture B Phase 1: prefer the fresh static top-N preload artifact
+    // (data/list-preload/<group>.json.zst) to bypass cold wa-sqlite, which
+    // can hit the 15s SSR timeout on a cold isolate and render an empty page.
+    // Skipped in dev simulation; returns null -> falls through to wa-sqlite.
+    if (!shouldSimulate) {
+        try {
+            const preload = await readListPreload(r2Bucket, type);
+            if (preload && preload.items.length > 0) {
+                const normalized = DataNormalizer.normalizeCollection(preload.items, type);
+                const totalEntities = preload.totalEntities || normalized.length;
+                console.log(`[CatalogFetcher] Preload artifact: ${normalized.length} items for ${type} in ${Date.now() - start}ms`);
+                return {
+                    items: normalized,
+                    totalPages: Math.ceil(totalEntities / 48) || 1,
+                    totalEntities,
+                    error: null,
+                    source: 'preload'
+                };
+            }
+        } catch (e) {
+            console.warn(`[CatalogFetcher] preload fast-path failed for ${type}, falling back: ${e.message}`);
+        }
+    }
 
     const manifest = await loadManifest(r2Bucket, shouldSimulate);
 
