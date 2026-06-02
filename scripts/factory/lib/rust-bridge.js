@@ -137,7 +137,10 @@ export function zstdCompressFileFFI(inputPath, outputPath, level = 3) { return _
 export function zstdCompressBufferFFI(data, level = 3) { return _streamAggregator?.zstdCompressBuffer?.(data, level) ?? null; }
 export function zstdDecompressBufferFFI(data) { return _streamAggregator?.zstdDecompressBuffer?.(data) ?? null; }
 export function zstdDecompressFileFFI(inputPath, outputPath) { return _streamAggregator?.zstdDecompressFile?.(inputPath, outputPath) ?? null; }
-
+export function projectEntityForRelationsFFI(entity) { // V27.94: relation projection (Rust primary; null -> JS fallback)
+    if (!_streamAggregator?.projectEntityRelations) return null;
+    try { return JSON.parse(_streamAggregator.projectEntityRelations(JSON.stringify(entity))); } catch (e) { console.error(`[RUST-BRIDGE] FFI FAIL: projectEntityRelations: ${e.message}`); return null; }
+}
 /** Streaming shard aggregation (Rust). OOM-safe for 400K+ entities. */
 export function streamAggregateFFI(shardDir, outputPath) {
     if (!_streamAggregator) return null;

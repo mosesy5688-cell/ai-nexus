@@ -78,7 +78,12 @@ export async function generateRelations(shardReader, outputDir = './output') {
         console.warn('  [RELATIONS] Could not inject daily reports:', e.message);
     }
 
-    // Streaming entity relation extraction — no allRelations[] accumulation
+    // Streaming entity relation extraction — no allRelations[] accumulation.
+    // V27.94: use the dedicated relation-aware projection (Rust primary, JS
+    // fallback) instead of slim. The slim projection stripped every
+    // relation-source field (base_model/datasets/refs/...), so this loop only
+    // ever saw STACK-edge inputs (61.8% zero-rel in prod). The relation
+    // projection still carries fni_score for the node force weight below.
     await shardReader(async (entities) => {
         for (const entity of entities) {
             const id = entity.id || entity.slug;
@@ -89,7 +94,7 @@ export async function generateRelations(shardReader, outputDir = './output') {
                 totalRelations++;
             }
         }
-    }, { slim: true });
+    }, { relations: true });
 
     // Try Rust file-based graph building
     let rustDone = false;
