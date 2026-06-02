@@ -92,6 +92,9 @@ const KNOWN_PREFIXES = getKnownPrefixes();
  * Normalize an ID into canonical format
  */
 export function normalizeId(id, source, type) {
+    // V27.94 hotfix: non-string id is bad data - treat as empty (falls through
+    // to null below). Guard only; string-input behavior is byte-identical.
+    if (typeof id !== 'string') id = '';
     if (!id) return null;
 
     // 1. Initial Cleanup: Normalize delimiters and lowercase
@@ -192,6 +195,9 @@ export function normalizeId(id, source, type) {
 }
 
 export function getNodeSource(id, type) {
+    // V27.94 hotfix: non-string id is bad data - treat as empty so .toLowerCase
+    // never throws. Guard only; string-input behavior is byte-identical.
+    if (typeof id !== 'string') id = '';
     const lowerId = (id || '').toLowerCase();
 
     // 1. High-Specific Fixed Sources
