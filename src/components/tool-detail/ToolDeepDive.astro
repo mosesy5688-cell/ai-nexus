@@ -8,6 +8,10 @@ const { tool } = Astro.props;
 const toolName = tool?.name || tool?.canonical_name || 'unknown-tool';
 
 // V19: Use REAL usage data from fused entity, not fabricated code
+// V27.A2: quick_start is projected + API-returned (e.g. "pip install x"), prefer it.
+const quickStart = typeof tool?.quick_start === 'string' && tool.quick_start.trim()
+  ? tool.quick_start.trim()
+  : null;
 const realUsage = tool?.usage || tool?.installation || null;
 
 // V19: Popularity metrics with defensive parsing
@@ -77,8 +81,9 @@ import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
    </div>
 
-  <!-- Section: Usage / API Integration (V19: Real data or Fallback) -->
-  {realUsage ? (
+  {/* Section: Usage / API Integration (V27.A2: honest-empty — only renders */}
+  {/* when real quick_start or usage data exists; prefer quick_start). */}
+  {(quickStart || realUsage) && (
     <section class="bg-[var(--bg-canvas)] rounded-sm p-8 border border-[var(--border-hairline)] relative overflow-hidden group">
        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
           <span class="text-8xl text-indigo-500 select-none font-black">CODE</span>
@@ -86,20 +91,13 @@ import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
        <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
           <span>🔌</span> Usage & Integration
        </h2>
-       <MarkdownRenderer content={realUsage} />
-    </section>
-  ) : (
-    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center">
-       <div class="text-4xl mb-4 opacity-40">📦</div>
-       <p class="text-sm text-gray-500 dark:text-gray-400 font-medium mb-4">
-         Usage documentation not yet indexed for this tool.
-       </p>
-       {tool.source_url && (
-         <a href={tool.source_url} target="_blank" rel="noopener noreferrer"
-            class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs uppercase tracking-tight shadow-lg hover:scale-105 transition-all">
-           <span>🔗</span> View Source Code ↗
-         </a>
+       {quickStart && (
+         <div class="mb-6">
+           <h3 class="text-[10px] font-black text-zinc-400 uppercase mb-3 tracking-widest">Quick Start</h3>
+           <pre class="bg-black/30 border border-[var(--border-hairline)] rounded-sm p-4 overflow-x-auto"><code class="text-[12px] text-emerald-300 font-mono whitespace-pre-wrap break-words">{quickStart}</code></pre>
+         </div>
        )}
+       {realUsage && <MarkdownRenderer content={realUsage} />}
     </section>
   )}
 
