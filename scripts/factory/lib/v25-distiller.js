@@ -161,9 +161,13 @@ export function distillEntity(e, pBillions, entityLookup) {
     const relations = (Array.isArray(e.relations) && e.relations.length > 0)
         ? e.relations : (e.mesh_profile?.relations || []);
     e.ui_related_mesh = JSON.stringify(relations.map(rel => {
-        const targetId = rel.target || rel.target_id || rel.id;
+        // V27.94 (A.2): tolerate Rust array-form edges [target_id, type, conf]
+        // (relations-generator.js addEdge). Reading rel.target/.type as object keys
+        // on an array yielded undefined -> degenerate {type:'model',icon} nodes.
+        const isArr = Array.isArray(rel);
+        const targetId = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
+        const type = (isArr ? rel[1] : (rel.type || rel.t)) || 'model';
         const t = entityLookup.get(targetId);
-        const type = rel.type || rel.t || 'model';
         return t
             ? { id: targetId, type, name: t.name, icon: t.icon || '📦' }
             : { id: targetId, type, name: targetId, icon: '📦', _unresolved: 1 };

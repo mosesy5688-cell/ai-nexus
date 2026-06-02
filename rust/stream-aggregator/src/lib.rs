@@ -41,6 +41,24 @@ pub fn stream_aggregate(shard_dir: String, output_path: String) -> Result<Aggreg
     })
 }
 
+/// V27.94: Relation-aware entity projection (single entity, JSON in/out).
+///
+/// Exposes the dedicated `project::project_entity_for_relations` minimal
+/// projection over the NAPI bridge so the relation-extraction reader path
+/// (scripts/factory/lib/relations-generator.js via registry-loader.js) can use
+/// the Rust projector as primary, with the symmetric JS `projectEntityForRelations`
+/// as fallback. Carries ONLY the fields `extractEntityRelations` reads — no slim
+/// FNI/metrics fields, no fusion cold-tier text. Slim `project_entity` and
+/// `project_entity_for_fusion` are untouched (P1 streaming + cold-tier protected).
+#[napi]
+pub fn project_entity_relations(entity_json: String) -> Result<String> {
+    let value: serde_json::Value = serde_json::from_str(&entity_json)
+        .map_err(|e| Error::from_reason(format!("Entity parse error: {}", e)))?;
+    let projected = project::project_entity_for_relations(&value);
+    serde_json::to_string(&projected)
+        .map_err(|e| Error::from_reason(format!("Projection serialize error: {}", e)))
+}
+
 /// Extract "id" value from raw JSON bytes without full parse.
 /// Scans for `"id":"` or `"id" :  "` pattern, returns the value.
 fn extract_id_from_raw(raw: &[u8]) -> &str {

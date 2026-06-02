@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { loadWithFallback } from './cache-core.js';
 import { readBinaryShard, isBinaryShard } from './registry-binary-reader.js';
+import { projectEntityForRelationsFFI } from './rust-bridge.js';
 
 const REGISTRY_DIR = 'registry';
 const MONOLITH_FILE = 'global-registry.json.gz';
@@ -16,7 +17,7 @@ const MONOLITH_FILE = 'global-registry.json.gz';
 export async function loadRegistryShardsSequentially(consumer, options = {}) {
     const cacheDir = process.env.CACHE_DIR || './cache';
     const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
-    const { slim = false, startShard = 0, endShard = 999 } = options;
+    const { slim = false, relations = false, startShard = 0, endShard = 999 } = options;
 
     let shardFiles = [];
     try {
@@ -53,7 +54,7 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
             const shardName = `part-${String(i).padStart(3, '0')}.json.gz`;
             const recovered = await loadWithFallback(`registry/${shardName}`, null, false);
             if (recovered && (recovered.entities || Array.isArray(recovered))) {
-                const entities = (recovered.entities || recovered).map(e => projectEntity(e, slim));
+                const entities = (recovered.entities || recovered).map(e => projectFor(e, slim, relations));
                 await consumer(entities, i);
             } else if (i > 10) {
                 break;
@@ -64,7 +65,7 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
         for (const s of validShards) {
             const shardIdx = parseInt(s.match(/part-(\d+)/)[1]);
             const fullPath = path.join(shardDirPath, s);
-            const entities = await loadShardAuto(fullPath, s, slim);
+            const entities = await loadShardAuto(fullPath, s, slim, relations);
             if (entities && entities.length > 0) {
                 await consumer(entities, shardIdx);
             }
@@ -72,25 +73,28 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
     }
 }
 
-/**
- * Auto-detect shard format and load entities
- */
-async function loadShardAuto(fullPath, filename, slim) {
+/** Auto-detect shard format and load entities */
+async function loadShardAuto(fullPath, filename, slim, relations = false) {
     // Binary NXVF shard (primary path)
     if (filename.endsWith('.bin') && isBinaryShard(fullPath)) {
         const result = await readBinaryShard(fullPath);
         if (result && result.entities) {
-            return result.entities.map(e => projectEntity(e, slim));
+            return result.entities.map(e => projectFor(e, slim, relations));
         }
         return [];
     }
     // JSON.gz fallback (legacy compatibility)
     const recovered = await loadWithFallback(`registry/${filename}`, null, false);
     if (recovered && (recovered.entities || Array.isArray(recovered))) {
-        return (recovered.entities || recovered).map(e => projectEntity(e, slim));
+        return (recovered.entities || recovered).map(e => projectFor(e, slim, relations));
     }
     return [];
 }
+
+// V27.94: Projection router — `relations` routes through the dedicated
+// relation-aware projection (Rust primary, JS fallback); else slim/full.
+const projectFor = (e, slim, relations) =>
+    relations ? projectEntityForRelations(e) : projectEntity(e, slim);
 
 export async function loadGlobalRegistry(options = {}) {
     const cacheDir = process.env.CACHE_DIR || './cache';
@@ -218,4 +222,29 @@ export function projectEntity(e, slim) {
         forks: e.forks || 0,
         citation_count: e.citation_count || e.citations || 0,
     };
+}
+
+// V27.94: minimal field set read by extractEntityRelations (relation-extractors.js).
+// Mirrors Rust project_entity_for_relations. NO slim FNI/metrics, NO cold-tier text.
+const REL_PROJECT_FIELDS = [
+    'tags', 'base_model', 'datasets', 'datasets_used', 'arxiv_refs', 'paper_refs',
+    'references', 'models_used', 'models', 'model_id', 'sdk', 'implementations',
+    'dependencies', 'features', 'highlights', 'velocity', 'knowledge_tags',
+];
+/**
+ * V27.94: DEDICATED relation-aware projector (Rust primary, JS fallback).
+ * Root-cause fix for the P0 mesh/relation void: slim projectEntity strips every
+ * relation-source field, so extractEntityRelations only emitted STACK edges.
+ * Separate from slim (no P1 streaming pollution) + fusion (no cold-tier heap blow).
+ */
+export function projectEntityForRelations(e) {
+    const r = projectEntityForRelationsFFI(e);
+    if (r) return r;
+    const out = {
+        id: e.id, slug: e.slug || '', type: e.type || e.entity_type || 'model',
+        name: e.name || e.title || e.displayName || '', description: e.description || '',
+        fni_score: e.fni_score ?? e.fni ?? 0, // node force weight (single float)
+    };
+    for (const k of REL_PROJECT_FIELDS) if (e[k] !== undefined) out[k] = e[k];
+    return out;
 }

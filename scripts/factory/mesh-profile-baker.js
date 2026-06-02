@@ -67,16 +67,27 @@ async function main() {
             const canonUrl = getRouteFromId(syncedId, typeValue);
 
             const bakedRelations = entityRelations.map(rel => {
-                const targetIdRaw = rel.target || rel.target_id || rel.id;
-                const targetType = (rel.type || rel.t || 'model').toLowerCase();
+                // V27.94 (A.2): Rust emits array-form edges [target_id, type, conf]
+                // (relations-generator.js addEdge). Reading rel.target/.type as object
+                // keys on an array yielded undefined -> degenerate {type:'model',icon}.
+                const isArr = Array.isArray(rel);
+                const targetIdRaw = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
+                const relType = isArr ? rel[1] : (rel.type || rel.t);
+                // array-form conf is 0-100 (addEdge Math.round(conf*100)); normalize to
+                // 0-1 to match object/source convention (frontend tests rel.confidence>0.8).
+                const conf = isArr ? (rel[2] != null ? rel[2] / 100 : undefined) : rel.confidence;
+                const targetType = (relType || 'model').toLowerCase();
                 const syncedTargetId = normalizeId(targetIdRaw, getNodeSource(targetIdRaw, targetType), targetType);
                 const bakedUrl = getRouteFromId(syncedTargetId, targetType);
                 const registryNode = nodeRegistry[targetIdRaw] || nodeRegistry[syncedTargetId] || {};
+                const objExtras = isArr ? {} : rel;
                 return {
-                    ...rel, url: bakedUrl,
+                    ...objExtras, url: bakedUrl,
+                    relation_type: relType || (isArr ? undefined : rel.relation_type),
+                    confidence: conf != null ? conf : (isArr ? undefined : rel.confidence),
                     target_id: syncedTargetId || targetIdRaw,
-                    target_name: rel.name || rel.target_name || registryNode.name || registryNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
-                    icon: rel.icon || registryNode.icon || '📦'
+                    target_name: (isArr ? undefined : (rel.name || rel.target_name)) || registryNode.name || registryNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
+                    icon: (isArr ? undefined : rel.icon) || registryNode.icon || '📦'
                 };
             });
 

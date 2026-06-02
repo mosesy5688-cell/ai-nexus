@@ -104,6 +104,60 @@ pub(crate) fn project_entity(e: &Value, fni_percentile: u8) -> Value {
     })
 }
 
+/// V27.94: DEDICATED relation-aware projection.
+///
+/// Root-cause fix for the P0 mesh/relation data void: the slim `project_entity`
+/// strips every relation-source field, so `extractEntityRelations`
+/// (scripts/factory/lib/relation-extractors.js) only ever emitted STACK edges
+/// (61.8% zero-rel in prod; zero BASED_ON/TRAINED_ON/CITES/USES/IMPLEMENTS).
+///
+/// This is intentionally SEPARATE from both slim and fusion:
+///  - NOT the slim projector: adding a flag there would pollute the
+///    rankings/FNI P1 streaming path with Option<T> bloat.
+///  - NOT `project_entity_for_fusion`: it is missing ~8 of the relation field
+///    clusters AND carries cold-tier bloat (body_content/html_readme/readme/
+///    search_vector) that would blow V8 heap in the extraction stream.
+///
+/// Field set is the EXACT set read by `extractEntityRelations` (plus
+/// fni_score, which generateRelations uses for node force weighting):
+///   identity/STACK inputs: id, slug, type, name, tags, description
+///   relation clusters: base_model, datasets, datasets_used, arxiv_refs,
+///   paper_refs, references, models_used, models, model_id, sdk,
+///   implementations, dependencies, features, highlights, velocity,
+///   knowledge_tags
+/// (the diagnosis list's `relations` is NOT read by the extractor — dropped.)
+pub(crate) fn project_entity_for_relations(e: &Value) -> Value {
+    let mut out = json!({
+        "id": str_field(e, "id"),
+        "slug": str_field(e, "slug"),
+        "type": e.get("type")
+            .or(e.get("entity_type"))
+            .and_then(|v| v.as_str()).unwrap_or("model"),
+        "name": e.get("name")
+            .or(e.get("title"))
+            .or(e.get("displayName"))
+            .and_then(|v| v.as_str()).unwrap_or(""),
+        "description": str_field(e, "description"),
+        // generateRelations weights graph nodes by fni_score (single float, not
+        // the S/A/P/R/Q metric cluster) — preserve node force without slim bloat.
+        "fni_score": e.get("fni_score").and_then(|v| v.as_f64())
+            .or_else(|| e.get("fni").and_then(|v| v.as_f64())).unwrap_or(0.0),
+    });
+    const REL_FIELDS: &[&str] = &[
+        "tags", "base_model", "datasets", "datasets_used",
+        "arxiv_refs", "paper_refs", "references",
+        "models_used", "models", "model_id", "sdk",
+        "implementations", "dependencies", "features", "highlights",
+        "velocity", "knowledge_tags",
+    ];
+    for key in REL_FIELDS {
+        if let Some(v) = e.get(*key) {
+            out[*key] = v.clone();
+        }
+    }
+    out
+}
+
 fn str_field<'a>(e: &'a Value, key: &str) -> &'a str {
     e.get(key).and_then(|v| v.as_str()).unwrap_or("")
 }
