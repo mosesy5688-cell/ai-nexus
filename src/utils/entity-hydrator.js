@@ -33,6 +33,17 @@ export function hydrateEntity(data, type, summaryData) {
     // V23.6: Mark pillars as synthesized when no real data exists (D5 fix)
     const pillarsSynthesized = (fScore > 0 && fp === 0 && fa === 0 && fq === 0);
 
+    // V27 sweep-1 (A render-honesty): GitHub-sourced entities deterministically
+    // get fni_a === 0 because the producer authority proxy excludes the gh
+    // source. A measured-zero mask over a not-measured pillar is a north-star
+    // violation (same class as the S-pillar). RENDER-layer flag only — the
+    // formula is unchanged (producer/re-pack-gated). True only for gh + A===0,
+    // so genuine-nonzero A and genuine-zero non-gh entities are untouched.
+    const idLower = (entity.id || '').toLowerCase();
+    const isGhSourced = idLower.startsWith('gh-')
+        || (entity.source || '').toLowerCase() === 'github';
+    const fniANotMeasured = isGhSourced && Number(fa) === 0;
+
     const hydrated = {
         ...entity,
         meta: meta,
@@ -47,6 +58,7 @@ export function hydrateEntity(data, type, summaryData) {
         fni_r: fr,
         fni_q: fq,
         fni_pillars_synthesized: pillarsSynthesized,
+        fni_a_not_measured: fniANotMeasured,
         name: derivedName,
         relations: computed.relations || entity.relations || meta.extended?.relations || meta.relations || {},
         body_content: entity.body_content || meta.html_readme || meta.readme || null,

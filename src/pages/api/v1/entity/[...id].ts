@@ -55,8 +55,7 @@ function parseTags(s: any): string[] {
 }
 
 function project(e: any) {
-    // V27.A7 (R7): paper-only bare arxiv id (null for non-papers / content-hash);
-    // canonical = single canonical landing URL reused by detail_url + canonical_url.
+    // V27.A7 (R7): paper-only bare arxiv id (null otherwise); canonical = single landing URL reused by detail_url + canonical_url.
     const arxivId = e.type === 'paper' ? extractArxivIdFromKey(e.slug || e.id) : null;
     const canonical = entityCanonicalUrl(e);
     const entity: any = {
@@ -81,7 +80,9 @@ function project(e: any) {
             score: e.fni_score ?? null,
             percentile: e.fni_percentile || null,
             factors: {
-                semantic: e.fni_s ?? null,
+                // V27 sweep-1 (S honesty): fni_s is a constant baseline, not measured per-entity -> emit null + note so Agents do not ingest it as a measured score (honest-contract, mirrors V27.96).
+                semantic: null,
+                semantic_note: 'query-time baseline; scored live at search; not a per-entity value',
                 authority: e.fni_a ?? null,
                 popularity: e.fni_p ?? null,
                 recency: e.fni_r ?? null,
@@ -111,8 +112,7 @@ function project(e: any) {
         },
 
         stats: {
-            // V27.45: honest-contract — null when not-measured, 0 only when explicitly zero.
-            // Per llms.txt: '0 means measured-zero, null means not-measured'.
+            // V27.45: honest-contract -> null when not-measured, 0 only when explicitly zero (per llms.txt).
             downloads: e.downloads ?? null,
             stars: e.stars ?? null,
             forks: e.forks ?? null,

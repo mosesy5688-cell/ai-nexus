@@ -25,6 +25,7 @@ interface Props {
   fniR?: number;
   fniQ?: number;
   fniPillarsSynthesized?: boolean;
+  fniANotMeasured?: boolean;
   paramsB?: number;
   sourceUrl?: string;
   entityId?: string;
@@ -52,6 +53,7 @@ const {
   fniR = 0,
   fniQ = 0,
   fniPillarsSynthesized = false,
+  fniANotMeasured = false,
   paramsB,
   sourceUrl,
   entityId = '',
@@ -161,6 +163,7 @@ const relativeTime = formatRelativeTime(lastUpdated);
       fniR={fniR}
       fniQ={fniQ}
       fniPillarsSynthesized={fniPillarsSynthesized}
+      fniANotMeasured={fniANotMeasured}
       paramsB={paramsB}
       contextLength={contextLength}
       downloads={downloads}

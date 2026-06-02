@@ -629,7 +629,8 @@
                   "factors": {
                     "type": "object",
                     "properties": {
-                      "semantic": { "type": "number", "nullable": true },
+                      "semantic": { "type": "number", "nullable": true, "description": "Always null: the Semantic pillar is a query-time baseline scored live at search, not a measured per-entity value. See semantic_note." },
+                      "semantic_note": { "type": "string", "description": "Explains that semantic is a query-time baseline, not a per-entity score." },
                       "authority": { "type": "number", "nullable": true },
                       "popularity": { "type": "number", "nullable": true },
                       "recency": { "type": "number", "nullable": true },
