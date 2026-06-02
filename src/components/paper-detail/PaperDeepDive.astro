@@ -14,7 +14,7 @@ const generateBibTeX = (p: any) => {
   return `@article{${id},
   title={${p.title}},
   author={${authorList.join(' and ')}},
-  journal={arXiv preprint arXiv:${p.id || '2401.xxxxx'}},
+  journal={arXiv preprint arXiv:${p.arxiv_id || '2401.xxxxx'}},
   year={${year}}
 }`;
 };

@@ -24,6 +24,18 @@ if (!source) {
 // V16.7: Type-aware labels
 const typeLabel = type === 'agent' || type === 'tool' ? 'Runtime' : (type === 'dataset' ? 'Format' : 'Primary Category');
 const captionLabel = type.charAt(0).toUpperCase() + type.slice(1);
+
+// V27 R7: Registry ID must never leak the internal prefixed id
+// (e.g. arxiv-paper--unknown--<id>). For papers show the clean arxiv_id;
+// otherwise strip any internal type prefix from the public slug.
+const rawId = model.id || model.slug || '';
+const stripPrefix = (v: string) => (v && v.includes('--') ? v.split('--').slice(1).join('/') : v);
+let registryId;
+if (type === 'paper') {
+  registryId = model.arxiv_id || stripPrefix(model.slug || rawId) || 'Unknown';
+} else {
+  registryId = stripPrefix(rawId) || 'Unknown';
+}
 ---
 
 <div class="mb-6 overflow-hidden rounded-sm border border-[var(--border-hairline)]">
@@ -35,7 +47,7 @@ const captionLabel = type.charAt(0).toUpperCase() + type.slice(1);
       </tr>
       <tr class="hover:bg-zinc-800/20 transition-colors border-b border-[var(--border-hairline)]">
         <td class="px-3 py-2 font-black text-white bg-[var(--bg-canvas)] w-1/3">Registry ID</td>
-        <td class="px-3 py-2 font-mono text-zinc-400 truncate" itemprop="name">{model.id || model.slug || 'Unknown'}</td>
+        <td class="px-3 py-2 font-mono text-zinc-400 truncate" itemprop="name">{registryId}</td>
       </tr>
       {model.license && (
         <tr class="hover:bg-zinc-800/20 transition-colors border-b border-[var(--border-hairline)]">

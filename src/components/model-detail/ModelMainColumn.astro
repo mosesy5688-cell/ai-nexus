@@ -3,101 +3,16 @@
 import ModelNotices from './ModelNotices.astro';
 
 import FullReadmeSection from './FullReadmeSection.astro';
-// Phase B.8: New components for user understanding
-import BenchmarkScores from './BenchmarkScores.astro';
-import GGUFList from './GGUFList.astro';
-import ArchitectureSchema from './ArchitectureSchema.astro';
-import MarkdownRenderer from './MarkdownRenderer.astro';
 
 
 interface Props {
   model: any;
-  modelId: string;
-  cleanDescription: string;
-  jsonld: any;
 }
 
-const { model, modelId, cleanDescription, jsonld } = Astro.props;
-
-// V8.0: Safely extract meta_json fields (may be string or object)
-let metaJson: Record<string, any> = {};
-try {
-  if (model.meta_json) {
-    metaJson = typeof model.meta_json === 'string' 
-      ? JSON.parse(model.meta_json) 
-      : model.meta_json;
-  }
-} catch (e) {
-  console.warn('[ModelMainColumn] Failed to parse meta_json:', e);
-}
+const { model } = Astro.props;
 ---
 
 <div class="lg:col-span-2 space-y-6">
-
-  {/* V15.8: GGUF File List (Zone 4) */}
-  <GGUFList files={model.siblings} modelId={modelId} />
-  
-  {/* V16.2: Technical Setup & Implementation (Consolidated) */}
-  {(model.installation || model.configuration || model.usage) && (
-    <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
-       <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-          ⚙️ Technical Implementation
-       </h2>
-       
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* V16.10: Visual Architectural Skeleton */}
-          <div class="space-y-4">
-             <h3 class="text-[9px] font-black text-zinc-500 flex items-center gap-2 uppercase tracking-widest">
-                <span class="w-1 h-1 bg-indigo-500 rounded-full"></span> Internal Architecture
-             </h3>
-             <ArchitectureSchema 
-               layers={model.num_layers} 
-               heads={model.num_heads} 
-               experts={model.moe_experts} 
-               activeExperts={model.moe_active} 
-               hiddenSize={model.hidden_size}
-               architecture={model.architecture}
-             />
-             
-             {/* V16.8.12: Semantic Benchmark Scores (Signal Restoration) */}
-             <BenchmarkScores benchmarks={model.benchmarks || metaJson.benchmarks} />
-          </div>
-
-          <div class="space-y-8">
-            {model.installation && (
-              <div class="space-y-4">
-                 <h3 class="text-[9px] font-black text-zinc-500 flex items-center gap-2 uppercase tracking-widest">
-                    <span class="w-1 h-1 bg-indigo-500 rounded-full"></span> Installation
-                 </h3>
-                 <div class="bg-[var(--bg-canvas)] rounded-sm p-4 border border-[var(--border-hairline)]">
-                    <MarkdownRenderer content={model.installation} />
-                 </div>
-              </div>
-            )}
-
-            {model.usage && (
-              <div class="space-y-4">
-                 <h3 class="text-[9px] font-black text-zinc-500 flex items-center gap-2 uppercase tracking-widest">
-                    <span class="w-1 h-1 bg-green-500 rounded-full"></span> Usage Example
-                 </h3>
-                 <div class="bg-[var(--bg-canvas)] rounded-sm p-4 border border-[var(--border-hairline)]">
-                    <MarkdownRenderer content={model.usage} />
-                 </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-       {model.configuration && (
-         <div class="mt-6 pt-6 border-t border-[var(--border-hairline)] sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
-            <dt class="text-xs font-bold leading-6 text-white uppercase tracking-tighter">Config Logic</dt>
-            <dd class="mt-1 text-sm leading-6 text-zinc-300 sm:col-span-2 sm:mt-0">
-               <MarkdownRenderer content={model.configuration} />
-            </dd>
-         </div>
-       )}
-    </section>
-  )}
 
   {/* B.6: Primary Model Documentation */}
   <div class="relative">

@@ -5,7 +5,6 @@ interface Props {
 
 const { agent } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
 // V19: Removed dead mockConfig variable (fabricated YAML never rendered)
 const agentName = agent?.name || agent?.canonical_name || 'unknown-agent';
@@ -41,50 +40,9 @@ const likes = agent?.likes ? Number(agent.likes) : null;
       )}
 
       <!-- Full README / Agent Profile (V19: html_readme priority) -->
-      <FullReadmeSection 
+      <FullReadmeSection
         bodyContent={agent.html_readme || agent.body_content || agent.description}
         type="agent"
         maxPreviewLength={5000}
       />
-
-
-
-      {/* V16.2: Real Data Deep Dive */}
-      {agent.installation && (
-        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
-          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span>💻</span> Installation
-          </h2>
-          <MarkdownRenderer content={agent.installation} />
-        </section>
-      )}
-
-      {agent.configuration && (
-        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
-          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span>⚙️</span> Configuration
-          </h2>
-          <MarkdownRenderer content={agent.configuration} />
-        </section>
-      )}
-
-      {agent.usage && (
-        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
-          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span>🚀</span> Usage Examples
-          </h2>
-          <MarkdownRenderer content={agent.usage} />
-        </section>
-      )}
-
-      {agent.license_full && (
-        <section class="bg-[var(--bg-surface)] rounded-sm p-6 border border-[var(--border-hairline)]">
-          <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <span>📄</span> License Details
-          </h2>
-          <div class="bg-[var(--bg-canvas)] p-4 rounded-sm text-xs text-zinc-400 font-mono whitespace-pre-wrap border border-[var(--border-hairline)]">
-            {agent.license_full}
-          </div>
-        </section>
-      )}
    </div>
