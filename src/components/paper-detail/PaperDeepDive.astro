@@ -5,16 +5,23 @@ interface Props {
 
 const { paper } = Astro.props;
 
-// Mock BibTeX generation
+// BibTeX generation. V27.A6/R7: the `journal` line must use the real arxiv id
+// (now reliably derived in the hydrator from the slug/id) and must NEVER emit
+// the fabricated `2401.xxxxx` placeholder. Content-hash papers legitimately
+// have no arxiv id, so we omit the arxiv `journal` line entirely and emit an
+// honest `note` instead of inventing an arxiv number.
 const generateBibTeX = (p: any) => {
   const authorList = Array.isArray(p.authors) ? p.authors : (p.authors ? [p.authors] : []);
   const authorFirst = authorList.length > 0 ? authorList[0].split(' ').pop() : 'Unknown';
   const year = new Date(p.published_date || Date.now()).getFullYear();
   const id = `${authorFirst}${year}${p.title?.split(' ')[0] || 'Paper'}`;
+  const sourceLine = p.arxiv_id
+    ? `  journal={arXiv preprint arXiv:${p.arxiv_id}},`
+    : `  note={Indexed by Free2AITools},`;
   return `@article{${id},
   title={${p.title}},
   author={${authorList.join(' and ')}},
-  journal={arXiv preprint arXiv:${p.arxiv_id || '2401.xxxxx'}},
+${sourceLine}
   year={${year}}
 }`;
 };

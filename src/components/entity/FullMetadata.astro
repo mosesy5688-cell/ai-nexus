@@ -5,10 +5,26 @@
  */
 interface Props {
   entity: any;
+  type?: string;
   title?: string;
 }
 
-const { entity, title = "Transparency Report" } = Astro.props;
+const { entity: rawEntity, type, title = "Transparency Report" } = Astro.props;
+
+// V27.A6/R7: never expose a paper's raw internal id/slug
+// (`arxiv-paper--unknown--2210.07229` / `unknown--2210.07229`). For papers,
+// surface the clean arxiv id instead; suppress the rows when there is no clean
+// arxiv id (e.g. content-hash papers) rather than leaking the internal key.
+const entity = { ...rawEntity };
+if (type === 'paper') {
+  if (entity.arxiv_id) {
+    entity.id = entity.arxiv_id;
+    entity.slug = entity.arxiv_id;
+  } else {
+    delete entity.id;
+    delete entity.slug;
+  }
+}
 
 // Filter out internal fields (starting with _) and redundant raw data
 const ignoreKeys = ['meta', 'meta_json', 'config', 'entityDefinition', 'computed', 'similar_models', 'similar_entities', 'body_content', 'description'];

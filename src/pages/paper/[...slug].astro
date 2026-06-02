@@ -168,12 +168,13 @@ const derivedUseCases = paper ? getUseCases(tagsArray, '', 'paper', paper.fni_sc
     {paper && (
       <div slot="core-desktop" class="space-y-16">
          <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-            <CiteEntity 
-              id={paperId} 
-              name={paperTitle} 
-              author={displayAuthor} 
-              url={paper.source_url} 
-              type="paper" 
+            <CiteEntity
+              id={paperId}
+              name={paperTitle}
+              author={displayAuthor}
+              url={paper.source_url}
+              type="paper"
+              citeKey={paper.arxiv_id ? `arxiv_${paper.arxiv_id.replace(/\./g, '_')}` : undefined}
             />
          </div>
       </div>

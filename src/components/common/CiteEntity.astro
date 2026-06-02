@@ -11,23 +11,38 @@ interface Props {
   url?: string;
   type?: string;
   className?: string;
+  citeKey?: string;
 }
 
-const { id = '', name, author = 'Free2AITools Contributors', url, type = 'model', className = '' } = Astro.props;
+const { id = '', name, author = 'Free2AITools Contributors', url, type = 'model', className = '', citeKey } = Astro.props;
 const currentYear = new Date().getFullYear();
 
 const safeType = type || 'model';
 const safeId = id || 'entity';
 
-const bibtex = `@misc{${safeId.replace(/-/g, '_')},
+// V27.A6/R7: the BibTeX cite-key must never expose the raw internal id
+// (e.g. `arxiv-paper--unknown--2210.07229` -> `arxiv_paper__unknown__...`).
+// Prefer an explicit clean key (papers pass their arxiv id); otherwise strip
+// source/`unknown` prefix segments and normalize separators to `_`.
+const rawKey = citeKey || safeId
+  .replace(/^(arxiv-paper|hf-paper|arxiv|paper|hf-model|gh-model|replicate|civitai-model|ollama-model)(--|:)/i, '')
+  .replace(/(^|--)unknown--/i, '$1');
+const cleanKey = (rawKey || 'entity').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'entity';
+
+// V27.A6/R7: the fallback canonical URL must also avoid the raw internal id.
+// Prefer the passed (human) url; else build a path from the cleaned key.
+const fallbackUrl = `https://free2aitools.com/${safeType}/${rawKey || safeId}`;
+const citeUrl = url || fallbackUrl;
+
+const bibtex = `@misc{${cleanKey},
   author = {${author}},
   title = {${name} ${safeType.charAt(0).toUpperCase() + safeType.slice(1)}},
   year = {${currentYear}},
-  howpublished = {\\url{${url || `https://free2aitools.com/${safeType}/${safeId}`}}},
+  howpublished = {\\url{${citeUrl}}},
   note = {Accessed via Free2AITools Knowledge Fortress}
 }`;
 
-const apa = `${author}. (${currentYear}). ${name} [${safeType.charAt(0).toUpperCase() + safeType.slice(1)}]. Free2AITools. ${url || `https://free2aitools.com/${safeType}/${safeId}`}`;
+const apa = `${author}. (${currentYear}). ${name} [${safeType.charAt(0).toUpperCase() + safeType.slice(1)}]. Free2AITools. ${citeUrl}`;
 
 const encodedBibtex = encodeURIComponent(bibtex);
 const encodedApa = encodeURIComponent(apa);
