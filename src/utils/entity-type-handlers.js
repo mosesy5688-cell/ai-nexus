@@ -50,11 +50,19 @@ export function handlePaperType(hydrated, entity, meta, derivedName) {
     const isRawID = /^\d{4}\.\d{4,5}$/.test(derivedName);
     hydrated.title = isRawID ? `ArXiv ${derivedName} Technical Profile` : derivedName;
 
-    hydrated.abstract = entity.abstract || entity.description || meta.abstract || meta.description;
+    // V27.A1: hot-tier column is `summary`; promote it as PRIMARY abstract source.
+    hydrated.abstract = entity.summary || entity.abstract || entity.description || meta.abstract || meta.description;
     hydrated.arxiv_id = entity.arxiv_id || meta.arxiv_id || meta.extended?.arxiv_id || (isRawID ? derivedName : null);
     hydrated.citations = entity.citations || entity.citation_count || meta.citations || meta.extended?.citations;
     hydrated.published_date = entity.published_date || meta.published_date || meta.extended?.published_date;
-    hydrated.authors = entity.authors || meta.authors || meta.extended?.authors || [];
+    // V27.A1: hot-tier column is `author` (comma string); split when no array exists.
+    if (Array.isArray(entity.authors) && entity.authors.length) {
+        hydrated.authors = entity.authors;
+    } else if (typeof entity.author === 'string' && entity.author.trim()) {
+        hydrated.authors = entity.author.split(',').map(a => a.trim()).filter(Boolean);
+    } else {
+        hydrated.authors = meta.authors || meta.extended?.authors || [];
+    }
 
     // V16.24-26: Robust Paper Source URL
     if (!hydrated.source_url && (hydrated.arxiv_id || hydrated.id)) {
@@ -95,7 +103,8 @@ export function handleGenericType(hydrated, entity, type, meta, derivedName) {
         hydrated.github_stars = entity.github_stars || entity.stars || meta.stars || meta.stargazers_count || meta.extended?.stars;
         hydrated.github_forks = entity.github_forks || entity.forks || meta.forks || meta.forks_count || meta.extended?.forks;
         // V27.92 Honest-contract: do not fabricate language/version when no real source provides them.
-        hydrated.language = entity.language || meta.language || meta.extended?.language || meta.info?.language || null;
+        // V27.A1: projection field is `primary_language`; read it before meta fallbacks.
+        hydrated.language = entity.language || entity.primary_language || meta.language || meta.extended?.language || meta.info?.language || null;
         hydrated.version = entity.version || meta.version || meta.extended?.version || null;
         hydrated.framework = entity.framework || meta.framework || meta.extended?.framework || meta.info?.framework;
     } else if (type === 'space') {
