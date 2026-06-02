@@ -93,7 +93,7 @@ export function handlePaperType(hydrated, entity, meta, derivedName) {
  * old-style 7-digit), or null when no clean arxiv id is present (e.g. a
  * content-hash `unknown--<40-hex-sha>` paper, which has no real arxiv id).
  */
-function extractArxivIdFromKey(key) {
+export function extractArxivIdFromKey(key) {
     if (typeof key !== 'string' || !key) return null;
     const tail = key.toLowerCase().split('--').pop();
     if (/^\d{4}\.\d{4,5}$/.test(tail) || /^\d{7}$/.test(tail)) return tail;
