@@ -33,22 +33,23 @@ async function initVfsRecovery() {
 
   if (status) status.classList.remove('hidden');
 
+  let recovered = false;
   try {
     console.log(`[VFS-Recovery] Attempting metadata recovery for: ${modelId}`);
     await initSearch();
 
-    const query = modelId.split('--').pop(); 
+    const query = modelId.split('--').pop();
     const results = await performSearch(query, 10, { entityType: modelType });
     const record = results.find(r => r.id === modelId || r.slug === modelId);
 
     if (record && record.bundle_key) {
       console.log(`[VFS-Recovery] Found shard mapping: ${record.bundle_key} @ ${record.bundle_offset}`);
       const bundle = await fetchBundleRange(record.bundle_key, record.bundle_offset, record.bundle_size);
-      
+
       if (bundle && (bundle.html_readme || bundle.readme)) {
         const rawHtml = bundle.html_readme || await marked(bundle.readme || '');
         const html = sanitizeHtml(rawHtml);
-        target.innerHTML = `<div class="markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none 
+        target.innerHTML = `<div class="markdown-content prose prose-sm md:prose-base dark:prose-invert max-w-none
                                   prose-headings:font-black prose-headings:tracking-tight prose-headings:text-zinc-900 dark:prose-headings:text-white
                                   prose-a:text-[#bdc3ff] prose-a:font-bold prose-a:no-underline hover:prose-a:underline
                                   prose-strong:text-zinc-900 dark:prose-strong:text-white
@@ -58,17 +59,28 @@ async function initVfsRecovery() {
         setupToggle();
         initMarkdownCopy();
         runNeuralMining(target);
+        recovered = true;
         console.log(`[VFS-Recovery] Recovery SUCCESS.`);
       }
     } else {
        console.warn(`[VFS-Recovery] No shard mapping found in VFS for ${modelId}`);
-       target.innerHTML = `<p class="text-zinc-400 text-sm italic">Documentation currently synchronized with local index. Full specifications available via production mirror.</p>`;
     }
   } catch (e) {
     console.error(`[VFS-Recovery] Recovery Error:`, e);
   } finally {
     if (status) status.classList.add('hidden');
+    // V27.A5 (R8a): TERMINAL honest-empty state. The SSR shimmer (canRecover
+    // branch) is only a placeholder for an in-flight recovery; if recovery
+    // failed, errored, or returned no readme, the shimmer was previously left
+    // spinning forever (no else / catch did not touch target). Clear it to an
+    // honest static message so the section never spins indefinitely.
+    if (!recovered) showDocsUnavailable(target);
   }
+}
+
+function showDocsUnavailable(target) {
+  if (!target) return;
+  target.innerHTML = `<p class="text-zinc-400 dark:text-zinc-500 text-sm italic py-4">Documentation unavailable.</p>`;
 }
 
 function setupToggle() {

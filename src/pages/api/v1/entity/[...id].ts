@@ -1,23 +1,14 @@
 /**
  * GET /api/v1/entity/:id — Single-entity detail lookup.
  *
- * Agent-first endpoint: search returns IDs, agents need a way to fetch the
- * full structured metadata for one entity without scraping the HTML detail
- * page. Closes the search -> detail chain that was previously broken (P0-3
- * in the 2026-05-16 Agent-perspective audit).
- *
- * Routing: same shard derivation as compare.ts / badge.ts — xxhash64Mod of
- * (id, slug, umid) candidates against partitions.meta_shards from manifest.
- * Query: SELECT * WHERE id = ? OR slug = ? OR umid = ? LIMIT 1.
- *
- * Response projection: 60 raw entity columns -> ~30 Agent-relevant fields,
- * grouped into identity / classification / fni / specs / stats / links /
- * relations. Omits internal storage fields (bundle_key/offset/size,
- * search_vector, readme_html) per feedback_no_architecture_exposure.
- *
- * Optional ?include=body lazy-loads readme_html from the .bin fused-shard
- * (cold tier) via packet-loader.fetchBundleReadme — the SQL row only stores
- * bundle pointers, not the full HTML, to keep meta-NN.db slots small.
+ * Agent-first endpoint: search returns IDs; agents fetch full structured
+ * metadata for one entity here (closes the search -> detail chain, P0-3).
+ * Routing: per-candidate xxhash64Mod against partitions.meta_shards, probing
+ * the highest-probability shard first (see buildEntityProbePlan), then
+ * SELECT * WHERE id/slug/umid IN (candidate forms) LIMIT 1 per shard.
+ * Projection: 60 raw columns -> ~30 Agent fields; omits internal storage fields
+ * per feedback_no_architecture_exposure. ?include=body lazy-loads readme_html
+ * from the .bin fused-shard (cold tier) via packet-loader.fetchBundleReadme.
  */
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
@@ -27,6 +18,7 @@ import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
 import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
+import { getEntityRoute } from '../../../../utils/mesh-routing-core.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -58,6 +50,15 @@ function parseTags(s: any): string[] {
     if (Array.isArray(v)) return v.filter(t => typeof t === 'string');
     if (typeof s === 'string' && s) return s.split(',').map(t => t.trim()).filter(Boolean);
     return [];
+}
+
+// V27.A5 (R8b): SITE-canonical detail URL via the frontend routing helper (old
+// literal emitted non-canonical /paper/unknown--<id> -> transient skeleton).
+function detailUrl(e: any): string {
+    const route = getEntityRoute({ id: e.id, slug: e.slug, type: e.type }, e.type || null);
+    // '#' (empty/unroutable id) -> prior literal, never a bare anchor.
+    const path = route && route !== '#' ? route : `/${e.type || 'model'}/${e.slug || e.id}`;
+    return `https://free2aitools.com${path}`;
 }
 
 function project(e: any) {
@@ -126,7 +127,7 @@ function project(e: any) {
             source_url: e.source_url || null,
             canonical_url: e.canonical_url || null,
             image_url: e.image_url || null,
-            detail_url: `https://free2aitools.com/${e.type || 'model'}/${e.slug || e.id}`,
+            detail_url: detailUrl(e),
             badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(e.slug || e.id)}`,
         },
 
