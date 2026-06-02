@@ -77,53 +77,33 @@ export function getUseCases(tagsOrEntity = [], pipelineTag = '', entityType = 'm
         if (allTags.includes('framework')) goodFor.add('Agent Orchestration');
         if (allTags.includes('mcp-server')) goodFor.add('External Tools');
         if (allTags.includes('autonomous')) goodFor.add('Long-term Planning');
-
-        // Limits
-        limits.add('Requires API Keys');
     }
 
     else if (safeType === 'paper') {
         if (allTags.includes('nlp')) goodFor.add('Language Theory');
         if (allTags.includes('cv')) goodFor.add('Object Detection');
         if (allTags.includes('benchmark')) goodFor.add('Model Analytics');
-
-        // Defaults if tags sparse
-        if (goodFor.size === 0) goodFor.add('SOTA Research');
-        limits.add('Academic Implementation');
     }
 
     else if (safeType === 'dataset') {
         if (allTags.includes('sft')) { goodFor.add('Instruction Tuning'); }
         if (allTags.includes('rlhf')) { goodFor.add('Alignment Training'); }
         if (allTags.includes('pretrain')) { goodFor.add('Base Training'); }
-
-        if (goodFor.size === 0) { goodFor.add('Data Science'); }
     }
 
     else if (safeType === 'space') {
-        goodFor.add('Interactive UI Demo');
         if (allTags.includes('chat')) goodFor.add('Live Sandbox');
     }
 
     else if (safeType === 'tool') {
-        goodFor.add('Developer SDK');
         if (allTags.includes('deployment')) goodFor.add('Model Serving');
     }
 
-    // Performance Badge
+    // Performance Badge: derived from real FNI score
     if (fniScore >= 90) goodFor.add('SOTA Performance');
 
-    // Defaults
-    if (goodFor.size === 0) {
-        if (allTags.includes('api')) goodFor.add('API Integration');
-        else if (allTags.includes('web')) goodFor.add('Web Application');
-        else goodFor.add('Innovative Solution');
-    }
-    if (limits.size === 0) {
-        if (allTags.includes('beta')) limits.add('Experimental Phase');
-        else limits.add('Generic Use');
-    }
-
+    // Honest-empty: only tag/score/license-derived items are returned.
+    // No fabricated per-type defaults. Empty arrays hide the zone.
     return {
         goodFor: Array.from(goodFor).slice(0, 3),
         limits: Array.from(limits).slice(0, 2)
