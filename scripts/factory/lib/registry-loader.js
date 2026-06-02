@@ -6,7 +6,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import { loadWithFallback } from './cache-core.js';
 import { readBinaryShard, isBinaryShard } from './registry-binary-reader.js';
-import { projectEntityForRelationsFFI } from './rust-bridge.js';
 
 const REGISTRY_DIR = 'registry';
 const MONOLITH_FILE = 'global-registry.json.gz';
@@ -92,7 +91,7 @@ async function loadShardAuto(fullPath, filename, slim, relations = false) {
 }
 
 // V27.94: Projection router — `relations` routes through the dedicated
-// relation-aware projection (Rust primary, JS fallback); else slim/full.
+// relation-aware projection (native JS); else slim/full.
 const projectFor = (e, slim, relations) =>
     relations ? projectEntityForRelations(e) : projectEntity(e, slim);
 
@@ -232,14 +231,15 @@ const REL_PROJECT_FIELDS = [
     'dependencies', 'features', 'highlights', 'velocity', 'knowledge_tags',
 ];
 /**
- * V27.94: DEDICATED relation-aware projector (Rust primary, JS fallback).
+ * V27.94: DEDICATED relation-aware projector (native JS).
  * Root-cause fix for the P0 mesh/relation void: slim projectEntity strips every
  * relation-source field, so extractEntityRelations only emitted STACK edges.
  * Separate from slim (no P1 streaming pollution) + fusion (no cold-tier heap blow).
  */
 export function projectEntityForRelations(e) {
-    const r = projectEntityForRelationsFFI(e);
-    if (r) return r;
+    // V27.94 follow-up: per-entity Rust FFI round-trip removed -- trivial field-select
+    // whose JSON.stringify->NAPI->parse hop truncated at the NAPI boundary (serde "end
+    // of hex escape") and silently fell back here in prod; JS is the single source.
     const out = {
         id: e.id, slug: e.slug || '', type: e.type || e.entity_type || 'model',
         name: e.name || e.title || e.displayName || '', description: e.description || '',
