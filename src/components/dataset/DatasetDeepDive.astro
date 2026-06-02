@@ -41,6 +41,23 @@ const configs = Array.isArray(dataset.configs)
 // V19: Popularity metrics with defensive parsing
 const downloads = dataset?.downloads ? Number(dataset.downloads) : null;
 const likes = dataset?.likes ? Number(dataset.likes) : null;
+
+// V27.A2: Task Categories (projected + API-returned, previously never rendered).
+// Honest-contract: parse real values only; render nothing when absent/empty.
+let taskCategories: string[] = [];
+const rawTasks = dataset?.task_categories;
+try {
+  const parsed = typeof rawTasks === 'string' ? JSON.parse(rawTasks) : rawTasks;
+  if (Array.isArray(parsed)) {
+    taskCategories = parsed.map((t: any) => String(t).trim()).filter(Boolean);
+  } else if (typeof parsed === 'string' && parsed.trim()) {
+    taskCategories = parsed.split(',').map((t: string) => t.trim()).filter(Boolean);
+  }
+} catch (e) {
+  if (typeof rawTasks === 'string' && rawTasks.trim()) {
+    taskCategories = rawTasks.split(',').map((t: string) => t.trim()).filter(Boolean);
+  }
+}
 ---
 
 <div class="space-y-12">
@@ -66,6 +83,22 @@ const likes = dataset?.likes ? Number(dataset.likes) : null;
           </div>
         </div>
       )}
+    </section>
+  )}
+
+  {/* V27.A2: Task Categories (honest-empty: only renders when real values exist) */}
+  {taskCategories.length > 0 && (
+    <section class="bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)]">
+      <h2 class="text-[10px] font-black mb-6 text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+        <span>🎯</span> Task Categories
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        {taskCategories.map((task: string) => (
+          <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-sm text-[11px] font-bold tracking-tight">
+            {task}
+          </span>
+        ))}
+      </div>
     </section>
   )}
 
