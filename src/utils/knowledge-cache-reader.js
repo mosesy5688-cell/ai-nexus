@@ -35,15 +35,17 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     // We skip these for the initial HTML load; rich mesh data will hydrate on the client-side.
     const isSSR = Boolean(env);
 
-    // V26.5: SSR reads from VFS site_metadata (small, no OOM risk)
+    // V27.93b: Runtime bleeding-stopper. The SSR fallback used to call
+    // loadSiteMetadata('relations') || loadSiteMetadata('mesh_graph'), which
+    // JSON.parses the multi-MB (~79.52MB prod-measured) mesh_graph blob inside
+    // the ~128MB CF Worker isolate. V8 heap amplification (4-8x) blew the isolate
+    // -> CF 1102 resource-kill -> 503 -> permanent loading skeleton (the kill is
+    // not a JS throw, so SafeZone cannot catch it). See
+    // feedback_worker_jsonparse_heap_amplification. We NEVER parse that blob on
+    // the Worker SSR path; prebaked ui_related_mesh (when populated) is rendered
+    // by the caller, and the empty case degrades to an honest empty relation
+    // panel. Producer-side restoration of ui_related_mesh is the later V27.94 fix.
     if (isSSR && options.ssrOnly) {
-        try {
-            const data = await loadSiteMetadata('relations') || await loadSiteMetadata('mesh_graph');
-            if (data?.edges) {
-                const edges = data.edges[target] || [];
-                return edges.map(([t, type, w]) => ({ source: entityId, target: t, type, weight: w || 1 }));
-            }
-        } catch {}
         return [];
     }
 
