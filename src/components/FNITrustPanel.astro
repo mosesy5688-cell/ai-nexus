@@ -12,6 +12,7 @@ interface Props {
   fniP: number;
   fniR?: number;
   fniQ?: number;
+  fniANotMeasured?: boolean;
   fniCommentary?: string;
   fniCalculatedAt?: string;
   modelName: string;
@@ -26,6 +27,7 @@ const {
   fniP = 0,
   fniR = 0,
   fniQ = 0,
+  fniANotMeasured = false,
   fniCommentary = '',
   fniCalculatedAt = '',
   modelName = '',
@@ -82,15 +84,28 @@ const formattedDate = fniCalculatedAt
           </div>
           <p class="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-1">Query-time baseline &middot; scored live at search</p>
         </div>
-        <div>
-          <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
-            <span class="text-zinc-500">Authority (A)</span>
-            <span class="text-white tabular-nums">{fniA.toFixed(0)}</span>
+        {fniANotMeasured ? (
+          <div class="opacity-50">
+            <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
+              <span class="text-zinc-500">Authority (A)</span>
+              <span class="text-zinc-400 tabular-nums">&mdash;</span>
+            </div>
+            <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
+              <div class="h-full bg-zinc-600 transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <p class="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mt-1">Not yet linked &middot; authority accrues from citations / mesh</p>
           </div>
-          <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
-            <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${aPercent}%`}></div>
+        ) : (
+          <div>
+            <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
+              <span class="text-zinc-500">Authority (A)</span>
+              <span class="text-white tabular-nums">{fniA.toFixed(0)}</span>
+            </div>
+            <div class="h-1 bg-black/40 w-full rounded-full overflow-hidden">
+              <div class="h-full bg-[#bdc3ff] transition-all duration-500" style={`width: ${aPercent}%`}></div>
+            </div>
           </div>
-        </div>
+        )}
         <div>
           <div class="flex justify-between text-[9px] font-black uppercase tracking-widest mb-1.5">
             <span class="text-zinc-500">Popularity (P)</span>
@@ -128,7 +143,7 @@ const formattedDate = fniCalculatedAt
           <span>💬</span> Index Insight
         </h4>
         <p class="text-[11px] text-zinc-400 leading-relaxed font-medium tracking-tight">
-          {fniCommentary || `FNI V2.0 for ${modelName}: Authority (A:${fniA.toFixed(0)}), Popularity (P:${fniP.toFixed(0)}), Recency (R:${fniR.toFixed(0)}), Quality (Q:${fniQ.toFixed(0)}). Semantic (S) is a query-time baseline scored live at search.`}
+          {fniCommentary || `FNI V2.0 for ${modelName}: Authority (A:${fniANotMeasured ? 'not yet linked' : fniA.toFixed(0)}), Popularity (P:${fniP.toFixed(0)}), Recency (R:${fniR.toFixed(0)}), Quality (Q:${fniQ.toFixed(0)}). Semantic (S) is a query-time baseline scored live at search.`}
         </p>
       </div>
 

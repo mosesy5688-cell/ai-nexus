@@ -4,6 +4,8 @@
  * V16.12: Flattened attributes and pre-calculated variables for build stability.
  * Compliance: Zero-Limit R2 architecture. No D1/KV.
  */
+import { getEntityRoute } from '../../utils/mesh-routing-core.js';
+
 interface Props {
   id: string;
   name: string;
@@ -12,9 +14,10 @@ interface Props {
   type?: string;
   className?: string;
   citeKey?: string;
+  slug?: string;
 }
 
-const { id = '', name, author = 'Free2AITools Contributors', url, type = 'model', className = '', citeKey } = Astro.props;
+const { id = '', name, author = 'Free2AITools Contributors', url, type = 'model', className = '', citeKey, slug } = Astro.props;
 const currentYear = new Date().getFullYear();
 
 const safeType = type || 'model';
@@ -29,9 +32,14 @@ const rawKey = citeKey || safeId
   .replace(/(^|--)unknown--/i, '$1');
 const cleanKey = (rawKey || 'entity').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'entity';
 
-// V27.A6/R7: the fallback canonical URL must also avoid the raw internal id.
-// Prefer the passed (human) url; else build a path from the cleaned key.
-const fallbackUrl = `https://free2aitools.com/${safeType}/${rawKey || safeId}`;
+// V27.A6/R7 + V27 sweep-1 (d): the fallback citation URL must be the SAME
+// canonical route the API uses for detail_url/canonical_url (single source of
+// truth -> singular /paper/ not /papers/, no raw-id leak). Route through
+// getEntityRoute; only fall back to a literal path when the helper yields '#'.
+const canonicalRoute = getEntityRoute({ id: safeId, slug, type: safeType }, safeType);
+const fallbackUrl = canonicalRoute && canonicalRoute !== '#'
+  ? `https://free2aitools.com${canonicalRoute}`
+  : `https://free2aitools.com/${safeType}/${rawKey || safeId}`;
 const citeUrl = url || fallbackUrl;
 
 const bibtex = `@misc{${cleanKey},

@@ -12,6 +12,7 @@ interface Props {
   fniR?: number;
   fniQ?: number;
   fniPillarsSynthesized: boolean;
+  fniANotMeasured?: boolean;
   paramsB?: number;
   contextLength?: number;
   downloads?: number;
@@ -29,6 +30,7 @@ const {
   fniR: _fniR = 0,
   fniQ: _fniQ = 0,
   fniPillarsSynthesized,
+  fniANotMeasured = false,
   paramsB,
   contextLength,
   downloads,
@@ -81,13 +83,28 @@ const fniQ = Number(_fniQ) || 0;
            <div class="h-full bg-zinc-600" style={`width: ${fniS}%`}></div>
         </div>
         <p class="text-[8px] font-bold text-zinc-600 uppercase tracking-widest -mt-1">Query-time baseline &middot; scored live at search</p>
-        <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-           <span>A: Authority</span>
-           <span class="text-white font-mono tabular-nums">{fniA.toFixed(0)}</span>
-        </div>
-        <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
-           <div class="h-full bg-[#bdc3ff]" style={`width: ${fniA}%`}></div>
-        </div>
+        {fniANotMeasured ? (
+          <Fragment>
+            <div class="opacity-50 flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+               <span>A: Authority</span>
+               <span class="text-zinc-400 font-mono tabular-nums">&mdash;</span>
+            </div>
+            <div class="opacity-50 h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+               <div class="h-full bg-zinc-600" style="width: 0%"></div>
+            </div>
+            <p class="text-[8px] font-bold text-zinc-600 uppercase tracking-widest -mt-1">Not yet linked &middot; authority accrues from citations / mesh</p>
+          </Fragment>
+        ) : (
+          <Fragment>
+            <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
+               <span>A: Authority</span>
+               <span class="text-white font-mono tabular-nums">{fniA.toFixed(0)}</span>
+            </div>
+            <div class="h-1.5 bg-black/40 w-full overflow-hidden rounded-sm border border-[var(--border-hairline)]">
+               <div class="h-full bg-[#bdc3ff]" style={`width: ${fniA}%`}></div>
+            </div>
+          </Fragment>
+        )}
         <div class="flex justify-between items-center text-[9px] font-black text-zinc-500 uppercase tracking-widest">
            <span>P: Popularity</span>
            <span class="text-white font-mono tabular-nums">{fniP.toFixed(0)}</span>

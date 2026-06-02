@@ -133,6 +133,7 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
         fniR={tool.fni_r}
         fniQ={tool.fni_q}
         fniPillarsSynthesized={tool.fni_pillars_synthesized}
+        fniANotMeasured={tool.fni_a_not_measured}
         sourceUrl={tool.source_url}
         entityId={toolId}
         hasImage={Boolean(tool.image_url)}
@@ -199,6 +200,7 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
                 fniP={tool.fni_p}
                 fniR={tool.fni_r}
                 fniQ={tool.fni_q}
+                fniANotMeasured={tool.fni_a_not_measured}
                 modelName={toolName}
                 modelId={toolId}
               />

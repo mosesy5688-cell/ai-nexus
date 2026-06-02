@@ -16,6 +16,7 @@ interface Props {
   fniP?: number;
   fniR?: number;
   fniQ?: number;
+  fniANotMeasured?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -27,6 +28,7 @@ const {
   fniP = 0,
   fniR = 0,
   fniQ = 0,
+  fniANotMeasured = false,
   size = 'md'
 } = Astro.props;
 
@@ -104,8 +106,8 @@ const sizeClasses = {
           <div class="text-cyan-400 font-semibold">{fniS.toFixed(0)}</div>
           <div class="text-gray-400 text-[10px]">Sem</div>
         </div>
-        <div>
-          <div class="text-green-400 font-semibold">{fniA.toFixed(0)}</div>
+        <div class={fniANotMeasured ? 'opacity-50' : ''} title={fniANotMeasured ? 'Not yet linked - authority accrues from citations / mesh' : undefined}>
+          <div class="text-green-400 font-semibold">{fniANotMeasured ? '—' : fniA.toFixed(0)}</div>
           <div class="text-gray-400 text-[10px]">Auth</div>
         </div>
         <div>
