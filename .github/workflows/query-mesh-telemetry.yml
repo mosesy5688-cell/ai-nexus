@@ -1,0 +1,49 @@
+# V27.93b STEP-0 GATE -- Mesh/relation telemetry probe (READ-ONLY).
+# workflow_dispatch only, never auto-triggered. Pairs with
+# scripts/factory/probe-mesh-telemetry.js. Restores prod meta-NN.db from R2
+# (state/vfs-data/, written by factory-upload.yml's V27.51 backup step), samples
+# the top-FNI entities per shard, and quantifies the mesh/relation data state to
+# validate the V27.93 code-trace diagnosis with real data:
+#   A.1 relation-TYPE histogram (BASED_ON/CITES/USES ~=0 vs STACK/EXPLAINS),
+#   A.1c relations-per-entity distribution + %% zero, A.2 degeneracy ratio,
+#   B  site_metadata.mesh_graph blob size (the ~76.6MB heap source).
+# No R2 mutation -- contents:read only, no writes. Delete this workflow + script
+# once the V27.94 decision ships + is verified.
+name: V27.93b - Query Mesh Telemetry (Step-0 Gate)
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe mesh/relation state from prod meta-NN.db
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/factory-setup
+        with:
+          aggressive-disk-cleanup: 'false'
+          with-rust-ffi: 'false'
+      - name: Restore prod meta-NN.db from R2 (read-only)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p output/data
+          node scripts/factory/r2-workflow-cli.js restore-dir state/vfs-data/ output/data/
+      - name: Verify meta-NN.db present
+        run: |
+          META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
+          echo "Restored ${META_COUNT} meta-NN.db shards"
+          if [ "$META_COUNT" -lt 1 ]; then
+            echo "::error::No meta-NN.db restored from R2 state/vfs-data/. Cannot probe."
+            exit 1
+          fi
+      - name: Run mesh telemetry probe
+        run: node scripts/factory/probe-mesh-telemetry.js
