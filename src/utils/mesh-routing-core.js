@@ -196,6 +196,33 @@ export function getEntityRoute(entity, type = null) {
 }
 
 /**
+ * V27.A7 (R7): absolute SITE-canonical landing URL for an entity, built on the
+ * same getEntityRoute helper the frontend uses (single source of truth for the
+ * canonical route -> no divergent URL logic across page/API surfaces).
+ * '#' (empty/unroutable id) falls back to the prior literal, never a bare
+ * anchor. Reused by the entity API for BOTH detail_url and canonical_url.
+ */
+export function entityCanonicalUrl(e) {
+    const route = getEntityRoute({ id: e.id, slug: e.slug, type: e.type }, e.type || null);
+    const path = route && route !== '#' ? route : `/${e.type || 'model'}/${e.slug || e.id}`;
+    return `https://free2aitools.com${path}`;
+}
+
+/**
+ * V27.A7 (R7): rewrite the non-human api.semanticscholar.org/<id> source_url
+ * (a 404 for users/agents) to the canonical arxiv abstract page when a clean
+ * arxiv id is supplied. Never fabricates: with no clean arxiv id (content-hash
+ * papers) or a non-S2 url, returns the honest original (or null).
+ */
+export function cleanSourceUrl(rawSourceUrl, arxivId) {
+    const raw = rawSourceUrl || null;
+    if (arxivId && raw && /api\.semanticscholar\.org/i.test(raw)) {
+        return `https://arxiv.org/abs/${arxivId}`;
+    }
+    return raw;
+}
+
+/**
  * V16.4: Consistent slug normalization for tags and relations.
  */
 export function normalizeSlug(tag) {

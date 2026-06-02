@@ -18,7 +18,9 @@ import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
 import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
-import { getEntityRoute } from '../../../../utils/mesh-routing-core.js';
+import { entityCanonicalUrl, cleanSourceUrl } from '../../../../utils/mesh-routing-core.js';
+import { extractArxivIdFromKey } from '../../../../utils/entity-type-handlers.js';
+import { sanitizeCitation } from '../../../../utils/text-sanitizer.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -52,20 +54,16 @@ function parseTags(s: any): string[] {
     return [];
 }
 
-// V27.A5 (R8b): SITE-canonical detail URL via the frontend routing helper (old
-// literal emitted non-canonical /paper/unknown--<id> -> transient skeleton).
-function detailUrl(e: any): string {
-    const route = getEntityRoute({ id: e.id, slug: e.slug, type: e.type }, e.type || null);
-    // '#' (empty/unroutable id) -> prior literal, never a bare anchor.
-    const path = route && route !== '#' ? route : `/${e.type || 'model'}/${e.slug || e.id}`;
-    return `https://free2aitools.com${path}`;
-}
-
 function project(e: any) {
+    // V27.A7 (R7): paper-only bare arxiv id (null for non-papers / content-hash);
+    // canonical = single canonical landing URL reused by detail_url + canonical_url.
+    const arxivId = e.type === 'paper' ? extractArxivIdFromKey(e.slug || e.id) : null;
+    const canonical = entityCanonicalUrl(e);
     const entity: any = {
         id: e.id,
         slug: e.slug,
         type: e.type,
+        arxiv_id: arxivId,
         name: e.name,
         author: e.author || null,
         source: e.source || null,
@@ -124,10 +122,12 @@ function project(e: any) {
         },
 
         links: {
-            source_url: e.source_url || null,
-            canonical_url: e.canonical_url || null,
+            // V27.A7 (R7): source_url S2->arxiv; canonical_url was the raw DB
+            // column (/papers/<raw-id>, a 404 leaking the id) -> true canonical.
+            source_url: cleanSourceUrl(e.source_url, arxivId),
+            canonical_url: canonical,
             image_url: e.image_url || null,
-            detail_url: detailUrl(e),
+            detail_url: canonical,
             badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(e.slug || e.id)}`,
         },
 
@@ -137,7 +137,7 @@ function project(e: any) {
             related: safeJsonParse(e.ui_related_mesh, []),
         },
 
-        citation: e.citation || null,
+        citation: sanitizeCitation(e.citation),
         quick_start: e.quick_start || null,
     };
 
