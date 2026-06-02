@@ -172,7 +172,7 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
         {/* Zone 5.1: COMMUNITY & LEGAL */}
         <div class="pt-12 border-t border-gray-100 dark:border-gray-800 space-y-8">
            <slot name="community" />
-           <FullMetadata entity={entity} title={`${type.charAt(0).toUpperCase() + type.slice(1)} Transparency Report`} />
+           <FullMetadata entity={entity} type={type} title={`${type.charAt(0).toUpperCase() + type.slice(1)} Transparency Report`} />
         </div>
 
         <footer class="mt-12 pt-6 border-t border-zinc-800/50 text-[10px] text-zinc-500 font-medium tracking-tight">

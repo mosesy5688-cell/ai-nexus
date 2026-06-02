@@ -64,6 +64,17 @@ const {
 
 const trend_7d = Array.isArray(rawTrend) ? rawTrend : (() => { try { return JSON.parse(rawTrend || '[]'); } catch { return []; } })();
 
+// V27.A6/R7: the hero must never print the raw internal id verbatim
+// (e.g. `arxiv-paper--unknown--2210.07229`). Strip the internal source prefix
+// and any `unknown` placeholder segment so users see a clean public id
+// (e.g. `2210.07229`, `meta-llama/llama-3-8b`). Suppress if nothing remains.
+const PREFIX_RE = /^(arxiv-paper|hf-paper|hf-model|hf-agent|hf-tool|hf-dataset|hf-space|hf-collection|gh-model|gh-agent|gh-tool|gh-repo|arxiv|paper|model|agent|tool|space|dataset|prompt|replicate-model|replicate-agent|replicate-space|civitai-model|ollama-model|kaggle-dataset|kaggle-model)(--|:)/i;
+const displayEntityId = (() => {
+  let v = (entityId || '').replace(PREFIX_RE, '');
+  v = v.replace(/(^|--)unknown(--|$)/i, '$1').replace(/--+/g, '--').replace(/^--|--$/g, '');
+  return v.replace(/--/g, '/');
+})();
+
 // High-Density Sparkline Generator (Server-Side SVG)
 function generateSvgPath(scores: number[], width: number, height: number, pad: number) {
   if (!scores || scores.length < 2) return "";
@@ -131,9 +142,9 @@ const relativeTime = formatRelativeTime(lastUpdated);
           <span class="flex items-center gap-2">
             by <strong class="text-white font-bold">{displayAuthor}</strong>
           </span>
-          {entityId && (
-            <span class="font-mono text-xs text-zinc-500 opacity-80 truncate max-w-[350px]" title={entityId}>
-              {entityId}
+          {displayEntityId && (
+            <span class="font-mono text-xs text-zinc-500 opacity-80 truncate max-w-[350px]" title={displayEntityId}>
+              {displayEntityId}
             </span>
           )}
         </div>
