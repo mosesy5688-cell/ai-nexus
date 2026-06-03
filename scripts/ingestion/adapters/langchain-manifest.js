@@ -100,12 +100,13 @@ export async function fetchManifestBody(owner, handle, adapter) {
             signal: controller.signal
         });
 
-        if (response.status === 429) {
-            // Mirror the adapter's 429-backoff idiom, then give up this item
-            // (caller falls back to description) rather than retry-storm.
-            await adapter.delay(30000);
-            return null;
-        }
+        // V28 PR-3 (#2116 regression): on 429 — or ANY non-OK — return null
+        // IMMEDIATELY (caller falls back to description). The old flat 30s wait
+        // here was the stall multiplier: 100 rate-limited items x 30s = ~50min,
+        // timing out the whole LangChain harvest. Persistence is now handled by
+        // the adapter's aggregate circuit-breaker (enrichBodies disables
+        // enrichment after N consecutive failures); the 6s AbortController above
+        // still bounds a single hung fetch. No per-item flat wait.
         if (!response.ok) return null;
 
         const data = await response.json();
@@ -116,5 +117,52 @@ export async function fetchManifestBody(owner, handle, adapter) {
         return null;
     } finally {
         clearTimeout(timer);
+    }
+}
+
+// After this many CONSECUTIVE manifest-fetch failures, stop enriching for the
+// rest of the run (lose nice-to-have bodies, keep the harvest moving).
+const MANIFEST_FAIL_THRESHOLD = 8;
+
+/**
+ * Stateful manifest-body enricher with an aggregate circuit-breaker.
+ *
+ * V28 PR-3 (#2116 regression): the prompt body is a NICE-TO-HAVE and must NEVER
+ * stall the harvest. One instance lives for the whole harvest run, so the
+ * consecutive-failure counter persists across batches. When the hub
+ * rate-limits, failures accumulate; once the threshold is hit, enrichment is
+ * disabled for the rest of the run and every remaining item honestly falls back
+ * to its description (the per-fetch 6s AbortController bounds a single hung
+ * fetch; no flat per-item wait). A single success resets the counter.
+ */
+export class ManifestEnricher {
+    constructor() {
+        this.fails = 0;
+        this.disabled = false;
+    }
+
+    /**
+     * Enrich a batch of items in place by attaching item._body (or null).
+     * @param {Object[]} items - safe items for this batch
+     * @param {Object} adapter - the LangChainAdapter (getHeaders/delay)
+     */
+    async enrich(items, adapter) {
+        for (const item of items) {
+            if (this.disabled) { item._body = null; continue; }
+
+            const owner = item.owner || 'langchain';
+            const handle = item.repo_handle || item.name;
+            const body = await fetchManifestBody(owner, handle, adapter);
+            item._body = body;
+
+            if (body) {
+                this.fails = 0; // success → reset consecutive counter
+            } else if (++this.fails >= MANIFEST_FAIL_THRESHOLD) {
+                this.disabled = true;
+                console.warn(`   ⚠️ [LangChain] manifest enrichment disabled after ${this.fails} consecutive failures — falling back to description.`);
+            }
+
+            await adapter.delay(500); // Sequential, gentle pacing
+        }
     }
 }

@@ -71,7 +71,14 @@ export class AgentsAdapter extends BaseAdapter {
                 for (const { repo, cat } of CURATED_AGENTS) {
                     try {
                         const data = await this.fetchGitHubRepo(repo);
-                        if (data) {
+                        // V28 PR-3: explicit null-guard BEFORE setting _category.
+                        // fetchGitHubRepo returns null on a non-OK response (e.g.
+                        // GitHub secondary-rate-limit) — setting data._category on
+                        // null threw "Cannot set properties of null". Skip cleanly
+                        // (log, don't silently drop) instead of crash-and-catch.
+                        if (!data) {
+                            console.warn(`   ⚠️ [Agents] Skipping ${repo}: fetch returned null (rate-limit or not-found).`);
+                        } else {
                             data._category = cat;
                             if (onBatch) {
                                 try {
@@ -97,7 +104,16 @@ export class AgentsAdapter extends BaseAdapter {
                     try {
                         const perQuery = Math.ceil(limit / SEARCH_QUERIES.length);
                         const results = await this.searchGitHubRepos(query, perQuery);
-                        const newResults = results.filter(r => r && r.full_name && !existing.has(r.full_name));
+                        // V28 PR-3: drop null / unnamed items BEFORE the forEach
+                        // below sets r._category — guards "Cannot set properties of
+                        // null". searchGitHubRepos can return [] (or null items on a
+                        // rate-limited response); skip them cleanly, log if any.
+                        const rawResults = Array.isArray(results) ? results : [];
+                        const newResults = rawResults.filter(r => r && r.full_name && !existing.has(r.full_name));
+                        const droppedNull = rawResults.filter(r => !r || !r.full_name).length;
+                        if (droppedNull > 0) {
+                            console.warn(`   ⚠️ [Agents] Skipped ${droppedNull} null/unnamed search result(s) for "${query}".`);
+                        }
 
                         if (onBatch) {
                             try {

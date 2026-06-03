@@ -11,7 +11,7 @@
  */
 
 import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
-import { fetchManifestBody } from './langchain-manifest.js';
+import { ManifestEnricher } from './langchain-manifest.js';
 
 const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com';
 // Hub manifest host (LANGCHAIN_HUB_BASE) is owned by ./langchain-manifest.js
@@ -23,6 +23,10 @@ export class LangChainAdapter extends BaseAdapter {
     constructor() {
         super('langchain');
         this.entityTypes = ['agent', 'prompt'];
+        // V28 PR-3 (#2116 regression): one enricher per harvest run owns the
+        // manifest circuit-breaker state (persists across batches; see
+        // ManifestEnricher in ./langchain-manifest.js).
+        this._enricher = new ManifestEnricher();
     }
 
     /**
@@ -113,19 +117,15 @@ export class LangChainAdapter extends BaseAdapter {
     }
 
     /**
-     * R4-A: Sequentially fetch each item's prompt body from the hub manifest
-     * and attach it as item._body for normalize() to consume. Gentle pacing
-     * between fetches is the rate-limit defense. On failure the body stays
-     * null and normalize() falls back to the description.
+     * R4-A: enrich each item with its real prompt body from the hub manifest.
+     * Delegates to the run-scoped ManifestEnricher, which owns the aggregate
+     * circuit-breaker (#2116): the body is a NICE-TO-HAVE and must NEVER stall
+     * the harvest — after N consecutive failures enrichment is disabled for the
+     * rest of the run and items honestly fall back to description.
      * @param {Object[]} items - safe items for this batch (mutated in place)
      */
     async enrichBodies(items) {
-        for (const item of items) {
-            const owner = item.owner || 'langchain';
-            const handle = item.repo_handle || item.name;
-            item._body = await fetchManifestBody(owner, handle, this);
-            await this.delay(500); // Sequential, gentle pacing
-        }
+        await this._enricher.enrich(items, this);
     }
 
     /**
