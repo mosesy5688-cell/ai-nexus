@@ -52,6 +52,7 @@ jobs:
 
       - name: Harvest HuggingFace Models
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 120
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=8192'
@@ -99,6 +100,7 @@ jobs:
 
       - name: Harvest GitHub Repos
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 90
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # V27.23: README cache lives in R2 — needs read+write during harvest
@@ -149,6 +151,7 @@ jobs:
       - run: npm ci
       - name: Harvest ArXiv Papers
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
@@ -157,20 +160,22 @@ jobs:
           
       - name: Harvest HuggingFace Papers
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 Harvesting HF Papers..."
-          node scripts/ingestion/harvest-single.js huggingface-papers --limit 5000 --no-bridge || echo "HF Papers adapter skipped"
+          node scripts/ingestion/harvest-single.js huggingface-papers --limit 5000 --no-bridge
 
       - name: Harvest HuggingFace Datasets
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           echo "📥 Harvesting HF Datasets..."
-          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 --no-bridge || echo "HF Datasets adapter skipped"
+          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 --no-bridge
 
       - name: Solidify Academic Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -214,18 +219,21 @@ jobs:
 
       - name: Harvest Ollama Registry
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         run: |
           echo "📥 Harvesting Ollama..."
           node scripts/ingestion/harvest-single.js ollama --limit 1000 --no-bridge || echo "Ollama adapter skipped"
           
       - name: Harvest MCP Servers
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         run: |
           echo "📥 Harvesting MCP..."
           node scripts/ingestion/harvest-single.js mcp --limit 500 --no-bridge || echo "MCP adapter skipped"
 
       - name: Harvest Replicate
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: |
@@ -245,6 +253,7 @@ jobs:
 
       - name: Harvest Kaggle
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
@@ -254,18 +263,26 @@ jobs:
 
       - name: Harvest CivitAI
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         run: |
           echo "📥 Harvesting CivitAI..."
           node scripts/ingestion/harvest-single.js civitai --limit 5000 --no-bridge || echo "CivitAI adapter skipped"
 
       - name: Harvest Semantic Scholar
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
+        env:
+          # V28: authenticate S2 — the adapter reads S2_API_KEY and sends it as
+          # x-api-key. Running unauthenticated triggered aggressive 429s. Secret
+          # already used in factory-s2orc.yml.
+          S2_API_KEY: ${{ secrets.S2_API_KEY }}
         run: |
           echo "📥 Harvesting Semantic Scholar..."
           node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 --no-bridge || echo "Semantic Scholar adapter skipped"
 
       - name: Harvest OpenLLM Benchmarks
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -274,6 +291,7 @@ jobs:
 
       - name: Harvest DeepSpec Specifications
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -282,14 +300,16 @@ jobs:
 
       - name: Harvest HuggingFace Spaces
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 Harvesting HuggingFace Spaces..."
-          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 5000 --no-bridge || echo "Spaces adapter skipped"
+          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 5000 --no-bridge
 
       - name: Harvest AI Agents
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -298,6 +318,7 @@ jobs:
 
       - name: Harvest LangChain Hub
         if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 60
         run: |
           echo "✨ Harvesting LangChain Prompts..."
           node scripts/ingestion/harvest-single.js langchain --limit 5000 --no-bridge || echo "LangChain adapter skipped"

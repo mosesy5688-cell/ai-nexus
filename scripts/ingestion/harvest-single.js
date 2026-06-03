@@ -154,7 +154,20 @@ async function main() {
         process.exit(1);
     }
 
-    await harvestSingle(sourceName, { limit, chunkSize, skipBridge });
+    const result = await harvestSingle(sourceName, { limit, chunkSize, skipBridge });
+
+    // V28: A hard failure (mkdir/stream/sharder error — surfaced as result.error)
+    // must fail the workflow step visibly. A RateLimitExceededError early-finish
+    // is NOT a hard failure: harvestSingle() handles it gracefully (writes what it
+    // got, no result.error) and returns normally, so it stays exit 0.
+    if (result && result.error) {
+        console.error(`\n❌ [Harvest] Hard failure for ${sourceName}: ${result.error}`);
+        process.exit(1);
+    }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+    // V28: any uncaught hard error fails the step (exit 1) instead of green.
+    console.error(`\n❌ [Harvest] Fatal: ${err && err.stack ? err.stack : err}`);
+    process.exit(1);
+});
