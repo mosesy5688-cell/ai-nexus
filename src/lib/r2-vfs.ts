@@ -8,6 +8,7 @@ import { FacadeVFS } from '@journeyapps/wa-sqlite/src/FacadeVFS.js';
 // @ts-ignore
 import * as VFS from '@journeyapps/wa-sqlite/src/VFS.js';
 import { getChunkFromCacheAPI, putChunkToCacheAPI } from './vfs-cache-utils.js';
+import { prefetchWholeToL0 as prefetchWholeToL0Impl } from './vfs-prefetch.js';
 
 function getBasename(path: string): string {
     return path.split(/[\\/]/).pop() || '';
@@ -17,13 +18,11 @@ const CHUNK_SIZE = 256 * 1024; // 256KB chunks
 const L0_CACHE = new Map<string, Uint8Array>();
 const MAX_L0_CHUNKS = 128; // ~32MB in-memory per isolate
 
-// V27.9: per-isolate counters surfaced via getVfsHealth() for /api/v1/_health.
-// Each Cloudflare isolate has independent state, so these are local samples,
-// not global metrics. Sufficient for spot-checking during incidents.
+// V27.9: per-isolate counters surfaced via getVfsHealth() for /api/v1/_health
+// (local samples per isolate, not global metrics; for incident spot-checks).
 const VFS_COUNTERS = {
-    jread_total: 0, jread_errors: 0,
+    jread_total: 0, jread_errors: 0, l0_hits: 0, l1_hits: 0, l2_fetches: 0,
     short_read_attempts: 0, short_read_recovered: 0, short_read_exhausted: 0,
-    l0_hits: 0, l1_hits: 0, l2_fetches: 0,
 };
 const VFS_ISOLATE_START_MS = Date.now();
 export function getVfsHealth() {
@@ -91,6 +90,14 @@ export class R2RangeVFS extends FacadeVFS {
     /** Invalidate cached metadata so next access re-fetches from R2 */
     resetFileState(name: string) {
         this.fileStates.delete(name);
+    }
+
+    // List-path only cold fast-read (delegates to vfs-prefetch); does NOT alter
+    // jRead/jOpen range behavior used by detail pages / entity API / search.
+    async prefetchWholeToL0(name: string, fetchTimeoutMs = 4000): Promise<boolean> {
+        const { bucket, fileStates } = this;
+        return prefetchWholeToL0Impl(name, { bucket, simulate: this.options.simulate,
+            chunkSize: CHUNK_SIZE, l0Cache: L0_CACHE, maxL0Chunks: MAX_L0_CHUNKS, fileStates }, fetchTimeoutMs);
     }
 
     async jOpen(name: string | null, pFile: number, flags: number, pOutFlags: DataView): Promise<number> {

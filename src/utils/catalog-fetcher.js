@@ -3,7 +3,7 @@
  * ARCHITECTURE: PURE VFS (Zero JSON Mandate)
  */
 import { DataNormalizer } from '../scripts/lib/DataNormalizer.js';
-import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-engine';
+import { getCachedDbConnection, loadManifest, executeSql, prefetchRankingsDb } from '../lib/sqlite-engine';
 import { determineTargetDbs } from './search-query-builder';
 import { readListPreload } from './list-preload-reader.js';
 // V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
@@ -77,6 +77,13 @@ async function _fetchCatalogDataInner(type, start) {
     } else {
         const rankingsDb = `rankings-${type}.db`;
         if (manifest?.partitions?.rankings_dbs) {
+            // Cold fast-path: rankings DBs are small (<=~3MB). Fetch the whole DB in
+            // ONE R2 GET (per-fetch timeout) and seed L0, so the wa-sqlite b-tree walk
+            // below is all L0 hits with zero serialized R2 round-trips. Scoped to this
+            // list path only; on miss/timeout the range-read path runs unchanged.
+            if (!shouldSimulate) {
+                await prefetchRankingsDb(r2Bucket, shouldSimulate, rankingsDb, 4000);
+            }
             for (let attempt = 0; attempt < 2; attempt++) {
                 try {
                     const rSql = `SELECT id, name, type, author, SUBSTR(summary, 1, 200) as summary, fni_score, downloads, stars, params_billions, context_length, last_modified as last_updated, pipeline_tag, license, vram_estimate_gb, architecture, task_categories, forks, citation_count FROM entities ORDER BY fni_score DESC LIMIT 48`;
