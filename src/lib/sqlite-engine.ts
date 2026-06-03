@@ -148,6 +148,23 @@ export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boole
     return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db };
 }
 
+/**
+ * List-path only: warm L0 by reading a small rankings db whole in one R2 GET.
+ * Ensures the VFS is initialised, then delegates to the scoped VFS method.
+ * Returns false (caller falls back to range reads) on any miss/timeout.
+ */
+export async function prefetchRankingsDb(r2Bucket: any, shouldSimulate: boolean, dbName: string, fetchTimeoutMs = 4000): Promise<boolean> {
+    try {
+        await initSqlite(r2Bucket, shouldSimulate);
+        if (!shouldSimulate && r2Bucket && globalVFS) globalVFS.bucket = r2Bucket;
+        if (!globalVFS) return false;
+        return await globalVFS.prefetchWholeToL0(dbName, fetchTimeoutMs);
+    } catch (e: any) {
+        console.warn(`[SQLite Engine] prefetchRankingsDb ${dbName} failed: ${e?.message || e}`);
+        return false;
+    }
+}
+
 /** Evict a cached DB connection and reset VFS state for re-fetch on retry */
 export async function evictCachedDb(dbName: string) {
     const entry = dbCache.get(dbName);
