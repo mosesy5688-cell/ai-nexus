@@ -204,6 +204,16 @@ function estimateMeshPoints(entity, sourcePrefix) {
         const likes = parseInt(entity.likes || entity.like_count || entity.popularity) || 0;
         if (likes > 0) points += Math.floor(Math.log10(likes + 1) * 10);
     }
+    // GitHub repos have 0 citations; mirror the V27.12+ HF likes remediation
+    // by using stars+forks as a log-compressed authority proxy (same base as
+    // the HF proxy so magnitudes are comparable through the shared Rust
+    // log10(mesh_points+1)/4 transform). stars/forks promoted in processor-core.js.
+    if (sourcePrefix === 'gh' && citations === 0) {
+        const stars = parseInt(entity.stars || entity.stargazers_count) || 0;
+        const forks = parseInt(entity.forks || entity.forks_count) || 0;
+        const ghAuthority = stars + forks * 2;
+        if (ghAuthority > 0) points += Math.floor(Math.log10(ghAuthority + 1) * 10);
+    }
     return points;
 }
 
