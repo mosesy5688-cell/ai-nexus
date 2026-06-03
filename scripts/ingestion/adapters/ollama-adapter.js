@@ -190,11 +190,12 @@ export class OllamaAdapter extends BaseAdapter {
                 let parameters = null;
 
                 try {
-                    const showRes = await fetch('http://127.0.0.1:11434/api/show', {
+                    // V28: bounded request (was un-timed) so a hung local daemon can't stall CI.
+                    const showRes = await this.fetchWithTimeout('http://127.0.0.1:11434/api/show', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ name: m.name })
-                    });
+                    }, 3000);
 
                     if (showRes.ok) {
                         const showData = await showRes.json();

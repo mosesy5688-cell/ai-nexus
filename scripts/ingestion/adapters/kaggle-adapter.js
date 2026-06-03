@@ -13,7 +13,7 @@
  * @module ingestion/adapters/kaggle-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
 const KAGGLE_API_BASE = 'https://www.kaggle.com/api/v1';
 
 /**
@@ -85,22 +85,31 @@ export class KaggleAdapter extends BaseAdapter {
         const allDatasets = [];
         let page = 1;
         const pageSize = 100; // V22.3: Increased from 20 to 100 for efficiency
+        // V28 hang-fix: loop-scoped 429 attempt counter (the page does NOT advance on
+        // a 429 — same request retried — so the old flat 60s+continue spun forever on
+        // a persistent header-less 429). Drives handleRateLimit() escalation + breaker;
+        // reset to 0 after each successful page. The existing page>100 safety only fires
+        // on success, so the breaker now covers the 429 path.
+        let attempt = 0;
 
         while (true) {
             const url = `${KAGGLE_API_BASE}/datasets/list?sortBy=hottest&page=${page}&pageSize=${pageSize}`;
 
             try {
-                const response = await fetch(url, { headers: this.getHeaders() });
+                const response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
 
                 if (!response.ok) {
                     if (response.status === 429) {
-                        console.warn('   ⚠️ Rate limited, waiting 60s...');
-                        await this.delay(60000);
+                        // V28: escalate by attempt + honor headers; breaker throws at attempt>=6.
+                        await this.handleRateLimit(response, attempt++);
                         continue;
                     }
                     console.error(`   ❌ Kaggle API error: ${response.status}`);
                     break;
                 }
+
+                // V28: page fetched OK → reset the 429 escalation counter.
+                attempt = 0;
 
                 const datasets = await response.json();
                 if (!datasets || datasets.length === 0) break;
@@ -126,7 +135,12 @@ export class KaggleAdapter extends BaseAdapter {
                 await this.delay(1000); // Respectful delay
 
             } catch (error) {
-                console.error(`   ❌ Error: ${error.message}`);
+                // V28: breaker tripped → break-the-loop gracefully (keep what we have).
+                if (error instanceof RateLimitExceededError) {
+                    console.warn(`   🛑 [Kaggle Datasets] rate-limit breaker tripped — finishing early.`);
+                } else {
+                    console.error(`   ❌ Error: ${error.message}`);
+                }
                 break;
             }
         }
@@ -149,22 +163,30 @@ export class KaggleAdapter extends BaseAdapter {
 
         // V22.8: Cycle through multiple sort strategies to maximize coverage
         const sortStrategies = ['hottest', 'downloadCount', 'editDate'];
+        // V28 hang-fix: when the breaker trips, Kaggle is persistently throttling us —
+        // stop cycling sorts too so we don't keep hammering a throttled endpoint.
+        let modelsRateLimited = false;
 
         for (const sortBy of sortStrategies) {
-            if (allModels.length >= limit) break;
+            if (allModels.length >= limit || modelsRateLimited) break;
             let page = 1;
             console.log(`   📊 [Kaggle] Sort strategy: ${sortBy}...`);
+            // V28 hang-fix: per-sort 429 attempt counter (page does NOT advance on a 429,
+            // so the old flat 30s+continue spun forever). Drives handleRateLimit()
+            // escalation + breaker; reset to 0 after each successful page. The page<=100
+            // safety only bounds the success path → the breaker now covers the 429 path.
+            let attempt = 0;
 
             while (page <= 100 && allModels.length < limit) {
                 const url = `${KAGGLE_API_BASE}/models/list?sortBy=${sortBy}&page=${page}&pageSize=${pageSize}`;
 
                 try {
-                    const response = await fetch(url, { headers: this.getHeaders() });
+                    const response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
 
                     if (!response.ok) {
                         if (response.status === 429) {
-                            console.warn('   ⚠️ [Kaggle Models] Rate limited, waiting 30s...');
-                            await this.delay(30000);
+                            // V28: escalate by attempt + honor headers; breaker throws at attempt>=6.
+                            await this.handleRateLimit(response, attempt++);
                             continue;
                         }
                         // V22.8: 400 means page limit reached for this sort, try next sort
@@ -175,6 +197,9 @@ export class KaggleAdapter extends BaseAdapter {
                         console.error(`   ❌ Kaggle Models API error: ${response.status}`);
                         break;
                     }
+
+                    // V28: page fetched OK → reset the 429 escalation counter.
+                    attempt = 0;
 
                     const models = await response.json();
                     if (!models || models.length === 0) break;
@@ -205,7 +230,14 @@ export class KaggleAdapter extends BaseAdapter {
                     await this.delay(500);
 
                 } catch (error) {
-                    console.error(`   ❌ Kaggle Models API Error: ${error.message}`);
+                    // V28: breaker tripped → break this sort's paginate loop and stop
+                    // cycling sorts (set flag); keep everything streamed/buffered so far.
+                    if (error instanceof RateLimitExceededError) {
+                        console.warn(`   🛑 [Kaggle Models] rate-limit breaker tripped on sort ${sortBy} — finishing early.`);
+                        modelsRateLimited = true;
+                    } else {
+                        console.error(`   ❌ Kaggle Models API Error: ${error.message}`);
+                    }
                     break;
                 }
             }

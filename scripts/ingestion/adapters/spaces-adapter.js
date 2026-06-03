@@ -12,6 +12,15 @@ export class SpacesAdapter extends BaseAdapter {
     constructor() {
         super('huggingface');
         this.entityTypes = ['space'];
+        this.hfToken = process.env.HF_TOKEN || null;
+    }
+
+    // V28: send HF_TOKEN when present (was no token plumbing at all). Authenticated
+    // requests raise the HF rate limit = fewer 429 storms on the per-space fan-out.
+    getHeaders() {
+        const headers = { 'Accept': 'application/json', 'User-Agent': 'Free2AITools/1.0' };
+        if (this.hfToken) headers['Authorization'] = `Bearer ${this.hfToken}`;
+        return headers;
     }
 
     async fetch(options = {}) {
@@ -24,7 +33,7 @@ export class SpacesAdapter extends BaseAdapter {
         for (let offset = 0; offset < limit; offset += pageSize) {
             const fetchLimit = Math.min(pageSize, limit - offset);
             const url = `${HF_API}/spaces?sort=${sort}&direction=${direction}&limit=${fetchLimit}&offset=${offset}`;
-            const response = await fetch(url);
+            const response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
             if (!response.ok) {
                 console.warn(`   ⚠️ HF Spaces API error at offset ${offset}: ${response.status}`);
                 break;
@@ -70,7 +79,7 @@ export class SpacesAdapter extends BaseAdapter {
         const MAX_RETRIES = 3;
 
         try {
-            const apiResponse = await fetch(`${HF_API}/spaces/${spaceId}`);
+            const apiResponse = await this.fetchWithTimeout(`${HF_API}/spaces/${spaceId}`, { headers: this.getHeaders() });
 
             // V14.5: Handle rate limiting with exponential backoff
             if (apiResponse.status === 429) {
@@ -89,7 +98,7 @@ export class SpacesAdapter extends BaseAdapter {
 
             let readme = '', modelsUsed = [];
             try {
-                const readmeRes = await fetch(`${HF_RAW}/spaces/${spaceId}/raw/main/README.md`);
+                const readmeRes = await this.fetchWithTimeout(`${HF_RAW}/spaces/${spaceId}/raw/main/README.md`, { headers: this.getHeaders() });
                 if (readmeRes.ok) {
                     readme = await readmeRes.text();
                     if (readme.length > 250000) readme = readme.substring(0, 250000) + '\n[Truncated for memory safety]';

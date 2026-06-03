@@ -132,13 +132,13 @@ export class AgentsAdapter extends BaseAdapter {
             const headers = { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ai-nexus' };
             if (this.githubToken) headers['Authorization'] = `token ${this.githubToken}`;
 
-            const res = await fetch(`${GITHUB_API}/repos/${repoPath}`, { headers });
+            const res = await this.fetchWithTimeout(`${GITHUB_API}/repos/${repoPath}`, { headers }); // V28: bounded request
             if (!res.ok) return null;
             const data = await res.json();
 
             let readme = '';
             try {
-                const readmeRes = await fetch(`${GITHUB_API}/repos/${repoPath}/readme`, { headers });
+                const readmeRes = await this.fetchWithTimeout(`${GITHUB_API}/repos/${repoPath}/readme`, { headers }); // V28: bounded request
                 if (readmeRes.ok) {
                     const rd = await readmeRes.json();
                     readme = Buffer.from(rd.content, 'base64').toString('utf-8');
@@ -157,7 +157,7 @@ export class AgentsAdapter extends BaseAdapter {
         try {
             const headers = { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ai-nexus' };
             if (this.githubToken) headers['Authorization'] = `token ${this.githubToken}`;
-            const res = await fetch(`${GITHUB_API}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=${Math.min(limit, 100)}`, { headers });
+            const res = await this.fetchWithTimeout(`${GITHUB_API}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&per_page=${Math.min(limit, 100)}`, { headers }); // V28: bounded request
             if (!res.ok) return [];
             return (await res.json()).items || [];
         } catch (e) { return []; }
