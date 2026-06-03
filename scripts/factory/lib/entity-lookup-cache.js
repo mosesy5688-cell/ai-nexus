@@ -22,8 +22,6 @@
  *   - Acceptable: less than 1% of relations are same-run cross-refs
  */
 
-import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
-
 const FLUSH_SIZE = 1000;
 
 /**
@@ -63,21 +61,16 @@ export function createEntityLookupAccess(cacheDb) {
         }
     };
 
-    // V27.94 follow-up: ALSO index the entity under its canonical (normalized)
-    // id so mesh relation targets resolve. mesh-profile-baker normalizes every
-    // target_id (lowercase + '/'->'--') while entity_lookup was keyed only by
-    // the RAW e.id; when raw e.id retained source-case/slash form the lookup
-    // missed 100% (CI: "0/172509 re-resolved"), yielding degenerate nodes.
-    // Mirrors the baker's own-id normalization (mesh-profile-baker.js:63) so the
-    // two namespaces meet. Additive: PK is `id` + INSERT OR IGNORE, so when raw
-    // already equals normalized (already-canonical ids) the dup is a no-op; no
-    // existing row is mutated, no other consumer breaks. `type` lets
-    // getNodeSource disambiguate agent/tool/model exactly as the baker does.
-    const trackEntity = (id, name, icon, type) => {
+    // V27.94 (3rd-diag): #2114 added a normalizeId(e.id) extra-key insert here
+    // believing the SOURCE (entity) id diverged from the lookup key. That was a
+    // PROVEN NO-OP: e.id is ALREADY canonical, so normalizeId(e.id) === e.id and
+    // the extra insert was a dup. The real divergence is on the TARGET side —
+    // the distiller read STRIPPED relation targets and looked them up against
+    // canonical keys (100% miss). Fixed in v25-distiller.js by canonicalizing
+    // the target before .get(). Reverted to the simple insert here.
+    const trackEntity = (id, name, icon) => {
         if (!id) return;
         batch.push({ id, name, icon });
-        const canonical = normalizeId(id, getNodeSource(id, type), type);
-        if (canonical && canonical !== id) batch.push({ id: canonical, name, icon });
         if (batch.length >= FLUSH_SIZE) flush();
     };
 
@@ -97,13 +90,14 @@ export function getEntityLookupSize(cacheDb) {
 /**
  * Post-pass mesh fix-up.
  *
- * distillEntity marks forward-reference misses (target entity tracked but
- * not yet flushed) with `_unresolved: 1` in ui_related_mesh entries. After
- * the main pass commits and lookupAccess.flush() runs, entity_lookup is
- * complete — this function re-resolves every marked entry.
- *
- * Restores 100% parity with the pre-V25.12 behavior (in-memory Map pre-scan).
- * Cost: ~30s for 487K rows via prepared-statement UPDATE in a transaction.
+ * V27.94 (3rd-diag): the distiller now canonicalizes every relation target
+ * before lookup and writes a humanized display name on a miss WITHOUT an
+ * `_unresolved` marker (the name is final; never-streamed knowledge/hub targets
+ * would never resolve and the canary counts `_unresolved` itself as degenerate).
+ * So this function normally finds zero candidates and is a no-op. It is kept as
+ * a defensive net: if any `_unresolved` markers ever reappear, it re-resolves
+ * them honestly — clearing the marker ONLY on a real hit (never unconditionally,
+ * which previously masked 100% of misses behind "0 refs re-resolved").
  *
  * @param {Database} cacheDb
  * @param {Object<string, Database>} metaDbs
@@ -124,10 +118,19 @@ export function resolveMeshFixup(cacheDb, metaDbs) {
                 let changed = false;
                 for (const rel of mesh) {
                     if (rel._unresolved) {
+                        // V27.94 (3rd-diag): rel.id is already the CANONICAL id
+                        // the distiller wrote (entity_lookup's key namespace), so
+                        // a forward-ref entity now flushed resolves here. HONESTY
+                        // FIX: only clear _unresolved on a real resolve — never
+                        // unconditionally delete it (that masked 100% of misses,
+                        // hiding "0 refs re-resolved" behind 0 surviving markers).
                         const t = getStm.get(rel.id);
-                        if (t && t.name) { rel.name = t.name; rel.icon = t.icon || '📦'; refsResolved++; }
-                        delete rel._unresolved;
-                        changed = true;
+                        if (t && t.name) {
+                            rel.name = t.name; rel.icon = t.icon || '📦';
+                            delete rel._unresolved; refsResolved++; changed = true;
+                        }
+                        // genuine miss: leave _unresolved + the humanized name the
+                        // distiller already supplied (name !== id, non-degenerate).
                     }
                 }
                 if (changed) { updateStm.run(JSON.stringify(mesh), row.id); rowsUpdated++; }
