@@ -18,6 +18,15 @@ export class DatasetsAdapter extends BaseAdapter {
         this.hfToken = process.env.HF_TOKEN || null;
     }
 
+    // V28: actually send HF_TOKEN (it was read but never used). An authenticated
+    // request raises the HF rate limit = fewer 429s. Header only added when a token
+    // is present, so anonymous runs are unchanged.
+    getHeaders() {
+        const headers = { 'Accept': 'application/json', 'User-Agent': 'Free2AITools/1.0' };
+        if (this.hfToken) headers['Authorization'] = `Bearer ${this.hfToken}`;
+        return headers;
+    }
+
     async fetch(options = {}) {
         const { limit = 500, sort = 'downloads', direction = -1, full = true } = options;
         console.log(`📥 [HF Datasets] Fetching top ${limit} datasets by ${sort}...`);
@@ -32,7 +41,7 @@ export class DatasetsAdapter extends BaseAdapter {
         for (let offset = 0; offset < limit; offset += pageSize) {
             const fetchLimit = Math.min(pageSize, limit - offset);
             const listUrl = `${HF_API_BASE}/datasets?sort=${sort}&direction=${direction}&limit=${fetchLimit}&offset=${offset}&${expandParams}`;
-            const response = await fetch(listUrl);
+            const response = await this.fetchWithTimeout(listUrl, { headers: this.getHeaders() });
             if (!response.ok) { console.warn(`   ⚠️ HF Datasets API error at offset ${offset}: ${response.status}`); break; }
             const batch = await response.json();
             if (!batch.length) break;
@@ -112,7 +121,7 @@ export class DatasetsAdapter extends BaseAdapter {
             if (expandedData?.siblings) {
                 data = expandedData;
             } else {
-                const apiResponse = await fetch(`${HF_API_BASE}/datasets/${datasetId}`);
+                const apiResponse = await this.fetchWithTimeout(`${HF_API_BASE}/datasets/${datasetId}`, { headers: this.getHeaders() });
                 if (apiResponse.status === 429) {
                     this._batchHit429 = true;
                     if (retryCount < MAX_RETRIES) {
@@ -131,7 +140,7 @@ export class DatasetsAdapter extends BaseAdapter {
             // Fetch README content
             let readme = '';
             try {
-                const readmeResponse = await fetch(`${HF_RAW_BASE}/datasets/${datasetId}/raw/main/README.md`);
+                const readmeResponse = await this.fetchWithTimeout(`${HF_RAW_BASE}/datasets/${datasetId}/raw/main/README.md`, { headers: this.getHeaders() });
                 if (readmeResponse.ok) {
                     readme = await readmeResponse.text();
                     if (readme.length > 100000) readme = readme.substring(0, 100000) + '\n\n[Content truncated...]';
@@ -142,7 +151,7 @@ export class DatasetsAdapter extends BaseAdapter {
             let schemaData = null;
             if ((data?.downloads || expandedData?.downloads || 0) > 100) {
                 try {
-                    const schemaRes = await fetch(`https://datasets-server.huggingface.co/info?dataset=${datasetId}`, { signal: AbortSignal.timeout(2000) });
+                    const schemaRes = await fetch(`https://datasets-server.huggingface.co/info?dataset=${datasetId}`, { headers: this.getHeaders(), signal: AbortSignal.timeout(2000) });
                     if (schemaRes.ok) { schemaData = (await schemaRes.json()).dataset_info || null; }
                 } catch (e) { }
             }

@@ -10,9 +10,10 @@
  * @module ingestion/adapters/replicate-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
 
 const REPLICATE_API_BASE = 'https://api.replicate.com/v1';
+const DETAIL_CONCURRENCY = 5; // V28: bound per-model detail/README fan-out
 
 /**
  * Replicate Adapter Implementation
@@ -55,6 +56,11 @@ export class ReplicateAdapter extends BaseAdapter {
         const allModels = [];
         let cursor = null;
         let page = 1;
+        // V28 hang-fix: loop-scoped 429 attempt counter (the cursor does NOT advance on
+        // a 429 — same request retried — so the old flat 30s+continue spun forever on a
+        // persistent header-less 429). Drives handleRateLimit() escalation + breaker;
+        // reset to 0 after each successful page; breaker breaks the loop gracefully.
+        let attempt = 0;
 
         while ((onBatch ? true : allModels.length < limit)) {
             const url = cursor
@@ -63,16 +69,19 @@ export class ReplicateAdapter extends BaseAdapter {
 
             try {
                 console.log(`   Fetching page ${page}...`);
-                const response = await fetch(url, { headers: this.getHeaders() });
+                const response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
 
                 if (!response.ok) {
                     if (response.status === 429) {
-                        console.warn('   ⚠️ Rate limited, waiting 30s...');
-                        await this.delay(30000);
+                        // V28: escalate by attempt + honor headers; breaker throws at attempt>=6.
+                        await this.handleRateLimit(response, attempt++);
                         continue;
                     }
                     throw new Error(`Replicate API error: ${response.status}`);
                 }
+
+                // V28: page fetched OK → reset the 429 escalation counter.
+                attempt = 0;
 
                 const data = await response.json();
                 const models = data.results || [];
@@ -82,28 +91,12 @@ export class ReplicateAdapter extends BaseAdapter {
                 // Filter safe models
                 const safeModels = models.filter(m => this.isSafeForWork(m));
 
-                // Secondary request logic: fetch full README for each safe model
+                // Secondary request logic: fetch full README for each safe model.
+                // V28 efficiency: bound concurrency (was fully sequential — ~5000 serial
+                // calls at limit=5000). Process in windows of DETAIL_CONCURRENCY with a
+                // small inter-window delay so we stay polite without serializing.
                 console.log(`   📝 Fetching deep README context for ${safeModels.length} models...`);
-                for (const model of safeModels) {
-                    try {
-                        const detailUrl = `${REPLICATE_API_BASE}/models/${model.owner}/${model.name}`;
-                        const detailRes = await fetch(detailUrl, {
-                            headers: this.getHeaders(),
-                            signal: AbortSignal.timeout(5000)
-                        });
-
-                        if (detailRes.ok) {
-                            const detailData = await detailRes.json();
-                            const rawReadme = detailData.readme || null;
-                            if (rawReadme) {
-                                // V19.5 Hardening: Relaxed Truncation (250KB)
-                                model.readme = rawReadme.length > 250000
-                                    ? rawReadme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]'
-                                    : rawReadme;
-                            }
-                        }
-                    } catch (e) { console.warn('[Replicate] README fetch failed for ' + (model?.id || 'unknown') + ': ' + e.message); }
-                }
+                await this.enrichReadmes(safeModels);
 
                 if (onBatch) {
                     await onBatch(safeModels);
@@ -121,13 +114,52 @@ export class ReplicateAdapter extends BaseAdapter {
                 await this.delay(1000); // Rate limiting
 
             } catch (error) {
-                console.error(`   ❌ Error: ${error.message}`);
+                // V28: breaker tripped → break-the-loop gracefully (keep what we have).
+                if (error instanceof RateLimitExceededError) {
+                    console.warn(`   🛑 [Replicate] rate-limit breaker tripped — finishing early with ${onBatch ? 'streamed' : allModels.length} models.`);
+                } else {
+                    console.error(`   ❌ Error: ${error.message}`);
+                }
                 break;
             }
         }
 
         console.log(`✅ [Replicate] ${onBatch ? 'Streaming' : 'Fetched ' + allModels.length + ' models'} complete`);
         return onBatch ? [] : allModels.slice(0, limit);
+    }
+
+    /**
+     * V28: Bound-concurrency README enrichment for a page of safe models.
+     * Was fully sequential (one HTTP round-trip per model, blocking) — at limit=5000
+     * that is ~5000 serial calls. Process in windows of DETAIL_CONCURRENCY via
+     * Promise.all, with a small inter-window delay to stay polite. Each fetch is
+     * bounded by fetchWithTimeout; a per-model failure only drops that model's README
+     * (honest fallback: normalize() uses description). Mutates models in place.
+     * @param {Object[]} models - safe models for this page
+     */
+    async enrichReadmes(models) {
+        for (let i = 0; i < models.length; i += DETAIL_CONCURRENCY) {
+            const window = models.slice(i, i + DETAIL_CONCURRENCY);
+            await Promise.all(window.map(async (model) => {
+                try {
+                    const detailUrl = `${REPLICATE_API_BASE}/models/${model.owner}/${model.name}`;
+                    const detailRes = await this.fetchWithTimeout(detailUrl, { headers: this.getHeaders() }, 5000);
+                    if (detailRes.ok) {
+                        const detailData = await detailRes.json();
+                        const rawReadme = detailData.readme || null;
+                        if (rawReadme) {
+                            // V19.5 Hardening: Relaxed Truncation (250KB)
+                            model.readme = rawReadme.length > 250000
+                                ? rawReadme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]'
+                                : rawReadme;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Replicate] README fetch failed for ' + (model?.id || 'unknown') + ': ' + e.message);
+                }
+            }));
+            if (i + DETAIL_CONCURRENCY < models.length) await this.delay(200);
+        }
     }
 
     /**

@@ -53,12 +53,12 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
 
             console.log(`   Fetching from HuggingFace Hub API...`);
 
-            const response = await fetch(hubUrl, {
+            const response = await this.fetchWithTimeout(hubUrl, {
                 headers: {
                     'Accept': 'application/json',
                     'User-Agent': 'Free2AITools/1.0'
                 }
-            });
+            }); // V28: bounded request
 
             if (!response.ok) {
                 console.warn(`   ⚠️ Hub API returned ${response.status}`);
@@ -134,7 +134,7 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
     async fetchAuthoritativeBenchmark(author, modelId) {
         try {
             const treeUrl = `${LEADERBOARD_TREE_API}/${author}/${modelId}`;
-            const response = await fetch(treeUrl);
+            const response = await this.fetchWithTimeout(treeUrl); // V28: bounded request
             if (!response.ok) return null;
 
             const files = await response.json();
@@ -148,7 +148,7 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
             const rawUrl = `${LEADERBOARD_RAW_BASE}/${latestFile}`;
 
             console.log(`      🎯 Found authoritative result: ${latestFile}`);
-            const res = await fetch(rawUrl);
+            const res = await this.fetchWithTimeout(rawUrl); // V28: bounded request
             if (!res.ok) return null;
 
             const data = await res.json();

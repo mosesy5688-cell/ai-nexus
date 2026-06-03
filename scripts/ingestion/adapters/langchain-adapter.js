@@ -10,7 +10,7 @@
  * @module ingestion/adapters/langchain-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
 import { fetchManifestBody } from './langchain-manifest.js';
 
 const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com';
@@ -49,6 +49,11 @@ export class LangChainAdapter extends BaseAdapter {
         let offset = 0;
         const pageSize = 100;
         let processedCount = 0;
+        // V28 hang-fix: outer /repos/ listing 429 attempt counter (offset does NOT advance
+        // on a 429 → same request retried → old flat 30s+continue spun forever). Drives
+        // handleRateLimit() escalation + breaker; reset on success; breaker breaks the loop.
+        // Scoped to listing only — manifest-body enrichment (#2116) is untouched.
+        let attempt = 0;
 
         while (processedCount < limit) {
             // V21.1 Corrected Endpoint: /repos/ is the public listing
@@ -56,16 +61,16 @@ export class LangChainAdapter extends BaseAdapter {
 
             try {
                 console.log(`   Fetching offset ${offset}...`);
-                const response = await fetch(url, { headers: this.getHeaders() });
+                const response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
 
                 if (!response.ok) {
                     if (response.status === 429) {
-                        console.warn('   ⚠️ Rate limited, waiting 30s...');
-                        await this.delay(30000);
+                        await this.handleRateLimit(response, attempt++); // V28: escalate + retry
                         continue;
                     }
                     throw new Error(`LangChain API error: ${response.status}`);
                 }
+                attempt = 0; // V28: page OK → reset 429 escalation counter
 
                 const data = await response.json();
                 const items = data.repos || [];
@@ -75,14 +80,10 @@ export class LangChainAdapter extends BaseAdapter {
                     break;
                 }
 
-                // Filter safe items
                 const safeItems = items.filter(item => this.isSafeForWork(item));
 
-                // R4-A: enrich each item with its real prompt body from the hub
-                // manifest. Sequential + gentle pacing is the rate-limit defense;
-                // on any failure fetchManifestBody returns null and normalize()
-                // falls back to the description (honest-contract). Per-batch so
-                // we never buffer all bodies in memory (P1 streaming preserved).
+                // R4-A: enrich each item with its real prompt body from the hub manifest
+                // (per-batch, honest fallback to description on failure; #2116). Unchanged.
                 await this.enrichBodies(safeItems);
 
                 if (onBatch) {
@@ -97,11 +98,12 @@ export class LangChainAdapter extends BaseAdapter {
                 offset += pageSize;
                 await this.delay(500); // Rate limiting
 
-                // Check if we've reached the end
-                if (items.length < pageSize) break;
+                if (items.length < pageSize) break; // Reached the end
 
             } catch (error) {
-                console.error(`   ❌ Error: ${error.message}`);
+                // V28: breaker tripped → break-the-loop gracefully (keep what we have).
+                if (error instanceof RateLimitExceededError) console.warn(`   🛑 [LangChain] rate-limit breaker tripped — finishing early.`);
+                else console.error(`   ❌ Error: ${error.message}`);
                 break;
             }
         }

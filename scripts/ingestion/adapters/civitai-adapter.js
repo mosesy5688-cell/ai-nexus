@@ -12,7 +12,7 @@
  * @module ingestion/adapters/civitai-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
 
 const CIVITAI_API_BASE = 'https://civitai.com/api/v1';
 
@@ -62,6 +62,15 @@ export class CivitAIAdapter extends BaseAdapter {
         const allModels = [];
         let cursor = null;
         let fetched = 0;
+        // V28 hang-fix: paginate-scoped 429 attempt counter. The cursor does NOT
+        // advance on a 429 (we retry the same request), so a flat delay+continue
+        // spun forever on a persistent header-less 429. This counter drives
+        // handleRateLimit() escalation (2s,4s,8s…+jitter, capped 60s) + the shared
+        // circuit breaker (throws RateLimitExceededError at attempt>=6). Reset to 0
+        // after every successful page so transient throttling never poisons a later
+        // page; a sustained 429 trips the breaker and we break-the-loop (graceful:
+        // keep whatever was already streamed/buffered).
+        let attempt = 0;
 
         try {
             while (fetched < limit) {
@@ -76,16 +85,21 @@ export class CivitAIAdapter extends BaseAdapter {
                 }
 
                 console.log(`   Fetching batch: ${fetched + 1} - ${fetched + batchSize} (Cursor: ${cursor || 'start'})`);
-                const response = await fetch(url);
+                const response = await this.fetchWithTimeout(url);
 
                 if (!response.ok) {
                     if (response.status === 429) {
-                        console.warn('   ⚠️ [CivitAI] Rate limited, waiting 60s...');
-                        await this.delay(60000);
+                        // V28: escalate by attempt + honor headers; breaker throws at attempt>=6.
+                        // cursor is unchanged → same page is retried after the wait.
+                        await this.handleRateLimit(response, attempt++);
                         continue;
                     }
                     throw new Error(`CivitAI API error: ${response.status}`);
                 }
+
+                // V28 hang-fix: page fetched OK → reset the 429 escalation counter so
+                // transient throttling on one page never carries into the next.
+                attempt = 0;
 
                 const data = await response.json();
                 const models = data.items || [];
@@ -137,8 +151,15 @@ export class CivitAIAdapter extends BaseAdapter {
                 await this.delay(2000); // Respectful batch delay
             }
         } catch (error) {
-            console.error(`   ❌ [CivitAI] Fetch internal error: ${error.message}`);
-            console.error(error.stack);
+            // V28 hang-fix: a tripped circuit breaker (RateLimitExceededError) means
+            // CivitAI is persistently throttling us. Break-the-loop gracefully — keep
+            // everything streamed/buffered so far (no data loss) rather than spinning.
+            if (error instanceof RateLimitExceededError) {
+                console.warn(`   🛑 [CivitAI] rate-limit breaker tripped — finishing early with ${onBatch ? 'streamed' : allModels.length} models.`);
+            } else {
+                console.error(`   ❌ [CivitAI] Fetch internal error: ${error.message}`);
+                console.error(error.stack);
+            }
         }
 
         console.log(`✅ [CivitAI] ${onBatch ? 'Streaming' : 'Fetched ' + allModels.length + ' safe models'} complete`);

@@ -11,7 +11,7 @@
  * @module ingestion/adapters/mcp-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
 
 const MCP_REGISTRY_API = 'https://registry.modelcontextprotocol.io';
 
@@ -37,6 +37,11 @@ export class MCPAdapter extends BaseAdapter {
         const allServers = [];
         let cursor = null;
         let page = 0;
+        // V28 hang-fix: 429/503 attempt counter (cursor does NOT advance on a throttle
+        // — same request retried). Previously ANY non-OK just break'd → a transient 429
+        // silently truncated the harvest. Now we escalate + retry on 429/503 (breaker at
+        // attempt>=6); only genuine 4xx (and other errors) break. Reset on success.
+        let attempt = 0;
 
         try {
             // Paginated fetch
@@ -46,7 +51,7 @@ export class MCPAdapter extends BaseAdapter {
                     ? `${MCP_REGISTRY_API}/v0/servers?cursor=${cursor}&limit=100`
                     : `${MCP_REGISTRY_API}/v0/servers?limit=100`;
 
-                const response = await fetch(url, {
+                const response = await this.fetchWithTimeout(url, {
                     headers: {
                         'Accept': 'application/json',
                         'User-Agent': 'Free2AITools/1.0 (AI Knowledge Hub)'
@@ -54,9 +59,17 @@ export class MCPAdapter extends BaseAdapter {
                 });
 
                 if (!response.ok) {
+                    if (response.status === 429 || response.status === 503) {
+                        // V28: escalate + retry (cursor unchanged → same page retried).
+                        await this.handleRateLimit(response, attempt++);
+                        continue;
+                    }
                     console.warn(`   ⚠️ MCP Registry API error: ${response.status}`);
                     break;
                 }
+
+                // V28: page fetched OK → reset the 429 escalation counter.
+                attempt = 0;
 
                 const data = await response.json();
                 const servers = data.servers || data.items || [];
@@ -79,7 +92,12 @@ export class MCPAdapter extends BaseAdapter {
                 await this.delay(500);
             }
         } catch (error) {
-            console.error(`   ❌ MCP Registry fetch error: ${error.message}`);
+            // V28: breaker tripped → finish early gracefully (keep what we have).
+            if (error instanceof RateLimitExceededError) {
+                console.warn(`   🛑 [MCP] rate-limit breaker tripped — finishing early with ${onBatch ? 'streamed' : allServers.length} servers.`);
+            } else {
+                console.error(`   ❌ MCP Registry fetch error: ${error.message}`);
+            }
         }
 
         console.log(`✅ [MCP] ${onBatch ? 'Streaming' : 'Fetched ' + allServers.length + ' MCP servers'} complete`);
