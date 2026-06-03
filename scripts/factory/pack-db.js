@@ -112,8 +112,8 @@ async function packDatabase() {
 
         const eid = e.id || e.slug;
 
-        // V25.12 lookup track (bounded batch). V27.94 follow-up: type -> cache also indexes canonical id.
-        if (eid) lookupAccess.trackEntity(eid, e.name || e.displayName || eid, e.icon || '', e.type);
+        // V25.12 lookup track. V27.94 (3rd-diag): dropped #2114's e.type arg (its canonical insert was a no-op; e.id already canonical). Real fix is target-side in v25-distiller.js.
+        if (eid) lookupAccess.trackEntity(eid, e.name || e.displayName || eid, e.icon || '');
         if (eid && !cachedIdSet.has(eid)) {
             if (!uncachedByShard.has(shardIdx)) uncachedByShard.set(shardIdx, []);
             uncachedByShard.get(shardIdx).push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
