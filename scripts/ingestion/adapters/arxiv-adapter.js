@@ -92,9 +92,14 @@ export class ArXivAdapter extends BaseAdapter {
             await this.delay(250);
 
             try {
-                const response = await fetch(url, {
+                // V28: wrap in fetchWithTimeout (was a bare fetch with NO timeout →
+                // a hung OAI connection could stall the whole CI job indefinitely).
+                // OAI responses can be large; allow 60s. An AbortError lands in the
+                // existing catch below, which already retries gracefully (the
+                // consecutiveErrors / resumptionToken logic is UNCHANGED).
+                const response = await this.fetchWithTimeout(url, {
                     headers: { 'User-Agent': 'Free2AITools-OAI/1.0' }
-                });
+                }, 60000);
 
                 if (!response.ok) {
                     if (await this.handleRateLimit(response)) { consecutiveErrors = 0; continue; }
