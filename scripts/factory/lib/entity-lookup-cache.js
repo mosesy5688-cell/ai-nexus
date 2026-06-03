@@ -22,6 +22,8 @@
  *   - Acceptable: less than 1% of relations are same-run cross-refs
  */
 
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+
 const FLUSH_SIZE = 1000;
 
 /**
@@ -61,9 +63,21 @@ export function createEntityLookupAccess(cacheDb) {
         }
     };
 
-    const trackEntity = (id, name, icon) => {
+    // V27.94 follow-up: ALSO index the entity under its canonical (normalized)
+    // id so mesh relation targets resolve. mesh-profile-baker normalizes every
+    // target_id (lowercase + '/'->'--') while entity_lookup was keyed only by
+    // the RAW e.id; when raw e.id retained source-case/slash form the lookup
+    // missed 100% (CI: "0/172509 re-resolved"), yielding degenerate nodes.
+    // Mirrors the baker's own-id normalization (mesh-profile-baker.js:63) so the
+    // two namespaces meet. Additive: PK is `id` + INSERT OR IGNORE, so when raw
+    // already equals normalized (already-canonical ids) the dup is a no-op; no
+    // existing row is mutated, no other consumer breaks. `type` lets
+    // getNodeSource disambiguate agent/tool/model exactly as the baker does.
+    const trackEntity = (id, name, icon, type) => {
         if (!id) return;
         batch.push({ id, name, icon });
+        const canonical = normalizeId(id, getNodeSource(id, type), type);
+        if (canonical && canonical !== id) batch.push({ id: canonical, name, icon });
         if (batch.length >= FLUSH_SIZE) flush();
     };
 
