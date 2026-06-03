@@ -266,19 +266,23 @@ export class BaseAdapter {
      * its value is honored (capped at the 5-min MAX_WAIT_MS ceiling — a single
      * server-requested wait above that throws RateLimitExceededError).
      *
-     * When NO header is present (the case that previously caused an infinite
-     * flat-wait spin), the wait escalates exponentially by `attempt`
-     * (BASE_BACKOFF_MS * 2**attempt + jitter, capped at MAX_SINGLE_WAIT_MS),
-     * and once `attempt >= MAX_429_ATTEMPTS` the circuit breaker throws
-     * RateLimitExceededError so a header-less persistent limit cannot loop forever.
+     * When NO header is present, behavior depends on whether the caller opted
+     * into escalation by passing a numeric `attempt`:
+     *   - Legacy callers (attempt omitted/undefined) keep the original flat 60s
+     *     header-less wait — ZERO behavior change. They maintain their own retry
+     *     counters and breakers, so escalating here would silently change them.
+     *   - Converted callers (numeric attempt) get exponential escalation
+     *     (BASE_BACKOFF_MS * 2**attempt + jitter, capped at MAX_SINGLE_WAIT_MS),
+     *     and once `attempt >= MAX_429_ATTEMPTS` the circuit breaker throws
+     *     RateLimitExceededError so a header-less persistent limit cannot loop forever.
      *
      * @param {Response} response - Fetch Response object
-     * @param {number} [attempt=0] - Caller's 429 attempt counter (optional).
-     *   Default 0 preserves the original single-bounded-wait behavior for
-     *   existing callers that pass no attempt and maintain their own counters.
+     * @param {number} [attempt] - Optional. Omit (undefined) for legacy single 60s
+     *   header-less wait. Pass a 0-based attempt counter to enable exponential
+     *   escalation + circuit breaker (per-source converted callers).
      * @returns {Promise<boolean>} True if waited and the caller should retry, false otherwise
      */
-    async handleRateLimit(response, attempt = 0) {
+    async handleRateLimit(response, attempt) {
         if (response.status === 403 || response.status === 429 || response.status === 503) {
             // Check for GitHub secondary rate limit (403 with specific message)
             // or standard 429.
@@ -295,8 +299,14 @@ export class BaseAdapter {
                 // Seconds or Date string
                 const seconds = parseInt(retryAfter, 10);
                 waitMs = (!isNaN(seconds) ? seconds * 1000 : (new Date(retryAfter).getTime() - Date.now())) + 2000;
+            } else if (attempt === undefined) {
+                // V28: Legacy callers (no attempt arg; they maintain their own retry
+                // counters): preserve the original flat 60s header-less wait — ZERO
+                // behavior change.
+                waitMs = MAX_SINGLE_WAIT_MS; // 60000
             } else {
-                // V28: No header — circuit breaker + exponential escalation by attempt.
+                // V28: Converted callers (pass a numeric attempt) — circuit breaker +
+                // exponential escalation by attempt.
                 if (attempt >= MAX_429_ATTEMPTS) {
                     console.error(`\n🔥 [Rate Limit] ${this.sourceName.toUpperCase()} exhausted ${MAX_429_ATTEMPTS} header-less attempts (Status ${response.status}). Aborting fetch.`);
                     throw new RateLimitExceededError(this.sourceName, `${MAX_429_ATTEMPTS} attempts`);
@@ -316,7 +326,8 @@ export class BaseAdapter {
                 throw new RateLimitExceededError(this.sourceName, waitSec);
             }
 
-            console.warn(`\n🛑 [Rate Limit] ${this.sourceName.toUpperCase()} throttling (Status ${response.status}, attempt ${attempt}). Waiting ${waitSec}s...`);
+            const attemptLabel = attempt === undefined ? 'legacy' : `attempt ${attempt}`;
+            console.warn(`\n🛑 [Rate Limit] ${this.sourceName.toUpperCase()} throttling (Status ${response.status}, ${attemptLabel}). Waiting ${waitSec}s...`);
 
             await this.delay(waitMs);
             return true;
