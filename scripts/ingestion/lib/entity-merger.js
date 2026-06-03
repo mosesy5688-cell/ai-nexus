@@ -50,7 +50,11 @@ export function mergeEntities(existing, incoming, options = {}) {
     }
 
     // 5. Tags Union
-    const tagSet = new Set([...(existing.tags || []), ...(incoming.tags || [])]);
+    // R4-B defense-in-depth: coerce each operand to an array so a string-emitting
+    // adapter can never re-corrupt tags via spread ([...string] -> single chars).
+    // Array inputs pass through unchanged (no behavior change for the common case).
+    const arr = v => Array.isArray(v) ? v : (typeof v === 'string' ? v.split(',').map(t => t.trim()).filter(Boolean) : []);
+    const tagSet = new Set([...arr(existing.tags), ...arr(incoming.tags)]);
     mergedObj.tags = Array.from(tagSet);
 
     // Always preserve identity fields

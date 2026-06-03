@@ -11,8 +11,10 @@
  */
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { fetchManifestBody } from './langchain-manifest.js';
 
 const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com';
+// Hub manifest host (LANGCHAIN_HUB_BASE) is owned by ./langchain-manifest.js
 
 /**
  * LangChain Hub Adapter Implementation
@@ -76,6 +78,13 @@ export class LangChainAdapter extends BaseAdapter {
                 // Filter safe items
                 const safeItems = items.filter(item => this.isSafeForWork(item));
 
+                // R4-A: enrich each item with its real prompt body from the hub
+                // manifest. Sequential + gentle pacing is the rate-limit defense;
+                // on any failure fetchManifestBody returns null and normalize()
+                // falls back to the description (honest-contract). Per-batch so
+                // we never buffer all bodies in memory (P1 streaming preserved).
+                await this.enrichBodies(safeItems);
+
                 if (onBatch) {
                     await onBatch(safeItems);
                 } else {
@@ -99,6 +108,22 @@ export class LangChainAdapter extends BaseAdapter {
 
         console.log(`✅ [LangChain] ${onBatch ? 'Streaming' : 'Fetched ' + allItems.length + ' items'} complete`);
         return onBatch ? [] : allItems.slice(0, limit);
+    }
+
+    /**
+     * R4-A: Sequentially fetch each item's prompt body from the hub manifest
+     * and attach it as item._body for normalize() to consume. Gentle pacing
+     * between fetches is the rate-limit defense. On failure the body stays
+     * null and normalize() falls back to the description.
+     * @param {Object[]} items - safe items for this batch (mutated in place)
+     */
+    async enrichBodies(items) {
+        for (const item of items) {
+            const owner = item.owner || 'langchain';
+            const handle = item.repo_handle || item.name;
+            item._body = await fetchManifestBody(owner, handle, this);
+            await this.delay(500); // Sequential, gentle pacing
+        }
     }
 
     /**
@@ -130,7 +155,8 @@ export class LangChainAdapter extends BaseAdapter {
             name: raw.full_name || handle,
             author: owner,
             description: raw.description || '',
-            body_content: raw.description || '',
+            // R4-A: prefer the enriched manifest body; honest fallback to description
+            body_content: raw._body || raw.description || '',
             source: 'langchain',
             source_url: `https://smith.langchain.com/hub/${owner}/${handle}`,
 
@@ -212,7 +238,10 @@ export class LangChainAdapter extends BaseAdapter {
             tags.add('prompt');
         }
 
-        return Array.from(tags).join(',');
+        // R4-B: return a real string[]. Previously this joined to a comma
+        // string, which the shared merger then spread ([...string]) into
+        // single characters. Every other adapter returns an array.
+        return Array.from(tags);
     }
 }
 
