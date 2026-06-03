@@ -112,8 +112,8 @@ async function packDatabase() {
 
         const eid = e.id || e.slug;
 
-        // V25.12: Streaming lookup track (bounded batch, INSERT OR IGNORE)
-        if (eid) lookupAccess.trackEntity(eid, e.name || e.displayName || eid, e.icon || '');
+        // V25.12 lookup track (bounded batch). V27.94 follow-up: type -> cache also indexes canonical id.
+        if (eid) lookupAccess.trackEntity(eid, e.name || e.displayName || eid, e.icon || '', e.type);
         if (eid && !cachedIdSet.has(eid)) {
             if (!uncachedByShard.has(shardIdx)) uncachedByShard.set(shardIdx, []);
             uncachedByShard.get(shardIdx).push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
