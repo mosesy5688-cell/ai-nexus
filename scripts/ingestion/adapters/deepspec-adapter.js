@@ -15,6 +15,13 @@
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
+// V28: bound the per-model config.json fan-out. Was strictly serial with a 300ms
+// delay each (~2000 serial round-trips at limit=2000). Process in windows of
+// SPEC_CONCURRENCY via Promise.all with a small inter-window delay (mirrors the
+// replicate-adapter N+1 fix) so we stay polite without serializing.
+const SPEC_CONCURRENCY = 8;
+const SPEC_WINDOW_DELAY_MS = 300;
+
 // Architecture family patterns
 const ARCHITECTURE_FAMILIES = {
     'llama': ['llama', 'vicuna', 'alpaca', 'wizardlm', 'openorca'],
@@ -87,15 +94,28 @@ export class DeepSpecAdapter extends BaseAdapter {
         const [author, ...nameParts] = raw.model_id.split('/');
         const name = nameParts.join('/') || author;
 
+        // V28 honest-contract: build the displayed spec line from only the fields
+        // we actually extracted, omitting missing ones rather than presenting a
+        // fabricated `?B parameters` / `? context length` AS data. (architecture_family
+        // may legitimately be the string 'unknown' returned by detectArchitectureFamily
+        // — that is an honest detector sentinel, kept as-is when present.) The
+        // structured meta_json below still stores the true null for any missing field.
+        const specParts = [];
+        if (raw.params_billions) specParts.push(`${raw.params_billions}B parameters`);
+        if (raw.context_length) specParts.push(`${raw.context_length} context length`);
+        if (raw.architecture_family) specParts.push(`${raw.architecture_family} architecture`);
+        const specLine = specParts.join(', ');
+        const description = specLine || 'Model specifications unavailable';
+
         return {
             id: this.generateId(author, name),
             type: 'model',
             source: 'huggingface_deepspec',
             source_url: `https://huggingface.co/${raw.model_id}`,
             title: name,
-            description: `${raw.params_billions || '?'}B parameters, ${raw.context_length || '?'} context length, ${raw.architecture_family || 'unknown'} architecture`,
-            body_content: `${name}: ${raw.params_billions || '?'}B parameters, ${raw.context_length || '?'} context, ${raw.architecture_family || 'unknown'} architecture.`,
-            tags: [raw.architecture_family, `${raw.params_billions}B`, 'text-generation'].filter(Boolean),
+            description,
+            body_content: specLine ? `${name}: ${specLine}.` : `${name}.`,
+            tags: [raw.architecture_family, raw.params_billions ? `${raw.params_billions}B` : null, 'text-generation'].filter(Boolean),
             author: author || 'unknown',
             license_spdx: null,
             meta_json: {
@@ -133,7 +153,8 @@ export class DeepSpecAdapter extends BaseAdapter {
             // If no specific models, fetch top models from HF Hub
             if (modelsToProcess.length === 0) {
                 console.log(`   Fetching top ${limit} text-generation models...`);
-                const hubResponse = await fetch(
+                // V28: wrap in fetchWithTimeout (was a bare fetch with NO timeout).
+                const hubResponse = await this.fetchWithTimeout(
                     `https://huggingface.co/api/models?sort=downloads&direction=-1&limit=${limit}&filter=text-generation`,
                     {
                         headers: {
@@ -153,14 +174,22 @@ export class DeepSpecAdapter extends BaseAdapter {
                 console.log(`   📦 Got ${modelsToProcess.length} models to process`);
             }
 
-            // Extract specs for each model
+            // Extract specs for each model.
+            // V28: bound-concurrency windows (was strictly serial with 300ms each).
+            // Each window of SPEC_CONCURRENCY models runs its config.json fetches in
+            // parallel; a SPEC_WINDOW_DELAY_MS pause between windows preserves polite
+            // pacing. onBatch flushing (batch of 20) is unchanged in semantics.
             const specs = [];
             const batchSize = 20;
             let currentBatch = [];
+            const targets = modelsToProcess.slice(0, limit);
 
-            for (const modelId of modelsToProcess.slice(0, limit)) {
-                const spec = await this.extractSpec(modelId);
-                if (spec) {
+            for (let i = 0; i < targets.length; i += SPEC_CONCURRENCY) {
+                const window = targets.slice(i, i + SPEC_CONCURRENCY);
+                const windowSpecs = await Promise.all(window.map((modelId) => this.extractSpec(modelId)));
+
+                for (const spec of windowSpecs) {
+                    if (!spec) continue;
                     if (onBatch) {
                         currentBatch.push(spec);
                         if (currentBatch.length >= batchSize) {
@@ -170,11 +199,11 @@ export class DeepSpecAdapter extends BaseAdapter {
                     } else {
                         specs.push(spec);
                     }
-                    console.log(`   ✅ ${modelId}: ${spec.params_billions}B, ctx=${spec.context_length}, arch=${spec.architecture_family}`);
+                    console.log(`   ✅ ${spec.model_id}: ${spec.params_billions}B, ctx=${spec.context_length}, arch=${spec.architecture_family}`);
                 }
 
-                // Rate limiting - V4.3.2 Constitution
-                await this.delay(300);
+                // Rate limiting between windows - V4.3.2 Constitution (polite pacing)
+                if (i + SPEC_CONCURRENCY < targets.length) await this.delay(SPEC_WINDOW_DELAY_MS);
             }
 
             // Final batch
@@ -200,13 +229,17 @@ export class DeepSpecAdapter extends BaseAdapter {
     async extractSpec(modelId) {
         try {
             // Fetch config.json
+            // V28: wrap in fetchWithTimeout (was a bare fetch with NO timeout — a
+            // single hung config.json could stall a whole concurrency window). 15s
+            // per-file abort window; on timeout/error returns null (honest: the
+            // model is simply skipped, no fabricated spec).
             const configUrl = `https://huggingface.co/${modelId}/raw/main/config.json`;
-            const response = await fetch(configUrl, {
+            const response = await this.fetchWithTimeout(configUrl, {
                 headers: {
                     'Accept': 'application/json',
                     'User-Agent': 'Free2AITools/1.0'
                 }
-            });
+            }, 15000);
 
             if (!response.ok) {
                 return null;
