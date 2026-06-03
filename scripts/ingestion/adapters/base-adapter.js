@@ -24,6 +24,17 @@ export class RateLimitExceededError extends Error {
 }
 
 /**
+ * Rate-limit backoff constants (V28: harvest hardening).
+ * Used by handleRateLimit() when a 429/403/503 carries NO retry header,
+ * so a header-less persistent rate limit escalates and trips a circuit
+ * breaker instead of spinning forever at a flat default wait.
+ */
+const BASE_BACKOFF_MS = 2000;       // First header-less wait (attempt 0)
+const MAX_SINGLE_WAIT_MS = 60000;   // Per-call ceiling for header-less backoff
+const MAX_429_ATTEMPTS = 6;         // Circuit breaker: give up after this many attempts
+const DEFAULT_FETCH_TIMEOUT_MS = 30000; // fetchWithTimeout default abort window
+
+/**
  * Unified Entity Schema - All adapters must output this format
  * @typedef {Object} UnifiedEntity
  * @property {string} id - Unique ID: {source}:{author}:{name}
@@ -247,20 +258,39 @@ export class BaseAdapter {
     }
 
     /**
-     * Handle rate limits (403/429) across sources
-     * V22.3: Centralized Industrial Throttling
+     * Handle rate limits (403/429/503) across sources.
+     * V22.3: Centralized Industrial Throttling.
+     * V28: Header-less escalation + circuit breaker (harvest hardening).
+     *
+     * When the server provides a `retry-after` / `x-ratelimit-reset` header,
+     * its value is honored (capped at the 5-min MAX_WAIT_MS ceiling — a single
+     * server-requested wait above that throws RateLimitExceededError).
+     *
+     * When NO header is present, behavior depends on whether the caller opted
+     * into escalation by passing a numeric `attempt`:
+     *   - Legacy callers (attempt omitted/undefined) keep the original flat 60s
+     *     header-less wait — ZERO behavior change. They maintain their own retry
+     *     counters and breakers, so escalating here would silently change them.
+     *   - Converted callers (numeric attempt) get exponential escalation
+     *     (BASE_BACKOFF_MS * 2**attempt + jitter, capped at MAX_SINGLE_WAIT_MS),
+     *     and once `attempt >= MAX_429_ATTEMPTS` the circuit breaker throws
+     *     RateLimitExceededError so a header-less persistent limit cannot loop forever.
+     *
      * @param {Response} response - Fetch Response object
-     * @returns {Promise<boolean>} True if waited and should retry, false otherwise
+     * @param {number} [attempt] - Optional. Omit (undefined) for legacy single 60s
+     *   header-less wait. Pass a 0-based attempt counter to enable exponential
+     *   escalation + circuit breaker (per-source converted callers).
+     * @returns {Promise<boolean>} True if waited and the caller should retry, false otherwise
      */
-    async handleRateLimit(response) {
+    async handleRateLimit(response, attempt) {
         if (response.status === 403 || response.status === 429 || response.status === 503) {
             // Check for GitHub secondary rate limit (403 with specific message)
             // or standard 429.
-            let waitMs = 60000; // Default: 1 minute
-
             const resetHeader = response.headers.get('x-ratelimit-reset');
             const retryAfter = response.headers.get('retry-after');
+            const hasHeader = Boolean(resetHeader || retryAfter);
 
+            let waitMs;
             if (resetHeader) {
                 // Unix timestamp (seconds)
                 const resetTime = parseInt(resetHeader, 10) * 1000;
@@ -269,23 +299,62 @@ export class BaseAdapter {
                 // Seconds or Date string
                 const seconds = parseInt(retryAfter, 10);
                 waitMs = (!isNaN(seconds) ? seconds * 1000 : (new Date(retryAfter).getTime() - Date.now())) + 2000;
+            } else if (attempt === undefined) {
+                // V28: Legacy callers (no attempt arg; they maintain their own retry
+                // counters): preserve the original flat 60s header-less wait — ZERO
+                // behavior change.
+                waitMs = MAX_SINGLE_WAIT_MS; // 60000
+            } else {
+                // V28: Converted callers (pass a numeric attempt) — circuit breaker +
+                // exponential escalation by attempt.
+                if (attempt >= MAX_429_ATTEMPTS) {
+                    console.error(`\n🔥 [Rate Limit] ${this.sourceName.toUpperCase()} exhausted ${MAX_429_ATTEMPTS} header-less attempts (Status ${response.status}). Aborting fetch.`);
+                    throw new RateLimitExceededError(this.sourceName, `${MAX_429_ATTEMPTS} attempts`);
+                }
+                const jitter = Math.random() * 1000;
+                waitMs = Math.min(BASE_BACKOFF_MS * 2 ** attempt + jitter, MAX_SINGLE_WAIT_MS);
             }
 
             const waitSec = (waitMs / 1000).toFixed(1);
 
-            // V22.3: Threshold Enforcement - Don't wait if it's longer than 5 minutes
+            // V22.3: Threshold Enforcement — never honor a single server-provided
+            // wait longer than 5 minutes (header-less waits are already capped at
+            // MAX_SINGLE_WAIT_MS, so this only fires for explicit retry headers).
             const MAX_WAIT_MS = 5 * 60 * 1000;
-            if (waitMs > MAX_WAIT_MS) {
+            if (hasHeader && waitMs > MAX_WAIT_MS) {
                 console.error(`\n🔥 [Rate Limit] ${this.sourceName.toUpperCase()} wait too long (${waitSec}s). Aborting fetch.`);
                 throw new RateLimitExceededError(this.sourceName, waitSec);
             }
 
-            console.warn(`\n🛑 [Rate Limit] ${this.sourceName.toUpperCase()} throttling (Status ${response.status}). Waiting ${waitSec}s...`);
+            const attemptLabel = attempt === undefined ? 'legacy' : `attempt ${attempt}`;
+            console.warn(`\n🛑 [Rate Limit] ${this.sourceName.toUpperCase()} throttling (Status ${response.status}, ${attemptLabel}). Waiting ${waitSec}s...`);
 
             await this.delay(waitMs);
             return true;
         }
         return false;
+    }
+
+    /**
+     * Fetch with an AbortController timeout (V28: harvest hardening).
+     * Shared helper so academic adapters (arxiv/s2/deepspec) — which currently
+     * have NO fetch timeout and can hang a CI job indefinitely — can adopt a
+     * bounded request. Mirrors the proven pattern in ar5iv-fetcher.js.
+     *
+     * @param {string} url - Request URL
+     * @param {Object} [options={}] - fetch() options (merged with the abort signal)
+     * @param {number} [timeoutMs=30000] - Abort window in milliseconds
+     * @returns {Promise<Response>} The fetch Response
+     * @throws {Error} AbortError (name === 'AbortError') if the request exceeds timeoutMs
+     */
+    async fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
+            clearTimeout(timer);
+        }
     }
 
     /**
