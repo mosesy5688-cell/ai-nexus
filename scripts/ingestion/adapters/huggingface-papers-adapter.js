@@ -13,7 +13,7 @@
  * @module ingestion/adapters/huggingface-papers-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, RateLimitExceededError } from './base-adapter.js';
 
 const HF_PAPERS_API = 'https://huggingface.co/api/daily_papers';
 const HF_API_BASE = 'https://huggingface.co/api';
@@ -75,16 +75,27 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
             for (let d = 0; d < daysToFetch && allPapers.length < limit; d++) {
                 const date = new Date(today - d * 86400000).toISOString().split('T')[0];
                 const url = `${HF_PAPERS_API}?date=${date}`;
+                // V28 hang-fix: per-day 429 attempt counter. The old `d--; continue;` retry
+                // had NO cap — a 429 on d=0 underflowed to d=-1, the loop re-incremented to
+                // d=0, and it spun forever. Route through handleRateLimit (escalation + the
+                // shared circuit breaker at attempt>=6). On a non-429 retry we simply skip
+                // the day (drop the d-- entirely) so the day index always advances.
+                let attempt = 0;
 
                 try {
-                    const response = await fetch(url, { headers: this.getHeaders() });
+                    let response;
+                    while (true) {
+                        // V28: bounded request so a stalled connection can't hang.
+                        response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
+                        if (response.status === 429) {
+                            // Escalating wait + breaker; same day is retried after the wait.
+                            await this.handleRateLimit(response, attempt++);
+                            continue;
+                        }
+                        break;
+                    }
 
                     if (!response.ok) {
-                        if (response.status === 429) {
-                            console.warn(`   ⚠️ Rate limited on ${date}, waiting 10s...`);
-                            await this.delay(10000);
-                            d--; continue;
-                        }
                         console.warn(`   ⚠️ API error ${response.status} for ${date}, skipping`);
                         continue;
                     }
@@ -117,6 +128,10 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
                         console.log(`   📅 ${date}: +${added} papers (total: ${allPapers.length})`);
                     }
                 } catch (error) {
+                    // V28: a tripped circuit breaker means HF is persistently throttling.
+                    // Propagate so we finish early with what we have rather than spinning
+                    // through every remaining day hammering a hot endpoint.
+                    if (error instanceof RateLimitExceededError) throw error;
                     console.warn(`   ⚠️ Fetch error for ${date}: ${error.message}`);
                 }
 
@@ -125,7 +140,11 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
             }
 
         } catch (error) {
-            console.error(`   ❌ Fetch error: ${error.message}`);
+            if (error instanceof RateLimitExceededError) {
+                console.warn(`   🛑 [HuggingFace Papers] ${error.message} — finishing early with ${allPapers.length} papers.`);
+            } else {
+                console.error(`   ❌ Fetch error: ${error.message}`);
+            }
         }
 
         console.log(`✅ [HuggingFace Papers] ${onBatch ? 'Streaming' : 'Fetched ' + allPapers.length + ' papers'} complete`);
