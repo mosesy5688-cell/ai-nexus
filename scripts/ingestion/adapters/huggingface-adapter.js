@@ -9,8 +9,8 @@
  * @module ingestion/adapters/huggingface-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
-import { HF_API_BASE, HF_RAW_BASE, COLLECTION_STRATEGIES, PIPELINE_TAGS, RATE_LIMIT_CONFIG, calculateBackoff } from './hf-strategies.js';
+import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
+import { HF_API_BASE, HF_RAW_BASE, COLLECTION_STRATEGIES, PIPELINE_TAGS, RATE_LIMIT_CONFIG } from './hf-strategies.js';
 import { parseModelId, inferType, normalizeTags, buildMetaJson, detectGGUF, extractAssets, delay } from './hf-utils.js';
 import { normalizeModel, normalizeSpace, buildSpaceMetaJson, extractSpaceAssets } from './hf-normalizer.js';
 
@@ -69,7 +69,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
         const skip = options.offset || 0;
         const url = `${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}&skip=${skip}&${expandParams}`;
-        const response = await fetch(url, { headers: this.getHeaders() });
+        const response = await this.fetchWithTimeout(url, { headers: this.getHeaders() }); // V28: bounded request
         if (!response.ok) throw new Error(`HuggingFace API error: ${response.status}`);
 
         const models = await response.json();
@@ -126,12 +126,16 @@ export class HuggingFaceAdapter extends BaseAdapter {
                     ].map(e => `expand[]=${e}`).join('&');
 
                     const url = `${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&${expandParams}`;
-                    response = await fetch(url, { headers: this.getHeaders() });
+                    // V28 hang-fix: bounded request so a stalled connection can't hang.
+                    response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
 
                     if (response.status === 429) {
-                        const backoff = calculateBackoff(retryCount + 1);
-                        console.log(`   ⚠️ Rate limited (429), retry ${retryCount + 1}/${maxRetries} after ${backoff}ms...`);
-                        await delay(backoff);
+                        // V28: convert hand-rolled backoff to the shared handler (header
+                        // honoring + escalation). Still capped by maxRetries below; the
+                        // breaker (attempt>=6) won't trip within 3 retries — it just falls
+                        // through to the !response.ok check, preserving prior behavior.
+                        console.log(`   ⚠️ Rate limited (429), retry ${retryCount + 1}/${maxRetries}...`);
+                        await this.handleRateLimit(response, retryCount);
                         continue;
                     }
                     break; // Success or other non-429 error
@@ -191,11 +195,22 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 { sort: 'lastModified', budget: Math.ceil(limitPerTag * 0.2), label: 'newest' }
             ];
 
+            let tagRateLimited = false; // V28: breaker tripped → skip rest of this tag
+
             for (const strategy of sortStrategies) {
                 console.log(`\n📥 [HuggingFace] ${tag} — ${strategy.label} (budget: ${strategy.budget})`);
                 let tagModels = 0;
                 let skip = strategy.sort === 'likes' ? offset : 0; // Only apply rotation offset to likes sort
                 let hasMore = true;
+                // V28 hang-fix: page-scoped 429 attempt counter. skip does NOT advance
+                // on a 429 (we retry the same request), so the old
+                // calculateBackoff(floor(skip/PAGE_SIZE)) stayed flat (~2000ms) forever —
+                // a header-less persistent 429 spun the 100K run indefinitely. This counter
+                // drives handleRateLimit() escalation (2s,4s,8s…+jitter, capped 60s) and the
+                // shared circuit breaker (throws RateLimitExceededError at attempt>=6). It is
+                // reset to 0 after every successful page so transient throttling never
+                // poisons a later page; a sustained 429 trips the breaker and we break-the-tag.
+                let attempt = 0;
 
                 try {
                     // Paginate through all results for this tag+sort
@@ -208,13 +223,14 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
                         const url = `${HF_API_BASE}/models?filter=${tag}&sort=${strategy.sort}&direction=-1&limit=${batchLimit}&skip=${skip}&${expandParams}`;
 
-                        const response = await fetch(url, { headers: this.getHeaders() });
+                        // V28 hang-fix: bounded request so a stalled connection can't hang the run.
+                        const response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
 
                         if (!response.ok) {
                             if (response.status === 429) {
-                                const backoff = calculateBackoff(Math.floor(skip / PAGE_SIZE));
-                                console.log(`   ⚠️ Rate limited (429), backing off ${backoff}ms...`);
-                                await delay(backoff);
+                                // V28: escalate by attempt + honor headers; breaker throws at attempt>=6.
+                                // skip is unchanged → same page is retried after the wait.
+                                await this.handleRateLimit(response, attempt++);
                                 continue; // Retry same request
                             }
                             // V22.8: 400 = HF API pagination ceiling (~4000-5000 offset)
@@ -226,6 +242,10 @@ export class HuggingFaceAdapter extends BaseAdapter {
                             console.warn(`   ⚠️ API error: ${response.status}`);
                             break;
                         }
+
+                        // V28 hang-fix: page fetched OK → reset the 429 escalation counter so
+                        // transient throttling on one page never carries into the next.
+                        attempt = 0;
 
                         const models = await response.json();
 
@@ -294,10 +314,22 @@ export class HuggingFaceAdapter extends BaseAdapter {
                     console.log(`   🆕 ${tag}/${strategy.label}: ${tagModels} fetched`);
 
                 } catch (error) {
+                    // V28 hang-fix: a tripped circuit breaker (RateLimitExceededError) means
+                    // HF is persistently throttling us. Break-the-tag rather than letting it
+                    // propagate: one hot tag must not kill the whole 100K run, but we also
+                    // skip this tag's remaining sort strategy and yield (extra inter-tag delay)
+                    // so we stop hammering a hot endpoint. The harvest keeps everything
+                    // streamed so far (onBatch) — no data loss.
+                    if (error instanceof RateLimitExceededError) {
+                        console.warn(`   🛑 ${tag}/${strategy.label}: rate-limit breaker tripped — skipping rest of tag (${tagModels} fetched).`);
+                        tagRateLimited = true;
+                        break;
+                    }
                     console.error(`   ❌ Tag ${tag}/${strategy.label} failed: ${error.message}`);
                 }
             }
-            await delay(1000); // Delay between tags
+            // V28: if the breaker tripped, cool down longer before the next tag.
+            await delay(tagRateLimited ? 5000 : 1000); // Delay between tags
         }
 
         console.log(`\n✅ [HuggingFace] Pipeline tag collection: ${onBatch ? 'Streaming' : allModels.length} complete`);
@@ -335,20 +367,26 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 }
             }
 
-            // If we have expandedData but it's newer (or no registry), we still need the README
-            const [modelRes, readmeRes, configRes] = await Promise.all([
+            // If we have expandedData but it's newer (or no registry), we still need the README.
+            // V28 efficiency: drop the standalone config.json fetch — both the list payload
+            // (expand[]=config) and the per-model fetch below (expand[]=config) already carry
+            // `config`, so config.json is redundant. We only fall back to it below if config is
+            // genuinely absent. Saves ~1 HTTP/model on the medium path.
+            // V28 hang-fix: bounded requests via fetchWithTimeout.
+            const [modelRes, readmeRes] = await Promise.all([
                 // If we already have full expandedData, we can skip modelRes
                 expandedData ? Promise.resolve({ ok: true, json: () => Promise.resolve(expandedData) }) :
-                    fetch(`${HF_API_BASE}/models/${modelId}?expand[]=safetensors&expand[]=siblings&expand[]=config`, { headers: this.getHeaders() }),
-                fetch(`${HF_RAW_BASE}/${modelId}/raw/main/README.md`, { headers: this.getHeaders() }),
-                fetch(`${HF_RAW_BASE}/${modelId}/raw/main/config.json`, { headers: this.getHeaders() })
+                    this.fetchWithTimeout(`${HF_API_BASE}/models/${modelId}?expand[]=safetensors&expand[]=siblings&expand[]=config`, { headers: this.getHeaders() }),
+                this.fetchWithTimeout(`${HF_RAW_BASE}/${modelId}/raw/main/README.md`, { headers: this.getHeaders() })
             ]);
 
             if (modelRes.status === 429) {
                 if (retryCount < RATE_LIMIT_CONFIG.maxRetries) {
-                    const backoff = calculateBackoff(retryCount);
-                    console.log(`   ⚠️ Rate limited for ${modelId}, backing off ${backoff}ms...`);
-                    await delay(backoff);
+                    // V28: shared handler (header honoring + escalation) instead of the
+                    // hand-rolled backoff. retryCount is the 0-based attempt; the recursive
+                    // cap (maxRetries=3) still bounds it well below the breaker (attempt>=6).
+                    console.log(`   ⚠️ Rate limited for ${modelId}, retry ${retryCount + 1}/${RATE_LIMIT_CONFIG.maxRetries}...`);
+                    await this.handleRateLimit(modelRes, retryCount);
                     return this.fetchFullModel(modelId, retryCount + 1, expandedData, registryManager);
                 }
                 console.warn(`   ❌ Max retries exceeded for ${modelId}`);
@@ -364,13 +402,21 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 ? rawReadme.substring(0, 250000) + '\n\n[Content truncated for memory safety...]'
                 : rawReadme;
 
-            // V6.4: Merge config.json data for params extraction
-            if (configRes.ok) {
+            // V6.4: Merge config.json data for params extraction.
+            // V28 efficiency: only hit the standalone config.json endpoint when the
+            // expand[]=config payload did NOT carry a usable config (empty object or
+            // missing). On the happy path config is already present, so this is a no-op
+            // and we save one HTTP request per model.
+            const hasConfig = modelData.config && typeof modelData.config === 'object'
+                && Object.keys(modelData.config).length > 0;
+            if (!hasConfig) {
                 try {
-                    const configData = await configRes.json();
-                    modelData.config = configData;
+                    const configRes = await this.fetchWithTimeout(`${HF_RAW_BASE}/${modelId}/raw/main/config.json`, { headers: this.getHeaders() });
+                    if (configRes.ok) {
+                        modelData.config = await configRes.json();
+                    }
                 } catch (e) {
-                    // config.json may not be valid JSON, ignore
+                    // config.json may be missing / not valid JSON — leave config as-is.
                 }
             }
 
@@ -409,7 +455,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
     async fetchSpaces(options = {}) {
         const { limit = 200, sort = 'likes', full = true } = options;
         console.log(`📥 [HuggingFace] Fetching top ${limit} spaces...`);
-        const response = await fetch(`${HF_API_BASE}/spaces?sort=${sort}&direction=-1&limit=${limit}`, { headers: this.getHeaders() });
+        const response = await this.fetchWithTimeout(`${HF_API_BASE}/spaces?sort=${sort}&direction=-1&limit=${limit}`, { headers: this.getHeaders() }); // V28: bounded request
         if (!response.ok) throw new Error(`HuggingFace API error: ${response.status}`);
         const spaces = await response.json();
         if (!full) return spaces;
@@ -425,8 +471,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
     async fetchFullSpace(spaceId) {
         try {
             const [spaceRes, readmeRes] = await Promise.all([
-                fetch(`${HF_API_BASE}/spaces/${spaceId}`, { headers: this.getHeaders() }),
-                fetch(`${HF_RAW_BASE}/spaces/${spaceId}/raw/main/README.md`, { headers: this.getHeaders() })
+                this.fetchWithTimeout(`${HF_API_BASE}/spaces/${spaceId}`, { headers: this.getHeaders() }),
+                this.fetchWithTimeout(`${HF_RAW_BASE}/spaces/${spaceId}/raw/main/README.md`, { headers: this.getHeaders() })
             ]);
             if (!spaceRes.ok) return null;
             const spaceData = await spaceRes.json();
