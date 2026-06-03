@@ -151,7 +151,12 @@ jobs:
       - run: npm ci
       - name: Harvest ArXiv Papers
         if: github.event.inputs.skip_harvest != 'true'
-        timeout-minutes: 60
+        # V28 PR-3: ArXiv's 100K target + OAI 20s/page pagination legitimately
+        # needs ~140min+. The 60min cap (PR-1) false-timed-out a HEALTHY run
+        # (run 26899131808: ingested 16200, Failed 0, still progressing).
+        # Right-sized to 180 — kept (not removed) for hung-source protection,
+        # still well under the job-level 300min ceiling.
+        timeout-minutes: 180
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
