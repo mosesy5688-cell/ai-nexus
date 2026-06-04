@@ -132,7 +132,21 @@ jobs:
             const missing = required.filter(f => typeof sa[f] !== 'function');
             if (missing.length > 0) { console.error('FATAL: stream-aggregator missing: ' + missing.join(', ')); process.exit(1); }
             console.log('stream-aggregator: all critical functions verified');
+            // Ticket#1: ivf-pq crate critical FFI surface must exist (bake producer + parity oracle).
+            // Hard-fail here guarantees the .node is loaded before the parity gate below
+            // (the parity script silently degrades to JS-only if the .node is absent).
+            const ivf = req('./rust/ivf-pq/ivf-pq-rust.node');
+            const ivfReq = ['trainKmeans', 'trainPqCodebook', 'assignCentroids', 'pqEncode', 'adcLut', 'adcScore', 'cosineF32Int8'];
+            const ivfMissing = ivfReq.filter(f => typeof ivf[f] !== 'function');
+            if (ivfMissing.length > 0) { console.error('FATAL: ivf-pq missing: ' + ivfMissing.join(', ')); process.exit(1); }
+            console.log('ivf-pq: all critical functions verified');
           "
+
+      - name: IVF-PQ Rust-JS Parity Gate
+        # CI runs `napi build`, NOT `cargo test`, so the Rust #[test] suite is not a
+        # gate (#2132/#2136 lesson). This node step IS the Rust==JS lockstep gate.
+        # The .node is guaranteed present by the ivf-pq smoke check above.
+        run: node scripts/factory/verify-ivf-pq-parity.mjs
 
       # V25.8.3: Persist .node binaries to GHA Cache for downstream workflows
       - name: Save Rust Binaries to Cache
@@ -147,6 +161,7 @@ jobs:
             rust/satellite-tasks/satellite-tasks-rust.node
             rust/r2-engine/r2-engine-rust.node
             rust/markdown-renderer/markdown-renderer-rust.node
+            rust/ivf-pq/ivf-pq-rust.node
           key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
 
       # V25.8 §6.2: Backup Rust FFI to R2 vault (immutable, survives GHA cache eviction)
