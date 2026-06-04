@@ -5,9 +5,12 @@ import path from 'path';
 const fsp = fs;
 import { configureDistiller, distillEntity, flushDistillerCache, getDistillerStats } from './lib/v25-distiller.js';
 import { cleanAbstract } from './lib/abstract-cleaner.js';
-import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, setupFtsPragmas, injectMetadata, printBuildSummary, resetPackOutputDbs, resolveEntitySpecs } from './lib/pack-utils.js';
+import { loadTrendingMap, loadTrendMap, streamFusedEntities, buildBundleJson, buildEntityRow, setupDatabasePragmas, injectMetadata, printBuildSummary, resetPackOutputDbs, resolveEntitySpecs } from './lib/pack-utils.js';
 import { computeMetaShardSlot, assertMetaShardRoutable } from './lib/meta-shard-router.js';
-import { dbSchemas, ftsDbSchema } from './lib/pack-schemas.js';
+// V27.104: fts.db (standalone FTS5 `search` table) cut. It had ZERO live readers —
+// frontend keyword search is the static inverted index (term_index/), not FTS5.
+// The full ~450K-row FTS insert + VACUUM every bake was pure wasted compute/storage/warm.
+import { dbSchemas } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
 import { loadMeshProfileMap } from './lib/mesh-profile-loader.js';
@@ -60,16 +63,12 @@ async function packDatabase() {
     for (let i = 0; i < META_SHARD_COUNT; i++) {
         metaDbs[`slot_${i}`] = new Database(path.join(SHARD_PATH_DIR, `meta-${String(i).padStart(2, '0')}.db`));
     }
-    const ftsDb = new Database(path.join(SHARD_PATH_DIR, 'fts.db'));
     Object.values(metaDbs).forEach(setupDatabasePragmas);
-    setupFtsPragmas(ftsDb);
     Object.values(metaDbs).forEach(db => db.exec(dbSchemas));
-    ftsDb.exec(ftsDbSchema);
 
     const placeholder = Array(60).fill('?').join(', ');
     const prepInserts = {};
     for (const [key, db] of Object.entries(metaDbs)) prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
-    const insertFts = ftsDb.prepare(`INSERT INTO search (rowid, umid, name, summary, author, tags, category) VALUES (?, ?, ?, ?, ?, ?, ?)`);
     const stats = { packed: 0, heavy: 0, bytes: 0 };
     const manifest = {};
     const shardWriter = new ShardWriter(SHARD_PATH_DIR);
@@ -79,7 +78,6 @@ async function packDatabase() {
     let dupSkipped = 0;
 
     Object.values(metaDbs).forEach(db => db.exec("BEGIN TRANSACTION"));
-    ftsDb.exec("BEGIN TRANSACTION");
     configureDistiller(cacheDb);  // V25.12: pass cacheDb for HTML render cache
 
     const { map: hostedOnMap, timestamp: hostedOnTs } = loadHostedOnMap(CACHE_DIR);
@@ -136,11 +134,6 @@ async function packDatabase() {
         const slotId = computeMetaShardSlot(e.slug || e.id, META_SHARD_COUNT);
         prepInserts[`slot_${slotId}`].run(...metaValues);
 
-        const authorStr = Array.isArray(e.author) ? e.author.join(', ') : String(e.author || '');
-        const nameStr = String(e.name || e.displayName || '');
-        const ftsTagStr = String(tags + ' ' + keywords);
-        insertFts.run(stats.packed + 1, String(e.umid || e.id), nameStr, String(truncatedSummary), authorStr, ftsTagStr, String(category));
-
         stats.packed++;
         tickBatch(stats.packed);
     });
@@ -149,7 +142,6 @@ async function packDatabase() {
 
     await phaseT('commit-tx', async () => {
         Object.values(metaDbs).forEach(db => db.exec("COMMIT"));
-        ftsDb.exec("COMMIT");
         shardWriter.finalize();
     });
     if (dupSkipped > 0) console.warn(`[VFS] Pack loop skipped ${dupSkipped} duplicate-umid entities`);
@@ -188,7 +180,7 @@ async function packDatabase() {
         if (meshFix.rowsUpdated > 0) console.log(`[VFS] Mesh fix-up: ${meshFix.refsResolved} refs re-resolved across ${meshFix.rowsUpdated} entities.`);
     });
 
-    await phaseT('finalize-pack', () => finalizePack(metaDbs, ftsDb, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary));
+    await phaseT('finalize-pack', () => finalizePack(metaDbs, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary));
 
     await phaseT('fni-sanity-check', async () => {
         let totalFni = 0, zeroFni = 0, maxFni = 0;

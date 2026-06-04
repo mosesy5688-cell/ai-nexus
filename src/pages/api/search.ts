@@ -202,10 +202,12 @@ export const GET: APIRoute = async ({ url }) => {
 
         // ── Browse mode (no query) — existing meta-shard federation ──
         const parsed = parseCommands(q);
-        const { sql: baseSql, params, isFTS } = buildQuery(parsed, type);
+        // V27.104: browse path only (q empty here — keyword search returns earlier via
+        // the static inverted index). buildQuery is pure B-Tree now; no FTS rank order.
+        const { sql: baseSql, params } = buildQuery(parsed, type);
         const orderBy = sort === 'likes' ? 'e.stars DESC'
             : sort === 'last_updated' ? 'e.last_modified DESC'
-            : isFTS ? 'rank' : 'e.fni_score DESC, e.raw_pop DESC, e.slug ASC';
+            : 'e.fni_score DESC, e.raw_pop DESC, e.slug ASC';
         const offset = (page - 1) * limit;
         const finalSql = `${baseSql} ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
 

@@ -20,7 +20,13 @@ if (!fs.existsSync(DB_PATH)) {
 const dbName = path.basename(DB_PATH);
 const dirPath = path.dirname(DB_PATH);
 const isSearchDb = dbName === 'search.db';
-const isFtsDb = dbName === 'fts.db';
+
+// V27.104: fts.db retired (no live reader). Gate removed; a stale leftover must not
+// block a bake — skip cleanly instead of enforcing the old 50K FTS row floor.
+if (dbName === 'fts.db') {
+    console.log(`[VERIFY] Skipping ${dbName} — fts.db retired (V27.104), no live reader.`);
+    process.exit(0);
+}
 
 /**
  * Global Category Thresholds — RISK-V1: Dynamic baseline with floor.
@@ -28,7 +34,7 @@ const isFtsDb = dbName === 'fts.db';
  * with a hard floor to catch total collapse scenarios.
  */
 const HARD_FLOOR = {
-    search: 50000, core: 5000, paper: 20000, model: 10000,
+    core: 5000, paper: 20000, model: 10000,
     dataset: 5000, ecosystem: 100, agent: 100, tool: 500, prompt: 500, space: 100
 };
 
@@ -65,7 +71,7 @@ const category = getCategory(dbName);
 const THRESHOLD = getThreshold(category);
 const EXPECTED_PAGE_SIZE = 16384;
 // V25.9.5→V26.4: align with pack-utils.js (PR #1759). All VFS-served DBs use R2 Range Read (r2-vfs.ts:16 CHUNK_SIZE=256KB) — never full-loaded. 250MB was same legacy heuristic as the 100MB meta limit. Unified to 2048.
-const MAX_DB_SIZE_MB = (isSearchDb || isHashShard || isFtsDb) ? 2048 : 125;
+const MAX_DB_SIZE_MB = (isSearchDb || isHashShard) ? 2048 : 125;
 
 let failures = 0;
 
@@ -91,11 +97,8 @@ const fileSizeMB = Math.round(fs.statSync(DB_PATH).size / 1024 / 1024);
 check('Memory Safety Scan', fileSizeMB <= MAX_DB_SIZE_MB, `${fileSizeMB}MB (limit: ${MAX_DB_SIZE_MB}MB)`);
 
 // 4. Schema Completeness
-const hasEntitiesTable = !isFtsDb && !isAnchorDb && !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'").get();
-if (isFtsDb) {
-    const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='search'").get();
-    check('FTS5 Table', !!ftsTable, ftsTable ? 'search table present' : 'search table missing');
-} else if (isAnchorDb) {
+const hasEntitiesTable = !isAnchorDb && !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'").get();
+if (isAnchorDb) {
     const articlesTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='articles'").get();
     check('Anchor Schema', !!articlesTable, articlesTable ? 'articles table present' : 'articles table missing');
 } else if (hasEntitiesTable) {
@@ -117,10 +120,7 @@ check('Schema Completeness', hasAllCols, hasAllCols ? 'All V23.1 columns present
 
 // 5. Global Entity Accounting
 let totalCount = 0;
-if (isFtsDb) {
-    totalCount = db.prepare('SELECT count(*) as c FROM search').get().c;
-    check('FTS Entity Count', totalCount > 0, `${totalCount} FTS entries`);
-} else if (isAnchorDb) {
+if (isAnchorDb) {
     const hasArticles = !!db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='articles'").get();
     if (hasArticles) {
         totalCount = db.prepare('SELECT count(*) as c FROM articles').get().c;
@@ -144,7 +144,7 @@ if (isFtsDb) {
     check('Global Entity Count', totalCount >= THRESHOLD, `${totalCount} in ${category || dbName} (min: ${THRESHOLD})`);
 }
 
-// 6. Shard Consistency (skip for FTS-only DBs and legacy DBs)
+// 6. Shard Consistency (skip for anchor/legacy DBs without an entities table)
 const heavySample = hasEntitiesTable ? db.prepare('SELECT bundle_key, bundle_offset, bundle_size FROM entities WHERE bundle_key IS NOT NULL LIMIT 1').get() : null;
 if (heavySample) {
     const isShardFormat = heavySample.bundle_key.startsWith('data/fused-shard-');

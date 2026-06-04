@@ -1,6 +1,7 @@
 /**
  * Search Query Builder (Extracted from search.ts to conform to CES size limits)
- * Processes GitHub-style commands and builds FTS5/B-Tree SQL queries.
+ * Processes GitHub-style commands and builds B-Tree SQL queries over the entities table.
+ * V27.104: FTS5 MATCH path removed (fts.db retired, no live reader).
  */
 import { xxhash64Mod } from './xxhash64.js';
 
@@ -144,28 +145,18 @@ export function parseCommands(rawQuery: string) {
 }
 
 /**
- * Build SQL query with FTS5 MATCH or B-Tree path.
+ * Build B-Tree (browse / filtered) SQL query over the entities table.
+ * V27.104: the FTS5 MATCH branch (FROM search s JOIN entities) was removed — it was
+ * dead code. This builder is only invoked from search.ts in browse mode where `q` is
+ * already empty (keyword search is served earlier by the static inverted index), and
+ * the `search` FTS5 table no longer exists (fts.db retired). A live MATCH would 500.
  */
 export function buildQuery(parsed: { query: string; filters: Record<string, string> }, type: string) {
     const columns = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length`;
     const combined = { ...parsed.filters };
-    const q = parsed.query;
 
-    let sql = `SELECT ${columns} FROM entities e`;
+    let sql = `SELECT ${columns} FROM entities e WHERE 1=1`;
     const params: any[] = [];
-    let isFTS = false;
-
-    if (q && q.length >= 2) {
-        const safeQuery = q.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/)
-            .filter((t: string) => t.length > 0).map((t: string) => `"${t}"*`).join(' AND ');
-        if (safeQuery) {
-            sql = `SELECT s.rank as rank, ${columns} FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ?`;
-            params.push(safeQuery);
-            isFTS = true;
-        }
-    } else {
-        sql += ` WHERE 1=1`;
-    }
 
     if (combined.author) { sql += ` AND e.author LIKE ?`; params.push(`%${combined.author}%`); }
     if (combined.params) {
@@ -187,5 +178,5 @@ export function buildQuery(parsed: { query: string; filters: Record<string, stri
     if (combined.task) { sql += ` AND e.pipeline_tag LIKE ?`; params.push(`%${combined.task}%`); }
     if (type && type !== 'all') { sql += ` AND e.type = ?`; params.push(type); }
 
-    return { sql, params, isFTS };
+    return { sql, params };
 }

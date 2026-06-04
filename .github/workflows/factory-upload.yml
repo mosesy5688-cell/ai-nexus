@@ -1095,7 +1095,8 @@ jobs:
           WARM_URLS=(
             "https://cdn.free2aitools.com/data/shards_manifest.json"
             # V25.9.5: search.db retired from CDN — no runtime consumer
-            "https://cdn.free2aitools.com/data/fts.db"
+            # V27.104: fts.db retired from build + CDN warm — no live reader (keyword
+            # search is the static inverted index term_index/, not FTS5).
             "https://cdn.free2aitools.com/data/hot-shard.bin"
             "https://cdn.free2aitools.com/data/vector-core.bin"
             # Read-path P1: canonical id->shard warm tier (full corpus).
