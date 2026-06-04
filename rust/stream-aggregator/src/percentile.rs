@@ -69,20 +69,30 @@ mod tests {
 
     #[test]
     fn test_basic_ranking() {
+        // Top-down percentile: highest score (descending rank 0) -> 100. For N
+        // distinct scores, the entity at 0-based descending rank r gets
+        // round((1 - r/N) * 100). With N=3: rank 0 -> 100, rank 1 -> round(66.67)
+        // = 67, rank 2 -> round(33.33) = 33. This mirrors the production source
+        // of truth aggregator-utils.js calculateGlobalStats (lines 28-53).
         let scores = vec![
             ("a".to_string(), 90.0),
             ("b".to_string(), 50.0),
             ("c".to_string(), 10.0),
         ];
         let rankings = calculate_rankings(&scores);
-        assert_eq!(*rankings.get("a").unwrap(), 100); // top
-        assert_eq!(*rankings.get("b").unwrap(), 50); // middle
-        assert_eq!(*rankings.get("c").unwrap(), 17); // bottom
+        assert_eq!(*rankings.get("a").unwrap(), 100); // top, rank 0
+        assert_eq!(*rankings.get("b").unwrap(), 67); // middle, rank 1 -> round(66.67)
+        assert_eq!(*rankings.get("c").unwrap(), 33); // bottom, rank 2 -> round(33.33)
     }
 
     #[test]
     fn test_tied_scores() {
-        // 3 entities with score 0 should all get low percentile, not top 100%
+        // Tied scores use midrank to abolish the old "tied for top 100%" bug
+        // (JS V25.5 FIX): effective_rank = first_rank + (count_at_score - 1) / 2.
+        // Here a=100 is rank 0 -> 100; b,c,d all share score 0 with first_rank=1
+        // and count=3, so effective_rank = 1 + (3-1)/2 = 2 and the percentile is
+        // round((1 - 2/4) * 100) = 50 -- the midpoint of their tied range for
+        // this 4-entity input. The ties never saturate at top and are identical.
         let scores = vec![
             ("a".to_string(), 100.0),
             ("b".to_string(), 0.0),
@@ -91,13 +101,15 @@ mod tests {
         ];
         let rankings = calculate_rankings(&scores);
         assert_eq!(*rankings.get("a").unwrap(), 100);
-        // b,c,d should all be ~25th percentile (tied at bottom)
+        // b,c,d sit at the midrank of their tied range (50), well below the top
+        // entity, and identical to each other (no "tied for top" saturation).
         let b = *rankings.get("b").unwrap();
         assert!(
-            b < 50,
-            "Tied zero-score should be below 50th percentile, got {}",
+            b < 100,
+            "Tied zero-score must not saturate at top 100%, got {}",
             b
         );
+        assert_eq!(b, 50, "Tied bottom group should land at midrank 50, got {}", b);
         assert_eq!(b, *rankings.get("c").unwrap());
         assert_eq!(b, *rankings.get("d").unwrap());
     }
