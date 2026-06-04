@@ -66,7 +66,13 @@ async function packDatabase() {
     Object.values(metaDbs).forEach(setupDatabasePragmas);
     Object.values(metaDbs).forEach(db => db.exec(dbSchemas));
 
-    const placeholder = Array(60).fill('?').join(', ');
+    // Derive the placeholder width from the LIVE schema (all metaDbs share dbSchemas),
+    // so a column-less `INSERT INTO entities VALUES (...)` always matches the created
+    // table. Hardcoding the count silently drifts every time pack-schemas.js gains or
+    // drops a column (e.g. #2133 added 11 -> 60 != 71 SqliteError at prepare time).
+    const ENTITY_COLS = Object.values(metaDbs)[0]
+        .prepare("SELECT COUNT(*) AS c FROM pragma_table_info('entities')").get().c;
+    const placeholder = Array(ENTITY_COLS).fill('?').join(', ');
     const prepInserts = {};
     for (const [key, db] of Object.entries(metaDbs)) prepInserts[key] = db.prepare(`INSERT INTO entities VALUES (${placeholder})`);
     const stats = { packed: 0, heavy: 0, bytes: 0 };
@@ -131,6 +137,11 @@ async function packDatabase() {
         if (!e.slug && e.id) e.slug = deriveSlug(e.id);
 
         const metaValues = buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category, tags, truncatedSummary, bundleKey, offset, size);
+        // Drift guard: fail loud with both counts if row-builders.js and pack-schemas.js
+        // go out of sync, instead of the cryptic "N columns but M values supplied" SQLite error.
+        if (metaValues.length !== ENTITY_COLS) {
+            throw new Error(`[VFS] entity row/column drift: buildEntityRow produced ${metaValues.length} values but the entities table has ${ENTITY_COLS} columns. Re-align row-builders.js with pack-schemas.js entitiesTableSql.`);
+        }
         const slotId = computeMetaShardSlot(e.slug || e.id, META_SHARD_COUNT);
         prepInserts[`slot_${slotId}`].run(...metaValues);
 
