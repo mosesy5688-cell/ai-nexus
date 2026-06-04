@@ -53,12 +53,9 @@ async function releaseLock(s3) {
 
 // ── Phase A: UMID Stamping (Streaming — O(1) memory per shard) ───
 async function phaseUmidStamping() {
-    console.log('[BOOTSTRAP] Phase A: UMID Stamping (V25.8 Streaming)...');
+    console.log('[BOOTSTRAP] Phase A: UMID Stamping (Streaming)...');
 
-    if (!process.env.UMID_SALT) {
-        console.error('[BOOTSTRAP] FATAL: UMID_SALT environment variable is required.');
-        process.exit(1);
-    }
+    // UMID is unsalted SHA256(canonical_id) — no secret required.
 
     const mapping = {};
     let stamped = 0;

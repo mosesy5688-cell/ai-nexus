@@ -5,27 +5,20 @@
 
 use std::collections::HashSet;
 
-use hmac::{Hmac, Mac};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde_json::json;
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 
 use crate::project::project_entity_for_fusion;
 
-type HmacSha256 = Hmac<Sha256>;
-
-/// V26.9 #1724: Rust-side mirror of JS `generateUMID`.
-/// HMAC-SHA256(key = UMID_SALT || 'nexus-dev-salt-v25.8', msg = canonical_id)
-/// → first 16 hex chars. Must match `scripts/factory/lib/umid-generator.js` exactly.
+/// Rust-side mirror of JS `generateUMID`.
+/// Unsalted, publicly verifiable: SHA256(canonical_id) → first 8 bytes → 16 hex
+/// chars. Must match `scripts/factory/lib/umid-generator.js` exactly.
 fn generate_umid(canonical_id: &str) -> String {
-    let salt = std::env::var("UMID_SALT").unwrap_or_else(|_| "nexus-dev-salt-v25.8".to_string());
-    let mut mac = HmacSha256::new_from_slice(salt.as_bytes())
-        .expect("HMAC can take key of any size");
-    mac.update(canonical_id.as_bytes());
-    let bytes = mac.finalize().into_bytes();
+    let digest = Sha256::digest(canonical_id.as_bytes());
     let mut out = String::with_capacity(16);
-    for b in bytes.iter().take(8) {
+    for b in digest.iter().take(8) {
         out.push_str(&format!("{:02x}", b));
     }
     out
@@ -95,11 +88,11 @@ pub fn fuse_shard(
             continue;
         }
 
-        // V26.9 #1724: Always re-stamp umid from canonical id with the current
-        // UMID_SALT. Binary shards can carry stale dev-salt umids from earlier
-        // cycles; inheriting those mixes namespaces and produces UNIQUE-constraint
-        // collisions in pack-db. Re-stamping is idempotent and guarantees one-to-one
-        // id ↔ umid alignment with Phase 3 enrichment lookup keys.
+        // Always re-stamp umid from canonical id (unsalted SHA256). Binary shards
+        // can carry stale salted umids from earlier cycles; inheriting those mixes
+        // namespaces and produces UNIQUE-constraint collisions in pack-db.
+        // Re-stamping is idempotent and guarantees one-to-one id <-> umid alignment
+        // with Phase 3 enrichment lookup keys.
         let fresh_umid = generate_umid(&id);
         entity["umid"] = json!(fresh_umid);
 
@@ -134,10 +127,10 @@ pub fn fuse_shard(
         entity["fni_percentile"] = json!(percentile);
 
         // C. Enrichment from pre-downloaded local files.
-        // V26.9: use the freshly-stamped prod umid — Phase 4 of master-fusion.js
-        // saves enrichment files as `${generateUMID(id)}.md.gz`, so this matches.
+        // Use the freshly-stamped umid — Phase 4 of master-fusion.js saves
+        // enrichment files as `${generateUMID(id)}.md.gz`, so this matches.
         // umid_manifest is kept as a belt-and-braces fallback for the rare case
-        // where UMID_SALT is missing (both sides resolve to the dev fallback).
+        // where a stale manifest entry is the only available lookup key.
         if do_enrich {
             let umid: &str = if !fresh_umid.is_empty() {
                 &fresh_umid
@@ -186,32 +179,30 @@ mod tests {
     #[test]
     fn umid_matches_js_reference() {
         // Reference values precomputed via JS generateUMID() in
-        // scripts/factory/lib/umid-generator.js. If this test fails after
-        // touching generate_umid(), you have desynced Rust from JS — pack-db
-        // will start rejecting entities with UNIQUE-umid collisions.
+        // scripts/factory/lib/umid-generator.js, i.e. unsalted
+        // SHA256(canonical_id)[0..16]. If this test fails after touching
+        // generate_umid(), you have desynced Rust from JS — pack-db will start
+        // rejecting entities with UNIQUE-umid collisions.
+        //
+        // UMID is unsalted, so it is publicly verifiable. Anyone can recompute:
+        //   node -e "console.log(require('crypto').createHash('sha256')
+        //     .update('hf-model--meta-llama--llama-3').digest('hex').slice(0,16))"
+        assert_eq!(
+            generate_umid("hf-model--meta-llama--llama-3"),
+            "52eaca4b97d1964e"
+        );
+        // A salt-set environment must NOT change the output (salt is gone).
         std::env::set_var("UMID_SALT", "test-salt-123");
         assert_eq!(
             generate_umid("hf-model--meta-llama--llama-3"),
-            "83ba6c32b557858b"
+            "52eaca4b97d1964e"
         );
-        // Dev-fallback path (no UMID_SALT set)
         std::env::remove_var("UMID_SALT");
+        // A second canonical_id, also publicly verifiable.
         assert_eq!(
-            generate_umid("hf-model--meta-llama--llama-3"),
-            dev_fallback_reference()
+            generate_umid("arxiv-paper--2017--attention-is-all-you-need"),
+            "8e055264c3931891"
         );
-    }
-
-    fn dev_fallback_reference() -> String {
-        // HMAC-SHA256('nexus-dev-salt-v25.8', 'hf-model--meta-llama--llama-3')[0..16]
-        let mut mac = HmacSha256::new_from_slice(b"nexus-dev-salt-v25.8").unwrap();
-        mac.update(b"hf-model--meta-llama--llama-3");
-        let b = mac.finalize().into_bytes();
-        let mut s = String::with_capacity(16);
-        for x in b.iter().take(8) {
-            s.push_str(&format!("{:02x}", x));
-        }
-        s
     }
 }
 

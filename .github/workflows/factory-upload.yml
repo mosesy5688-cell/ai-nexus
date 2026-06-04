@@ -296,7 +296,6 @@ jobs:
           CACHE_DIR: ./output/cache
           ARTIFACT_DIR: ./output/cache/registry
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
-          UMID_SALT: ${{ secrets.UMID_SALT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -629,7 +628,6 @@ jobs:
         env:
           CACHE_DIR: ./output/cache
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
-          UMID_SALT: ${{ secrets.UMID_SALT }}
           NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
         run: node scripts/factory/pack-db.js
       # V27.2 fail-loud gate (always runs as sanity check on both fresh + cached data)
@@ -1024,7 +1022,6 @@ jobs:
         env:
           SHARD_DIR: ./output/data
           DEDUP_DIR: ./output/data/dedup
-          UMID_SALT: ${{ secrets.UMID_SALT }}
         run: node scripts/factory/sync-ledger.js
       - name: Upload to R2 via S3 API
         env:
