@@ -1,0 +1,11 @@
+{
+  "name": "ivf-pq-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "ivf-pq-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}
