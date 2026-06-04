@@ -20,6 +20,7 @@ import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 import { withOpTimeout, isOpTimeout } from '../../../../lib/op-timeout.js';
 import { projectEntity } from '../../../../lib/entity-projection.js';
+import { orderShardsByIndex } from '../../../../lib/id-index-shard-order.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -87,6 +88,14 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             if (arr) arr.push(c); else shardForms.set(idx, [c]);
         }
 
+        // Read-path P1 warm tier (ADDITIVE): the in-memory id-index resolves a
+        // candidate to its canonical write shard so it is probed FIRST, reaching
+        // a real entity before the budget is spent. Pure REORDERING of the
+        // existing shardForms entries -> a stale/absent index cannot drop a
+        // shard or make an entity unreachable (zero regression). loadIdIndex
+        // no-ops on miss / absent file until the next bake ships id-index.bin.
+        const orderedShards = await orderShardsByIndex(shardForms, candidates, env);
+
         // Per-shard try/catch: a single shard error (transient VFS / SQL) must
         // not 500 the whole request if another shard might satisfy the lookup.
         // Track errors + budget-bail so a transient miss is not a false 404.
@@ -94,7 +103,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         let probedShards = 0;
         let budgetBailed = false;
         const shardErrors: string[] = [];
-        for (const [shardIdx, forms] of shardForms) {
+        for (const [shardIdx, forms] of orderedShards) {
             if (Date.now() - start > PROBE_BUDGET_MS) { budgetBailed = true; break; }
             probedShards++;
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;

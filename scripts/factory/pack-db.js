@@ -23,27 +23,10 @@ import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
 import { loadHostedOnMap, enrichHostedOn } from './lib/hosted-on-enricher.js';
 import { startBatchProf, tickBatch, phaseT } from './lib/pack-profiler.js';
 import { recoverTop30k } from './lib/top30k-recovery.js';
+import { generateIdIndex } from './lib/id-index-generator.js';
+import { deriveSlug } from './lib/derive-slug.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SHARD_PATH_DIR = './output/data';
-const SLUG_PREFIXES = [
-    'hf-model', 'hf-agent', 'hf-tool', 'hf-dataset', 'hf-space', 'hf-paper', 'hf-collection',
-    'gh-model', 'gh-agent', 'gh-tool', 'gh-repo',
-    'arxiv-paper', 'arxiv', 'paper',
-    'replicate-model', 'replicate-agent', 'replicate-space',
-    'civitai-model', 'ollama-model',
-    'kaggle-dataset', 'kaggle-model',
-    'langchain-prompt', 'langchain-agent',
-    'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt'
-];
-function deriveSlug(id) {
-    let r = (id || '').toLowerCase();
-    for (const p of SLUG_PREFIXES) {
-        if (r.startsWith(`${p}--`) || r.startsWith(`${p}:`) || r.startsWith(`${p}/`)) {
-            r = r.slice(p.length + (r[p.length] === '-' ? 2 : 1)); break;
-        }
-    }
-    return r.replace(/[:\/]/g, '--').replace(/^--|--$/g, '').replace(/--+/g, '--');
-}
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024, EMBEDDING_BATCH = 500;
 const PACK_STATE_PATH = path.join(CACHE_DIR, 'pack-state.db');
 const EMBED_SHARD_DIR = path.join(CACHE_DIR, 'embeddings');
@@ -243,6 +226,8 @@ async function packDatabase() {
         const { buildInvertedIndexFromShards } = await import('./lib/inverted-index-builder.js');
         await buildInvertedIndexFromShards(metaDbs, path.join(SHARD_PATH_DIR, 'term_index'));
     });
+    // Read-path P1: full-corpus id->shard warm tier (runs while metaDbs open).
+    await phaseT('id-index', () => generateIdIndex(metaDbs));
     Object.values(metaDbs).forEach(db => db.close());
     if (global.gc) global.gc();
     console.log('[VFS] V26.7 Streaming Packer Complete (zero accumulator).');
