@@ -310,7 +310,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 Harvesting HuggingFace Spaces..."
-          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 5000 --no-bridge
+          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 5000 --no-bridge || echo "HuggingFace Spaces adapter skipped"
 
       - name: Harvest AI Agents
         if: github.event.inputs.skip_harvest != 'true'

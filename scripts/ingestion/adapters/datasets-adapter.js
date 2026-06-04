@@ -61,7 +61,23 @@ export class DatasetsAdapter extends BaseAdapter {
         let curBatch = baseBatch, curDelay = baseDelay, cleanRuns = 0;
         this._batchHit429 = false;
 
+        // V28.x: aggregate guard. Per-call timeouts + adaptive throttle bound
+        // each batch, but the loop had NO aggregate wall-clock cap — with limit
+        // up to 10000 and the throttle GROWING curDelay (up to 15s) on 429, a
+        // slow/throttled HF drives total time past the 60-min step timeout (same
+        // class as the HF Spaces / LangChain stalls: per-item bound != aggregate
+        // bound). Bound by wall-clock AND trip a breaker on sustained failure,
+        // returning PARTIAL (best-effort per cron cycle; streamed via onBatch).
+        const ENRICH_BUDGET_MS = 40 * 60 * 1000; // hard ceiling, under the 60-min step cap
+        const MAX_CONSECUTIVE_FAIL_BATCHES = 25;
+        const enrichStart = Date.now();
+        let consecutiveFailBatches = 0;
+
         for (let i = 0; i < datasets.length; i += curBatch) {
+            if (Date.now() - enrichStart > ENRICH_BUDGET_MS) {
+                console.warn(`   ⏱️ [HF Datasets] enrich budget (${ENRICH_BUDGET_MS / 60000}min) reached at ${i}/${datasets.length}; returning partial.`);
+                break;
+            }
             const batch = datasets.slice(i, i + curBatch);
             const safeBatch = batch.filter(d => this.isSafeForWork(d));
             if (safeBatch.length === 0) { console.log(`   ⏭️ Skipping batch ${i / curBatch} (No safe datasets)`); continue; }
@@ -72,6 +88,14 @@ export class DatasetsAdapter extends BaseAdapter {
             );
             const validResults = batchResults.filter(d => d !== null);
             if (options.onBatch) { await options.onBatch(validResults); } else { fullDatasets.push(...validResults); }
+
+            // Circuit breaker: sustained all-fail batches (HF down/blocking) -> stop, return partial.
+            if (validResults.length === 0) {
+                if (++consecutiveFailBatches >= MAX_CONSECUTIVE_FAIL_BATCHES) {
+                    console.warn(`   🔌 [HF Datasets] ${consecutiveFailBatches} consecutive failed batches; circuit-breaking at ${i}/${datasets.length}.`);
+                    break;
+                }
+            } else { consecutiveFailBatches = 0; }
 
             // Adaptive throttle: slow down on 429, recover after clean batches
             if (this._batchHit429) {
