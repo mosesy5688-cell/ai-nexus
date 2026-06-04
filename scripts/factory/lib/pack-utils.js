@@ -11,6 +11,9 @@ import { PackAccumulator } from './pack-accumulator.js';
 import { autoDecompress } from './zstd-helper.js';
 import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
 // V27.1: stale meta-*.db rows from restored cache make probe-vfs Range past EOF → 416.
+// V27.104: fts.db is no longer produced (retired, no live reader), but we still unlink
+// any stale leftover restored from a prior cache/R2 vfs-data backup so it is never
+// re-uploaded to the CDN. ENOENT (already absent) is the expected normal case.
 export function resetPackOutputDbs(shardDir, metaShardCount) {
     const targets = Array.from({ length: metaShardCount }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`).concat('fts.db');
     for (const f of targets) {
@@ -168,12 +171,8 @@ export function setupDatabasePragmas(db, { wal = false, vfsPageSize = true } = {
     db.pragma('encoding = "UTF-8"');
 }
 
-/**
- * V5.8 §1.1: Configure FTS5-specific pragmas for incremental merge
- */
-export function setupFtsPragmas(db) {
-    setupDatabasePragmas(db, { wal: true });
-}
+// V27.104: setupFtsPragmas removed — fts.db eliminated (no live reader). It only
+// configured pragmas for the standalone FTS5 `search` DB, which is no longer built.
 
 // V27.63: 5 dead keys removed per 2026-05-26 reader audit (0 src/ readers for
 // knowledge_links / search_core / search_manifest / category_stats / trend_data;

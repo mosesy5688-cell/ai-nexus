@@ -51,13 +51,6 @@ export const dbSchemas = `
     CREATE INDEX idx_ollama ON entities(ollama_compatible);
 `;
 
-/** V25.8: Standalone FTS5 database schema (decoupled from meta.db) */
-export const ftsDbSchema = `
-    CREATE VIRTUAL TABLE search USING fts5(
-        umid, name, summary, author, tags, category,
-        content='', tokenize='porter unicode61 remove_diacritics 2'
-    );
-    CREATE TABLE fts_metadata (key TEXT PRIMARY KEY, value TEXT);
-`;
-
 // V26.5: searchDbSchema removed — search.db eliminated. All consumers read meta-NN.db.
+// V27.104: ftsDbSchema removed — fts.db eliminated (no live reader; keyword search is the
+// static inverted index term_index/, not FTS5). Schema was the standalone FTS5 `search` table.

@@ -1,13 +1,14 @@
 /**
  * V26.5 Pack Finalizer - Shard hash, optimization, and post-pack generation
- * V26.5: search.db eliminated — only metaDbs + ftsDb remain.
+ * V26.5: search.db eliminated.
+ * V27.104: fts.db eliminated (no live reader) — only metaDbs remain.
  */
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary) {
+export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary) {
     console.log('[VFS] Computing shard manifest hashes...');
     const hashStart = Date.now();
     for (let i = 0; i <= currentShardId; i++) {
@@ -76,10 +77,4 @@ export async function finalizePack(metaDbs, ftsDb, manifest, currentShardId, sha
     console.log(`[VFS] VACUUM ${Object.keys(metaDbs).length} meta DBs (${((Date.now() - vacStart) / 1000).toFixed(1)}s)`);
 
     printBuildSummary(metaDbs, null, stats, currentShardId);
-
-    ftsDb.exec("INSERT INTO search(search) VALUES('optimize');");
-    ftsDb.pragma('wal_checkpoint(TRUNCATE)');
-    ftsDb.exec("VACUUM;");
-    ftsDb.close();
-    console.log('[VFS] fts.db optimized.');
 }
