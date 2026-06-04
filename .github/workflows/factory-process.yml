@@ -172,7 +172,6 @@ jobs:
       - name: Consolidate Shards for Matrix
         env:
           NODE_OPTIONS: '--max-old-space-size=8192 --expose-gc'
-          UMID_SALT: ${{ secrets.UMID_SALT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -1,48 +1,38 @@
 /**
- * V25.8 UMID Generator - Universal Mesh ID
+ * UMID Generator - Universal Mesh ID
  *
- * Generates deterministic, immutable UMIDs via HMAC-SHA256.
- * UMID is anchored to the canonical entity ID and a private salt,
- * ensuring permanence regardless of name/author changes.
+ * Generates deterministic, immutable UMIDs via plain SHA-256 of the canonical
+ * entity ID (no salt). UMID is anchored to the public canonical ID, so any
+ * external party can recompute it — it is publicly verifiable.
  *
- * Output: 16-char hex string (64-bit equivalent)
+ * UMID = SHA256(canonical_id) first 64 bits = first 16 hex chars.
+ * Output: 16-char hex string (64-bit equivalent).
  */
 
 import crypto from 'crypto';
 
 const UMID_LENGTH = 16; // 64-bit hex representation
-let _saltWarned = false;
 
 /**
- * Generate a deterministic UMID for an entity.
+ * Generate a deterministic, publicly-verifiable UMID for an entity.
  * @param {string} canonicalId - The entity's canonical ID (e.g., 'hf-model--meta-llama--llama-3')
- * @returns {string} A 16-char hex UMID
+ * @returns {string} A 16-char hex UMID = SHA256(canonicalId)[0..16]
  */
 export function generateUMID(canonicalId) {
     if (!canonicalId) throw new Error('UMID generation requires a canonical ID');
-    const salt = process.env.UMID_SALT;
-    if (!salt && !_saltWarned) {
-        console.warn('[UMID] UMID_SALT not set. Using fallback salt (NOT production-safe).');
-        _saltWarned = true;
-    }
-    const hmac = crypto.createHmac('sha256', salt || 'nexus-dev-salt-v25.8');
-    hmac.update(canonicalId);
-    return hmac.digest('hex').substring(0, UMID_LENGTH);
+    return crypto.createHash('sha256').update(canonicalId).digest('hex').substring(0, UMID_LENGTH);
 }
 
-const DEV_FALLBACK_SALT = 'nexus-dev-salt-v25.8';
-
 /**
- * Generate UMID using the legacy dev-salt (for backward-compatible enrichment lookup).
- * Only differs from generateUMID when production UMID_SALT is set.
+ * Legacy alias of generateUMID. UMID is now unsalted, so there is no longer a
+ * dev-vs-prod distinction — both resolve to SHA256(canonicalId)[0..16]. Kept as
+ * an alias for backward-compatible callers (e.g. enrichment-lookup fallback).
  * @param {string} canonicalId
- * @returns {string} 16-char hex UMID using dev salt
+ * @returns {string} 16-char hex UMID (empty string for falsy input)
  */
 export function generateDevUMID(canonicalId) {
     if (!canonicalId) return '';
-    const hmac = crypto.createHmac('sha256', DEV_FALLBACK_SALT);
-    hmac.update(canonicalId);
-    return hmac.digest('hex').substring(0, UMID_LENGTH);
+    return generateUMID(canonicalId);
 }
 
 /**

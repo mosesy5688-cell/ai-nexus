@@ -564,7 +564,6 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
-          UMID_SALT: ${{ secrets.UMID_SALT }}
           ALLOW_R2_RECOVERY: 'true'
         run: |
           echo "🔄 Merging batches with ID deduplication..."

@@ -111,7 +111,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
           DEDUP_DIR: ./output/data/dedup
-          UMID_SALT: ${{ secrets.UMID_SALT }}
           NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
           PER=${{ needs.setup.outputs.per_worker }}

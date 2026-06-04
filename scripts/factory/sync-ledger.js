@@ -8,7 +8,6 @@
  * Environment:
  *   DEDUP_DB_PATH — path to dedup.db (default: ./output/data/dedup.db)
  *   SHARD_DIR — path to meta shard directory (default: ./output/data)
- *   UMID_SALT — required for generateUMID fallback
  */
 
 import Database from 'better-sqlite3';

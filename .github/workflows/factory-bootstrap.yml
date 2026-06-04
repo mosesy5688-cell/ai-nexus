@@ -29,7 +29,6 @@ env:
   R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
   R2_BUCKET: ai-nexus-assets
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-  UMID_SALT: ${{ secrets.UMID_SALT }}
   NODE_OPTIONS: '--max-old-space-size=6144'
 
 jobs:
@@ -86,15 +85,6 @@ jobs:
           else
             echo "Cache hit: high-density archive (${FILE_SIZE} bytes) — skipping R2"
           fi
-
-      - name: Validate UMID_SALT
-        run: |
-          if [ -z "$UMID_SALT" ]; then
-            echo "❌ FATAL: UMID_SALT secret is not configured."
-            echo "Set it in: Settings → Secrets and variables → Actions → UMID_SALT"
-            exit 1
-          fi
-          echo "✅ UMID_SALT is configured (${#UMID_SALT} chars)"
 
       - name: Execute Bootstrap Phase
         env:
