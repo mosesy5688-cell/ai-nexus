@@ -77,7 +77,11 @@ pub(crate) fn project_entity(e: &Value, fni_percentile: u8) -> Value {
         "description": description,
         "tags": e.get("tags").cloned().unwrap_or(json!([])),
         "metrics": e.get("metrics").cloned().unwrap_or(json!({})),
-        "stars": num_field(e, &["stars", "github_stars"]),
+        // PR-3 (R3): honest-contract. Was num_field(..)=0.0, which forced a measured-zero
+        // onto HF entities that have no stars concept (should be null). num_field_or_null
+        // preserves null when no real stars/github_stars value is present; the distiller
+        // (v25-distiller.js) then recovers the true gh count from meta_json.stars.
+        "stars": num_field_or_null(e, &["stars", "github_stars"]),
         "downloads": num_field(e, &["downloads"]),
         "likes": num_field(e, &["likes"]),
         "citations": num_field(e, &["citations"]),
@@ -171,6 +175,17 @@ fn num_field(e: &Value, keys: &[&str]) -> f64 {
     0.0
 }
 
+/// PR-3 (R3): like num_field but returns JSON null (not 0.0) when no key carries a
+/// numeric value. honest-contract: null = not-measured, 0 = measured-zero (per llms.txt).
+fn num_field_or_null(e: &Value, keys: &[&str]) -> Value {
+    for k in keys {
+        if let Some(v) = e.get(*k).and_then(|v| v.as_f64()) {
+            return json!(v);
+        }
+    }
+    Value::Null
+}
+
 fn nested_f64(e: &Value, direct: &[&str], nested_path: &[&str; 2]) -> f64 {
     for k in direct {
         if let Some(v) = e.get(*k).and_then(|v| v.as_f64()) {
@@ -219,6 +234,15 @@ pub(crate) fn project_entity_for_fusion(e: &Value, fni_percentile: u8) -> Value 
         "created_at", "display_description", "readme",
         // Adapter raw fields used as fallback inputs
         "base_model", "gguf_variants",
+        // PR-3 (R1): hot-column promotion sources. Some adapters set these top-level
+        // (hf-normalizer sdk/running_status, datasets primary fields); pass them through
+        // so the distiller's `??=` keeps an adapter-set value. The rest are recovered by
+        // the distiller from meta_json/meta_json.config (also passed through above).
+        // Repeating the documented anti-strip rule (V27.61): a column declared in
+        // pack-schemas MUST also survive this projection, never be silently dropped.
+        "num_heads", "kv_heads", "moe_experts", "moe_active",
+        "sdk", "running_status", "size_category", "files_count",
+        "modality", "published_year", "published_date",
     ];
     for key in PASSTHROUGH {
         if let Some(v) = e.get(*key) {
@@ -285,4 +309,48 @@ fn get_description(e: &Value) -> String {
     // Normalize whitespace and truncate
     let normalized: String = result.split_whitespace().collect::<Vec<&str>>().join(" ");
     normalized.chars().take(250).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // PR-3 (R3): honest-contract stars. HF (no stars/github_stars key) -> JSON null,
+    // never a fabricated measured-zero; gh (real value) -> that number.
+    #[test]
+    fn fusion_stars_null_for_hf_value_for_gh() {
+        let hf = json!({ "id": "hf-model--x--y", "type": "model", "likes": 1200 });
+        let out = project_entity_for_fusion(&hf, 0);
+        assert!(out["stars"].is_null(), "HF stars must be null, got {}", out["stars"]);
+
+        let gh = json!({ "id": "gh-tool--x--y", "type": "tool", "stars": 6500 });
+        let out = project_entity_for_fusion(&gh, 0);
+        // num_field_or_null normalizes via as_f64 (same as the existing num_field for
+        // downloads/likes), so the JSON number is a float — assert on the f64 value.
+        assert_eq!(out["stars"].as_f64(), Some(6500.0));
+    }
+
+    // PR-3 (R1): every promoted hot column must SURVIVE the fusion projection
+    // (guards the documented V27.61 silent-strip regression).
+    #[test]
+    fn fusion_passes_through_pr3_hot_columns() {
+        let e = json!({
+            "id": "hf-model--x--y", "type": "model",
+            "num_heads": 32, "kv_heads": 8, "moe_experts": 8, "moe_active": 2,
+            "sdk": "gradio", "running_status": "RUNNING",
+            "size_category": "100B<n<1T", "files_count": 42,
+            "modality": "text", "published_year": 2023,
+            "meta_json": { "config": { "hidden_size": 4096 } },
+        });
+        let out = project_entity_for_fusion(&e, 0);
+        for k in ["num_heads", "kv_heads", "moe_experts", "moe_active", "sdk",
+                  "running_status", "size_category", "files_count", "modality",
+                  "published_year", "meta_json"] {
+            assert!(!out[k].is_null(), "field {} was stripped by fusion projection", k);
+        }
+        assert_eq!(out["num_heads"].as_i64(), Some(32));
+        assert_eq!(out["sdk"].as_str(), Some("gradio"));
+        // meta_json (distiller's recovery source) must survive intact.
+        assert_eq!(out["meta_json"]["config"]["hidden_size"].as_i64(), Some(4096));
+    }
 }

@@ -32,7 +32,10 @@ export const entitiesTableSql = `
         license_type TEXT DEFAULT 'unknown',
         can_run_local INTEGER DEFAULT 0,
         hosted_on_checked_at TEXT,
-        benchmarks TEXT
+        benchmarks TEXT,
+        num_heads INTEGER, kv_heads INTEGER, moe_experts INTEGER, moe_active INTEGER,
+        sdk TEXT, running_status TEXT, size_category TEXT, files_count INTEGER,
+        modality TEXT, published_year INTEGER, primary_category TEXT
     );
 
 `;

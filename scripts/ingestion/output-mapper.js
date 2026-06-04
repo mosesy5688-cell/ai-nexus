@@ -20,6 +20,12 @@ export async function saveOutput(entities, outputDir, outputFile) {
         tags: e.tags,
         pipeline_tag: e.pipeline_tag || e.meta_json?.pipeline_tag || 'other',
         likes: e.popularity || 0,
+        // PR-3 (R3): honest-contract stars promoted top-level from stage 1. The github
+        // adapter is the only source with a real stars count and stores it in
+        // meta_json.stars (its `popularity` is also stargazers, but popularity->likes is
+        // overloaded across sources, so it is NOT a reliable stars signal). HF/space/
+        // dataset/paper meta_json has no `stars` key -> null (no stars concept), never 0.
+        stars: e.stars ?? e.meta_json?.stars ?? null,
         downloads: e.downloads || 0,
         source: e.source,
         source_url: e.source_url,

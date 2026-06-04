@@ -44,6 +44,9 @@ export function projectEntity(e: any) {
         pipeline_tag: e.pipeline_tag || null,
         task_categories: parseTags(e.task_categories),
         primary_language: e.primary_language || null,
+        // PR-3 (R1): paper category + year promoted to hot columns.
+        primary_category: e.primary_category || null,
+        published_year: e.published_year ?? null,
 
         fni: {
             score: e.fni_score ?? null,
@@ -68,6 +71,11 @@ export function projectEntity(e: any) {
             vocab_size: e.vocab_size ?? null,
             num_layers: e.num_layers ?? null,
             hidden_size: e.hidden_size ?? null,
+            // PR-3 (R1): attention + MoE structure promoted to hot columns.
+            num_heads: e.num_heads ?? null,
+            kv_heads: e.kv_heads ?? null,
+            moe_experts: e.moe_experts ?? null,
+            moe_active: e.moe_active ?? null,
             vram: {
                 estimate_gb: e.vram_estimate_gb ?? null,
                 fp16_gb: e.vram_fp16_gb ?? null,
@@ -78,6 +86,13 @@ export function projectEntity(e: any) {
             can_run_local: e.can_run_local == null ? null : !!e.can_run_local,
             hosted_on: safeJsonParse(e.hosted_on, e.hosted_on || null),
             runtime_hardware: e.runtime_hardware || null,
+            // PR-3 (R1): space runtime (sdk/running_status) + dataset shape
+            // (size_category/files_count/modality) promoted to hot columns.
+            sdk: e.sdk || null,
+            running_status: e.running_status || null,
+            size_category: e.size_category || null,
+            files_count: e.files_count ?? null,
+            modality: e.modality || null,
         },
 
         stats: {

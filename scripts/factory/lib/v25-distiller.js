@@ -6,15 +6,10 @@ import { deriveTaskCategories } from './task-classifier.js';
 import { deriveArchitectureFromTags } from './arch-derivation.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
-// V27.94 (3rd-diag) ROOT fix: mesh relation TARGETS arrive stripped
-// (e.g. "2512.20848", "huggingface--transformers", "what-is-rag") while
-// entity_lookup is keyed by the CANONICAL prefixed id (arxiv-paper--...).
-// Humanize a slug into a display name so a genuine miss still yields a node
-// whose name !== id (verify-db flags name===id as degenerate). Takes the last
-// '--' segment when present else the whole slug, swaps -/_ for spaces, and
-// title-cases. e.g. "huggingface--transformers"->"Transformers",
-// "what-is-rag"->"What Is Rag", "agentic-ai"->"Agentic Ai". This supplies only
-// a readable label for a real mesh edge; it never invents the relationship.
+// V27.94 (3rd-diag) ROOT fix: mesh relation TARGETS arrive stripped while entity_lookup is
+// keyed by the CANONICAL prefixed id, so a genuine miss must still yield a node whose
+// name !== id (verify-db flags name===id as degenerate). Humanize the last '--' segment
+// (swap -/_ for spaces, title-case) as a readable label only; never invents the relationship.
 function humanizeMeshName(rawId) {
     if (typeof rawId !== 'string' || !rawId) return null;
     const seg = rawId.includes('--') ? rawId.split('--').pop() : rawId;
@@ -127,7 +122,12 @@ export function distillEntity(e, pBillions, entityLookup) {
     e.primary_language ??= Array.isArray(meta.language) ? meta.language[0] : (meta.language || null);
     e.forks ??= meta.forks ?? null;
     e.citation_count ??= meta.citation_count ?? null;
-    e.stars ??= meta.stars ?? null;
+    // PR-3 (R3): honest-contract stars. gh adapter stores the true count ONLY in
+    // meta_json.stars; HF/space/dataset/paper meta has no `stars` key -> stays null (no
+    // concept). Recover even when upstream left a 0 placeholder (`??=` would keep 0).
+    if (e.stars == null || (e.stars === 0 && meta.stars)) {
+        e.stars = meta.stars ?? (typeof e.stars === 'number' ? e.stars : null);
+    }
 
     // V2.0: FNI Pillar Promotion (S-A-P-R-Q Alignment)
     const fMetrics = e.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
@@ -140,15 +140,46 @@ export function distillEntity(e, pBillions, entityLookup) {
     // V18.9: FNI Singularity is sole authority. No quality_score fallback.
     e.fni_score ??= 0;
 
-    // V25.1 Distillation: Goldmine
-    // V27.45: preserve null when meta_json lacks them. V27.61: ??= so adapter-set
-    // values aren't clobbered (matches honest-contract pattern on lines 107-111).
+    // V25.1 Distillation: Goldmine. V27.45 preserve null; V27.61 ??= keeps adapter values.
+    // PR-3 (R1): cfg = raw HF config buildMetaJson stores verbatim. For MoE/quantized models
+    // the partial expand[]=config payload passed buildMetaJson's non-empty check yet lacked
+    // deep arch keys (so vocab/hidden/num_layers mapped null); cfg.* fallback recovers them.
+    const cfg = (meta.config && typeof meta.config === 'object') ? meta.config : {};
     e.runtime_hardware ??= meta.runtime_hardware || meta.hardware || null;
-    e.vocab_size ??= meta.vocab_size ?? null;
-    e.num_layers ??= meta.num_hidden_layers ?? meta.num_layers ?? null;
-    e.hidden_size ??= meta.hidden_size ?? null;
+    e.vocab_size ??= meta.vocab_size ?? cfg.vocab_size ?? cfg.n_vocab ?? null;
+    e.num_layers ??= meta.num_hidden_layers ?? meta.num_layers ?? cfg.num_hidden_layers ?? cfg.n_layer ?? cfg.n_layers ?? null;
+    e.hidden_size ??= meta.hidden_size ?? cfg.hidden_size ?? cfg.n_embd ?? cfg.d_model ?? cfg.dim ?? null;
     e.datasets_used ??= Array.isArray(meta.datasets) ? meta.datasets.join(', ') : (meta.datasets || null);
     e.quick_start ??= meta.quick_start || null;
+
+    // PR-3 (R1): hot-column promotion. Names match the consumer (TechSpecsFull / entity API)
+    // and the cfg-key aliases in entity-utils.js hydrator. null = not-measured (no fabrication).
+    e.num_heads ??= meta.num_attention_heads ?? cfg.num_attention_heads ?? cfg.n_head ?? cfg.n_heads ?? null;
+    e.kv_heads ??= meta.num_key_value_heads ?? cfg.num_key_value_heads ?? cfg.n_kv_heads ?? null;
+    e.moe_experts ??= meta.moe_experts ?? cfg.num_local_experts ?? cfg.num_experts ?? cfg.n_experts ?? cfg.n_routed_experts ?? null;
+    e.moe_active ??= meta.moe_active ?? cfg.num_experts_per_tok ?? cfg.num_active_experts ?? cfg.n_active_experts ?? null;
+    // Spaces store sdk + runtime.stage in meta (SpacesAdapter) or top-level (hf-normalizer).
+    e.sdk ??= meta.sdk ?? null;
+    e.running_status ??= meta.runtime_stage ?? meta.runtime?.stage ?? meta.running_status ?? null;
+    // Datasets: size_category / files_count. modality has no structured field -> derive from
+    // a `modality:<x>` tag (HF convention) else null.
+    e.size_category ??= meta.size_category ?? null;
+    e.files_count ??= meta.files_count ?? null;
+    if (e.modality == null) {
+        const tagArr = Array.isArray(e.tags) ? e.tags : (Array.isArray(meta.tags) ? meta.tags : []);
+        const mTag = tagArr.find(t => typeof t === 'string' && t.toLowerCase().startsWith('modality:'));
+        e.modality = mTag ? mTag.split(':')[1] : (meta.modality ?? null);
+    }
+    // Papers: primary_category + published_year. Rust base emits primary_category "" when
+    // absent ("" is not nullish, so ??= would keep it) -> coalesce empty to the meta value.
+    if (e.primary_category == null || e.primary_category === '') {
+        e.primary_category = meta.primary_category ?? (Array.isArray(meta.categories) ? meta.categories[0] : null) ?? null;
+    }
+    if (e.published_year == null) {
+        const pubDate = meta.published_date || e.published_date || e.created_at || null;
+        const yr = pubDate ? new Date(pubDate).getFullYear() : null;
+        e.published_year = (yr && !isNaN(yr) && yr > 1990 && yr < 2100) ? yr : null;
+    }
 
     // V27.46: derive architecture from tags when meta_json lacks it.
     // HF cardData.architecture is often empty even when tags clearly mark the family
@@ -171,13 +202,10 @@ export function distillEntity(e, pBillions, entityLookup) {
         e.readme_html = renderHtmlWithCache(rawReadme);
     }
 
-    // V25.1 Distillation: Mesh Pre-joining
-    // V27.94 (3rd-diag) ROOT fix: canonicalize each relation target before the
-    // entity_lookup .get() (the target arrives STRIPPED; the lookup is keyed by
-    // the CANONICAL id, so the old code missed 100% -> degenerate nodes). On a
-    // miss we write a humanized display name (no _unresolved marker — see below).
-    // V27.73: check non-empty, not just isArray — adapters initialize relations=[]
-    // which made the mesh_profile branch dead. Hit-rate was 0% post-V27.71 verified.
+    // V25.1 Mesh Pre-joining. V27.94 ROOT fix: canonicalize each relation target before the
+    // entity_lookup .get() (target arrives STRIPPED, lookup keyed by CANONICAL id -> old code
+    // missed 100% -> degenerate nodes); miss writes a humanized name (no _unresolved, see below).
+    // V27.73: check non-empty (not just isArray) — adapters init relations=[] (mesh branch was dead).
     const relations = (Array.isArray(e.relations) && e.relations.length > 0)
         ? e.relations : (e.mesh_profile?.relations || []);
     e.ui_related_mesh = JSON.stringify(relations.map(rel => {
@@ -187,26 +215,18 @@ export function distillEntity(e, pBillions, entityLookup) {
         const isArr = Array.isArray(rel);
         const rawTarget = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
         const type = (isArr ? rel[1] : (rel.type || rel.t)) || 'model';
-        // V27.94 (3rd-diag) ROOT fix: the raw target is a STRIPPED id while
-        // entity_lookup is keyed by the CANONICAL prefixed id. Canonicalize
-        // before lookup — mirrors relation-extractors.js:42-44 and
-        // mesh-profile-baker.js:80 — else .get() misses 100% -> degenerate.
+        // Canonicalize the stripped target before lookup (see ROOT fix note above);
+        // mirrors relation-extractors.js:42-44 / mesh-profile-baker.js:80.
         const targetId = normalizeId(rawTarget, getNodeSource(rawTarget, type), type) || rawTarget;
         const t = entityLookup.get(targetId);
         if (t && t.name) {
             return { id: targetId, type, name: t.name, icon: t.icon || '📦' };
         }
-        // MISS: knowledge concepts / hub tools (EXPLAINS edges) dominate the mesh
-        // (~597K of ~947K) and are NOT streamed into entity_lookup, so they will
-        // never resolve. Supply a humanized display name so the node is
-        // non-degenerate (name !== id) — a real edge with a readable label; we do
-        // NOT invent the relationship, only its display name. We deliberately do
-        // NOT set _unresolved here: verify-db's canary counts _unresolved itself
-        // as degenerate, and the resolveMeshFixup post-pass could never resolve a
-        // never-streamed target — keeping the marker would pin ~63% of edges
-        // degenerate and fail the gate. Tradeoff: the <1% same-run forward-refs
-        // keep this humanized name instead of upgrading to the real entity name
-        // post-pass; the name stays truthful (derived from the slug).
+        // MISS: knowledge concepts / hub tools (EXPLAINS, ~597K of ~947K edges) are NOT
+        // streamed into entity_lookup so never resolve. Supply a humanized display name
+        // (non-degenerate, name !== id) — truthful label only, never invents the edge.
+        // No _unresolved marker: verify-db counts it as degenerate and the fixup post-pass
+        // can't resolve a never-streamed target, so it would pin ~63% degenerate + fail.
         const name = humanizeMeshName(rawTarget) || targetId;
         return { id: targetId, type, name, icon: '📦' };
     }));
