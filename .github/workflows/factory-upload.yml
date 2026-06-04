@@ -1130,6 +1130,32 @@ jobs:
             echo "Warming: $url"
             curl -s -o /dev/null --max-time 30 -H "User-Agent: Nexus-Warmer/1.0" "$url" || true
           done
+
+          # V27.103: Live-SSR VFS warming. The CDN curls above DO NOT warm the
+          # path that matters: the live isolate reads meta-NN.db from R2 via
+          # binding and caches it under vfs-cache.internal/${etag}/ + opens a
+          # wa-sqlite handle — none of which a CDN static curl triggers. Since an
+          # in-place meta-NN.db overwrite bumps the R2 etag and invalidates that
+          # whole etag-scoped cache, the deploy itself manufactures a cold cliff,
+          # and the first real Agent request pays full cold-open (503/524 risk).
+          # Hit a SMALL fixed set of live SSR endpoints (origin, not CDN) so the
+          # isolate opens the handle + seeds the new etag cache before that first
+          # Agent. Best-effort latency mitigation only — bounded + non-fatal, it
+          # must NEVER block or fail the pipeline (each curl is `|| true`).
+          SSR_ORIGIN="https://free2aitools.com"
+          SSR_WARM_URLS=(
+            # Entity API — forces per-shard getCachedDbConnection + executeSql.
+            "${SSR_ORIGIN}/api/v1/entity/meta-llama/Llama-3.1-8B-Instruct"
+            "${SSR_ORIGIN}/api/v1/entity/openai-community/gpt2"
+            # Detail page — exercises loadEntityStreams -> resolveVfsMetadata SSR.
+            "${SSR_ORIGIN}/model/meta-llama/Llama-3.1-8B-Instruct"
+            # List page — warms the catalog/list read path.
+            "${SSR_ORIGIN}/models"
+          )
+          for url in "${SSR_WARM_URLS[@]}"; do
+            echo "Warming SSR: $url"
+            curl -s -o /dev/null --max-time 20 -H "User-Agent: Nexus-Warmer/1.0" "$url" || true
+          done
           echo "✅ Proactive Warming Complete."
       # V27.3: Drain wait now bridges purge -> probe (was: TTL expiry -> probe).
       # Cloudflare purge is fast at origin but propagation to every edge POP
