@@ -103,7 +103,11 @@ export const GET: APIRoute = async ({ url, request }) => {
         id: e.id, name: e.name, author: e.author, type: e.type,
         fni_score: e.fni_score ?? 0,
         fni_factors: {
-          semantic: e.fni_s ?? 50.0, authority: e.fni_a ?? 0,
+          // V27 honesty sweep: fni_s is a constant factory baseline, not a
+          // per-entity measurement -> null + note (mirrors entity API + select.ts).
+          semantic: null,
+          semantic_note: 'query-time baseline; scored live at search; not a per-entity value',
+          authority: e.fni_a ?? 0,
           popularity: e.fni_p ?? 0, recency: e.fni_r ?? 0, quality: e.fni_q ?? 0,
         },
         specs: {
