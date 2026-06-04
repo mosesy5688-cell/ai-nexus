@@ -72,7 +72,13 @@ Astro.response.headers.set('X-Data-Source', dataSource);
 if (dataset) {
   Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
 } else if (isTransient) {
-  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=0');
+  // Honest transient signal: a cold/flaky VFS lookup of a possibly-real entity
+  // is NOT "empty". Status 503 + Retry-After so an Agent crawler retries instead
+  // of caching a soft-200 skeleton as truth and hard-coding us out; no-store so
+  // the negative is never cached. Human body (skeleton) still renders below.
+  Astro.response.status = 503;
+  Astro.response.headers.set('Retry-After', '5');
+  Astro.response.headers.set('Cache-Control', 'no-store');
 } else {
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
