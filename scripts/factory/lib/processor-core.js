@@ -34,7 +34,15 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         } catch (e) { }
 
         // Core Ranking Metrics
-        entity.stars = entity.stars || meta.stars || meta.stargazers_count || 0;
+        // PR-3 (R3): honest-contract stars. Was `|| 0`, which stamped a measured-zero onto
+        // HF/space/dataset/paper entities that have NO stars concept (should be null) and,
+        // because the value then propagated as 0, the row-builders `e.stars ?? e.likes`
+        // fallback returned 0 instead of falling through for gh-tool. Now: take a true
+        // stars source (meta.stars / stargazers_count) when present, else null. FNI
+        // (fni-score.js) reads `entity.stars || ...` so null is harmless to ranking.
+        const starsSrc = (entity.stars != null && entity.stars !== 0) ? entity.stars
+            : (meta.stars ?? meta.stargazers_count ?? null);
+        entity.stars = starsSrc != null ? starsSrc : null;
         entity.forks = entity.forks || meta.forks || meta.forks_count || 0;
         entity.citations = entity.citations || entity.citation_count || meta.citations || meta.citation_count || 0;
         entity.downloads = entity.downloads || meta.downloads || meta.download_count || 0;

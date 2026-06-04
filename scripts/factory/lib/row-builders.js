@@ -99,6 +99,13 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         const parsed = Number(v);
         return isNaN(parsed) ? null : parsed;
     };
+    // PR-3 (R1): honest-contract text — null when not-present (vs s()'s '' coercion),
+    // so the entity API's `e.<field> || null` surfaces a true not-measured null.
+    const sOrNull = (v) => {
+        if (v == null) return null;
+        const r = s(v);
+        return r === '' ? null : r;
+    };
 
     return [
         s(e.id), s(e.umid || e.id), s(e.slug), s(e.name || e.displayName), s(e.type, 'model'),
@@ -106,8 +113,14 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         n(e.fni_s ?? fniMetrics.s), n(e.fni_a ?? fniMetrics.a), n(e.fni_p ?? fniMetrics.p),
         n(e.fni_r ?? fniMetrics.r), n(e.fni_q ?? fniMetrics.q), n(e.raw_pop),
         nOrNull(pBillions), s(arch), nOrNull(ctxLen), e.is_trending ? 1 : 0,
-        // V27.45: stars=null on HF (no stars concept per V27.25 honest-contract); 0 only when explicitly measured (e.g., GH with star_count=0)
-        nOrNull(e.stars ?? e.likes), nOrNull(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
+        // V27.45 + PR-3 (R3): stars=null on HF (no stars concept per V27.25 honest-contract);
+        // a real value (incl. measured-zero) only when sourced from a true stars field.
+        // Dropped the `?? e.likes` fallback: (a) likes != stars (HF likes leaking into a
+        // stars column is fabrication), and (b) `0 ?? likes` returns 0, which zeroed every
+        // gh-tool whose stars promoted to 0 instead of falling through. Upstream
+        // (output-mapper / processor-core / distiller) now sets e.stars to the true gh value
+        // or null, so reading e.stars alone is correct and honest for all sources.
+        nOrNull(e.stars), nOrNull(e.downloads), s(e.last_modified), bundleKey, n(offset), n(size),
         s(e._trend_7d),
         s(e.license || e.license_spdx), s(e.source_url), s(e.pipeline_tag),
         s(e.raw_image_url || e.image_url), nOrNull(e.vram_estimate_gb), s(e.source || e.source_platform),
@@ -130,6 +143,12 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         classifyLicense(e.license || e.license_spdx),
         ((e.has_ollama || e.has_gguf) && (pBillions <= 13 || !pBillions)) ? 1 : 0,
         s(e.hosted_on_checked_at),
-        e.benchmarks ? JSON.stringify(e.benchmarks) : null
+        e.benchmarks ? JSON.stringify(e.benchmarks) : null,
+        // PR-3 (R1): hot-column promotion. SAME positional order as pack-schemas.js
+        // entitiesTableSql and rust project.rs PR3_HOT_COLUMNS. Populated by the
+        // distiller (v25-distiller.js) from meta_json / meta_json.config; null = not-measured.
+        nOrNull(e.num_heads), nOrNull(e.kv_heads), nOrNull(e.moe_experts), nOrNull(e.moe_active),
+        sOrNull(e.sdk), sOrNull(e.running_status), sOrNull(e.size_category), nOrNull(e.files_count),
+        sOrNull(e.modality), nOrNull(e.published_year), sOrNull(e.primary_category)
     ];
 }
