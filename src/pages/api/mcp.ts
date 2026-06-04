@@ -159,7 +159,12 @@ async function handleToolCall(context: any, toolName: string, args: any) {
                 id: e.id, name: e.name, type: e.type, author: e.author,
                 fni_score: e.fni?.score,
                 factors: {
+                    // V27 honesty sweep: S is a query-time signal; on this static
+                    // detail surface it is not a per-entity measurement, so the
+                    // entity API returns null + a note. Carry the note through so
+                    // null is read as "by-design, scored live" not "missing/error".
                     S_semantic: f.semantic ?? null,
+                    S_semantic_note: f.semantic_note ?? 'query-time baseline; scored live at search; not a per-entity value',
                     A_authority: f.authority ?? null,
                     P_popularity: f.popularity ?? null,
                     R_recency: f.recency ?? null,

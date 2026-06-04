@@ -62,7 +62,12 @@ export const POST: APIRoute = async ({ request }) => {
         author: row.author || '',
         fni_score: row.fni_score ?? 0,
         fni_factors: {
-          semantic: row.fni_s ?? 50.0,
+          // V27 honesty sweep: fni_s is a constant factory baseline, not a
+          // per-entity measurement (real S is scored live at query time by the
+          // cluster-ANN). Emit null + note so Agents do not read a bare 50.0 as
+          // "moderately relevant" (honest-contract; mirrors entity API [...id].ts).
+          semantic: null,
+          semantic_note: 'query-time baseline; scored live at search; not a per-entity value',
           authority: row.fni_a ?? 0,
           popularity: row.fni_p ?? 0,
           recency: row.fni_r ?? 0,

@@ -57,6 +57,20 @@ These tags power the [`select_model` API](/developers) — AI agents can filter 
 
 **V2.0 (2026)** — Renamed to "Free2AITools Nexus Index." Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms. Catalog re-evaluated daily. Agent structured tags for `select_model` API. Factor scores included in every API response.
 
+## Source-Parity Weighting (P factor)
+
+The Popularity factor compares raw engagement (downloads, stars, likes, citations) across platforms whose metrics are not directly comparable — an arXiv citation and a HuggingFace download are not the same unit of signal. To put them on one scale, raw popularity is multiplied by a per-source coefficient (`Ks`) before log-compression. These coefficients are an editorial weighting that favors peer-reviewed academic provenance, and they are published here so the weighting is transparent and contestable:
+
+| Source | Coefficient (Ks) | Rationale |
+|--------|------------------|-----------|
+| arXiv | 30.0 | Knowledge roots — peer-reviewed / academic provenance |
+| Semantic Scholar | 30.0 | Knowledge roots — peer-reviewed / academic provenance |
+| GitHub | 5.0 | Tool source — engineering adoption signal |
+| HuggingFace | 1.0 | Model forge — baseline (engagement is high-volume, low-cost) |
+| CivitAI / other | 0.2 | Community market — high-volume, lower verification |
+
+These are the live values in `scripts/factory/lib/fni-score.js` (`SOURCE_COEFFICIENTS`). The coefficient is applied as `raw_popularity × Ks`, then asymptotically log-compressed (base 8) into the 0-100 P factor, so a high coefficient lifts a source's floor without letting any single metric dominate.
+
 ## Anti-Gaming
 
 FNI uses multi-dimensional cross-validation to detect manipulation:
@@ -68,13 +82,14 @@ Flagged entities are reviewed and scores adjusted. Log-scaling on popularity met
 
 ## For Developers
 
-Every API response includes `fni_version` and per-factor breakdown:
+Every API response includes `fni_version` and per-factor breakdown. The Semantic factor is scored live at query time, so on static detail/select/compare surfaces it is reported as not-measured (`null` + a note) rather than a placeholder value — honest-contract: a constant is not a measurement:
 
 ```json
 {
   "fni_score": 72.4,
   "fni_factors": {
-    "semantic": 50.0,
+    "semantic": null,
+    "semantic_note": "query-time baseline; scored live at search; not a per-entity value",
     "authority": 85.2,
     "popularity": 67.1,
     "recency": 91.0,
