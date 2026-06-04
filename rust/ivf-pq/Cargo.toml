@@ -1,0 +1,15 @@
+[package]
+name = "ivf-pq-rust"
+version = "1.0.0"
+edition = "2021"
+description = "IVF-PQ Phase A: seed-deterministic k-means + PQ codebook training, encode, ADC + cosine reference (bake/producer-side NAPI)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { workspace = true }
+napi-derive = { workspace = true }
+
+[build-dependencies]
+napi-build = "2"
