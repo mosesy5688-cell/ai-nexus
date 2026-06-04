@@ -6,9 +6,9 @@
  * Routing: per-candidate xxhash64Mod against partitions.meta_shards, probing
  * the highest-probability shard first (see buildEntityProbePlan), then
  * SELECT * WHERE id/slug/umid IN (candidate forms) LIMIT 1 per shard.
- * Projection: 60 raw columns -> ~30 Agent fields; omits internal storage fields
- * per feedback_no_architecture_exposure. ?include=body lazy-loads readme_html
- * from the .bin fused-shard (cold tier) via packet-loader.fetchBundleReadme.
+ * Projection (60 raw cols -> ~30 Agent fields) lives in entity-projection.ts.
+ * ?include=body lazy-loads readme_html from the .bin fused-shard (cold tier)
+ * via packet-loader.fetchBundleReadme.
  */
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
@@ -18,10 +18,8 @@ import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
 import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
-import { entityCanonicalUrl, cleanSourceUrl } from '../../../../utils/mesh-routing-core.js';
-import { extractArxivIdFromKey } from '../../../../utils/entity-type-handlers.js';
-import { sanitizeCitation } from '../../../../utils/text-sanitizer.js';
 import { withOpTimeout, isOpTimeout } from '../../../../lib/op-timeout.js';
+import { projectEntity } from '../../../../lib/entity-projection.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -39,10 +37,9 @@ const PROBE_BUDGET_MS = 6000;
 // inside one connection-open or SQL step). The page resolver
 // (vfs-metadata-provider OP_TIMEOUT_MS) already has this; the entity API had
 // only the loop budget, so one hung op could consume the whole budget and
-// surface as a 524. Must stay <= PROBE_BUDGET_MS so a single slow op cannot
-// push past the total budget. On timeout the op is NOT cancelled (see
-// op-timeout.ts header) — it finishes in the background, releases its own
-// SQLite lock, and warms the cache for the retry. Matches the page path.
+// surface as a 524. Must stay <= PROBE_BUDGET_MS. On timeout the op is NOT
+// cancelled (op-timeout.ts header) — it finishes in the background, releases
+// its own SQLite lock, and warms the cache for the retry. Matches the page path.
 const OP_TIMEOUT_MS = 5000;
 
 const CORS_HEADERS = {
@@ -52,109 +49,6 @@ const CORS_HEADERS = {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Cache-Control': 'public, max-age=600, s-maxage=3600, stale-while-revalidate=86400',
 };
-
-function safeJsonParse(s: any, fallback: any = null) {
-    if (s == null || s === '') return fallback;
-    if (typeof s !== 'string') return s;
-    try { return JSON.parse(s); } catch { return fallback; }
-}
-
-function parseTags(s: any): string[] {
-    const v = safeJsonParse(s, null);
-    if (Array.isArray(v)) return v.filter(t => typeof t === 'string');
-    if (typeof s === 'string' && s) return s.split(',').map(t => t.trim()).filter(Boolean);
-    return [];
-}
-
-function project(e: any) {
-    // V27.A7 (R7): paper-only bare arxiv id (null otherwise); canonical = single landing URL reused by detail_url + canonical_url.
-    const arxivId = e.type === 'paper' ? extractArxivIdFromKey(e.slug || e.id) : null;
-    const canonical = entityCanonicalUrl(e);
-    const entity: any = {
-        id: e.id,
-        slug: e.slug,
-        type: e.type,
-        arxiv_id: arxivId,
-        name: e.name,
-        author: e.author || null,
-        source: e.source || null,
-        summary: e.summary || null,
-
-        category: e.category || null,
-        tags: parseTags(e.tags),
-        license: e.license || null,
-        license_type: e.license_type || null,
-        pipeline_tag: e.pipeline_tag || null,
-        task_categories: parseTags(e.task_categories),
-        primary_language: e.primary_language || null,
-
-        fni: {
-            score: e.fni_score ?? null,
-            percentile: e.fni_percentile || null,
-            factors: {
-                // V27 sweep-1 (S honesty): fni_s is a constant baseline, not measured per-entity -> emit null + note so Agents do not ingest it as a measured score (honest-contract, mirrors V27.96).
-                semantic: null,
-                semantic_note: 'query-time baseline; scored live at search; not a per-entity value',
-                authority: e.fni_a ?? null,
-                popularity: e.fni_p ?? null,
-                recency: e.fni_r ?? null,
-                quality: e.fni_q ?? null,
-            },
-            is_trending: !!e.is_trending,
-            trend_7d: safeJsonParse(e.trend_7d, e.trend_7d || null),
-        },
-
-        specs: {
-            params_billions: e.params_billions ?? null,
-            context_length: e.context_length ?? null,
-            architecture: e.architecture || null,
-            vocab_size: e.vocab_size ?? null,
-            num_layers: e.num_layers ?? null,
-            hidden_size: e.hidden_size ?? null,
-            vram: {
-                estimate_gb: e.vram_estimate_gb ?? null,
-                fp16_gb: e.vram_fp16_gb ?? null,
-                int8_gb: e.vram_int8_gb ?? null,
-                int4_gb: e.vram_int4_gb ?? null,
-            },
-            ollama_compatible: e.ollama_compatible == null ? null : !!e.ollama_compatible,
-            can_run_local: e.can_run_local == null ? null : !!e.can_run_local,
-            hosted_on: safeJsonParse(e.hosted_on, e.hosted_on || null),
-            runtime_hardware: e.runtime_hardware || null,
-        },
-
-        stats: {
-            // V27.45: honest-contract -> null when not-measured, 0 only when explicitly zero (per llms.txt).
-            downloads: e.downloads ?? null,
-            stars: e.stars ?? null,
-            forks: e.forks ?? null,
-            citation_count: e.citation_count ?? null,
-            num_rows: e.num_rows ?? null,
-            last_modified: e.last_modified || null,
-        },
-
-        links: {
-            // V27.A7 (R7): source_url S2->arxiv; canonical_url was the raw DB
-            // column (/papers/<raw-id>, a 404 leaking the id) -> true canonical.
-            source_url: cleanSourceUrl(e.source_url, arxivId),
-            canonical_url: canonical,
-            image_url: e.image_url || null,
-            detail_url: canonical,
-            badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(e.slug || e.id)}`,
-        },
-
-        relations: {
-            datasets_used: parseTags(e.datasets_used),
-            benchmarks: safeJsonParse(e.benchmarks, null),
-            related: safeJsonParse(e.ui_related_mesh, []),
-        },
-
-        citation: sanitizeCitation(e.citation),
-        quick_start: e.quick_start || null,
-    };
-
-    return entity;
-}
 
 export const GET: APIRoute = async ({ params, url, request }) => {
     const start = Date.now();
@@ -241,7 +135,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             return error(404, `Entity not found: ${rawId}`);
         }
 
-        const entity = project(row);
+        const entity = projectEntity(row);
         if (includeBody) {
             if (row.bundle_key && row.bundle_size > 0) {
                 try {
