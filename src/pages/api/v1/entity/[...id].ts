@@ -21,6 +21,7 @@ import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 import { entityCanonicalUrl, cleanSourceUrl } from '../../../../utils/mesh-routing-core.js';
 import { extractArxivIdFromKey } from '../../../../utils/entity-type-handlers.js';
 import { sanitizeCitation } from '../../../../utils/text-sanitizer.js';
+import { withOpTimeout, isOpTimeout } from '../../../../lib/op-timeout.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -32,6 +33,17 @@ const API_VERSION = 'fni_v2.0';
 // before the budget is spent. Bailing on budget yields a retryable 503, never
 // a hard 404 (honest-contract: a slow/transient miss is not "does not exist").
 const PROBE_BUDGET_MS = 6000;
+
+// Per-op timeout firewall. PROBE_BUDGET_MS above bounds the LOOP (between
+// shards); this bounds a SINGLE cold op that hangs (a stalled R2 range read
+// inside one connection-open or SQL step). The page resolver
+// (vfs-metadata-provider OP_TIMEOUT_MS) already has this; the entity API had
+// only the loop budget, so one hung op could consume the whole budget and
+// surface as a 524. Must stay <= PROBE_BUDGET_MS so a single slow op cannot
+// push past the total budget. On timeout the op is NOT cancelled (see
+// op-timeout.ts header) — it finishes in the background, releases its own
+// SQLite lock, and warms the cache for the retry. Matches the page path.
+const OP_TIMEOUT_MS = 5000;
 
 const CORS_HEADERS = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -196,11 +208,17 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             const sql = `SELECT * FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders}) OR umid IN (${placeholders}) LIMIT 1`;
             const bindings = [...forms, ...forms, ...forms];
             try {
-                const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
-                const rows = await executeSql(engine.sqlite3, engine.db, sql, bindings);
+                // Per-op firewall: a single hung cold open/SQL must not eat the
+                // whole budget or hang past it (mirrors the page resolver).
+                const engine = await withOpTimeout(
+                    getCachedDbConnection(r2Bucket, isDev, dbName),
+                    OP_TIMEOUT_MS, `open:${dbName}`);
+                const rows = await withOpTimeout(
+                    executeSql(engine.sqlite3, engine.db, sql, bindings),
+                    OP_TIMEOUT_MS, `sql:${dbName}`);
                 if (rows.length > 0) { row = rows[0]; break; }
             } catch (e: any) {
-                console.warn('[ENTITY] shard probe error', dbName, e.message);
+                console.warn(`[ENTITY] shard probe ${isOpTimeout(e) ? 'timeout' : 'error'}`, dbName, e.message);
                 shardErrors.push(`${dbName}: ${e.message}`);
             }
         }
@@ -212,7 +230,13 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             // on an un-probed/errored shard -> retryable 503, never a false 404.
             if (budgetBailed || shardErrors.length > 0) {
                 console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${shardForms.size}`, shardErrors.join('; '));
-                return error(503, 'Lookup inconclusive (transient/budget); retry later');
+                // Honest retryable signal for Agent clients: explicit Retry-After
+                // so a client retries (instead of hard-coding a fallback), and
+                // no-store so this transient negative is never cached as truth.
+                return error(503, 'Lookup inconclusive (transient/budget); retry later', {
+                    'Retry-After': '2',
+                    'Cache-Control': 'no-store',
+                });
             }
             return error(404, `Entity not found: ${rawId}`);
         }
@@ -245,6 +269,6 @@ export const GET: APIRoute = async ({ params, url, request }) => {
 
 export const OPTIONS: APIRoute = async () => new Response(null, { status: 204, headers: CORS_HEADERS });
 
-function error(status: number, message: string) {
-    return new Response(JSON.stringify({ error: message }), { status, headers: CORS_HEADERS });
+function error(status: number, message: string, extraHeaders: Record<string, string> = {}) {
+    return new Response(JSON.stringify({ error: message }), { status, headers: { ...CORS_HEADERS, ...extraHeaders } });
 }
