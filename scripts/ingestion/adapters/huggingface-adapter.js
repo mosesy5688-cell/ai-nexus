@@ -460,10 +460,33 @@ export class HuggingFaceAdapter extends BaseAdapter {
         const spaces = await response.json();
         if (!full) return spaces;
 
+        // V28.x: aggregate guards on the per-space enrichment loop. Each
+        // fetchFullSpace is per-call bounded (fetchWithTimeout 30s), but the
+        // SEQUENTIAL loop over up to `limit` spaces had NO aggregate cap — a
+        // slow/unresponsive HF (each call riding the full 30s abort window)
+        // pushed the loop past the 60-min harvest step timeout (same class as
+        // the LangChain stall: per-item bound != aggregate bound). Bound the
+        // whole loop by wall-clock AND trip a breaker on sustained failure,
+        // returning PARTIAL results (best-effort per cron cycle) rather than
+        // timing out the entire ecosystem harvest step.
+        const ENRICH_BUDGET_MS = 25 * 60 * 1000; // hard ceiling, well under the 60-min step cap
+        const MAX_CONSECUTIVE_FAILS = 15;
+        const enrichStart = Date.now();
         const fullSpaces = [];
+        let consecutiveFails = 0;
         for (const space of spaces) {
+            if (Date.now() - enrichStart > ENRICH_BUDGET_MS) {
+                console.warn(`⏱️ [HuggingFace] spaces enrich budget (${ENRICH_BUDGET_MS / 60000}min) hit at ${fullSpaces.length}/${spaces.length}; returning partial.`);
+                break;
+            }
             const fullSpace = await this.fetchFullSpace(space.id);
-            if (fullSpace) fullSpaces.push(fullSpace);
+            if (fullSpace) {
+                fullSpaces.push(fullSpace);
+                consecutiveFails = 0;
+            } else if (++consecutiveFails >= MAX_CONSECUTIVE_FAILS) {
+                console.warn(`🔌 [HuggingFace] ${consecutiveFails} consecutive space-enrich failures; circuit-breaking at ${fullSpaces.length}/${spaces.length}.`);
+                break;
+            }
         }
         return fullSpaces;
     }
