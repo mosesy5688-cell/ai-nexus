@@ -51,7 +51,24 @@ export class SpacesAdapter extends BaseAdapter {
         const fullSpaces = [];
         const BATCH_SIZE = 2; // Reduced from 10 to prevent parallel 429 storms
         const BATCH_DELAY = 1000; // Increased from 100ms
+
+        // V28.x: aggregate guard. Each fetchFullSpace is per-call bounded
+        // (fetchWithTimeout), but this loop had NO aggregate cap — with limit up
+        // to 5000 and a 1s delay per 2-space batch (~42min of delay alone at
+        // 5000), plus per-space 429 backoff, a slow/throttled HF blows the
+        // 60-min harvest step timeout (same class as the LangChain stall:
+        // per-item bound != aggregate bound). Bound the loop by wall-clock AND
+        // trip a breaker on sustained failure, returning PARTIAL results
+        // (best-effort per cron cycle; streamed via onBatch as we go).
+        const ENRICH_BUDGET_MS = 40 * 60 * 1000; // hard ceiling, under the 60-min step cap
+        const MAX_CONSECUTIVE_FAIL_BATCHES = 25;
+        const enrichStart = Date.now();
+        let consecutiveFailBatches = 0;
         for (let i = 0; i < spaces.length; i += BATCH_SIZE) {
+            if (Date.now() - enrichStart > ENRICH_BUDGET_MS) {
+                console.warn(`   ⏱️ [HF Spaces] enrich budget (${ENRICH_BUDGET_MS / 60000}min) reached at ${i}/${spaces.length}; returning partial.`);
+                break;
+            }
             const batch = spaces.slice(i, i + BATCH_SIZE);
 
             // V22.7: Pre-fetch NSFW Check
@@ -60,6 +77,14 @@ export class SpacesAdapter extends BaseAdapter {
 
             const results = await Promise.all(safeBatch.map(s => this.fetchFullSpace(s.id)));
             const validResults = results.filter(Boolean);
+
+            // Circuit breaker: sustained all-fail batches (HF down/blocking) -> stop, return partial.
+            if (validResults.length === 0) {
+                if (++consecutiveFailBatches >= MAX_CONSECUTIVE_FAIL_BATCHES) {
+                    console.warn(`   🔌 [HF Spaces] ${consecutiveFailBatches} consecutive failed batches; circuit-breaking at ${i}/${spaces.length}.`);
+                    break;
+                }
+            } else { consecutiveFailBatches = 0; }
 
             if (onBatch) {
                 await onBatch(validResults);
