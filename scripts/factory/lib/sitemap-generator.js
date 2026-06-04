@@ -205,7 +205,7 @@ export async function generateSitemap(source, outputDir = './output') {
 `;
         for (const file of sitemapFiles) {
             indexContent += `  <sitemap>
-    <loc>${BASE_URL}/sitemaps/${file}</loc>
+    <loc>${BASE_URL}/sitemaps/${file}.gz</loc>
     <lastmod>${today}</lastmod>
   </sitemap>
 `;
