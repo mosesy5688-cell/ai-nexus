@@ -1,184 +1,32 @@
 ---
 export const prerender = false;
 
-import Layout from '../../layouts/Layout.astro';
-import EntityLayout from '../../layouts/EntityLayout.astro';
-import EntityHeader from '../../components/entity/EntityHeader.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
-import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import CiteEntity from '../../components/common/CiteEntity.astro';
-import PromptDeepDive from '../../components/prompt-detail/PromptDeepDive.astro';
-import FNITrustPanel from '../../components/FNITrustPanel.astro';
-import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import { loadEntityStreams } from '../../utils/packet-loader.js';
-import { getEntityRoute } from '../../utils/mesh-routing-core.js';
-import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
-import { cleanDescription, generatePromptJsonLd } from '../../utils/model-page-helpers.ts';
-
-const { slug } = Astro.params;
-const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-
-let promptData = null;
-let error = null;
-let pageTitle = "AI System Prompt - Free2AITools";
-let pageDescription = "Explore evaluated system instructions and templates.";
-let meshRelations = [];
-let cleanedDesc = "";
-let dataSource = 'error';
-let isTransient = false;
-
-try {
-  if (!slug) throw new Error("No slug/ID provided");
-  const type = 'prompt';
-  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  dataSource = _meta.dataSource || '404';
-  isTransient = !!_meta.transient;
-
-  if (!entity || !_meta.available) {
-    console.warn(`[Astro] Entity not found: ${slugStr}`);
-  } else {
-    promptData = hydrateEntity(entity, type);
-    meshRelations = mesh || [];
-
-    const displayPromptName = promptData?.name || promptData?.title || 'Unknown Prompt';
-    pageTitle = `${displayPromptName} - AI Prompt Insights`;
-    cleanedDesc = cleanDescription(promptData?.description || '');
-    pageDescription = promptData?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayPromptName}.`;
-
-    promptData.html_readme = html || promptData.html_readme || null;
-  }
-
-} catch (e) {
-  console.error("[PromptPage] Error loading:", e);
-  error = e;
-}
-// V27.97: honest 404/503 split (see model page). found -> full CC; genuine
-// miss -> 404 + brief edge cache; transient -> soft 200, NO cache, retryable.
-Astro.response.headers.set('X-Data-Source', dataSource);
-if (promptData) {
-  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
-} else if (isTransient) {
-  // Honest transient signal: a cold/flaky VFS lookup of a possibly-real entity
-  // is NOT "empty". Status 503 + Retry-After so an Agent crawler retries instead
-  // of caching a soft-200 skeleton as truth and hard-coding us out; no-store so
-  // the negative is never cached. Human body (skeleton) still renders below.
-  Astro.response.status = 503;
-  Astro.response.headers.set('Retry-After', '5');
-  Astro.response.headers.set('Cache-Control', 'no-store');
-} else {
-  Astro.response.status = 404;
-  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
-}
-// promptData=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
-
-const promptName = promptData?.name || 'Unknown Prompt';
-const entityId = promptData?.id || slugStr;
-const displayAuthor = promptData?.author || 'Community';
-
-// Pure architecture: Zero hero images for prompt
-const placeholderImage = '/images/models/default-model.jpg';
-const canonicalPath = promptData ? getEntityRoute(promptData, 'prompt') : undefined;
-const jsonld = generatePromptJsonLd(promptData, slugStr);
+// /prompt/* returns 410 Gone — the `prompt` entity type was cancelled
+// (single-source LangChain Hub prompts; no per-prompt agent equivalent, so a
+// per-slug redirect would be dishonest). 410 is the correct permanent-removal
+// signal for search engines; humans get a meta-refresh to /agents.
+// Reversible: restore the prior SSR detail page from git history.
+Astro.response.status = 410;
+Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
 ---
-
-<EntityLayout 
-  entity={promptData} 
-  type="prompt" 
-  title={pageTitle} 
-  description={pageDescription}
-  image={placeholderImage}
-  jsonld={jsonld}
-  canonical={canonicalPath}
->
-    {promptData && (
-      <EntityHeader 
-        slot="hero"
-        name={promptName}
-        entityType="prompt"
-        entityIcon="✨"
-        entityLabel="Template"
-        verified={false} 
-        author={displayAuthor}
-        lastUpdated={promptData.last_updated}
-        description={promptData.seo_summary?.description || cleanedDesc}
-        fniScore={promptData.fni_score}
-        fniPercentile={promptData.fni_percentile}
-        fniS={promptData.fni_s}
-        fniA={promptData.fni_a}
-        fniP={promptData.fni_p}
-        fniR={promptData.fni_r}
-        fniQ={promptData.fni_q}
-        fniPillarsSynthesized={promptData.fni_pillars_synthesized}
-        fniANotMeasured={promptData.fni_a_not_measured}
-        sourceUrl={promptData.source_url}
-        entityId={entityId}
-        hasImage={false}
-      />
-    )}
-
-    {promptData && (
-      <div slot="insights-extra" class="mt-4 space-y-8">
-         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-            <ModelInfoTable 
-              type="prompt"
-              model={{
-                ...promptData,
-                displayName: promptName
-              }} 
-            />
-         </div>
-      </div>
-    )}
-
-    {promptData && (
-      <div slot="core-desktop" class="space-y-16">
-         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-            <CiteEntity 
-              id={entityId} 
-              name={promptName} 
-              author={displayAuthor} 
-              url={promptData.source_url} 
-              type="prompt" 
-            />
-         </div>
-      </div>
-    )}
-  
-    {promptData && (
-      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
-         <UniversalCore entity={promptData} type="prompt" meshRelations={meshRelations} />
-      </div>
-    )}
-
-    {promptData && (
-      <div slot="deep-dive" class="space-y-12">
-         <div class="space-y-8">
-            {promptData.fni_score !== undefined && (
-              <FNITrustPanel 
-                fniScore={promptData.fni_score}
-                fniPercentile={promptData.fni_percentile}
-                fniS={promptData.fni_s}
-                fniA={promptData.fni_a}
-                fniP={promptData.fni_p}
-                fniR={promptData.fni_r}
-                fniQ={promptData.fni_q}
-                fniANotMeasured={promptData.fni_a_not_measured}
-                fniCommentary={promptData.fni_commentary}
-                modelName={promptName}
-                modelId={entityId}
-              />
-            )}
-         </div>
-
-         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
-            <PromptDeepDive promptData={promptData} />
-         </div>
-      </div>
-    )}
-
-    {promptData && (
-      <div slot="community">
-          <AiDisclaimer source={promptData.source} lastUpdated={promptData.last_updated} />
-      </div>
-    )}
-</EntityLayout>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Prompt Removed — Free2AITools</title>
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="5;url=/agents">
+    <style>
+        body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+        a { color: #93c5fd; }
+        code { background: #272727; padding: 0.1em 0.3em; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>410 — Prompt Removed</h1>
+    <p>The <code>/prompt</code> entity type has been permanently retired.</p>
+    <p>Explore LangChain and other AI agents at <a href="/agents">/agents</a>.</p>
+    <p>For programmatic access, see <a href="/llms.txt">/llms.txt</a> or <a href="/openapi.json">/openapi.json</a>.</p>
+    <p style="margin-top:2rem;opacity:0.5;font-size:0.9em">Redirecting to /agents in 5 seconds…</p>
+</body>
+</html>

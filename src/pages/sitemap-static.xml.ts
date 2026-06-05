@@ -19,7 +19,7 @@ const STATIC_PAGES = [
     { path: '/datasets', priority: '0.7', changefreq: 'daily' },
     { path: '/papers', priority: '0.7', changefreq: 'daily' },
     { path: '/tools', priority: '0.7', changefreq: 'daily' },
-    { path: '/prompts', priority: '0.7', changefreq: 'daily' },
+    // /prompts removed — prompt entity type cancelled (page 301s to /agents).
     { path: '/knowledge', priority: '0.7', changefreq: 'daily' },
     { path: '/reports', priority: '0.6', changefreq: 'daily' },
     { path: '/methodology', priority: '0.5', changefreq: 'monthly' },

@@ -321,11 +321,11 @@ jobs:
           echo "📥 Harvesting AI Agents..."
           node scripts/ingestion/harvest-single.js agents --limit 200 --no-bridge || echo "Agents adapter skipped"
 
-      - name: Harvest LangChain Hub
+      - name: Harvest LangChain Hub Agents
         if: github.event.inputs.skip_harvest != 'true'
         timeout-minutes: 60
         run: |
-          echo "✨ Harvesting LangChain Prompts..."
+          echo "✨ Harvesting LangChain Agents (prompt type cancelled)..."
           node scripts/ingestion/harvest-single.js langchain --limit 5000 --no-bridge || echo "LangChain adapter skipped"
 
       - name: Solidify Ecosystem Batches (Cache)

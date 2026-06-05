@@ -52,7 +52,8 @@ export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, 
             }
             // Expected types — warn if completely absent (count=0). Knowledge entities
             // are surface routes (30 static .md), not packed in meta-NN.db — exclude.
-            const expectedTypes = ['model', 'paper', 'tool', 'dataset', 'agent', 'space', 'prompt'];
+            // 'prompt' removed — entity type cancelled, dropped at pack source.
+            const expectedTypes = ['model', 'paper', 'tool', 'dataset', 'agent', 'space'];
             const missing = expectedTypes.filter(t => !typeCounts[t]);
             if (missing.length > 0) {
                 console.warn(`[VFS-TYPES] ⚠️ Expected types absent from catalog: ${missing.join(', ')}`);
