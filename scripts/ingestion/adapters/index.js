@@ -22,9 +22,10 @@ import { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
 import { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 import { ReplicateAdapter } from './replicate-adapter.js';  // B.1: Replicate
 import { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
-import { LangChainAdapter } from './langchain-adapter.js';  // B.1: LangChain Hub
-import { SpacesAdapter } from './spaces-adapter.js';  // V12: HF Spaces
-import { AgentsAdapter } from './agents-adapter.js';  // V12: AI Agents
+// LangChainAdapter retired — `prompt` (#2141) + `agent` (this PR) both cancelled,
+// so it emits nothing. Routing entry removed; file kept on disk for clean revert.
+import { SpacesAdapter } from './spaces-adapter.js';  // V12: HF Spaces (space merged into model — adapter now emits nothing)
+import { AgentsAdapter } from './agents-adapter.js';  // V12: AI Agents (agent cancelled — now emits type=tool)
 
 // Export base for extension
 export { BaseAdapter, NSFW_KEYWORDS, LICENSE_MAP } from './base-adapter.js';
@@ -45,7 +46,7 @@ export { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
 export { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 export { ReplicateAdapter } from './replicate-adapter.js';  // B.1: Replicate
 export { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
-export { LangChainAdapter } from './langchain-adapter.js';  // B.1: LangChain Hub
+// LangChainAdapter export retired with its routing entry (emits nothing post-cancel).
 export { SpacesAdapter } from './spaces-adapter.js';  // V12: HF Spaces
 export { AgentsAdapter } from './agents-adapter.js';  // V12: AI Agents
 
@@ -87,13 +88,17 @@ export const adapters = {
     // B.1: Kaggle (200K+ datasets/models)
     'kaggle': new KaggleAdapter(),
 
-    // B.1: LangChain Hub (2K+ prompts/agents)
-    'langchain': new LangChainAdapter(),
+    // LangChain Hub retired — `prompt` (#2141) + `agent` (this PR) cancelled.
+    // After both, normalize() emits nothing, so the routing entry is removed
+    // (the harvest workflow LangChain step is dropped too). Revert: re-add here.
 
-    // V12: HuggingFace Spaces (Interactive demos)
+    // V12: HuggingFace Spaces (Interactive demos) — `space` merged into `model`.
+    // The adapter's normalize() now returns null (emits nothing); registered for
+    // a manual harvest path but produces no entities. Workflow step dropped.
     'huggingface-spaces': new SpacesAdapter(),
 
-    // V12: AI Agents (Frameworks & tools from GitHub)
+    // V12: AI Agents (Frameworks & tools from GitHub) — `agent` cancelled, now
+    // emits type=tool (every curated/discovered repo survives as a tool).
     'agents': new AgentsAdapter(),
 };
 

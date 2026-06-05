@@ -1,230 +1,32 @@
 ---
 export const prerender = false;
 
-/**
- * Space Detail Page V16.8.14
- * High-Fidelity Emergency Reconstruction
- * Architecture: Unified 5-Zone High-Density Layout
- */
-
-import Layout from '../../layouts/Layout.astro';
-import EntityLayout from '../../layouts/EntityLayout.astro';
-import EntityHeader from '../../components/entity/EntityHeader.astro';
-import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
-import CiteEntity from '../../components/common/CiteEntity.astro';
-import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
-import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import FNITrustPanel from '../../components/FNITrustPanel.astro';
-import { getUseCases } from '../../utils/inference.js';
-import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
-import { loadEntityStreams } from '../../utils/packet-loader.js';
-import { getEntityRoute } from '../../utils/mesh-routing-core.js';
-import { cleanDescription } from '../../utils/model-page-helpers.ts';
-
-const { slug } = Astro.params;
-const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-
-let space = null;
-let model = null;
-let error = null;
-let tagsArray = [];
-let pageTitle = "AI Demo Space - Free AI Tools";
-let pageDescription = "Explore interactive AI demos and prototype applications.";
-let meshRelations = [];
-let cleanedDesc = "";
-let dataSource = 'error';
-let isTransient = false;
-
-try {
-  if (!slug) throw new Error("No slug/ID provided");
-  // V16.5: Static Assembly Architecture
-  const type = 'space';
-  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  dataSource = _meta.dataSource || '404';
-  isTransient = !!_meta.transient;
-
-  if (!entity || !_meta.available) {
-    console.warn(`[Astro] Entity not found: ${slugStr}`);
-  } else {
-    space = hydrateEntity(entity, type);
-    model = space;
-    tagsArray = space?.tags || [];
-    meshRelations = mesh || [];
-
-    const displaySpaceName = space?.title || space?.name || space?.canonical_name;
-    pageTitle = `${displaySpaceName} - AI Demo Insight`;
-    cleanedDesc = cleanDescription(space?.description || '');
-    pageDescription = space?.seo_summary?.description || cleanedDesc || `Deep dive into ${displaySpaceName} interactive space.`;
-
-    space.html_readme = html || space.html_readme || null;
-  }
-
-} catch (e) {
-  console.error("[SpacePage] Error loading space:", e);
-
-  error = e;
-}
-// V27.97: honest 404/503 split (see model page). found -> full CC; genuine
-// miss -> 404 + brief edge cache; transient -> soft 200, NO cache, retryable.
-Astro.response.headers.set('X-Data-Source', dataSource);
-if (space) {
-  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
-} else if (isTransient) {
-  // Honest transient signal: a cold/flaky VFS lookup of a possibly-real entity
-  // is NOT "empty". Status 503 + Retry-After so an Agent crawler retries instead
-  // of caching a soft-200 skeleton as truth and hard-coding us out; no-store so
-  // the negative is never cached. Human body (skeleton) still renders below.
-  Astro.response.status = 503;
-  Astro.response.headers.set('Retry-After', '5');
-  Astro.response.headers.set('Cache-Control', 'no-store');
-} else {
-  Astro.response.status = 404;
-  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
-}
-// space=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
-
-const spaceName = space?.name || 'Unknown Demo Space';
-const entityId = model?.id || slugStr;
-const modelId = entityId;
-const spaceId = entityId;
-const displayAuthor = space?.author || 'Independent / Community';
-
-const placeholderImage = '/images/models/default-model.jpg';
-const coverImage = space?.image_url || placeholderImage;
-
-const jsonld = space ? {
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": spaceName,
-  "description": pageDescription,
-  "creator": {
-    "@type": "Organization",
-    "name": displayAuthor
-  },
-  "license": space?.license_spdx || space?.license
-} : null;
-
-const canonicalPath = space ? getEntityRoute(space, 'space') : undefined;
-
-// V27.102: Derived Use Cases (correct getUseCases signature: tags, pipeline_tag, type, fni)
-const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_score) : { goodFor: [], limits: [] };
+// /space/* returns 410 Gone — the `space` entity type was merged into `model`.
+// A space demos a model, so the demo signal belongs on that model; there is no
+// stable 1:1 per-space target to redirect to, so 410 (permanent removal) is the
+// honest signal for search engines. Humans get a meta-refresh to /models.
+// Reversible: restore the prior SSR detail page from git history.
+Astro.response.status = 410;
+Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
 ---
-
-<EntityLayout 
-  entity={space} 
-  type="space" 
-  title={pageTitle} 
-  description={pageDescription}
-  image={coverImage}
-  jsonld={jsonld}
-  canonical={canonicalPath}
->
-    {/* Zone 1: Hero */}
-    {space && (
-      <EntityHeader 
-        slot="hero"
-        name={spaceName}
-        entityType="space"
-        entityIcon="🚀"
-        entityLabel="Space"
-        verified={false} 
-        author={displayAuthor}
-        lastUpdated={space.last_updated}
-        description={space.seo_summary?.description || cleanedDesc}
-        sourceUrl={space.source_url}
-        entityId={spaceId}
-        hasImage={Boolean(space.image_url)}
-        fniScore={space.fni_score}
-        fniPercentile={space.fni_percentile}
-        fniS={space.fni_s}
-        fniA={space.fni_a}
-        fniP={space.fni_p}
-        fniR={space.fni_r}
-        fniQ={space.fni_q}
-        fniPillarsSynthesized={space.fni_pillars_synthesized}
-        fniANotMeasured={space.fni_a_not_measured}
-      />
-    )}
-
-    {/* Zone 2: Insights Extra */}
-    {space && (
-      <div slot="insights-extra" class="mt-4 space-y-8">
-         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-            <ModelInfoTable 
-              type="space"
-              model={{
-                ...space,
-                displayName: spaceName
-              }} 
-            />
-         </div>
-      </div>
-    )}
-    
-    {/* Zone 1.5: Use Cases */}
-    {space && (
-      <ZoneUseCases
-        slot="use-cases"
-        goodFor={derivedUseCases.goodFor}
-        limits={derivedUseCases.limits}
-      />
-    )}
-
-    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
-    {space && (
-      <div slot="core-desktop" class="space-y-16">
-         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-            <CiteEntity 
-              id={spaceId} 
-              name={spaceName} 
-              author={displayAuthor} 
-              url={space.source_url} 
-              type="space" 
-            />
-         </div>
-      </div>
-    )}
-  
-    {space && (
-      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
-         <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
-      </div>
-    )}
-
-    {space && (
-      <div slot="deep-dive" class="space-y-12">
-         {/* Zone 4.1: Developer Trust & Verification */}
-         <div class="space-y-8">
-            {space.fni_score !== undefined && (
-              <FNITrustPanel 
-                fniScore={space.fni_score}
-                fniPercentile={space.fni_percentile}
-                fniCommentary={space.fni_commentary}
-                fniS={space.fni_s}
-                fniA={space.fni_a}
-                fniP={space.fni_p}
-                fniR={space.fni_r}
-                fniQ={space.fni_q}
-                fniANotMeasured={space.fni_a_not_measured}
-                modelName={spaceName}
-                modelId={spaceId}
-              />
-            )}
-         </div>
-
-         {/* Zone 4.2: Primary Documentation / Technical Content */}
-         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
-            <SpaceDeepDive space={space} />
-         </div>
-      </div>
-    )}
-
-    {/* Zone 5: Community */}
-    {space && (
-      <div slot="community">
-          <AiDisclaimer source={space.source} lastUpdated={space.last_updated} />
-      </div>
-    )}
-</EntityLayout>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Space Removed — Free2AITools</title>
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="5;url=/models">
+    <style>
+        body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+        a { color: #93c5fd; }
+        code { background: #272727; padding: 0.1em 0.3em; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>410 — Space Removed</h1>
+    <p>The <code>/space</code> entity type has been merged into <code>/model</code> (a space demos a model).</p>
+    <p>Explore AI models at <a href="/models">/models</a>.</p>
+    <p>For programmatic access, see <a href="/llms.txt">/llms.txt</a> or <a href="/openapi.json">/openapi.json</a>.</p>
+    <p style="margin-top:2rem;opacity:0.5;font-size:0.9em">Redirecting to /models in 5 seconds…</p>
+</body>
+</html>

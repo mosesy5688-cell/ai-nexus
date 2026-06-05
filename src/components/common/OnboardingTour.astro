@@ -4,13 +4,13 @@
  *
  * V27.83: server-side route allow-list. Modal only renders on homepage +
  * listing/ranking pages where onboarding helps. Detail pages (/model/*,
- * /dataset/*, /paper/*, /agent/*, /space/*, /tool/*) get
- * traffic from HF Space / search engines and are skipped. The Header
- * Guide button still calls window.openOnboardingTour(); when the modal
- * is absent, openModal() redirects to /knowledge#fni so the click
- * doesn't silently no-op.
+ * /dataset/*, /paper/*, /tool/*) get traffic from HF Space / search engines
+ * and are skipped. The Header Guide button still calls
+ * window.openOnboardingTour(); when the modal is absent, openModal() redirects
+ * to /knowledge#fni so the click doesn't silently no-op.
+ * /agents + /spaces removed — agent/space types consolidated (lists now 301).
  */
-const TOUR_ROUTES = ['/', '/models', '/datasets', '/papers', '/agents', '/spaces', '/tools', '/rankings'];
+const TOUR_ROUTES = ['/', '/models', '/datasets', '/papers', '/tools', '/rankings'];
 const showTour = TOUR_ROUTES.includes(Astro.url.pathname);
 ---
 

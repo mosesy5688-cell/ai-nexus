@@ -23,7 +23,9 @@ import { normalizeModel, normalizeSpace, buildSpaceMetaJson, extractSpaceAssets 
 export class HuggingFaceAdapter extends BaseAdapter {
     constructor() {
         super('huggingface');
-        this.entityTypes = ['model', 'dataset', 'space'];
+        // 'space' merged into 'model' — normalizeSpace() now returns null, so no
+        // space entity is emitted (declared types match what is actually served).
+        this.entityTypes = ['model', 'dataset'];
         this.hfToken = process.env.HF_TOKEN || null;
     }
 

@@ -14,12 +14,12 @@ const STATIC_PAGES = [
     { path: '/models', priority: '0.9', changefreq: 'daily' },
     { path: '/explore', priority: '0.8', changefreq: 'daily' },
     { path: '/search', priority: '0.8', changefreq: 'daily' },
-    { path: '/agents', priority: '0.7', changefreq: 'daily' },
-    { path: '/spaces', priority: '0.7', changefreq: 'daily' },
+    // /agents removed — `agent` type cancelled (page 301s to /tools).
+    // /spaces removed — `space` type merged into model (page 301s to /models).
     { path: '/datasets', priority: '0.7', changefreq: 'daily' },
     { path: '/papers', priority: '0.7', changefreq: 'daily' },
     { path: '/tools', priority: '0.7', changefreq: 'daily' },
-    // /prompts removed — prompt entity type cancelled (page 301s to /agents).
+    // /prompts removed — prompt entity type cancelled (page 301s to /tools).
     { path: '/knowledge', priority: '0.7', changefreq: 'daily' },
     { path: '/reports', priority: '0.6', changefreq: 'daily' },
     { path: '/methodology', priority: '0.5', changefreq: 'monthly' },

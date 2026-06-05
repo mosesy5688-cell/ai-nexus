@@ -29,13 +29,15 @@ import { recoverTop30k } from './lib/top30k-recovery.js';
 import { generateIdIndex } from './lib/id-index-generator.js';
 import { deriveSlug } from './lib/derive-slug.js';
 
-// prompt entity type cancelled — drop by type field or legacy id prefix.
-const PROMPT_ID_PREFIXES = ['langchain-prompt--', 'hf-prompt--', 'prompt--'];
-function isPromptEntity(e) {
+// Cancelled types dropped at pack source (re-pack ages baked rows out): prompt
+// (#2141), space (merged->model), agent. mcp-server re-emits type=tool (kept).
+const CANCELLED_TYPES = new Set(['prompt', 'space', 'agent']);
+const CANCELLED_ID_PREFIXES = ['langchain-prompt--', 'hf-prompt--', 'prompt--', 'hf-space--', 'space--', 'gh-agent--', 'github-agent--', 'hf-agent--', 'replicate-agent--', 'langchain-agent--', 'agent--'];
+function isCancelledEntity(e) {
     if (!e) return false;
-    if ((e.type || e.entity_type) === 'prompt') return true;
+    if (CANCELLED_TYPES.has(e.type || e.entity_type)) return true;
     const id = String(e.id || e.slug || '').toLowerCase();
-    return PROMPT_ID_PREFIXES.some(p => id.startsWith(p));
+    return CANCELLED_ID_PREFIXES.some(p => id.startsWith(p));
 }
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SHARD_PATH_DIR = './output/data';
@@ -90,7 +92,7 @@ async function packDatabase() {
     await shardWriter.init();
     let currentShardName = shardWriter.open();
     const seenUmids = new Set();
-    let dupSkipped = 0, promptSkipped = 0;  // promptSkipped: cancelled type
+    let dupSkipped = 0, cancelledSkipped = 0;  // prompt/space/agent cancelled types
 
     Object.values(metaDbs).forEach(db => db.exec("BEGIN TRANSACTION"));
     configureDistiller(cacheDb);  // V25.12: pass cacheDb for HTML render cache
@@ -105,9 +107,7 @@ async function packDatabase() {
         const umidKey = e.umid || e.id;
         if (seenUmids.has(umidKey)) { dupSkipped++; return; }
         seenUmids.add(umidKey);
-        // prompt type cancelled — drop at the single pack source so a re-pack
-        // ages baked prompts out of meta-NN.db + downstream (rankings/sitemap).
-        if (isPromptEntity(e)) { promptSkipped++; return; }
+        if (isCancelledEntity(e)) { cancelledSkipped++; return; }  // prompt/space/agent
         const eid = e.id || e.slug;
 
         // V25.12 lookup track. V27.94 (3rd-diag): dropped #2114's e.type arg (its canonical insert was a no-op; e.id already canonical). Real fix is target-side in v25-distiller.js.
@@ -167,7 +167,7 @@ async function packDatabase() {
         shardWriter.finalize();
     });
     if (dupSkipped > 0) console.warn(`[VFS] Pack loop skipped ${dupSkipped} duplicate-umid entities`);
-    if (promptSkipped > 0) console.warn(`[VFS] Pack loop dropped ${promptSkipped} prompt entities (type cancelled)`);
+    if (cancelledSkipped > 0) console.warn(`[VFS] Pack loop dropped ${cancelledSkipped} prompt/space/agent entities (types cancelled)`);
 
     // V27.0: Post-pass — compute embeddings per-shard, write binary shards
     const idToShardIdx = new Map();

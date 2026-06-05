@@ -11,11 +11,12 @@ import Layout from '@/layouts/Layout.astro';
 
 export const prerender = true;
 
+// 'space' (merged into model) + 'agent' (cancelled, now tool) facets removed —
+// served types are model/dataset/paper/tool. MCP servers surface under 'tool'.
 const entityTypes = [
   { id: 'all', label: 'All', icon: '🔍' },
   { id: 'model', label: 'Models', icon: '🤖' },
-  { id: 'space', label: 'Spaces', icon: '🚀' },
-  { id: 'agent', label: 'Agents', icon: '🤖' },
+  { id: 'tool', label: 'Tools', icon: '⚙️' },
   { id: 'dataset', label: 'Datasets', icon: '📊' },
   { id: 'paper', label: 'Papers', icon: '📄' },
 ];

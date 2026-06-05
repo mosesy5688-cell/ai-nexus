@@ -303,30 +303,22 @@ jobs:
           echo "📋 Extracting Model Specifications..."
           node scripts/ingestion/harvest-single.js deepspec --limit 2000 --no-bridge || echo "DeepSpec adapter skipped"
 
-      - name: Harvest HuggingFace Spaces
-        if: github.event.inputs.skip_harvest != 'true'
-        timeout-minutes: 60
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          echo "📥 Harvesting HuggingFace Spaces..."
-          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 5000 --no-bridge || echo "HuggingFace Spaces adapter skipped"
+      # HuggingFace Spaces harvest removed — `space` merged into `model`. The
+      # SpacesAdapter normalize() now returns null (emits nothing), so this step
+      # would harvest 0 served entities. Revert: restore this step + the adapter.
 
-      - name: Harvest AI Agents
+      - name: Harvest AI Tools (GitHub frameworks/agents)
         if: github.event.inputs.skip_harvest != 'true'
         timeout-minutes: 60
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "📥 Harvesting AI Agents..."
+          echo "📥 Harvesting AI Tools (agent type cancelled — repos emit as tools)..."
           node scripts/ingestion/harvest-single.js agents --limit 200 --no-bridge || echo "Agents adapter skipped"
 
-      - name: Harvest LangChain Hub Agents
-        if: github.event.inputs.skip_harvest != 'true'
-        timeout-minutes: 60
-        run: |
-          echo "✨ Harvesting LangChain Agents (prompt type cancelled)..."
-          node scripts/ingestion/harvest-single.js langchain --limit 5000 --no-bridge || echo "LangChain adapter skipped"
+      # LangChain Hub harvest removed — `prompt` (#2141) + `agent` (this PR) both
+      # cancelled, so the adapter emits nothing. Revert: restore this step +
+      # re-add the langchain routing entry in scripts/ingestion/adapters/index.js.
 
       - name: Solidify Ecosystem Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'

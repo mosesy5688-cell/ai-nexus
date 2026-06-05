@@ -164,6 +164,11 @@ export function extractSpaceAssets(raw) {
  * @returns {Object} Normalized entity
  */
 export function normalizeSpace(raw, adapter) {
+    // `space` entity type merged into `model` — no standalone served space is
+    // emitted. null is the honest skip (harvest `if (norm)` / `.filter(Boolean)`
+    // both drop it). Original body kept below for clean revert / demo follow-up.
+    return null;
+    // eslint-disable-next-line no-unreachable
     const spaceId = raw.id;
     const [author, name] = parseModelId(spaceId);
 

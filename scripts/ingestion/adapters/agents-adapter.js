@@ -55,7 +55,9 @@ const SEARCH_QUERIES = [
 export class AgentsAdapter extends BaseAdapter {
     constructor() {
         super('github');
-        this.entityTypes = ['agent'];
+        // `agent` cancelled — emit type=tool (gh-tool--). entityTypes drives the
+        // generateId fallback, so this MUST be 'tool' to mint the right prefix.
+        this.entityTypes = ['tool'];
         this.githubToken = process.env.GITHUB_TOKEN;
     }
 
@@ -182,15 +184,18 @@ export class AgentsAdapter extends BaseAdapter {
     normalize(raw) {
         const [author, name] = raw.full_name.split('/');
         const modelsUsed = this.extractModels(raw.readme || '');
+        // `agent` type cancelled — these curated/discovered GitHub repos are now
+        // emitted as type=tool (gh-tool--), so no repo is lost. The agent flavour
+        // is preserved as a tag + the `_category` pipeline_tag for facet filtering.
         return {
-            id: this.generateId(author, name, 'agent'),
-            type: 'agent',
+            id: this.generateId(author, name, 'tool'),
+            type: 'tool',
             source: 'github',
             source_url: raw.html_url,
             title: raw.name,
             description: raw.description || '',
             body_content: raw.readme || '',
-            tags: [...(raw.topics || []), raw.language?.toLowerCase(), raw._category].filter(Boolean),
+            tags: [...(raw.topics || []), raw.language?.toLowerCase(), raw._category, 'agent'].filter(Boolean),
             pipeline_tag: raw._category || 'agent',
             author,
             license_spdx: raw.license?.spdx_id || null,

@@ -151,10 +151,11 @@ export async function generateSitemap(source, outputDir = './output') {
             for (const entity of stmt.iterate()) {
                 const id = entity.id;
                 const entityType = entity.type || getTypeFromId(id);
-                // prompt type cancelled — never emit /prompt/* URLs. Defensive:
-                // the packer drops prompts on re-pack, but already-baked shards
-                // may still carry them until then.
-                if (entityType === 'prompt') continue;
+                // prompt/space/agent types cancelled — never emit their /*/* URLs.
+                // Defensive: the packer drops them on re-pack, but already-baked
+                // shards may still carry them until then. (space->model merge +
+                // agent cancelled; mcp-server rows are type=tool and pass through.)
+                if (entityType === 'prompt' || entityType === 'space' || entityType === 'agent') continue;
                 const route = getEntityRoute(entity, entityType);
                 if (!route || route === '#') continue;
                 await addUrl({ loc: route, priority: calculatePriority(entity.fni_score), changefreq: 'daily', lastmod: entity.last_modified });
@@ -184,8 +185,8 @@ export async function generateSitemap(source, outputDir = './output') {
         for (const entity of source) {
             const id = entity.id || entity.slug || '';
             const entityType = entity.type || entity.entity_type || getTypeFromId(id);
-            // prompt type cancelled — never emit /prompt/* URLs (see VFS loop).
-            if (entityType === 'prompt') continue;
+            // prompt/space/agent types cancelled — never emit their URLs (see VFS loop).
+            if (entityType === 'prompt' || entityType === 'space' || entityType === 'agent') continue;
             const route = getEntityRoute(entity, entityType);
 
             if (!route || route === '#') continue;

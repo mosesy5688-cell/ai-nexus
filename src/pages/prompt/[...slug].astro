@@ -1,10 +1,11 @@
 ---
 export const prerender = false;
 
-// /prompt/* returns 410 Gone — the `prompt` entity type was cancelled
-// (single-source LangChain Hub prompts; no per-prompt agent equivalent, so a
-// per-slug redirect would be dishonest). 410 is the correct permanent-removal
-// signal for search engines; humans get a meta-refresh to /agents.
+// /prompt/* returns 410 Gone — the `prompt` entity type was cancelled (#2141).
+// The `agent` type it pointed humans to has since been cancelled too, so the
+// meta-refresh + copy now point to /tools (where LangChain/agent frameworks live
+// as tools), avoiding a /prompt/*->/agents->404 chain. 410 is the correct
+// permanent-removal signal for search engines.
 // Reversible: restore the prior SSR detail page from git history.
 Astro.response.status = 410;
 Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
@@ -15,7 +16,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
     <meta charset="utf-8">
     <title>Prompt Removed — Free2AITools</title>
     <meta name="robots" content="noindex">
-    <meta http-equiv="refresh" content="5;url=/agents">
+    <meta http-equiv="refresh" content="5;url=/tools">
     <style>
         body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
         a { color: #93c5fd; }
@@ -25,8 +26,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
 <body>
     <h1>410 — Prompt Removed</h1>
     <p>The <code>/prompt</code> entity type has been permanently retired.</p>
-    <p>Explore LangChain and other AI agents at <a href="/agents">/agents</a>.</p>
+    <p>Explore LangChain and other AI tools at <a href="/tools">/tools</a>.</p>
     <p>For programmatic access, see <a href="/llms.txt">/llms.txt</a> or <a href="/openapi.json">/openapi.json</a>.</p>
-    <p style="margin-top:2rem;opacity:0.5;font-size:0.9em">Redirecting to /agents in 5 seconds…</p>
+    <p style="margin-top:2rem;opacity:0.5;font-size:0.9em">Redirecting to /tools in 5 seconds…</p>
 </body>
 </html>
