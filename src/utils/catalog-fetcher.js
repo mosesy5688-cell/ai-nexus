@@ -13,7 +13,7 @@ import { env } from 'cloudflare:workers';
  * Fetches catalog data using the Federated VFS Engine (wa-sqlite)
  * Optimized for 128MB Workers SSR (No large file loads)
  */
-const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'prompt', 'report', 'knowledge'];
+const ENTITY_TYPES = ['model', 'dataset', 'agent', 'tool', 'space', 'paper', 'prompt', 'report', 'knowledge', 'benchmark'];
 
 export async function fetchCatalogData(type) {
     const start = Date.now();

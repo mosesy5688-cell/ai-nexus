@@ -52,6 +52,13 @@ export const PREFIX_MAP = {
     },
     report: {
         weekly: 'report--',
+    },
+    // benchmark 5th-type: source-qualified canonical id `benchmark--openllm--<col>`
+    // (e.g. benchmark--openllm--mmlu_pro). The `openllm` source keeps the
+    // benchmark--<source>--<col> namespace provenance for the deferred Phase-2
+    // identity-assertion graph ("never merge across source namespaces").
+    openllm: {
+        benchmark: 'benchmark--',
     }
 };
 
@@ -203,6 +210,8 @@ export function getNodeSource(id, type) {
     // 1. High-Specific Fixed Sources
     if (type === 'paper') return 'arxiv';
     if (type === 'prompt') return 'langchain';
+    // benchmark 5th-type: single curated source (HF Open LLM Leaderboard v2).
+    if (type === 'benchmark') return 'openllm';
     
     // 2. Multi-Source Types (Strict Prefix Matching)
     if (type === 'agent' || type === 'tool') {

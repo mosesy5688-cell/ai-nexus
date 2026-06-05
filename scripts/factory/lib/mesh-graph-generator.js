@@ -51,6 +51,7 @@ function getNodeType(id) {
     if (cleanId.startsWith('hf-space--') || cleanId.startsWith('gh-space--') || cleanId.startsWith('space--')) return 'space';
     if (cleanId.startsWith('dataset--') || cleanId.startsWith('hf-dataset--') || cleanId.startsWith('kaggle-dataset--')) return 'dataset';
     if (cleanId.startsWith('tool--') || cleanId.startsWith('gh-tool--') || cleanId.startsWith('hf-tool--')) return 'tool';
+    if (cleanId.startsWith('benchmark--')) return 'benchmark';  // 5th-type (JS fallback; Rust get_node_type is primary)
     if (cleanId.startsWith('knowledge--') || cleanId.startsWith('kb--')) return 'knowledge';
     if (cleanId.startsWith('report--')) return 'report';
 

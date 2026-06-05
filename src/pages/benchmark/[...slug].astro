@@ -1,0 +1,210 @@
+---
+export const prerender = false;
+
+/**
+ * Benchmark Detail Page (5th entity type)
+ *
+ * Mirrors the dataset detail page. Reads the node from meta-NN.db via
+ * loadEntityStreams (VFS point-query) — NOT the stale cache/benchmarks.json.gz
+ * (that cache stays cosmetic for leaderboard.astro). honest-contract: surfaces
+ * the FROZEN snapshot disclosure (evaluated_at + "as measured by Open LLM
+ * Leaderboard v2"), never an un-keepable freshness/top_model signal.
+ */
+
+import EntityLayout from '../../layouts/EntityLayout.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
+import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+import CiteEntity from '../../components/common/CiteEntity.astro';
+import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
+import FNITrustPanel from '../../components/FNITrustPanel.astro';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getEntityRoute } from '../../utils/mesh-routing-core.js';
+import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { cleanDescription } from '../../utils/model-page-helpers.ts';
+
+const { slug } = Astro.params;
+const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+
+let benchmark = null;
+let pageTitle = "AI Benchmark Details - Free AI Tools";
+let pageDescription = "Evaluation benchmark as measured by Open LLM Leaderboard v2.";
+let meshRelations = [];
+let cleanedDesc = "";
+let dataSource = 'error';
+let isTransient = false;
+
+try {
+  if (!slug) throw new Error("No slug/ID provided");
+
+  const type = 'benchmark';
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
+  dataSource = _meta.dataSource || '404';
+  isTransient = !!_meta.transient;
+
+  if (!entity || !_meta.available) {
+    console.warn(`[Astro] Benchmark not found: ${slugStr}`);
+  } else {
+    benchmark = hydrateEntity(entity, type);
+    meshRelations = mesh || [];
+
+    const displayName = benchmark?.name || benchmark?.title || 'Unknown Benchmark';
+    pageTitle = `${displayName} - AI Evaluation Benchmark`;
+    cleanedDesc = cleanDescription(benchmark?.description || '');
+    pageDescription = benchmark?.seo_summary?.description || cleanedDesc || `Evaluation benchmark ${displayName} as measured by Open LLM Leaderboard v2.`;
+
+    benchmark.html_readme = html || benchmark.html_readme || null;
+  }
+} catch (e) {
+  console.error("[BenchmarkPage] Error loading benchmark:", e);
+}
+
+// V27.97: honest 404/503 split. found -> full CC; genuine miss -> 404 + brief
+// edge cache; transient -> soft 200, NO cache, retryable.
+Astro.response.headers.set('X-Data-Source', dataSource);
+if (benchmark) {
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
+} else if (isTransient) {
+  Astro.response.status = 503;
+  Astro.response.headers.set('Retry-After', '5');
+  Astro.response.headers.set('Cache-Control', 'no-store');
+} else {
+  Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
+}
+
+const benchmarkName = benchmark?.name || 'Unknown Benchmark';
+const entityId = benchmark?.id || slugStr;
+const displayAuthor = benchmark?.leaderboard_source || 'Open LLM Leaderboard v2';
+
+const hasFNI = benchmark?.fni_score !== undefined || benchmark?.fni_percentile !== undefined;
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = benchmark?.image_url || placeholderImage;
+
+// honest-contract: render an explicit frozen-snapshot notice when the producer
+// flagged it. Absent -> render nothing (never imply freshness we cannot keep).
+const evaluatedAt = benchmark?.evaluated_at || benchmark?.leaderboard_epoch || null;
+const isFrozen = benchmark?.is_frozen_snapshot === true;
+
+const jsonld = benchmark ? {
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": benchmarkName,
+  "description": pageDescription,
+  "creator": { "@type": "Organization", "name": displayAuthor }
+} : undefined;
+
+const canonicalPath = benchmark ? getEntityRoute(benchmark, 'benchmark') : undefined;
+---
+
+<EntityLayout
+  entity={benchmark}
+  type="benchmark"
+  title={pageTitle}
+  description={pageDescription}
+  image={coverImage}
+  jsonld={jsonld}
+  canonical={canonicalPath}
+>
+    {/* Zone 1: Hero */}
+    {benchmark && (
+      <EntityHeader
+        slot="hero"
+        name={benchmarkName}
+        entityType="benchmark"
+        entityIcon="🎯"
+        entityLabel="Benchmark"
+        verified={false}
+        author={displayAuthor}
+        lastUpdated={evaluatedAt}
+        description={benchmark.seo_summary?.description || cleanedDesc}
+        fniScore={benchmark.fni_score}
+        fniPercentile={benchmark.fni_percentile}
+        fniCommentary={benchmark.fni_commentary}
+        fniS={benchmark.fni_s}
+        fniA={benchmark.fni_a}
+        fniP={benchmark.fni_p}
+        fniR={benchmark.fni_r}
+        fniQ={benchmark.fni_q}
+        fniPillarsSynthesized={benchmark.fni_pillars_synthesized}
+        fniANotMeasured={benchmark.fni_a_not_measured}
+        sourceUrl={benchmark.source_url}
+        entityId={entityId}
+        hasImage={Boolean(benchmark.image_url)}
+      />
+    )}
+
+    {/* honest-contract: frozen-snapshot disclosure (only when the producer set it) */}
+    {benchmark && isFrozen && (
+      <div slot="insights-extra" class="mt-4">
+        <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+          Frozen leaderboard snapshot{evaluatedAt ? ` as-of ${String(evaluatedAt).slice(0, 10)}` : ''} — scores are
+          not continuously refreshed. Measured by {displayAuthor}.
+        </div>
+      </div>
+    )}
+
+    {/* Zone 2: Info table */}
+    {benchmark && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable
+              type="benchmark"
+              model={{ ...benchmark, displayName: benchmarkName }}
+            />
+         </div>
+      </div>
+    )}
+
+    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
+    {benchmark && (
+      <div slot="core-desktop" class="space-y-16">
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity
+              id={entityId}
+              name={benchmarkName}
+              author={displayAuthor}
+              url={benchmark.source_url}
+              type="benchmark"
+            />
+         </div>
+      </div>
+    )}
+
+    {benchmark && (
+      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+         <UniversalCore entity={benchmark} type="benchmark" meshRelations={meshRelations} />
+      </div>
+    )}
+
+    {benchmark && (
+      <div slot="deep-dive" class="space-y-12">
+         <div class="space-y-8">
+            <QuickCommands entity={benchmark} type="benchmark" />
+            {hasFNI && (
+              <FNITrustPanel
+                fniScore={benchmark.fni_score}
+                fniPercentile={benchmark.fni_percentile}
+                fniS={benchmark.fni_s}
+                fniA={benchmark.fni_a}
+                fniP={benchmark.fni_p}
+                fniR={benchmark.fni_r}
+                fniQ={benchmark.fni_q}
+                fniANotMeasured={benchmark.fni_a_not_measured}
+                fniCommentary={benchmark.fni_commentary}
+                modelName={benchmarkName}
+                modelId={entityId}
+              />
+            )}
+         </div>
+      </div>
+    )}
+
+    {/* Zone 5: Community */}
+    {benchmark && (
+      <div slot="community">
+          <AiDisclaimer source={benchmark.source} lastUpdated={evaluatedAt} />
+      </div>
+    )}
+</EntityLayout>

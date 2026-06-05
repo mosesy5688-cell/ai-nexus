@@ -1,0 +1,55 @@
+{
+  "_comment": "Hand-curated seed catalog for the benchmark 5th entity type (lives next to benchmark-adapter.js; NOT in a data/ dir, which is gitignored). One row per Open LLM Leaderboard v2 sub-benchmark; leaderboard_col is the SINGLE source of truth, matching V2_COLUMNS in scripts/factory/benchmark-importer.js and the EVALUATED_ON edge target suffix (benchmark--openllm--<leaderboard_col>). Honest-contract: arxiv_id / hf_dataset_id are conf-1.0 ONLY where verifiable from the paper; null where not independently confirmed (never fabricated). All scores/provenance are 'as measured by Open LLM Leaderboard v2' — these rows describe the leaderboard sub-benchmark, not a generic re-implementation.",
+  "_source": "open-llm-leaderboard v2 (https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard)",
+  "_schema_version": "v1",
+  "benchmarks": [
+    {
+      "leaderboard_col": "ifeval",
+      "name": "IFEval",
+      "task": "instruction-following",
+      "metric": "accuracy (prompt-level strict)",
+      "arxiv_id": "2311.07911",
+      "hf_dataset_id": "google/IFEval"
+    },
+    {
+      "leaderboard_col": "bbh",
+      "name": "BBH (BIG-Bench Hard)",
+      "task": "multi-step reasoning",
+      "metric": "normalized accuracy",
+      "arxiv_id": "2210.09261",
+      "hf_dataset_id": null
+    },
+    {
+      "leaderboard_col": "math_lvl5",
+      "name": "MATH Level 5",
+      "task": "competition mathematics",
+      "metric": "exact match",
+      "arxiv_id": "2103.03874",
+      "hf_dataset_id": null
+    },
+    {
+      "leaderboard_col": "gpqa",
+      "name": "GPQA",
+      "task": "graduate-level QA",
+      "metric": "normalized accuracy",
+      "arxiv_id": "2311.12022",
+      "hf_dataset_id": null
+    },
+    {
+      "leaderboard_col": "musr",
+      "name": "MuSR",
+      "task": "multistep soft reasoning",
+      "metric": "normalized accuracy",
+      "arxiv_id": "2310.16049",
+      "hf_dataset_id": null
+    },
+    {
+      "leaderboard_col": "mmlu_pro",
+      "name": "MMLU-PRO",
+      "task": "multitask language understanding",
+      "metric": "accuracy",
+      "arxiv_id": "2406.01574",
+      "hf_dataset_id": "TIGER-Lab/MMLU-Pro"
+    }
+  ]
+}

@@ -20,6 +20,10 @@ export function stripPrefix(id) {
         'civitai-model', 'ollama-model',
         'kaggle-dataset', 'kaggle-model',
         'langchain-prompt', 'langchain-agent',
+        // benchmark 5th-type: id form is benchmark--<source>--<col>; strip the
+        // `benchmark` system prefix so it does not double-segment into a dead URL
+        // (benchmark--openllm--x -> /benchmark/benchmark/openllm/x).
+        'benchmark',
 
         // Legacy/Direct Format Mapping (Internal only)
         'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt'
@@ -58,6 +62,7 @@ export function getTypeFromId(id) {
 
     if (low.startsWith('knowledge') && (low.includes('--') || low.includes('/'))) return 'knowledge';
     if (low.startsWith('report') && (low.includes('--') || low.includes('/'))) return 'report';
+    if (low.startsWith('benchmark--')) return 'benchmark';
     if (low.startsWith('arxiv-paper--') || low.startsWith('arxiv--') || low.startsWith('hf-paper--') || low.startsWith('paper--')) return 'paper';
     if (low.startsWith('hf-dataset--') || low.startsWith('kaggle-dataset--') || low.startsWith('dataset--')) return 'dataset';
     if (low.startsWith('hf-space--') || low.startsWith('space--')) return 'space';
@@ -149,6 +154,7 @@ export function getRouteFromId(id, type = null) {
         'prompt': `/prompt/${slug}`,
         'model': `/model/${slug}`,
         'paper': `/paper/${slug}`,
+        'benchmark': `/benchmark/${slug}`,
         'report': `/reports/${slug}`,
         'knowledge': `/knowledge/${slug}`,
         // V21.15.2: Route categories to ranking filter

@@ -1,0 +1,80 @@
+---
+/**
+ * AI Benchmarks Catalog (5th entity type)
+ * Mirrors datasets.astro — SSR via UniversalCatalog + meta-NN.db (VFS),
+ * NOT the stale cache/benchmarks.json.gz (leaderboard.astro keeps that cosmetic).
+ */
+import Layout from '../layouts/Layout.astro';
+import ListingControls from '../components/common/ListingControls.astro';
+import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
+import CatalogCard from '../components/common/CatalogCard.astro';
+
+// SSR Data Fetching — benchmark nodes resolve from the hash-shard meta DBs
+// (type='benchmark'), the same authoritative VFS path every other type uses.
+const { items: allBenchmarks = [], totalPages, totalEntities } = await fetchCatalogData('benchmark');
+const benchmarks = allBenchmarks.slice(0, 48).map(truncateListingItem);
+
+const pageTitle = "AI Benchmarks Catalog | Evaluation Leaderboard Index";
+const pageDescription = "Evaluation benchmarks as measured by Open LLM Leaderboard v2 (IFEval, BBH, MATH Lvl 5, GPQA, MUSR, MMLU-PRO) — ranked by FNI.";
+
+// V24.9: Only edge-cache pages with data; prevent caching empty/error states
+Astro.response.headers.set('Cache-Control', benchmarks.length > 0
+    ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800'
+    : 'public, max-age=0, s-maxage=30');
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+    <main class="min-h-screen py-4">
+        <header class="mb-8 border-b border-[var(--border-hairline)] pb-6">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Frozen Snapshot</span>
+                <span class="w-1 h-1 bg-indigo-500 rounded-full"></span>
+                <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">FNI Ranked</span>
+            </div>
+            <h1 class="text-2xl md:text-3xl font-black text-gray-900 dark:text-[var(--text-strong)] mb-4 tracking-tight uppercase">
+                AI Benchmarks <span class="text-zinc-500">Index</span>
+                {totalEntities > 0 && <span class="text-base font-bold text-zinc-400 ml-3">{totalEntities.toLocaleString()}</span>}
+            </h1>
+            <p class="text-sm text-gray-600 dark:text-zinc-400 max-w-2xl leading-relaxed tracking-tight">
+                Evaluation benchmarks as measured by Open LLM Leaderboard v2 — connecting the model corpus via EVALUATED_ON.
+            </p>
+        </header>
+
+        <ListingControls type="benchmark" searchId="benchmarks-search" />
+
+        <div id="benchmarks-catalog-grid" class="flex flex-col gap-1">
+            {benchmarks.map((benchmark: any) => (
+                <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CatalogCard item={benchmark} type="benchmark" />
+                </div>
+            ))}
+        </div>
+
+        <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
+    </main>
+
+    <script define:vars={{ initialData: benchmarks, totalPages, totalEntities }}>
+        window.__CATALOG_DATA__ = {
+            items: initialData,
+            totalPages,
+            totalEntities
+        };
+    </script>
+
+    <script>
+        import { UniversalCatalog } from '../scripts/lib/UniversalCatalog.js';
+
+        const init = () => {
+            new UniversalCatalog({
+                initialData: window.__CATALOG_DATA__?.items || [],
+                totalPages: window.__CATALOG_DATA__?.totalPages || 1,
+                totalEntities: window.__CATALOG_DATA__?.totalEntities || 0,
+                type: 'benchmark',
+                gridId: 'benchmarks-catalog-grid',
+                searchId: 'benchmarks-search',
+            });
+        };
+
+        document.addEventListener('astro:page-load', init);
+    </script>
+</Layout>

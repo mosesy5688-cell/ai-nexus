@@ -22,6 +22,7 @@ fn get_node_type(id: &str) -> &str {
     if id.starts_with("gh-tool--") || id.starts_with("gh-repo--") { return "tool"; }
     if id.starts_with("civitai-model--") { return "model"; }
     if id.starts_with("replicate-model--") { return "model"; }
+    if id.starts_with("benchmark--") { return "benchmark"; }
     if id.starts_with("knowledge--") || id.starts_with("k--") { return "knowledge"; }
     if id.starts_with("report--") { return "report"; }
     "unknown"
