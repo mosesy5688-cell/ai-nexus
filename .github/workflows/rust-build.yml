@@ -42,16 +42,22 @@ jobs:
         with:
           targets: x86_64-unknown-linux-gnu
 
+      # V28: cache ONLY content-addressed dependency dirs, NOT rust/target.
+      # Caching compiled output (rust/target) under a prefix restore-key let a
+      # changed-source build restore a previous build's target, so `napi build`
+      # saw it as up-to-date, emitted ZERO Compiling lines, and re-published the
+      # STALE .node (the #2144 EVALUATED_ON=0 silent-strip; same class as V27.44).
+      # Dropping rust/target forces a real compile every run (deps stay cached, so
+      # it's compile-only); the `-v2` key namespace busts the poisoned caches.
       - name: Cache Cargo Registry
         uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rust/target
-          key: rust-${{ matrix.crate }}-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          key: rust-v2-${{ matrix.crate }}-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
           restore-keys: |
-            rust-${{ matrix.crate }}-
+            rust-v2-${{ matrix.crate }}-
 
       - name: Install napi-cli
         run: npm install -g @napi-rs/cli
@@ -162,7 +168,7 @@ jobs:
             rust/r2-engine/r2-engine-rust.node
             rust/markdown-renderer/markdown-renderer-rust.node
             rust/ivf-pq/ivf-pq-rust.node
-          key: rust-ffi-v2-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
+          key: rust-ffi-v3-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
 
       # V25.8 §6.2: Backup Rust FFI to R2 vault (immutable, survives GHA cache eviction)
       - name: Backup Rust FFI to R2
