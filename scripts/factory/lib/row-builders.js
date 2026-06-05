@@ -45,7 +45,10 @@ export function buildBundleJson(e, pBillions, ctxLen, arch) {
         html_readme: e.html_readme || '',
         relations: e.relations || [],
         created_at: e.created_at || '',
-        display_description: e.display_description || ''
+        display_description: e.display_description || '',
+        // #2142: HF Space demo merged onto this model (space->model follow-up).
+        // null when no space demos it — honest-contract, never fabricated.
+        demo: e.demo || null
     }), 'utf8');
 }
 

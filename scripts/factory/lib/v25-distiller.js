@@ -161,6 +161,8 @@ export function distillEntity(e, pBillions, entityLookup) {
     // Spaces store sdk + runtime.stage in meta (SpacesAdapter) or top-level (hf-normalizer).
     e.sdk ??= meta.sdk ?? null;
     e.running_status ??= meta.runtime_stage ?? meta.runtime?.stage ?? meta.running_status ?? null;
+    // #2142: HF Space demo folded onto the model it USES (merge-batches space-demo-enricher).
+    e.demo ??= meta.demo ?? null; // { demo_url, demo_sdk, demo_status }; null = no demo (honest).
     // Datasets: size_category / files_count. modality has no structured field -> derive from
     // a `modality:<x>` tag (HF convention) else null.
     e.size_category ??= meta.size_category ?? null;
