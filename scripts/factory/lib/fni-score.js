@@ -187,7 +187,15 @@ export function computeStalenessFactor(type, lastSeen) {
     return Math.exp(-lambda * daysSinceHarvest);
 }
 
-/** Section 4: Estimate mesh gravity points from entity data */
+/** Parse entity.meta_json (string or object) -> object, never throws. */
+function parseMetaJson(entity) {
+    const m = entity.meta_json;
+    if (!m) return {};
+    if (typeof m === 'object') return m;
+    try { return JSON.parse(m) || {}; } catch { return {}; }
+}
+
+/** Section 4: Estimate mesh gravity points from entity data. */
 function estimateMeshPoints(entity, sourcePrefix) {
     let points = 0;
     const citations = parseInt(entity.citations || entity.citation_count) || 0;
@@ -197,20 +205,22 @@ function estimateMeshPoints(entity, sourcePrefix) {
     else if (sourcePrefix === 'gh') points += citations * 5;
     else points += citations;
     points += meshDegree;
-    // V27.12 → V27.17: HF/Replicate models have 0 citations; use log-compressed likes as authority proxy.
-    // HF adapter stores raw.likes under entity.popularity (hf-normalizer.js:47/191 + huggingface-adapter.js:319);
-    // entity.likes does not exist on HF entities, so the V27.12 fallback chain missed every HF model.
+    // V27.12+: HF/Replicate models have 0 citations; use log-compressed likes as an
+    // authority proxy. HF stores raw.likes under entity.popularity (entity.likes does
+    // not exist on HF entities, so the original likes-only chain missed every model).
     if ((sourcePrefix === 'hf' || sourcePrefix === 'default') && citations === 0) {
         const likes = parseInt(entity.likes || entity.like_count || entity.popularity) || 0;
         if (likes > 0) points += Math.floor(Math.log10(likes + 1) * 10);
     }
-    // GitHub repos have 0 citations; mirror the V27.12+ HF likes remediation
-    // by using stars+forks as a log-compressed authority proxy (same base as
-    // the HF proxy so magnitudes are comparable through the shared Rust
-    // log10(mesh_points+1)/4 transform). stars/forks promoted in processor-core.js.
+    // GitHub repos have 0 citations; mirror the HF remediation with stars+forks. They
+    // are promoted top-level by processor-core.js (2/4), but on a recompute over a
+    // not-re-promoted baseline they live only in meta_json — read that fallback too.
     if (sourcePrefix === 'gh' && citations === 0) {
-        const stars = parseInt(entity.stars || entity.stargazers_count) || 0;
-        const forks = parseInt(entity.forks || entity.forks_count) || 0;
+        const meta = parseMetaJson(entity);
+        const stars = parseInt(entity.stars || entity.stargazers_count
+            || meta.stars || meta.stargazers_count) || 0;
+        const forks = parseInt(entity.forks || entity.forks_count
+            || meta.forks || meta.forks_count) || 0;
         const ghAuthority = stars + forks * 2;
         if (ghAuthority > 0) points += Math.floor(Math.log10(ghAuthority + 1) * 10);
     }

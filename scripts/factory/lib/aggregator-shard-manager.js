@@ -58,6 +58,13 @@ function projectSlim(result) {
  * V8's 512 MiB single-string limit.
  *
  * Hard-fails on missing or empty shards — never silently builds a partial fniMap.
+ *
+ * Each map value is `{ score, a, p, r, q }` — the 2/4 artifact's fresh FNI pillars
+ * (processor-core.js writes fni_a/fni_p/fni_r/fni_q on the enriched entity). The
+ * aggregator overlay (aggregator.js) applies these pillars alongside the score so a
+ * freshly-recomputed pillar (e.g. gh authority from stars/forks) reaches the 4/4
+ * pack instead of the previous bake's stale registry baseline. Pillars are null when
+ * the artifact omits them (older artifacts) — the overlay recomputes in that case.
  */
 export async function buildFniMap(artifactDir, totalShards) {
     const fniMap = new Map();
@@ -74,7 +81,13 @@ export async function buildFniMap(artifactDir, totalShards) {
         await partitionMonolithStreamingly(p, (result) => {
             const e = result.enriched || result;
             if (e.id && e.fni_score != null) {
-                fniMap.set(e.id, e.fni_score);
+                fniMap.set(e.id, {
+                    score: e.fni_score,
+                    a: e.fni_a ?? e.fni_metrics?.a ?? null,
+                    p: e.fni_p ?? e.fni_metrics?.p ?? null,
+                    r: e.fni_r ?? e.fni_metrics?.r ?? null,
+                    q: e.fni_q ?? e.fni_metrics?.q ?? null,
+                });
             } else {
                 skippedNoScore++;
             }
