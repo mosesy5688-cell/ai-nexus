@@ -21,6 +21,7 @@ import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { cleanAbstract } from '../factory/lib/abstract-cleaner.js';
 import { generateUMID } from '../factory/lib/umid-generator.js';
 import { initR2Bridge, createR2ClientFFI, uploadBufferToR2FFI } from '../factory/lib/r2-bridge.js';
+import { collectSpaceDemos, attachSpaceDemo } from './lib/space-demo-enricher.js';
 
 const DATA_DIR = 'data';
 const MANIFEST_FILE = 'data/manifest.json';
@@ -53,6 +54,7 @@ async function mergeBatches() {
 
     const sourceStats = [];
     const batchManifests = [];
+    const spaceDemoMap = new Map(); // #2142: model-id -> demo from cancelled spaces (folded below)
 
     // V55.9: Iterative Flush — merge each batch directly into SQLite
     const registryManager = new RegistryManager();
@@ -102,6 +104,7 @@ async function mergeBatches() {
 
             // Flush this batch directly to SQLite (O(B) memory per batch)
             const validEntities = entities.filter(e => e.id);
+            collectSpaceDemos(validEntities, spaceDemoMap); // #2142: record space demos
             entities = null; // Release full array before merge
             registryState = await registryManager.mergeCurrentBatch(validEntities);
 
@@ -184,6 +187,7 @@ async function mergeBatches() {
         const source = entity.source || getNodeSource(oldId, entity.type);
         const newId = normalizeId(oldId, source, entity.type);
         const scrubbed = { ...entity, id: newId };
+        attachSpaceDemo(scrubbed, spaceDemoMap); // #2142: fold space demo onto the model it USES
 
         // Stage 2: Cold/hot split at the earliest point
         const body = scrubbed.body_content || scrubbed.readme || scrubbed.content || '';
@@ -193,13 +197,9 @@ async function mergeBatches() {
         scrubbed.body_content_length = body.length;
         scrubbed.clean_summary = cleanAbstract(body, 500);
         scrubbed.body_content = scrubbed.clean_summary;
-        delete scrubbed.readme;
-        delete scrubbed.readme_content;
-        delete scrubbed.content;
+        delete scrubbed.readme; delete scrubbed.readme_content; delete scrubbed.content;
 
-        if (!currentZst.write(JSON.stringify(scrubbed) + '\n')) {
-            await once(currentZst, 'drain');
-        }
+        if (!currentZst.write(JSON.stringify(scrubbed) + '\n')) await once(currentZst, 'drain');
         totalVelocity += (scrubbed.velocity || 0);
         exportedCount++;
         entitiesInShard++;

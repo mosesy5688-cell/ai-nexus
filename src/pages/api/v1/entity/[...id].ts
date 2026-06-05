@@ -150,6 +150,8 @@ export const GET: APIRoute = async ({ params, url, request }) => {
                 try {
                     const bundleData = await fetchBundleReadme(row.bundle_key, row.bundle_offset, row.bundle_size);
                     entity.body = { readme_html: bundleData.readme, has_fulltext: !!row.has_fulltext };
+                    // #2142: HF Space demo merged onto this model. null = no demo (honest-contract).
+                    if (bundleData.demo) entity.demo = bundleData.demo;
                 } catch (err: any) {
                     console.warn(`[entity] cold-tier readme fetch failed for ${row.id}:`, err?.message);
                     entity.body = { readme_html: null, has_fulltext: !!row.has_fulltext };

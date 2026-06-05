@@ -12,12 +12,12 @@ import { env } from 'cloudflare:workers';
  */
 export async function fetchBundleReadme(
     bundle_key: string, bundle_offset: number, bundle_size: number
-): Promise<{ readme: string | null; mesh: any[] }> {
-    if (!bundle_key || !bundle_size || bundle_size <= 0) return { readme: null, mesh: [] };
+): Promise<{ readme: string | null; mesh: any[]; demo: any }> {
+    if (!bundle_key || !bundle_size || bundle_size <= 0) return { readme: null, mesh: [], demo: null };
     const r2 = env?.R2_ASSETS;
     if (r2) {
         const obj = await r2.get(bundle_key, { range: { offset: bundle_offset, length: bundle_size } });
-        if (!obj) return { readme: null, mesh: [] };
+        if (!obj) return { readme: null, mesh: [], demo: null };
         let raw: Uint8Array | null = new Uint8Array(await (obj as any).arrayBuffer());
         if (bundle_key.endsWith('.bin') && (env as any)?.AES_CRYPTO_KEY) {
             await initShardDecrypt((env as any).AES_CRYPTO_KEY);
@@ -38,13 +38,15 @@ export async function fetchBundleReadme(
         return {
             readme: bundle.readme || bundle.html_readme || null,
             mesh: bundle.mesh_profile?.relations || bundle.relations || [],
+            demo: bundle.demo || null,
         };
     }
     const bundle = await fetchBundleRange(bundle_key, bundle_offset, bundle_size);
-    if (!bundle) return { readme: null, mesh: [] };
+    if (!bundle) return { readme: null, mesh: [], demo: null };
     return {
         readme: bundle.readme || bundle.html_readme || null,
         mesh: bundle.mesh_profile?.relations || bundle.relations || [],
+        demo: bundle.demo || null,
     };
 }
 
@@ -99,6 +101,8 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
             const bundle = await fetchBundleReadme(entityPack.bundle_key, entityPack.bundle_offset, entityPack.bundle_size);
             html = bundle.readme;
             if (bundle.mesh.length > 0) mesh = bundle.mesh;
+            // #2142: HF Space demo merged onto this model (cold-tier). Absent -> stays unset (honest).
+            if (bundle.demo) entityPack.demo = bundle.demo;
         } catch (e: any) {
             console.warn(`[Loader] Bundle hydration failed for ${entityPack.id}:`, e.message);
         }
