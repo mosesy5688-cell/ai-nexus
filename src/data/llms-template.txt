@@ -1,6 +1,6 @@
 # Free2AItools
 
-> Agent-native structured index of{{TOTAL_ENTITIES_PHRASE}} AI models, datasets, papers, and tools.
+> Agent-native structured index of{{TOTAL_ENTITIES_PHRASE}} AI models, datasets, papers, tools, and benchmarks.
 > Cross-source aggregator (HuggingFace, GitHub, ArXiv, Replicate, Civitai, etc.)
 > ranked by FNI (Free2AITools Nexus Index) — designed for AI agents, not human browsing.
 
@@ -39,9 +39,9 @@ per search; auth/paid tiers (TBD) raise the cap.
 ### Search and lookup
 
 - `GET /api/v1/search?q=<query>[&type=<type>][&limit=N]` — FNI-ranked search
-  - `type` accepts canonical values (`model`, `paper`, `tool`, `dataset`) AND
-    common id-prefix aliases (`hf-model`, `arxiv-paper`, `gh-model`,
-    `replicate-model`, etc.) — both resolve to the canonical type
+  - `type` accepts canonical values (`model`, `paper`, `tool`, `dataset`,
+    `benchmark`) AND common id-prefix aliases (`hf-model`, `arxiv-paper`,
+    `gh-model`, `replicate-model`, etc.) — both resolve to the canonical type
   - `limit` clamped to 1-5 for free tier
   - Response includes FNI score breakdown (semantic / authority / popularity /
     recency / quality) per result
@@ -90,6 +90,7 @@ Canonical types (use in `?type=` filter):
 - `paper` — research papers (ArXiv, Hugging Face papers, Semantic Scholar)
 - `tool` — open-source developer tools, agent frameworks, and MCP servers (GitHub + MCP registry)
 - `dataset` — public datasets
+- `benchmark` — evaluation benchmarks as measured by Open LLM Leaderboard v2 (IFEval, BBH, MATH Lvl 5, GPQA, MUSR, MMLU-PRO); frozen leaderboard snapshot
 
 ## ID format
 

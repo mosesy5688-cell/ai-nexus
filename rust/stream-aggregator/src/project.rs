@@ -153,6 +153,11 @@ pub(crate) fn project_entity_for_relations(e: &Value) -> Value {
         "models_used", "models", "model_id", "sdk",
         "implementations", "dependencies", "features", "highlights",
         "velocity", "knowledge_tags",
+        // benchmark 5th-type: EVALUATED_ON (model->benchmark) is derived from the
+        // per-model score object on `entity.benchmarks`. Without it in this
+        // allowlist the relation extractor never sees the field and the edge emits
+        // 0 (the documented V27.44 silent-strip class).
+        "benchmarks",
     ];
     for key in REL_FIELDS {
         if let Some(v) = e.get(*key) {

@@ -69,9 +69,12 @@ export function extractEntityRelations(entity) {
         if (t?.length > 2) push(rel(id, type, t, 'model', 'BASED_ON'));
     }
 
-    // TRAINED_ON: datasets field
+    // TRAINED_ON: datasets field. A benchmark's dataset ref is the data it
+    // measures on, not training data — emit USES (semantically correct), never
+    // the model-centric TRAINED_ON. (benchmark 5th-type type-guard, panel R2.)
+    const datasetRel = type === 'benchmark' ? 'USES' : 'TRAINED_ON';
     for (const ds of toArray(entity.datasets || entity.datasets_used)) {
-        if (ds?.length > 2) push(rel(id, type, ds, 'dataset', 'TRAINED_ON'));
+        if (ds?.length > 2) push(rel(id, type, ds, 'dataset', datasetRel));
     }
 
     // CITES: paper references
@@ -82,6 +85,25 @@ export function extractEntityRelations(entity) {
     // USES: models used by agent/space
     for (const m of toArray(entity.models_used || entity.models || entity.model_id)) {
         if (m?.length > 2) push(rel(id, type, m, 'model', 'USES'));
+    }
+
+    // EVALUATED_ON: model -> benchmark (5th-type identity-edge generator).
+    // entity.benchmarks is an OBJECT { ifeval, bbh, math_lvl5, gpqa, musr,
+    // mmlu_pro, average, name } keyed by the RAW V2_COLUMNS value (the same key
+    // used as the benchmark node canonical-id suffix — single source of truth, so
+    // no separator drift / orphan edges). Membership-derived (a score key means
+    // this model was evaluated on that sub-benchmark), never parsed from free
+    // text. EXCLUDE both `average` (a derived aggregate, not a benchmark) AND
+    // `name` (the model display name carried alongside scores) — both are poison
+    // keys that would mint phantom benchmark nodes.
+    if (type === 'model' && entity.benchmarks && typeof entity.benchmarks === 'object'
+        && !Array.isArray(entity.benchmarks)) {
+        const EXCLUDED_BENCH_KEYS = new Set(['average', 'name']);
+        for (const benchId of Object.keys(entity.benchmarks)) {
+            if (EXCLUDED_BENCH_KEYS.has(benchId)) continue;
+            const targetId = `benchmark--openllm--${benchId}`;
+            push(rel(id, 'model', targetId, 'benchmark', 'EVALUATED_ON'));
+        }
     }
 
     // DEMO_OF: space with SDK

@@ -22,6 +22,7 @@ export default defineConfig({
     '/tool': '/tools',
     '/dataset': '/datasets',
     '/paper': '/papers',
+    '/benchmark': '/benchmarks',
     '/compare': '/ranking'
   },
   adapter: cloudflare({

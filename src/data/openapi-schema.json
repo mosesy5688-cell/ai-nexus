@@ -104,7 +104,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["all", "model", "tool", "dataset", "paper"]
+              "enum": ["all", "model", "tool", "dataset", "paper", "benchmark"]
             },
             "description": "Filter by entity type"
           },
@@ -609,7 +609,7 @@
             "properties": {
               "id": { "type": "string" },
               "slug": { "type": "string" },
-              "type": { "type": "string", "description": "model | dataset | paper | tool | knowledge" },
+              "type": { "type": "string", "description": "model | dataset | paper | tool | benchmark | knowledge" },
               "name": { "type": "string" },
               "author": { "type": "string", "nullable": true },
               "source": { "type": "string", "nullable": true, "description": "huggingface | github | arxiv | replicate | etc." },

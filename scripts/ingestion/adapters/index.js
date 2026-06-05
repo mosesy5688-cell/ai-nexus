@@ -26,6 +26,7 @@ import { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
 // so it emits nothing. Routing entry removed; file kept on disk for clean revert.
 import { SpacesAdapter } from './spaces-adapter.js';  // V12: HF Spaces (space merged into model — adapter now emits nothing)
 import { AgentsAdapter } from './agents-adapter.js';  // V12: AI Agents (agent cancelled — now emits type=tool)
+import { BenchmarkAdapter } from './benchmark-adapter.js';  // 5th-type: leaderboard sub-benchmark nodes (EVALUATED_ON targets)
 
 // Export base for extension
 export { BaseAdapter, NSFW_KEYWORDS, LICENSE_MAP } from './base-adapter.js';
@@ -49,6 +50,7 @@ export { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
 // LangChainAdapter export retired with its routing entry (emits nothing post-cancel).
 export { SpacesAdapter } from './spaces-adapter.js';  // V12: HF Spaces
 export { AgentsAdapter } from './agents-adapter.js';  // V12: AI Agents
+export { BenchmarkAdapter } from './benchmark-adapter.js';  // 5th-type
 
 // Registered adapters (V4.3.2 - Multi-source with Benchmarks + Specs + Citations)
 export const adapters = {
@@ -100,6 +102,11 @@ export const adapters = {
     // V12: AI Agents (Frameworks & tools from GitHub) — `agent` cancelled, now
     // emits type=tool (every curated/discovered repo survives as a tool).
     'agents': new AgentsAdapter(),
+
+    // 5th-type: Benchmark nodes from a curated seed catalog. Identity-edge
+    // generator — promotes the Open LLM Leaderboard v2 sub-benchmarks to
+    // first-class nodes so EVALUATED_ON (model->benchmark) targets exist.
+    'benchmark': new BenchmarkAdapter(),
 };
 
 /**

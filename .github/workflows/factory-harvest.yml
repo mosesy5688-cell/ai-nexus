@@ -294,6 +294,13 @@ jobs:
           echo "📊 Harvesting OpenLLM Leaderboard..."
           node scripts/ingestion/harvest-single.js openllm --limit 1000 --no-bridge || echo "OpenLLM adapter skipped"
 
+      - name: Harvest Benchmark Nodes
+        if: github.event.inputs.skip_harvest != 'true'
+        timeout-minutes: 5
+        run: |
+          echo "🎯 Promoting curated benchmark catalog to nodes (EVALUATED_ON targets)..."
+          node scripts/ingestion/harvest-single.js benchmark --limit 50 || echo "Benchmark adapter skipped"
+
       - name: Harvest DeepSpec Specifications
         if: github.event.inputs.skip_harvest != 'true'
         timeout-minutes: 60

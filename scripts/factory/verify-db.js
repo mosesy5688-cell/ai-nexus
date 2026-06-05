@@ -171,19 +171,20 @@ if (hasEntitiesTable) {
 
 /** V27.94 (A.3): topology + degeneracy canary over mesh_graph + ui_related_mesh. */
 function verifyRelationContent(database, hasMeshGraph) {
-    const TOPOLOGY = new Set(['BASED_ON', 'TRAINED_ON', 'CITES', 'USES', 'IMPLEMENTS', 'DEMO_OF', 'DEP']);
+    const TOPOLOGY = new Set(['BASED_ON', 'TRAINED_ON', 'CITES', 'USES', 'IMPLEMENTS', 'DEMO_OF', 'DEP', 'EVALUATED_ON']); // EVALUATED_ON: benchmark 5th-type own canary below (else masked).
     if (hasMeshGraph) {
         try {
             const graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
-            let topo = 0, total = 0;
+            let topo = 0, total = 0, evalOn = 0;
             for (const list of Object.values(graph.edges || {})) {
                 for (const e of (Array.isArray(list) ? list : [])) {
                     total++;
                     const t = ((Array.isArray(e) ? e[1] : (e.type || e.relation_type)) || '').toUpperCase();
-                    if (TOPOLOGY.has(t)) topo++;
+                    if (TOPOLOGY.has(t)) topo++; if (t === 'EVALUATED_ON') evalOn++; // EVALUATED_ON: benchmark 5th-type dedicated count
                 }
             }
             check('Mesh Topology Edges', topo > 0, `${topo} topology / ${total} total (need > 0)`);
+            check('EVALUATED_ON edges', evalOn > 0, `${evalOn} model-benchmark (need > 0)`);
         } catch (e) {
             check('Mesh Topology Edges', false, `mesh_graph parse failed: ${e.message.slice(0, 40)}`);
         }

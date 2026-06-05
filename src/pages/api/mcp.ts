@@ -26,7 +26,7 @@ const TOOLS = [
             properties: {
                 query: { type: 'string', description: 'Natural language search query (e.g. "code generation", "image segmentation")' },
                 limit: { type: 'number', default: 10, description: 'Max results to return (1-20, default 10)' },
-                type: { type: 'string', enum: ['all', 'model', 'tool', 'dataset', 'paper'], description: 'Filter by entity type (default: all)' }
+                type: { type: 'string', enum: ['all', 'model', 'tool', 'dataset', 'paper', 'benchmark'], description: 'Filter by entity type (default: all)' }
             },
             required: ['query']
         }
