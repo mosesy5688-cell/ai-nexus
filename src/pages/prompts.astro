@@ -2,10 +2,11 @@
 /**
  * /prompts — 301 Redirect (prompt entity type cancelled)
  *
- * The `prompt` entity type (single-source LangChain Hub prompts) was retired.
- * LangChain content is now represented as agents, so the prompts catalog
- * 301-redirects to /agents — a permanent, SEO-honest move (not a soft-404).
+ * The `prompt` entity type (single-source LangChain Hub prompts) was retired
+ * (#2141). The `agent` type it originally redirected to has since been cancelled
+ * too, so this now 301-redirects to /tools (where LangChain/agent frameworks
+ * live as tools) — a permanent, SEO-honest move, no /prompts->/agents->404 chain.
  * Reversible: restore the prior UniversalCatalog SSR page from git history.
  */
-return Astro.redirect('/agents', 301);
+return Astro.redirect('/tools', 301);
 ---

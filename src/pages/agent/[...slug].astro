@@ -1,237 +1,33 @@
 ---
 export const prerender = false;
 
-/**
- * Agent Detail Page V16.8.14
- * High-Fidelity Emergency Reconstruction
- * Architecture: Unified 5-Zone High-Density Layout
- */
-
-import Layout from '../../layouts/Layout.astro';
-import EntityLayout from '../../layouts/EntityLayout.astro';
-import EntityHeader from '../../components/entity/EntityHeader.astro';
-import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
-import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
-import { getUseCases } from '../../utils/inference.js';
-import ShareButtons from '../../components/common/ShareButtons.astro';
-import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import { cleanDescription } from '../../utils/model-page-helpers.ts';
-import CiteEntity from '../../components/common/CiteEntity.astro';
-import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
-import FNITrustPanel from '../../components/FNITrustPanel.astro';
-import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
-import VramEstimator from '../../components/model-detail/VramEstimator.astro';
-import { loadEntityStreams } from '../../utils/packet-loader.js';
-import { getEntityRoute } from '../../utils/mesh-routing-core.js';
-
-
-const { slug } = Astro.params;
-const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-
-let agent = null;
-let error = null;
-let meshRelations = [];
-let tagsArray = [];
-let pageTitle = "AI Agent Details - Free AI Tools";
-let pageDescription = "Explore comprehensive information about this AI agent.";
-let cleanedDesc = "";
-let dataSource = 'error';
-let isTransient = false;
-
-try {
-  if (!slug) throw new Error("No slug/ID provided");
-  // V16.5: Static Assembly Architecture
-  const type = 'agent';
-  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
-  dataSource = _meta.dataSource || '404';
-  isTransient = !!_meta.transient;
-
-  if (!entity || !_meta.available) {
-    console.warn(`[Astro] Entity not found: ${slugStr}`);
-  } else {
-    agent = hydrateEntity(entity, type);
-    meshRelations = mesh || [];
-    tagsArray = agent?.tags || [];
-
-    const displayAgentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
-    pageTitle = `${displayAgentName} - AI Agent Insights`;
-    cleanedDesc = cleanDescription(agent?.description || '');
-    pageDescription = agent?.seo_summary?.description || cleanedDesc || `Details for ${displayAgentName}.`;
-
-    agent.html_readme = html || agent.html_readme || null;
-  }
-
-} catch (e) {
-  console.error("[AgentPage] Error loading agent:", e);
-  error = e;
-}
-// V27.97: honest 404/503 split (see model page). found -> full CC; genuine
-// miss -> 404 + brief edge cache; transient -> soft 200, NO cache, retryable.
-Astro.response.headers.set('X-Data-Source', dataSource);
-if (agent) {
-  Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
-} else if (isTransient) {
-  // Honest transient signal: a cold/flaky VFS lookup of a possibly-real entity
-  // is NOT "empty". Status 503 + Retry-After so an Agent crawler retries instead
-  // of caching a soft-200 skeleton as truth and hard-coding us out; no-store so
-  // the negative is never cached. Human body (skeleton) still renders below.
-  Astro.response.status = 503;
-  Astro.response.headers.set('Retry-After', '5');
-  Astro.response.headers.set('Cache-Control', 'no-store');
-} else {
-  Astro.response.status = 404;
-  Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
-}
-// agent=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
-
-const agentName = agent?.name || 'Unknown Agent';
-const entityId = agent?.id || slugStr;
-const modelId = entityId;
-const agentId = entityId;
-const displayAuthor = agent?.author || 'Independent / Community';
-
-const hasFNI = agent?.fni_score !== undefined || agent?.fni_percentile !== undefined;
-const placeholderImage = '/images/models/default-model.jpg';
-const coverImage = agent?.image_url || placeholderImage;
-
-const jsonld = agent ? {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": agentName,
-  "description": pageDescription,
-  "applicationCategory": "AI Agent",
-  "author": {
-    "@type": "Organization",
-    "name": displayAuthor
-  }
-} : null;
-
-const canonicalPath = agent ? getEntityRoute(agent, 'agent') : undefined;
-
-// V27.102: Derived Use Cases (correct getUseCases signature: tags, pipeline_tag, type, fni)
-const derivedUseCases = agent ? getUseCases(tagsArray, '', 'agent', agent.fni_score) : { goodFor: [], limits: [] };
+// /agent/* returns 410 Gone — the `agent` entity type was cancelled and merged
+// into `tool` (GitHub agent frameworks + MCP servers are now tools). There is no
+// stable 1:1 per-agent target to redirect to (ids change prefix gh-agent--->
+// gh-tool--), so 410 (permanent removal) is the honest signal for search
+// engines. Humans get a meta-refresh to /tools.
+// Reversible: restore the prior SSR detail page from git history.
+Astro.response.status = 410;
+Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
 ---
-
-<EntityLayout 
-  entity={agent} 
-  type="agent" 
-  title={pageTitle} 
-  description={pageDescription}
-  image={coverImage}
-  jsonld={jsonld}
-  canonical={canonicalPath}
->
-    {/* Zone 1: Hero */}
-    {agent && (
-      <EntityHeader 
-        slot="hero"
-        name={agentName}
-        entityType="agent"
-        entityIcon="🤖"
-        entityLabel="Agent"
-        verified={false} 
-        author={displayAuthor}
-        lastUpdated={agent.last_updated}
-        description={agent.seo_summary?.description || cleanedDesc}
-        fniScore={agent.fni_score}
-        fniPercentile={agent.fni_percentile}
-        fniCommentary={agent.fni_commentary}
-        fniS={agent.fni_s}
-        fniA={agent.fni_a}
-        fniP={agent.fni_p}
-        fniR={agent.fni_r}
-        fniQ={agent.fni_q}
-        fniPillarsSynthesized={agent.fni_pillars_synthesized}
-        fniANotMeasured={agent.fni_a_not_measured}
-        sourceUrl={agent.source_url}
-        entityId={agentId}
-        hasImage={Boolean(agent.image_url)}
-      />
-    )}
-
-    {/* Zone 2: Insights Extra */}
-    {agent && (
-      <div slot="insights-extra" class="mt-4 space-y-8">
-         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-            <ModelInfoTable 
-              type="agent"
-              model={{
-                ...agent,
-                displayName: agentName
-              }} 
-            />
-         </div>
-         {agent.params_billions && <VramEstimator paramsB={agent.params_billions} contextLen={agent.context_length} />}
-      </div>
-    )}
-    
-    {/* Zone 1.5: Use Cases */}
-    {agent && (
-      <ZoneUseCases
-        slot="use-cases"
-        goodFor={derivedUseCases.goodFor}
-        limits={derivedUseCases.limits}
-      />
-    )}
-
-    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
-    {agent && (
-      <div slot="core-desktop" class="space-y-16">
-         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-            <CiteEntity 
-              id={agentId} 
-              name={agentName} 
-              author={displayAuthor} 
-              url={agent.source_url} 
-              type="agent" 
-            />
-         </div>
-      </div>
-    )
-    }
-  
-    {agent && (
-      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
-         <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
-      </div>
-    )}
-
-    {agent && (
-      <div slot="deep-dive" class="space-y-12">
-         {/* Zone 4.1: Developer Quick Tools (Always-On) */}
-         <div class="space-y-8">
-            <QuickCommands entity={agent} type="agent" />
-            {hasFNI && (
-              <FNITrustPanel 
-                fniScore={agent.fni_score}
-                fniPercentile={agent.fni_percentile}
-                fniS={agent.fni_s}
-                fniA={agent.fni_a}
-                fniP={agent.fni_p}
-                fniR={agent.fni_r}
-                fniQ={agent.fni_q}
-                fniANotMeasured={agent.fni_a_not_measured}
-                fniCommentary={agent.fni_commentary}
-                modelName={agentName}
-                modelId={agentId}
-              />
-            )}
-         </div>
-
-         {/* Zone 4.2: Primary Documentation / Technical Content */}
-         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
-            <AgentDeepDive agent={agent} />
-         </div>
-      </div>
-    )
-    }
-
-    {/* Zone 5: Community */}
-    {agent && (
-      <div slot="community">
-          <AiDisclaimer source={agent.source} lastUpdated={agent.last_updated} />
-      </div>
-    )}
-</EntityLayout>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Agent Removed — Free2AITools</title>
+    <meta name="robots" content="noindex">
+    <meta http-equiv="refresh" content="5;url=/tools">
+    <style>
+        body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+        a { color: #93c5fd; }
+        code { background: #272727; padding: 0.1em 0.3em; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>410 — Agent Removed</h1>
+    <p>The <code>/agent</code> entity type has been merged into <code>/tool</code> (agent frameworks + MCP servers are tools).</p>
+    <p>Explore AI tools at <a href="/tools">/tools</a>.</p>
+    <p>For programmatic access, see <a href="/llms.txt">/llms.txt</a> or <a href="/openapi.json">/openapi.json</a>.</p>
+    <p style="margin-top:2rem;opacity:0.5;font-size:0.9em">Redirecting to /tools in 5 seconds…</p>
+</body>
+</html>

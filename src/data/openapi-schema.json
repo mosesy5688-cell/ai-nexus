@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, agents, spaces, and prompts, ranked by FNI score. Free tier returns up to 5 results.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 5 results.",
         "tags": ["Search"],
         "parameters": [
           {
@@ -104,7 +104,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["all", "model", "tool", "dataset", "paper", "agent", "space", "prompt"]
+              "enum": ["all", "model", "tool", "dataset", "paper"]
             },
             "description": "Filter by entity type"
           },
@@ -609,7 +609,7 @@
             "properties": {
               "id": { "type": "string" },
               "slug": { "type": "string" },
-              "type": { "type": "string", "description": "model | dataset | paper | tool | agent | space | prompt | knowledge" },
+              "type": { "type": "string", "description": "model | dataset | paper | tool | knowledge" },
               "name": { "type": "string" },
               "author": { "type": "string", "nullable": true },
               "source": { "type": "string", "nullable": true, "description": "huggingface | github | arxiv | replicate | etc." },

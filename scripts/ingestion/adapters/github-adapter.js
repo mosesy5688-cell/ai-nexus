@@ -462,7 +462,10 @@ export class GitHubAdapter extends BaseAdapter {
         const name = (raw.name || '').toLowerCase();
         const owner = (raw.owner?.login || '').toLowerCase();
 
-        if (AGENT_NAMES.some(a => name.includes(a))) return 'agent';
+        // `agent` type cancelled — agent-named repos are now classified as tool
+        // (gh-tool--). AGENT_NAMES is retained so the match still short-circuits
+        // before the MODEL_PUBLISHERS branch (an agent repo never becomes a model).
+        if (AGENT_NAMES.some(a => name.includes(a))) return 'tool';
         if (TOOL_NAMES.some(t => name.includes(t))) return 'tool';
 
         // V25.11 (#1925 fix): type=model ONLY for known model publishers

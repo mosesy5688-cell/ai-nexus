@@ -1,79 +1,11 @@
 ---
 /**
- * AI Agents Catalog (V4.1)
- * Optimized SSR + UniversalCatalog Engine
+ * /agents — 301 Redirect (agent entity type cancelled, merged into tool)
+ *
+ * The `agent` entity type was cancelled: GitHub agent frameworks + MCP servers
+ * are reclassified as `tool` (the curated repos already overlap the tool index).
+ * The agents catalog 301-redirects to /tools — a permanent, SEO-honest move (not
+ * a soft-404). Reversible: restore the prior UniversalCatalog SSR page from git.
  */
-import Layout from '../layouts/Layout.astro';
-import ListingControls from '../components/common/ListingControls.astro';
-import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
-import CatalogCard from '../components/common/CatalogCard.astro';
-
-// SSR Data Fetching
-const { items: allAgents = [], totalPages, totalEntities } = await fetchCatalogData('agent');
-const agents = allAgents.slice(0, 48).map(truncateListingItem);
-
-const pageTitle = "AI Agents Catalog | Autonomous AI Index";
-const pageDescription = "Discover and rank next-generation AI agents, autonomous assistants, and swarms.";
-
-// V24.9: Only edge-cache pages with data; prevent caching empty/error states
-Astro.response.headers.set('Cache-Control', agents.length > 0
-    ? 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800'
-    : 'public, max-age=0, s-maxage=30');
+return Astro.redirect('/tools', 301);
 ---
-
-<Layout title={pageTitle} description={pageDescription}>
-    <main class="min-h-screen py-4">
-        <header class="mb-8 border-b border-[var(--border-hairline)] pb-6">
-            <div class="flex items-center gap-2 mb-2">
-                <span class="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Updated Daily</span>
-                <span class="w-1 h-1 bg-indigo-500 rounded-full"></span>
-                <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">FNI Ranked</span>
-            </div>
-            <h1 class="text-2xl md:text-3xl font-black text-gray-900 dark:text-[var(--text-strong)] mb-4 tracking-tight uppercase">
-                AI Agents <span class="text-zinc-500">Index</span>
-                {totalEntities > 0 && <span class="text-base font-bold text-zinc-400 ml-3">{totalEntities.toLocaleString()}</span>}
-            </h1>
-            <p class="text-sm text-gray-600 dark:text-zinc-400 max-w-2xl leading-relaxed tracking-tight">
-                Autonomous agents, assistants, and neural workers — ranked by FNI.
-            </p>
-        </header>
-
-        <ListingControls type="agent" searchId="agents-search" />
-
-        <div id="agents-catalog-grid" class="flex flex-col gap-1">
-            {agents.map((agent: any) => (
-                <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <CatalogCard item={agent} type="agent" />
-                </div>
-            ))}
-        </div>
-
-        <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
-    </main>
-
-    <script define:vars={{ initialData: agents, totalPages, totalEntities }}>
-        window.__CATALOG_DATA__ = {
-            items: initialData,
-            totalPages,
-            totalEntities
-        };
-    </script>
-
-    <script>
-        import { UniversalCatalog } from '../scripts/lib/UniversalCatalog.js';
-        
-        const init = () => {
-            new UniversalCatalog({
-                initialData: window.__CATALOG_DATA__?.items || [],
-                totalPages: window.__CATALOG_DATA__?.totalPages || 1,
-                totalEntities: window.__CATALOG_DATA__?.totalEntities || 0,
-                type: 'agent',
-                gridId: 'agents-catalog-grid',
-                searchId: 'agents-search',
-            });
-        };
-
-        document.addEventListener('astro:page-load', init);
-    </script>
-</Layout>
-

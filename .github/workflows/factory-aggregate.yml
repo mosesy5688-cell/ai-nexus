@@ -829,7 +829,7 @@ jobs:
           mkdir -p output/data output/cache/rankings
           node scripts/factory/r2-workflow-cli.js restore-dir state/satellite-rankings/rankings/ output/cache/rankings/ || true
           node scripts/factory/r2-workflow-cli.js restore-file state/satellite-rankings/category_stats.json.zst output/cache/category_stats.json.zst || true
-          for t in all model paper agent space dataset tool text-generation knowledge-retrieval vision-multimedia automation-workflow infrastructure-ops; do
+          for t in all model paper dataset tool text-generation knowledge-retrieval vision-multimedia automation-workflow infrastructure-ops; do
             node scripts/factory/r2-workflow-cli.js restore-file "state/satellite-rankings/rankings-${t}.db" "output/data/rankings-${t}.db" 2>/dev/null || true
           done
           echo "✅ Rankings restored from R2: $(ls output/data/rankings-*.db 2>/dev/null | wc -l) DBs"

@@ -1,6 +1,6 @@
 # Free2AItools
 
-> Agent-native structured index of{{TOTAL_ENTITIES_PHRASE}} AI models, datasets, papers, agents, spaces, tools, and prompts.
+> Agent-native structured index of{{TOTAL_ENTITIES_PHRASE}} AI models, datasets, papers, and tools.
 > Cross-source aggregator (HuggingFace, GitHub, ArXiv, Replicate, Civitai, etc.)
 > ranked by FNI (Free2AITools Nexus Index) — designed for AI agents, not human browsing.
 
@@ -88,11 +88,8 @@ Canonical types (use in `?type=` filter):
 
 - `model` — AI models (HF / GH / Replicate / Civitai / Kaggle / Ollama sources)
 - `paper` — research papers (ArXiv, Hugging Face papers, Semantic Scholar)
-- `tool` — open-source developer tools (GitHub repos)
+- `tool` — open-source developer tools, agent frameworks, and MCP servers (GitHub + MCP registry)
 - `dataset` — public datasets
-- `space` — interactive demos
-- `agent` — agent frameworks and templates
-- `prompt` — prompt templates / instruction collections
 
 ## ID format
 

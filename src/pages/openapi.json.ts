@@ -25,11 +25,14 @@ const HEADERS: Record<string, string> = {
     'X-Content-Type-Options': 'nosniff',
 };
 
-const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, agents, spaces, and prompts, ranked by FNI score. Free tier returns up to 5 results.';
+// Served types: models, tools, datasets, papers. agents/spaces/prompts dropped
+// — agent + prompt cancelled, space merged into model (honest-contract: advertise
+// only what is actually served).
+const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 5 results.';
 
 function injectCount(phrase: string | null): string {
     if (!phrase) return SEARCH_DESC_CATALOG;
-    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, agents, spaces, and prompts, ranked by FNI score. Free tier returns up to 5 results.`;
+    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 5 results.`;
 }
 
 export const GET: APIRoute = async ({ request }) => {

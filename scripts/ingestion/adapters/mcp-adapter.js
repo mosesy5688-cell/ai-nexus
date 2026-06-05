@@ -4,8 +4,9 @@
  * Fetches MCP (Model Context Protocol) servers from the official MCP Registry
  * API: https://registry.modelcontextprotocol.io/v0/servers
  * 
- * Entity type: 'agent' (mcp-server subtype)
- * 
+ * Entity type: 'tool' (mcp-server subtype, is_mcp marker) — `agent` cancelled,
+ * MCP servers reclassified as a tool facet (id prefix `mcp-server--` preserved).
+ *
  * V2.1: Added NSFW filter at fetch level
  * 
  * @module ingestion/adapters/mcp-adapter
@@ -21,7 +22,9 @@ const MCP_REGISTRY_API = 'https://registry.modelcontextprotocol.io';
 export class MCPAdapter extends BaseAdapter {
     constructor() {
         super('mcp');
-        this.entityTypes = ['agent'];
+        // `agent` cancelled — MCP servers emit type=tool. The id keeps the
+        // `mcp-server--` prefix (passed explicitly in normalize) as MCP identity.
+        this.entityTypes = ['tool'];
     }
 
     /**
@@ -120,9 +123,15 @@ export class MCPAdapter extends BaseAdapter {
 
         const entity = {
             // Identity
+            // `agent` type cancelled — MCP servers are RECLASSIFIED as type=tool
+            // (a tool facet), NOT lost. The `mcp-server--` id prefix is preserved
+            // as the stable MCP identity (mesh-routing getTypeFromId maps any
+            // `mcp` id -> tool), and subtype + is_mcp keep MCP-servers a queryable
+            // facet under tool. MCP is strategically important — signal retained.
             id: this.generateId('mcp', serverId, 'agent'),
-            type: 'agent',
+            type: 'tool',
             subtype: 'mcp-server',
+            is_mcp: true,
             source: 'mcp_registry',
             source_url: raw.homepage || raw.repository || `https://registry.modelcontextprotocol.io/servers/${serverId}`,
 

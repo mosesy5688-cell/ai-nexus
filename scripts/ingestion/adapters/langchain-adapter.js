@@ -1,11 +1,7 @@
 /**
- * LangChain Hub Adapter
- *
- * B.1 New Data Source Integration. Fetches AI agents from LangChain Hub. The
- * hub also lists plain prompts, but the `prompt` type was cancelled — only
- * agent-shaped repos are emitted (see detectIfAgent + null-skip in normalize).
- *
- * API: GET https://api.smith.langchain.com/repos/
+ * LangChain Hub Adapter — RETIRED (emits nothing). prompt (#2141) + agent
+ * (this PR) both cancelled, so normalize() returns null for every item. Removed
+ * from registry routing + harvest workflow; kept on disk for a clean revert.
  * @module ingestion/adapters/langchain-adapter
  */
 
@@ -21,8 +17,9 @@ const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com';
 export class LangChainAdapter extends BaseAdapter {
     constructor() {
         super('langchain');
-        // `prompt` type cancelled — this adapter emits langchain-agent only.
-        this.entityTypes = ['agent'];
+        // RETIRED — `prompt` (#2141) + `agent` (this PR) both cancelled, so
+        // normalize() returns null for every item; this adapter emits nothing.
+        this.entityTypes = [];
         // V28 PR-3 (#2116 regression): one enricher per harvest run owns the
         // manifest circuit-breaker state (persists across batches; see
         // ManifestEnricher in ./langchain-manifest.js).
@@ -147,9 +144,11 @@ export class LangChainAdapter extends BaseAdapter {
     normalize(raw) {
         const handle = raw.repo_handle || raw.name || 'unknown';
         const owner = raw.owner || 'langchain';
-        // prompt type cancelled — emit langchain-agent only. null is the honest
-        // skip: harvest-single (`if (norm)`) + harvest-stream (`.filter(Boolean)`)
-        // both treat it as "not emitted". Revert: restore the prompt branch.
+        // RETIRED — prompt (#2141) + agent (this PR) cancelled; every item
+        // returns null (honest skip; harvest-single/stream both drop it). The
+        // original agent-emitting body is kept below for a clean revert.
+        return null;
+        // eslint-disable-next-line no-unreachable
         if (!this.detectIfAgent(raw)) return null;
         const type = 'agent';
         const id = `langchain-${type}--${owner}--${handle}`;

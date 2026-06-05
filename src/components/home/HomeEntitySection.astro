@@ -2,16 +2,15 @@
 /**
  * HomeEntitySection Component
  * V15: Entity type showcase grid for homepage
- * Links to /model, /dataset, /paper, /agent, /space, /tool
+ * Links to /models, /datasets, /papers, /tools
+ * (/agents + /spaces removed — agent/space types consolidated; lists now 301.)
  */
 
 const entityTypes = [
   { href: '/models', icon: '🧠', title: 'AI Models', desc: 'LLMs, Vision, Audio', color: '#6366f1', hoverColor: 'indigo' },
   { href: '/datasets', icon: '📊', title: 'Datasets', desc: 'Training & eval data', color: '#f59e0b', hoverColor: 'amber' },
   { href: '/papers', icon: '📄', title: 'Papers', desc: 'Research from arXiv', color: '#ef4444', hoverColor: 'red' },
-  { href: '/agents', icon: '🤖', title: 'AI Agents', desc: 'AutoGPT, BabyAGI', color: '#8b5cf6', hoverColor: 'purple' },
-  { href: '/spaces', icon: '🚀', title: 'AI Spaces', desc: 'Interactive demos', color: '#10b981', hoverColor: 'emerald' },
-  { href: '/tools', icon: '🔧', title: 'Dev Tools', desc: 'LangChain, vLLM', color: '#0ea5e9', hoverColor: 'cyan' },
+  { href: '/tools', icon: '🔧', title: 'Dev Tools', desc: 'LangChain, vLLM, agents, MCP', color: '#0ea5e9', hoverColor: 'cyan' },
 ];
 ---
 

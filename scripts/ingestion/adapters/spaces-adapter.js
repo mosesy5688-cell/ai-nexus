@@ -164,6 +164,15 @@ export class SpacesAdapter extends BaseAdapter {
     }
 
     normalize(raw) {
+        // `space` entity type merged into `model` — the adapter no longer emits a
+        // standalone served space. null is the honest skip: harvest-single
+        // (`if (norm)`) + harvest-stream (`.filter(Boolean)`) both drop it.
+        // FOLLOW-UP (demo-preservation): a space already carries a USES->model
+        // relation (conf 1.0, from `models_used`); attaching a demo_url/has_demo
+        // onto that model at the pack reverse-join is deferred (deep rework). The
+        // original normalize body is kept below for that follow-up + clean revert.
+        return null;
+        // eslint-disable-next-line no-unreachable
         const [author, name] = this.parseId(raw.id);
         const id = this.generateId(author, name, 'space');
         return {

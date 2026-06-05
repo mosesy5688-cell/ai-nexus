@@ -20,7 +20,7 @@ const JSONRPC_HEADERS = {
 const TOOLS = [
     {
         name: 'free2aitools_search',
-        description: 'Search the Free2AITools catalog of AI models, datasets, papers, agents, spaces, and tools by keyword. Returns results ranked by FNI (Free2AITools Nexus Index), a 5-factor score combining Semantic relevance, Authority, Popularity, Recency, and Quality. Read-only, no side effects. Use this for broad discovery; use free2aitools_select_model instead when you have specific hardware or license constraints.',
+        description: 'Search the Free2AITools catalog of AI models, datasets, papers, and tools by keyword. Returns results ranked by FNI (Free2AITools Nexus Index), a 5-factor score combining Semantic relevance, Authority, Popularity, Recency, and Quality. Read-only, no side effects. Use this for broad discovery; use free2aitools_select_model instead when you have specific hardware or license constraints.',
         inputSchema: {
             type: 'object',
             properties: {
