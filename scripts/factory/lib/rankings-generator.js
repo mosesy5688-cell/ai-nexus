@@ -11,11 +11,14 @@ import { exportRankingsDbs } from './rankings-db-exporter.js';
 import { emitListPreload } from './list-preload-emitter.js';
 import { loadHostedOnMap, enrichHostedOn } from './hosted-on-enricher.js';
 
+// 'prompts' category + 'prompt' type removed — prompt entity type cancelled.
+// No rankings-prompt.db / rankings-prompts.db is produced (the /prompts page
+// 301s to /agents and prompts are dropped at the pack source).
 const CATEGORIES = [
     'text-generation', 'knowledge-retrieval', 'vision-multimedia',
-    'automation-workflow', 'infrastructure-ops', 'prompts',
+    'automation-workflow', 'infrastructure-ops',
 ];
-const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset', 'tool', 'prompt'];
+const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset', 'tool'];
 const PAGE_SIZE = 50;
 const MAX_PAGES = 50;
 const MAX_PER_GROUP = PAGE_SIZE * MAX_PAGES; // 2500

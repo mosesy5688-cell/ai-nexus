@@ -34,7 +34,7 @@ const STATIC_PAGES = [
     { path: '/datasets', priority: '0.7', changefreq: 'daily' },
     { path: '/papers', priority: '0.7', changefreq: 'daily' },
     { path: '/tools', priority: '0.7', changefreq: 'daily' },
-    { path: '/prompts', priority: '0.7', changefreq: 'daily' },
+    // /prompts removed — prompt entity type cancelled (page 301s to /agents).
     { path: '/reports', priority: '0.6', changefreq: 'daily' },
     { path: '/methodology', priority: '0.5', changefreq: 'monthly' },
     { path: '/about', priority: '0.4', changefreq: 'monthly' },
@@ -151,6 +151,10 @@ export async function generateSitemap(source, outputDir = './output') {
             for (const entity of stmt.iterate()) {
                 const id = entity.id;
                 const entityType = entity.type || getTypeFromId(id);
+                // prompt type cancelled — never emit /prompt/* URLs. Defensive:
+                // the packer drops prompts on re-pack, but already-baked shards
+                // may still carry them until then.
+                if (entityType === 'prompt') continue;
                 const route = getEntityRoute(entity, entityType);
                 if (!route || route === '#') continue;
                 await addUrl({ loc: route, priority: calculatePriority(entity.fni_score), changefreq: 'daily', lastmod: entity.last_modified });
@@ -180,6 +184,8 @@ export async function generateSitemap(source, outputDir = './output') {
         for (const entity of source) {
             const id = entity.id || entity.slug || '';
             const entityType = entity.type || entity.entity_type || getTypeFromId(id);
+            // prompt type cancelled — never emit /prompt/* URLs (see VFS loop).
+            if (entityType === 'prompt') continue;
             const route = getEntityRoute(entity, entityType);
 
             if (!route || route === '#') continue;

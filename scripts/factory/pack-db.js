@@ -29,6 +29,15 @@ import { recoverTop30k } from './lib/top30k-recovery.js';
 import { generateIdIndex } from './lib/id-index-generator.js';
 import { deriveSlug } from './lib/derive-slug.js';
 
+// prompt entity type cancelled — drop by type field or legacy id prefix.
+const PROMPT_ID_PREFIXES = ['langchain-prompt--', 'hf-prompt--', 'prompt--'];
+function isPromptEntity(e) {
+    if (!e) return false;
+    if ((e.type || e.entity_type) === 'prompt') return true;
+    const id = String(e.id || e.slug || '').toLowerCase();
+    return PROMPT_ID_PREFIXES.some(p => id.startsWith(p));
+}
+
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache', SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 0, MAX_SHARD_SIZE = 8 * 1024 * 1024, EMBEDDING_BATCH = 500;
 const PACK_STATE_PATH = path.join(CACHE_DIR, 'pack-state.db');
@@ -81,7 +90,7 @@ async function packDatabase() {
     await shardWriter.init();
     let currentShardName = shardWriter.open();
     const seenUmids = new Set();
-    let dupSkipped = 0;
+    let dupSkipped = 0, promptSkipped = 0;  // promptSkipped: cancelled type
 
     Object.values(metaDbs).forEach(db => db.exec("BEGIN TRANSACTION"));
     configureDistiller(cacheDb);  // V25.12: pass cacheDb for HTML render cache
@@ -96,7 +105,9 @@ async function packDatabase() {
         const umidKey = e.umid || e.id;
         if (seenUmids.has(umidKey)) { dupSkipped++; return; }
         seenUmids.add(umidKey);
-
+        // prompt type cancelled — drop at the single pack source so a re-pack
+        // ages baked prompts out of meta-NN.db + downstream (rankings/sitemap).
+        if (isPromptEntity(e)) { promptSkipped++; return; }
         const eid = e.id || e.slug;
 
         // V25.12 lookup track. V27.94 (3rd-diag): dropped #2114's e.type arg (its canonical insert was a no-op; e.id already canonical). Real fix is target-side in v25-distiller.js.
@@ -156,6 +167,7 @@ async function packDatabase() {
         shardWriter.finalize();
     });
     if (dupSkipped > 0) console.warn(`[VFS] Pack loop skipped ${dupSkipped} duplicate-umid entities`);
+    if (promptSkipped > 0) console.warn(`[VFS] Pack loop dropped ${promptSkipped} prompt entities (type cancelled)`);
 
     // V27.0: Post-pass — compute embeddings per-shard, write binary shards
     const idToShardIdx = new Map();

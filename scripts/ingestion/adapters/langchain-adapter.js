@@ -1,12 +1,11 @@
 /**
  * LangChain Hub Adapter
- * 
- * B.1 New Data Source Integration
- * Fetches prompts and agents from LangChain Hub API
- * 
- * API: GET https://api.smith.langchain.com/api/v1/public/prompts
- * Expected: +2K agents/prompts
- * 
+ *
+ * B.1 New Data Source Integration. Fetches AI agents from LangChain Hub. The
+ * hub also lists plain prompts, but the `prompt` type was cancelled — only
+ * agent-shaped repos are emitted (see detectIfAgent + null-skip in normalize).
+ *
+ * API: GET https://api.smith.langchain.com/repos/
  * @module ingestion/adapters/langchain-adapter
  */
 
@@ -22,7 +21,8 @@ const LANGCHAIN_API_BASE = 'https://api.smith.langchain.com';
 export class LangChainAdapter extends BaseAdapter {
     constructor() {
         super('langchain');
-        this.entityTypes = ['agent', 'prompt'];
+        // `prompt` type cancelled — this adapter emits langchain-agent only.
+        this.entityTypes = ['agent'];
         // V28 PR-3 (#2116 regression): one enricher per harvest run owns the
         // manifest circuit-breaker state (persists across batches; see
         // ManifestEnricher in ./langchain-manifest.js).
@@ -147,8 +147,11 @@ export class LangChainAdapter extends BaseAdapter {
     normalize(raw) {
         const handle = raw.repo_handle || raw.name || 'unknown';
         const owner = raw.owner || 'langchain';
-        const isAgent = this.detectIfAgent(raw);
-        const type = isAgent ? 'agent' : 'prompt';
+        // prompt type cancelled — emit langchain-agent only. null is the honest
+        // skip: harvest-single (`if (norm)`) + harvest-stream (`.filter(Boolean)`)
+        // both treat it as "not emitted". Revert: restore the prompt branch.
+        if (!this.detectIfAgent(raw)) return null;
+        const type = 'agent';
         const id = `langchain-${type}--${owner}--${handle}`;
 
         const entity = {
@@ -172,13 +175,13 @@ export class LangChainAdapter extends BaseAdapter {
             last_modified: raw.updated_at || raw.created_at,
 
             // Classification
-            pipeline_tag: isAgent ? 'agent' : 'prompt-template',
-            primary_category: isAgent ? 'agents' : 'prompts',
+            pipeline_tag: 'agent',
+            primary_category: 'agents',
             tags: this.extractTags(raw),
 
             // Agent-specific fields
             framework: 'langchain',
-            agent_type: isAgent ? (raw.tags?.includes('autonomous') ? 'autonomous' : 'agentic') : null,
+            agent_type: raw.tags?.includes('autonomous') ? 'autonomous' : 'agentic',
 
             // Metadata
             meta_json: JSON.stringify({
@@ -233,12 +236,9 @@ export class LangChainAdapter extends BaseAdapter {
         // Add framework tag
         tags.add('langchain');
 
-        // Add type tag
-        if (this.detectIfAgent(raw)) {
-            tags.add('agent');
-        } else {
-            tags.add('prompt');
-        }
+        // Add type tag — only agents are emitted (prompt type cancelled), but
+        // honour detectIfAgent so a future non-agent caller stays accurate.
+        tags.add(this.detectIfAgent(raw) ? 'agent' : 'langchain');
 
         // R4-B: return a real string[]. Previously this joined to a comma
         // string, which the shared merger then spread ([...string]) into
