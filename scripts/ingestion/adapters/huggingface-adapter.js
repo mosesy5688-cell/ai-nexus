@@ -404,12 +404,23 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
             // V6.4: Merge config.json data for params extraction.
             // V28 efficiency: only hit the standalone config.json endpoint when the
-            // expand[]=config payload did NOT carry a usable config (empty object or
-            // missing). On the happy path config is already present, so this is a no-op
-            // and we save one HTTP request per model.
-            const hasConfig = modelData.config && typeof modelData.config === 'object'
-                && Object.keys(modelData.config).length > 0;
-            if (!hasConfig) {
+            // expand[]=config payload did NOT carry a usable config.
+            // Fix: the #2120 "config is full-or-empty" assumption is false. HF's
+            // expand[]=config returns a SHALLOW config (architectures / model_type /
+            // tokenizer_config only) — the non-empty key check passed yet the deep
+            // arch fields (num_hidden_layers / hidden_size / heads / MoE experts)
+            // live only in the raw config.json. For MoE/quantized models (Mixtral,
+            // DeepseekV3, ...) the shallow config skipped the fetch and the distiller
+            // (v25-distiller.js cfg.* recovery) mapped those specs to null. Gate now
+            // on DEEP-key presence so an arch-only/shallow config still triggers the
+            // config.json fallback, while a config that already carries deep fields
+            // still saves the extra HTTP.
+            const cfg = modelData.config;
+            const hasDeepConfig = cfg && typeof cfg === 'object'
+                && (cfg.num_hidden_layers != null || cfg.hidden_size != null
+                    || cfg.num_attention_heads != null || cfg.num_key_value_heads != null
+                    || cfg.num_local_experts != null || cfg.vocab_size != null);
+            if (!hasDeepConfig) {
                 try {
                     const configRes = await this.fetchWithTimeout(`${HF_RAW_BASE}/${modelId}/raw/main/config.json`, { headers: this.getHeaders() });
                     if (configRes.ok) {

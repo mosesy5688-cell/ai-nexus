@@ -13,6 +13,7 @@ import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
 import { deriveSourceUrl } from './lib/source-url-deriver.js';
 import { initRustBridge, calculateFniFFI, buildStatsAndRouteDeltasFFI } from './lib/rust-bridge.js';
+import { applyArtifactPillars } from './lib/fni-pillar-overlay.js';
 
 const CONFIG = {
     TOTAL_SHARDS: 20,
@@ -122,8 +123,16 @@ async function runStreamingCore(loadShards, saveShard,
     await loadShards(async (baselineEntities, shardIdx) => {
         const mergedShard = await mergePartitionedShard(baselineEntities, shardIdx, rankingsMap, { slim: false });
         for (const e of mergedShard.entities) {
-            const artifactFni = fniMap.get(e.id);
-            if (artifactFni != null && artifactFni > 0) { e.fni_score = artifactFni; e.fni = artifactFni; fniHits++; }
+            // fniMap value is a bare score (Rust direct N-API map) or
+            // { score, a, p, r, q } (JS buildFniMap). applyArtifactPillars
+            // overlays the 2/4 pillars (or recomputes them on the score-only path).
+            const artifactEntry = fniMap.get(e.id);
+            const artifactFni = typeof artifactEntry === 'object' && artifactEntry !== null
+                ? artifactEntry.score : artifactEntry;
+            if (artifactFni != null && artifactFni > 0) {
+                e.fni_score = artifactFni; e.fni = artifactFni; fniHits++;
+                applyArtifactPillars(e, artifactEntry);
+            }
             else if (!e.fni_score) {
                 const result = calculateFniFFI(e, { includeMetrics: true, lastSeen: e._last_seen });
                 e.fni_score = result.score; e.fni = result.score;
