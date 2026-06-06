@@ -150,8 +150,21 @@ export const GET: APIRoute = async ({ params, url, request }) => {
                 try {
                     const bundleData = await fetchBundleReadme(row.bundle_key, row.bundle_offset, row.bundle_size);
                     entity.body = { readme_html: bundleData.readme, has_fulltext: !!row.has_fulltext };
-                    // #2142: HF Space demo merged onto this model. null = no demo (honest-contract).
-                    if (bundleData.demo) entity.demo = bundleData.demo;
+                    // #2143: HF Space demo merged onto this model lives in the cold
+                    // .bin bundle (no hot column), so it is only available here on
+                    // ?include=body. Surface the full structured demo as a top-level
+                    // field AND backfill links.demo_url (declared null by the warm
+                    // projection) so an Agent reads the real demo URL/sdk/status.
+                    // null = no demo (honest-contract, never fabricated).
+                    if (bundleData.demo) {
+                        const d = bundleData.demo;
+                        entity.demo = {
+                            demo_url: d.demo_url ?? null,
+                            demo_sdk: d.demo_sdk ?? null,
+                            demo_status: d.demo_status ?? null,
+                        };
+                        if (entity.links) entity.links.demo_url = entity.demo.demo_url;
+                    }
                 } catch (err: any) {
                     console.warn(`[entity] cold-tier readme fetch failed for ${row.id}:`, err?.message);
                     entity.body = { readme_html: null, has_fulltext: !!row.has_fulltext };
