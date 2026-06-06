@@ -41,6 +41,13 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
   ENABLE_R2_BACKUP: 'true'
+  # Embedding-CODE version token. BUMP this whenever the embedding logic changes
+  # (model name, normalization, or int8 quantization in pack-db.js) so cached
+  # vectors are busted. pack-db.js only computes embeddings for ids NOT already in
+  # the restored shards, so a code change would otherwise leave every existing
+  # vector STALE forever (the #2145-class stale-artifact bug for data). force_fresh
+  # additionally skips the restore entirely for a hard, full recompute.
+  EMBED_CODE_VERSION: 'v1'
 
 jobs:
   check-upstream:
@@ -89,7 +96,12 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          restore-keys: cycle-
+          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
+          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
+          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
+          # intended same-cycle -output fallback while rejecting foreign cycles. True
+          # misses fall to the R2 state/cycle-output/ fallback below.
+          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
       # V25.8.3: R2 fallback if cache miss
       - name: R2 Fallback for Cycle Output
         if: steps.cache-output-mesh.outputs.cache-hit != 'true'
@@ -159,7 +171,12 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          restore-keys: cycle-
+          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
+          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
+          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
+          # intended same-cycle -output fallback while rejecting foreign cycles. True
+          # misses fall to the R2 state/cycle-output/ fallback below.
+          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
       - name: R2 Fallback for Base Output
         if: steps.cache-output-fusion.outputs.cache-hit != 'true'
         run: |
@@ -428,7 +445,12 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          restore-keys: cycle-
+          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
+          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
+          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
+          # intended same-cycle -output fallback while rejecting foreign cycles. True
+          # misses fall to the R2 state/cycle-output/ fallback below.
+          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
       # 2026-05-16: GHA cache for cycle-<run_id>-output gets LRU-evicted within
       # ~24h when other large caches (vfs-assets 8.6GB, fused, embeddings) push
       # past the 10GB per-repo limit. mesh-baking + master-fusion + final-upload
@@ -485,17 +507,27 @@ jobs:
         run: |
           mkdir -p output/cache/fused
           node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
+      # Embedding-shard restore. (b) the EMBED_CODE_VERSION token in the key busts
+      # the cache when the embedding logic changes (pack-db.js re-embeds only ids
+      # NOT in the restored shards, so a stale token would freeze every vector).
+      # (a) gated on !force_fresh so a force_fresh dispatch skips the restore and
+      # recomputes embeddings from scratch. restore-keys stay scoped to the SAME
+      # code version — they never fall through to a bare cross-version prefix.
       - name: Restore Embedding Shards (Cache)
         id: cache-embedding
+        if: ${{ !inputs.force_fresh }}
         uses: actions/cache/restore@v5
         with:
           path: output/cache/embeddings/
-          key: embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          key: embedding-shards-${{ env.EMBED_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
-            embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-
-            embedding-shards-v1-
+            embedding-shards-${{ env.EMBED_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-
+            embedding-shards-${{ env.EMBED_CODE_VERSION }}-
+      # Also skipped on force_fresh: otherwise force_fresh would skip the cache
+      # restore but still pull the same stale vectors back from R2, defeating the
+      # recompute. On force_fresh embeddings are recomputed from scratch.
       - name: R2 Fallback for Embedding Shards
-        if: steps.cache-embedding.outputs.cache-hit != 'true'
+        if: ${{ !inputs.force_fresh && steps.cache-embedding.outputs.cache-hit != 'true' }}
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -638,7 +670,7 @@ jobs:
         uses: actions/cache/save@v5
         with:
           path: output/cache/embeddings/
-          key: embedding-shards-v1-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          key: embedding-shards-${{ env.EMBED_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
       - name: Backup Embedding Shards to R2
         if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
         env:
@@ -785,7 +817,12 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          restore-keys: cycle-
+          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
+          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
+          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
+          # intended same-cycle -output fallback while rejecting foreign cycles. True
+          # misses fall to the R2 state/cycle-output/ fallback below.
+          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
       - name: R2 Fallback for Base Output
         if: steps.cache-output-upload.outputs.cache-hit != 'true'
         run: |

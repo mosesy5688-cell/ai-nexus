@@ -103,8 +103,12 @@ jobs:
           path: |
             output/shards
           key: cycle-${{ needs.check-upstream.outputs.process-id }}-shards
+          # Cycle-SCOPED restore-key: bare `cycle-${ref_name}-` could fall through to
+          # a DIFFERENT cycle's cache (or a wrong-shape -harvest/-output entry) on an
+          # exact-key miss. Scope to this Process run-id so only same-cycle -shards
+          # variants match; true misses fall to the R2 state/shards/ restore below.
           restore-keys: |
-            cycle-${{ github.ref_name }}-
+            cycle-${{ needs.check-upstream.outputs.process-id }}-
 
       - name: Clean Environment Residue
         run: |
@@ -168,8 +172,13 @@ jobs:
             data/manifest.json
             cache/
           key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
+          # Cycle-SCOPED restore-key: bare `cycle-${ref_name}-` could restore a
+          # foreign cycle's cache (or a wrong-shape -shards/-output entry) on an
+          # exact-key miss. Scope to this Harvest run-id so only same-cycle -harvest
+          # variants match. Validate Context below soft-warns on a true miss, and the
+          # R2 Registry Fallback step restores cache/registry/ independently.
           restore-keys: |
-            cycle-${{ github.ref_name }}-
+            cycle-${{ needs.check-upstream.outputs.harvest-id }}-
 
       - name: Validate Context
         run: |
