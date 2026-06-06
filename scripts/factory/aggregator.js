@@ -124,8 +124,9 @@ async function runStreamingCore(loadShards, saveShard,
         const mergedShard = await mergePartitionedShard(baselineEntities, shardIdx, rankingsMap, { slim: false });
         for (const e of mergedShard.entities) {
             // fniMap value is a bare score (Rust direct N-API map) or
-            // { score, a, p, r, q } (JS buildFniMap). applyArtifactPillars
-            // overlays the 2/4 pillars (or recomputes them on the score-only path).
+            // { score, a, p, r, q } (JS buildFniMap). applyArtifactPillars keeps
+            // fni_score = the artifact score and re-stamps ALL pillars (S/A/P/R/Q)
+            // + raw_pop consistently (PR-C: not just A/P/R/Q — see fni-pillar-overlay).
             const artifactEntry = fniMap.get(e.id);
             const artifactFni = typeof artifactEntry === 'object' && artifactEntry !== null
                 ? artifactEntry.score : artifactEntry;
@@ -138,7 +139,7 @@ async function runStreamingCore(loadShards, saveShard,
                 e.fni_score = result.score; e.fni = result.score;
                 e.fni_s = result.metrics.s; e.fni_a = result.metrics.a;
                 e.fni_p = result.metrics.p; e.fni_r = result.metrics.r;
-                e.fni_q = result.metrics.q; fniRecomputed++;
+                e.fni_q = result.metrics.q; e.raw_pop = result.rawPop; fniRecomputed++;
             }
             const id = e.id || e.slug;
             if (id) {

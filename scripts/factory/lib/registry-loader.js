@@ -202,24 +202,23 @@ export function projectEntity(e, slim) {
         citations: e.citations || 0,
         fni_score: e.fni_score ?? e.fni ?? 0,
         fni_percentile: e.fni_percentile || e.percentile || '',
+        // PR-C honest-contract: A/P/R/Q null when genuinely absent (not fabricated
+        // measured-zero); S keeps the documented neutral 50.0 query-time-overridden default.
         fni_s: e.fni_s ?? e.fni_metrics?.s ?? 50.0,
-        fni_a: e.fni_a ?? e.fni_metrics?.a ?? 0,
-        fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
-        fni_r: e.fni_r ?? e.fni_metrics?.r ?? 0,
-        fni_q: e.fni_q ?? e.fni_metrics?.q ?? 0,
+        fni_a: e.fni_a ?? e.fni_metrics?.a ?? null,
+        fni_p: e.fni_p ?? e.fni_metrics?.p ?? null,
+        fni_r: e.fni_r ?? e.fni_metrics?.r ?? null,
+        fni_q: e.fni_q ?? e.fni_metrics?.q ?? null,
         primary_category: e.primary_category || '',
         pipeline_tag: e.pipeline_tag || '',
         last_modified: e.last_modified || e.last_updated || e.lastModified || e._updated || '',
         license: e.license || e.license_spdx || '',
         source: e.source || '',
         params_billions: e.params_billions ?? e.params ?? 0,
-        vram_estimate_gb: e.vram_estimate_gb ?? 0,
-        context_length: e.context_length ?? 0,
-        architecture: e.architecture || '',
-        raw_pop: e.raw_pop ?? 0,
+        vram_estimate_gb: e.vram_estimate_gb ?? 0, context_length: e.context_length ?? 0,
+        architecture: e.architecture || '', raw_pop: e.raw_pop ?? 0,
         category: e.category || e.primary_category || '',
-        forks: e.forks || 0,
-        citation_count: e.citation_count || e.citations || 0,
+        forks: e.forks || 0, citation_count: e.citation_count || e.citations || 0,
     };
 }
 

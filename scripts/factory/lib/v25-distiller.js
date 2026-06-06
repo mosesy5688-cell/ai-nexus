@@ -2,6 +2,7 @@ import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
 import crypto from 'crypto';
 import { renderHtmlFFI } from './rust-bridge.js';
+import { promoteFniPillars } from './fni-pillar-overlay.js';
 import { deriveTaskCategories } from './task-classifier.js';
 import { deriveArchitectureFromTags } from './arch-derivation.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
@@ -129,13 +130,9 @@ export function distillEntity(e, pBillions, entityLookup) {
         e.stars = meta.stars ?? (typeof e.stars === 'number' ? e.stars : null);
     }
 
-    // V2.0: FNI Pillar Promotion (S-A-P-R-Q Alignment)
-    const fMetrics = e.fni_metrics || meta.fni_metrics || meta.fni?.metrics || {};
-    e.fni_s ??= fMetrics.s ?? 50.0; // Semantic (factory default 50.0, query-time override)
-    e.fni_a ??= fMetrics.a ?? fMetrics.v ?? meta.fni?.v ?? 0; // Authority (was mesh/velocity)
-    e.fni_p ??= fMetrics.p ?? meta.fni?.p ?? 0; // Popularity
-    e.fni_r ??= fMetrics.r ?? fMetrics.f ?? meta.fni?.f ?? 0; // Recency (was freshness)
-    e.fni_q ??= fMetrics.q ?? 0; // Quality (completeness + utility merged)
+    // V2.0 FNI Pillar Promotion (S-A-P-R-Q). PR-C honest-contract: recompute when a
+    // pillar is genuinely absent rather than default-fill A/P/R/Q=0 (fabricated zero).
+    promoteFniPillars(e, meta);
 
     // V18.9: FNI Singularity is sole authority. No quality_score fallback.
     e.fni_score ??= 0;
