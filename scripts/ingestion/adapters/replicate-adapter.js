@@ -182,7 +182,9 @@ export class ReplicateAdapter extends BaseAdapter {
         const entity = {
             id: this.generateId(model.owner, model.name, 'model'),
             source: 'replicate',
-            entity_type: 'model',
+            // V28 (PR-D): was `entity_type` (no top-level `type` key), leaving
+            // entity.type undefined on the row. Every other adapter keys this `type`.
+            type: 'model',
             name: model.name,
             author: model.owner,
             description: model.description || '',

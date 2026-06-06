@@ -47,11 +47,11 @@ export class SemanticScholarAdapter extends BaseAdapter {
         const seenIds = new Set();
         const batchSize = 1000;
 
-        // V28 efficiency: build an id→entity Map ONCE for the incremental skip check.
-        // The old `registry.entities.find(...)` ran a linear O(N) scan per paper
-        // (O(N×M) over the whole harvest). A Map gives O(1) lookups. Built lazily so
-        // a missing/empty registry stays a no-op (null).
-        const registryIndex = this.buildRegistryIndex(options.registryManager);
+        // V28 (PR-D): removed the dead V22.4 incremental skip-unchanged path. It read
+        // `registryManager.registry?.entities` (a property the real SQLite-backed
+        // RegistryManager never exposes), so the index was always null and nothing was
+        // ever skipped. registryManager is now always undefined from the prod streaming
+        // harvester. Honest: re-fetch every cycle, stop advertising a dead optimization.
 
         for (const topic of topics) {
             if (seenIds.size >= limit) break;
@@ -101,19 +101,6 @@ export class SemanticScholarAdapter extends BaseAdapter {
                             // NSFW Filter
                             if (!this.isSafeForWork({ title: paper.title, description: paper.abstract })) continue;
 
-                            // V22.4 Incremental: Check if we already have this paper and if it needs update
-                            if (registryIndex) {
-                                const normId = this.generateId('unknown', paper.paperId, 'paper');
-                                const existing = registryIndex.get(normId);
-                                if (existing) {
-                                    // If paper exists and has same citation count, skip
-                                    if (existing.meta_json?.citation_count === paper.citationCount) {
-                                        seenIds.add(paper.paperId); // Mark as seen to avoid duplicate processing
-                                        continue;
-                                    }
-                                }
-                            }
-
                             seenIds.add(paper.paperId);
                             batch.push(paper);
                         }
@@ -146,22 +133,6 @@ export class SemanticScholarAdapter extends BaseAdapter {
 
         console.log(`✅ [Semantic Scholar] Ingestion Complete: ${seenIds.size} unique papers`);
         return onBatch ? [] : allPapers;
-    }
-
-    /**
-     * V28: Build an id→entity Map from the registry ONCE so the incremental
-     * skip check is O(1) per paper instead of an O(N) linear `.find` scan.
-     * @param {Object} [registryManager] - options.registryManager (may be undefined)
-     * @returns {Map<string, Object>|null} id→entity index, or null if no registry
-     */
-    buildRegistryIndex(registryManager) {
-        const entities = registryManager?.registry?.entities;
-        if (!Array.isArray(entities) || entities.length === 0) return null;
-        const index = new Map();
-        for (const entity of entities) {
-            if (entity?.id) index.set(entity.id, entity);
-        }
-        return index;
     }
 
     /**

@@ -128,17 +128,13 @@ export class DatasetsAdapter extends BaseAdapter {
     async fetchFullDataset(datasetId, retryCount = 0, expandedData = null, registryManager = null) {
         const MAX_RETRIES = 5;
         try {
-            if (registryManager && expandedData && expandedData.lastModified) {
-                const normId = this.generateId(null, datasetId, 'dataset');
-                const existing = registryManager.registry?.entities?.find(e => e.id === normId);
-                if (existing && new Date(existing.updated_at || 0) >= new Date(expandedData.lastModified)) {
-                    existing.popularity = expandedData.downloads || existing.popularity;
-                    existing.downloads = expandedData.downloads || existing.downloads;
-                    existing.likes = expandedData.likes || existing.likes;
-                    existing.updated_at = expandedData.lastModified;
-                    return existing;
-                }
-            }
+            // V28 (PR-D): removed the dead V22.4 incremental skip-unchanged branch.
+            // It read `registryManager.registry?.entities`, a property the real
+            // (SQLite-backed) RegistryManager never exposes, so the guard was always
+            // falsy and the skip never fired. registryManager is now always undefined
+            // from harvest-single (the prod streaming path). Honest: accept the
+            // re-fetch, stop advertising a dead optimization. (Param kept for the
+            // call-site signature; it is intentionally unused.)
 
             // V25.9: Skip /api/datasets/{id} if expandedData already has siblings
             let data;

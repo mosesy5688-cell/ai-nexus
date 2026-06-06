@@ -1,20 +1,28 @@
 /**
- * Ollama Adapter
- * 
- * Constitution V3.3 Data Expansion - "Runtime First" Strategy
- * 
- * Scrapes Ollama Library to enrich models with local deployment data.
- * This directly boosts the FNI Utility (U) dimension.
- * 
+ * Ollama Adapter — HONEST-DOWNGRADE (V28 PR-D)
+ *
+ * Constitution V3.3 Data Expansion - "Runtime First" Strategy.
+ *
+ * HONEST FRAMING: this adapter does NOT scrape the ollama.com Library and does
+ * NOT enumerate a live registry. It probes the LOCAL Ollama daemon
+ * (http://127.0.0.1:11434) for models installed on the harvesting machine. In CI
+ * no daemon exists, so the daemon probe always fails and we emit a small,
+ * statically-curated SEED of well-known Ollama model names (getSeedModels) — that
+ * SEED is the real production output here, not a live snapshot. Each seed row is
+ * marked `is_fallback: true`; no field claims pull counts, freshness, or coverage
+ * it does not have. We intentionally do NOT invest in live ollama.com scraping.
+ *
+ * The local-daemon branch is retained so a developer running against a populated
+ * daemon still gets richer (modelfile/params) local data, but the contract makes
+ * no promise of that in prod.
+ *
  * V2.1: Added NSFW filter at fetch level
- * 
+ *
  * @module scripts/ingestion/adapters/ollama-adapter
  */
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 import { extractDatasetsFromText } from '../../../src/utils/dataset-extractor.js';
-
-const OLLAMA_LIBRARY_URL = 'https://ollama.com/library';
 
 /**
  * Common model name aliases for fuzzy matching
@@ -54,21 +62,26 @@ const MODEL_ALIASES = {
 
 export class OllamaAdapter extends BaseAdapter {
     constructor() {
-        super('ollama', 'Ollama Library');
+        // V28 (PR-D): the old `super('ollama', 'Ollama Library')` 2nd arg was a
+        // misleading "Library" display label (BaseAdapter takes only sourceName,
+        // so it was silently ignored AND falsely implied live-Library coverage).
+        super('ollama');
     }
 
     /**
-     * Fetch Ollama library models
+     * Probe the LOCAL Ollama daemon for installed models; in CI / when no daemon
+     * is reachable, emit the honest curated SEED (see class header). NOT a live
+     * ollama.com registry scrape.
      */
     async fetch(options = {}) {
         const { limit = 100, onBatch } = options;
-        console.log('[Ollama] Fetching library...');
+        console.log('[Ollama] Probing local daemon; falling back to curated seed if unreachable...');
 
         try {
-            const ollamaModels = await this.fetchOllamaLibrary();
+            const ollamaModels = await this.fetchLocalOrSeed();
             const slicedModels = ollamaModels.slice(0, limit);
 
-            console.log(`[Ollama] Found ${slicedModels.length} models`);
+            console.log(`[Ollama] Yielding ${slicedModels.length} models`);
 
             if (onBatch) {
                 await onBatch(slicedModels);
@@ -94,6 +107,12 @@ export class OllamaAdapter extends BaseAdapter {
         // V27.72: regex-extract datasets from description/modelfile/params (ollama
         // metadata has no structured datasets field; whitelist guards against poisoning).
         const corpus = `${raw.description || ''} ${raw.modelfile || ''} ${raw.parameters || ''}`;
+        // V28 (PR-D) honest-downgrade: a fallback/seed row carries NO live timestamp.
+        // Stamping created_at/updated_at = now would falsely advertise this static
+        // seed as freshly-harvested data. Only the live local-daemon path gets a
+        // real "seen now" timestamp.
+        const isFallback = raw.is_fallback === true;
+        const nowOrNull = isFallback ? null : new Date().toISOString();
         const entity = {
             // Identity
             id: this.generateId('ollama', ollamaId, 'model'),
@@ -118,13 +137,13 @@ export class OllamaAdapter extends BaseAdapter {
                 ollama: {
                     id: ollamaId,
                     url: raw.source_url || `https://ollama.com/library/${ollamaId}`,
-                    is_fallback: raw.is_fallback || false,
+                    is_fallback: isFallback,
                     details: raw.details || null,
                     parameters: raw.parameters || null
                 }
             },
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            created_at: nowOrNull,
+            updated_at: nowOrNull,
 
             // Metrics
             popularity: raw.pulls || 0,
@@ -137,6 +156,10 @@ export class OllamaAdapter extends BaseAdapter {
             relations: [],
 
             // Ollama-specific flags
+            // V28 (PR-D): surface is_fallback at top level (was buried only in
+            // meta_json) so downstream can honestly distinguish a curated seed row
+            // from a live local-daemon row.
+            is_fallback: isFallback,
             has_ollama: true,
             ollama_id: ollamaId,
             ollama_pulls: raw.pulls || 0,
@@ -156,10 +179,12 @@ export class OllamaAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch Ollama library (Local deployment structured data via JSON API)
-     * Replaces the brittle HTML scraping of ollama.com with the official local API.
+     * Probe the LOCAL Ollama daemon (http://127.0.0.1:11434) for installed models.
+     * V28 (PR-D) honest-downgrade: this is a LOCAL-daemon probe, not an ollama.com
+     * Library scrape. When the daemon is unreachable (the CI / prod case) it returns
+     * the curated SEED (getSeedModels). No claim of live registry coverage.
      */
-    async fetchOllamaLibrary() {
+    async fetchLocalOrSeed() {
         console.log('[Ollama] Connecting to local daemon JSON API (http://127.0.0.1:11434)...');
         try {
             // 1. Fetch available local models
@@ -170,13 +195,13 @@ export class OllamaAdapter extends BaseAdapter {
             });
 
             if (!response.ok) {
-                console.warn('[Ollama] Local API error:', response.status);
-                return this.getFallbackModels();
+                console.warn('[Ollama] Local daemon API error:', response.status);
+                return this.getSeedModels();
             }
 
             const data = await response.json();
             if (!data.models || data.models.length === 0) {
-                return this.getFallbackModels();
+                return this.getSeedModels();
             }
 
             const models = [];
@@ -211,7 +236,10 @@ export class OllamaAdapter extends BaseAdapter {
                     models.push({
                         ollama_id: baseName,
                         name: m.name,
-                        pulls: m.size || 0, // Fallback metric if true pulls aren't exposed locally
+                        // V28 (PR-D): true pull counts are NOT exposed by the local
+                        // daemon. Leaving pulls=0 (honest) instead of reusing on-disk
+                        // size as a fake popularity metric, which it never was.
+                        pulls: 0,
                         source_url: `https://ollama.com/library/${baseName}`,
                         details: m.details,
                         modelfile,
@@ -221,18 +249,22 @@ export class OllamaAdapter extends BaseAdapter {
                 }
             }
 
-            return models.length > 0 ? models : this.getFallbackModels();
+            return models.length > 0 ? models : this.getSeedModels();
 
         } catch (error) {
-            console.warn('[Ollama] Local daemon unreachable, using fallback array:', error.message);
-            return this.getFallbackModels();
+            console.warn('[Ollama] Local daemon unreachable, using curated seed:', error.message);
+            return this.getSeedModels();
         }
     }
 
     /**
-     * Fallback list of known Ollama models
+     * Curated SEED of well-known Ollama model names (V28 PR-D honest-downgrade).
+     * This is the REAL production output in CI (no local daemon). It is a static,
+     * honestly-labeled list — NOT a live ollama.com snapshot — so every row carries
+     * `is_fallback: true` and no popularity/freshness claim. Kept intentionally
+     * minimal; we do not invest in live ollama.com scraping.
      */
-    getFallbackModels() {
+    getSeedModels() {
         return Object.keys(MODEL_ALIASES).map(ollamaId => ({
             ollama_id: ollamaId,
             name: ollamaId,

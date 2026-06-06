@@ -106,24 +106,15 @@ export class CivitAIAdapter extends BaseAdapter {
 
                 if (models.length === 0) break;
 
-                // V22.4 Incremental: Check against register for skip/stop
-                let newOrUpdatedModels = models;
-                if (options.registryManager) {
-                    newOrUpdatedModels = models.filter(m => {
-                        const normId = this.generateId('civitai', String(m.id), 'model');
-                        const existing = options.registryManager.registry?.entities?.find(e => e.id === normId);
-
-                        // If we have it and it hasn't been updated since, we can skip it
-                        if (existing && new Date(existing.updated_at || 0) >= new Date(m.updatedAt || m.createdAt || 0)) {
-                            return false;
-                        }
-                        return true;
-                    });
-
-                    // console.log(`   [CivitAI] Incremental check: ${newOrUpdatedModels.length}/${models.length} are new/updated`);
-                }
-
-                const safeModels = newOrUpdatedModels.filter(m => this.isSafeForWork(m));
+                // V28 (PR-D): the V22.4 "incremental skip" branch was DEAD — it read
+                // `options.registryManager.registry?.entities`, a property the real
+                // RegistryManager (SQLite-backed) never exposes, so the optional chain
+                // always short-circuited to undefined and no model was ever skipped.
+                // Worse, in the streaming harvest-single path there is no registry to
+                // re-emit a skipped entity into, so a `return false` skip would have
+                // DROPPED the entity from output (data loss). Removed (honest: accept
+                // the full re-fetch cost, stop advertising a dead optimization).
+                const safeModels = models.filter(m => this.isSafeForWork(m));
 
                 if (onBatch) {
                     try {
@@ -141,12 +132,6 @@ export class CivitAIAdapter extends BaseAdapter {
                 console.log(`   📦 Batch result: ${safeModels.length} new/updated (total: ${onBatch ? 'Streaming' : allModels.length})`);
 
                 if (!cursor) break;
-
-                // If we are sorting by Newest and we hit models we already have, we can stop entirely
-                if (sort === 'Newest' && options.registryManager && newOrUpdatedModels.length === 0 && fetched > 0) {
-                    console.log(`   ⏭️  [CivitAI] Incremental Stop: Reached already ingested models.`);
-                    break;
-                }
 
                 await this.delay(2000); // Respectful batch delay
             }
@@ -228,12 +213,21 @@ export class CivitAIAdapter extends BaseAdapter {
         // This is a bug in the old code causing `entity is not defined`! We MUST assign it to `entity`.
         const entity = {
             id,
+            // V28 (PR-D): emit top-level `type` like every other adapter — it was
+            // absent here, leaving entity.type undefined on the row (every sibling
+            // adapter sets type:'model'/'tool'/etc.).
+            type: 'model',
             slug,
             name: raw.name,
             author: creator.username || 'unknown',
             description,
             body_content: (raw.description || '').replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim() + wordsMd,
-            tags: JSON.stringify(tags),
+            // V28 (PR-D): emit a real string[] (was JSON.stringify(tags) — a STRING).
+            // entity-merger arr() coerces a JSON-string via `.split(',')`, shattering
+            // `["a","b"]` into garbage tokens (`["a"`, `"b"]`) on merge — the R4-B
+            // corruption class. Every other adapter emits an array; downstream does
+            // its own JSON.stringify when persisting.
+            tags,
             pipeline_tag: 'text-to-image',
 
             // Top-Level Promotion
