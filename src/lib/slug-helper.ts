@@ -20,6 +20,13 @@ export const SLUG_PREFIXES = [
     'replicate-model', 'replicate-agent', 'replicate-space',
     'civitai-model', 'ollama-model', 'kaggle-dataset', 'kaggle-model',
     'langchain-prompt', 'langchain-agent',
+    // 5th entity type: canonical id is benchmark--<source>--<col> (e.g.
+    // benchmark--openllm--mmlu_pro), the EXACT form EVALUATED_ON edges target.
+    // Without stripping `benchmark--` here, deriveSlug never yields the stored
+    // slug `openllm--<col>`, so the canonical id 404s while the slug 200s — an
+    // agent traversing model->benchmark hits a dead link. (Pairs with
+    // mesh-routing-core getTypeFromId benchmark handling, #2144.)
+    'benchmark',
     'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt',
 ];
 

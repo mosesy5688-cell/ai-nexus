@@ -113,6 +113,14 @@ export function projectEntity(e: any) {
             image_url: e.image_url || null,
             detail_url: canonical,
             badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(e.slug || e.id)}`,
+            // #2143: an HF Space that USES this model is folded onto it as a live
+            // demo ({ demo_url, demo_sdk, demo_status }). The demo lives in the
+            // COLD .bin bundle (no hot meta column), so the warm projection can
+            // only DECLARE the field as null; the route hydrates it from the
+            // bundle on ?include=body. Always-present so an Agent discovers the
+            // contract; null = "request ?include=body for demo" / no demo (honest,
+            // never fabricated). See [...id].ts hydration.
+            demo_url: e.demo?.demo_url || null,
         },
 
         relations: {

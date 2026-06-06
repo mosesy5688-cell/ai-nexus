@@ -42,8 +42,19 @@ export function determineTargetDbs(type: string, q: string, page: number, manife
         const count = partitions.meta_shards as number;
         const all = Array.from({ length: count }, (_, i) => `meta-${String(i).padStart(2, '0')}.db`);
         if (!q) {
-            // Browse: priority = first 4 shards (SSR loads only 1), no expansion
-            return { priority: all.slice(0, 4), expansion: [] };
+            // Browse: priority = first 4 shards (SSR loads only 1). For an
+            // unfiltered browse (type=all) that is enough — the first 4 of N
+            // shards trivially fill a page from the dense mixed corpus. But a
+            // browse FILTERED to a small/rare type (e.g. benchmark = 6 nodes
+            // hash-scattered across all N shards by xxhash64(slug)) can have
+            // ZERO matches in shards 0-3, so it returned an empty page despite
+            // the rows existing. Offer the remaining shards as expansion so the
+            // caller fans out only when the priority shards under-fill (search.ts
+            // browse path already gates expansion on allRows.length < limit, so
+            // a dense type like model never pays the fan-out). Serve-layer: rows
+            // are already packed/indexed; no re-bake.
+            const expansion = type && type !== 'all' ? all.slice(4) : [];
+            return { priority: all.slice(0, 4), expansion };
         }
         // Search: priority = first 4, expansion = rest (loaded if Phase A < limit)
         return { priority: all.slice(0, 4), expansion: all.slice(4) };
