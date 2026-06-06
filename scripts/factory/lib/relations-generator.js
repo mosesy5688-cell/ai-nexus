@@ -12,6 +12,7 @@ import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { extractEntityRelations } from './relation-extractors.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { emitProvisionalSourceSummary } from '../../utils/provisional-source-stats.js';
 import { buildRelationsGraphFromFilesFFI } from './rust-bridge.js';
 
 const RELATION_STATS = {
@@ -134,5 +135,9 @@ export async function generateRelations(shardReader, outputDir = './output') {
     for (const [type, count] of Object.entries(counts)) {
         if (count > 0) console.log(`    - ${type}: ${count}`);
     }
+    // Observability-only: surface how many edges leaned on getNodeSource's
+    // inferred default source (fabricated provenance debt owned by Identity
+    // Layer 2). No-op when zero, so clean runs stay quiet. Zero behavior change.
+    emitProvisionalSourceSummary();
     return { relationCounts: counts, totalRelations };
 }
