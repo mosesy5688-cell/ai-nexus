@@ -14,16 +14,43 @@ pub struct MeshGraphResult {
     pub edge_count: u32,
 }
 
+/// Canonical prefix -> node-type table. MUST stay in parity with the JS impls
+/// (scripts/factory/lib/mesh-graph-generator.js getNodeType) and the
+/// id-normalizer.js PREFIX_MAP. Previously this typer handled only ~10 prefixes
+/// so agent/space/tool/dataset/prompt and several model/paper sources fell
+/// through to "unknown" -> corrupted by_type stats + /model dead routes
+/// (Rust is the PRIMARY mesh path; the JS getNodeType is fallback-only).
 fn get_node_type(id: &str) -> &str {
-    if id.starts_with("hf-model--") { return "model"; }
-    if id.starts_with("hf-dataset--") { return "dataset"; }
-    if id.starts_with("hf-space--") { return "space"; }
-    if id.starts_with("arxiv-paper--") || id.starts_with("s2-paper--") { return "paper"; }
-    if id.starts_with("gh-tool--") || id.starts_with("gh-repo--") { return "tool"; }
-    if id.starts_with("civitai-model--") { return "model"; }
-    if id.starts_with("replicate-model--") { return "model"; }
+    // Model tier (all source prefixes)
+    if id.starts_with("hf-model--") || id.starts_with("gh-model--")
+        || id.starts_with("civitai-model--") || id.starts_with("replicate-model--")
+        || id.starts_with("ollama-model--") || id.starts_with("kaggle-model--")
+        || id.starts_with("huggingface--") || id.starts_with("kb-model--")
+        || id.starts_with("model--") { return "model"; }
+    // Paper tier
+    if id.starts_with("arxiv-paper--") || id.starts_with("s2-paper--")
+        || id.starts_with("hf-paper--") || id.starts_with("arxiv--")
+        || id.starts_with("paper--") { return "paper"; }
+    // Dataset
+    if id.starts_with("hf-dataset--") || id.starts_with("kaggle-dataset--")
+        || id.starts_with("dataset--") { return "dataset"; }
+    // Space
+    if id.starts_with("hf-space--") || id.starts_with("gh-space--")
+        || id.starts_with("space--") { return "space"; }
+    // Agent
+    if id.starts_with("hf-agent--") || id.starts_with("gh-agent--")
+        || id.starts_with("replicate-agent--") || id.starts_with("langchain-agent--")
+        || id.starts_with("mcp-server--") || id.starts_with("agent--") { return "agent"; }
+    // Tool
+    if id.starts_with("gh-tool--") || id.starts_with("hf-tool--")
+        || id.starts_with("gh-repo--") || id.starts_with("mcp-tool--")
+        || id.starts_with("tool--") { return "tool"; }
+    // Prompt
+    if id.starts_with("langchain-prompt--") || id.starts_with("hf-prompt--")
+        || id.starts_with("prompt--") { return "prompt"; }
     if id.starts_with("benchmark--") { return "benchmark"; }
-    if id.starts_with("knowledge--") || id.starts_with("k--") { return "knowledge"; }
+    if id.starts_with("knowledge--") || id.starts_with("k--")
+        || id.starts_with("kb--") { return "knowledge"; }
     if id.starts_with("report--") { return "report"; }
     "unknown"
 }
@@ -97,7 +124,10 @@ fn build_mesh_graph_inner(
 ) -> Result<MeshGraphResult> {
     let mut nodes: HashMap<String, Value> = HashMap::new();
     let mut edges: HashMap<String, Vec<Value>> = HashMap::new();
-    let mut seen_edges: HashSet<(String, String)> = HashSet::new();
+    // Dedup key includes relation_type: two entities can legitimately share >1
+    // edge type (USES+STACK, BASED_ON+CITES). Keying on (src,tgt) only dropped
+    // the second type silently. MUST match JS mesh-graph-generator.js dedup.
+    let mut seen_edges: HashSet<(String, String, String)> = HashSet::new();
     let mut edge_type_counts: HashMap<String, u32> = HashMap::new();
     let mut node_type_counts: HashMap<String, u32> = HashMap::new();
 
@@ -117,11 +147,11 @@ fn build_mesh_graph_inner(
                 if let Some(arr) = targets.as_array() {
                     for edge in arr {
                         if let Some(target) = edge.get(0).and_then(|v| v.as_str()) {
-                            let key = (source_id.clone(), target.to_string());
+                            let etype = edge.get(1)
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("RELATED");
+                            let key = (source_id.clone(), target.to_string(), etype.to_string());
                             if seen_edges.insert(key) {
-                                let etype = edge.get(1)
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("RELATED");
                                 *edge_type_counts.entry(etype.to_string()).or_insert(0) += 1;
                                 edges.entry(source_id.clone())
                                     .or_default()
@@ -147,7 +177,13 @@ fn build_mesh_graph_inner(
                         if slug.is_empty() { continue; }
 
                         let k_id = format!("knowledge--{}", slug);
-                        let key = (k_id.clone(), entity_id.to_string());
+                        // EXPLAINS is stored ENTITY-as-source (edges[entity_id] ->
+                        // knowledge target) to match JS mesh-graph-generator.js and the
+                        // detail-page lookup convention (baker reads edges[node_id] per
+                        // entity; mesh-profile-baker bakes each entity's own relations).
+                        // Previously keyed under k_id -> an entity's explained-by edge
+                        // was unfindable from the entity profile.
+                        let key = (entity_id.to_string(), k_id.clone(), "EXPLAINS".to_string());
                         if seen_edges.insert(key) {
                             // Ensure knowledge node exists
                             nodes.entry(k_id.clone()).or_insert_with(|| {
@@ -161,8 +197,8 @@ fn build_mesh_graph_inner(
                                 })
                             });
 
-                            let edge = serde_json::json!([entity_id, "EXPLAINS", conf]);
-                            edges.entry(k_id).or_default().push(edge);
+                            let edge = serde_json::json!([k_id, "EXPLAINS", conf]);
+                            edges.entry(entity_id.to_string()).or_default().push(edge);
                             *edge_type_counts.entry("EXPLAINS".to_string()).or_insert(0) += 1;
                         }
                     }
@@ -187,7 +223,7 @@ fn build_mesh_graph_inner(
                 if let Some(featured) = report.get("entities").and_then(|v| v.as_array()) {
                     for eid in featured {
                         let eid = match eid.as_str() { Some(s) => s, None => continue };
-                        let key = (eid.to_string(), report_id.clone());
+                        let key = (eid.to_string(), report_id.clone(), "FEATURED_IN".to_string());
                         if seen_edges.insert(key) {
                             nodes.entry(eid.to_string()).or_insert_with(|| {
                                 serde_json::json!({

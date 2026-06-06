@@ -7,7 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { normalizeId, getNodeSource, ALL_PREFIXES } from '../utils/id-normalizer.js';
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
-import { getRouteFromId } from '../../src/utils/mesh-routing-core.js';
+import { getRouteFromId, getTypeFromId } from '../../src/utils/mesh-routing-core.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.zst');
@@ -76,18 +76,28 @@ async function main() {
                 // array-form conf is 0-100 (addEdge Math.round(conf*100)); normalize to
                 // 0-1 to match object/source convention (frontend tests rel.confidence>0.8).
                 const conf = isArr ? (rel[2] != null ? rel[2] / 100 : undefined) : rel.confidence;
-                const targetType = (relType || 'model').toLowerCase();
+                // BUGFIX: relType is the relation VERB (BASED_ON/TRAINED_ON/CITES/USES),
+                // NOT the target's entity TYPE. Passing the verb to getNodeSource/
+                // normalizeId/getRouteFromId made every non-model target route to
+                // /model/<slug> (DEAD LINK: TRAINED_ON->dataset, CITES->paper, ...) and
+                // corrupted the normalizeId prefix. Derive the real target TYPE from the
+                // node registry (authoritative), falling back to the id prefix.
+                const registryNode = nodeRegistry[targetIdRaw] || {};
+                const targetType = (registryNode.t || registryNode.type
+                    || getTypeFromId(targetIdRaw) || 'model').toLowerCase();
                 const syncedTargetId = normalizeId(targetIdRaw, getNodeSource(targetIdRaw, targetType), targetType);
                 const bakedUrl = getRouteFromId(syncedTargetId, targetType);
-                const registryNode = nodeRegistry[targetIdRaw] || nodeRegistry[syncedTargetId] || {};
+                // name/icon may live under the synced id key (preserve prior fallback).
+                const nameNode = (registryNode.name || registryNode.displayName || registryNode.icon)
+                    ? registryNode : (nodeRegistry[syncedTargetId] || registryNode);
                 const objExtras = isArr ? {} : rel;
                 return {
                     ...objExtras, url: bakedUrl,
                     relation_type: relType || (isArr ? undefined : rel.relation_type),
                     confidence: conf != null ? conf : (isArr ? undefined : rel.confidence),
                     target_id: syncedTargetId || targetIdRaw,
-                    target_name: (isArr ? undefined : (rel.name || rel.target_name)) || registryNode.name || registryNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
-                    icon: (isArr ? undefined : rel.icon) || registryNode.icon || '📦'
+                    target_name: (isArr ? undefined : (rel.name || rel.target_name)) || nameNode.name || nameNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
+                    icon: (isArr ? undefined : rel.icon) || nameNode.icon || '📦'
                 };
             });
 

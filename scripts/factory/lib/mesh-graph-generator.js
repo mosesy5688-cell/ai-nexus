@@ -32,29 +32,35 @@ async function loadJson(filePath) {
     return null;
 }
 
+// Canonical prefix -> node-type table. MUST stay in parity with the Rust impl
+// (rust/satellite-tasks/src/mesh_graph.rs get_node_type, the PRIMARY path) and
+// the id-normalizer.js PREFIX_MAP. JS getNodeType is fallback-only; keep identical
+// so a Rust-skip cycle never produces a divergent by_type histogram. Longest-match
+// first (more-specific prefixes win where one is a substring of another).
+const NODE_TYPE_PREFIXES = [
+    ['hf-model--', 'model'], ['gh-model--', 'model'], ['civitai-model--', 'model'],
+    ['replicate-model--', 'model'], ['ollama-model--', 'model'], ['kaggle-model--', 'model'],
+    ['kb-model--', 'model'], ['huggingface--', 'model'], ['model--', 'model'],
+    ['arxiv-paper--', 'paper'], ['s2-paper--', 'paper'], ['hf-paper--', 'paper'],
+    ['arxiv--', 'paper'], ['paper--', 'paper'],
+    ['hf-dataset--', 'dataset'], ['kaggle-dataset--', 'dataset'], ['dataset--', 'dataset'],
+    ['hf-space--', 'space'], ['gh-space--', 'space'], ['space--', 'space'],
+    ['hf-agent--', 'agent'], ['gh-agent--', 'agent'], ['replicate-agent--', 'agent'],
+    ['langchain-agent--', 'agent'], ['mcp-server--', 'agent'], ['agent--', 'agent'],
+    ['gh-tool--', 'tool'], ['hf-tool--', 'tool'], ['gh-repo--', 'tool'],
+    ['mcp-tool--', 'tool'], ['tool--', 'tool'],
+    ['langchain-prompt--', 'prompt'], ['hf-prompt--', 'prompt'], ['prompt--', 'prompt'],
+    ['benchmark--', 'benchmark'],
+    ['knowledge--', 'knowledge'], ['k--', 'knowledge'], ['kb--', 'knowledge'],
+    ['report--', 'report'],
+].sort((a, b) => b[0].length - a[0].length);
+
 function getNodeType(id) {
     if (!id) return 'unknown';
     const cleanId = id.toLowerCase();
-
-    // Model Tier
-    if (cleanId.startsWith('hf-model--') || cleanId.startsWith('huggingface--') || cleanId.startsWith('model--') ||
-        cleanId.startsWith('kb-model--') || cleanId.startsWith('civitai-model--') ||
-        cleanId.startsWith('replicate-model--') || cleanId.startsWith('ollama-model--') ||
-        cleanId.startsWith('kaggle-model--')) return 'model';
-
-    // Paper Tier
-    if (cleanId.startsWith('arxiv-paper--') || cleanId.startsWith('paper--') ||
-        cleanId.startsWith('arxiv--') || cleanId.startsWith('hf-paper--')) return 'paper';
-
-    // Other entities
-    if (cleanId.startsWith('hf-agent--') || cleanId.startsWith('gh-agent--') || cleanId.startsWith('agent--')) return 'agent';
-    if (cleanId.startsWith('hf-space--') || cleanId.startsWith('gh-space--') || cleanId.startsWith('space--')) return 'space';
-    if (cleanId.startsWith('dataset--') || cleanId.startsWith('hf-dataset--') || cleanId.startsWith('kaggle-dataset--')) return 'dataset';
-    if (cleanId.startsWith('tool--') || cleanId.startsWith('gh-tool--') || cleanId.startsWith('hf-tool--')) return 'tool';
-    if (cleanId.startsWith('benchmark--')) return 'benchmark';  // 5th-type (JS fallback; Rust get_node_type is primary)
-    if (cleanId.startsWith('knowledge--') || cleanId.startsWith('kb--')) return 'knowledge';
-    if (cleanId.startsWith('report--')) return 'report';
-
+    for (const [prefix, type] of NODE_TYPE_PREFIXES) {
+        if (cleanId.startsWith(prefix)) return type;
+    }
     return 'unknown';
 }
 
@@ -98,12 +104,13 @@ export async function generateMeshGraph(outputDir = './output') {
 
     const nodes = {};
     const edges = {};
-    const stats = {
-        nodes: 0,
-        edges: 0,
-        by_type: {},
-        by_edge_type: {}
-    };
+    const stats = { nodes: 0, edges: 0, by_type: {}, by_edge_type: {} };
+
+    // Edge dedup keyed by (source, target, relation_type) — MUST match Rust
+    // mesh_graph.rs seen_edges. Target-only dedup dropped the 2nd type when two
+    // entities share >1 relation (USES+STACK, BASED_ON+CITES).
+    const seenEdges = new Set();
+    const edgeKey = (s, t, ty) => [s, t, ty].join("|");
 
     // Load explicit relations
     const explicit = await loadJson(path.join(outputDir, 'cache', 'relations', 'explicit.json'));
@@ -124,13 +131,18 @@ export async function generateMeshGraph(outputDir = './output') {
                         ? edge
                         : [edge.target, edge.type, edge.weight || 100];
 
+                    const relType = type || 'RELATED';
+                    const k = edgeKey(sourceId, target, relType);
+                    if (seenEdges.has(k)) continue;
+                    seenEdges.add(k);
+
                     edges[sourceId].push({
                         target,
-                        type: type || 'RELATED',
+                        type: relType,
                         weight: (weight || 100) / 100
                     });
 
-                    stats.by_edge_type[type] = (stats.by_edge_type[type] || 0) + 1;
+                    stats.by_edge_type[relType] = (stats.by_edge_type[relType] || 0) + 1;
                 }
             }
         }
@@ -157,8 +169,10 @@ export async function generateMeshGraph(outputDir = './output') {
 
                 if (!edges[sourceId]) edges[sourceId] = [];
 
-                // Avoid duplicate edges
-                if (!edges[sourceId].find(e => e.target === targetId)) {
+                // Avoid duplicate edges ((source,target,type) key — matches Rust)
+                const k = edgeKey(sourceId, targetId, 'EXPLAINS');
+                if (!seenEdges.has(k)) {
+                    seenEdges.add(k);
                     edges[sourceId].push({
                         target: targetId,
                         type: 'EXPLAINS',
@@ -186,7 +200,9 @@ export async function generateMeshGraph(outputDir = './output') {
                 if (reportData?.highlights) {
                     for (const highlight of reportData.highlights) {
                         const entityId = highlight.entity_id;
-                        if (entityId && !edges[entityId]?.find(e => e.target === reportId)) {
+                        const fk = entityId && edgeKey(entityId, reportId, 'FEATURED_IN');
+                        if (entityId && !seenEdges.has(fk)) {
+                            seenEdges.add(fk);
                             if (!edges[entityId]) edges[entityId] = [];
                             edges[entityId].push({
                                 target: reportId,

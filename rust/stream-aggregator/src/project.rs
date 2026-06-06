@@ -239,6 +239,12 @@ pub(crate) fn project_entity_for_fusion(e: &Value, fni_percentile: u8) -> Value 
         "created_at", "display_description", "readme",
         // Adapter raw fields used as fallback inputs
         "base_model", "gguf_variants",
+        // raw_pop: idx_fni secondary sort key (CREATE INDEX idx_fni ON entities(
+        // fni_score DESC, raw_pop DESC, slug ASC) in pack-schemas.js). Set pre-fusion
+        // at processor-core.js:106; was silently dropped here -> 0 in every meta-NN.db
+        // row -> popularity tie-break degraded to slug-alpha. Anti-strip (V27.61): a
+        // column declared in pack-schemas MUST survive this projection.
+        "raw_pop",
         // PR-3 (R1): hot-column promotion sources. Some adapters set these top-level
         // (hf-normalizer sdk/running_status, datasets primary fields); pass them through
         // so the distiller's `??=` keeps an adapter-set value. The rest are recovered by
