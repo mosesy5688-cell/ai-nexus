@@ -75,6 +75,17 @@ async function harvestSingle(sourceName, options = {}) {
             }
         };
 
+        // V28 (PR-D): intentionally NO `registryManager` here. The adapters' V22.4
+        // "incremental skip-unchanged" branches were dead anyway — they read
+        // `registryManager.registry?.entities`, a property the real (SQLite-backed)
+        // RegistryManager never exposes, so the optional chain always short-circuited
+        // and nothing was ever skipped. Re-enabling is NOT data-safe in this streaming
+        // harvester: (1) it would require materializing the full prior registry into
+        // memory, violating the O(1)-memory streaming design this file exists for; and
+        // (2) on skip there is no registry to re-emit the unchanged entity into here, so
+        // a skip would DROP the entity from the NDJSON output (data loss). Per the
+        // data-safety constraint we accept the full re-fetch cost and do NOT plumb a
+        // registryManager. The dead skip branches were removed from the adapters.
         const fetchOptions = {
             limit,
             onBatch: processBatch

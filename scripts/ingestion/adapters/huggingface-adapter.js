@@ -340,36 +340,15 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
     async fetchFullModel(modelId, retryCount = 0, expandedData = null, registryManager = null) {
         try {
-            // V22.4 Industrial Refit: Skip network if expandedData is fresh
-            if (registryManager && expandedData && expandedData.lastModified) {
-                const normId = this.generateId(null, modelId, 'model');
-                const existing = registryManager.registry?.entities?.find(e => e.id === normId);
+            // V28 (PR-D): removed the dead V22.4 "skip network if fresh" branch. It was
+            // gated on `registryManager.registry?.entities`, a property the real
+            // (SQLite-backed) RegistryManager never exposes, so the guard was always
+            // falsy and the skip (plus its params_billions / context_length backfill)
+            // never executed. registryManager is now always undefined from the prod
+            // streaming harvester. Honest: re-fetch every cycle, stop advertising a dead
+            // optimization. (Param kept for the call-site signature; intentionally unused.)
 
-                // If the model hasn't changed since last seen, and we have it in registry, reuse it
-                if (existing && new Date(existing.updated_at || 0) >= new Date(expandedData.lastModified)) {
-                    // console.log(`   ⏭️  [HF] Skipping README fetch for ${modelId} (No change)`);
-
-                    // Merge expanded metrics into existing entity for freshness
-                    existing.popularity = expandedData.likes || existing.popularity;
-                    existing.downloads = expandedData.downloads || existing.downloads;
-                    existing.updated_at = expandedData.lastModified;
-                    // V27.4: params_billions must be refreshed from expandedData.safetensors.total
-                    // when missing/zero, otherwise a model that was harvested before expand[]=safetensors
-                    // was wired (or before AES_CRYPTO_KEY landed) has its 0 frozen forever in registry.
-                    if ((!existing.params_billions || existing.params_billions === 0)
-                        && expandedData.safetensors?.total) {
-                        existing.params_billions = parseFloat((expandedData.safetensors.total / 1e9).toFixed(2)) || existing.params_billions;
-                    }
-                    // Backfill context_length from architecture if missing
-                    if (!existing.context_length && existing.architecture) {
-                        const { lookupContextLength } = await import('./hf-utils.js');
-                        existing.context_length = lookupContextLength(existing.architecture) || null;
-                    }
-                    return existing;
-                }
-            }
-
-            // If we have expandedData but it's newer (or no registry), we still need the README.
+            // We still need the README for every model.
             // V28 efficiency: drop the standalone config.json fetch — both the list payload
             // (expand[]=config) and the per-model fetch below (expand[]=config) already carry
             // `config`, so config.json is redundant. We only fall back to it below if config is

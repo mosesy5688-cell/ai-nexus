@@ -12,7 +12,7 @@
  * @module ingestion/adapters/github-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
 import { fetchReadmesBatch } from '../../../src/lib/github-readme-fetcher.js';
 import { loadReadmeCache, saveReadmeCache } from '../../../src/lib/github-readme-cache.js';
 
@@ -125,13 +125,34 @@ export class GitHubAdapter extends BaseAdapter {
 
         const failedTopics = []; // V26.13: Track topics that exhausted retries for a second pass
 
+        // V28 (PR-D): aggregate wall-clock budget + consecutive-fail breaker. The
+        // topic/page loop (incl. the retry round below) only had a per-step 90-min
+        // job timeout and per-request bounds — no AGGREGATE cap. With ~28 topics ×
+        // pagesPerTopic, 1s inter-page delay, 502/503/504 backoff up to 120s, plus
+        // a possible 60s header-less rate-limit wait per failing call, a throttled
+        // GitHub could blow the step timeout (same class as the HF Spaces/LangChain
+        // stalls fixed in V28: per-item bound != aggregate bound). Bound by wall-clock
+        // AND trip a breaker on sustained all-fail pages, returning PARTIAL (the
+        // caller tolerates partial — onBatch streams as we go, no data loss).
+        const ENRICH_BUDGET_MS = 75 * 60 * 1000; // hard ceiling, under the step timeout
+        const MAX_CONSECUTIVE_FAIL_PAGES = 30;
+        const fetchStart = Date.now();
+        let consecutiveFailPages = 0;
+        let budgetExhausted = false;
+
         for (const topic of topics) {
-            if (allRepos.length >= limit) break;
+            if (allRepos.length >= limit || budgetExhausted) break;
             let after = null;
             let retries = 0;
+            let rlAttempt = 0; // V28 (PR-D): per-page rate-limit escalation counter
 
             for (let page = 1; page <= pagesPerTopic; page++) {
                 if (allRepos.length >= limit) break;
+                if (Date.now() - fetchStart > ENRICH_BUDGET_MS) {
+                    console.warn(`   ⏱️ [GitHub] aggregate budget (${ENRICH_BUDGET_MS / 60000}min) reached at ${allRepos.length} repos; returning partial.`);
+                    budgetExhausted = true;
+                    break;
+                }
 
                 const queryVariables = {
                     queryString: `topic:${topic} sort:stars-desc`,
@@ -140,7 +161,7 @@ export class GitHubAdapter extends BaseAdapter {
                 };
 
                 try {
-                    const response = await fetch(`${GH_API_BASE}/graphql`, {
+                    const response = await this.fetchWithTimeout(`${GH_API_BASE}/graphql`, {
                         method: 'POST',
                         headers: {
                             ...this.getHeaders(),
@@ -150,7 +171,10 @@ export class GitHubAdapter extends BaseAdapter {
                     });
 
                     if (!response.ok) {
-                        if (await this.handleRateLimit(response)) {
+                        // V28 (PR-D): numeric-attempt escalation (was bare handleRateLimit
+                        // = flat legacy 60s with no breaker). On a header-less persistent
+                        // 429/403/503 this now escalates + throws at attempt>=6.
+                        if (await this.handleRateLimit(response, rlAttempt++)) {
                             page--; continue;
                         }
                         // V26.13: Retry on 502/503/504 with exponential backoff + jitter (max 5 retries)
@@ -165,9 +189,17 @@ export class GitHubAdapter extends BaseAdapter {
                         }
                         console.warn(`   ⚠️ GitHub GQL failed: ${response.status} — skipping ${topic} (will retry later)`);
                         failedTopics.push({ topic, after, page });
+                        // V28 (PR-D): sustained all-fail pages (GitHub down/blocking) trip
+                        // the breaker so we stop trying every topic and return partial.
+                        if (++consecutiveFailPages >= MAX_CONSECUTIVE_FAIL_PAGES) {
+                            console.warn(`   🔌 [GitHub] ${consecutiveFailPages} consecutive failed pages; circuit-breaking at ${allRepos.length} repos.`);
+                            budgetExhausted = true;
+                        }
                         break;
                     }
                     retries = 0;
+                    rlAttempt = 0;            // V28 (PR-D): page OK → reset rate-limit escalation
+                    consecutiveFailPages = 0; // V28 (PR-D): page OK → reset the breaker
 
                     const result = await response.json();
                     if (result.errors) {
@@ -214,33 +246,52 @@ export class GitHubAdapter extends BaseAdapter {
                     await this.delay(1000); // Respect GQL complexity limits
 
                 } catch (error) {
+                    // V28 (PR-D): a tripped rate-limit breaker means GitHub is persistently
+                    // throttling — stop the WHOLE fetch (set budgetExhausted), not just this
+                    // topic, and return partial gracefully.
+                    if (error instanceof RateLimitExceededError) {
+                        console.warn(`   🛑 [GitHub] rate-limit breaker tripped — finishing early with ${allRepos.length} repos.`);
+                        budgetExhausted = true;
+                        break;
+                    }
                     console.warn(`   ⚠️ GQL error searching ${topic}: ${error.message}`);
                     break;
                 }
             }
         }
 
-        // V26.13: Retry round for topics that failed due to transient 502/503/504
-        if (failedTopics.length > 0 && allRepos.length < limit) {
+        // V26.13: Retry round for topics that failed due to transient 502/503/504.
+        // V28 (PR-D): also gated by the same aggregate wall-clock budget — if the main
+        // loop already exhausted the budget (or tripped the breaker), skip the retry
+        // round entirely rather than risk blowing the step timeout.
+        if (failedTopics.length > 0 && allRepos.length < limit && !budgetExhausted) {
             console.log(`   🔄 [GitHub] Retry round: ${failedTopics.length} failed topics...`);
             await this.delay(30000); // 30s cooldown before retry round
+            retryRound:
             for (const { topic, after: savedAfter, page: savedPage } of failedTopics) {
-                if (allRepos.length >= limit) break;
+                if (allRepos.length >= limit || Date.now() - fetchStart > ENRICH_BUDGET_MS) break;
                 let after = savedAfter;
+                let rlAttempt = 0; // V28 (PR-D): per-topic rate-limit escalation counter
                 for (let page = savedPage; page <= pagesPerTopic; page++) {
                     if (allRepos.length >= limit) break;
+                    if (Date.now() - fetchStart > ENRICH_BUDGET_MS) {
+                        console.warn(`   ⏱️ [GitHub] aggregate budget reached in retry round at ${allRepos.length} repos; returning partial.`);
+                        break;
+                    }
                     const queryVariables = { queryString: `topic:${topic} sort:stars-desc`, first: perPage, after };
                     try {
-                        const response = await fetch(`${GH_API_BASE}/graphql`, {
+                        const response = await this.fetchWithTimeout(`${GH_API_BASE}/graphql`, {
                             method: 'POST',
                             headers: { ...this.getHeaders(), 'Content-Type': 'application/json' },
                             body: JSON.stringify({ query: GQL_QUERY, variables: queryVariables })
                         });
                         if (!response.ok) {
-                            if (await this.handleRateLimit(response)) { page--; continue; }
+                            // V28 (PR-D): numeric-attempt escalation + breaker (was bare flat 60s).
+                            if (await this.handleRateLimit(response, rlAttempt++)) { page--; continue; }
                             console.warn(`   ⚠️ [Retry] GitHub GQL ${response.status} — giving up on ${topic}`);
                             break;
                         }
+                        rlAttempt = 0; // V28 (PR-D): page OK → reset escalation
                         const result = await response.json();
                         if (result.errors) break;
                         const searchData = result.data.search;
@@ -268,6 +319,11 @@ export class GitHubAdapter extends BaseAdapter {
                         after = searchData.pageInfo.endCursor;
                         await this.delay(1000);
                     } catch (error) {
+                        // V28 (PR-D): breaker tripped → stop the entire retry round.
+                        if (error instanceof RateLimitExceededError) {
+                            console.warn(`   🛑 [GitHub] rate-limit breaker tripped in retry round — finishing with ${allRepos.length} repos.`);
+                            break retryRound;
+                        }
                         console.warn(`   ⚠️ [Retry] GQL error on ${topic}: ${error.message}`);
                         break;
                     }

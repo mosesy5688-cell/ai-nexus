@@ -252,25 +252,29 @@ export class MCPAdapter extends BaseAdapter {
     }
 
     /**
-     * Calculate quality score for MCP servers
+     * Calculate quality score for MCP servers.
+     * V28 (PR-D): emit on the 0-100 scale like BaseAdapter.calculateQualityScore
+     * and every sibling adapter — this previously returned 0-1, so MCP tools landed
+     * near-zero quality versus 0-100 peers (sort/threshold starvation). The MCP-
+     * specific signals (tools/repository) are retained, just weighted out of 100.
      */
     calculateQualityScore(entity) {
-        let score = 0.3; // Base score
+        let score = 30; // Base score
 
         // Description quality
-        if (entity.description && entity.description.length > 50) score += 0.2;
+        if (entity.description && entity.description.length > 50) score += 20;
 
         // Has documentation
-        if (entity.body_content && entity.body_content.length > 200) score += 0.2;
+        if (entity.body_content && entity.body_content.length > 200) score += 20;
 
         // Has tools defined
         const meta = entity.meta_json || {};
-        if (meta.tools && meta.tools.length > 0) score += 0.15;
+        if (meta.tools && meta.tools.length > 0) score += 15;
 
         // Has repository
-        if (meta.repository) score += 0.15;
+        if (meta.repository) score += 15;
 
-        return Math.min(1, score);
+        return Math.min(100, score);
     }
 
     delay(ms) {
