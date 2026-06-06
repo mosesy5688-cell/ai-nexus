@@ -1,11 +1,12 @@
 /**
  * Universal Identity Normalizer V2.1
  * SPEC: Universal Prefixing Standard (V2.1 - Final)
- * 
- * Centralized logic for entity ID normalization to ensure 
+ *
+ * Centralized logic for entity ID normalization to ensure
  * 100% architectural consistency.
  */
 
+import { recordProvisionalSource } from './provisional-source-stats.js';
 export const PREFIX_MAP = {
     hf: {
         model: 'hf-model--',
@@ -218,10 +219,16 @@ export function getNodeSource(id, type) {
         if (lowerId.startsWith('hf-') || lowerId.startsWith('huggingface--')) return 'hf';
         if (lowerId.startsWith('mcp-') || lowerId.includes('mcp-server')) return 'mcp';
         if (lowerId.startsWith('langchain-')) return 'langchain';
+        // PROVISIONAL_SOURCE: inferred default, not proven provenance - owned by Identity Layer (2). Do not silently trust.
+        recordProvisionalSource('gh', type, id);
         return 'gh'; // Default for agents/tools
     }
 
-    if (type === 'dataset' || type === 'space') return 'hf';
+    if (type === 'dataset' || type === 'space') {
+        // PROVISIONAL_SOURCE: inferred default, not proven provenance - owned by Identity Layer (2). Do not silently trust.
+        recordProvisionalSource('hf', type, id);
+        return 'hf';
+    }
 
     if (type === 'model') {
         if (lowerId.startsWith('gh-model--') || lowerId.startsWith('github--')) return 'gh';
@@ -229,6 +236,8 @@ export function getNodeSource(id, type) {
         if (lowerId.startsWith('replicate')) return 'replicate';
         if (lowerId.startsWith('kaggle')) return 'kaggle';
         if (lowerId.startsWith('ollama')) return 'ollama';
+        // PROVISIONAL_SOURCE: inferred default, not proven provenance - owned by Identity Layer (2). Do not silently trust.
+        recordProvisionalSource('hf', type, id);
         return 'hf';
     }
 
