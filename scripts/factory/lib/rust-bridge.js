@@ -21,7 +21,7 @@ export function initRustBridge() {
         if (mod) { setter(mod); loaded.push(name); }
     }
 
-    const expected = ['shard-router', 'fni-calc', 'mesh-engine', 'content-extractor', 'stream-aggregator', 'satellite-tasks'];
+    const expected = ['shard-router', 'fni-calc', 'mesh-engine', 'content-extractor', 'stream-aggregator', 'satellite-tasks', 'markdown-renderer', 'ivf-pq'];
     const missing = expected.filter(n => !loaded.includes(n));
     _mode = loaded.length > 0 ? 'rust' : 'js';
     console.log(`[RUST-BRIDGE] Mode: ${_mode} | Loaded: ${loaded.length > 0 ? loaded.join(', ') : 'none (JS fallback)'}`);

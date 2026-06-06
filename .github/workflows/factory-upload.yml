@@ -82,7 +82,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Complete Cycle Output from Cache
         id: cache-output-mesh
         uses: actions/cache/restore@v5
@@ -152,7 +152,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output from Cache
         id: cache-output-fusion
         uses: actions/cache/restore@v5
@@ -421,7 +421,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output (Trending Context)
         id: cache-output-vfs
         uses: actions/cache/restore@v5
@@ -778,7 +778,7 @@ jobs:
         continue-on-error: true
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 8 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Base Output from Cache
         id: cache-output-upload
         uses: actions/cache/restore@v5
