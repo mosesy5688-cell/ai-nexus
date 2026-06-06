@@ -223,12 +223,12 @@ export function projectEntity(e, slim) {
     };
 }
 
-// V27.94: minimal field set read by extractEntityRelations (relation-extractors.js).
-// Mirrors Rust project_entity_for_relations. NO slim FNI/metrics, NO cold-tier text.
+// Read by extractEntityRelations. LIVE projection is JS (Rust dead); MUST mirror Rust
+// REL_FIELDS (project.rs) -- guarded by parity test. `benchmarks` (#2144) -> EVALUATED_ON.
 const REL_PROJECT_FIELDS = [
     'tags', 'base_model', 'datasets', 'datasets_used', 'arxiv_refs', 'paper_refs',
     'references', 'models_used', 'models', 'model_id', 'sdk', 'implementations',
-    'dependencies', 'features', 'highlights', 'velocity', 'knowledge_tags',
+    'dependencies', 'features', 'highlights', 'velocity', 'knowledge_tags', 'benchmarks',
 ];
 /**
  * V27.94: DEDICATED relation-aware projector (native JS).

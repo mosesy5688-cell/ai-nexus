@@ -90,8 +90,8 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          if [ "$FOUND" -lt 7 ]; then
-            echo "⚠️ Only $FOUND/8 Rust binaries. Restoring from R2 vault..."
+          if [ "$FOUND" -lt 9 ]; then
+            echo "⚠️ Only $FOUND/9 Rust binaries. Restoring from R2 vault..."
             node scripts/factory/r2-workflow-cli.js restore-rust-ffi || echo '⚠️ R2 Rust FFI fallback unavailable'
           fi
 
@@ -458,7 +458,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Satellite Cache
         uses: actions/cache/restore@v5
         with:
@@ -514,7 +514,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Satellite Cache
         uses: actions/cache/restore@v5
         with:
@@ -588,7 +588,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Core Registry from Cache
         uses: actions/cache/restore@v5
         with:
@@ -660,7 +660,7 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
-          [ "$FOUND" -lt 7 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
+          [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
       - name: Restore Satellite Cache
         uses: actions/cache/restore@v5
         with:
