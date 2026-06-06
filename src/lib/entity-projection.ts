@@ -29,6 +29,19 @@ export function projectEntity(e: any) {
     const canonical = entityCanonicalUrl(e);
     const entity: any = {
         id: e.id,
+        // Phase-2 Identity Block-1 (zero-re-bake projection alias). canonical_id
+        // == the served entities.id, which IS the deterministic normalized
+        // identity KEY: canonical_id == normalizeId(source_url/raw, source, type),
+        // a verified fixpoint (normalizeId(canonical_id) === canonical_id, proven
+        // at 100% over live ids spanning all 5 types). Externally reproducible:
+        // any party recomputes it offline via the published normalization, and
+        // UMID == SHA256(canonical_id)[:16] (no secret salt, PR #2132). HONEST
+        // SCOPE: this asserts canonical FORM, NOT proven external provenance. An
+        // `--unknown--` segment (e.g. arxiv-paper--unknown--<sha>) is an honest
+        // placeholder for upstream identity that was not resolved -- it is NOT a
+        // claim of a real arxiv id. Proven provenance is the Identity-Layer-2
+        // (Assertion + Provenance) concern. Additive only; `id` kept for back-compat.
+        canonical_id: e.id,
         slug: e.slug,
         type: e.type,
         arxiv_id: arxivId,
