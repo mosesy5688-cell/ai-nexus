@@ -8,6 +8,7 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { verifyRelationContent, verifyHotColumnValues, verifyBakeProducers } from './lib/verify-canaries.js';
+import { verifyAssertions } from './lib/verify-assertions.js';
 
 const args = process.argv.slice(2);
 const DB_PATH = args.find(a => !a.startsWith('--')) || './output/data/meta-model-core.db';
@@ -201,6 +202,7 @@ if (fs.existsSync(shardDir)) {
 if (dbName === 'meta-00.db') {
     verifyHotColumnValues(dirPath, check);  // top-FNI hot columns not all-null
     verifyBakeProducers(dirPath, check);    // bake-only binary producers non-empty + sane magic
+    verifyAssertions(dirPath, check);       // identity assertions: no false SAME_AS, evidence mandatory
 }
 
 db.close();

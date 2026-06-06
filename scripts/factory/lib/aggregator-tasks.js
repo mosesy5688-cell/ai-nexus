@@ -8,6 +8,7 @@ import { generateSearchIndices } from './search-indexer.js';
 import { generateTrending } from './trending-generator.js';
 import { generateCategoryStats } from './category-stats-generator.js';
 import { generateRelations } from './relations-generator.js';
+import { generateAssertions } from './assertion-generator.js';
 import { generateMeshGraph } from './mesh-graph-generator.js';
 import { computeAltRelations } from './alt-linker.js';
 import { computeKnowledgeLinks } from './knowledge-linker.js';
@@ -34,6 +35,7 @@ export function buildTaskList(shardReader, outputDir, opts = {}) {
         { name: 'Search', id: 'search', fn: () => generateSearchIndices(shardReader, outputDir, { shardDir }) },
         { name: 'CategoryStats', id: 'category', fn: () => generateCategoryStats(shardReader, outputDir) },
         { name: 'Relations', id: 'relations', fn: () => generateRelations(shardReader, outputDir) },
+        { name: 'Assertions', id: 'assertions', fn: () => generateAssertions(shardReader, outputDir) },
         { name: 'AltLinker', id: 'alt', fn: () => computeAltRelations(shardReader, outputDir, { shardDir }) },
         { name: 'KnowledgeLinks', id: 'knowledge-links', fn: () => computeKnowledgeLinks(shardReader, outputDir, { shardDir }) },
         {

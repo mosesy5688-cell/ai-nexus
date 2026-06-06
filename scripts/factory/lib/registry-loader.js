@@ -236,13 +236,13 @@ const REL_PROJECT_FIELDS = [
  * Separate from slim (no P1 streaming pollution) + fusion (no cold-tier heap blow).
  */
 export function projectEntityForRelations(e) {
-    // V27.94 follow-up: per-entity Rust FFI round-trip removed -- trivial field-select
-    // whose JSON.stringify->NAPI->parse hop truncated at the NAPI boundary (serde "end
-    // of hex escape") and silently fell back here in prod; JS is the single source.
+    // V27.94 follow-up: per-entity Rust FFI round-trip removed -- the JSON->NAPI->parse
+    // hop truncated at the NAPI boundary and silently fell back here; JS is the single source.
     const out = {
         id: e.id, slug: e.slug || '', type: e.type || e.entity_type || 'model',
         name: e.name || e.title || e.displayName || '', description: e.description || '',
         fni_score: e.fni_score ?? e.fni ?? 0, // node force weight (single float)
+        source_url: e.source_url || '', // PR-C1 identity SAME_AS basis (isHarvestSetSourceUrl, design B); not a relation edge
     };
     for (const k of REL_PROJECT_FIELDS) if (e[k] !== undefined) out[k] = e[k];
     return out;
