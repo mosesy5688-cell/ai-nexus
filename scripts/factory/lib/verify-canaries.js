@@ -2,14 +2,12 @@
  * Bake silent-zero canaries (extracted from verify-db.js to stay under CES 250).
  *
  * Context: CI never runs the packer (#2137/#2144), so verify-db.js is the bake's
- * ONLY defense against a producer silently emitting zeros/empties. These three
- * canaries close the coverage gaps the 2026-06-06 backend audit flagged:
- *   1. per-edge-type topology (aggregate topo>0 masks a whole relation CLASS),
- *   2. high-value hot columns going total-null (presence-only check missed it),
- *   3. bake-only binary producers shipping empty/corrupt (CDN-warmed unchecked).
- *
- * Every threshold below is deliberately CONSERVATIVE: a false canary blocks every
- * bake, so each asserts only that a thing is NON-TRIVIAL, never a high ratio.
+ * ONLY defense against a producer silently emitting zeros/empties. Three canaries
+ * close the gaps the 2026-06-06 backend audit flagged: 1. per-edge-type topology
+ * (aggregate topo>0 masks a whole relation CLASS), 2. hot columns going total-null
+ * (presence-only check missed it), 3. bake-only binary producers shipping
+ * empty/corrupt (CDN-warmed unchecked). Every threshold is CONSERVATIVE: a false
+ * canary blocks every bake, so each asserts NON-TRIVIAL presence, never a ratio.
  */
 import Database from 'better-sqlite3';
 import fs from 'fs';
@@ -22,12 +20,10 @@ import path from 'path';
  * CITES / TRAINED_ON / USES were all silently stripped by a projection bug
  * (exactly how EVALUATED_ON silent-zeroed invisibly until #2144). We assert each
  * CRITICAL relation class is independently present.
- *
- * CRITICAL set = the four classes that are structurally guaranteed at corpus
- * scale (every cycle has model->dataset TRAINED_ON, paper CITES, model BASED_ON,
- * tool/ecosystem USES). EVALUATED_ON keeps its own dedicated check in verify-db.
- * Rare/optional classes (IMPLEMENTS, DEMO_OF, DEP) are intentionally EXCLUDED:
- * they can legitimately be 0 in a cycle, so asserting them > 0 would false-fire.
+ * CRITICAL set = the four classes structurally guaranteed at corpus scale (every
+ * cycle has model->dataset TRAINED_ON, paper CITES, model BASED_ON, tool/ecosystem
+ * USES); EVALUATED_ON keeps its own dedicated check in verify-db. Rare/optional
+ * classes (IMPLEMENTS, DEMO_OF, DEP) are EXCLUDED: they can legitimately be 0.
  */
 const CRITICAL_EDGE_TYPES = ['BASED_ON', 'TRAINED_ON', 'CITES', 'USES'];
 const TOPOLOGY = new Set(['BASED_ON', 'TRAINED_ON', 'CITES', 'USES', 'IMPLEMENTS', 'DEMO_OF', 'DEP', 'EVALUATED_ON']);
@@ -96,19 +92,27 @@ export function verifyRelationContent(database, hasMeshGraph, check) {
 /**
  * 2. Value-canary for high-value hot columns.
  *
- * verify-db checks column PRESENCE only — a column can exist yet be 100% NULL
- * (e.g. PR-3 deep columns silent-zeroing, or gh `stars` projection dropping).
- * We sample the top-1000-by-FNI rows (the rows users actually see) across ALL
- * meta shards and assert each representative column has at least ONE non-null,
- * non-zero value.
- *
- * Threshold rationale: `> 0 populated`, NOT a ratio. These columns are
- * legitimately SPARSE — `stars` only applies to GitHub entities, `num_heads`/
- * `sdk` only to models with deep specs — so a high ratio would false-fire on a
- * healthy-but-sparse corpus. But a TOTAL-null regression (the actual failure
- * mode) drives the populated count to exactly 0, which this catches loud.
+ * verify-db checks column PRESENCE only — a column can exist yet be 100% NULL (a
+ * PR-3 deep column silent-zeroing, or the gh `stars` projection dropping). We
+ * sample top-FNI rows across ALL meta shards and assert a value is present.
+ * CALIBRATION (2026-06-06, run 27053384921 false-positive post-mortem): a
+ * value-canary may HARD-FAIL a bake ONLY on a field RELIABLY DENSE in the top-FNI
+ * sample. Sparse / optional / cancelled-source fields must NOT hard-fail — they
+ * use a SCOPED WARNING or are dropped — else they false-fire on a healthy corpus
+ * and block every bake (this canary turned against itself).
+ *   - `stars`     HARD-FAIL: dense for gh entities (thousands in sample); 0 = drop.
+ *   - `num_heads` WARNING (scoped): only `model` rows with a deep config.json
+ *                 (MoE/quantized) carry it, and that fetch is best-effort — a
+ *                 top-FNI sample of papers/datasets/tools legitimately lacks it
+ *                 (hard-failing false-fired the bake). Warn only if rows that
+ *                 SHOULD (sibling num_layers/hidden_size set) are ALL null.
+ *   - `sdk`       REMOVED: `space` type cancelled (#2142; SpacesAdapter.normalize
+ *                 + hf-normalizer.normalizeSpace `return null`). No other producer,
+ *                 so 0 is CORRECT — was guarding a dead field.
  */
-const VALUE_CANARY_COLS = ['stars', 'num_heads', 'sdk'];
+const VALUE_DENSE_COLS = ['stars'];          // HARD-FAIL: reliably dense in top-FNI sample
+const VALUE_SCOPED_COLS = ['num_heads'];     // WARNING: sparse/optional, scope to its sibling
+const VALUE_SCOPE_SIBLINGS = ['num_layers', 'hidden_size']; // co-populated deep-config markers
 const VALUE_SAMPLE_SIZE = 1000;
 
 export function verifyHotColumnValues(dirPath, check) {
@@ -116,50 +120,62 @@ export function verifyHotColumnValues(dirPath, check) {
         .filter(f => /^meta-\d+\.db$/.test(f))
         .map(f => path.join(dirPath, f));
     if (shardFiles.length === 0) return; // not a hash-sharded layout; nothing to do
-    const populated = Object.fromEntries(VALUE_CANARY_COLS.map(c => [c, 0]));
-    let sampled = 0;
-    // Merge each shard's local top-FNI slice; the union over-covers the global
-    // top-1000 (a hot row lives in exactly one shard), so a populated value
-    // anywhere in any shard's hot slice counts — only an all-shard total-null
-    // collapse yields 0.
+    const allCols = [...VALUE_DENSE_COLS, ...VALUE_SCOPED_COLS, ...VALUE_SCOPE_SIBLINGS];
+    const populated = Object.fromEntries(VALUE_DENSE_COLS.map(c => [c, 0]));
+    let sampled = 0, scopedRows = 0, scopedOk = 0;
+    // Merge each shard's local top-FNI slice; a hot row lives in exactly one
+    // shard, so any populated value counts — only an all-shard total-null yields 0.
     for (const fp of shardFiles) {
         const db = new Database(fp, { readonly: true });
         try {
             const cols = db.prepare("PRAGMA table_info(entities)").all().map(c => c.name);
-            const present = VALUE_CANARY_COLS.filter(c => cols.includes(c));
+            const present = allCols.filter(c => cols.includes(c));
             if (present.length === 0) { db.close(); continue; }
-            const sel = present.join(', ');
             const rows = db.prepare(
-                `SELECT ${sel} FROM entities ORDER BY fni_score DESC LIMIT ${VALUE_SAMPLE_SIZE}`
+                `SELECT ${present.join(', ')} FROM entities ORDER BY fni_score DESC LIMIT ${VALUE_SAMPLE_SIZE}`
             ).all();
             for (const r of rows) {
                 sampled++;
-                for (const c of present) {
-                    const v = r[c];
-                    if (v !== null && v !== undefined && v !== '' && v !== 0) populated[c]++;
+                for (const c of VALUE_DENSE_COLS) if (isPopulated(r[c])) populated[c]++;
+                // Scoped num_heads: only rows that SHOULD have it (a deep-config
+                // sibling set) count toward the warning denominator.
+                if (VALUE_SCOPE_SIBLINGS.some(s => isPopulated(r[s]))) {
+                    scopedRows++;
+                    if (VALUE_SCOPED_COLS.every(c => isPopulated(r[c]))) scopedOk++;
                 }
             }
         } finally { db.close(); }
     }
     if (sampled === 0) { console.log('[VERIFY] Value canary: skipped (0 rows sampled)'); return; }
-    for (const c of VALUE_CANARY_COLS) {
+    for (const c of VALUE_DENSE_COLS) {
         check(`Value: ${c}`, populated[c] > 0, `${populated[c]} populated of ${sampled} sampled`);
     }
+    // Non-fatal scoped warning: a num_heads-specific drop (siblings present, heads
+    // all null) is suspicious, but corpus-wide sparsity must NOT block the bake.
+    if (scopedRows === 0) {
+        console.log('[VERIFY] Value: num_heads — skipped (no deep-config rows in sample)');
+    } else {
+        const warn = scopedOk === 0 ? '⚠️ ' : '';
+        const tail = scopedOk === 0 ? ' (possible num_heads-specific drop; non-fatal)' : ' → ok';
+        console.log(`[VERIFY] ${warn}Value: num_heads — ${scopedOk}/${scopedRows} deep-config rows populated${tail}`);
+    }
+}
+
+/** Non-null, non-empty, non-zero — the "real value present" predicate. */
+function isPopulated(v) {
+    return v !== null && v !== undefined && v !== '' && v !== 0;
 }
 
 /**
  * 3. Bake-only producer floor checks.
  *
- * The bake writes binary artifacts that the deploy CDN-warms with NO post-build
+ * The bake writes binary artifacts the deploy CDN-warms with NO post-build
  * verification — any can ship empty/corrupt invisibly. We assert a magic-byte
- * header + a record-count / size floor for each, mirroring verify-db's NXVF
- * pattern. Where an artifact is legitimately skippable, the check is conditional
- * (assert only IF the producer should have run).
- *
- * Floors are intentionally tiny (existence + non-empty + sane magic), NOT scaled
- * to corpus size — they catch the catastrophic "wrote 0 records / wrong format /
- * truncated" failure, without false-firing if the corpus is small or a producer
- * legitimately skipped.
+ * header + record-count/size floor for each (mirroring verify-db's NXVF pattern);
+ * legitimately-skippable artifacts are checked conditionally (only IF run).
+ * Floors are tiny (existence + non-empty + sane magic), NOT scaled to corpus
+ * size — they catch "wrote 0 records / wrong format / truncated" without
+ * false-firing on a small corpus or a legitimately-skipped producer.
  */
 // cluster-ann skips when vectors < NUM_CLUSTERS*10 = 1280 (cluster-ann-builder.js).
 const CLUSTER_ANN_SKIP_FLOOR = 1280;
