@@ -58,7 +58,14 @@ import { META_SHARD_COUNT } from '../../../src/constants/shard-constants.js';
 import { xxhash64 } from '../../../src/utils/xxhash64-core.js';
 
 const ID_INDEX_PATH = './output/data/id-index.bin';
-const TYPE_ENUM = { model: 0, dataset: 1, agent: 2, tool: 3, space: 4, paper: 5, prompt: 6 };
+// Live 5-type set (agent/space/prompt were cancelled; benchmark is the 5th type).
+// Stable int values for the long-lived types (model/dataset/tool/paper) are kept
+// so any future routing heuristic that hardcodes them stays valid; benchmark takes
+// a fresh slot (6). The record `type` byte is written but NOT yet read by any
+// consumer (id-index-shard-order.ts uses only shardIdx), and id-index.bin is
+// rebaked every cycle (never persisted across format), so the reassignment is
+// format- and consumer-safe — it only stops benchmark rows mapping to 255/unknown.
+const TYPE_ENUM = { model: 0, dataset: 1, tool: 3, paper: 5, benchmark: 6 };
 const FORMAT_VERSION = 2;
 const HEADER_SIZE = 32;
 const KEY_ENTRY_SIZE = 12;
