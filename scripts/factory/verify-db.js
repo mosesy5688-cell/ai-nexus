@@ -1,13 +1,13 @@
 /**
  * V23.1 Shard-DB Health Check (Universal Sharding Edition)
- * Exits with code 1 on any critical failure to block deployment.
- * Checks: 16KB Page alignment, schema integrity, 120MB OOM safety guard.
- * V23.1+ Upgrade: Performs global entity accounting across all category shards.
+ * Exits 1 on any critical failure to block deployment. Checks: 16KB page
+ * alignment, schema integrity, 120MB OOM guard, global entity accounting,
+ * mesh topology + silent-zero canaries (see lib/verify-canaries.js).
  */
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
+import { verifyRelationContent, verifyHotColumnValues, verifyBakeProducers } from './lib/verify-canaries.js';
 
 const args = process.argv.slice(2);
 const DB_PATH = args.find(a => !a.startsWith('--')) || './output/data/meta-model-core.db';
@@ -163,48 +163,8 @@ if (hasEntitiesTable) {
         // Content-strip canary: a healthy mesh_graph is in the MB range
         const meshSz = keyMap.get('mesh_graph') || 0;
         check('Mesh Graph Size', meshSz > 100 * 1024, `${(meshSz / 1024).toFixed(0)} KB (floor: 100KB)`);
-        // V27.94 (A.3): relation-content canary — closes the silent-loss gap that
-        // let the empty/degenerate mesh bake pass (only size was checked before).
-        verifyRelationContent(db, keyMap.has('mesh_graph'));
-    }
-}
-
-/** V27.94 (A.3): topology + degeneracy canary over mesh_graph + ui_related_mesh. */
-function verifyRelationContent(database, hasMeshGraph) {
-    const TOPOLOGY = new Set(['BASED_ON', 'TRAINED_ON', 'CITES', 'USES', 'IMPLEMENTS', 'DEMO_OF', 'DEP', 'EVALUATED_ON']); // EVALUATED_ON: benchmark 5th-type own canary below (else masked).
-    if (hasMeshGraph) {
-        try {
-            const graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
-            let topo = 0, total = 0, evalOn = 0;
-            for (const list of Object.values(graph.edges || {})) {
-                for (const e of (Array.isArray(list) ? list : [])) {
-                    total++;
-                    const t = ((Array.isArray(e) ? e[1] : (e.type || e.relation_type)) || '').toUpperCase();
-                    if (TOPOLOGY.has(t)) topo++; if (t === 'EVALUATED_ON') evalOn++; // EVALUATED_ON: benchmark 5th-type dedicated count
-                }
-            }
-            check('Mesh Topology Edges', topo > 0, `${topo} topology / ${total} total (need > 0)`);
-            check('EVALUATED_ON edges', evalOn > 0, `${evalOn} model-benchmark (need > 0)`);
-        } catch (e) {
-            check('Mesh Topology Edges', false, `mesh_graph parse failed: ${e.message.slice(0, 40)}`);
-        }
-    }
-    // Degeneracy: sample top-FNI rows; degenerate = unresolved (no id/name===id/_unresolved).
-    try {
-        const rows = database.prepare("SELECT ui_related_mesh AS m FROM entities WHERE ui_related_mesh IS NOT NULL AND ui_related_mesh != '[]' ORDER BY fni_score DESC LIMIT 500").all();
-        let relCount = 0, degen = 0;
-        for (const r of rows) {
-            let arr; try { arr = JSON.parse(r.m); } catch { continue; }
-            for (const rel of (Array.isArray(arr) ? arr : [])) {
-                relCount++;
-                if (rel?._unresolved || !rel?.id || rel.name == null || rel.name === rel.id) degen++;
-            }
-        }
-        if (relCount < 50) { console.log(`[VERIFY] Mesh Degeneracy: skipped (${relCount} sampled < 50 floor)`); return; }
-        const ratio = degen / relCount;
-        check('Mesh Degeneracy', ratio <= 0.20, `${(ratio * 100).toFixed(1)}% degenerate of ${relCount} (limit: 20%)`);
-    } catch (e) {
-        console.log(`[VERIFY] Mesh Degeneracy: skipped (${e.message.slice(0, 40)})`);
+        // V27.94 (A.3): relation-content canary — closes the silent-loss gap that let the empty/degenerate mesh bake pass (size-only before).
+        verifyRelationContent(db, keyMap.has('mesh_graph'), check);
     }
 }
 
@@ -233,6 +193,14 @@ if (fs.existsSync(shardDir)) {
         }
         check('Binary Shards (NXVF)', binFail === 0, `${binOk}/${binShards.length} valid`);
     }
+}
+
+// 9. Aggregate canaries — gated on the first hash shard so they run ONCE across
+// the per-DB loop (they span all shards / bake artifacts; per-shard would be
+// redundant and a single sparse shard could false-fire).
+if (dbName === 'meta-00.db') {
+    verifyHotColumnValues(dirPath, check);  // top-FNI hot columns not all-null
+    verifyBakeProducers(dirPath, check);    // bake-only binary producers non-empty + sane magic
 }
 
 db.close();
