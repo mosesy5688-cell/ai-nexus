@@ -721,6 +721,7 @@ jobs:
             output/cache/reports/
             output/cache/knowledge/
             output/cache/mesh/
+            output/cache/assertions/
           key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
 
   # V27.40: vfs-derived = sitemap-gen + RSS-gen + SQL-health + cache saves.
@@ -748,6 +749,7 @@ jobs:
             output/cache/reports/
             output/cache/knowledge/
             output/cache/mesh/
+            output/cache/assertions/
           key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-
