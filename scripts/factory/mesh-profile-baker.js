@@ -8,6 +8,7 @@ import path from 'path';
 import { normalizeId, getNodeSource, ALL_PREFIXES } from '../utils/id-normalizer.js';
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
 import { getRouteFromId, getTypeFromId } from '../../src/utils/mesh-routing-core.js';
+import { buildInverseAdjacency, projectReverseEdges } from './lib/reverse-edge-projector.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.zst');
@@ -38,6 +39,15 @@ async function main() {
 
         console.log(`[BAKER] Loaded ${nodeIds.length} nodes from graph.`);
 
+        // PR-2 reverse-edge projection: build the inverse adjacency ONCE (O(E))
+        // from the outgoing edge registry. inEdges[targetId] = [[sourceId, verb]],
+        // so a paper/benchmark can later emit the INBOUND view (CITED_BY /
+        // EVALUATED_BY / DEFINES) of edges that already exist one-directionally.
+        // No new facts: every reversed edge is a real outgoing edge seen from the
+        // other endpoint. Skip at 100M scale -> needs a streamed pass (not here).
+        const inEdges = buildInverseAdjacency(edgeRegistry);
+        let reverseCount = 0;
+
         const SHARD_SIZE = 1000;
         const shardDir = path.join(CACHE_DIR, 'mesh', 'profile-shards');
         await fs.mkdir(shardDir, { recursive: true });
@@ -66,16 +76,12 @@ async function main() {
             const entityRelations = edgeRegistry[nodeId] || [];
             const canonUrl = getRouteFromId(syncedId, typeValue);
 
-            const bakedRelations = entityRelations.map(rel => {
-                // V27.94 (A.2): Rust emits array-form edges [target_id, type, conf]
-                // (relations-generator.js addEdge). Reading rel.target/.type as object
-                // keys on an array yielded undefined -> degenerate {type:'model',icon}.
-                const isArr = Array.isArray(rel);
-                const targetIdRaw = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
-                const relType = isArr ? rel[1] : (rel.type || rel.t);
-                // array-form conf is 0-100 (addEdge Math.round(conf*100)); normalize to
-                // 0-1 to match object/source convention (frontend tests rel.confidence>0.8).
-                const conf = isArr ? (rel[2] != null ? rel[2] / 100 : undefined) : rel.confidence;
+            // bakeEdge: resolve ONE edge (target_id + verb + conf) to the baked
+            // relation shape (synced id, route url, name, icon). Shared by the
+            // OUTGOING edges below and the PR-2 reverse projection so a reversed
+            // edge is shaped identically (and resolve-filtered identically by the
+            // downstream distiller resolveMeshEdge against entity_lookup).
+            const bakeEdge = (targetIdRaw, relType, conf, objExtras = {}) => {
                 // BUGFIX: relType is the relation VERB (BASED_ON/TRAINED_ON/CITES/USES),
                 // NOT the target's entity TYPE. Passing the verb to getNodeSource/
                 // normalizeId/getRouteFromId made every non-model target route to
@@ -90,16 +96,39 @@ async function main() {
                 // name/icon may live under the synced id key (preserve prior fallback).
                 const nameNode = (registryNode.name || registryNode.displayName || registryNode.icon)
                     ? registryNode : (nodeRegistry[syncedTargetId] || registryNode);
-                const objExtras = isArr ? {} : rel;
                 return {
                     ...objExtras, url: bakedUrl,
-                    relation_type: relType || (isArr ? undefined : rel.relation_type),
-                    confidence: conf != null ? conf : (isArr ? undefined : rel.confidence),
+                    relation_type: relType,
+                    confidence: conf,
                     target_id: syncedTargetId || targetIdRaw,
-                    target_name: (isArr ? undefined : (rel.name || rel.target_name)) || nameNode.name || nameNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
-                    icon: (isArr ? undefined : rel.icon) || nameNode.icon || '📦'
+                    target_name: objExtras.name || objExtras.target_name || nameNode.name || nameNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
+                    icon: objExtras.icon || nameNode.icon || '📦'
                 };
+            };
+
+            const bakedRelations = entityRelations.map(rel => {
+                // V27.94 (A.2): Rust emits array-form edges [target_id, type, conf]
+                // (relations-generator.js addEdge). Reading rel.target/.type as object
+                // keys on an array yielded undefined -> degenerate {type:'model',icon}.
+                const isArr = Array.isArray(rel);
+                const targetIdRaw = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
+                const relType = (isArr ? rel[1] : (rel.type || rel.t)) || (isArr ? undefined : rel.relation_type);
+                // array-form conf is 0-100 (addEdge Math.round(conf*100)); normalize to
+                // 0-1 to match object/source convention (frontend tests rel.confidence>0.8).
+                const conf = isArr ? (rel[2] != null ? rel[2] / 100 : undefined) : rel.confidence;
+                return bakeEdge(targetIdRaw, relType, conf, isArr ? {} : rel);
             });
+
+            // PR-2: merge the INBOUND (reversed-verb) view of edges that already
+            // exist one-directionally. A paper an HF model CITES gains CITED_BY;
+            // a benchmark a model is EVALUATED_ON gains EVALUATED_BY; a benchmark's
+            // defining paper gains DEFINES. Deduped by (target_id, relation_type)
+            // against existing outgoing edges so bidirectional facts aren't doubled.
+            const reverseRelations = projectReverseEdges(
+                inEdges[nodeId], typeValue, bakedRelations,
+                (sourceId, verb) => bakeEdge(sourceId, verb, 1.0));
+            for (const rr of reverseRelations) bakedRelations.push(rr);
+            reverseCount += reverseRelations.length;
 
             shardBuffer.push({
                 id: syncedId,
@@ -115,7 +144,7 @@ async function main() {
         }
         await flushShard();
         if (skippedInvalid > 0) console.warn(`[BAKER] ⚠️ Skipped ${skippedInvalid} nodes with invalid IDs`);
-        console.log(`[BAKER] ✅ ${bakedCount} profiles → ${shardIndex} shards (${SHARD_SIZE}/shard).`);
+        console.log(`[BAKER] ✅ ${bakedCount} profiles → ${shardIndex} shards (${SHARD_SIZE}/shard); ${reverseCount} reverse-projected inbound edges.`);
     } catch (error) {
         console.error('[BAKER] ❌ Baking failed:', error.message);
         process.exit(1);
