@@ -21,7 +21,17 @@ const RELATION_STATS = {
     FEATURES: 0, TRENDING: 0, EXPLAIN: 0, FOLLOWS: 0
 };
 
-/** Add edge to edges map + update counts */
+/**
+ * Add edge to edges map + update counts.
+ *
+ * Edges are stored ONE-DIRECTIONALLY (edges[sourceId] only). The INBOUND view a
+ * paper/benchmark needs (CITED_BY / EVALUATED_BY / DEFINES of edges that already
+ * exist here) is reverse-projected downstream from the COMPLETE deduped graph in
+ * mesh-profile-baker.js (buildInverseAdjacency over graph.edges) — NOT here. This
+ * stage's `edges` map is consumed by mesh-graph-generator (Rust-FFI primary) which
+ * rebuilds graph.json.zst; an inverse built here would not survive that rebuild,
+ * so the baker is the runtime-correct chokepoint for PR-2 reverse projection.
+ */
 function addEdge(edges, counts, sourceId, targetId, relType, confidence = 1.0) {
     if (!edges[sourceId]) edges[sourceId] = [];
     edges[sourceId].push([targetId, relType, Math.round(confidence * 100)]);
