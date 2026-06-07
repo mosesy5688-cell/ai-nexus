@@ -13,81 +13,9 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
-/**
- * 1. Per-edge-type topology canary.
- *
- * verify-db's aggregate `topo > 0` passes on a SINGLE BASED_ON edge even if
- * CITES / TRAINED_ON / USES were all silently stripped by a projection bug
- * (exactly how EVALUATED_ON silent-zeroed invisibly until #2144). We assert each
- * CRITICAL relation class is independently present.
- * CRITICAL set = the four classes structurally guaranteed at corpus scale (every
- * cycle has model->dataset TRAINED_ON, paper CITES, model BASED_ON, tool/ecosystem
- * USES); EVALUATED_ON keeps its own dedicated check in verify-db. Rare/optional
- * classes (IMPLEMENTS, DEMO_OF, DEP) are EXCLUDED: they can legitimately be 0.
- */
-const CRITICAL_EDGE_TYPES = ['BASED_ON', 'TRAINED_ON', 'CITES', 'USES'];
-const TOPOLOGY = new Set(['BASED_ON', 'TRAINED_ON', 'CITES', 'USES', 'IMPLEMENTS', 'DEMO_OF', 'DEP', 'EVALUATED_ON']);
-
-function verifyEdgeTypeTopology(graph, check) {
-    const counts = Object.create(null);
-    for (const list of Object.values(graph.edges || {})) {
-        for (const e of (Array.isArray(list) ? list : [])) {
-            const t = ((Array.isArray(e) ? e[1] : (e.type || e.relation_type)) || '').toUpperCase();
-            if (!t) continue;
-            counts[t] = (counts[t] || 0) + 1;
-        }
-    }
-    for (const t of CRITICAL_EDGE_TYPES) {
-        const n = counts[t] || 0;
-        // Floor is > 0 (not a ratio): at real corpus scale each class numbers in
-        // the thousands, so 0 unambiguously means the whole class was stripped.
-        check(`Edge: ${t}`, n > 0, `${n} edges (need > 0)`);
-    }
-}
-
-/**
- * V27.94 (A.3) mesh relation-content canary + per-edge-type extension (#audit
- * 2026-06-06): aggregate topology + EVALUATED_ON + each critical class > 0, plus
- * a degeneracy check over top-FNI ui_related_mesh. Moved here from verify-db.js
- * (CES 250) — `database`/`check` are passed in rather than module-scoped.
- */
-export function verifyRelationContent(database, hasMeshGraph, check) {
-    if (hasMeshGraph) {
-        try {
-            const graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
-            let topo = 0, total = 0, evalOn = 0;
-            for (const list of Object.values(graph.edges || {})) {
-                for (const e of (Array.isArray(list) ? list : [])) {
-                    total++;
-                    const t = ((Array.isArray(e) ? e[1] : (e.type || e.relation_type)) || '').toUpperCase();
-                    if (TOPOLOGY.has(t)) topo++; if (t === 'EVALUATED_ON') evalOn++; // EVALUATED_ON dedicated count
-                }
-            }
-            check('Mesh Topology Edges', topo > 0, `${topo} topology / ${total} total (need > 0)`);
-            check('EVALUATED_ON edges', evalOn > 0, `${evalOn} model-benchmark (need > 0)`);
-            verifyEdgeTypeTopology(graph, check); // per-class: catch a whole relation type silent-zeroing
-        } catch (e) {
-            check('Mesh Topology Edges', false, `mesh_graph parse failed: ${e.message.slice(0, 40)}`);
-        }
-    }
-    // Degeneracy: sample top-FNI rows; degenerate = unresolved (no id / name===id / _unresolved).
-    try {
-        const rows = database.prepare("SELECT ui_related_mesh AS m FROM entities WHERE ui_related_mesh IS NOT NULL AND ui_related_mesh != '[]' ORDER BY fni_score DESC LIMIT 500").all();
-        let relCount = 0, degen = 0;
-        for (const r of rows) {
-            let arr; try { arr = JSON.parse(r.m); } catch { continue; }
-            for (const rel of (Array.isArray(arr) ? arr : [])) {
-                relCount++;
-                if (rel?._unresolved || !rel?.id || rel.name == null || rel.name === rel.id) degen++;
-            }
-        }
-        if (relCount < 50) { console.log(`[VERIFY] Mesh Degeneracy: skipped (${relCount} sampled < 50 floor)`); return; }
-        const ratio = degen / relCount;
-        check('Mesh Degeneracy', ratio <= 0.20, `${(ratio * 100).toFixed(1)}% degenerate of ${relCount} (limit: 20%)`);
-    } catch (e) {
-        console.log(`[VERIFY] Mesh Degeneracy: skipped (${e.message.slice(0, 40)})`);
-    }
-}
+// Mesh topology + PR-1 resolution canary lives in its own module (CES 250);
+// re-exported so verify-db.js keeps importing it from here.
+export { verifyRelationContent } from './verify-mesh-canary.js';
 
 /**
  * 2. Value-canary for high-value hot columns.
