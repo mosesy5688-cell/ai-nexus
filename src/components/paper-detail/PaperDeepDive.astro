@@ -1,9 +1,12 @@
 ---
+import PaperGraphSections from './PaperGraphSections.astro';
+
 interface Props {
   paper: any;
+  meshRelations?: any[];
 }
 
-const { paper } = Astro.props;
+const { paper, meshRelations = [] } = Astro.props;
 
 // BibTeX generation. V27.A6/R7: the `journal` line must use the real arxiv id
 // (now reliably derived in the hydrator from the slug/id) and must NEVER emit
@@ -114,5 +117,10 @@ const paperSourceUrl = paper?.source_url
       </a>
     </section>
   )}
-</div>
+
+  <!-- Section: Graph-Centric Enrichment (Lock#5: delete full text + ADD structure) -->
+  <!-- Connected Entities (navigable graph) + Research Signals + Topics, sourced
+       from the paper's real mesh/relation graph and factual metadata. Renders
+       only sections that have real data (honest empty-omit, never filler). -->
+  <PaperGraphSections paper={paper} meshRelations={meshRelations} />
 </div>
