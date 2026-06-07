@@ -2,10 +2,12 @@
  * Ar5iv Full-Text HTML Fetcher
  * V25.8: Deep Paper enrichment via ar5iv.labs.arxiv.org
  *
- * Fetches semantic HTML renderings of ArXiv papers for:
- * - Full-text search indexing (FTS5)
- * - Knowledge mesh keyword extraction
- * - SEO-rich body_content generation
+ * LEGAL-RESILIENCE L1 (Papers Abstract-Only, 2026-06-06): the fetched full text
+ * is a TRANSIENT in-pipeline DERIVATION input ONLY. arxiv-adapter.normalize()
+ * uses it in-process to mine datasets_used + has_code/relation edges, then
+ * DISCARDS it — it is NEVER persisted into body_content / the packed cold .bin,
+ * and NEVER served to humans or the public API. "Raw Content = Fuel; Structure
+ * = Asset": the full paper body is fuel, not a stored/served asset.
  *
  * Rate-limited to respect ar5iv infrastructure (5s between requests).
  */

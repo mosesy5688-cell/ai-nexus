@@ -1,9 +1,12 @@
 ---
+import PaperGraphSections from './PaperGraphSections.astro';
+
 interface Props {
   paper: any;
+  meshRelations?: any[];
 }
 
-const { paper } = Astro.props;
+const { paper, meshRelations = [] } = Astro.props;
 
 // BibTeX generation. V27.A6/R7: the `journal` line must use the real arxiv id
 // (now reliably derived in the hydrator from the slug/id) and must NEVER emit
@@ -27,7 +30,13 @@ ${sourceLine}
 };
 
 const bibtex = generateBibTeX(paper);
-import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
+
+// LEGAL-RESILIENCE L1 (Papers Abstract-Only, 2026-06-06): we no longer render
+// the full third-party paper body (ar5iv full_html). Papers serve abstract +
+// factual metadata + a primary "Read the full paper on arXiv" link to the
+// official source. Official-Source is the primary CTA for papers (slice of L4).
+const paperSourceUrl = paper?.source_url
+  || (paper?.arxiv_id ? `https://arxiv.org/abs/${paper.arxiv_id}` : null);
 ---
 
 <div class="space-y-12">
@@ -84,15 +93,34 @@ import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
     </section>
   )}
 
-  <!-- Section: Full Analysis (Markdown Content) -->
-  <div class="relative">
-     <div class="absolute -left-6 top-10 w-1 bg-indigo-500/20 h-24 rounded-full blur-sm"></div>
-     <FullReadmeSection 
-       bodyContent={paper.html_readme || paper.body_content || paper.abstract || paper.description}
-       type="paper"
-       initialCollapsed={false}
-       maxPreviewLength={5000}
-     />
-  </div>
-</div>
+  <!-- Section: Official Source (primary CTA) -->
+  <!-- L1 Papers Abstract-Only: full paper body is NOT reproduced here. We index
+       the abstract + factual metadata and drive traffic to the official source. -->
+  {paperSourceUrl && (
+    <section class="bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)] relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-600/20"></div>
+      <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+         <span>🔗</span> Full Paper
+      </h2>
+      <p class="text-sm text-zinc-600 dark:text-zinc-400 mb-6 leading-relaxed">
+        Free2AITools indexes the abstract and factual metadata for this paper.
+        Read the complete, authoritative paper on the official source.
+      </p>
+      <a
+        href={paperSourceUrl}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-sm text-xs font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg"
+      >
+        Read the full paper on arXiv
+        <span aria-hidden="true">→</span>
+      </a>
+    </section>
+  )}
+
+  <!-- Section: Graph-Centric Enrichment (Lock#5: delete full text + ADD structure) -->
+  <!-- Connected Entities (navigable graph) + Research Signals + Topics, sourced
+       from the paper's real mesh/relation graph and factual metadata. Renders
+       only sections that have real data (honest empty-omit, never filler). -->
+  <PaperGraphSections paper={paper} meshRelations={meshRelations} />
 </div>

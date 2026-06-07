@@ -8,7 +8,9 @@
  * SELECT * WHERE id/slug/umid IN (candidate forms) LIMIT 1 per shard.
  * Projection (60 raw cols -> ~30 Agent fields) lives in entity-projection.ts.
  * ?include=body lazy-loads readme_html from the .bin fused-shard (cold tier)
- * via packet-loader.fetchBundleReadme.
+ * via packet-loader.fetchBundleReadme. EXCEPTION (legal-resilience L1): for
+ * type=paper, ?include=body never returns the full paper body — abstract +
+ * metadata + official source only (see the isPaper gate below).
  */
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
@@ -145,7 +147,16 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         }
 
         const entity = projectEntity(row);
-        if (includeBody) {
+        // LEGAL-RESILIENCE L1 (Papers Abstract-Only, 2026-06-06): never return the
+        // full third-party paper body to Agents. The abstract already ships in the
+        // warm projection (entity.summary/description); ?include=body for a paper
+        // returns no readme_html, only the official source. Existing papers baked
+        // before the producer change still carry full text in the cold .bin, so we
+        // gate at SERVE time here (effective immediately) regardless of bake state.
+        const isPaper = row.type === 'paper';
+        if (includeBody && isPaper) {
+            entity.body = { readme_html: null, has_fulltext: false, source_url: entity.links?.source_url ?? null };
+        } else if (includeBody) {
             if (row.bundle_key && row.bundle_size > 0) {
                 try {
                     const bundleData = await fetchBundleReadme(row.bundle_key, row.bundle_offset, row.bundle_size);

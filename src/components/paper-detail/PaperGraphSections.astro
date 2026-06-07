@@ -1,0 +1,249 @@
+---
+/**
+ * PaperGraphSections - Graph-centric enrichment for the paper detail page.
+ *
+ * LEGAL-RESILIENCE L1 / Lock#5 ("delete full text + ADD structure"): the paper
+ * no longer reproduces the ar5iv body; value comes from the GRAPH + factual
+ * metadata, surfaced HONESTLY. Three sections, each omitted when empty:
+ * Connected Entities (mesh neighbours that RESOLVE to a real node, each LINKING
+ * to its page); Research Signals (citations / date / FNI pillars / category,
+ * each only when real); Research Topics (tasks / tags + concept labels as
+ * plain non-linked chips).
+ *
+ * NO FAKE DENSITY (ratified): `paper.relations.related` is the `ui_related_mesh`
+ * projection — for papers ENTIRELY the knowledge-linker's EXPLAINS concept
+ * stubs (target_type 'knowledge' / `knowledge--` slugs from a ~50-word dict)
+ * that 404 (not real nodes). The producer (v25-distiller.js:224-228) writes NO
+ * resolved-vs-stub marker, so stubs and real edges are indistinguishable per
+ * item in `relations.related`; we therefore NEVER link it (its items become
+ * non-linked Topic chips). Connected Entities is built ONLY from the real mesh
+ * stream (mesh_profile.relations) with concept edges (EXPLAINS / type
+ * 'knowledge') filtered OUT — every rendered link routes to a real entity,
+ * zero 404s, zero fabricated edges.
+ */
+import { getRouteFromId as routeFromId, stripPrefix } from '../../utils/mesh-routing-core.js';
+
+// The .js helper accepts a type string at runtime; wrap once so call sites stay
+// type-clean (its inferred param type is null|undefined) without per-call casts.
+const getRouteFromId = (id: string, type: string): string =>
+  (routeFromId as (id: string, type?: any) => string)(id, type);
+
+interface Props {
+  paper: any;
+  meshRelations?: any[];
+}
+
+const { paper, meshRelations = [] } = Astro.props;
+
+// ── Connected Entities (the navigable graph) ───────────────────────────────
+// A "concept stub" (never a real node, 404s) = EXPLAINS edge / knowledge|concept
+// target type / `knowledge--`|`concept--` id. See header NO FAKE DENSITY note.
+const isConceptEdge = (type: any, rel: any, id: any): boolean => {
+  const r = typeof rel === 'string' ? rel.toUpperCase() : '';
+  if (r === 'EXPLAINS') return true;
+  const t = typeof type === 'string' ? type.toLowerCase() : '';
+  if (t === 'knowledge' || t === 'concept') return true;
+  const i = typeof id === 'string' ? id.toLowerCase() : '';
+  return i.startsWith('knowledge--') || i.startsWith('concept--');
+};
+const labelOf = (id: string, name: any): string =>
+  (typeof name === 'string' && name.trim())
+    ? name.trim()
+    : (stripPrefix(id).split('--').pop()?.replace(/-/g, ' ') || stripPrefix(id));
+
+// Links come ONLY from the real mesh stream (concept edges filtered out);
+// relations.related (ui_related_mesh) is demoted to Topics, never linked.
+const rawMesh = Array.isArray(meshRelations) ? meshRelations : [];
+const rawRelated = Array.isArray(paper?.relations?.related) ? paper.relations.related : [];
+
+type Neighbour = { id: string; name: string; type: string; rel?: string };
+const seen = new Set<string>();
+const neighbours: Neighbour[] = [];
+const conceptLabels: string[] = [];
+const addConceptLabel = (label: string) => {
+  const v = label.trim();
+  if (v && !conceptLabels.some((c) => c.toLowerCase() === v.toLowerCase())) conceptLabels.push(v);
+};
+rawMesh.forEach((r: any) => {
+  const id = r?.target_id;
+  if (typeof id !== 'string' || !id) return;
+  if (isConceptEdge(r?.target_type, r?.relation_type, id)) {
+    addConceptLabel(labelOf(id, r?.target_name));
+    return;
+  }
+  const key = stripPrefix(id);
+  if (!key || seen.has(key)) return;
+  seen.add(key);
+  neighbours.push({
+    id,
+    type: typeof r?.target_type === 'string' && r.target_type ? r.target_type : 'model',
+    name: labelOf(id, r?.target_name),
+    rel: typeof r?.relation_type === 'string' ? r.relation_type : undefined,
+  });
+});
+rawRelated.forEach((r: any) => {
+  if (typeof r?.id === 'string' && r.id) addConceptLabel(labelOf(r.id, r?.name));
+});
+
+const typeMeta: Record<string, { icon: string; label: string }> = {
+  model: { icon: '🧠', label: 'Models' },
+  dataset: { icon: '📊', label: 'Datasets' },
+  paper: { icon: '📄', label: 'Papers' },
+  space: { icon: '🎮', label: 'Spaces' },
+  tool: { icon: '🔧', label: 'Tools' },
+  agent: { icon: '🤖', label: 'Agents' },
+  benchmark: { icon: '🏁', label: 'Benchmarks' },
+  knowledge: { icon: '💡', label: 'Concepts' },
+};
+
+// Preserve a stable display order; group by type, drop empty groups.
+const typeOrder = ['model', 'dataset', 'paper', 'space', 'tool', 'agent', 'benchmark', 'knowledge'];
+const grouped = typeOrder
+  .map((t) => ({ type: t, items: neighbours.filter((n) => (typeMeta[n.type] ? n.type : 'knowledge') === t) }))
+  .filter((g) => g.items.length > 0);
+const hasNeighbours = neighbours.length > 0;
+
+// ── Research Signals (factual metrics; honest — only real values render) ────
+const citationCount = Number(paper?.citations ?? paper?.citation_count);
+const hasCitations = Number.isFinite(citationCount) && citationCount > 0;
+
+const publishedYear = (() => {
+  const raw = paper?.published_date || paper?.published_year;
+  if (!raw) return null;
+  const y = new Date(raw).getFullYear();
+  if (Number.isFinite(y) && y > 1900 && y <= new Date().getFullYear() + 1) return y;
+  // published_year may already be a bare year
+  const n = Number(paper?.published_year);
+  return Number.isFinite(n) && n > 1900 ? n : null;
+})();
+
+const fniA = Number(paper?.fni_a);
+const fniR = Number(paper?.fni_r);
+const fniQ = Number(paper?.fni_q);
+const fniANotMeasured = !!paper?.fni_a_not_measured;
+const num = (v: number) => Number.isFinite(v) && v > 0;
+
+const signals: { label: string; value: string; sub?: string; icon: string }[] = [];
+if (hasCitations) {
+  signals.push({ icon: '📈', label: 'Citations', value: citationCount.toLocaleString(), sub: 'Semantic Scholar' });
+}
+if (publishedYear) {
+  signals.push({ icon: '📅', label: 'Published', value: String(publishedYear) });
+}
+if (num(fniA) && !fniANotMeasured) {
+  signals.push({ icon: '🏛️', label: 'Authority', value: Math.round(fniA).toString(), sub: 'FNI pillar' });
+}
+if (num(fniR)) {
+  signals.push({ icon: '⏱️', label: 'Recency', value: Math.round(fniR).toString(), sub: 'FNI pillar' });
+}
+if (num(fniQ)) {
+  signals.push({ icon: '✅', label: 'Quality', value: Math.round(fniQ).toString(), sub: 'FNI pillar' });
+}
+const primaryCategory = paper?.primary_category || paper?.category || null;
+if (primaryCategory) {
+  signals.push({ icon: '🗂️', label: 'Field', value: String(primaryCategory).replace(/[-_]/g, ' ') });
+}
+const hasSignals = signals.length > 0;
+
+// ── Research Topics (tasks / tags; only real entries) ──────────────────────
+const topics: string[] = [];
+const pushTopics = (arr: any) => {
+  if (!Array.isArray(arr)) return;
+  arr.forEach((t) => {
+    if (typeof t !== 'string') return;
+    const v = t.trim();
+    // skip generic placeholder tags that carry no discovery value
+    if (!v || ['paper', 'research', 'academic'].includes(v.toLowerCase())) return;
+    if (!topics.includes(v)) topics.push(v);
+  });
+};
+pushTopics(paper?.task_categories);
+pushTopics(paper?.tags);
+if (paper?.pipeline_tag && typeof paper.pipeline_tag === 'string') pushTopics([paper.pipeline_tag]);
+// Non-resolvable concept stubs -> plain labels here, NOT routes (No Fake Density).
+pushTopics(conceptLabels);
+const hasTopics = topics.length > 0;
+const topicsShown = topics.slice(0, 16);
+---
+
+{(hasNeighbours || hasSignals || hasTopics) && (
+  <div class="space-y-12">
+
+    {/* Research Signals — factual metrics, honest (only real values render) */}
+    {hasSignals && (
+      <section class="bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)] relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-600/20"></div>
+        <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <span>📊</span> Research Signals
+        </h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {signals.map((s) => (
+            <div class="bg-[var(--bg-canvas)] rounded-sm p-4 border border-[var(--border-hairline)] flex flex-col gap-1">
+              <span class="text-base">{s.icon}</span>
+              <span class="text-lg font-black text-zinc-900 dark:text-white tracking-tight leading-none truncate" title={s.value}>{s.value}</span>
+              <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{s.label}</span>
+              {s.sub && <span class="text-[8px] text-zinc-400 uppercase tracking-wider">{s.sub}</span>}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* Connected Entities — the navigable graph (route surface) */}
+    {hasNeighbours && (
+      <section class="bg-[var(--bg-surface)] rounded-sm p-8 border border-[var(--border-hairline)] relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-600/20"></div>
+        <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+          <span>🕸️</span> Connected Entities
+        </h2>
+        <p class="text-[11px] text-zinc-500 dark:text-zinc-400 mb-6">
+          Models, datasets and papers this work is linked to in the knowledge graph. Follow a node to route into it.
+        </p>
+        <div class="space-y-8">
+          {grouped.map((g) => (
+            <div>
+              <h3 class="text-[10px] font-black text-zinc-600 dark:text-zinc-300 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                <span>{typeMeta[g.type]?.icon || '📎'}</span>
+                {typeMeta[g.type]?.label || g.type} ({g.items.length})
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {g.items.map((n) => (
+                  <a
+                    href={getRouteFromId(n.id, n.type)}
+                    class="group flex items-center justify-between gap-3 p-2.5 bg-[var(--bg-canvas)] rounded-sm border border-[var(--border-hairline)] hover:border-indigo-500 transition-colors"
+                  >
+                    <div class="flex items-center gap-3 min-w-0">
+                      <span class="text-lg grayscale group-hover:grayscale-0 transition-all">{typeMeta[n.type]?.icon || '📎'}</span>
+                      <div class="flex flex-col min-w-0">
+                        <span class="text-xs font-black text-zinc-800 dark:text-zinc-200 truncate tracking-tight">{n.name}</span>
+                        <span class="text-[8px] font-black text-zinc-400 uppercase tracking-widest">{n.rel ? n.rel.replace(/_/g, ' ') : n.type}</span>
+                      </div>
+                    </div>
+                    <span class="text-zinc-300 group-hover:text-indigo-500 transition-colors text-xs" aria-hidden="true">→</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {/* Research Topics — tasks / tags, only when real */}
+    {hasTopics && (
+      <section class="bg-[var(--bg-canvas)] rounded-sm p-8 border border-[var(--border-hairline)]">
+        <h2 class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <span>🏷️</span> Research Topics
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          {topicsShown.map((t) => (
+            <span class="px-3 py-1 bg-[var(--bg-surface)] text-zinc-300 rounded-sm text-xs font-bold border border-[var(--border-hairline)] capitalize">
+              {t.replace(/[-_]/g, ' ')}
+            </span>
+          ))}
+        </div>
+      </section>
+    )}
+
+  </div>
+)}
