@@ -6,6 +6,7 @@ import { promoteFniPillars } from './fni-pillar-overlay.js';
 import { deriveTaskCategories } from './task-classifier.js';
 import { deriveArchitectureFromTags } from './arch-derivation.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { getTypeFromId } from '../../../src/utils/mesh-routing-core.js';
 import { resolveMeshEdge } from './mesh-resolve-filter.js';
 import { bodyForStore } from './content-policy.js';
 
@@ -206,18 +207,25 @@ export function distillEntity(e, pBillions, entityLookup) {
         ? e.relations : (e.mesh_profile?.relations || []);
     const meshNodes = [];
     for (const rel of relations) {
-        // V27.94 (A.2): tolerate Rust array-form edges [target_id, type, conf]
-        // (relations-generator.js addEdge). Reading rel.target/.type as object keys
-        // on an array yielded undefined -> degenerate {type:'model',icon} nodes.
+        // V27.94 (A.2): tolerate Rust array-form edges [target_id, relType, conf].
+        // rel[1] / rel.type / rel.relation_type is the relation VERB (CITES/...),
+        // NOT the target's entity type.
         const isArr = Array.isArray(rel);
         const rawTarget = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
-        const type = (isArr ? rel[1] : (rel.type || rel.t)) || 'model';
-        const targetType = isArr ? undefined : (rel.target_type || rel.tt);
-        // Canonicalize the stripped target before lookup; mirrors
-        // relation-extractors.js:42-44 / mesh-profile-baker.js:80.
-        const targetId = normalizeId(rawTarget, getNodeSource(rawTarget, type), type) || rawTarget;
-        // DROP on miss or concept-stub; KEEP only resolved real entities (null => drop).
-        const node = resolveMeshEdge(targetId, type, entityLookup.get(targetId), { targetType });
+        const relType = (isArr ? rel[1] : (rel.type || rel.t || rel.relation_type)) || 'RELATED';
+        // reverse-edge-target-type: canonicalize against the REAL target entity type,
+        // never the verb. The baker now emits target_type (mesh-profile-baker bakeEdge);
+        // fall back to the id prefix. Before this, baked/reverse-projected edges
+        // defaulted to 'model' -> normalizeId re-canonicalized knowledge/concept|paper|
+        // dataset|benchmark as hf-model-- (#2158: 19 concept stubs + non-model drops).
+        const targetType = (isArr ? undefined : (rel.target_type || rel.tt))
+            || getTypeFromId(rawTarget) || 'model';
+        // Canonicalize the stripped target before lookup; mirrors mesh-profile-baker.
+        const targetId = normalizeId(rawTarget, getNodeSource(rawTarget, targetType), targetType) || rawTarget;
+        // DROP on miss/concept-stub; KEEP resolved real entities. Pass the real
+        // target_type so the stub-gate detects knowledge/concept by type (not only by
+        // id prefix, which normalizeId would erase).
+        const node = resolveMeshEdge(targetId, relType, entityLookup.get(targetId), { targetType });
         if (node) meshNodes.push(node);
     }
     e.ui_related_mesh = JSON.stringify(meshNodes);

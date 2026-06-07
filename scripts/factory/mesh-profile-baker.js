@@ -99,6 +99,13 @@ async function main() {
                 return {
                     ...objExtras, url: bakedUrl,
                     relation_type: relType,
+                    // PR reverse-edge-target-type: emit the real target entity TYPE
+                    // (model/paper/dataset/benchmark/concept) alongside the verb.
+                    // Without it the distiller defaulted every baked/reverse-projected
+                    // edge to 'model', re-canonicalizing knowledge/concept|paper|dataset|
+                    // benchmark targets as hf-model-- (#2158 canary: 19 concept stubs +
+                    // silent drop of non-model reverse targets on lookup-miss).
+                    target_type: targetType,
                     confidence: conf,
                     target_id: syncedTargetId || targetIdRaw,
                     target_name: objExtras.name || objExtras.target_name || nameNode.name || nameNode.displayName || (syncedTargetId ? syncedTargetId.split('--').pop() : 'Unknown'),
