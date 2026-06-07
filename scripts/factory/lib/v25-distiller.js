@@ -6,19 +6,7 @@ import { promoteFniPillars } from './fni-pillar-overlay.js';
 import { deriveTaskCategories } from './task-classifier.js';
 import { deriveArchitectureFromTags } from './arch-derivation.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
-
-// V27.94 (3rd-diag) ROOT fix: mesh relation TARGETS arrive stripped while entity_lookup is
-// keyed by the CANONICAL prefixed id, so a genuine miss must still yield a node whose
-// name !== id (verify-db flags name===id as degenerate). Humanize the last '--' segment
-// (swap -/_ for spaces, title-case) as a readable label only; never invents the relationship.
-function humanizeMeshName(rawId) {
-    if (typeof rawId !== 'string' || !rawId) return null;
-    const seg = rawId.includes('--') ? rawId.split('--').pop() : rawId;
-    const words = seg.replace(/[-_]+/g, ' ').trim();
-    if (!words) return null;
-    const titled = words.replace(/\b\w/g, (c) => c.toUpperCase());
-    return titled;
-}
+import { resolveMeshEdge } from './mesh-resolve-filter.js';
 
 let isMarkedConfigured = false;
 let sanitizeConfig = null;
@@ -202,33 +190,33 @@ export function distillEntity(e, pBillions, entityLookup) {
     }
 
     // V25.1 Mesh Pre-joining. V27.94 ROOT fix: canonicalize each relation target before the
-    // entity_lookup .get() (target arrives STRIPPED, lookup keyed by CANONICAL id -> old code
-    // missed 100% -> degenerate nodes); miss writes a humanized name (no _unresolved, see below).
+    // entity_lookup .get() (target arrives STRIPPED, lookup keyed by CANONICAL id).
+    // PR-1 (No-Fake-Density-at-source): RESOLVE-FILTER. A served edge must point at a
+    // real, packed, provenanced node — never a fabricated 404. On an entity_lookup MISS
+    // (or a concept/knowledge stub: EXPLAINS verb, knowledge|concept target type, or a
+    // knowledge--/concept-- id) we DROP the edge instead of keeping a humanized stub.
+    // The fake humanized density was a workaround for the degeneracy canary; the canary
+    // now accepts honest sparsity (verify-canaries.js) so the workaround is removed.
     // V27.73: check non-empty (not just isArray) — adapters init relations=[] (mesh branch was dead).
     const relations = (Array.isArray(e.relations) && e.relations.length > 0)
         ? e.relations : (e.mesh_profile?.relations || []);
-    e.ui_related_mesh = JSON.stringify(relations.map(rel => {
+    const meshNodes = [];
+    for (const rel of relations) {
         // V27.94 (A.2): tolerate Rust array-form edges [target_id, type, conf]
         // (relations-generator.js addEdge). Reading rel.target/.type as object keys
         // on an array yielded undefined -> degenerate {type:'model',icon} nodes.
         const isArr = Array.isArray(rel);
         const rawTarget = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
         const type = (isArr ? rel[1] : (rel.type || rel.t)) || 'model';
-        // Canonicalize the stripped target before lookup (see ROOT fix note above);
-        // mirrors relation-extractors.js:42-44 / mesh-profile-baker.js:80.
+        const targetType = isArr ? undefined : (rel.target_type || rel.tt);
+        // Canonicalize the stripped target before lookup; mirrors
+        // relation-extractors.js:42-44 / mesh-profile-baker.js:80.
         const targetId = normalizeId(rawTarget, getNodeSource(rawTarget, type), type) || rawTarget;
-        const t = entityLookup.get(targetId);
-        if (t && t.name) {
-            return { id: targetId, type, name: t.name, icon: t.icon || '📦' };
-        }
-        // MISS: knowledge concepts / hub tools (EXPLAINS, ~597K of ~947K edges) are NOT
-        // streamed into entity_lookup so never resolve. Supply a humanized display name
-        // (non-degenerate, name !== id) — truthful label only, never invents the edge.
-        // No _unresolved marker: verify-db counts it as degenerate and the fixup post-pass
-        // can't resolve a never-streamed target, so it would pin ~63% degenerate + fail.
-        const name = humanizeMeshName(rawTarget) || targetId;
-        return { id: targetId, type, name, icon: '📦' };
-    }));
+        // DROP on miss or concept-stub; KEEP only resolved real entities (null => drop).
+        const node = resolveMeshEdge(targetId, type, entityLookup.get(targetId), { targetType });
+        if (node) meshNodes.push(node);
+    }
+    e.ui_related_mesh = JSON.stringify(meshNodes);
 
     // V25.1 Distillation: Search Vector Normalization
     const category = e.category || '';
