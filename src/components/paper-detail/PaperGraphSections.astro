@@ -3,30 +3,28 @@
  * PaperGraphSections - Graph-centric enrichment for the paper detail page.
  *
  * LEGAL-RESILIENCE L1 / Lock#5 ("delete full text + ADD structure"): the paper
- * page no longer reproduces the third-party ar5iv body. To keep the page RICH
- * (not bare), the value now comes from the GRAPH and the paper's own factual
- * metadata, surfaced HONESTLY:
- *   - Connected Entities: the paper's real mesh neighbours (models / datasets /
- *     papers it is linked to), each LINKING to that entity's page. This is the
- *     "route" surface — the graph becomes navigable. Rendered ONLY when the
- *     paper actually has neighbours (sparse papers omit it, never filler).
- *   - Research Signals: the factual metrics papers reliably carry — citation
- *     impact, published date, FNI authority/recency/quality, primary category.
- *     Each cell renders ONLY when the value is real (null/0-not-measured omit).
- *   - Research Topics: task categories / tags, rendered only when present.
+ * no longer reproduces the ar5iv body; value comes from the GRAPH + factual
+ * metadata, surfaced HONESTLY. Three sections, each omitted when empty:
+ * Connected Entities (mesh neighbours that RESOLVE to a real node, each LINKING
+ * to its page); Research Signals (citations / date / FNI pillars / category,
+ * each only when real); Research Topics (tasks / tags + concept labels as
+ * plain non-linked chips).
  *
- * NORTH STAR (evidence-chain, not fabrication): we surface the REAL graph and
- * REAL metadata. No section is shown with invented data; a paper with no
- * neighbours simply does not get a "Connected Entities" block. The big mesh
- * visualiser + Connectivity Matrix still live above in the core-knowledge slot
- * (UniversalCore); this is the compact, inline deep-dive surface, not a
- * duplicate of that island.
+ * NO FAKE DENSITY (ratified): `paper.relations.related` is the `ui_related_mesh`
+ * projection — for papers ENTIRELY the knowledge-linker's EXPLAINS concept
+ * stubs (target_type 'knowledge' / `knowledge--` slugs from a ~50-word dict)
+ * that 404 (not real nodes). The producer (v25-distiller.js:224-228) writes NO
+ * resolved-vs-stub marker, so stubs and real edges are indistinguishable per
+ * item in `relations.related`; we therefore NEVER link it (its items become
+ * non-linked Topic chips). Connected Entities is built ONLY from the real mesh
+ * stream (mesh_profile.relations) with concept edges (EXPLAINS / type
+ * 'knowledge') filtered OUT — every rendered link routes to a real entity,
+ * zero 404s, zero fabricated edges.
  */
 import { getRouteFromId as routeFromId, stripPrefix } from '../../utils/mesh-routing-core.js';
 
-// The .js helper's inferred param type is `null | undefined`; it accepts a type
-// string at runtime (proven by MeshRelationMatrix/parent page usage). Wrap once
-// so the call sites stay type-clean without sprinkling casts.
+// The .js helper accepts a type string at runtime; wrap once so call sites stay
+// type-clean (its inferred param type is null|undefined) without per-call casts.
 const getRouteFromId = (id: string, type: string): string =>
   (routeFromId as (id: string, type?: any) => string)(id, type);
 
@@ -38,32 +36,54 @@ interface Props {
 const { paper, meshRelations = [] } = Astro.props;
 
 // ── Connected Entities (the navigable graph) ───────────────────────────────
-// Two honest sources, both already on the page-side object: the mesh stream
-// (meshRelations, target_id/target_type shape) and the projected relation list
-// (paper.relations.related, id/type shape). Normalise to a single shape and
-// dedupe; render ONLY real neighbours.
+// A "concept stub" (never a real node, 404s) = EXPLAINS edge / knowledge|concept
+// target type / `knowledge--`|`concept--` id. See header NO FAKE DENSITY note.
+const isConceptEdge = (type: any, rel: any, id: any): boolean => {
+  const r = typeof rel === 'string' ? rel.toUpperCase() : '';
+  if (r === 'EXPLAINS') return true;
+  const t = typeof type === 'string' ? type.toLowerCase() : '';
+  if (t === 'knowledge' || t === 'concept') return true;
+  const i = typeof id === 'string' ? id.toLowerCase() : '';
+  return i.startsWith('knowledge--') || i.startsWith('concept--');
+};
+const labelOf = (id: string, name: any): string =>
+  (typeof name === 'string' && name.trim())
+    ? name.trim()
+    : (stripPrefix(id).split('--').pop()?.replace(/-/g, ' ') || stripPrefix(id));
+
+// Links come ONLY from the real mesh stream (concept edges filtered out);
+// relations.related (ui_related_mesh) is demoted to Topics, never linked.
 const rawMesh = Array.isArray(meshRelations) ? meshRelations : [];
 const rawRelated = Array.isArray(paper?.relations?.related) ? paper.relations.related : [];
 
 type Neighbour = { id: string; name: string; type: string; rel?: string };
 const seen = new Set<string>();
 const neighbours: Neighbour[] = [];
-const pushNeighbour = (id: any, type: any, name: any, rel?: any) => {
+const conceptLabels: string[] = [];
+const addConceptLabel = (label: string) => {
+  const v = label.trim();
+  if (v && !conceptLabels.some((c) => c.toLowerCase() === v.toLowerCase())) conceptLabels.push(v);
+};
+rawMesh.forEach((r: any) => {
+  const id = r?.target_id;
   if (typeof id !== 'string' || !id) return;
+  if (isConceptEdge(r?.target_type, r?.relation_type, id)) {
+    addConceptLabel(labelOf(id, r?.target_name));
+    return;
+  }
   const key = stripPrefix(id);
   if (!key || seen.has(key)) return;
   seen.add(key);
   neighbours.push({
     id,
-    type: typeof type === 'string' && type ? type : 'model',
-    name: (typeof name === 'string' && name.trim())
-      ? name
-      : key.split('--').pop()?.replace(/-/g, ' ') || key,
-    rel: typeof rel === 'string' ? rel : undefined,
+    type: typeof r?.target_type === 'string' && r.target_type ? r.target_type : 'model',
+    name: labelOf(id, r?.target_name),
+    rel: typeof r?.relation_type === 'string' ? r.relation_type : undefined,
   });
-};
-rawMesh.forEach((r: any) => pushNeighbour(r?.target_id, r?.target_type, r?.target_name, r?.relation_type));
-rawRelated.forEach((r: any) => pushNeighbour(r?.id, r?.type, r?.name, r?.link_type || r?.relation_type));
+});
+rawRelated.forEach((r: any) => {
+  if (typeof r?.id === 'string' && r.id) addConceptLabel(labelOf(r.id, r?.name));
+});
 
 const typeMeta: Record<string, { icon: string; label: string }> = {
   model: { icon: '🧠', label: 'Models' },
@@ -140,6 +160,8 @@ const pushTopics = (arr: any) => {
 pushTopics(paper?.task_categories);
 pushTopics(paper?.tags);
 if (paper?.pipeline_tag && typeof paper.pipeline_tag === 'string') pushTopics([paper.pipeline_tag]);
+// Non-resolvable concept stubs -> plain labels here, NOT routes (No Fake Density).
+pushTopics(conceptLabels);
 const hasTopics = topics.length > 0;
 const topicsShown = topics.slice(0, 16);
 ---
