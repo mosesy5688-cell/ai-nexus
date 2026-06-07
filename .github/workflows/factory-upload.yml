@@ -689,6 +689,33 @@ jobs:
       # V27.2 fail-loud gate (always runs as sanity check on both fresh + cached data)
       - name: V27.2 Verify Shard-Meta Consistency
         run: node scripts/factory/verify-shard-meta-consistency.js
+      # PR-C2 WIRE: run the identity-cluster crate on the 4/4 full recompute.
+      # Reads ONLY PR-C1 SAME_AS shards (output/cache/assertions/, restored via the
+      # cycle-output cache above) and writes ONLY the cluster-assignment artifact
+      # (output/cache/identity/, producer-internal -- NOT in the upload allow-list).
+      # HARD-fails the bake if buildIdentityClusters errors (MAX_PASSES / SKEW /
+      # NON_SINGLETON_FLOOR); skips loudly only when PR-C1 produced no shards.
+      - name: PR-C2 Build Identity Clusters
+        env:
+          OUTPUT_DIR: ./output
+          CACHE_DIR: ./output/cache
+        run: node scripts/factory/build-identity-clusters.js
+      # Persist the cluster artifact to R2 producer-internal state (NOT the public
+      # CDN). Gated on a fresh compute so a re-dispatch cache-hit does not re-upload.
+      - name: Backup Identity Clusters to R2
+        if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ -f output/cache/identity/cluster-assignment.jsonl.zst ]; then
+            node scripts/factory/r2-workflow-cli.js backup-dir output/cache/identity/ state/identity/
+            echo "[R2] Identity cluster-assignment backed up to state/identity/"
+          else
+            echo "[IDENTITY] No cluster artifact to back up (PR-C1 produced no SAME_AS shards this cycle)."
+          fi
       - name: Save Embedding Shards to Cache
         if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
         uses: actions/cache/save@v5
