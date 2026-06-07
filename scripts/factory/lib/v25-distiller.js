@@ -7,6 +7,7 @@ import { deriveTaskCategories } from './task-classifier.js';
 import { deriveArchitectureFromTags } from './arch-derivation.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { resolveMeshEdge } from './mesh-resolve-filter.js';
+import { bodyForStore } from './content-policy.js';
 
 let isMarkedConfigured = false;
 let sanitizeConfig = null;
@@ -183,8 +184,11 @@ export function distillEntity(e, pBillions, entityLookup) {
         e.vram_int4_gb = Number((pBillions * 0.7).toFixed(1));
     }
 
-    // V25.1 Distillation: AOT HTML Compilation (V25.12: with cache)
-    const rawReadme = e.readme || e.html_readme || e.body_content || e.content || e.description || '';
+    // V25.1 Distillation: AOT HTML Compilation (V25.12: with cache).
+    // CUT #5 (legal-resilience L1): type-aware. Papers render NO readme_html (full
+    // paper body retired from store + serve — #2157 already null at serve, this stops
+    // it being rendered + persisted); README renders from a ~1-2KB excerpt only.
+    const rawReadme = bodyForStore(e.type, e.readme || e.html_readme || e.body_content || e.content || e.description || '');
     if (rawReadme && !e.readme_html) {
         e.readme_html = renderHtmlWithCache(rawReadme);
     }

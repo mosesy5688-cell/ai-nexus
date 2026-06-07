@@ -14,8 +14,14 @@ permissions:
   contents: read
 
 on:
-  schedule:
-    - cron: '0 12 1 * *'  # Monthly: 1st of each month 12:00 UTC
+  # content-min cut #6 (legal-resilience L1): S2ORC Import is the 2nd
+  # full-text-as-asset producer (alongside the 1.5 density-booster, cut #4).
+  # Its monthly self-firing cron is removed so it no longer auto-produces
+  # paper full text into R2 enrichment/fulltext/. The importer code
+  # (scripts/ingestion/s2orc-importer.js) is intentionally left 100% intact
+  # for PR-3 to repurpose its S2ORC streaming (bib_entries/references) into
+  # real paper->paper CITES. workflow_dispatch is kept so this stays
+  # dormant/manual-only rather than deleted.
   workflow_dispatch:
 
 concurrency:
