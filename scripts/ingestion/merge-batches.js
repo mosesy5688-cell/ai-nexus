@@ -19,6 +19,7 @@ import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { cleanAbstract } from '../factory/lib/abstract-cleaner.js';
+import { bodyForStore } from '../factory/lib/content-policy.js';
 import { generateUMID } from '../factory/lib/umid-generator.js';
 import { initR2Bridge, createR2ClientFFI, uploadBufferToR2FFI } from '../factory/lib/r2-bridge.js';
 import { collectSpaceDemos, attachSpaceDemo } from './lib/space-demo-enricher.js';
@@ -189,14 +190,13 @@ async function mergeBatches() {
         const scrubbed = { ...entity, id: newId };
         attachSpaceDemo(scrubbed, spaceDemoMap); // #2142: fold space demo onto the model it USES
 
-        // Stage 2: Cold/hot split at the earliest point
-        const body = scrubbed.body_content || scrubbed.readme || scrubbed.content || '';
-        if (body.length > 200) {
-            coldBuffer.push(JSON.stringify({ id: newId, umid: scrubbed.umid || generateUMID(newId), body }) + '\n');
+        const body = scrubbed.body_content || scrubbed.readme || scrubbed.content || ''; // CUT #3: raw feeds cleanAbstract
+        const storeBody = bodyForStore(scrubbed.type, body); // content-policy.js STORE form: paper→null, README→excerpt
+        if (storeBody && storeBody.length > 200) {
+            coldBuffer.push(JSON.stringify({ id: newId, umid: scrubbed.umid || generateUMID(newId), body: storeBody }) + '\n');
         }
         scrubbed.body_content_length = body.length;
-        scrubbed.clean_summary = cleanAbstract(body, 500);
-        scrubbed.body_content = scrubbed.clean_summary;
+        scrubbed.body_content = scrubbed.clean_summary = cleanAbstract(body, 500);
         delete scrubbed.readme; delete scrubbed.readme_content; delete scrubbed.content;
 
         if (!currentZst.write(JSON.stringify(scrubbed) + '\n')) await once(currentZst, 'drain');

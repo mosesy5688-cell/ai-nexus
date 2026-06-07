@@ -3,6 +3,7 @@
  * Extracted to satisfy CES Art 5.1 (250-line limit)
  */
 import { lookupContextLength } from '../../ingestion/adapters/hf-arch-lookup.js';
+import { bodyForStore } from './content-policy.js';
 
 const PARAMS_NAME_RE = /(\d+(?:\.\d+)?)\s*[Bb](?![a-zA-Z])/;
 
@@ -26,8 +27,17 @@ export function resolveEntitySpecs(e) {
  * V22.8: Build complete bundle JSON for VFS shard packing
  */
 export function buildBundleJson(e, pBillions, ctxLen, arch) {
+    // CUT #1 (legal-resilience L1): the cold .bin readme is type-aware.
+    // Papers → '' (no readme/body persisted in the cold tier — the abstract
+    // already ships in summary/description); README → ~1-2KB excerpt, with a
+    // short-description fallback so a non-paper with no body still renders.
+    const rawBody = e.body_content || e.readme || e.html_readme || e.content || '';
+    const storeBody = bodyForStore(e.type, rawBody); // null for papers
+    const readme = storeBody == null
+        ? (e.type === 'paper' ? '' : (e.description || ''))
+        : (storeBody || e.description || '');
     return Buffer.from(JSON.stringify({
-        readme: e.body_content || e.readme || e.html_readme || e.content || e.description || '',
+        readme,
         changelog: e.changelog || '',
         benchmarks: e.benchmarks || [],
         paper_abstract: e.paper_abstract || '',
@@ -42,7 +52,9 @@ export function buildBundleJson(e, pBillions, ctxLen, arch) {
         quick_insights: e.quick_insights || [],
         use_cases: e.use_cases || [],
         quantization: e.quantization || '',
-        html_readme: e.html_readme || '',
+        // CUT #1/#5: rendered HTML readme is type-aware too — papers persist no
+        // readme_html in the cold .bin (full paper body removed); README → excerpt.
+        html_readme: bodyForStore(e.type, e.html_readme || '') ?? '',
         relations: e.relations || [],
         created_at: e.created_at || '',
         display_description: e.display_description || '',

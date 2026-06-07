@@ -14,6 +14,7 @@ import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
 import { generateUMID, generateDevUMID } from './lib/umid-generator.js';
 import { fuseShardJS } from './lib/fuse-shard-js.js';
 import { installExitGuard, assertCompletion, writeSentinel } from './lib/fusion-completion-guard.js';
+import { bodyForStore, isFullBodyRemoved } from './lib/content-policy.js';
 
 const CONFIG = {
     CACHE_DIR: process.env.CACHE_DIR || './cache',
@@ -26,11 +27,15 @@ async function main() {
     initRustBridge();
 
     // Phase 1: Build Valid ID Set + Shard→IDs index (single read, no double-read in Phase 4)
+    // CUT #2 (legal-resilience L1): capture id→type so Phase 4 applies the type-aware
+    // store policy when writing enrichment — else 4/4 RE-INJECTS full paper text from
+    // enrichment/fulltext + cold/shard, clobbering #2157's abstract-only adapter.
     const allValidIds = new Set();
+    const entityTypeMap = new Map(); // entity_id → type (for content-policy gating)
     const shardEntityIds = new Map(); // shardIdx → [entity_id, ...]
     await loadRegistryShardsSequentially(async (entities, shardIdx) => {
         const ids = [];
-        for (const e of entities) { allValidIds.add(e.id); ids.push(e.id); }
+        for (const e of entities) { allValidIds.add(e.id); entityTypeMap.set(e.id, e.type || 'model'); ids.push(e.id); }
         shardEntityIds.set(shardIdx, ids);
     }, { slim: true });
     console.log(`  [OK] ${allValidIds.size} valid entities across ${shardEntityIds.size} shards`);
@@ -140,8 +145,12 @@ async function main() {
                         if (!line) continue;
                         try {
                             const { id, body } = JSON.parse(line);
-                            if (id && body && !entityEnrichMap.has(id)) {
-                                await fs.writeFile(path.join(enrichmentDir, `${generateUMID(id)}.md.gz`), Buffer.from(body, 'utf-8'));
+                            // CUT #2: type-aware on the cold-bundle re-inject. Papers → null
+                            // (drops full paper text even if an old baked cold/shard carries
+                            // it); README → ~1-2KB excerpt. Makes #2157 abstract-only EFFECTIVE.
+                            const storeBody = bodyForStore(entityTypeMap.get(id), body);
+                            if (id && storeBody && !entityEnrichMap.has(id)) {
+                                await fs.writeFile(path.join(enrichmentDir, `${generateUMID(id)}.md.gz`), Buffer.from(storeBody, 'utf-8'));
                                 coldWritten++;
                             }
                         } catch { }
@@ -160,6 +169,11 @@ async function main() {
             }
             const needed = [];
             for (const id of entityIds) {
+                // CUT #2 (authoritative store-cut): NEVER re-inject paper full text from
+                // enrichment/fulltext/ (the papers-only 1.5 density-booster store). Dropping
+                // papers here removes the re-inject that 4/4 used to clobber #2157. The
+                // abstract already ships in summary — full body is transient.
+                if (isFullBodyRemoved(entityTypeMap.get(id))) continue;
                 const r2Umid = entityEnrichMap.get(id);
                 if (r2Umid && enrichmentMap.has(r2Umid)) {
                     const prodUmid = generateUMID(id);
@@ -168,9 +182,11 @@ async function main() {
             }
             totalNeeded += needed.length;
             if (needed.length > 0) {
-                // Write manifest for Rust fusion (entity_id → prod umid)
+                // Write manifest for Rust fusion (entity_id → prod umid). Papers excluded
+                // (no enrichment file written for them) so the Rust manifest stays aligned.
                 const manifest = {};
                 for (const id of entityIds) {
+                    if (isFullBodyRemoved(entityTypeMap.get(id))) continue;
                     if (entityEnrichMap.has(id)) manifest[id] = generateUMID(id);
                 }
                 await fs.writeFile(path.join(enrichmentDir, 'manifest.json'), JSON.stringify(manifest));
