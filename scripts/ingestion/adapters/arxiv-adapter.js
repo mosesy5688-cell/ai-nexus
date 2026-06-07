@@ -215,6 +215,12 @@ export class ArXivAdapter extends BaseAdapter {
 
         // V27.72: regex-extract datasets from abstract/full-text (arxiv API has
         // no structured datasets field; whitelist guards against poisoning).
+        // LEGAL-RESILIENCE L1 (Papers Abstract-Only): raw.full_html (up to 500KB
+        // of full third-party paper body via ar5iv) is a TRANSIENT derivation
+        // input ONLY — used here in-process to mine datasets/relations, then
+        // DISCARDED. It MUST NOT be persisted into body_content (which packs into
+        // the cold .bin via row-builders.buildBundleJson and is served to humans
+        // + the public API). Stored/served paper content = abstract + metadata.
         const corpus = `${raw.title || ''} ${raw.summary || ''} ${raw.full_html || ''}`;
         const entity = {
             id: this.generateId('arxiv', arxivId, 'paper'),
@@ -223,9 +229,8 @@ export class ArXivAdapter extends BaseAdapter {
             source_url: `https://arxiv.org/abs/${arxivId}`,
             title: cleanTitle(raw.title),
             description: this.truncate(raw.summary, 500),
-            body_content: raw.full_html
-                ? `## Abstract\n${raw.summary}\n\n## Full Paper Content\n${raw.full_html}`
-                : raw.summary || '',
+            // Abstract-only. Full paper text is NEVER stored (see note above).
+            body_content: raw.summary || '',
             tags: extractTags(raw),
             datasets_used: extractDatasetsFromText(corpus),
             author: primaryAuthor,
@@ -242,7 +247,16 @@ export class ArXivAdapter extends BaseAdapter {
             quality_score: null
         };
 
-        entity.relations = this.discoverRelations(entity);
+        // Relation derivation (e.g. has_code -> GitHub repos cited in the paper)
+        // still needs the full body. Run it against a TRANSIENT clone carrying the
+        // full text, so the has_code/arxiv edges are preserved while the persisted
+        // entity.body_content stays abstract-only. The full_html clone is discarded
+        // when this function returns — never reaching the packed bundle.
+        entity.relations = this.discoverRelations(
+            raw.full_html
+                ? { ...entity, body_content: `${raw.summary || ''}\n\n${raw.full_html}` }
+                : entity
+        );
         entity.content_hash = this.generateContentHash(entity);
         entity.compliance_status = this.getComplianceStatus(entity);
         entity.quality_score = calculatePaperQuality(entity);
