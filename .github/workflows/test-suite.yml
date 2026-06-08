@@ -12,9 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: CES Check (Constitution)
         run: npm run ces-check
+
+      # C4 (Commercialization-Constitution): "Sponsors Never Influence
+      # Structure". Static gate fails if any payment signal reaches a
+      # ranking/scoring/edge serve path. No npm deps -- pure Node, runs early.
+      - name: C4 Anti-Arbitration Static Gate
+        run: node scripts/check-c4-anti-arbitration.mjs
 
   # L2: Unit Logic (Vitest)
   unit-test:
