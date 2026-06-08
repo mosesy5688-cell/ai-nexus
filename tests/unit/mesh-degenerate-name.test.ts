@@ -98,6 +98,63 @@ describe('entity-lookup-cache flush: empty-name -> humanized (not id echo)', () 
     });
 });
 
+describe('entity-lookup-cache READ: restored stale row (name===id) -> humanized', () => {
+    // Production mode #2166 MISSED: a RESTORED entity_lookup row (written by an
+    // OLD `name || id` flush in an earlier cycle) already holds name === id. The
+    // distiller reads it DURING the main pass (before flush), and flush's
+    // INSERT OR IGNORE can never overwrite it. So the READ accessor must humanize.
+    function makeCacheDb() {
+        const db = new Database(':memory:');
+        db.exec(
+            'CREATE TABLE entity_lookup (id TEXT PRIMARY KEY, name TEXT, icon TEXT)'
+        );
+        return db;
+    }
+
+    const RESTORED_ID = 'hf-model--x--y';
+
+    it('humanizes a pre-existing row whose stored name === id', () => {
+        const db = makeCacheDb();
+        // Directly insert a stale restored row (name === id) -- NOT via trackEntity.
+        db.prepare('INSERT INTO entity_lookup (id, name, icon) VALUES (?, ?, ?)')
+            .run(RESTORED_ID, RESTORED_ID, '');
+        const { lookup } = createEntityLookupAccess(db);
+        const hit = lookup.get(RESTORED_ID);
+        expect(hit).toBeTruthy();
+        expect(hit.name).toBeTruthy();
+        expect(hit.name).not.toBe(RESTORED_ID);
+        expect(hit.name).toBe(humanizeId(RESTORED_ID));
+        // The served node this produces MUST satisfy the strict bake canary.
+        expect(isResolvedMeshNode({ id: RESTORED_ID, name: hit.name })).toBe(true);
+    });
+
+    it('humanizes a pre-existing row whose stored name is empty', () => {
+        const db = makeCacheDb();
+        db.prepare('INSERT INTO entity_lookup (id, name, icon) VALUES (?, ?, ?)')
+            .run(RESTORED_ID, '', '📦');
+        const { lookup } = createEntityLookupAccess(db);
+        const hit = lookup.get(RESTORED_ID);
+        expect(hit.name).toBe(humanizeId(RESTORED_ID));
+        expect(hit.icon).toBe('📦');
+        expect(isResolvedMeshNode({ id: RESTORED_ID, name: hit.name })).toBe(true);
+    });
+
+    it('returns a real-named pre-existing row UNCHANGED', () => {
+        const db = makeCacheDb();
+        db.prepare('INSERT INTO entity_lookup (id, name, icon) VALUES (?, ?, ?)')
+            .run(RESTORED_ID, 'Real Model Name', 'I');
+        const { lookup } = createEntityLookupAccess(db);
+        const hit = lookup.get(RESTORED_ID);
+        expect(hit.name).toBe('Real Model Name');
+        expect(hit.icon).toBe('I');
+    });
+
+    it('returns null for a missing id (no row to humanize)', () => {
+        const { lookup } = createEntityLookupAccess(makeCacheDb());
+        expect(lookup.get('hf-model--never--inserted')).toBe(null);
+    });
+});
+
 describe('pack-accumulator getEntityLookup: empty-name -> humanized (not id echo)', () => {
     async function makeAccumulator() {
         const dbPath = path.join(os.tmpdir(), `pack-acc-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
