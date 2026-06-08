@@ -7,6 +7,11 @@ import { env } from 'cloudflare:workers';
 import { getCachedDbConnection, executeSql, loadManifest } from '../../../lib/sqlite-engine.js';
 import { mapTaskToTag, getCategoryForInput } from '../../../lib/task-mapper.js';
 import { buildRationale } from '../../../lib/rationale-builder.js';
+// C4 (Commercialization-Constitution): the un-buyable ranking comparator. The
+// SQL below orders by the same public keys; we re-assert that order in JS via
+// the SHARED comparator so the order derives ONLY from public FNI structure
+// (params-presence + fni_score), never a paid signal. See ranking-order.ts.
+import { orderCandidates } from '../../../lib/ranking-order.js';
 
 const API_VERSION = 'fni_v2.0';
 const MAX_LIMIT = 20;
@@ -52,7 +57,11 @@ export const POST: APIRoute = async ({ request }) => {
     const dbName = 'rankings-model.db';
     const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
     const { sql, params } = buildQuery(taskMap.tag, constraints, limit, taskCategory);
-    const rows = await executeSql(engine.sqlite3, engine.db, sql, params);
+    const dbRows = await executeSql(engine.sqlite3, engine.db, sql, params);
+    // C4 anti-arbitration: re-order with the shared public-only comparator. The
+    // SQL already returns this order; this re-assert makes the un-buyable ranking
+    // comparator part of the live serve path (the C4 canary tests the same fn).
+    const rows = orderCandidates(dbRows as any[]);
 
     const recommendations = rows.map((row: any, i: number) => {
       const rec: any = {
