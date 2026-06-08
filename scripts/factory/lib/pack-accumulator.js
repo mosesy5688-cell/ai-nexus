@@ -11,6 +11,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
 import path from 'path';
+import { humanizeId } from './derive-slug.js';
 
 export class PackAccumulator {
     constructor(dbPath) {
@@ -73,7 +74,10 @@ export class PackAccumulator {
             entity.fni_score ?? entity.fni ?? 0,
             trendingInfo.rank,
             trendingInfo.is_trending ? 1 : 0,
-            entity.name || entity.displayName || id,
+            // Mesh degenerate-name fix: never store a name-less entity as name===id.
+            // Fall back to an HONEST humanized form of its own id (humanizeId),
+            // so the served mesh edge passes the resolve canary (mesh-resolve-filter.js:75).
+            entity.name || entity.displayName || humanizeId(id),
             entity.icon || ''
         );
     }
@@ -112,7 +116,11 @@ export class PackAccumulator {
         const lookup = new Map();
         const stmt = this.db.prepare('SELECT id, name, icon FROM entities');
         for (const row of stmt.iterate()) {
-            lookup.set(row.id, { name: row.name || row.id, icon: row.icon || '📦' });
+            // Mesh degenerate-name fix: a name-less row (or one stored as name===id
+            // by an older pack) must resolve to an HONEST humanized name, never the
+            // id echo the canary rejects (mesh-resolve-filter.js:75).
+            const name = (row.name && row.name !== row.id) ? row.name : humanizeId(row.id);
+            lookup.set(row.id, { name, icon: row.icon || '📦' });
         }
         return lookup;
     }
