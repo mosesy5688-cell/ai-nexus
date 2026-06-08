@@ -45,8 +45,9 @@ env:
   # (model name, normalization, or int8 quantization in pack-db.js) so cached
   # vectors are busted. pack-db.js only computes embeddings for ids NOT already in
   # the restored shards, so a code change would otherwise leave every existing
-  # vector STALE forever (the #2145-class stale-artifact bug for data). force_fresh
-  # additionally skips the restore entirely for a hard, full recompute.
+  # vector STALE forever (the #2145-class stale-artifact bug for data). Bumping
+  # this token is the supported way to force a full re-embed; force_fresh does NOT
+  # (a cold 551K recompute exceeds the 330-min job cap — see #2150 revert below).
   EMBED_CODE_VERSION: 'v1'
 
 jobs:
@@ -507,15 +508,17 @@ jobs:
         run: |
           mkdir -p output/cache/fused
           node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
-      # Embedding-shard restore. (b) the EMBED_CODE_VERSION token in the key busts
-      # the cache when the embedding logic changes (pack-db.js re-embeds only ids
-      # NOT in the restored shards, so a stale token would freeze every vector).
-      # (a) gated on !force_fresh so a force_fresh dispatch skips the restore and
-      # recomputes embeddings from scratch. restore-keys stay scoped to the SAME
-      # code version — they never fall through to a bare cross-version prefix.
+      # Embedding-shard restore. The EMBED_CODE_VERSION token in the key busts the
+      # cache when the embedding logic changes (pack-db.js re-embeds only ids NOT in
+      # the restored shards, so a stale token would freeze every vector); bump it to
+      # force a full re-embed. restore-keys stay scoped to the SAME code version —
+      # they never fall through to a bare cross-version prefix.
+      # NOT gated on force_fresh (revert of #2150): force_fresh must recompute
+      # baker/mesh/master-fusion/pack, but a cold 551K embedding recompute (≈12-19h)
+      # blows the 330-min job cap → cancelled. Restoring warm embeddings keeps
+      # force_fresh viable while pack-db still re-embeds only genuinely-new ids.
       - name: Restore Embedding Shards (Cache)
         id: cache-embedding
-        if: ${{ !inputs.force_fresh }}
         uses: actions/cache/restore@v5
         with:
           path: output/cache/embeddings/
@@ -523,11 +526,11 @@ jobs:
           restore-keys: |
             embedding-shards-${{ env.EMBED_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-
             embedding-shards-${{ env.EMBED_CODE_VERSION }}-
-      # Also skipped on force_fresh: otherwise force_fresh would skip the cache
-      # restore but still pull the same stale vectors back from R2, defeating the
-      # recompute. On force_fresh embeddings are recomputed from scratch.
+      # R2 fallback when the GHA cache misses. Runs regardless of force_fresh
+      # (revert of #2150) so a force_fresh dispatch still restores warm vectors and
+      # avoids the 330-min-busting cold recompute; pack-db re-embeds only new ids.
       - name: R2 Fallback for Embedding Shards
-        if: ${{ !inputs.force_fresh && steps.cache-embedding.outputs.cache-hit != 'true' }}
+        if: steps.cache-embedding.outputs.cache-hit != 'true'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
