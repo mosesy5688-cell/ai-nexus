@@ -69,7 +69,19 @@ export function createEntityLookupAccess(cacheDb) {
     const lookup = {
         get(id) {
             queryCount++;
-            return getStm.get(id) || null;
+            const row = getStm.get(id) || null;
+            // READ-PATH degenerate-name fix (the distiller reads DURING the main
+            // pass, before flush()). A RESTORED entity_lookup row written by an
+            // OLD `name || id` flush can hold name === id (or an empty name). The
+            // flush() write-path repair above cannot help: INSERT OR IGNORE never
+            // overwrites the pre-existing stale row, and flush runs AFTER the
+            // distiller has already read it. So humanize the echo HERE so the
+            // distiller (v25-distiller.js:228 -> resolveMeshEdge) always gets a
+            // canary-safe name (!== id). Rows with a real name pass through.
+            if (row && (!row.name || row.name === id)) {
+                return { name: humanizeId(id), icon: row.icon || '' };
+            }
+            return row;
         }
     };
 
