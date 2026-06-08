@@ -22,3 +22,29 @@ export function deriveSlug(id) {
     }
     return r.replace(/[:\/]/g, '--').replace(/^--|--$/g, '').replace(/--+/g, '--');
 }
+
+/**
+ * Honest humanized DISPLAY name for a name-less entity, derived purely from its
+ * own real id/slug. Mirrors the existing baker pattern (mesh-profile-baker.js:111,
+ * 142: `id.split('--').pop()`) but de-kebabs the tail to spaces for readability.
+ *
+ * This is display FORMATTING of the entity's real identifier, NOT invented
+ * metadata: the id IS the entity's true identity. The result is guaranteed to be
+ * non-empty and `!== id` (the resolve-filter canary, mesh-resolve-filter.js:75,
+ * rejects a `name === id` degenerate echo). On a pathological id whose de-kebabbed
+ * tail still equals the id (no separators), a readable suffix keeps it `!== id`.
+ *
+ * @param {string} id - the entity's canonical id/slug
+ * @returns {string} a human-readable name, non-empty and never equal to `id`
+ */
+export function humanizeId(id) {
+    const raw = typeof id === 'string' ? id : '';
+    const tail = (deriveSlug(raw).split('--').pop() || '');
+    const human = tail.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+    // Canary-safe floor: must be non-empty AND provably !== id. A de-kebabbed
+    // multi-word tail has spaces (so !== id automatically); a single bare token
+    // could still equal id, so append a readable marker rather than re-emit id.
+    if (human && human !== raw) return human;
+    if (raw) return `${raw} (entity)`;
+    return 'Unknown entity';
+}

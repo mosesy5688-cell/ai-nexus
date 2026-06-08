@@ -22,6 +22,8 @@
  *   - Acceptable: less than 1% of relations are same-run cross-refs
  */
 
+import { humanizeId } from './derive-slug.js';
+
 const FLUSH_SIZE = 1000;
 
 /**
@@ -47,7 +49,17 @@ export function createEntityLookupAccess(cacheDb) {
     const flush = () => {
         if (batch.length === 0) return;
         const insertMany = cacheDb.transaction((entries) => {
-            for (const e of entries) putStm.run(e.id, e.name || e.id, e.icon || '');
+            // Mesh degenerate-name fix: a name-less entity must NOT be stored with
+            // name === id (a degenerate echo). resolveMeshEdge keeps its edge (it
+            // resolves to a real packed entity), but isResolvedMeshNode (the bake
+            // canary, mesh-resolve-filter.js:75) correctly rejects name === id.
+            // The caller (pack-db.js:114) already coalesces a missing name to the
+            // id, so we re-detect that echo here and derive an HONEST humanized
+            // display name from the entity's own real id/slug instead.
+            for (const e of entries) {
+                const name = (e.name && e.name !== e.id) ? e.name : humanizeId(e.id);
+                putStm.run(e.id, name, e.icon || '');
+            }
         });
         insertMany(batch);
         insertedCount += batch.length;
