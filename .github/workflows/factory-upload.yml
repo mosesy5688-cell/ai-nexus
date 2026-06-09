@@ -115,7 +115,10 @@ jobs:
         if: ${{ !inputs.force_fresh }}
         uses: actions/cache/restore@v5
         with:
-          path: output/cache/mesh/profile-shards/
+          # PR-D0b: restore the evidence-dict sidecar on the same key as the shards.
+          path: |
+            output/cache/mesh/profile-shards/
+            output/cache/mesh/profile-evidence-dict.json.zst
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
@@ -142,11 +145,21 @@ jobs:
         if: success() && steps.detect-baked.outputs.skip_compute != 'true'
         uses: actions/cache/save@v5
         with:
-          path: output/cache/mesh/profile-shards/
+          # PR-D0b: carry the baked evidence-dict sidecar (mesh-profile-baker.js:188)
+          # on the SAME key as the shards. Without it, a cache-restored canary job
+          # (verify-db.js -> loadBakedDict) sees null -> ui_related_mesh reverse-edge
+          # refs resolve as gaps -> the verification bake UNDER-REPORTS coverage.
+          path: |
+            output/cache/mesh/profile-shards/
+            output/cache/mesh/profile-evidence-dict.json.zst
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
       - name: Backup Profile Shards to R2
         if: success() && steps.detect-baked.outputs.skip_compute != 'true'
-        run: node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profile-shards/ state/mesh-profile-shards/
+        run: |
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profile-shards/ state/mesh-profile-shards/
+          # PR-D0b: back up the baked evidence-dict sidecar alongside the shards so the
+          # R2-fallback restore (canary jobs) recovers it when the GHA cache misses.
+          node scripts/factory/r2-workflow-cli.js backup-file output/cache/mesh/profile-evidence-dict.json.zst state/mesh-profile-dict/profile-evidence-dict.json.zst
 
   # V27.40: master-fusion was a 1h20m monolithic job — split into compute + persist.
   # R2 backup failure no longer redoes 1h20m fusion.
@@ -558,7 +571,10 @@ jobs:
         id: cache-mesh-profile-vfs
         uses: actions/cache/restore@v5
         with:
-          path: output/cache/mesh/profile-shards/
+          # PR-D0b: restore the evidence-dict sidecar on the same key as the shards.
+          path: |
+            output/cache/mesh/profile-shards/
+            output/cache/mesh/profile-evidence-dict.json.zst
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
@@ -582,6 +598,11 @@ jobs:
               echo "::error::Profile shards still missing after R2 fallback — pack-db mesh-attach will silent-skip and ui_related_mesh will be empty. Aborting to avoid releasing degraded data."
               exit 1
             fi
+          fi
+          # PR-D0b: ensure the evidence-dict sidecar is present (cache miss or R2-only path)
+          # so the canary's loadBakedDict resolves ui_related_mesh refs (incl. reverse edges).
+          if [ ! -f output/cache/mesh/profile-evidence-dict.json.zst ]; then
+            node scripts/factory/r2-workflow-cli.js restore-file state/mesh-profile-dict/profile-evidence-dict.json.zst output/cache/mesh/profile-evidence-dict.json.zst || echo "⚠️ evidence-dict sidecar not on R2 (canary falls back to graph dict)"
           fi
       - name: Migrate Legacy Embedding Cache (one-time)
         env:
@@ -925,7 +946,10 @@ jobs:
         id: cache-baked-upload
         uses: actions/cache/restore@v5
         with:
-          path: output/cache/mesh/profile-shards/
+          # PR-D0b: restore the evidence-dict sidecar on the same key as the shards.
+          path: |
+            output/cache/mesh/profile-shards/
+            output/cache/mesh/profile-evidence-dict.json.zst
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
@@ -936,6 +960,11 @@ jobs:
             echo "✅ Baked profile shards present from cache"
           else
             node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
+          fi
+          # PR-D0b: ensure the evidence-dict sidecar is present so verify-db's canary
+          # (loadBakedDict) resolves ui_related_mesh refs incl. reverse edges.
+          if [ ! -f output/cache/mesh/profile-evidence-dict.json.zst ]; then
+            node scripts/factory/r2-workflow-cli.js restore-file state/mesh-profile-dict/profile-evidence-dict.json.zst output/cache/mesh/profile-evidence-dict.json.zst || echo "⚠️ evidence-dict sidecar not on R2 (canary falls back to graph dict)"
           fi
       - name: Restore VFS Assets from Cache
         id: cache-vfs-assets
