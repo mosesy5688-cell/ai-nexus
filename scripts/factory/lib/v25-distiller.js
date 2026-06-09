@@ -7,7 +7,7 @@ import { deriveTaskCategories } from './task-classifier.js';
 import { deriveArchitectureFromTags } from './arch-derivation.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { getTypeFromId } from '../../../src/utils/mesh-routing-core.js';
-import { resolveMeshEdge } from './mesh-resolve-filter.js';
+import { resolveMeshEdge, profileRelationsCarryTrail } from './mesh-resolve-filter.js';
 import { bodyForStore } from './content-policy.js';
 
 let isMarkedConfigured = false;
@@ -194,30 +194,29 @@ export function distillEntity(e, pBillions, entityLookup) {
         e.readme_html = renderHtmlWithCache(rawReadme);
     }
 
-    // V25.1 Mesh Pre-joining. V27.94 ROOT fix: canonicalize each relation target before the
-    // entity_lookup .get() (target arrives STRIPPED, lookup keyed by CANONICAL id).
-    // PR-1 (No-Fake-Density-at-source): RESOLVE-FILTER. A served edge must point at a
-    // real, packed, provenanced node — never a fabricated 404. On an entity_lookup MISS
-    // (or a concept/knowledge stub: EXPLAINS verb, knowledge|concept target type, or a
-    // knowledge--/concept-- id) we DROP the edge instead of keeping a humanized stub.
-    // The fake humanized density was a workaround for the degeneracy canary; the canary
-    // now accepts honest sparsity (verify-canaries.js) so the workaround is removed.
-    // V27.73: check non-empty (not just isArray) — adapters init relations=[] (mesh branch was dead).
-    const relations = (Array.isArray(e.relations) && e.relations.length > 0)
-        ? e.relations : (e.mesh_profile?.relations || []);
+    // V25.1 Mesh Pre-joining. V27.94: canonicalize each relation target before the
+    // entity_lookup .get() (target arrives STRIPPED). PR-1 (No-Fake-Density): the
+    // resolve-filter DROPS an entity_lookup MISS / concept-stub instead of a humanized
+    // fake; the canary accepts honest sparsity (verify-canaries.js).
+    // PR-D0b (#2 circuit fix): PREFER the baked mesh_profile.relations when it carries
+    // the source_trail (slot[3]/.source_trail). The raw e.relations is the SAME deduped
+    // edge set but NEVER had the D0a carrier, so the old default wrote an evidence-LESS
+    // ui_related_mesh -> the measured 0% coverage. The baked profile is the SAME graph,
+    // resolve-filtered identically -> no-regression source swap that restores the WHY.
+    const relations = profileRelationsCarryTrail(e.mesh_profile)
+        ? e.mesh_profile.relations
+        : ((Array.isArray(e.relations) && e.relations.length > 0)
+            ? e.relations : (e.mesh_profile?.relations || []));
     const meshNodes = [];
     for (const rel of relations) {
-        // V27.94 (A.2): tolerate Rust array-form edges [target_id, relType, conf].
-        // rel[1] / rel.type / rel.relation_type is the relation VERB (CITES/...),
-        // NOT the target's entity type.
+        // V27.94 (A.2): tolerate Rust array-form edges [target_id, relType, conf]; the
+        // verb (rel[1]/.relation_type) is NOT the target entity type.
         const isArr = Array.isArray(rel);
         const rawTarget = isArr ? rel[0] : (rel.target || rel.target_id || rel.id);
         const relType = (isArr ? rel[1] : (rel.type || rel.t || rel.relation_type)) || 'RELATED';
         // reverse-edge-target-type: canonicalize against the REAL target entity type,
-        // never the verb. The baker now emits target_type (mesh-profile-baker bakeEdge);
-        // fall back to the id prefix. Before this, baked/reverse-projected edges
-        // defaulted to 'model' -> normalizeId re-canonicalized knowledge/concept|paper|
-        // dataset|benchmark as hf-model-- (#2158: 19 concept stubs + non-model drops).
+        // never the verb. The baker emits target_type (bakeEdge); fall back to the id
+        // prefix. Defaulting to 'model' re-canonicalized non-model targets (#2158).
         const targetType = (isArr ? undefined : (rel.target_type || rel.tt))
             || getTypeFromId(rawTarget) || 'model';
         // Canonicalize the stripped target before lookup; mirrors mesh-profile-baker.
@@ -225,9 +224,8 @@ export function distillEntity(e, pBillions, entityLookup) {
         // D0a: read the carrier from slot[3]/[4] (array) or .source_trail/.edge_id (object).
         const srcTrail = isArr ? (rel[3] || []) : (rel.source_trail || []);
         const eid = isArr ? (rel[4] || '') : (rel.edge_id || '');
-        // DROP on miss/concept-stub; KEEP resolved real entities. Pass the real
-        // target_type so the stub-gate detects knowledge/concept by type (not only by
-        // id prefix, which normalizeId would erase). Forward the source_trail carrier.
+        // DROP on miss/concept-stub; KEEP resolved real entities. Pass target_type so
+        // the stub-gate detects knowledge/concept by type. Forward the source_trail carrier.
         const node = resolveMeshEdge(targetId, relType, entityLookup.get(targetId), { targetType, source_trail: srcTrail, edge_id: eid });
         if (node) meshNodes.push(node);
     }

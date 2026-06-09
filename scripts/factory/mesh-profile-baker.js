@@ -9,7 +9,7 @@ import { normalizeId, getNodeSource, ALL_PREFIXES } from '../utils/id-normalizer
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
 import { getRouteFromId, getTypeFromId } from '../../src/utils/mesh-routing-core.js';
 import { buildInverseAdjacency, projectReverseEdges } from './lib/reverse-edge-projector.js';
-import { newEvidenceDict, structuralSentinel } from './lib/evidence-carrier.js';
+import { newEvidenceDict, structuralSentinel, evidenceElement } from './lib/evidence-carrier.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.zst');
@@ -42,9 +42,20 @@ async function main() {
         // serve). Reverse edges get a MINIMAL sentinel ref (full reverse-references-
         // forward-edge is PR-D0b). ed.dict is seeded from graph.evidence_dict.
         const ed = newEvidenceDict(graph.evidence_dict);
-        // One sentinel ref reused for every reverse edge this bake mints (D0a: the
-        // reversed fact's MINIMAL trail; D0b upgrades to reference the forward edge_id).
-        const reverseRef = ed.add(structuralSentinel('reverse_edge_projector', 'inverse_adjacency', 'reverse_of'));
+        // PR-D0b (spec sec 6): a reverse edge is the SAME forward fact seen from the
+        // target -- it must REFERENCE the forward edge_id, never mint a new bare
+        // assertion (double-count guard). reverseTrailRef(fwdEdgeId) interns a
+        // reverse_of element whose `value` is the forward edge_id; the dict dedups
+        // so distinct forward edges get distinct elements, an empty/absent forward
+        // edge_id falls back to one shared minimal sentinel (honest "not-located").
+        const reverseSentinel = ed.add(structuralSentinel('reverse_edge_projector', 'inverse_adjacency', 'reverse_of'));
+        const reverseTrailRef = (fwdEdgeId) => {
+            if (!fwdEdgeId) return reverseSentinel;
+            return ed.add(evidenceElement({
+                signal: 'reverse_of', value: fwdEdgeId, source_field: 'inverse_adjacency',
+                method: 'reverse_of', producer: 'reverse_edge_projector', source_url: null,
+            }));
+        };
 
         console.log(`[BAKER] Loaded ${nodeIds.length} nodes from graph.`);
 
@@ -149,9 +160,10 @@ async function main() {
             // against existing outgoing edges so bidirectional facts aren't doubled.
             const reverseRelations = projectReverseEdges(
                 inEdges[nodeId], typeValue, bakedRelations,
-                // D0a: reverse edges carry a MINIMAL sentinel ref (reverse_of). D0b
-                // upgrades this to reference the FORWARD edge_id (no new bare fact).
-                (sourceId, verb) => bakeEdge(sourceId, verb, 1.0, {}, [reverseRef], ''));
+                // PR-D0b (sec 6): the reverse edge's trail REFERENCES the forward
+                // edge_id (reverse_of element value=fwdEdgeId); its own edge_id is
+                // the forward one too (same fact). No new bare assertion is minted.
+                (sourceId, verb, fwdEdgeId) => bakeEdge(sourceId, verb, 1.0, {}, [reverseTrailRef(fwdEdgeId)], fwdEdgeId || ''));
             for (const rr of reverseRelations) bakedRelations.push(rr);
             reverseCount += reverseRelations.length;
 

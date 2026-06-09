@@ -165,7 +165,9 @@ if (hasEntitiesTable) {
         const meshSz = keyMap.get('mesh_graph') || 0;
         check('Mesh Graph Size', meshSz > 100 * 1024, `${(meshSz / 1024).toFixed(0)} KB (floor: 100KB)`);
         // V27.94 (A.3): relation-content canary — closes the silent-loss gap that let the empty/degenerate mesh bake pass (size-only before).
-        verifyRelationContent(db, keyMap.has('mesh_graph'), check);
+        // PR-D0b: pass the cache mesh dir so the ui_related_mesh sink resolves
+        // source_trail refs against the baked dict sidecar (dual-sink reconciliation).
+        verifyRelationContent(db, keyMap.has('mesh_graph'), check, path.join(dirPath, '..', 'cache'));
     }
 }
 

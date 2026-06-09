@@ -125,7 +125,7 @@ export async function generateRelations(shardReader, outputDir = './output') {
     // Try Rust file-based graph building
     let rustDone = false;
     try {
-        const { zstdCompress } = await import('./zstd-helper.js');
+        const { zstdCompress, zstdDecompress } = await import('./zstd-helper.js');
         const nodesPath = path.join(relationsDir, '_tmp-nodes.json.zst');
         const relsPath = path.join(relationsDir, '_tmp-relations.json.zst');
         const dictPath = path.join(relationsDir, '_tmp-evidence-dict.json.zst');
@@ -153,6 +153,26 @@ export async function generateRelations(shardReader, outputDir = './output') {
             await fs.writeFile(path.join(relationsDir, 'explicit.json.zst'), Buffer.from(r.explicitJson));
             await fs.writeFile(path.join(cacheDir, 'relations.json.zst'), Buffer.from(r.legacyJson));
             console.log(`  [RELATIONS] Rust FFI: ${r.totalRelations} relations`);
+            // PR-D0b (#1 lockstep guard, design note :143): the typed-edge source_trail
+            // refs (slot[3]) index the dict EMBEDDED IN THE RUST OUTPUT explicit.json --
+            // NOT the JS input dict (ed.dict, ~always non-empty). The production failure
+            // this catches is relations.rs unwrap_or(Null) silently nulling evidence_dict
+            // on a dict-load round-trip failure (relations.rs:73-88) while the JS input
+            // was fine -> every typed ref dangles downstream (measured graph_blob typed=0).
+            // Inspect the OUTPUT dict so that silent-null transport is OBSERVABLE in the
+            // bake log. WARN-discipline: loud + locatable, never throw/exit (the
+            // verification bake is the proof gate, this is observability).
+            try {
+                const explicit = JSON.parse((await zstdDecompress(Buffer.from(r.explicitJson))).toString('utf-8'));
+                const outEls = explicit?.evidence_dict?.elements?.length ?? 0;
+                if (totalRelations > 0 && outEls === 0) {
+                    console.warn(`  [RELATIONS] WARN Rust-output evidence_dict EMPTY (${outEls} elements) but ${totalRelations} relations emitted -- silent-null dict transport (relations.rs); typed-edge refs will NOT resolve in graph_blob`);
+                } else {
+                    console.log(`  [RELATIONS] Rust-output source_trail dict: ${outEls} evidence elements`);
+                }
+            } catch (de) {
+                console.warn(`  [RELATIONS] WARN could not verify Rust-output evidence_dict (${de.message}) -- typed-edge coverage unverified for this bake`);
+            }
             rustDone = true;
         }
     } catch (e) { console.warn(`[RELATIONS] Rust FFI skipped (${e.message}).`); }
