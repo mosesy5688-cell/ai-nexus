@@ -17,6 +17,7 @@ import {
 } from '../../scripts/factory/lib/evidence-carrier.js';
 import { resolveMeshEdge, profileRelationsCarryTrail } from '../../scripts/factory/lib/mesh-resolve-filter.js';
 import { buildInverseAdjacency, projectReverseEdges } from '../../scripts/factory/lib/reverse-edge-projector.js';
+import { normalizeId, getNodeSource } from '../../scripts/utils/id-normalizer.js';
 
 // Mirror of relations-generator.js addEdge (the choke this PR keeps populated).
 function addEdge(edges: any, src: string, tgt: string, type: string, conf: number, ed: any, evidence: any) {
@@ -88,6 +89,43 @@ describe('#2 ui_related_mesh circuit — prefer the carrier-bearing source', () 
         expect(node).toBeTruthy();
         expect(node!.source_trail).toEqual([7]); // the WHY reaches ui_related_mesh
         expect(node!.edge_id).toBe('abc123');
+    });
+});
+
+describe('#2b profile-attach key — non-canonical e.id resolves to the baker-keyed profile', () => {
+    // The baker keys meshProfileMap by the FULLY-canonical id
+    // (mesh-profile-baker.js:93/171): normalizeId(nodeId, getNodeSource(nodeId,type), type).
+    // pack-db.js must try THAT key first, else a non-canonical e.id misses the map and
+    // the distiller falls back to the trail-LESS raw e.relations (the residual ~25% gap).
+    const bakerKey = (rawId: string, type: string) =>
+        normalizeId(rawId, getNodeSource(rawId, type), type);
+    // Mirror of pack-db.js:121 attach lookup (canonical key FIRST, then prior fallbacks).
+    const attach = (map: Map<string, any>, e: any) =>
+        map.get(normalizeId(e.id, getNodeSource(e.id, e.type), e.type))
+        || map.get(e.id) || map.get(e.id?.toLowerCase());
+
+    it('a non-canonical raw id HITS the canonically-keyed profile (was a MISS before)', () => {
+        const profile = { relations: [['x', 'CITES', 90, [1], 'eid']] };
+        const map = new Map<string, any>([[bakerKey('2307.09288', 'paper'), profile]]);
+        expect(bakerKey('2307.09288', 'paper')).toBe('arxiv-paper--2307.09288');
+        // OLD lookup (e.id / lowercase only) would MISS the canonical key.
+        expect(map.get('2307.09288') || map.get('2307.09288'.toLowerCase())).toBeFalsy();
+        // NEW lookup resolves it.
+        expect(attach(map, { id: '2307.09288', type: 'paper' })).toBe(profile);
+    });
+
+    it('is strictly additive: an already-canonical e.id still resolves (no removed hit)', () => {
+        const profile = { relations: [] };
+        const id = 'hf-model--meta-llama--Llama-2-7b';
+        const map = new Map<string, any>([[bakerKey(id, 'model'), profile]]);
+        expect(attach(map, { id, type: 'model' })).toBe(profile);
+    });
+
+    it('the canonical-key call self-guards malformed ids (no throw in the pack loop)', () => {
+        const map = new Map<string, any>();
+        for (const e of [{ id: null }, { id: undefined }, { id: 12345 }, { id: {} }] as any[]) {
+            expect(() => map.get(normalizeId(e.id, getNodeSource(e.id, e.type), e.type))).not.toThrow();
+        }
     });
 });
 
