@@ -165,9 +165,9 @@ export function buildSearchIndexFFI(entitiesJson) {
 }
 
 /** V26.5: Relations graph — prefer file reading, fallback to Buffer. */
-export function buildRelationsGraphFromFilesFFI(nodesPath, relationsPath, outputDir) {
+export function buildRelationsGraphFromFilesFFI(nodesPath, relationsPath, outputDir, dictPath = '') {
     if (_satelliteTasks?.buildRelationsGraphFromFiles) {
-        try { return _satelliteTasks.buildRelationsGraphFromFiles(nodesPath, relationsPath, outputDir); }
+        try { return _satelliteTasks.buildRelationsGraphFromFiles(nodesPath, relationsPath, outputDir, dictPath); }
         catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): buildRelationsGraphFromFiles: ${e.message}`); }
     }
     return null;

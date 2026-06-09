@@ -28,6 +28,13 @@ struct RawRelation {
     target_type: String,
     relation_type: String,
     confidence: f64,
+    // D0a source_trail carrier: COMPACT integer refs into explicit.evidence_dict
+    // (built JS-side; Rust passes them THROUGH verbatim) + deterministic edge_id.
+    // #[serde(default)] -> a pre-D0a relations file (no field) still parses.
+    #[serde(default)]
+    source_trail: Value,
+    #[serde(default)]
+    edge_id: String,
 }
 
 fn zstd_bytes(data: &[u8]) -> Result<Vec<u8>> {
@@ -43,6 +50,7 @@ pub fn build_relations_graph_from_files(
     nodes_path: String,
     relations_path: String,
     _output_dir: String,
+    dict_path: Option<String>,
 ) -> Result<RelationsResult> {
     let nodes_data = nxvf_core::load_json_file(&nodes_path)
         .map_err(|e| Error::from_reason(e))?;
@@ -54,8 +62,14 @@ pub fn build_relations_graph_from_files(
     let relations: Vec<RawRelation> = serde_json::from_value(rels_data)
         .map_err(|e| Error::from_reason(format!("Relations parse error: {}", e)))?;
 
+    // D0a: embed the JS-built evidence dictionary into explicit.evidence_dict so
+    // the COMPACT refs on every widened edge resolve downstream (mesh stage).
+    let evidence_dict = dict_path
+        .and_then(|p| nxvf_core::load_json_file(&p).ok())
+        .unwrap_or(Value::Null);
+
     eprintln!("[RUST-SAT] build_relations_graph_from_files: {} nodes, {} relations", nodes.len(), relations.len());
-    build_relations_inner(nodes, relations)
+    build_relations_inner(nodes, relations, evidence_dict)
 }
 
 /// Build relations graph from pre-extracted nodes and relations (legacy Buffer API).
@@ -75,10 +89,10 @@ pub fn build_relations_graph(
     let relations: Vec<RawRelation> = serde_json::from_str(&rels_str)
         .map_err(|e| Error::from_reason(format!("Relations JSON parse error: {}", e)))?;
 
-    build_relations_inner(nodes, relations)
+    build_relations_inner(nodes, relations, Value::Null)
 }
 
-fn build_relations_inner(nodes: HashMap<String, NodeInfo>, relations: Vec<RawRelation>) -> Result<RelationsResult> {
+fn build_relations_inner(nodes: HashMap<String, NodeInfo>, relations: Vec<RawRelation>, evidence_dict: Value) -> Result<RelationsResult> {
 
     // Build V14.5.2 explicit adjacency format
     // nodes: { id: { t, f } }
@@ -112,17 +126,25 @@ fn build_relations_inner(nodes: HashMap<String, NodeInfo>, relations: Vec<RawRel
         }
 
         let confidence_pct = (rel.confidence * 100.0).round() as i64;
+        // D0a: widen the emitted edge to [target, type, conf, source_trail_refs, edge_id].
+        // refs + edge_id pass THROUGH from JS verbatim (JS owns the relations-stage
+        // dict; Rust is the graph-shaper here). serde_json::json! turns Value::Null
+        // (a pre-D0a relations file) into an empty refs slot safely below.
+        let trail = if rel.source_trail.is_array() { rel.source_trail.clone() } else { serde_json::json!([]) };
         let edge = serde_json::json!([
             rel.target_id,
             rel.relation_type,
-            confidence_pct
+            confidence_pct,
+            trail,
+            rel.edge_id,
         ]);
 
         edges.entry(rel.source_id.clone())
             .or_default()
             .push(edge);
 
-        // Build reverse lookup
+        // Build reverse lookup (DEAD map -- not consumed downstream; spec D0 sec 4
+        // says do NOT thread source_trail here. Live reverse = JS buildInverseAdjacency).
         let rev_edge = serde_json::json!([
             rel.source_id,
             rel.relation_type,
@@ -135,13 +157,14 @@ fn build_relations_inner(nodes: HashMap<String, NodeInfo>, relations: Vec<RawRel
         total_relations += 1;
     }
 
-    // V14.5.2 explicit format
+    // V14.5.2 explicit format. D0a: carry evidence_dict so widened-edge refs resolve.
     let explicit = serde_json::json!({
         "_v": "14.5.2",
         "_ts": chrono_now(),
         "nodes": all_nodes,
         "edges": edges,
         "reverse": reverse,
+        "evidence_dict": evidence_dict,
         "_stats": {
             "nodeCount": all_nodes.len(),
             "edgeCount": total_relations,

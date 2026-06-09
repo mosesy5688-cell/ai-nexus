@@ -14,6 +14,7 @@
  * Every threshold is CONSERVATIVE: a false canary blocks every bake.
  */
 import { isResolvedMeshNode } from './mesh-resolve-filter.js';
+import { assertEdgeTrail } from './evidence-carrier.js';
 
 /**
  * Per-edge-type topology canary.
@@ -94,4 +95,63 @@ export function verifyRelationContent(database, hasMeshGraph, check) {
     } catch (e) {
         console.log(`[VERIFY] Mesh Resolution: skipped (${e.message.slice(0, 40)})`);
     }
+    // D0a source_trail coverage (WARN-only: REPORTS, never fails the bake; the
+    // bake-FAIL flip + negative-fixture gate is PR-D0b, spec sec 13).
+    verifySourceTrailCoverage(database, hasMeshGraph);
+}
+
+/** Read the carrier refs off an edge (array slot[3] | object .source_trail). */
+function edgeRefs(e) {
+    if (Array.isArray(e)) return Array.isArray(e[3]) ? e[3] : [];
+    return Array.isArray(e && e.source_trail) ? e.source_trail : [];
+}
+
+/**
+ * D0a WARN coverage report over BOTH baked sinks (spec sec 9, WARN mode). Reports
+ * % of edges carrying >=1 RESOLVABLE source_trail ref + a per-producer histogram;
+ * logs gaps. Does NOT exit(1) -- one re-bake reads this to size PR-D0b's FAIL flip.
+ */
+export function verifySourceTrailCoverage(database, hasMeshGraph) {
+    if (!hasMeshGraph) return;
+    let graph;
+    try {
+        graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
+    } catch { console.log('[VERIFY] source_trail coverage (WARN): skipped (mesh_graph parse)'); return; }
+    const dict = graph.evidence_dict || null;
+    // Sink 1: graph blob.
+    reportSink('graph_blob', Object.values(graph.edges || {}), dict);
+    // Sink 2: ui_related_mesh (resolves vs graph.evidence_dict; reverse-sentinel
+    // refs the baker appended are NOT in the graph dict yet -> surface as gaps,
+    // exactly what WARN mode is for. PR-D0b folds them into one served dict).
+    try {
+        const rows = database.prepare("SELECT ui_related_mesh AS m FROM entities WHERE ui_related_mesh IS NOT NULL AND ui_related_mesh != '[]'").all();
+        const lists = [];
+        for (const r of rows) { try { lists.push(JSON.parse(r.m)); } catch { /* skip */ } }
+        reportSink('ui_related_mesh', lists, dict);
+    } catch (e) { console.log(`[VERIFY] source_trail ui_related_mesh: skipped (${e.message.slice(0, 30)})`); }
+}
+
+/** Scan one sink's edge lists; log coverage % + per-producer histogram (WARN). */
+function reportSink(sinkName, edgeLists, dict) {
+    let scanned = 0, covered = 0;
+    const byProducer = Object.create(null);
+    for (const list of edgeLists) {
+        for (const e of (Array.isArray(list) ? list : [])) {
+            scanned++;
+            const refs = edgeRefs(e);
+            const r = assertEdgeTrail(refs, dict);
+            if (r.ok) {
+                covered++;
+                for (const ref of refs) {
+                    const el = dict.elements[ref];
+                    const p = el && dict.producers[el[5]];
+                    if (p) byProducer[p] = (byProducer[p] || 0) + 1;
+                }
+            }
+        }
+    }
+    const pct = scanned > 0 ? ((covered / scanned) * 100).toFixed(1) : '0.0';
+    const gap = scanned - covered;
+    console.log(`[VERIFY] source_trail coverage (WARN) [${sinkName}]: ${pct}% (${covered}/${scanned}); ${gap} gap`);
+    if (Object.keys(byProducer).length) console.log(`           by producer: ${JSON.stringify(byProducer)}`);
 }

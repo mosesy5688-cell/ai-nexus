@@ -222,10 +222,13 @@ export function distillEntity(e, pBillions, entityLookup) {
             || getTypeFromId(rawTarget) || 'model';
         // Canonicalize the stripped target before lookup; mirrors mesh-profile-baker.
         const targetId = normalizeId(rawTarget, getNodeSource(rawTarget, targetType), targetType) || rawTarget;
+        // D0a: read the carrier from slot[3]/[4] (array) or .source_trail/.edge_id (object).
+        const srcTrail = isArr ? (rel[3] || []) : (rel.source_trail || []);
+        const eid = isArr ? (rel[4] || '') : (rel.edge_id || '');
         // DROP on miss/concept-stub; KEEP resolved real entities. Pass the real
         // target_type so the stub-gate detects knowledge/concept by type (not only by
-        // id prefix, which normalizeId would erase).
-        const node = resolveMeshEdge(targetId, relType, entityLookup.get(targetId), { targetType });
+        // id prefix, which normalizeId would erase). Forward the source_trail carrier.
+        const node = resolveMeshEdge(targetId, relType, entityLookup.get(targetId), { targetType, source_trail: srcTrail, edge_id: eid });
         if (node) meshNodes.push(node);
     }
     e.ui_related_mesh = JSON.stringify(meshNodes);

@@ -619,6 +619,17 @@ pub fn write_zstd(path: &str, data: &[u8], level: i32) -> Result<(), String> {
     fs::write(path, compressed).map_err(|e| format!("Write {}: {}", path, e))
 }
 
+/// D0 source_trail: deterministic edge_id = SHA-256(input)[:16] (16 hex chars).
+/// MUST be byte-identical to the JS `edgeId` (evidence-carrier.js): callers pass
+/// the exact same `src \0 type \0 tgt` string. Shared so Rust-minted structural
+/// edges (mesh_graph EXPLAINS/FEATURED_IN) and JS mint the SAME id (lockstep).
+pub fn sha256_hex16(input: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input.as_bytes());
+    let digest = hasher.finalize();
+    hex::encode(&digest[..8]) // 8 bytes = 16 hex chars
+}
+
 /// Compress data with Gzip and write to file.
 pub fn write_gzip(path: &str, data: &[u8]) -> Result<(), String> {
     use flate2::write::GzEncoder;
@@ -635,4 +646,19 @@ pub fn write_gzip(path: &str, data: &[u8]) -> Result<(), String> {
         .finish()
         .map_err(|e| format!("Gzip finish: {}", e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sha256_hex16_matches_js_edge_id() {
+        // D0a lockstep: the edge_id over "a \0 CITES \0 b" (NUL separators) MUST
+        // equal the JS evidence-carrier.js edgeId('a','CITES','b') = ffd8a01cc0e4f9af.
+        // If this breaks, Rust-minted and JS-minted edge_ids have diverged.
+        let id = sha256_hex16(&format!("a\0{}\0b", "CITES"));
+        assert_eq!(id, "ffd8a01cc0e4f9af");
+        assert_eq!(id.len(), 16);
+    }
 }

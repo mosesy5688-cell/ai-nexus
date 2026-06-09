@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { buildMeshGraphFromFilesFFI, buildMeshGraphFFI } from './rust-bridge.js';
+import { newEvidenceDict, edgeId, structuralSentinel } from './evidence-carrier.js';
 
 const VERSION = '16.2';
 
@@ -112,8 +113,10 @@ export async function generateMeshGraph(outputDir = './output') {
     const seenEdges = new Set();
     const edgeKey = (s, t, ty) => [s, t, ty].join("|");
 
-    // Load explicit relations
+    // Load explicit relations. D0a: seed the evidence dict from the relations stage;
+    // this fallback APPENDS structural sentinels for the EXPLAINS/FEATURED_IN it mints.
     const explicit = await loadJson(path.join(outputDir, 'cache', 'relations', 'explicit.json'));
+    const ed = newEvidenceDict(explicit?.evidence_dict);
     if (explicit?.nodes) {
         console.log('  [EXPLICIT] Loading nodes and edges...');
         for (const [id, nodeData] of Object.entries(explicit.nodes)) {
@@ -127,21 +130,17 @@ export async function generateMeshGraph(outputDir = './output') {
             for (const [sourceId, edgeList] of Object.entries(explicit.edges)) {
                 if (!edges[sourceId]) edges[sourceId] = [];
                 for (const edge of edgeList) {
-                    const [target, type, weight] = Array.isArray(edge)
-                        ? edge
-                        : [edge.target, edge.type, edge.weight || 100];
-
+                    // D0a: preserve the carrier (slot[3]=source_trail refs, slot[4]=edge_id)
+                    // on BOTH paths so a Rust-skip cycle does not silently drop the trail.
+                    const isArr = Array.isArray(edge);
+                    const [target, type, weight] = isArr ? edge : [edge.target, edge.type, edge.weight || 100];
                     const relType = type || 'RELATED';
+                    const srcTrail = (isArr ? edge[3] : edge.source_trail) || [];
+                    const eid = (isArr ? edge[4] : edge.edge_id) || edgeId(sourceId, relType, target);
                     const k = edgeKey(sourceId, target, relType);
                     if (seenEdges.has(k)) continue;
                     seenEdges.add(k);
-
-                    edges[sourceId].push({
-                        target,
-                        type: relType,
-                        weight: (weight || 100) / 100
-                    });
-
+                    edges[sourceId].push({ target, type: relType, weight: (weight || 100) / 100, source_trail: srcTrail, edge_id: eid });
                     stats.by_edge_type[relType] = (stats.by_edge_type[relType] || 0) + 1;
                 }
             }
@@ -154,30 +153,19 @@ export async function generateMeshGraph(outputDir = './output') {
         console.log('  [KNOWLEDGE] Adding EXPLAINS edges...');
         for (const link of knowledgeLinks.links) {
             const sourceId = link.entity_id; // Already normalized in knowledge-links.json
-
             // V16.3 FIX: knowledge is an array, not a flat field
-            const knowledgeArray = link.knowledge || [];
-            for (const kEntry of knowledgeArray) {
+            for (const kEntry of (link.knowledge || [])) {
                 const targetId = `knowledge--${kEntry.slug || kEntry.id}`;
-
-                if (!nodes[sourceId]) {
-                    nodes[sourceId] = { t: link.entity_type || 'model', f: 0 };
-                }
-                if (!nodes[targetId]) {
-                    nodes[targetId] = { t: 'knowledge', f: 0 };
-                }
-
+                if (!nodes[sourceId]) nodes[sourceId] = { t: link.entity_type || 'model', f: 0 };
+                if (!nodes[targetId]) nodes[targetId] = { t: 'knowledge', f: 0 };
                 if (!edges[sourceId]) edges[sourceId] = [];
-
                 // Avoid duplicate edges ((source,target,type) key — matches Rust)
                 const k = edgeKey(sourceId, targetId, 'EXPLAINS');
                 if (!seenEdges.has(k)) {
                     seenEdges.add(k);
-                    edges[sourceId].push({
-                        target: targetId,
-                        type: 'EXPLAINS',
-                        weight: (kEntry.confidence || 80) / 100
-                    });
+                    // D0a: structural sentinel (no external source_url for a knowledge link).
+                    const ref = ed.add(structuralSentinel('mesh_graph_explains', 'knowledge-links.json'));
+                    edges[sourceId].push({ target: targetId, type: 'EXPLAINS', weight: (kEntry.confidence || 80) / 100, source_trail: [ref], edge_id: edgeId(sourceId, 'EXPLAINS', targetId) });
                     stats.by_edge_type['EXPLAINS'] = (stats.by_edge_type['EXPLAINS'] || 0) + 1;
                 }
             }
@@ -204,11 +192,9 @@ export async function generateMeshGraph(outputDir = './output') {
                         if (entityId && !seenEdges.has(fk)) {
                             seenEdges.add(fk);
                             if (!edges[entityId]) edges[entityId] = [];
-                            edges[entityId].push({
-                                target: reportId,
-                                type: 'FEATURED_IN',
-                                weight: 1.0
-                            });
+                            // D0a: structural sentinel (no external source_url for a report).
+                            const ref = ed.add(structuralSentinel('mesh_graph_featured_in', 'reports'));
+                            edges[entityId].push({ target: reportId, type: 'FEATURED_IN', weight: 1.0, source_trail: [ref], edge_id: edgeId(entityId, 'FEATURED_IN', reportId) });
                             stats.by_edge_type['FEATURED_IN'] = (stats.by_edge_type['FEATURED_IN'] || 0) + 1;
                         }
                     }
@@ -228,7 +214,8 @@ export async function generateMeshGraph(outputDir = './output') {
     }
 
     const ts = new Date().toISOString();
-    await smartWriteWithVersioning('graph.json', { _v: VERSION, _ts: ts, nodes, edges, stats }, meshDir, { compress: true });
+    // D0a: emit the merged evidence_dict (relations refs + minted sentinels).
+    await smartWriteWithVersioning('graph.json', { _v: VERSION, _ts: ts, nodes, edges, evidence_dict: ed.dict, stats }, meshDir, { compress: true });
     await smartWriteWithVersioning('stats.json', { _v: VERSION, _ts: ts, ...stats }, meshDir, { compress: true });
 
     console.log(`[MESH-GRAPH] Generated graph with ${stats.nodes} nodes, ${stats.edges} edges`);

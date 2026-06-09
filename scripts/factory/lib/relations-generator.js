@@ -14,6 +14,7 @@ import { extractEntityRelations } from './relation-extractors.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { emitProvisionalSourceSummary } from '../../utils/provisional-source-stats.js';
 import { buildRelationsGraphFromFilesFFI } from './rust-bridge.js';
+import { newEvidenceDict, edgeId, structuralSentinel } from './evidence-carrier.js';
 
 const RELATION_STATS = {
     BASED_ON: 0, TRAINED_ON: 0, CITES: 0, IMPLEMENTS: 0,
@@ -32,9 +33,14 @@ const RELATION_STATS = {
  * rebuilds graph.json.zst; an inverse built here would not survive that rebuild,
  * so the baker is the runtime-correct chokepoint for PR-2 reverse projection.
  */
-function addEdge(edges, counts, sourceId, targetId, relType, confidence = 1.0) {
+function addEdge(edges, counts, sourceId, targetId, relType, confidence = 1.0, ed = null, evidence = null) {
     if (!edges[sourceId]) edges[sourceId] = [];
-    edges[sourceId].push([targetId, relType, Math.round(confidence * 100)]);
+    // D0a carrier: widen the 3-tuple to [target, type, conf, source_trail_refs, edge_id].
+    // Refs are COMPACT integer indices into the per-graph evidence dictionary (spec
+    // 2B) -- NEVER the fat element object. edge_id is deterministic (spec 5).
+    const refs = (ed && evidence) ? [ed.add(evidence)] : [];
+    const eid = edgeId(sourceId, relType, targetId);
+    edges[sourceId].push([targetId, relType, Math.round(confidence * 100), refs, eid]);
     counts[relType] = (counts[relType] || 0) + 1;
 }
 
@@ -53,6 +59,9 @@ export async function generateRelations(shardReader, outputDir = './output') {
     const nodes = {};
     const edges = {};
     let totalRelations = 0;
+    // D0a: the relations-stage evidence dictionary (OWNS the per-edge trail slice;
+    // the mesh stage later imports + appends structural edges). One ref-space.
+    const ed = newEvidenceDict();
 
     const HUB_NODES = ['concept--trending-now', 'concept--daily-highlights', 'concept--agentic-ai'];
     for (const hubId of HUB_NODES) {
@@ -75,14 +84,18 @@ export async function generateRelations(shardReader, outputDir = './output') {
             for (const h of (rd.highlights || [])) {
                 const hType = h.type || 'model';
                 const hId = normalizeId(h.id, getNodeSource(h.id, hType), hType);
-                addEdge(edges, counts, rId, hId, 'FEATURES');
+                // report FEATURES: source = daily report (no source_url) -> sentinel.
+                addEdge(edges, counts, rId, hId, 'FEATURES', 1.0, ed,
+                    structuralSentinel('report_injection', rId, 'structural_injection'));
                 totalRelations++;
             }
         }
-        // Link sequential reports (FOLLOWS)
+        // Link sequential reports (FOLLOWS) -> report-chain structural sentinel.
         const sorted = Object.values(nodes).filter(n => n.t === 'report').sort((a, b) => b.day.localeCompare(a.day));
         for (let i = 0; i < sorted.length - 1; i++) {
-            addEdge(edges, counts, `report--${sorted[i].day}`, `report--${sorted[i + 1].day}`, 'FOLLOWS');
+            const fId = `report--${sorted[i].day}`;
+            addEdge(edges, counts, fId, `report--${sorted[i + 1].day}`, 'FOLLOWS', 1.0, ed,
+                structuralSentinel('report_injection', fId, 'report_chain'));
             totalRelations++;
         }
     } catch (e) {
@@ -100,7 +113,9 @@ export async function generateRelations(shardReader, outputDir = './output') {
             const id = entity.id || entity.slug;
             nodes[id] = { t: entity.type || 'model', f: Math.round((entity.fni_score || 0) * 10) / 10 };
             for (const rel of extractEntityRelations(entity)) {
-                addEdge(edges, counts, rel.source_id, rel.target_id, rel.relation_type, rel.confidence);
+                // D0a: rel._evidence is the LOGICAL 2A element; addEdge interns it
+                // into the dict and stores only the COMPACT ref on the edge.
+                addEdge(edges, counts, rel.source_id, rel.target_id, rel.relation_type, rel.confidence, ed, rel._evidence);
                 if (!nodes[rel.target_id]) nodes[rel.target_id] = { t: rel.target_type || 'concept', f: 0 };
                 totalRelations++;
             }
@@ -113,20 +128,27 @@ export async function generateRelations(shardReader, outputDir = './output') {
         const { zstdCompress } = await import('./zstd-helper.js');
         const nodesPath = path.join(relationsDir, '_tmp-nodes.json.zst');
         const relsPath = path.join(relationsDir, '_tmp-relations.json.zst');
+        const dictPath = path.join(relationsDir, '_tmp-evidence-dict.json.zst');
         await fs.writeFile(nodesPath, await zstdCompress(JSON.stringify(nodes)));
+        // D0a: hand the relations-stage evidence dictionary to Rust so it embeds
+        // explicit.evidence_dict (Rust primary writes explicit.json directly).
+        await fs.writeFile(dictPath, await zstdCompress(JSON.stringify(ed.dict)));
         // Reconstruct flat relations from edges for Rust (streamed write, not accumulated)
+        // D0a: carry the COMPACT source_trail refs + edge_id THROUGH to Rust (it passes
+        // them verbatim into the emitted widened arrays; JS owns the relations-stage dict).
         const relsFromEdges = [];
         for (const [sourceId, edgeList] of Object.entries(edges)) {
             const sType = nodes[sourceId]?.t || 'model';
-            for (const [targetId, relType, conf] of edgeList) {
-                relsFromEdges.push({ source_id: sourceId, source_type: sType, target_id: targetId, target_type: nodes[targetId]?.t || 'concept', relation_type: relType, confidence: conf / 100 });
+            for (const [targetId, relType, conf, refs, eid] of edgeList) {
+                relsFromEdges.push({ source_id: sourceId, source_type: sType, target_id: targetId, target_type: nodes[targetId]?.t || 'concept', relation_type: relType, confidence: conf / 100, source_trail: refs || [], edge_id: eid || '' });
             }
         }
         await fs.writeFile(relsPath, await zstdCompress(JSON.stringify(relsFromEdges)));
         relsFromEdges.length = 0; // Release immediately
-        const r = buildRelationsGraphFromFilesFFI(nodesPath, relsPath, relationsDir);
+        const r = buildRelationsGraphFromFilesFFI(nodesPath, relsPath, relationsDir, dictPath);
         await fs.unlink(nodesPath).catch(() => {});
         await fs.unlink(relsPath).catch(() => {});
+        await fs.unlink(dictPath).catch(() => {});
         if (r?.explicitJson && r?.legacyJson) {
             await fs.writeFile(path.join(relationsDir, 'explicit.json.zst'), Buffer.from(r.explicitJson));
             await fs.writeFile(path.join(cacheDir, 'relations.json.zst'), Buffer.from(r.legacyJson));
@@ -135,9 +157,10 @@ export async function generateRelations(shardReader, outputDir = './output') {
         }
     } catch (e) { console.warn(`[RELATIONS] Rust FFI skipped (${e.message}).`); }
 
-    // JS fallback: write explicit.json from nodes + edges
+    // JS fallback: write explicit.json from nodes + edges. D0a: include the
+    // evidence_dict so refs on widened edges resolve (Rust embeds it identically).
     if (!rustDone) {
-        const output = { _v: '25.9.1', _ts: new Date().toISOString(), _count: totalRelations, _stats: counts, nodes, edges };
+        const output = { _v: '25.9.1', _ts: new Date().toISOString(), _count: totalRelations, _stats: counts, nodes, edges, evidence_dict: ed.dict };
         await smartWriteWithVersioning('relations/explicit.json', output, cacheDir, { compress: true });
     }
 

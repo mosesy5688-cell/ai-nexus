@@ -15,6 +15,7 @@ mod relations;
 mod knowledge_linker;
 mod alt_linker;
 mod mesh_graph;
+mod evidence; // D0a source_trail carrier (lockstep mirror of evidence-carrier.js)
 
 // Re-export all N-API functions
 pub use search_indexer::*;
