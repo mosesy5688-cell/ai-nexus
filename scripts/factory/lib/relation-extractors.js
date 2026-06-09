@@ -1,7 +1,14 @@
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { evidenceElement, methodForVerb } from './evidence-carrier.js';
 
 /**
  * Relation Extractors V14.5.2
+ *
+ * D0a (source_trail): each emitted relation carries a LOGICAL 2A EvidenceElement
+ * on `_evidence` (the WHY). The relations-generator interns it into the per-graph
+ * evidence dictionary and replaces it with a COMPACT ref (spec 2B) -- the edge
+ * NEVER stores the fat object. source_url = the SOURCE entity's source_url
+ * (registry-loader projectEntityForRelations:245); null when absent (honest).
  */
 
 // STACK relation tool mappings
@@ -29,8 +36,12 @@ const KNOWN_TOOLS = {
 // non-string / too-short id is BAD DATA - skip it, never coerce/fabricate.
 const isValidRelId = (v) => typeof v === 'string' && v.length > 2;
 
-/** Create relation object helper (returns null when either id is invalid) */
-function rel(sourceId, sourceType, targetId, targetType, relType, conf = 1.0) {
+/**
+ * Create relation object helper (returns null when either id is invalid).
+ * `ev` = { source_field, source_url } for the D0a source_trail element: the raw
+ * ref value is the un-normalized targetId; method derives from the verb.
+ */
+function rel(sourceId, sourceType, targetId, targetType, relType, conf = 1.0, ev = {}) {
     // V27.94 hotfix: drop edge if either id is non-string/too-short bad data.
     if (!isValidRelId(sourceId) || !isValidRelId(targetId)) return null;
 
@@ -45,6 +56,12 @@ function rel(sourceId, sourceType, targetId, targetType, relType, conf = 1.0) {
         target_type: targetType,
         relation_type: relType,
         confidence: conf,
+        // D0a 2A logical EvidenceElement (interned -> compact ref by the generator).
+        _evidence: evidenceElement({
+            signal: ev.source_field || relType, value: targetId,
+            source_field: ev.source_field || relType, method: methodForVerb(relType),
+            producer: 'rel_extractor', source_url: ev.source_url ?? null,
+        }),
     };
 }
 
@@ -59,6 +76,10 @@ export function extractEntityRelations(entity) {
     const relations = [];
     const id = entity.id || entity.slug;
     const type = entity.type || 'model';
+    // D0a: the source entity source_url is the in-scope evidence for every edge
+    // this entity emits (projectEntityForRelations:245 carries it). null = honest.
+    const su = entity.source_url || null;
+    const ev = (source_field) => ({ source_field, source_url: su });
 
     // V27.94 hotfix: push only when rel() returns a real edge (it returns null
     // for non-string/too-short ids - e.g. a numeric source id from projection).
@@ -66,7 +87,7 @@ export function extractEntityRelations(entity) {
 
     // BASED_ON: base_model field
     for (const t of toArray(entity.base_model)) {
-        if (t?.length > 2) push(rel(id, type, t, 'model', 'BASED_ON'));
+        if (t?.length > 2) push(rel(id, type, t, 'model', 'BASED_ON', 1.0, ev('base_model')));
     }
 
     // TRAINED_ON: datasets field. A benchmark's dataset ref is the data it
@@ -74,17 +95,17 @@ export function extractEntityRelations(entity) {
     // the model-centric TRAINED_ON. (benchmark 5th-type type-guard, panel R2.)
     const datasetRel = type === 'benchmark' ? 'USES' : 'TRAINED_ON';
     for (const ds of toArray(entity.datasets || entity.datasets_used)) {
-        if (ds?.length > 2) push(rel(id, type, ds, 'dataset', datasetRel));
+        if (ds?.length > 2) push(rel(id, type, ds, 'dataset', datasetRel, 1.0, ev('datasets')));
     }
 
     // CITES: paper references
     for (const p of toArray(entity.arxiv_refs || entity.paper_refs || entity.references)) {
-        if (p?.length > 2) push(rel(id, type, p, 'paper', 'CITES'));
+        if (p?.length > 2) push(rel(id, type, p, 'paper', 'CITES', 1.0, ev('arxiv_refs')));
     }
 
     // USES: models used by agent/space
     for (const m of toArray(entity.models_used || entity.models || entity.model_id)) {
-        if (m?.length > 2) push(rel(id, type, m, 'model', 'USES'));
+        if (m?.length > 2) push(rel(id, type, m, 'model', 'USES', 1.0, ev('models_used')));
     }
 
     // EVALUATED_ON: model -> benchmark (5th-type identity-edge generator).
@@ -102,20 +123,20 @@ export function extractEntityRelations(entity) {
         for (const benchId of Object.keys(entity.benchmarks)) {
             if (EXCLUDED_BENCH_KEYS.has(benchId)) continue;
             const targetId = `benchmark--openllm--${benchId}`;
-            push(rel(id, 'model', targetId, 'benchmark', 'EVALUATED_ON'));
+            push(rel(id, 'model', targetId, 'benchmark', 'EVALUATED_ON', 1.0, ev('benchmarks')));
         }
     }
 
     // DEMO_OF: space with SDK
     // V27.94 hotfix: entity.model_id may be numeric now - rel() skips non-string.
     if ((entity.sdk === 'gradio' || entity.sdk === 'streamlit') && entity.model_id) {
-        push(rel(id, 'space', entity.model_id, 'model', 'DEMO_OF', 0.9));
+        push(rel(id, 'space', entity.model_id, 'model', 'DEMO_OF', 0.9, ev('model_id')));
     }
 
     // IMPLEMENTS: paper implementations
     if (type === 'paper') {
         for (const impl of toArray(entity.implementations)) {
-            if (impl?.length > 2) push(rel(id, 'paper', impl, 'model', 'IMPLEMENTS'));
+            if (impl?.length > 2) push(rel(id, 'paper', impl, 'model', 'IMPLEMENTS', 1.0, ev('implementations')));
         }
     }
 
@@ -126,8 +147,8 @@ export function extractEntityRelations(entity) {
         for (const [kw, toolId] of Object.entries(KNOWN_TOOLS)) {
             if (text.includes(kw)) {
                 // V27.94 hotfix: guard the spread - rel() may return null.
-                const r = rel(id, 'model', toolId, 'tool', 'STACK', 0.8);
-                if (r) relations.push({ ...r, target_id: toolId });
+                const r = rel(id, 'model', toolId, 'tool', 'STACK', 0.8, ev('tags'));
+                if (r) relations.push({ ...r, target_id: toolId }); // _evidence preserved by spread
             }
         }
     }
@@ -135,25 +156,26 @@ export function extractEntityRelations(entity) {
     // DEP: agent/tool dependencies
     if ((type === 'agent' || type === 'tool') && entity.dependencies) {
         for (const dep of toArray(entity.dependencies)) {
-            if (dep?.length > 2) push(rel(id, type, dep, 'tool', 'DEP'));
+            if (dep?.length > 2) push(rel(id, type, dep, 'tool', 'DEP', 1.0, ev('dependencies')));
         }
     }
 
     // V15: FEATURES - Extract from "features" or "highlights"
     for (const f of toArray(entity.features || entity.highlights)) {
-        if (f?.length > 2) push(rel(id, type, f, 'concept', 'FEATURES', 0.9));
+        if (f?.length > 2) push(rel(id, type, f, 'concept', 'FEATURES', 0.9, ev('features')));
     }
 
-    // V15: TRENDING - Detect from velocity if present
+    // V15: TRENDING - Detect from velocity if present. Structural (velocity, not
+    // an external cross-ref) -> sentinel method via methodForVerb('TRENDING').
     if (entity.velocity > 0.5) {
-        push(rel(id, type, 'concept--trending-now', 'concept', 'TRENDING', 0.8));
+        push(rel(id, type, 'concept--trending-now', 'concept', 'TRENDING', 0.8, ev('velocity')));
     }
 
     // V15: EXPLAIN - Support for knowledge articles
     // V27.94 hotfix: knowledge_tags may contain numeric entries - rel() skips them.
     if (entity.knowledge_tags) {
         for (const kt of toArray(entity.knowledge_tags)) {
-            push(rel(id, type, kt, 'concept', 'EXPLAIN', 1.0));
+            push(rel(id, type, kt, 'concept', 'EXPLAIN', 1.0, ev('knowledge_tags')));
         }
     }
 

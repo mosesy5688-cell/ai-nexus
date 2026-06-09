@@ -5,6 +5,7 @@ use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+use crate::evidence::EvidenceBuilder;
 
 #[napi(object)]
 pub struct MeshGraphResult {
@@ -130,6 +131,10 @@ fn build_mesh_graph_inner(
     let mut seen_edges: HashSet<(String, String, String)> = HashSet::new();
     let mut edge_type_counts: HashMap<String, u32> = HashMap::new();
     let mut node_type_counts: HashMap<String, u32> = HashMap::new();
+    // D0a: seed the evidence dict from the relations stage; the mesh stage APPENDS
+    // structural sentinels for the out-of-rel edges it mints (EXPLAINS/FEATURED_IN).
+    let mut ev = EvidenceBuilder::from_value(
+        explicit_val.and_then(|e| e.get("evidence_dict")));
 
     // 1. Parse explicit relations
     if let Some(explicit) = explicit_val {
@@ -197,7 +202,11 @@ fn build_mesh_graph_inner(
                                 })
                             });
 
-                            let edge = serde_json::json!([k_id, "EXPLAINS", conf]);
+                            // D0a: knowledge-link EXPLAINS has no external source_url
+                            // -> a STRUCTURAL sentinel (source_field=knowledge-links.json).
+                            let r = ev.add_sentinel("mesh_graph_explains", "knowledge-links.json", "structural_injection");
+                            let eid = nxvf_core::sha256_hex16(&format!("{}\0EXPLAINS\0{}", entity_id, k_id));
+                            let edge = serde_json::json!([k_id, "EXPLAINS", conf, [r], eid]);
                             edges.entry(entity_id.to_string()).or_default().push(edge);
                             *edge_type_counts.entry("EXPLAINS".to_string()).or_insert(0) += 1;
                         }
@@ -231,7 +240,11 @@ fn build_mesh_graph_inner(
                                     "f": 0.0,
                                 })
                             });
-                            let edge = serde_json::json!([report_id, "FEATURED_IN", 80]);
+                            // D0a: report FEATURED_IN has no external source_url ->
+                            // a STRUCTURAL sentinel (source_field=reports).
+                            let r = ev.add_sentinel("mesh_graph_featured_in", "reports", "structural_injection");
+                            let edge_id = nxvf_core::sha256_hex16(&format!("{}\0FEATURED_IN\0{}", eid, report_id));
+                            let edge = serde_json::json!([report_id, "FEATURED_IN", 80, [r], edge_id]);
                             edges.entry(eid.to_string()).or_default().push(edge);
                             *edge_type_counts.entry("FEATURED_IN".to_string())
                                 .or_insert(0) += 1;
@@ -251,10 +264,14 @@ fn build_mesh_graph_inner(
     let total_edges: u32 = edge_type_counts.values().sum();
     let node_count = nodes.len() as u32;
 
+    // D0a: emit the merged evidence dictionary (relations refs + minted sentinels)
+    // so every COMPACT edge ref resolves at both served sinks + the canary.
+    let evidence_dict = ev.into_value();
     let graph = serde_json::json!({
         "_v": "25.8.3",
         "nodes": nodes,
         "edges": edges,
+        "evidence_dict": evidence_dict,
     });
     let stats = serde_json::json!({
         "node_count": node_count,

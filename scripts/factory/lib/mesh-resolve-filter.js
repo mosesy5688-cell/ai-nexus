@@ -53,12 +53,18 @@ export function isConceptStubEdge(relationVerb, targetType, targetId) {
 export function resolveMeshEdge(targetId, relationType, lookupHit, opts = {}) {
     if (isConceptStubEdge(relationType, opts.targetType, targetId)) return null;
     if (!lookupHit || !lookupHit.name) return null; // entity_lookup MISS -> drop
-    return {
+    const node = {
         id: targetId,
         type: relationType,
         name: lookupHit.name,
         icon: lookupHit.icon || '\u{1F4E6}', // 📦
     };
+    // D0a source_trail carrier: forward the COMPACT refs + edge_id onto the served
+    // node so the evidence reaches ui_related_mesh + the entity API (acceptance #5).
+    // Refs resolve against the baked evidence_dict sidecar (spec 2B compact carrier).
+    if (Array.isArray(opts.source_trail)) node.source_trail = opts.source_trail;
+    if (opts.edge_id) node.edge_id = opts.edge_id;
+    return node;
 }
 
 /**

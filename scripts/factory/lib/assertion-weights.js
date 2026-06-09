@@ -16,7 +16,10 @@
 
 // Bump on ANY weight change. Persisted alongside assertions so a served confidence
 // is always attributable to the exact table revision that produced it.
-export const IDENTITY_WEIGHTS_VERSION = 'identity-weights-v1';
+// v2 (D0a): APPENDS mesh-edge methods (no v1 weight mutated -> shipped assertions
+// keep their v1 scores; only NEW records stamp v2). source_trail evidence reuses
+// this same FROZEN table (spec 2.1: "add to the SAME frozen table, versioned").
+export const IDENTITY_WEIGHTS_VERSION = 'identity-weights-v2';
 
 /**
  * Per-method evidence weight, in [0,1]. A weight is the confidence MASS one
@@ -38,6 +41,24 @@ export const METHOD_WEIGHTS = Object.freeze({
     cites_xref: 0.3,               // arxiv/paper reference (CITES-class)
     uses_xref: 0.3,                // models_used / model_id (USES-class)
     shared_source_url_unverified: 0.4, // same source_url but harvest-set origin NOT provable
+
+    // --- D0 mesh-edge methods (v2 APPEND; source_trail evidence) ---
+    // A declared dependency / stack membership (DEP/STACK): an entity DECLARES it
+    // uses this tool. Mid mass (declared, not source-url-verified).
+    declared_dependency: 0.5,
+    // Membership in a leaderboard/benchmark score table (EVALUATED_ON): the score
+    // key's presence is the evidence. Mid mass.
+    leaderboard_membership: 0.5,
+    // A keyword/tag mention (FEATURES/EXPLAIN keyword match): weakest text signal.
+    keyword_mention: 0.3,
+    // A reverse edge references the SAME forward fact (RESERVED for D0b reverse
+    // wiring; the reverse element points at the forward edge_id, never a new fact).
+    reverse_of: 0.0,
+    // Structural injection (FOLLOWS/FEATURED_IN/report-FEATURES): no external
+    // evidence -> a structural sentinel (source_url null = honest not-measured).
+    structural_injection: 0.1,
+    // Report-chain sequencing (FOLLOWS between consecutive daily reports).
+    report_chain: 0.1,
 });
 
 /**

@@ -1,0 +1,155 @@
+/**
+ * D0 source_trail Evidence Carrier kernel (PR-D0a) -- the SHARED JS side of the
+ * compact-ref evidence carrier (spec L2_D0_SOURCE_TRAIL_SPEC v2 R4-RATIFIED).
+ *
+ * 2A vs 2B (the distinction that MUST NOT be conflated):
+ *  - 2A EvidenceElement = the LOGICAL evidence shape (one dictionary entry):
+ *    {signal,value,source_field,method,weight,producer,source_url,observed_at}
+ *    reusing the assertion evidence vocab (assertion-rules.js:60 + METHOD_WEIGHTS).
+ *  - 2B CARRIER = what is physically stored ON an edge: COMPACT integer REFS into a
+ *    per-graph evidence DICTIONARY. NEVER an inlined EvidenceElement object on an
+ *    edge (fat object = blob blowup = HARD-FAIL invariant, spec 2B).
+ *
+ * One dictionary (graph.evidence_dict) per graph artifact; refs are indices into
+ * its elements[] table; enums (producer/method) are FROZEN ORDINALS so Rust + JS
+ * mint byte-identical refs (lockstep). ASCII-only (Art 8.1). CES <= 250.
+ */
+
+import crypto from 'crypto';
+import { weightForMethod } from './assertion-weights.js';
+
+// FROZEN producer enum (ordinal = index; NEVER reorder -- ordinals are the carrier
+// code). Spec 2.1. Extend only by APPENDING a new producer (governed).
+export const PRODUCERS = Object.freeze([
+    'relations_generator', 'rel_extractor', 'mesh_graph_explains',
+    'mesh_graph_featured_in', 'reverse_edge_projector', 'report_injection',
+]);
+// FROZEN method enum (ordinal = index). MUST stay in METHOD_WEIGHTS (weights table)
+// AND in parity with the Rust METHODS table. Append-only.
+export const METHODS = Object.freeze([
+    'exact_source_url_xref', 'derived_from_xref', 'cites_xref', 'uses_xref',
+    'shared_source_url_unverified', 'declared_dependency', 'leaderboard_membership',
+    'keyword_mention', 'reverse_of', 'structural_injection', 'report_chain',
+]);
+
+export const EVIDENCE_DICT_VERSION = 'd0-evidence-v0';
+
+const PRODUCER_ORD = new Map(PRODUCERS.map((p, i) => [p, i]));
+const METHOD_ORD = new Map(METHODS.map((m, i) => [m, i]));
+
+/** Deterministic edge_id = sha256(src \0 type \0 tgt)[:16]. Identical in Rust. */
+export function edgeId(sourceId, relType, targetId) {
+    return crypto.createHash('sha256')
+        .update(`${sourceId}\u0000${relType}\u0000${targetId}`)
+        .digest('hex').slice(0, 16);
+}
+
+/** Per-verb -> FROZEN method mapping. Unknown verb -> structural_injection sentinel. */
+const VERB_METHOD = Object.freeze({
+    BASED_ON: 'derived_from_xref', TRAINED_ON: 'derived_from_xref',
+    CITES: 'cites_xref', USES: 'uses_xref', DEMO_OF: 'uses_xref',
+    IMPLEMENTS: 'uses_xref', STACK: 'declared_dependency', DEP: 'declared_dependency',
+    EVALUATED_ON: 'leaderboard_membership', FEATURES: 'keyword_mention',
+    EXPLAIN: 'keyword_mention',
+});
+export function methodForVerb(verb) {
+    return VERB_METHOD[(verb || '').toUpperCase()] || 'structural_injection';
+}
+
+/** Build a LOGICAL 2A EvidenceElement (NOT a carrier; gets interned -> a ref). */
+export function evidenceElement(opts) {
+    const method = opts.method;
+    return {
+        signal: opts.signal || opts.source_field || '',
+        value: opts.value == null ? '' : String(opts.value),
+        source_field: opts.source_field || opts.signal || '',
+        method,
+        weight: weightForMethod(method),
+        producer: opts.producer,
+        source_url: opts.source_url == null ? null : String(opts.source_url),
+        observed_at: opts.observed_at == null ? null : opts.observed_at, // RESERVED v0
+    };
+}
+
+/** A MINIMAL structural sentinel element (no external evidence; source_url=null). */
+export function structuralSentinel(producer, sourceField, method = 'structural_injection') {
+    return evidenceElement({ signal: sourceField, value: '', source_field: sourceField, method, producer, source_url: null });
+}
+
+/**
+ * The per-graph evidence DICTIONARY (2B). Interns enums (ordinals), strings, and
+ * source_urls; dedups elements. `add()` returns the integer ref of an element.
+ * Deterministic first-seen append order -> Rust + JS produce identical dicts for
+ * identical input order (parity-locked).
+ */
+export function newEvidenceDict(seed) {
+    const strings = []; const stringOrd = new Map();
+    const urls = []; const urlOrd = new Map();
+    const elements = []; const elemOrd = new Map();
+    const internStr = (s) => {
+        const k = s || '';
+        if (stringOrd.has(k)) return stringOrd.get(k);
+        stringOrd.set(k, strings.length); strings.push(k); return strings.length - 1;
+    };
+    const internUrl = (u) => {
+        if (u == null) return -1; // -1 = null (honest not-measured)
+        if (urlOrd.has(u)) return urlOrd.get(u);
+        urlOrd.set(u, urls.length); urls.push(u); return urls.length - 1;
+    };
+    const add = (el) => {
+        const pOrd = PRODUCER_ORD.get(el.producer);
+        const mOrd = METHOD_ORD.get(el.method);
+        if (pOrd == null) throw new Error(`[evidence] unknown producer '${el.producer}'`);
+        if (mOrd == null) throw new Error(`[evidence] unknown method '${el.method}'`);
+        const sigIdx = internStr(el.signal);
+        const fldIdx = internStr(el.source_field);
+        const urlIdx = internUrl(el.source_url);
+        const key = `${sigIdx}|${el.value}|${fldIdx}|${mOrd}|${pOrd}|${urlIdx}`;
+        if (elemOrd.has(key)) return elemOrd.get(key);
+        // compact element: [sigIdx, value, fldIdx, methodOrd, weight, producerOrd, urlIdx, observedAt]
+        elements.push([sigIdx, el.value, fldIdx, mOrd, el.weight, pOrd, urlIdx, el.observed_at ?? null]);
+        elemOrd.set(key, elements.length - 1);
+        return elements.length - 1;
+    };
+    const dict = {
+        v: EVIDENCE_DICT_VERSION,
+        producers: PRODUCERS.slice(), methods: METHODS.slice(),
+        strings, source_urls: urls, elements,
+    };
+    // Re-seed from an imported dict (mesh stage carries the relations-stage dict).
+    if (seed && Array.isArray(seed.elements)) {
+        seed.strings?.forEach((s) => internStr(s));
+        seed.source_urls?.forEach((u) => internUrl(u));
+        for (const e of seed.elements) {
+            // resolve seed element back to logical via seed's own tables, re-add
+            const sig = seed.strings?.[e[0]] ?? '';
+            const fld = seed.strings?.[e[2]] ?? '';
+            const url = e[6] >= 0 ? (seed.source_urls?.[e[6]] ?? null) : null;
+            add({ signal: sig, value: e[1], source_field: fld, method: seed.methods?.[e[3]],
+                weight: e[4], producer: seed.producers?.[e[5]], source_url: url, observed_at: e[7] });
+        }
+    }
+    return { dict, add };
+}
+
+/**
+ * Canary helper (WARN in D0a; bake-FAIL in D0b): does an edge carry >=1 ref that
+ * RESOLVES to a valid dictionary element (method in MethodEnum, producer in
+ * ProducerEnum, source_field non-empty)? Returns {ok, reason}.
+ */
+export function assertEdgeTrail(refs, dict) {
+    if (!Array.isArray(refs) || refs.length === 0) return { ok: false, reason: 'no-refs' };
+    const els = dict && dict.elements;
+    if (!Array.isArray(els)) return { ok: false, reason: 'no-dict' };
+    for (const ref of refs) {
+        const el = els[ref];
+        if (!el) return { ok: false, reason: `unresolvable-ref:${ref}` };
+        const method = dict.methods?.[el[3]];
+        const producer = dict.producers?.[el[5]];
+        const field = dict.strings?.[el[2]];
+        if (!METHOD_ORD.has(method)) return { ok: false, reason: `bad-method:${ref}` };
+        if (!PRODUCER_ORD.has(producer)) return { ok: false, reason: `bad-producer:${ref}` };
+        if (!field) return { ok: false, reason: `empty-source_field:${ref}` };
+    }
+    return { ok: true, reason: '' };
+}

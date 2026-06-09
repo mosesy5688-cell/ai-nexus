@@ -9,6 +9,7 @@ import { normalizeId, getNodeSource, ALL_PREFIXES } from '../utils/id-normalizer
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
 import { getRouteFromId, getTypeFromId } from '../../src/utils/mesh-routing-core.js';
 import { buildInverseAdjacency, projectReverseEdges } from './lib/reverse-edge-projector.js';
+import { newEvidenceDict, structuralSentinel } from './lib/evidence-carrier.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.zst');
@@ -36,6 +37,14 @@ async function main() {
         const nodeRegistry = graph.nodes || {};
         const edgeRegistry = graph.edges || {};
         const nodeIds = Object.keys(nodeRegistry);
+        // D0a: carry the graph evidence_dict THROUGH to ui_related_mesh (each shard
+        // re-emits it so the per-entity sink is self-contained for the canary +
+        // serve). Reverse edges get a MINIMAL sentinel ref (full reverse-references-
+        // forward-edge is PR-D0b). ed.dict is seeded from graph.evidence_dict.
+        const ed = newEvidenceDict(graph.evidence_dict);
+        // One sentinel ref reused for every reverse edge this bake mints (D0a: the
+        // reversed fact's MINIMAL trail; D0b upgrades to reference the forward edge_id).
+        const reverseRef = ed.add(structuralSentinel('reverse_edge_projector', 'inverse_adjacency', 'reverse_of'));
 
         console.log(`[BAKER] Loaded ${nodeIds.length} nodes from graph.`);
 
@@ -81,7 +90,7 @@ async function main() {
             // OUTGOING edges below and the PR-2 reverse projection so a reversed
             // edge is shaped identically (and resolve-filtered identically by the
             // downstream distiller resolveMeshEdge against entity_lookup).
-            const bakeEdge = (targetIdRaw, relType, conf, objExtras = {}) => {
+            const bakeEdge = (targetIdRaw, relType, conf, objExtras = {}, srcTrail = [], eid = '') => {
                 // BUGFIX: relType is the relation VERB (BASED_ON/TRAINED_ON/CITES/USES),
                 // NOT the target's entity TYPE. Passing the verb to getNodeSource/
                 // normalizeId/getRouteFromId made every non-model target route to
@@ -98,6 +107,10 @@ async function main() {
                     ? registryNode : (nodeRegistry[syncedTargetId] || registryNode);
                 return {
                     ...objExtras, url: bakedUrl,
+                    // D0a carrier: forward the COMPACT source_trail refs + edge_id
+                    // onto the baked relation (reaches ui_related_mesh + serve).
+                    source_trail: srcTrail || [],
+                    edge_id: eid || '',
                     relation_type: relType,
                     // PR reverse-edge-target-type: emit the real target entity TYPE
                     // (model/paper/dataset/benchmark/concept) alongside the verb.
@@ -123,7 +136,10 @@ async function main() {
                 // array-form conf is 0-100 (addEdge Math.round(conf*100)); normalize to
                 // 0-1 to match object/source convention (frontend tests rel.confidence>0.8).
                 const conf = isArr ? (rel[2] != null ? rel[2] / 100 : undefined) : rel.confidence;
-                return bakeEdge(targetIdRaw, relType, conf, isArr ? {} : rel);
+                // D0a: read the carrier from slot[3]/[4] (array) or .source_trail/.edge_id (object).
+                const srcTrail = isArr ? (rel[3] || []) : (rel.source_trail || []);
+                const eid = isArr ? (rel[4] || '') : (rel.edge_id || '');
+                return bakeEdge(targetIdRaw, relType, conf, isArr ? {} : rel, srcTrail, eid);
             });
 
             // PR-2: merge the INBOUND (reversed-verb) view of edges that already
@@ -133,7 +149,9 @@ async function main() {
             // against existing outgoing edges so bidirectional facts aren't doubled.
             const reverseRelations = projectReverseEdges(
                 inEdges[nodeId], typeValue, bakedRelations,
-                (sourceId, verb) => bakeEdge(sourceId, verb, 1.0));
+                // D0a: reverse edges carry a MINIMAL sentinel ref (reverse_of). D0b
+                // upgrades this to reference the FORWARD edge_id (no new bare fact).
+                (sourceId, verb) => bakeEdge(sourceId, verb, 1.0, {}, [reverseRef], ''));
             for (const rr of reverseRelations) bakedRelations.push(rr);
             reverseCount += reverseRelations.length;
 
@@ -150,6 +168,13 @@ async function main() {
             if (bakedCount % 50000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles (${shardIndex} shards)...`);
         }
         await flushShard();
+        // D0a: emit the baked evidence_dict sidecar (graph dict + the reverse
+        // sentinel the baker appended) so the ui_related_mesh WARN canary can
+        // resolve every served ref against ONE dictionary. site_metadata.mesh_graph
+        // still carries graph.evidence_dict for the graph-blob sink.
+        const { zstdCompress } = await import('./lib/zstd-helper.js');
+        await fs.writeFile(path.join(CACHE_DIR, 'mesh', 'profile-evidence-dict.json.zst'),
+            await zstdCompress(JSON.stringify(ed.dict)));
         if (skippedInvalid > 0) console.warn(`[BAKER] ⚠️ Skipped ${skippedInvalid} nodes with invalid IDs`);
         console.log(`[BAKER] ✅ ${bakedCount} profiles → ${shardIndex} shards (${SHARD_SIZE}/shard); ${reverseCount} reverse-projected inbound edges.`);
     } catch (error) {
