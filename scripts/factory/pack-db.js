@@ -13,7 +13,7 @@ import { computeMetaShardSlot, assertMetaShardRoutable } from './lib/meta-shard-
 import { dbSchemas } from './lib/pack-schemas.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 import { generateHotShard } from './lib/hot-shard-generator.js';
-import { loadMeshProfileMap } from './lib/mesh-profile-loader.js';
+import { loadMeshProfileMap } from './lib/mesh-profile-loader.js'; import { normalizeId, getNodeSource } from '../utils/id-normalizer.js'; // D0b canonical key for profile attach
 import { generateVectorCore } from './lib/vector-core-generator.js';
 import { finalizePack } from './lib/pack-finalizer.js';
 import { ShardWriter } from './lib/shard-writer.js';
@@ -117,8 +117,8 @@ async function packDatabase() {
             uncachedByShard.get(shardIdx).push({ id: eid, name: e.name || '', summary: e.summary || e.clean_summary || e.description || '' });
         }
 
-        // V27.71: case-insensitive (baker normalizeId lowercases keys, e.id keeps source case).
-        const mp = meshProfileMap.get(e.id) || meshProfileMap.get(e.id?.toLowerCase());
+        // D0b: baker-canonical key FIRST (baker:93/171 keys map by normalizeId(id,getNodeSource(id,type),type), not just lowercase). normalizeId/getNodeSource self-guard non-string ids (return null/'') so a bad id can't throw; mirrors baker's bare call. V27.71 lowercase fallbacks kept.
+        const mp = meshProfileMap.get(normalizeId(e.id, getNodeSource(e.id, e.type), e.type)) || meshProfileMap.get(e.id) || meshProfileMap.get(e.id?.toLowerCase());
         if (mp) e.mesh_profile = mp;
 
         const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
