@@ -45,6 +45,11 @@ describe('edge_id determinism (§5)', () => {
         // direction matters (forward != reverse triple)
         expect(edgeId('arxiv-paper--1', 'CITES', 'hf-model--x')).not.toBe(a);
     });
+    it('JS<->Rust edge_id parity: pinned shared golden (matches rust nxvf-core)', () => {
+        // CI parity gate: this golden MUST equal the Rust sha256_hex16 of the
+        // NUL-separated (a, CITES, b) triple pinned in nxvf-core/src/lib.rs.
+        expect(edgeId('a', 'CITES', 'b')).toBe('ffd8a01cc0e4f9af');
+    });
 });
 
 describe('method-for-verb mapping', () => {
