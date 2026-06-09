@@ -64,9 +64,28 @@ pub fn build_relations_graph_from_files(
 
     // D0a: embed the JS-built evidence dictionary into explicit.evidence_dict so
     // the COMPACT refs on every widened edge resolve downstream (mesh stage).
-    let evidence_dict = dict_path
-        .and_then(|p| nxvf_core::load_json_file(&p).ok())
-        .unwrap_or(Value::Null);
+    // PR-D0b (#1 root cause): a SILENT null here zeroed ALL imported typed-edge
+    // coverage in graph_blob (only mesh-stage-minted EXPLAINS resolved). Make the
+    // transport LOUD: when dict_path is provided but the load fails / yields no
+    // elements, eprintln! a warning so the failure is OBSERVABLE in the bake log
+    // instead of silently dangling every typed ref. We still continue (Value::Null)
+    // -- the JS post-FFI assertion (relations-generator.js) is the lockstep guard.
+    let evidence_dict = match dict_path.as_deref() {
+        Some(p) => match nxvf_core::load_json_file(p) {
+            Ok(v) => {
+                let n_el = v.get("elements").and_then(|e| e.as_array()).map(|a| a.len()).unwrap_or(0);
+                if n_el == 0 {
+                    eprintln!("[RUST-SAT] WARN evidence_dict at {} has 0 elements -- typed-edge refs will not resolve downstream", p);
+                }
+                v
+            }
+            Err(e) => {
+                eprintln!("[RUST-SAT] WARN evidence_dict load FAILED ({}): {} -- typed-edge source_trail will be empty in graph_blob", p, e);
+                Value::Null
+            }
+        },
+        None => Value::Null,
+    };
 
     eprintln!("[RUST-SAT] build_relations_graph_from_files: {} nodes, {} relations", nodes.len(), relations.len());
     build_relations_inner(nodes, relations, evidence_dict)

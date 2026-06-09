@@ -60,12 +60,14 @@ export function reversedVerb(relType, sourceType, targetType) {
 
 /**
  * Build the inverse adjacency from the outgoing edge registry in a single O(E)
- * pass. inEdges[targetId] = [[sourceId, relType], ...] — only [source, verb] is
- * stored (no full edge copy), so memory stays ~O(E), not 2x the graph. Note:
- * at 100M scale this must become a streamed/external pass (separate concern; the
- * baker already loads the whole graph into memory at today's ~550K scale).
+ * pass. inEdges[targetId] = [[sourceId, relType, fwdEdgeId], ...]. PR-D0b (spec
+ * sec 6): a reverse edge is the SAME fact seen from the target -- it must INHERIT
+ * the forward edge's evidence, not mint a new bare assertion. So we now also carry
+ * the FORWARD edge_id (slot[4] / .edge_id) here; the reverse element points at it
+ * (reverse_of), the double-count guard. Still ~O(E) memory (one short string added
+ * per reversible edge). At 100M scale this must become a streamed pass (separate).
  *
- *   edgeRegistry: graph.edges — { sourceId: [ {target,type,weight} | [t,ty,w] ] }
+ *   edgeRegistry: graph.edges -- { sourceId: [ [t,ty,w,refs,eid] | {target,type,weight,edge_id} ] }
  */
 export function buildInverseAdjacency(edgeRegistry) {
     const inEdges = {};
@@ -78,7 +80,10 @@ export function buildInverseAdjacency(edgeRegistry) {
             const relType = isArr ? edge[1] : (edge && (edge.type || edge.relation_type || edge.t));
             if (!target || !relType) continue;
             if (!reversedVerb(relType)) continue; // skip non-reversible early (no alloc)
-            (inEdges[target] || (inEdges[target] = [])).push([sourceId, relType]);
+            // PR-D0b: forward edge_id (slot[4] array / .edge_id object) so the
+            // reverse element can reference the forward fact (sec 6).
+            const fwdEdgeId = (isArr ? edge[4] : (edge && edge.edge_id)) || '';
+            (inEdges[target] || (inEdges[target] = [])).push([sourceId, relType, fwdEdgeId]);
         }
     }
     return inEdges;
@@ -91,11 +96,12 @@ export function buildInverseAdjacency(edgeRegistry) {
  * twice. Returns an array of baked-relation objects in the SAME shape the baker
  * emits for outgoing edges (so the distiller resolve-filters them identically).
  *
- *   inbound:    inEdges[nodeId] = [[sourceId, relType], ...]
+ *   inbound:    inEdges[nodeId] = [[sourceId, relType, fwdEdgeId], ...]
  *   nodeType:   the type of THIS node (the reverse-edge target)
  *   existing:   the node's already-baked outgoing relations (for dedupe)
- *   bakeEdge:   (sourceId, reversedVerb) -> baked relation object | null
- *               (the baker passes a closure that resolves id/type/url/name/icon)
+ *   bakeEdge:   (sourceId, reversedVerb, fwdEdgeId) -> baked relation object | null
+ *               (the baker passes a closure that resolves id/type/url/name/icon AND
+ *               mints a reverse_of element referencing the forward edge_id, sec 6)
  */
 export function projectReverseEdges(inbound, nodeType, existing, bakeEdge) {
     if (!Array.isArray(inbound) || inbound.length === 0) return [];
@@ -106,11 +112,11 @@ export function projectReverseEdges(inbound, nodeType, existing, bakeEdge) {
         }
     }
     const out = [];
-    for (const [sourceId, relType] of inbound) {
+    for (const [sourceId, relType, fwdEdgeId] of inbound) {
         const sourceType = typeof sourceId === 'string' ? srcTypeFromId(sourceId) : '';
         const verb = reversedVerb(relType, sourceType, nodeType);
         if (!verb) continue;
-        const baked = bakeEdge(sourceId, verb);
+        const baked = bakeEdge(sourceId, verb, fwdEdgeId);
         if (!baked || !baked.target_id) continue;
         const key = `${baked.target_id}|${verb}`;
         if (seen.has(key)) continue; // already outgoing OR already added -> no dup

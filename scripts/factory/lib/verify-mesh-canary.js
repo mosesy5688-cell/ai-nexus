@@ -13,8 +13,26 @@
  *
  * Every threshold is CONSERVATIVE: a false canary blocks every bake.
  */
+import fs from 'fs';
+import path from 'path';
+import { createRequire } from 'module';
 import { isResolvedMeshNode } from './mesh-resolve-filter.js';
 import { assertEdgeTrail } from './evidence-carrier.js';
+
+// PR-D0b: sync Rust zstd decompress for the baked evidence_dict sidecar (the canary
+// runs sync). Probe once; null when no native codec -> loadBakedDict falls back.
+let _zstdRust; let _zstdProbed = false;
+function zstdSync(buf) {
+    if (!_zstdProbed) {
+        _zstdProbed = true;
+        try { _zstdRust = createRequire(import.meta.url)('../../../rust/stream-aggregator/stream-aggregator-rust.node'); }
+        catch { _zstdRust = null; }
+    }
+    if (_zstdRust?.zstdDecompressBuffer) {
+        try { return Buffer.from(_zstdRust.zstdDecompressBuffer(buf)); } catch { return null; }
+    }
+    return null;
+}
 
 /**
  * Per-edge-type topology canary.
@@ -52,7 +70,7 @@ function verifyEdgeTypeTopology(graph, check) {
  * V27.94 (A.3) mesh topology + PR-1 resolution canary. `database`/`check` are
  * passed in (not module-scoped) so this stays a pure, testable function.
  */
-export function verifyRelationContent(database, hasMeshGraph, check) {
+export function verifyRelationContent(database, hasMeshGraph, check, cacheDir = null) {
     if (hasMeshGraph) {
         try {
             const graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
@@ -95,9 +113,28 @@ export function verifyRelationContent(database, hasMeshGraph, check) {
     } catch (e) {
         console.log(`[VERIFY] Mesh Resolution: skipped (${e.message.slice(0, 40)})`);
     }
-    // D0a source_trail coverage (WARN-only: REPORTS, never fails the bake; the
-    // bake-FAIL flip + negative-fixture gate is PR-D0b, spec sec 13).
-    verifySourceTrailCoverage(database, hasMeshGraph);
+    // D0a/D0b source_trail coverage (WARN-only: REPORTS, never fails the bake; the
+    // bake-FAIL flip + negative-fixture gate is a LATER gated step, spec sec 13/#4).
+    verifySourceTrailCoverage(database, hasMeshGraph, cacheDir);
+}
+
+/**
+ * PR-D0b: load the baked per-entity-sink evidence dictionary
+ * (profile-evidence-dict.json.zst, mesh-profile-baker.js:176). It is a SUPERSET of
+ * graph.evidence_dict (same indices for imported elements + the appended reverse
+ * sentinel), so ui_related_mesh refs -- including reverse-edge refs -- resolve
+ * against it. Returns null when absent / no sync codec (caller falls back to the
+ * graph dict; sync-only, never throws so a WASM-only env degrades gracefully).
+ */
+function loadBakedDict(cacheDir) {
+    if (!cacheDir) return null;
+    try {
+        const p = path.join(cacheDir, 'mesh', 'profile-evidence-dict.json.zst');
+        if (!fs.existsSync(p)) return null;
+        const raw = zstdSync(fs.readFileSync(p));
+        if (!raw) return null;
+        return JSON.parse(raw.toString('utf-8'));
+    } catch { return null; }
 }
 
 /** Read the carrier refs off an edge (array slot[3] | object .source_trail). */
@@ -111,30 +148,38 @@ function edgeRefs(e) {
  * % of edges carrying >=1 RESOLVABLE source_trail ref + a per-producer histogram;
  * logs gaps. Does NOT exit(1) -- one re-bake reads this to size PR-D0b's FAIL flip.
  */
-export function verifySourceTrailCoverage(database, hasMeshGraph) {
+export function verifySourceTrailCoverage(database, hasMeshGraph, cacheDir = null) {
     if (!hasMeshGraph) return;
     let graph;
     try {
         graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
     } catch { console.log('[VERIFY] source_trail coverage (WARN): skipped (mesh_graph parse)'); return; }
-    const dict = graph.evidence_dict || null;
-    // Sink 1: graph blob.
-    reportSink('graph_blob', Object.values(graph.edges || {}), dict);
-    // Sink 2: ui_related_mesh (resolves vs graph.evidence_dict; reverse-sentinel
-    // refs the baker appended are NOT in the graph dict yet -> surface as gaps,
-    // exactly what WARN mode is for. PR-D0b folds them into one served dict).
+    const graphDict = graph.evidence_dict || null;
+    // PR-D0b: ui_related_mesh resolves against the BAKED dict (superset of the graph
+    // dict incl. the appended reverse sentinel) when available -> reverse-edge refs
+    // resolve too. Fall back to the graph dict when the sidecar is absent.
+    const bakedDict = loadBakedDict(cacheDir) || graphDict;
+    const sinks = [];
+    // Sink 1: graph blob (resolves vs graph.evidence_dict).
+    sinks.push(reportSink('graph_blob', Object.values(graph.edges || {}), graphDict));
+    // Sink 2: ui_related_mesh (resolves vs the baked dict).
     try {
         const rows = database.prepare("SELECT ui_related_mesh AS m FROM entities WHERE ui_related_mesh IS NOT NULL AND ui_related_mesh != '[]'").all();
         const lists = [];
         for (const r of rows) { try { lists.push(JSON.parse(r.m)); } catch { /* skip */ } }
-        reportSink('ui_related_mesh', lists, dict);
+        sinks.push(reportSink('ui_related_mesh', lists, bakedDict));
     } catch (e) { console.log(`[VERIFY] source_trail ui_related_mesh: skipped (${e.message.slice(0, 30)})`); }
+    printReconciliation(sinks);
 }
 
-/** Scan one sink's edge lists; log coverage % + per-producer histogram (WARN). */
+/**
+ * Scan one sink's edge lists. Returns {sink, scanned, covered, pct, gap, byProducer}
+ * (the DUAL-SINK RECONCILIATION row) and logs the per-sink line (WARN).
+ */
 function reportSink(sinkName, edgeLists, dict) {
     let scanned = 0, covered = 0;
     const byProducer = Object.create(null);
+    const els = dict && dict.elements;
     for (const list of edgeLists) {
         for (const e of (Array.isArray(list) ? list : [])) {
             scanned++;
@@ -143,7 +188,7 @@ function reportSink(sinkName, edgeLists, dict) {
             if (r.ok) {
                 covered++;
                 for (const ref of refs) {
-                    const el = dict.elements[ref];
+                    const el = els[ref];
                     const p = el && dict.producers[el[5]];
                     if (p) byProducer[p] = (byProducer[p] || 0) + 1;
                 }
@@ -154,4 +199,21 @@ function reportSink(sinkName, edgeLists, dict) {
     const gap = scanned - covered;
     console.log(`[VERIFY] source_trail coverage (WARN) [${sinkName}]: ${pct}% (${covered}/${scanned}); ${gap} gap`);
     if (Object.keys(byProducer).length) console.log(`           by producer: ${JSON.stringify(byProducer)}`);
+    return { sink: sinkName, scanned, covered, pct, gap, byProducer };
+}
+
+/**
+ * PR-D0b DUAL-SINK RECONCILIATION TABLE: one row per sink with edge-count,
+ * coverage%, gap, AND the per-producer breakdown (so a single under-covered
+ * producer is visible, not just an aggregate %). WARN-only -- this is the report a
+ * verification bake reads BEFORE the canary is flipped to bake-FAIL (a later step).
+ */
+function printReconciliation(sinks) {
+    if (!sinks.length) return;
+    console.log('[VERIFY] === source_trail DUAL-SINK RECONCILIATION (WARN) ===');
+    console.log('[VERIFY]   sink              edges     covered    cov%    gap     by-producer');
+    for (const s of sinks) {
+        const prod = Object.keys(s.byProducer).length ? JSON.stringify(s.byProducer) : '{}';
+        console.log(`[VERIFY]   ${s.sink.padEnd(16)}  ${String(s.scanned).padStart(8)}  ${String(s.covered).padStart(8)}  ${s.pct.padStart(5)}  ${String(s.gap).padStart(6)}   ${prod}`);
+    }
 }

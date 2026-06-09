@@ -200,3 +200,40 @@ expected cost of the deterministic edge_id (spec sec 5), not a fat-object leak (
   guarantee, the producer-coverage unit test + the loud transport assertion are the gates.
 - #3: if the verification bake shows the delta is edge_id-dominated and >10%, recommend accepting it
   (deterministic edge_id is a spec mandate) rather than dropping edge_id to hit the SHOULD gate.
+
+---
+
+## #3 BLOB SIZE DECOMPOSITION (P1 -- numbers, computed analytically)
+
+D0a delta: pre-D0 ~98899 KB -> post-D0a 115269 KB = +16370 KB (+16.6%) STORED (zstd-3
+site_metadata.mesh_graph). Per-edge carrier add, UNCOMPRESSED (pre-zstd), over 982645 edges:
+
+| Component                     | Raw size (pre-zstd) | Note |
+|-------------------------------|---------------------|------|
+| edge_id strings (16-hex x 982645) | ~17.8 MB        | spec sec 5 MANDATE (reverse ref + dedup); high-entropy, resists zstd |
+| slot[3] ref arrays (`[N]`)        | ~3.7 MB         | small ints, compresses well |
+| evidence_dict elements            | small           | 617787 EXPLAINS sentinels DEDUP to ~1 element; typed elements bounded by distinct (signal,value,method,producer,url) tuples, NOT 365K objects |
+| interned source_urls              | ~O(#source-entities) | one URL shared by all of a source's outgoing edges |
+| **per-edge carrier total**        | **~21.6 MB**    | dominated by edge_id |
+
+VERDICT: the +16.6% is **edge_id-DOMINATED legitimate carrier overhead, NOT a fat-object leak** (spec
+2B holds -- edges store compact int refs; the dict holds the deduped elements ONCE). The 16-hex edge_id
+hashes are high-entropy so they compress poorly under zstd-3, which is exactly why a ~21.6 MB raw add
+lands at a ~16 MB STORED delta. edge_id is non-negotiable (spec sec 5: reverse-edge reference + edge
+dedup). RECOMMENDATION: ACCEPT the delta; do NOT force a fix to hit the non-blocking "SHOULD <=10%" gate
+(acceptance #4) by dropping edge_id -- that would break sec 5/6. The dict is a minor contributor.
+
+---
+
+## VERIFICATION (this PR)
+
+- node --check: all 7 changed JS files PASS.
+- cargo build --release (satellite-tasks): PASS. cargo test --release: 3/3 evidence tests PASS.
+- CES check_compliance.py: PASS (all changed files <=250 lines; ASCII).
+- D0b unit logic (source-trail-populate.test.ts) via node ESM harness: 42/42 assertions PASS
+  (typed producer coverage end-to-end; #2 source-preference + ref forwarding; sec 6 reverse fwd-ref).
+- Existing carrier (11/11) + reverse-edge projector (9/9) logic re-verified: no regression
+  (reverse-edge-projector.test.ts updated for the widened [src,verb,fwdEdgeId] inEdges tuple).
+- Canary dual-sink reconciliation exercised with a mock DB: emits per-sink edge-count/coverage%/gap +
+  per-producer breakdown; STAYS WARN (no exit, no check() FAIL). #4 flip NOT done (P2).
+- Rust changed (relations.rs) -> the .node MUST be rebuilt in CI (#2145 cache-bust lesson).

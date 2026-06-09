@@ -153,6 +153,17 @@ export async function generateRelations(shardReader, outputDir = './output') {
             await fs.writeFile(path.join(relationsDir, 'explicit.json.zst'), Buffer.from(r.explicitJson));
             await fs.writeFile(path.join(cacheDir, 'relations.json.zst'), Buffer.from(r.legacyJson));
             console.log(`  [RELATIONS] Rust FFI: ${r.totalRelations} relations`);
+            // PR-D0b (#1 lockstep guard): the typed-edge source_trail refs (slot[3])
+            // index THIS dict; if it is empty while edges carry refs, every typed ref
+            // dangles downstream (the measured graph_blob typed=0). Assert it loudly so
+            // a silent dict-transport failure (Rust load fail / empty round-trip) is
+            // OBSERVABLE in the bake log rather than zeroing coverage invisibly.
+            const dictEls = ed.dict.elements.length;
+            if (totalRelations > 0 && dictEls === 0) {
+                console.warn(`  [RELATIONS] WARN source_trail dict EMPTY (${dictEls} elements) but ${totalRelations} relations emitted -- typed-edge refs will not resolve in graph_blob`);
+            } else {
+                console.log(`  [RELATIONS] source_trail dict: ${dictEls} evidence elements`);
+            }
             rustDone = true;
         }
     } catch (e) { console.warn(`[RELATIONS] Rust FFI skipped (${e.message}).`); }

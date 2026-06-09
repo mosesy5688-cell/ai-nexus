@@ -82,3 +82,19 @@ export function isResolvedMeshNode(node) {
     if (CONCEPT_PREFIXES.some(p => node.id.startsWith(p))) return false;
     return true;
 }
+
+/**
+ * PR-D0b (#2 circuit): does a baked mesh profile carry the source_trail carrier on
+ * >=1 relation? The baker (mesh-profile-baker.js) forwards slot[3]/edge_id onto every
+ * baked relation; the raw adapter e.relations never did. The distiller uses this to
+ * PREFER the baked (carrier-bearing) source over the raw e.relations -- the raw-first
+ * default wrote an evidence-LESS ui_related_mesh (the measured 0% coverage). Degrades
+ * to the raw array when no baked trail exists (first cron / local dev).
+ */
+export function profileRelationsCarryTrail(meshProfile) {
+    const rels = meshProfile && meshProfile.relations;
+    if (!Array.isArray(rels) || rels.length === 0) return false;
+    return rels.some((r) => Array.isArray(r)
+        ? (Array.isArray(r[3]) && r[3].length > 0)
+        : (r && Array.isArray(r.source_trail) && r.source_trail.length > 0));
+}

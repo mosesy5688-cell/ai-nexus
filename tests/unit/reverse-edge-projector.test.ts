@@ -63,9 +63,11 @@ function reverseFor(nodeId: string, existing: any[] = []) {
 
 describe('reverse-edge projector (PR-2)', () => {
     it('builds an O(E) inverse adjacency of reversible edges', () => {
-        expect(inEdges['arxiv-paper--2401.00001']).toContainEqual(['hf-model--acme/llm', 'CITES']);
-        expect(inEdges['benchmark--mmlu']).toContainEqual(['hf-model--acme/llm', 'EVALUATED_ON']);
-        expect(inEdges['arxiv-paper--2009.03300']).toContainEqual(['benchmark--mmlu', 'CITES']);
+        // PR-D0b: inEdges tuples widened to [source, verb, fwdEdgeId]. These fixture
+        // edges are 3-tuples [t,ty,conf] (no edge_id slot) so fwdEdgeId == '' here.
+        expect(inEdges['arxiv-paper--2401.00001']).toContainEqual(['hf-model--acme/llm', 'CITES', '']);
+        expect(inEdges['benchmark--mmlu']).toContainEqual(['hf-model--acme/llm', 'EVALUATED_ON', '']);
+        expect(inEdges['arxiv-paper--2009.03300']).toContainEqual(['benchmark--mmlu', 'CITES', '']);
     });
 
     it('paper an HF model CITES gains CITED_BY (gate 3)', () => {
