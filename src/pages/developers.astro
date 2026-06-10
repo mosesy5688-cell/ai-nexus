@@ -160,7 +160,7 @@ const jsonLd = JSON.stringify({
       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">POST /api/v1/select</h3>
         <p class="text-gray-600 dark:text-gray-400 mb-4">
-          Agent model selection — find the best model for a task with hardware and license constraints.
+          Filter the catalog by declared metadata; returns FNI-ranked entries. Constraints are metadata/heuristic filters, not verified compatibility analysis — the caller is responsible for final model selection.
         </p>
         <div class="space-y-4">
           <div>
@@ -212,7 +212,7 @@ const jsonLd = JSON.stringify({
               <table class="w-full text-sm">
                 <thead><tr class="text-left border-b border-gray-200 dark:border-gray-700"><th class="py-2 pr-4">Param</th><th class="py-2 pr-4">Type</th><th class="py-2">Description</th></tr></thead>
                 <tbody class="text-gray-600 dark:text-gray-400">
-                  <tr><td class="py-1 pr-4 font-mono">ids</td><td class="pr-4">string</td><td>Comma-separated entity IDs (2-10). Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">model_id</code> from the Select API or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">id</code> from Search.</td></tr>
+                  <tr><td class="py-1 pr-4 font-mono">ids</td><td class="pr-4">string</td><td>Comma-separated entity IDs (2-25). Use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">model_id</code> from the Select API or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">id</code> from Search.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -294,6 +294,10 @@ const jsonLd = JSON.stringify({
         Free2AI exposes an <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">MCP</a> server so AI agents (Claude, Cursor, Windsurf, etc.) can discover and rank AI tools automatically.
       </p>
 
+      <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-5 border border-amber-200 dark:border-amber-800/50 text-sm text-gray-700 dark:text-gray-300 mb-6">
+        <strong class="text-gray-900 dark:text-white">Discovery layer only.</strong> The API and MCP server return FNI-ranked catalog data and evidence for the calling agent to reason over. They do not perform compatibility analysis (hardware/framework fields are stored heuristics), do not execute/plan/recommend workflows, do not select or decide on the caller's behalf, and do not currently provide live semantic/ANN ranking.
+      </div>
+
       <!-- Tools -->
       <div class="space-y-4 mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
@@ -302,7 +306,7 @@ const jsonLd = JSON.stringify({
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_rank</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Rank AI tools by FNI score for a given task context. Ideal for AI agents selecting the best tool.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Keyword-search AI entities using the task text as query input. Returns FNI-ranked catalog entries. Does not perform task-fit recommendation or compatibility analysis.</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_explain</h3>
@@ -310,11 +314,11 @@ const jsonLd = JSON.stringify({
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_select_model</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Select the best model for a task with hardware/license constraints. Returns ranked recommendations with rationale.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Filter the catalog by declared metadata; returns FNI-ranked entries with optional per-entry rationale text. Constraints are metadata/heuristic filters, not verified compatibility analysis.</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_compare</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Compare 2-10 AI models side-by-side with FNI factor decomposition.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Compare 2-25 AI models side-by-side with FNI factor decomposition.</p>
         </div>
       </div>
 

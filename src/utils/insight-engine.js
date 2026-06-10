@@ -34,7 +34,10 @@ export function getQuickInsights(entity, type) {
                 label: 'FNI Score',
                 value: entity.fni_score,
                 highlight: entity.fni_score > 85,
-                badge: entity.fni_score > 90 ? 'Elite' : (entity.fni_score > 70 ? 'Trusted' : 'Audited')
+                // Contract remediation (C2): FNI-signal vocabulary, not quality
+                // verdicts. Badge renders next to the FNI Score value so the
+                // binding to the FNI factor is clear.
+                badge: entity.fni_score > 90 ? 'High FNI signal' : (entity.fni_score > 70 ? 'Medium FNI signal' : 'Low FNI signal')
             });
         }
 

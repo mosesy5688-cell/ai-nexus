@@ -21,7 +21,7 @@ FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q
 
 | Factor | Weight | What It Measures |
 |--------|--------|-----------------|
-| **S — Semantic** | 35% | Query-time relevance via vector similarity matching and AI-powered reranking |
+| **S — Semantic** | 35% | Query-time relevance (currently dormant: keyword-index based; live semantic/ANN ranking is not currently provided; reported as null + a note on static surfaces) |
 | **A — Authority** | 25% | Ecosystem gravity: knowledge mesh centrality, cross-entity citations, source credibility |
 | **P — Popularity** | 15% | Community adoption: downloads, stars, likes (log-scaled to prevent gaming) |
 | **R — Recency** | 15% | Freshness: exponential time decay with type-specific half-lives |
@@ -29,7 +29,7 @@ FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q
 
 ## Agent Structured Tags (V2.0)
 
-Beyond the five score factors, FNI V2.0 attaches structured metadata for machine-readable model selection:
+Beyond the five score factors, FNI V2.0 attaches structured metadata for machine-readable catalog filtering:
 
 | Tag | Type | Meaning |
 |-----|------|---------|
@@ -39,17 +39,17 @@ Beyond the five score factors, FNI V2.0 attaches structured metadata for machine
 | `hosted_on` | string[] | Cloud providers offering this model (Replicate, Together, HF Inference) |
 | `hosted_on_checked_at` | ISO date | When the hosting data was last verified |
 
-These tags power the [`select_model` API](/developers) — AI agents can filter models by hardware constraints, license type, and deployment target via MCP or HTTP.
+These tags power the [`select_model` API](/developers) — AI agents can filter the catalog by these stored-metadata fields (size, license type, GGUF/Ollama indicators) via MCP or HTTP. They are heuristic metadata filters, not verified runtime compatibility checks.
 
 ## Interpreting FNI Scores
 
 | Range | Label | Meaning |
 |-------|-------|---------|
-| **80-100** | Elite | Top-tier: strong across all five factors |
-| **60-79** | Strong | Well-rounded with clear strengths in 3+ factors |
-| **40-59** | Solid | Good in 1-2 areas, average elsewhere |
-| **20-39** | Emerging | New or niche — may be rising fast (check R factor) |
-| **0-19** | Low Signal | Minimal community footprint or very stale |
+| **80-100** | Very high FNI signal | Strong across all five factors |
+| **60-79** | High FNI signal | Well-rounded with clear strengths in 3+ factors |
+| **40-59** | Medium FNI signal | Strong in 1-2 factors, mid-range elsewhere |
+| **20-39** | Low FNI signal | New or niche — may be rising fast (check R factor) |
+| **0-19** | Insufficient FNI signal | Minimal community footprint or very stale |
 
 ## Version History
 

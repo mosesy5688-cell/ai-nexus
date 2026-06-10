@@ -10,6 +10,11 @@ import { GET as compareHandler } from './v1/compare.js';
 import { GET as entityHandler } from './v1/entity/[...id].js';
 
 const SERVER_INFO = { name: 'free2aitools', version: '2.0.0' };
+
+// Negative-contract boundary (N1-N4): Free2AITools is a structured discovery,
+// evidence, and identity layer for AI agents. Surfaced in initialize.instructions
+// so callers know the limits of what this server does before reasoning over it.
+const SERVER_BOUNDARY = 'Discovery layer only: returns FNI-ranked catalog data and evidence for the calling agent to reason over. Does not perform compatibility analysis (hardware/framework fields are stored heuristics). Does not execute, plan, or recommend workflows. Does not select or decide on behalf of the caller. Does not currently provide live semantic/ANN ranking.';
 const JSONRPC_HEADERS = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
@@ -33,7 +38,7 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_rank',
-        description: 'Rank AI entities by FNI score for a specific task. Returns a sorted list with scores and metadata. Read-only, no side effects. Use this when you know the task category and want a ranked list; use free2aitools_search for keyword-based discovery, or free2aitools_select_model when you need hardware-constrained recommendations with rationale.',
+        description: 'Keyword-search AI entities using the task text as query input. Returns FNI-ranked catalog entries. Does not perform task-fit recommendation or compatibility analysis. Read-only, no side effects. Use free2aitools_search for keyword-based discovery, or free2aitools_select_model to apply hardware/license metadata filters.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -57,7 +62,7 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_select_model',
-        description: 'Find the best AI model for a task given hardware and license constraints. Returns ranked recommendations with per-model rationale explaining why each was selected. Read-only, no side effects. Use this when the user specifies VRAM, parameter count, or license requirements; use free2aitools_search for unconstrained keyword search, or free2aitools_rank for task-based ranking without hardware filters.',
+        description: 'Filter the Free2AITools catalog by declared metadata and return FNI-ranked entries. Constraints are metadata/heuristic filters, not verified compatibility analysis. The caller is responsible for final model selection. Read-only, no side effects. Use free2aitools_search for unconstrained keyword search, or free2aitools_rank for keyword-based ranking without metadata filters.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -70,13 +75,13 @@ const TOOLS = [
                         license: { type: 'string', description: 'Specific license (e.g. "Apache-2.0", "MIT")' },
                         license_type: { type: 'string', enum: ['permissive', 'copyleft', 'non-commercial', 'any'], description: 'License category filter' },
                         min_context_length: { type: 'number', description: 'Minimum context window in tokens' },
-                        ollama_compatible: { type: 'boolean', description: 'Only models runnable via Ollama' },
-                        can_run_local: { type: 'boolean', description: 'Only models that can run locally' },
+                        ollama_compatible: { type: 'boolean', description: 'Heuristic filter on stored metadata (GGUF indicators). Does not verify actual Ollama runtime compatibility on the caller hardware.' },
+                        can_run_local: { type: 'boolean', description: 'Heuristic local-runnability filter based on stored metadata such as model size and GGUF indicators. Does not verify actual runtime compatibility on the caller hardware or framework.' },
                         hosted_on: { type: 'string', description: 'Hosting platform filter (e.g. "hf-inference")' }
                     }
                 },
-                limit: { type: 'number', default: 5, description: 'Max recommendations (1-20, default 5)' },
-                explain: { type: 'boolean', default: true, description: 'Include per-model rationale text (default true)' }
+                limit: { type: 'number', default: 5, description: 'Max entries returned (1-20, default 5)' },
+                explain: { type: 'boolean', default: true, description: 'Include per-entry rationale text in the response (default true)' }
             },
             required: ['task']
         }
@@ -210,6 +215,7 @@ export const POST: APIRoute = async (context) => {
             return jsonrpc(id, {
                 protocolVersion: '2025-03-26',
                 serverInfo: SERVER_INFO,
+                instructions: SERVER_BOUNDARY,
                 capabilities: { tools: {} }
             });
 

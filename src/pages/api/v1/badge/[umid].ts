@@ -24,17 +24,19 @@ import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag
 const BADGE_CACHE = 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400';
 
 function scoreColor(score: number): string {
-    if (score >= 90) return '#4c1';      // green — excellent
-    if (score >= 70) return '#08c';      // blue — good
-    if (score >= 50) return '#dfb317';   // yellow — average
-    return '#e05d44';                     // red — below average
+    if (score >= 90) return '#4c1';      // green — high FNI signal
+    if (score >= 70) return '#08c';      // blue — medium FNI signal
+    if (score >= 50) return '#dfb317';   // yellow — low FNI signal
+    return '#e05d44';                     // red — insufficient FNI signal
 }
 
+// Contract remediation (C2): FNI-signal vocabulary, not quality verdicts. The
+// label renders next to the FNI score in the badge so the FNI binding is clear.
 function scoreLabel(score: number): string {
-    if (score >= 90) return 'excellent';
-    if (score >= 70) return 'good';
-    if (score >= 50) return 'average';
-    return 'below avg';
+    if (score >= 90) return 'High signal';
+    if (score >= 70) return 'Medium signal';
+    if (score >= 50) return 'Low signal';
+    return 'Insufficient signal';
 }
 
 function renderBadge(score: number): string {

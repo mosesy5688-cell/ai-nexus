@@ -13,7 +13,7 @@ const { items: allTools = [], totalPages, totalEntities } = await fetchCatalogDa
 const tools = allTools.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Tools & Utilities Catalog | Free2AI";
-const pageDescription = "Discover the best open-source AI tools, libraries, and utilities for developers and researchers.";
+const pageDescription = "Discover and FNI-rank open-source AI tools, libraries, and utilities for developers and researchers.";
 
 // V24.9: Only edge-cache pages with data; prevent caching empty/error states
 Astro.response.headers.set('Cache-Control', tools.length > 0
