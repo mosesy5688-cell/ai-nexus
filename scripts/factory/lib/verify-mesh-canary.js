@@ -19,7 +19,7 @@ import { createRequire } from 'module';
 import { isResolvedMeshNode } from './mesh-resolve-filter.js';
 import { assertEdgeTrail } from './evidence-carrier.js';
 import { tryNativeDecompressSync } from './zstd-native.js';
-import { enforceSourceTrailGate } from './verify-trail-gate.js';
+import { enforceSourceTrailGate, syntheticFailureSink, failGate } from './verify-trail-gate.js';
 
 // PR-D0b: SYNC zstd decompress for the baked sidecar (verify-db.js runs fully sync).
 // The canary previously probed ONLY the Rust FFI addon; when it is not loadable in the
@@ -162,7 +162,7 @@ export function verifySourceTrailCoverage(database, hasMeshGraph, cacheDir = nul
     let graph;
     try {
         graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
-    } catch { console.log('[VERIFY] source_trail coverage: skipped (mesh_graph parse)'); return; }
+    } catch (e) { return failGate(check, 'graph_blob', 'mesh_graph-parse-failed', e); } // skip == FAIL via reason gate (no vacuous pass)
     const graphDict = graph.evidence_dict || null;
     // PR-D0b: ui_related_mesh resolves against the BAKED dict (superset of the graph dict
     // incl. appended reverse elements) -> reverse-edge HIGH indices resolve too. loadBakedDict
@@ -184,7 +184,7 @@ export function verifySourceTrailCoverage(database, hasMeshGraph, cacheDir = nul
         }
         const dict = loaded.dict || graphDict;
         sinks.push(reportSink('ui_related_mesh', lists, dict, loaded.status));
-    } catch (e) { console.log(`[VERIFY] source_trail ui_related_mesh: skipped (${e.message.slice(0, 30)})`); }
+    } catch (e) { sinks.push(syntheticFailureSink('ui_related_mesh', 'sink-scan-failed', e)); } // scan fail == FAIL via reason gate
     printReconciliation(sinks);
     // WARN->FAIL flip: reason-allowlist + measurement-integrity gate (dictExpected => sidecar required).
     enforceSourceTrailGate(sinks, check, { dictExpected });

@@ -35,6 +35,33 @@ function illegalReasons(gapByReason) {
 }
 
 /**
+ * Build a SYNTHETIC sink row that encodes a measurement SKIP (mesh_graph parse
+ * failure / sink scan throw) as a gap whose reason (`mesh_graph-parse-failed`,
+ * `sink-scan-failed`, ...) is NOT in LEGAL_DROP_REASONS. Pushed through the SAME
+ * enforceSourceTrailGate reason-allowlist so a "not measured" skip auto-FAILs the
+ * bake via the unified mechanism -- never a vacuous pass via a bypass check() call.
+ * Verification Rule: a skipped scan is an absence of proof, scored as a FAIL.
+ * `err` (optional) supplies a short human cause in the logged line near the catch.
+ */
+export function syntheticFailureSink(sink, reason, err = null) {
+    const cause = err && err.message ? ` (${err.message.slice(0, 40)})` : '';
+    console.log(`[VERIFY] source_trail ${sink}: SKIP -> FAIL reason=${reason}${cause}`);
+    return {
+        sink, scanned: 0, covered: 0, pct: '0.0', gap: 1,
+        byProducer: {}, gapByType: {}, gapByReason: { [reason]: 1 }, dictStatus: 'n/a',
+    };
+}
+
+/**
+ * One-shot helper for a catch that must RETURN immediately (mesh_graph parse fail):
+ * synth a failure sink and run it through the unified gate. Returns undefined so the
+ * caller can `return failGate(...)` and keep the catch body to a single line.
+ */
+export function failGate(check, sink, reason, err = null) {
+    enforceSourceTrailGate([syntheticFailureSink(sink, reason, err)], check, {});
+}
+
+/**
  * Enforce the D0 source_trail gate over the reconciliation sink rows. `check` is
  * verify-db's registrar (label, pass, detail) -> increments failures -> exit(1).
  * `meta.dictExpected` flags that the ui_related_mesh sink had scanned refs (so the

@@ -154,4 +154,43 @@ describe('verifySourceTrailCoverage: threads the gate through check() end-to-end
         expect(c.failed()).toHaveLength(0);
         expect(c.for('graph_blob')!.pass).toBe(true);
     });
+
+    // No-vacuous-pass: a measurement SKIP must FAIL LOUD through the SAME reason gate,
+    // not silently produce zero gate rows (the pre-fix vacuous pass). "Not measured" is
+    // an absence of proof, scored as a FAIL via a synthetic-failure sink whose reason is
+    // NOT in LEGAL_DROP_REASONS -- one enforcement path, no ad-hoc bypass check().
+    it('mesh_graph parse failure -> graph_blob FAILs with mesh_graph-parse-failed reason', () => {
+        const db = {
+            prepare(sql: string) {
+                // garbage value for mesh_graph -> JSON.parse throws inside the coverage fn.
+                if (sql.includes("key='mesh_graph'")) return { get: () => ({ value: 'not-json{' }) };
+                return { all: () => [] };
+            },
+        };
+        const c = collector();
+        verifySourceTrailCoverage(db as any, true, null, c.check);
+        const gb = c.for('graph_blob');
+        expect(gb).toBeTruthy();
+        expect(gb!.pass).toBe(false);
+        expect(gb!.detail).toContain('mesh_graph-parse-failed');
+    });
+
+    it('ui_related_mesh scan throw -> ui_related_mesh FAILs with sink-scan-failed reason', () => {
+        const db = {
+            prepare(sql: string) {
+                // mesh_graph resolves fine (graph_blob measured), but the entities scan throws
+                // (e.g. a future column rename) -> the key sink must NOT silently vanish.
+                if (sql.includes("key='mesh_graph'")) return { get: () => ({ value: JSON.stringify({ edges: {}, evidence_dict: null }) }) };
+                return { all: () => { throw new Error('no such column: ui_related_mesh'); } };
+            },
+        };
+        const c = collector();
+        verifySourceTrailCoverage(db as any, true, null, c.check);
+        const ui = c.for('ui_related_mesh');
+        expect(ui).toBeTruthy();
+        expect(ui!.pass).toBe(false);
+        expect(ui!.detail).toContain('sink-scan-failed');
+        // graph_blob still measured + PASSes (its scan succeeded with 0 edges).
+        expect(c.for('graph_blob')!.pass).toBe(true);
+    });
 });
