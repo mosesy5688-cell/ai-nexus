@@ -67,5 +67,6 @@ runs:
           rust/r2-engine/r2-engine-rust.node
           rust/markdown-renderer/markdown-renderer-rust.node
           rust/ivf-pq/ivf-pq-rust.node
+          rust/identity-cluster/identity-cluster-rust.node
         key: rust-ffi-v3-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
         # No restore-keys: prevent stale binary fallback (V25.8.5)

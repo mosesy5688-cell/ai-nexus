@@ -1,0 +1,11 @@
+{
+  "name": "identity-cluster-rust",
+  "version": "1.0.0",
+  "private": true,
+  "napi": {
+    "name": "identity-cluster-rust",
+    "triples": {
+      "defaults": true
+    }
+  }
+}

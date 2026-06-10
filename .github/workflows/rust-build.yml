@@ -28,6 +28,7 @@ jobs:
           - r2-engine
           - markdown-renderer
           - ivf-pq
+          - identity-cluster
 
     steps:
       - uses: actions/checkout@v5
@@ -75,6 +76,18 @@ jobs:
             fi
           done
 
+      # identity-cluster ships its 6 PR-C2 acceptance gates as `cargo test`
+      # (no-global-id-map / max-pass cap / partition-skew / memory-slope / real
+      # streaming reader / scope). The repo-wide convention is napi-build-only
+      # (the #2132/#2136 lesson noted at the verify job), so a Rust #[test] suite
+      # is normally NOT a CI gate. This crate is bake-PRODUCER-only with no JS
+      # parity oracle, so its structural gates can ONLY be enforced by running the
+      # tests here — make it the explicit gate for this one crate.
+      - name: Cargo Test (identity-cluster gates)
+        if: matrix.crate == 'identity-cluster'
+        working-directory: rust/identity-cluster
+        run: cargo test --release
+
       - name: Upload .node Artifact
         uses: actions/upload-artifact@v6
         with:
@@ -107,7 +120,7 @@ jobs:
 
       - name: Place .node Files
         run: |
-          for crate in shard-router fni-calc mesh-engine content-extractor stream-aggregator satellite-tasks r2-engine markdown-renderer ivf-pq; do
+          for crate in shard-router fni-calc mesh-engine content-extractor stream-aggregator satellite-tasks r2-engine markdown-renderer ivf-pq identity-cluster; do
             cp rust/artifacts/${crate}-rust-node/*.node rust/${crate}/ 2>/dev/null || true
           done
           ls -la rust/*/*.node 2>/dev/null || echo "No .node files found"
@@ -118,7 +131,7 @@ jobs:
             const { createRequire } = require('module');
             const path = require('path');
             const req = createRequire(path.resolve(process.cwd(), 'package.json'));
-            const crates = ['shard-router', 'fni-calc', 'mesh-engine', 'content-extractor', 'stream-aggregator', 'satellite-tasks', 'r2-engine', 'markdown-renderer', 'ivf-pq'];
+            const crates = ['shard-router', 'fni-calc', 'mesh-engine', 'content-extractor', 'stream-aggregator', 'satellite-tasks', 'r2-engine', 'markdown-renderer', 'ivf-pq', 'identity-cluster'];
             let loaded = 0;
             for (const c of crates) {
               try {
@@ -146,6 +159,12 @@ jobs:
             const ivfMissing = ivfReq.filter(f => typeof ivf[f] !== 'function');
             if (ivfMissing.length > 0) { console.error('FATAL: ivf-pq missing: ' + ivfMissing.join(', ')); process.exit(1); }
             console.log('ivf-pq: all critical functions verified');
+            // PR-C2: identity-cluster crate must expose the 4/4-bake caller surface.
+            // Hard-fail guarantees the .node carrying buildIdentityClusters is the
+            // one shipped to deploy (the bake step below loads exactly this binary).
+            const idc = req('./rust/identity-cluster/identity-cluster-rust.node');
+            if (typeof idc.buildIdentityClusters !== 'function') { console.error('FATAL: identity-cluster missing: buildIdentityClusters'); process.exit(1); }
+            console.log('identity-cluster: buildIdentityClusters verified');
           "
 
       - name: IVF-PQ Rust-JS Parity Gate
@@ -168,6 +187,7 @@ jobs:
             rust/r2-engine/r2-engine-rust.node
             rust/markdown-renderer/markdown-renderer-rust.node
             rust/ivf-pq/ivf-pq-rust.node
+            rust/identity-cluster/identity-cluster-rust.node
           key: rust-ffi-v3-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
 
       # V25.8 §6.2: Backup Rust FFI to R2 vault (immutable, survives GHA cache eviction)
