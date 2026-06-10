@@ -19,6 +19,7 @@ import { createRequire } from 'module';
 import { isResolvedMeshNode } from './mesh-resolve-filter.js';
 import { assertEdgeTrail } from './evidence-carrier.js';
 import { tryNativeDecompressSync } from './zstd-native.js';
+import { enforceSourceTrailGate, syntheticFailureSink, failGate } from './verify-trail-gate.js';
 
 // PR-D0b: SYNC zstd decompress for the baked sidecar (verify-db.js runs fully sync).
 // The canary previously probed ONLY the Rust FFI addon; when it is not loadable in the
@@ -118,9 +119,9 @@ export function verifyRelationContent(database, hasMeshGraph, check, cacheDir = 
     } catch (e) {
         console.log(`[VERIFY] Mesh Resolution: skipped (${e.message.slice(0, 40)})`);
     }
-    // D0a/D0b source_trail coverage (WARN-only: REPORTS, never fails the bake; the
-    // bake-FAIL flip + negative-fixture gate is a LATER gated step, spec sec 13/#4).
-    verifySourceTrailCoverage(database, hasMeshGraph, cacheDir);
+    // D0 source_trail coverage. Coverage measured Green (run 27274000163 rerun: 192/192
+    // lines 100.0%, 0 gap, dict:loaded x2 jobs) -> WARN->FAIL flip: gate via check().
+    verifySourceTrailCoverage(database, hasMeshGraph, cacheDir, check);
 }
 
 /**
@@ -152,40 +153,41 @@ function edgeRefs(e) {
 }
 
 /**
- * D0a WARN coverage report over BOTH baked sinks (spec sec 9, WARN mode). Reports
- * % of edges carrying >=1 RESOLVABLE source_trail ref + a per-producer histogram;
- * logs gaps. Does NOT exit(1) -- one re-bake reads this to size PR-D0b's FAIL flip.
+ * D0 coverage report over BOTH baked sinks (spec sec 9): % of edges carrying >=1
+ * RESOLVABLE source_trail ref + per-producer histogram. Coverage Green -> WARN->FAIL flip
+ * live: `check` (verify-db registrar, optional) -> enforceSourceTrailGate. No check -> log.
  */
-export function verifySourceTrailCoverage(database, hasMeshGraph, cacheDir = null) {
+export function verifySourceTrailCoverage(database, hasMeshGraph, cacheDir = null, check = () => {}) {
     if (!hasMeshGraph) return;
     let graph;
     try {
         graph = JSON.parse(database.prepare("SELECT value FROM site_metadata WHERE key='mesh_graph'").get().value);
-    } catch { console.log('[VERIFY] source_trail coverage (WARN): skipped (mesh_graph parse)'); return; }
+    } catch (e) { return failGate(check, 'graph_blob', 'mesh_graph-parse-failed', e); } // skip == FAIL via reason gate (no vacuous pass)
     const graphDict = graph.evidence_dict || null;
-    // PR-D0b: ui_related_mesh resolves against the BAKED dict (superset of the graph
-    // dict incl. the appended reverse elements) when available -> reverse-edge HIGH
-    // indices resolve too. loadBakedDict reports WHY it could not load so a true
-    // load-failure is LOUD, not a silent graph-dict fallback that fabricates a gap.
+    // PR-D0b: ui_related_mesh resolves against the BAKED dict (superset of the graph dict
+    // incl. appended reverse elements) -> reverse-edge HIGH indices resolve too. loadBakedDict
+    // reports WHY it could not load so a true load-failure is LOUD, not a silent fallback.
     const loaded = loadBakedDict(cacheDir);
     const sinks = [];
-    // Sink 1: graph blob (resolves vs graph.evidence_dict).
-    sinks.push(reportSink('graph_blob', Object.values(graph.edges || {}), graphDict));
+    let dictExpected = false;
+    sinks.push(reportSink('graph_blob', Object.values(graph.edges || {}), graphDict)); // Sink 1: graph blob
     // Sink 2: ui_related_mesh (resolves vs the baked dict; graph-dict only on ABSENCE).
     try {
         const rows = database.prepare("SELECT ui_related_mesh AS m FROM entities WHERE ui_related_mesh IS NOT NULL AND ui_related_mesh != '[]'").all();
         const lists = [];
         for (const r of rows) { try { lists.push(JSON.parse(r.m)); } catch { /* skip */ } }
-        const hasRefs = lists.some(l => (Array.isArray(l) ? l : []).some(e => edgeRefs(e).length > 0));
-        // LOUD on a true load-failure when the sidecar is EXPECTED (refs exist): the
-        // graph dict lacks the reverse HIGH indices, so the gap would be FABRICATED.
-        if (loaded.status === 'load-failed' && hasRefs) {
-            console.warn(`[VERIFY] WARN baked sidecar dict load FAILED (${loaded.reason}) — reverse refs will mis-report; NOT a data gap`);
+        dictExpected = lists.some(l => (Array.isArray(l) ? l : []).some(e => edgeRefs(e).length > 0));
+        // Cause line for the integrity FAIL the gate raises below: a load-failure when refs
+        // exist means the graph dict lacks the reverse HIGH indices (gap would be FABRICATED, #2171).
+        if (loaded.status === 'load-failed' && dictExpected) {
+            console.warn(`[VERIFY] FAIL baked sidecar dict load FAILED (${loaded.reason}) — reverse source_trail untrustworthy without the baked sidecar`);
         }
         const dict = loaded.dict || graphDict;
         sinks.push(reportSink('ui_related_mesh', lists, dict, loaded.status));
-    } catch (e) { console.log(`[VERIFY] source_trail ui_related_mesh: skipped (${e.message.slice(0, 30)})`); }
+    } catch (e) { sinks.push(syntheticFailureSink('ui_related_mesh', 'sink-scan-failed', e)); } // scan fail == FAIL via reason gate
     printReconciliation(sinks);
+    // WARN->FAIL flip: reason-allowlist + measurement-integrity gate (dictExpected => sidecar required).
+    enforceSourceTrailGate(sinks, check, { dictExpected });
 }
 
 /** Relation verb off an edge (array slot[1] | object .relation_type/.type). */
@@ -193,7 +195,7 @@ const edgeVerb = (e) => ((Array.isArray(e) ? e[1] : (e && (e.relation_type || e.
 
 /**
  * Scan one sink's edge lists. Returns the DUAL-SINK RECONCILIATION row (+gapByType /
- * gapByReason) and logs the per-sink line (WARN). gapByType/gapByReason make an
+ * gapByReason) and logs the per-sink line (GATE). gapByType/gapByReason make an
  * UNcovered cohort diagnosable (which verb lacks a trail, and WHY), not an opaque gap.
  */
 export function reportSink(sinkName, edgeLists, dict, dictStatus = 'loaded') {
@@ -224,7 +226,7 @@ export function reportSink(sinkName, edgeLists, dict, dictStatus = 'loaded') {
     }
     const pct = scanned > 0 ? ((covered / scanned) * 100).toFixed(1) : '0.0';
     const gap = scanned - covered;
-    console.log(`[VERIFY] source_trail coverage (WARN) [${sinkName}]: ${pct}% (${covered}/${scanned}); ${gap} gap [dict:${dictStatus}]`);
+    console.log(`[VERIFY] source_trail coverage (GATE) [${sinkName}]: ${pct}% (${covered}/${scanned}); ${gap} gap [dict:${dictStatus}]`);
     if (Object.keys(byProducer).length) console.log(`           by producer: ${JSON.stringify(byProducer)}`);
     if (gap > 0) console.log(`           gap by type: ${JSON.stringify(gapByType)}; gap by reason: ${JSON.stringify(gapByReason)}`);
     return { sink: sinkName, scanned, covered, pct, gap, byProducer, gapByType, gapByReason, dictStatus };
@@ -233,12 +235,12 @@ export function reportSink(sinkName, edgeLists, dict, dictStatus = 'loaded') {
 /**
  * PR-D0b DUAL-SINK RECONCILIATION TABLE: one row per sink with edge-count,
  * coverage%, gap, AND the per-producer breakdown (so a single under-covered
- * producer is visible, not just an aggregate %). WARN-only -- this is the report a
- * verification bake reads BEFORE the canary is flipped to bake-FAIL (a later step).
+ * producer is visible, not just an aggregate %). Informational -- the enforced
+ * PASS/FAIL is emitted by enforceSourceTrailGate via verify-db's check().
  */
 function printReconciliation(sinks) {
     if (!sinks.length) return;
-    console.log('[VERIFY] === source_trail DUAL-SINK RECONCILIATION (WARN) ===');
+    console.log('[VERIFY] === source_trail DUAL-SINK RECONCILIATION (GATE) ===');
     console.log('[VERIFY]   sink              edges     covered    cov%    gap     by-producer');
     for (const s of sinks) {
         const prod = Object.keys(s.byProducer).length ? JSON.stringify(s.byProducer) : '{}';
