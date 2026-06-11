@@ -22,7 +22,7 @@ import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 import { withOpTimeout, isOpTimeout } from '../../../../lib/op-timeout.js';
 import { projectEntity } from '../../../../lib/entity-projection.js';
-import { orderShardsByIndex } from '../../../../lib/id-index-shard-order.js';
+import { resolveShardsForCandidates } from '../../../../lib/entity-absence-oracle.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -90,13 +90,25 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             if (arr) arr.push(c); else shardForms.set(idx, [c]);
         }
 
-        // Read-path P1 warm tier (ADDITIVE): the in-memory id-index resolves a
-        // candidate to its canonical write shard so it is probed FIRST, reaching
-        // a real entity before the budget is spent. Pure REORDERING of the
-        // existing shardForms entries -> a stale/absent index cannot drop a
-        // shard or make an entity unreachable (zero regression). loadIdIndex
-        // no-ops on miss / absent file until the next bake ships id-index.bin.
-        const orderedShards = await orderShardsByIndex(shardForms, candidates, env);
+        // B4 — id-index absence oracle + index-driven candidate resolution.
+        // The slim v2 index enumerates every resolvable form, so a loaded index
+        // is authoritative over presence:
+        //   - a candidate hits  -> probe ONLY the 1-2 resolved shards (the ~10
+        //     AUTO_PREFIX cold opens that could never finish inside the budget
+        //     collapse to the real shard(s); fixes the slug/bareword coin-flip).
+        //   - NO candidate hits -> proven absence -> honest 404, ZERO probes
+        //     (the structurally-unreachable clean-exhaustion 404 is no longer
+        //     needed for index-covered ids; this is what fixes paper-page 503s).
+        //   - index absent/refused -> DEGRADE to the prior fan-out EXACTLY.
+        // The index never decides DATA (the real SELECT still runs on the routed
+        // shard), so a hash collision only mis-routes, never falsely 404s.
+        const resolution = await resolveShardsForCandidates(shardForms, candidates, env);
+
+        if (resolution.absenceProven) {
+            // Index loaded + every candidate missed it -> genuinely absent. Same
+            // honest-404 cache semantics as the clean-exhaustion 404 below.
+            return error(404, `Entity not found: ${rawId}`);
+        }
 
         // Per-shard try/catch: a single shard error (transient VFS / SQL) must
         // not 500 the whole request if another shard might satisfy the lookup.
@@ -105,7 +117,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         let probedShards = 0;
         let budgetBailed = false;
         const shardErrors: string[] = [];
-        for (const [shardIdx, forms] of orderedShards) {
+        for (const [shardIdx, forms] of resolution.orderedShards) {
             if (Date.now() - start > PROBE_BUDGET_MS) { budgetBailed = true; break; }
             probedShards++;
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
@@ -134,7 +146,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             // If we bailed on budget or any shard errored, the entity MAY exist
             // on an un-probed/errored shard -> retryable 503, never a false 404.
             if (budgetBailed || shardErrors.length > 0) {
-                console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${shardForms.size}`, shardErrors.join('; '));
+                console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${resolution.orderedShards.length} idx=${resolution.indexLoaded}`, shardErrors.join('; '));
                 // Honest retryable signal for Agent clients: explicit Retry-After
                 // so a client retries (instead of hard-coding a fallback), and
                 // no-store so this transient negative is never cached as truth.
