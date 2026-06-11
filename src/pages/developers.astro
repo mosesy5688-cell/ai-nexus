@@ -154,6 +154,9 @@ const jsonLd = JSON.stringify({
               <pre>{searchExample}</pre>
             </div>
           </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            Search may return a retryable transient <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">503</code> under cold-path or fallback budget limits. Retry according to the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">Retry-After</code> header.
+          </p>
         </div>
       </div>
 

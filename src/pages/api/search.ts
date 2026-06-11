@@ -1,10 +1,14 @@
 import type { APIRoute } from 'astro';
 import { parseCommands, buildQuery, determineTargetDbs } from '../../utils/search-query-builder.js';
-import { searchSemantic, embedQuery } from '../../lib/semantic-engine.js';
 import { getCachedDbConnection, loadManifest, executeSql, evictCachedDb } from '../../lib/sqlite-engine.js';
-import { fetchAllTermPostings, mergePostings, groupByShard } from '../../lib/term-index-engine.js';
+import { fetchAllTermPostings, mergePostings } from '../../lib/term-index-engine.js';
 import { applyClusterSemanticRerank } from '../../lib/cluster-rerank.js';
 import { clusterFallbackSearch } from '../../lib/cluster-fallback.js';
+import {
+    SearchBudget, searchTransient503, withOpTimeout,
+    TERM_FETCH_TIMEOUT_MS, FALLBACK_TIMEOUT_MS,
+} from '../../lib/search-budget.js';
+import { queryShardBatchBudgeted, hydrateCandidatesBudgeted } from '../../lib/search-shard-ops.js';
 import { env } from 'cloudflare:workers';
 
 const CACHE_HEADERS_HIT = {
@@ -31,73 +35,20 @@ function respond(results: any[], tier: string, startMs: number, totalCount?: num
     );
 }
 
-/** Query a batch of shards with concurrency throttle + retry (browse mode) */
-async function queryShardBatch(
-    dbs: string[], sql: string, params: any[], r2Bucket: any, shouldSimulate: boolean
-): Promise<any[]> {
-    const CONCURRENCY_LIMIT = 4;
-    let results: any[] = [];
-    for (let i = 0; i < dbs.length; i += CONCURRENCY_LIMIT) {
-        const chunk = dbs.slice(i, i + CONCURRENCY_LIMIT);
-        const chunkResults = await Promise.all(chunk.map(async (dbName) => {
-            try {
-                const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-                return await executeSql(engine.sqlite3, engine.db, sql, params);
-            } catch (err: any) {
-                console.warn(`[SSR Search] Shard ${dbName} failed (${err.message}), retrying…`);
-                try {
-                    await evictCachedDb(dbName);
-                    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-                    return await executeSql(engine.sqlite3, engine.db, sql, params);
-                } catch (retryErr: any) {
-                    console.error(`[SSR Search] Shard ${dbName} retry failed: ${retryErr.message}`);
-                    return [];
-                }
-            }
-        }));
-        results = results.concat(chunkResults.flat());
+// B8: shard ops shared by browse + hydration. openShard retries once on a
+// transient miss (evict + reopen) — the SAME warm-the-cache recovery the old
+// inline path had — and runSql is a thin executeSql wrapper. Both are passed to
+// the budgeted helpers so the per-op firewall wraps each call.
+async function openShard(r2Bucket: any, shouldSimulate: boolean, dbName: string): Promise<any> {
+    try {
+        return await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
+    } catch (err: any) {
+        console.warn(`[SSR Search] Shard ${dbName} open failed (${err.message}), evict+retry…`);
+        await evictCachedDb(dbName);
+        return await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
     }
-    return results;
 }
-
-/**
- * Hydrate candidate UMIDs from meta shards.
- * Groups by shard, loads only needed shards (1-3 typically), queries by ID.
- */
-async function hydrateCandidates(
-    candidates: { umid: string; score: number; shard: number }[],
-    r2Bucket: any, shouldSimulate: boolean
-): Promise<any[]> {
-    const shardGroups = groupByShard(candidates);
-    const scoreMap = new Map(candidates.map(c => [c.umid, c.score]));
-    const allRows: any[] = [];
-
-    const entries = [...shardGroups.entries()];
-    const HYDRATION_CONCURRENCY = 4;
-    const results: any[][] = [];
-    for (let i = 0; i < entries.length; i += HYDRATION_CONCURRENCY) {
-        const batch = entries.slice(i, i + HYDRATION_CONCURRENCY);
-        const batchResults = await Promise.all(batch.map(async ([shardIdx, umids]) => {
-            const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
-            const placeholders = umids.map(() => '?').join(',');
-            const sql = `SELECT ${DISPLAY_COLS} FROM entities e WHERE e.id IN (${placeholders})`;
-            try {
-                const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, dbName);
-                const rows = await executeSql(engine.sqlite3, engine.db, sql, umids);
-                for (const r of rows) r._score = scoreMap.get(r.id) ?? 0;
-                return rows;
-            } catch (err: any) {
-                console.warn(`[SSR Search] Hydration shard ${dbName} failed: ${err.message}`);
-                return [];
-            }
-        }));
-        results.push(...batchResults);
-    }
-    for (const rows of results) allRows.push(...rows);
-    allRows.sort((a, b) => (b._score || 0) - (a._score || 0));
-    for (const r of allRows) delete r._score;
-    return allRows;
-}
+const runSql = (engine: any, sql: string, params: any[]) => executeSql(engine.sqlite3, engine.db, sql, params);
 
 // P0-4: type aliases — entity rows use canonical `model`/`paper`/`tool`, but
 // Agents naturally try the id-prefix form (hf-model / arxiv-paper / etc.) seen
@@ -113,6 +64,7 @@ const normalizeType = (t: string) => TYPE_ALIASES[t.toLowerCase()] || t.toLowerC
 
 export const GET: APIRoute = async ({ url }) => {
     const start = Date.now();
+    const budget = new SearchBudget(start);
     const q = url.searchParams.get('q') || '';
     const sort = url.searchParams.get('sort') || 'fni';
     const type = normalizeType(url.searchParams.get('type') || 'all');
@@ -128,6 +80,7 @@ export const GET: APIRoute = async ({ url }) => {
         const isDev = !!import.meta.env?.DEV;
         const shouldSimulate = isDev;
         const manifest = await loadManifest(r2Bucket, shouldSimulate);
+        const open = (dbName: string) => openShard(r2Bucket, shouldSimulate, dbName);
 
         // ── S0: Edge Response Cache ──
         const manifestEtag = manifest?._etag || 'v23';
@@ -148,29 +101,39 @@ export const GET: APIRoute = async ({ url }) => {
 
         if (q) {
             // ═══════════════════════════════════════════════════════════
-            // V∞ Phase 1A-γ: Static Inverted Index Search
-            // Step 1: Tokenize → Step 2: Parallel R2 fetch term files
-            // Step 3: Merge postings → Step 4: Shard hydration
+            // V∞ Phase 1A-γ: Static Inverted Index Search (B8-budgeted)
             // ═══════════════════════════════════════════════════════════
-            const { terms, results: termResults, manifest: termManifest } = await fetchAllTermPostings(q, r2Bucket, isDev);
+            // B8: term-index R2 fetches under a per-op firewall (capped by the
+            // remaining route budget). If the budget is already spent here, 503.
+            const { terms, results: termResults, manifest: termManifest } = await fetchAllTermPostings(
+                q, r2Bucket, isDev, budget.opBudget(TERM_FETCH_TIMEOUT_MS),
+            );
+            if (budget.over() && termResults.size === 0) {
+                return searchTransient503('term_index_timeout', 'inverted_index');
+            }
 
             if (termResults.size > 0) {
                 let candidates = mergePostings(termResults, terms.length, 200, termManifest);
 
-                // Type filter: apply post-merge via shard hydration filtering
                 if (candidates.length > 0) {
                     const offset = (page - 1) * limit;
-                    // Type filter: hydrate ALL candidates (up to merge cap 200) to find type-matching results
                     const fetchCount = type !== 'all' ? candidates.length : offset + limit;
                     const toHydrate = candidates.slice(0, fetchCount);
-                    let hydrated = await hydrateCandidates(toHydrate, r2Bucket, shouldSimulate);
+                    // B8: cold-shard hydration under the route budget + per-op firewall.
+                    const hyd = await hydrateCandidatesBudgeted(
+                        toHydrate, r2Bucket, shouldSimulate, budget, DISPLAY_COLS, open, runSql,
+                    );
+                    let hydrated = hyd.rows;
+                    // Transient distinct from empty: only 503 if the cold scan bailed
+                    // AND it yielded nothing usable. A partial-but-nonempty result is
+                    // returned (cacheable miss headers), never a fake-complete claim.
+                    if (hyd.exhausted && hydrated.length === 0) {
+                        return searchTransient503('cold_shard_timeout', 'inverted_index');
+                    }
 
-                    // V26.7 Phase 6 / V27.44: Cluster semantic rerank (S factor) — extracted helper
                     await applyClusterSemanticRerank(hydrated, q, env, r2Bucket, isDev);
 
-                    if (type !== 'all') {
-                        hydrated = hydrated.filter((r: any) => r.type === type);
-                    }
+                    if (type !== 'all') hydrated = hydrated.filter((r: any) => r.type === type);
                     const paged = hydrated.slice(offset, offset + limit);
                     response = respond(paged, 'inverted_index', start, hydrated.length);
                     if (edgeCache && paged.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
@@ -179,14 +142,27 @@ export const GET: APIRoute = async ({ url }) => {
             }
 
             // ── Tier 2: Cluster semantic fallback — 0 inverted index results ──
-            if (env?.AI) {
+            // B8 (the most dangerous class): zero-inverted-hit queries used to enter
+            // an UNBOUNDED embed + 2 full-bin GETs. Now the whole fallback runs under
+            // a hard timeout = min(FALLBACK_TIMEOUT_MS, remaining route budget); if
+            // the budget is spent OR the fallback cannot finish, we return an honest
+            // signal (503), NEVER a dead connection and NEVER a fake-empty result.
+            if (env?.AI && !budget.over()) {
+                const fbCap = budget.opBudget(FALLBACK_TIMEOUT_MS);
                 try {
-                    const fallbackCandidates = await clusterFallbackSearch(q, limit, r2Bucket, isDev, manifest, env);
+                    const fallbackCandidates = await withOpTimeout(
+                        clusterFallbackSearch(q, limit, r2Bucket, isDev, manifest, env, { opTimeoutMs: fbCap }),
+                        fbCap, 'cluster_fallback',
+                    );
                     if (fallbackCandidates && fallbackCandidates.length > 0) {
-                        let hydrated = await hydrateCandidates(
+                        const hyd = await hydrateCandidatesBudgeted(
                             fallbackCandidates.map(c => ({ umid: c.id, score: c.score, shard: c.shard })),
-                            r2Bucket, shouldSimulate
+                            r2Bucket, shouldSimulate, budget, DISPLAY_COLS, open, runSql,
                         );
+                        const hydrated = hyd.rows;
+                        if (hyd.exhausted && hydrated.length === 0) {
+                            return searchTransient503('cold_shard_timeout', 'cluster_fallback');
+                        }
                         for (const r of hydrated) r._source = 'cluster_fallback';
                         const unique: any[] = []; const seen = new Set<string>();
                         for (const r of hydrated) { if (!seen.has(r.id)) { seen.add(r.id); unique.push(r); } if (unique.length >= limit) break; }
@@ -194,16 +170,32 @@ export const GET: APIRoute = async ({ url }) => {
                         if (edgeCache && unique.length > 0) edgeCache.put(cacheKeyReq, response.clone()).catch(() => {});
                         return response;
                     }
-                } catch (e: any) { console.warn(`[SSR Search] Cluster fallback failed: ${e.message}`); }
+                } catch (e: any) {
+                    // A timed-out fallback is a TRANSIENT, not an empty result.
+                    // Surface it honestly so the caller/agent retries rather than
+                    // concluding the query has no matches (a transient must never
+                    // masquerade as an empty result). Distinguish the embed timeout
+                    // (the AI-binding call) from the broader fallback budget so
+                    // telemetry/agents see which op stalled.
+                    console.warn(`[SSR Search] Cluster fallback bailed: ${e?.message}`);
+                    const embedStalled = e?.code === 'VFS_OP_TIMEOUT' && /fallback:embed/.test(e?.message || '');
+                    return searchTransient503(
+                        embedStalled ? 'embedding_timeout' : 'cluster_fallback_budget',
+                        'cluster_fallback',
+                    );
+                }
+            } else if (env?.AI && budget.over()) {
+                // Budget spent before fallback could even start -> transient, not empty.
+                return searchTransient503('search_budget_exceeded', 'cluster_fallback');
             }
 
+            // Genuine empty: inverted index + (when applicable) a COMPLETED fallback
+            // both produced nothing. This is a real "no results", not a transient.
             return respond([], 'empty', start);
         }
 
-        // ── Browse mode (no query) — existing meta-shard federation ──
+        // ── Browse mode (no query) — budgeted meta-shard federation ──
         const parsed = parseCommands(q);
-        // V27.104: browse path only (q empty here — keyword search returns earlier via
-        // the static inverted index). buildQuery is pure B-Tree now; no FTS rank order.
         const { sql: baseSql, params } = buildQuery(parsed, type);
         const orderBy = sort === 'likes' ? 'e.stars DESC'
             : sort === 'last_updated' ? 'e.last_modified DESC'
@@ -212,13 +204,20 @@ export const GET: APIRoute = async ({ url }) => {
         const finalSql = `${baseSql} ORDER BY ${orderBy} LIMIT ${limit} OFFSET ${offset}`;
 
         const { priority, expansion } = determineTargetDbs(type, q, page, manifest);
-        let allRows = await queryShardBatch(priority, finalSql, params, r2Bucket, shouldSimulate);
-        if (allRows.length < limit && expansion.length > 0) {
-            const expansionRows = await queryShardBatch(expansion, finalSql, params, r2Bucket, shouldSimulate);
-            allRows = allRows.concat(expansionRows);
+        const prio = await queryShardBatchBudgeted(priority, finalSql, params, r2Bucket, shouldSimulate, budget, open, runSql);
+        let allRows = prio.rows;
+        let exhausted = prio.exhausted;
+        if (allRows.length < limit && expansion.length > 0 && !budget.over()) {
+            const exp = await queryShardBatchBudgeted(expansion, finalSql, params, r2Bucket, shouldSimulate, budget, open, runSql);
+            allRows = allRows.concat(exp.rows);
+            exhausted = exhausted || exp.exhausted;
+        }
+        // Transient distinct from empty: a budget-bailed browse with NO rows is a
+        // retryable 503, not an authoritative empty page.
+        if (exhausted && allRows.length === 0) {
+            return searchTransient503('cold_shard_timeout', 'browse');
         }
 
-        // Dedup + sort browse results
         if (sort === 'likes') allRows.sort((a, b) => (b.stars || 0) - (a.stars || 0));
         else if (sort === 'last_updated') allRows.sort((a, b) => new Date(b.last_modified || 0).getTime() - new Date(a.last_modified || 0).getTime());
         else allRows.sort((a, b) => a._dbSort - b._dbSort);

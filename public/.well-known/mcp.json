@@ -8,7 +8,7 @@
   "tools": [
     {
       "name": "free2aitools_search",
-      "description": "Search AI models, tools, datasets, and papers by keyword. Returns FNI-ranked results.",
+      "description": "Search AI models, tools, datasets, and papers by keyword. Returns FNI-ranked results. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -21,7 +21,7 @@
     },
     {
       "name": "free2aitools_rank",
-      "description": "Keyword-search AI entities using the task text as query input. Returns FNI-ranked catalog entries. Does not perform task-fit recommendation or compatibility analysis.",
+      "description": "Keyword-search AI entities using the task text as query input. Returns FNI-ranked catalog entries. Does not perform task-fit recommendation or compatibility analysis. May return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
       "input_schema": {
         "type": "object",
         "properties": {
