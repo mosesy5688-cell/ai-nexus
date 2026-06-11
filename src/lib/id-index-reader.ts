@@ -124,6 +124,19 @@ export async function loadIdIndex(env: any): Promise<boolean> {
     return loadPromise;
 }
 
+/**
+ * Non-blocking warm peek. True ONLY when the index is already parsed and resident
+ * in THIS isolate (VIEW set), so lookup() is synchronously usable at ZERO I/O
+ * cost. Crucially this NEITHER starts a load NOR awaits an in-flight one: a
+ * pending loadPromise (cold fetch racing) reports false, so a caller that gates
+ * on warmth never pays the cold-isolate fetch+parse cost. Used by the absence
+ * oracle's fan-out gate to opportunistically shrink low-fan-out lookups only when
+ * the index is already free.
+ */
+export function isIndexWarm(): boolean {
+    return VIEW !== null;
+}
+
 function readKeyHash(i: number): bigint {
     return VIEW!.getBigUint64(KEY_TABLE_OFF + i * KEY_ENTRY_SIZE, true);
 }
