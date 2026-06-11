@@ -30,6 +30,31 @@ const ARXIV_OAI_BASE = 'https://oaipmh.arxiv.org/oai';
 // AI/ML relevant ArXiv categories
 const AI_CATEGORIES = ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV', 'cs.NE', 'stat.ML'];
 
+// H1 WO-2b (arXiv first-page timeout/retry RECOVERY). WO-1 root-cause: the OAI
+// endpoint (oaipmh.arxiv.org) is alive but has intermittent FIRST-request tail
+// latency — typically 5-12s, spiking to 65-90s+, independent of window/payload/
+// UA. The old 60s AbortController cut that tail into a (post-#2182) LOUD abort
+// FetchError that still yielded 0. Recovery = give ONLY the first ListRecords a
+// longer budget + a bounded retry so the slow tail can resolve before we give up.
+//
+// FIRST_PAGE_TIMEOUT_MS=120000: the observed spikes hit 65-90s, so 120s clears
+// them with margin. Subsequent resumptionToken pages keep PAGE_TIMEOUT_MS=60000
+// (the prior value) — only the cold first request pays the slow-tail penalty.
+const FIRST_PAGE_TIMEOUT_MS = 120000;
+const PAGE_TIMEOUT_MS = 60000;
+// First-page bounded exponential-backoff retry on AbortError/fetch error. 3
+// retries with 15s/30s/60s backoff = 105s of backoff sleep; combined with up to
+// four 120s request budgets this is generous enough to ride out the spike while
+// the budget cap below still bounds a persistently-dead endpoint.
+const FIRST_PAGE_MAX_RETRIES = 3;
+const FIRST_PAGE_BACKOFF_MS = [15000, 30000, 60000];
+// Bounded retry BUDGET: a hard ceiling on cumulative first-page retry WALL-CLOCK
+// (backoff sleeps + request budgets), so a dead endpoint can never hang the job
+// indefinitely. 105s backoff + 4*120s request budgets ~= 585s worst case; we cap
+// at 600s (10 min). Once the budget is exhausted, the retry loop stops and the
+// #2182 FetchError is thrown — the run fails LOUD, never green zero-yield.
+const FIRST_PAGE_RETRY_BUDGET_MS = 600000;
+
 /**
  * ArXiv Papers Adapter Implementation
  */
@@ -78,6 +103,12 @@ export class ArXivAdapter extends BaseAdapter {
         let resumptionToken = null;
         let totalFetched = 0;
         let consecutiveErrors = 0;
+        // H1 WO-2b: first-page recovery state. firstPageRetries counts retries of
+        // the cold first ListRecords (resumptionToken === null) only; the budget
+        // deadline bounds total first-page retry wall-clock so a dead endpoint
+        // cannot hang the job. Subsequent (resumptionToken) pages are untouched.
+        let firstPageRetries = 0;
+        const firstPageRetryDeadline = Date.now() + FIRST_PAGE_RETRY_BUDGET_MS;
         // H1 (fail loud): records a structured fetch/abort/parse failure so the
         // loop can rethrow instead of laundering an error into a green empty [].
         // A genuinely-empty OAI response (HTTP 200, parseable, no records) does
@@ -102,9 +133,15 @@ export class ArXivAdapter extends BaseAdapter {
                 // OAI responses can be large; allow 60s. An AbortError lands in the
                 // existing catch below, which already retries gracefully (the
                 // consecutiveErrors / resumptionToken logic is UNCHANGED).
+                // H1 WO-2b: ONLY the cold first ListRecords (resumptionToken === null)
+                // gets the longer 120s budget to absorb the OAI slow-tail spike;
+                // paginated pages keep the prior 60s. The bump is per-request here,
+                // NOT a change to fetchWithTimeout's global default — other adapters
+                // are unaffected.
+                const requestTimeoutMs = resumptionToken ? PAGE_TIMEOUT_MS : FIRST_PAGE_TIMEOUT_MS;
                 const response = await this.fetchWithTimeout(url, {
                     headers: { 'User-Agent': 'Free2AITools-OAI/1.0' }
-                }, 60000);
+                }, requestTimeoutMs);
 
                 if (!response.ok) {
                     if (await this.handleRateLimit(response)) { consecutiveErrors = 0; continue; }
@@ -206,6 +243,23 @@ export class ArXivAdapter extends BaseAdapter {
                     resumptionToken = null;
                     await this.delay(30000);
                     continue;
+                }
+                // H1 WO-2b: first-page recovery. The cold first ListRecords
+                // (resumptionToken === null) is the one exposed to the OAI slow-tail
+                // spike. Before #2182's loud FetchError, give it a bounded
+                // exponential-backoff retry (15s/30s/60s, max 3) — but only while the
+                // total first-page retry budget remains. If the budget is exhausted
+                // (or all retries used), we FALL THROUGH to the FetchError below:
+                // #2182's fail-loud is preserved, never degraded back to return [].
+                if (!resumptionToken && firstPageRetries < FIRST_PAGE_MAX_RETRIES) {
+                    const backoffMs = FIRST_PAGE_BACKOFF_MS[firstPageRetries];
+                    if (Date.now() + backoffMs <= firstPageRetryDeadline) {
+                        firstPageRetries++;
+                        console.warn(`   🔄 [ArXiv] First-page fetch failed (${error?.name || 'error'}) — retry ${firstPageRetries}/${FIRST_PAGE_MAX_RETRIES} in ${backoffMs / 1000}s (budget remaining)...`);
+                        await this.delay(backoffMs);
+                        continue;
+                    }
+                    console.warn(`   ⛔ [ArXiv] First-page retry budget exhausted — failing loud.`);
                 }
                 // H1: the retry budget is exhausted. Classify the failure
                 // (AbortError from fetchWithTimeout's deadline vs a connection
