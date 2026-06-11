@@ -1,19 +1,23 @@
 /**
- * Template-based rationale generator for select_model API.
+ * Template-based FNI-summary generator for the select API.
  * No LLM calls — deterministic, sub-millisecond.
+ *
+ * Identity contract: this emits a factual evidence/factor summary (FNI facts +
+ * specs), NOT a fit-verdict. Free2AITools surfaces the evidence; the calling
+ * agent decides. So: no "#N for <task>", no "selected/best/recommended", and no
+ * pseudo-confidence — signal strength is already in the FNI fields/badge. The
+ * honest caveats (Ollama/GGUF, VRAM, license, recency) are negative-contract
+ * content and are retained.
  */
 
 export interface RationaleInput {
   entity: Record<string, any>;
-  rank: number;
-  taskTag: string;
   constraints?: Record<string, any>;
 }
 
 export interface RationaleResult {
-  rationale: string;
+  fni_summary: string;
   caveats: string[];
-  confidence: number;
 }
 
 const FACTOR_LABELS: Record<string, string> = {
@@ -21,7 +25,7 @@ const FACTOR_LABELS: Record<string, string> = {
 };
 
 export function buildRationale(input: RationaleInput): RationaleResult {
-  const { entity: e, rank, taskTag, constraints } = input;
+  const { entity: e, constraints } = input;
   const score = e.fni_score ?? 0;
   const caveats: string[] = [];
 
@@ -29,11 +33,14 @@ export function buildRationale(input: RationaleInput): RationaleResult {
   const sizeDesc = describeSize(e.params_billions);
   const ctxDesc = e.context_length ? `${Math.round(e.context_length / 1024)}K context` : '';
 
-  let rationale = `#${rank} for ${taskTag}: ${e.name || e.id} (FNI ${score.toFixed(1)})`;
-  if (dominant) rationale += ` — strong ${dominant.label} (${dominant.value.toFixed(1)})`;
-  if (sizeDesc) rationale += `, ${sizeDesc}`;
-  if (ctxDesc) rationale += `, ${ctxDesc}`;
-  rationale += '.';
+  // Factual FNI factor/spec summary — projects onto "structured discovery,
+  // evidence, and identity layer": it states what the catalog records, never
+  // whether the entity fits the caller's task. No verdict, no ranking position.
+  let fni_summary = `FNI ${score.toFixed(1)} catalog entry`;
+  if (dominant) fni_summary += `; leading factor ${dominant.label} (${dominant.value.toFixed(1)})`;
+  if (sizeDesc) fni_summary += `; ${sizeDesc}`;
+  if (ctxDesc) fni_summary += `; ${ctxDesc}`;
+  fni_summary += '.';
 
   if (e.vram_estimate_gb && e.vram_estimate_gb > 0) {
     caveats.push(`VRAM estimate (${e.vram_estimate_gb} GB) is approximate — actual depends on quantization and batch size`);
@@ -58,9 +65,7 @@ export function buildRationale(input: RationaleInput): RationaleResult {
     if (ratio < 1.5) caveats.push(`Context length (${e.context_length}) is close to your minimum (${constraints.min_context_length})`);
   }
 
-  const confidence = computeConfidence(e, constraints);
-
-  return { rationale, caveats, confidence };
+  return { fni_summary, caveats };
 }
 
 function pickDominant(e: Record<string, any>) {
@@ -77,16 +82,4 @@ function describeSize(params?: number) {
   if (params < 1) return `${Math.round(params * 1000)}M params`;
   if (params < 10) return `${params.toFixed(1)}B params`;
   return `${Math.round(params)}B params`;
-}
-
-function computeConfidence(e: Record<string, any>, constraints?: Record<string, any>): number {
-  let conf = 0.7;
-  if (e.fni_score >= 40) conf += 0.1;
-  if (e.downloads > 1000) conf += 0.05;
-  if (e.last_modified) {
-    const days = (Date.now() - new Date(e.last_modified).getTime()) / 86400000;
-    if (days < 30) conf += 0.05;
-  }
-  if (constraints?.max_vram_gb && e.vram_estimate_gb > 0 && e.vram_estimate_gb <= constraints.max_vram_gb) conf += 0.05;
-  return Math.min(0.95, Math.round(conf * 100) / 100);
 }

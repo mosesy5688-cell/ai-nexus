@@ -81,7 +81,7 @@ const TOOLS = [
                     }
                 },
                 limit: { type: 'number', default: 5, description: 'Max entries returned (1-20, default 5)' },
-                explain: { type: 'boolean', default: true, description: 'Include per-entry rationale text in the response (default true)' }
+                explain: { type: 'boolean', default: true, description: 'Include per-entry fni_summary (factual FNI factor/spec facts) and caveats in the response (default true)' }
             },
             required: ['task']
         }

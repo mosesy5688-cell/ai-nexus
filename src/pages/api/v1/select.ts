@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ request }) => {
     // comparator part of the live serve path (the C4 canary tests the same fn).
     const rows = orderCandidates(dbRows as any[]);
 
-    const recommendations = rows.map((row: any, i: number) => {
+    const entries = rows.map((row: any, i: number) => {
       const rec: any = {
         rank: i + 1,
         model_id: row.id,
@@ -97,9 +97,11 @@ export const POST: APIRoute = async ({ request }) => {
         badge_url: `https://free2aitools.com/api/v1/badge/${encodeURIComponent(row.slug || row.id)}`,
       };
       if (explain) {
-        const r = buildRationale({ entity: row, rank: i + 1, taskTag: taskMap.tag, constraints });
-        rec.confidence = r.confidence;
-        rec.rationale = r.rationale;
+        const r = buildRationale({ entity: row, constraints });
+        // Identity-layer contract: emit a factual FNI factor/spec summary, not a
+        // selection verdict. No pseudo-confidence — signal strength lives in the
+        // FNI fields/badge. The honest caveats (Ollama/GGUF, VRAM, license) stay.
+        rec.fni_summary = r.fni_summary;
         rec.caveats = r.caveats;
       }
       return rec;
@@ -108,9 +110,8 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({
       version: API_VERSION,
       task_interpreted: taskMap.tag,
-      task_confidence: taskMap.confidence,
-      total_candidates: recommendations.length,
-      recommendations,
+      total_candidates: entries.length,
+      entries,
       meta: { elapsed_ms: Date.now() - start },
     }), { headers: CORS_HEADERS });
   } catch (e: any) {
