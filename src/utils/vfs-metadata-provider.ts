@@ -3,7 +3,7 @@ import { getCachedDbConnection, loadManifest, executeSql } from '../lib/sqlite-e
 import { xxhash64Mod } from './xxhash64.js';
 import { generatePaperCandidates } from '../lib/slug-helper.js';
 import { withOpTimeout, isOpTimeout } from '../lib/op-timeout.js';
-import { orderShardsByIndex } from '../lib/id-index-shard-order.js';
+import { resolveShardsForCandidates } from '../lib/entity-absence-oracle.js';
 import { env } from 'cloudflare:workers';
 
 // V27.91: wall-clock budget for the multi-shard probing below. A miss
@@ -105,18 +105,26 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
                 if (arr) arr.push(c); else shardForms.set(idx, [c]);
             }
 
-            // Read-path P1 warm tier (ADDITIVE): if the in-memory id-index
-            // resolves any candidate to its canonical shard, probe THAT shard
-            // first so a real entity is reached before the budget is spent. The
-            // existing shardForms entries are left intact, so a stale/collided
-            // index hit can never make an entity unreachable (zero regression).
-            // On miss / absent file, loadIdIndex no-ops and order is unchanged.
-            const orderedShards = await orderShardsByIndex(shardForms, candidates, env);
+            // B4 — id-index absence oracle + index-driven candidate resolution.
+            // The slim v2 index enumerates every resolvable form, so a loaded
+            // index is authoritative over presence:
+            //   - candidate hits  -> probe ONLY the resolved shard(s) (the paper
+            //     multi-form fan-out collapses to the real shard, killing the
+            //     cold-open storm that drove /paper/<id> into 503s).
+            //   - NO candidate hits -> proven absence -> immediate notFound, ZERO
+            //     cold-shard probes (clean honest 404, no budget timeout).
+            //   - index absent/refused -> DEGRADE to the prior fan-out EXACTLY.
+            // The index never decides DATA (the real SELECT still runs), so a
+            // collision only mis-routes, never falsely 404s a real entity.
+            const resolution = await resolveShardsForCandidates(shardForms, candidates, env);
+            if (resolution.absenceProven) {
+                return { notFound: true };
+            }
 
             // V27.91: budget-gated — bail before a probe once the wall-clock
             // budget is spent, so a dead-URL miss returns a fast soft-404 instead
             // of timing out into a 524.
-            for (const [shardIdx, forms] of orderedShards) {
+            for (const [shardIdx, forms] of resolution.orderedShards) {
                 if (Date.now() - start > FALLBACK_BUDGET_MS) { inconclusive = true; break; }
                 const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
                 try {

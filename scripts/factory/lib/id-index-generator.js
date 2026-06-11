@@ -7,9 +7,10 @@
 // so the read path can resolve any id to its one correct shard WITHOUT sweeping
 // all shards (the per-op-hang failure mode).
 //
-// v2 is POINTER-ONLY: the sole consumer (orderShardsByIndex in
-// id-index-shard-order.ts) uses ONLY hit.shardIdx to reorder candidate shards;
-// it never reads name/summary/slug. The v1 string pool (name + 160-char summary
+// v2 is POINTER-ONLY: the consumer (resolveShardsForCandidates in
+// src/lib/entity-absence-oracle.ts) uses hit.shardIdx to BOTH shrink the
+// candidate fan-out to the resolved shard AND prove absence when no candidate
+// resolves; it never reads name/summary/slug. The v1 string pool (name + 160-char summary
 // + slug per entity) bloated the file to ~117 MB (~10x), forcing the reader to
 // pull the whole blob into the 128 MB CF Worker isolate (OOM-fragile, latent
 // 1102). Dropping the string pool shrinks the file to ~10-15 MB for ~551K
@@ -62,7 +63,7 @@ const ID_INDEX_PATH = './output/data/id-index.bin';
 // Stable int values for the long-lived types (model/dataset/tool/paper) are kept
 // so any future routing heuristic that hardcodes them stays valid; benchmark takes
 // a fresh slot (6). The record `type` byte is written but NOT yet read by any
-// consumer (id-index-shard-order.ts uses only shardIdx), and id-index.bin is
+// consumer (entity-absence-oracle.ts uses only shardIdx), and id-index.bin is
 // rebaked every cycle (never persisted across format), so the reassignment is
 // format- and consumer-safe — it only stops benchmark rows mapping to 255/unknown.
 const TYPE_ENUM = { model: 0, dataset: 1, tool: 3, paper: 5, benchmark: 6 };
