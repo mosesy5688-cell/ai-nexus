@@ -10,6 +10,7 @@ import { GET as compareHandler } from './v1/compare.js';
 import { GET as entityHandler } from './v1/entity/[...id].js';
 import { callEntity, buildExplainResult } from '../../lib/mcp-explain.js';
 import { callCompare, buildCompareResult } from '../../lib/mcp-compare.js';
+import { callSearchStatus, buildSearchResult } from '../../lib/mcp-search.js';
 
 const SERVER_INFO = { name: 'free2aitools', version: '2.0.0' };
 
@@ -27,7 +28,7 @@ const JSONRPC_HEADERS = {
 const TOOLS = [
     {
         name: 'free2aitools_search',
-        description: 'Search the Free2AITools catalog of AI models, datasets, papers, and tools by keyword. Returns results ranked by FNI (Free2AITools Nexus Index), a 5-factor score combining Semantic relevance, Authority, Popularity, Recency, and Quality. Read-only, no side effects. Use this for broad discovery; use free2aitools_select_model instead when you have specific hardware or license constraints.',
+        description: 'Search the Free2AITools catalog of AI models, datasets, papers, and tools by keyword. Returns results ranked by FNI (Free2AITools Nexus Index), a 5-factor score combining Semantic relevance, Authority, Popularity, Recency, and Quality. Read-only, no side effects. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After. Use this for broad discovery; use free2aitools_select_model instead when you have specific hardware or license constraints.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -40,7 +41,7 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_rank',
-        description: 'Keyword-search AI entities using the task text as query input. Returns FNI-ranked catalog entries. Does not perform task-fit recommendation or compatibility analysis. Read-only, no side effects. Use free2aitools_search for keyword-based discovery, or free2aitools_select_model to apply hardware/license metadata filters.',
+        description: 'Keyword-search AI entities using the task text as query input. Returns FNI-ranked catalog entries. Does not perform task-fit recommendation or compatibility analysis. Read-only, no side effects. May return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After. Use free2aitools_search for keyword-based discovery, or free2aitools_select_model to apply hardware/license metadata filters.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -112,32 +113,25 @@ function jsonrpcError(id: any, code: number, message: string) {
     );
 }
 
-/** Call internal search handler and return parsed results */
-async function callSearch(context: any, params: Record<string, string>): Promise<any> {
-    const url = new URL(context.url.href);
-    url.pathname = '/api/search';
-    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-    const response = await searchHandler({ ...context, url });
-    return response.json();
-}
-
 async function handleToolCall(context: any, toolName: string, args: any) {
     switch (toolName) {
         case 'free2aitools_search': {
+            // B8: callSearchStatus preserves the HTTP status so a transient 503
+            // (cold-path / fallback budget) propagates as an isError + retry hint
+            // instead of being forwarded as a fake-empty result. See mcp-search.ts.
             const searchParams: Record<string, string> = { q: args.query || '' };
             if (args.limit) searchParams.limit = String(Math.min(args.limit, 20));
             if (args.type && args.type !== 'all') searchParams.type = args.type;
-            const data = await callSearch(context, searchParams);
-            if (data.results) data.results.forEach((r: any) => { delete r._dbSort; delete r._score; delete r._source; });
-            return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+            const res = await callSearchStatus(context, searchParams, (ctx: any) => searchHandler(ctx));
+            return buildSearchResult(res);
         }
         case 'free2aitools_rank': {
+            // B8: same transient propagation as search — rank IS keyword search.
             const query = args.task ? `${args.task} ${args.query || ''}`.trim() : (args.query || '');
             const searchParams: Record<string, string> = { q: query };
             if (args.limit) searchParams.limit = String(Math.min(args.limit, 20));
-            const data = await callSearch(context, searchParams);
-            if (data.results) data.results.forEach((r: any) => { delete r._dbSort; delete r._score; delete r._source; });
-            return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+            const res = await callSearchStatus(context, searchParams, (ctx: any) => searchHandler(ctx));
+            return buildSearchResult(res);
         }
         case 'free2aitools_explain': {
             // V27.10: exact-match by id via entity endpoint instead of fuzzy

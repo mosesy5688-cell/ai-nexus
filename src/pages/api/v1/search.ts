@@ -40,6 +40,13 @@ export const GET: APIRoute = async (context) => {
 
     // Call internal search with capped params
     const internal = await internalSearch({ ...context, url });
+
+    // B8: a transient 503 (cold-path / fallback budget) passes through UNCHANGED —
+    // its honest envelope (transient/reason + Retry-After + Cache-Control: no-store)
+    // must reach the client verbatim. Never layer an ETag (would invite a cached
+    // 304) or the version wrapper onto a no-store transient.
+    if (internal.status === 503) return internal;
+
     const body = await internal.json();
 
     // Strip internal fields + wrap with version

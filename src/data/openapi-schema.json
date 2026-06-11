@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 5 results.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 5 results. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
         "tags": ["Search"],
         "parameters": [
           {
@@ -124,6 +124,12 @@
                   "$ref": "#/components/schemas/SearchResponse"
                 }
               }
+            }
+          },
+          "503": {
+            "description": "Transient: a search tier (term-index, cold-shard hydration, or cluster fallback) exhausted its wall-clock/op budget. Retryable — honor the Retry-After header. Body is no-store and carries a machine-readable reason (term_index_timeout | cold_shard_timeout | cluster_fallback_budget | embedding_timeout | search_budget_exceeded). A 503 is NOT an empty result; do not treat it as 'no matches'.",
+            "headers": {
+              "Retry-After": { "schema": { "type": "string" }, "description": "Seconds to wait before retrying" }
             }
           }
         }

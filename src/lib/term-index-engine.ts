@@ -6,6 +6,7 @@
 import { decompress } from 'fzstd';
 import { tokenizeQuery, termPrefix } from '../utils/search-tokenizer.js';
 import { fetchPrefixBucket, type Posting, type TermData } from './term-index-bucket-cache.js';
+import { withOpTimeout } from './op-timeout.js';
 
 interface TermIndexManifest {
     total_docs: number;
@@ -82,7 +83,7 @@ async function fetchHighFreqTerm(
  * Falls back to high-freq chunked format if standard file not found.
  */
 export async function fetchAllTermPostings(
-    query: string, r2Bucket: any, isDev: boolean
+    query: string, r2Bucket: any, isDev: boolean, opTimeoutMs?: number
 ): Promise<{ terms: string[]; results: Map<string, TermData>; manifest: TermIndexManifest | null }> {
     const terms = tokenizeQuery(query);
     if (terms.length === 0) return { terms: [], results: new Map(), manifest: null };
@@ -90,15 +91,36 @@ export async function fetchAllTermPostings(
     const results = new Map<string, TermData>();
     // V27.59: 2-tier read — high-freq chunked file → prefix bucket.
     // v1 individual-file legacy fallback removed (double-track scaffolding gone with V27.58 builder v1 write).
-    const manifest = await fetchManifest(r2Bucket, isDev);
+    // B8: the manifest fetch is bounded too (it precedes the term fetches and a
+    // stalled R2 .get() here would block the whole tier); it already falls back
+    // to the last-good stale manifest, so a timeout degrades gracefully to stale.
+    const manifest = opTimeoutMs
+        ? await withOpTimeout(fetchManifest(r2Bucket, isDev), opTimeoutMs, 'term:manifest').catch(() => cachedManifest)
+        : await fetchManifest(r2Bucket, isDev);
 
+    // B8: per-op firewall on EVERY term-index R2 fetch. These are pure R2 .get()s
+    // (no global lock), so a stalled range read here would otherwise hang the
+    // whole search route. withOpTimeout races a deadline; on timeout we treat the
+    // term as un-fetched (a missed term ≠ a fabricated hit) and let the caller's
+    // route budget surface a transient if nothing was resolved. The op is not
+    // cancelled (op-timeout.ts) — it just no longer blocks the request.
     await Promise.all(terms.map(async (term) => {
-        let data = await fetchHighFreqTerm(term, r2Bucket, isDev);
-        if (!data) {
-            const bucket = await fetchPrefixBucket(termPrefix(term), r2Bucket, isDev);
-            if (bucket && bucket.has(term)) data = bucket.get(term) ?? null;
+        try {
+            const fetchOne = (async () => {
+                let data = await fetchHighFreqTerm(term, r2Bucket, isDev);
+                if (!data) {
+                    const bucket = await fetchPrefixBucket(termPrefix(term), r2Bucket, isDev);
+                    if (bucket && bucket.has(term)) data = bucket.get(term) ?? null;
+                }
+                return data;
+            })();
+            const data = opTimeoutMs
+                ? await withOpTimeout(fetchOne, opTimeoutMs, `term:${term}`)
+                : await fetchOne;
+            if (data) results.set(term, data);
+        } catch (err: any) {
+            console.warn(`[Term Index] term="${term}" fetch bailed: ${err?.message || err}`);
         }
-        if (data) results.set(term, data);
     }));
 
     const found = [...results.keys()];

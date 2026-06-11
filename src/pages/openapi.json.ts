@@ -28,11 +28,15 @@ const HEADERS: Record<string, string> = {
 // Served types: models, tools, datasets, papers, benchmarks. agents/spaces/
 // prompts dropped — agent + prompt cancelled, space merged into model
 // (honest-contract: advertise only what is actually served).
-const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 5 results.';
+// B8: the transient disclosure is appended to BOTH the count-injected and
+// catalog-only wordings so the dynamic search description always carries it
+// (matches the static schema's search description + 503 response).
+const TRANSIENT_NOTE = ' Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.';
+const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 5 results.' + TRANSIENT_NOTE;
 
 function injectCount(phrase: string | null): string {
     if (!phrase) return SEARCH_DESC_CATALOG;
-    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 5 results.`;
+    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 5 results.${TRANSIENT_NOTE}`;
 }
 
 export const GET: APIRoute = async ({ request }) => {
