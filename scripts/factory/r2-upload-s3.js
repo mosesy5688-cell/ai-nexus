@@ -20,6 +20,19 @@ const CONFIG = {
     PREFIX_FILTER: (process.env.R2_PREFIX_FILTER ? process.env.R2_PREFIX_FILTER.split(',').map(s => s.trim()) : [])
 };
 
+// B4 absence-oracle skew closer. data/id-index.bin is a COMPLETE absence oracle:
+// when it loads AND a lookup misses, the read path 404s with ZERO shard probes
+// (src/lib/entity-absence-oracle.ts). Final Upload PUTs are NOT atomic (50-wide
+// concurrent batches, unordered readdir), so index vs meta-NN.db land in any order.
+// Bad direction = OLD index + NEW shards: a net-new entity whose meta row is live
+// but whose key is absent from the stale index → oracle PROVES absence → false 404.
+// Safe direction = NEW index over OLD shards: the new key RESOLVES, the shard is
+// probed with the real SELECT, the row is merely not-yet-there → clean POST-PROBE
+// 404 (pre-skew behavior), self-healing once the shard PUT lands. So the NEW index
+// bytes must land AFTER all meta shards: hold id-index.bin out of the bulk phase and
+// PUT it in a dedicated step that runs strictly after the bulk completes.
+const DEFERRED_LAST_REMOTE = 'data/id-index.bin';
+
 const ARGS = process.argv.slice(2);
 const prefixArgIdx = ARGS.indexOf('--prefix');
 if (prefixArgIdx !== -1 && ARGS[prefixArgIdx + 1]) {
@@ -58,12 +71,16 @@ function toRemotePath(localPath) {
     return localPath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^output\//, '');
 }
 
-async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
+async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap, opts = {}) {
+    const excludeRemote = opts.excludeRemote || null;
     let success = 0, fail = 0, unchanged = 0;
     const changedPaths = [];
     const queue = files.filter(f => {
         const remotePath = toRemotePath(f.path);
         if (CONFIG.PREFIX_FILTER.length > 0 && !CONFIG.PREFIX_FILTER.some(p => remotePath.startsWith(p))) return false;
+        // B4: hold the absence-oracle index out of the bulk phase so it is PUT
+        // strictly AFTER all meta shards (safe direction — see DEFERRED_LAST_REMOTE).
+        if (excludeRemote && remotePath === excludeRemote) return false;
         return !uploadedSet.has(remotePath);
     });
 
@@ -107,6 +124,46 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
     return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths };
 }
 
+/**
+ * B4: PUT data/id-index.bin in a single ordered op strictly AFTER the bulk phase
+ * (all meta-NN.db + every other data file). Guarantees the live index is never
+ * newer than the shards it points into → closes the OLD-index + NEW-shards false-404
+ * window. Honors PREFIX_FILTER, MD5 ETag skip, multipart, checkpoint and the
+ * changed/purge set exactly as the bulk phase — SAME single PUT, only sequenced
+ * (no per-file explosion, no 50MB-rule or backup-path impact).
+ */
+async function uploadDeferredIndex(s3, files, uploadedSet, checkpoint, r2ETagMap) {
+    const target = files.find(f => toRemotePath(f.path) === DEFERRED_LAST_REMOTE);
+    if (!target) {
+        console.log(`[B4-ORDER] ${DEFERRED_LAST_REMOTE} not in this upload set (PREFIX_FILTER or absent) — no deferred PUT`);
+        return { success: 0, fail: 0, unchanged: 0, changedPaths: [] };
+    }
+    const remotePath = toRemotePath(target.path);
+    if (CONFIG.PREFIX_FILTER.length > 0 && !CONFIG.PREFIX_FILTER.some(p => remotePath.startsWith(p))) {
+        return { success: 0, fail: 0, unchanged: 0, changedPaths: [] };
+    }
+    if (uploadedSet.has(remotePath)) {
+        console.log(`[B4-ORDER] ${remotePath} already in checkpoint — skip`);
+        return { success: 0, fail: 0, unchanged: 0, changedPaths: [] };
+    }
+    console.log(`[B4-ORDER] PUTting ${remotePath} LAST (after all meta shards) to close absence-oracle skew window`);
+    const useMultipart = process.env.R2_MULTIPART_ENABLED === 'true';
+    const result = (useMultipart && target.size > 8 * 1024 * 1024 && remotePath.includes('fused-shard'))
+        ? await uploadFileMultipartFFI(s3, target.path, remotePath)
+        : await uploadFileFFI(s3, target.path, remotePath, r2ETagMap.get(remotePath));
+    if (!result.success) {
+        console.error(`\n   [FAIL] Deferred index upload: ${result.path} | Error: ${result.error}`);
+        return { success: 0, fail: 1, unchanged: 0, changedPaths: [] };
+    }
+    checkpoint.uploaded.push(result.path);
+    if (result.skipped) {
+        console.log(`[B4-ORDER] ${remotePath} unchanged on R2 (MD5 match) — no re-PUT`);
+        return { success: 0, fail: 0, unchanged: 1, changedPaths: [] };
+    }
+    console.log(`[B4-ORDER] ${remotePath} PUT complete (new index live after shards)`);
+    return { success: 1, fail: 0, unchanged: 0, changedPaths: [result.path] };
+}
+
 async function main() {
     const { loadLocalManifest, saveLocalManifest, calculateHash } = await import('./lib/local-sync.js');
     const localManifestPath = path.join(process.env.CACHE_DIR || './cache', 'last-upload-manifest.json');
@@ -137,7 +194,24 @@ async function main() {
 
     console.log(`[LOCAL-SYNC] Locally skipped: ${locallySkipped} files (MD5 matched manifest)`);
 
-    const { success, fail, skipped, unchanged, changedPaths } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
+    // B4: bulk phase uploads EVERYTHING EXCEPT data/id-index.bin. The index is then
+    // PUT last (after all meta shards) so the live oracle never points into shards
+    // that have not yet landed (closes the OLD-index + NEW-shards false-404 window).
+    const bulkUploadedSet = new Set(checkpoint.uploaded);
+    const bulk = await processQueue(s3, filesToUpload, bulkUploadedSet, checkpoint, r2ETagMap, { excludeRemote: DEFERRED_LAST_REMOTE });
+    // Only publish the NEW index once the bulk (incl. every meta shard) succeeded.
+    // If a shard PUT failed, hold the index back so the live oracle keeps pointing
+    // at the consistent prior shard set rather than a half-written one; the failed
+    // run exits non-zero (below) and re-runs, PUTting the index after a clean bulk.
+    const deferred = bulk.fail === 0
+        ? await uploadDeferredIndex(s3, filesToUpload, bulkUploadedSet, checkpoint, r2ETagMap)
+        : (console.warn(`[B4-ORDER] Bulk phase had ${bulk.fail} failure(s) — HOLDING ${DEFERRED_LAST_REMOTE} (no stale-shard index publish)`),
+           { success: 0, fail: 0, unchanged: 0, changedPaths: [] });
+    const success = bulk.success + deferred.success;
+    const fail = bulk.fail + deferred.fail;
+    const skipped = bulk.skipped;
+    const unchanged = bulk.unchanged + deferred.unchanged;
+    const changedPaths = [...(bulk.changedPaths || []), ...deferred.changedPaths];
 
     // Update local manifest with new successful hashes
     for (const file of filesToUpload) {
