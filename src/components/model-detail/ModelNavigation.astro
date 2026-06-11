@@ -4,9 +4,10 @@
 interface Props {
   pipelineTag?: string;
   hasGguf?: boolean;
+  hasBenchmarks?: boolean;
 }
 
-const { pipelineTag, hasGguf = false } = Astro.props;
+const { pipelineTag, hasGguf = false, hasBenchmarks = false } = Astro.props;
 ---
 ---
 
@@ -15,32 +16,34 @@ const { pipelineTag, hasGguf = false } = Astro.props;
     <span>🚀</span> What's Next?
   </h2>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <!-- Recommended Datasets -->
+    <!-- Category browse -->
     <a href={`/models?category=${pipelineTag || 'text-generation'}`} 
        class="group p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700">
       <div class="text-2xl mb-2">📊</div>
-      <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 tracking-tight">Find Training Datasets</h3>
+      <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 tracking-tight">Models in this category</h3>
       <p class="text-[12px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
-        Discover datasets compatible with this model
+        Browse models in the same category
       </p>
     </a>
 
-    <!-- Related Benchmarks -->
-    <a href="/ranking" 
+    <!-- Benchmark data — conditional: only when this entity has benchmark data -->
+    {hasBenchmarks && (
+    <a href="/ranking"
        class="group p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700">
       <div class="text-2xl mb-2">📈</div>
-      <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 tracking-tight">Compare Benchmarks</h3>
+      <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 tracking-tight">Benchmark data</h3>
       <p class="text-[12px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
         See how this model ranks on standard tests
       </p>
     </a>
+    )}
 
-    <!-- Deployment Guide -->
-    <a href="/knowledge/what-is-gguf" 
+    <!-- Deployment reference -->
+    <a href="/knowledge/what-is-gguf"
        class="group p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700">
       <div class="text-2xl mb-2">⚡</div>
       <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 tracking-tight">
-        {hasGguf ? 'Deploy with GGUF' : 'Deployment Guide'}
+        {hasGguf ? 'Deploy with GGUF' : 'Deployment reference'}
       </h3>
       <p class="text-[12px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
         {hasGguf ? 'Run locally with llama.cpp or Ollama' : 'Understand deployment options'}

@@ -16,7 +16,7 @@
       <input 
         type="text" 
         id="palette-input"
-        placeholder="Search models, tools, papers... or try author:meta params:>7b" 
+        placeholder="Search models, tools, papers… e.g. author:meta params:>7b"
         class="w-full bg-transparent pl-12 pr-4 py-2 text-xl text-white placeholder-zinc-500 outline-none font-medium"
         autocomplete="off"
         spellcheck="false"
@@ -40,7 +40,7 @@
     <div class="border-t border-[#272727] p-3 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
       <div id="engine-status" class="flex items-center gap-2">
          <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-         VFS Range Active (0ms)
+         Live data
       </div>
       <div class="flex items-center gap-4 text-xs font-sans">
         <span><b class="text-zinc-400">↑↓</b> Navigate</span>
@@ -110,13 +110,13 @@
     if (!engineStatus) return;
     currentTier = tier;
     if (tier === 'shard') {
-      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> VFS Binary Active (0ms)`;
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> Live data`;
     } else if (tier === 'db') {
-      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> meta.db Full Search`;
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Live data`;
     } else if (tier === 'semantic') {
-      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span> Tier 3 Semantic Engine`;
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></span> Live data`;
     } else {
-      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span> Searching full database...`;
+      engineStatus.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse"></span> Loading…`;
     }
   }
 

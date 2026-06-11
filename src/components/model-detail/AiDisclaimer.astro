@@ -5,7 +5,7 @@
  * V14.4 Constitution Art 7.1: AI Summary Disclaimer
  * DATA_DISCLOSURE_TRISTATE: Explicit data source disclosure
  * 
- * Required text: "AI Summary: Based on {source} metadata. Not a recommendation."
+ * Required text: "Source summary: Based on {source} metadata. Not a recommendation."
  * 
  * @component
  */
@@ -31,9 +31,6 @@ const sourceInfo: Record<string, { name: string; icon: string; color: string; ur
 };
 
 const info = sourceInfo[source?.toLowerCase()] || { name: source || 'Unknown', icon: '📦', color: 'gray', url: '' };
-
-// L1 Harvester sync frequency (Constitution compliant)
-const syncFrequency = 'Daily';
 
 // Format last updated with UTC time
 const formattedDate = lastUpdated 
@@ -81,11 +78,11 @@ const classes = colorClasses[info.color] || colorClasses['gray'];
           <span class="font-medium">Data Source: {info.name}</span>
         )}
       </div>
-      <span class="text-xs opacity-60">🔄 {syncFrequency} sync (03:00 UTC)</span>
+      <span class="text-xs opacity-60">🔄 Updated daily</span>
     </div>
     <p class="opacity-80 text-xs">
       <!-- V14.4 Art 7.1: English Default Disclaimer -->
-      <span class="font-medium">AI Summary: Based on {info.name} metadata. Not a recommendation.</span>
+      <span class="font-medium">Source summary: Based on {info.name} metadata. Not a recommendation.</span>
       {formattedDate && <span> • Synced: {formattedDate}</span>}
     </p>
     <div class="flex items-center gap-3 mt-2 text-xs opacity-70">

@@ -2,20 +2,24 @@
 // src/components/home/HomeTechnicalHeader.astro
 // V21.16: Premium Technical Header (Copy of Knowledge page architecture)
 import MeshVisualizer from '../mesh/MeshVisualizer.astro';
-import { loadSiteMetadata } from '../../utils/vfs-site-metadata.js';
+import { env } from 'cloudflare:workers';
+import { getTotalEntities, formatTotalEntities } from '../../utils/site-stats.js';
 
 interface Props {
   initialQuery?: string;
-  totalEntities?: number;
 }
 
-const { initialQuery = '', totalEntities = 460000 } = Astro.props;
+const { initialQuery = '' } = Astro.props;
 
-let totalNodes = totalEntities;
+// Canonical entity count — single bake-derived source (manifest partitions.total_entities),
+// the same source llms.txt uses. Rounded-floor formatter never overstates. When the live
+// count is not yet published, fall back to non-numeric phrasing — never fabricate a number.
+let entityPhrase: string | null = null;
 try {
-  const data = await loadSiteMetadata('mesh_stats');
-  if (data && data.nodes) totalNodes = data.nodes;
+  const total = await getTotalEntities((env as any)?.R2_ASSETS, !!import.meta.env?.DEV);
+  entityPhrase = formatTotalEntities(total);
 } catch (e) {}
+const countText = entityPhrase ?? 'half a million+';
 
 ---
 
@@ -23,7 +27,7 @@ try {
     <!-- Hero Section: V25.1 Industrial Mirror -->
     <header class="text-left mb-10 pt-6">
       <div class="flex items-center gap-2 mb-4">
-          <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] font-mono">Updated Daily</span>
+          <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] font-mono">Updated daily through an automated data pipeline</span>
           <span class="w-1 h-1 bg-indigo-500/50 rounded-full"></span>
           <span class="text-[10px] font-bold text-indigo-500/70 uppercase tracking-widest">FNI Ranked</span>
       </div>
@@ -34,7 +38,7 @@ try {
 
       <div class="max-w-xl">
         <p class="text-sm text-zinc-500 leading-relaxed tracking-tight mb-4">
-          Discover and rank {totalNodes.toLocaleString()}+ models, datasets, papers, and tools. Scored by the Free2AITools Nexus Index (FNI).
+          Discover and rank {countText} models, datasets, papers, and tools. Scored by the Free2AITools Nexus Index (FNI).
         </p>
         <div class="flex flex-wrap gap-3">
           <a href="/developers" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-500/10 transition-colors">
