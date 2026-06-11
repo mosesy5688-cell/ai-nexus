@@ -10,8 +10,19 @@ const KEY_ENTRY_SIZE = 12;
 const RECORD_SIZE = 8;
 const MASK64 = 0xFFFFFFFFFFFFFFFFn;
 
-/** Build a valid slim-v2 IDIX buffer mapping each key form -> a shardIdx. */
-export function buildIndexBuffer(entries: { form: string; shardIdx: number }[]): ArrayBuffer {
+/**
+ * Build a valid slim IDIX buffer mapping each key form -> a shardIdx.
+ * @param entries form -> shardIdx records.
+ * @param buildId B4 coherence token. A string -> v3 header with that build_id
+ *        stamped (the same layout id-index-generator.js emits). undefined -> a
+ *        v2 header with NO build_id (backward-compat: reader exposes null ->
+ *        incoherent -> absence proof off). This mirrors the exact byte layout
+ *        the production reader parses, so coherence is exercised end-to-end.
+ */
+export function buildIndexBuffer(
+    entries: { form: string; shardIdx: number }[],
+    buildId?: string,
+): ArrayBuffer {
     // Each entry gets its own record (matches the generator: every form points
     // at one record).
     const records = entries.map(e => ({ shardIdx: e.shardIdx }));
@@ -21,7 +32,9 @@ export function buildIndexBuffer(entries: { form: string; shardIdx: number }[]):
     }));
     keys.sort((a, b) => (a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0));
 
-    const keyTableOffset = HEADER_SIZE;
+    const idBytes = buildId != null ? new TextEncoder().encode(buildId) : new Uint8Array(0);
+    const version = buildId != null ? 3 : 2;
+    const keyTableOffset = HEADER_SIZE + idBytes.length;
     const recordTableOffset = keyTableOffset + keys.length * KEY_ENTRY_SIZE;
     const total = recordTableOffset + records.length * RECORD_SIZE;
     const buf = new ArrayBuffer(total);
@@ -29,11 +42,13 @@ export function buildIndexBuffer(entries: { form: string; shardIdx: number }[]):
     const bytes = new Uint8Array(buf);
     bytes[0] = 'I'.charCodeAt(0); bytes[1] = 'D'.charCodeAt(0);
     bytes[2] = 'I'.charCodeAt(0); bytes[3] = 'X'.charCodeAt(0);
-    dv.setUint16(4, 2, true);            // version = slim v2
+    dv.setUint16(4, version, true);      // version (2 = no build_id, 3 = stamped)
     dv.setUint32(8, keys.length, true);  // keyCount
     dv.setUint32(12, records.length, true); // recordCount
     dv.setUint32(16, keyTableOffset, true);
     dv.setUint32(20, recordTableOffset, true);
+    dv.setUint16(24, idBytes.length, true); // buildIdLen (0 = none)
+    if (idBytes.length > 0) bytes.set(idBytes, HEADER_SIZE);
     for (let i = 0; i < keys.length; i++) {
         const off = keyTableOffset + i * KEY_ENTRY_SIZE;
         dv.setBigUint64(off, keys[i].hash, true);

@@ -5,26 +5,31 @@ import { buildIndexBuffer, mockEnv } from './helpers/id-index-fixture.js';
 
 // B4 — id-index absence oracle + index-driven candidate resolution.
 //
-// These tests drive resolveShardsForCandidates against a synthetic slim-v2
+// These tests drive resolveShardsForCandidates against a synthetic slim-v3
 // id-index.bin (the SAME on-disk layout id-index-generator.js emits and
 // id-index-reader.ts parses), wired through a mock env.R2_ASSETS so the reader's
-// real load + binary-search path runs. They assert the core oracle contract on
-// the HIGH-fan-out (>=3 shards) path where the index is awaited:
+// real load + binary-search path runs. The index carries a build_id (BID) and we
+// pass the SAME build_id as the served manifest's -> COHERENT, so the core
+// shrink/absence contract is exercised on the HIGH-fan-out (>=3 shards) awaited
+// path:
 //   (a) index hit  -> candidate set shrinks to the resolved shard
 //   (b) all-miss   -> absenceProven, ZERO shards to probe
 //   (c) index absent/refused -> fan-out parity (original order, no absence claim)
 //   (f) bareword 10-shard fan-out -> zero-probe absence proof
-// The FAN-OUT GATE itself (low-fan-out no-await + warm-peek) is covered in
-// entity-absence-oracle-fanout.test.ts.
+// The FAN-OUT GATE (low-fan-out no-await + warm-peek) lives in
+// entity-absence-oracle-fanout.test.ts; the COHERENCE GATE (mismatch / missing
+// build_id / FALSE-404 attack) lives in entity-absence-coherence.test.ts.
 
-describe('resolveShardsForCandidates — id-index absence oracle', () => {
+const BID = 'run-1000-abc123';
+
+describe('resolveShardsForCandidates — id-index absence oracle (coherent)', () => {
     beforeEach(() => _resetIdIndexForTest());
 
     it('(a) index hit shrinks the candidate set to the resolved shard', async () => {
         // The real entity "arxiv--2307.01952" lives on shard 7. The candidate
         // plan fanned out across 3 shards (>= 3 = high fan-out: oracle awaited);
-        // only the resolved one should remain.
-        const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }]));
+        // only the resolved one should remain (coherent -> destructive shrink).
+        const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], BID));
         const candidates = ['2307.01952', 'arxiv--2307.01952', 'unknown--2307.01952'];
         // Pretend the caller hashed each candidate to a different shard.
         const shardForms = new Map<number, string[]>([
@@ -32,7 +37,7 @@ describe('resolveShardsForCandidates — id-index absence oracle', () => {
             [7, ['arxiv--2307.01952']],
             [42, ['unknown--2307.01952']],
         ]);
-        const r = await resolveShardsForCandidates(shardForms, candidates, env);
+        const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(r.indexLoaded).toBe(true);
         expect(r.absenceProven).toBe(false);
         // Only the resolved shard 7 is probed (10 -> 1), with its bound form.
@@ -40,7 +45,7 @@ describe('resolveShardsForCandidates — id-index absence oracle', () => {
     });
 
     it('(b) all candidates miss the index -> absenceProven, ZERO shards probed', async () => {
-        const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }]));
+        const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], BID));
         // None of these exist in the index.
         const candidates = ['9999.99999', 'arxiv--9999.99999', 'unknown--9999.99999'];
         const shardForms = new Map<number, string[]>([
@@ -48,7 +53,7 @@ describe('resolveShardsForCandidates — id-index absence oracle', () => {
             [2, ['arxiv--9999.99999']],
             [3, ['unknown--9999.99999']],
         ]);
-        const r = await resolveShardsForCandidates(shardForms, candidates, env);
+        const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(r.indexLoaded).toBe(true);
         expect(r.absenceProven).toBe(true);
         // Absence is proven WITHOUT probing any shard.
@@ -63,7 +68,7 @@ describe('resolveShardsForCandidates — id-index absence oracle', () => {
             [2, ['arxiv--9999.99999']],
             [3, ['unknown--9999.99999']],
         ]);
-        const r = await resolveShardsForCandidates(shardForms, candidates, env);
+        const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(r.indexLoaded).toBe(false);
         // Never assert absence when the oracle is unavailable.
         expect(r.absenceProven).toBe(false);
@@ -86,7 +91,7 @@ describe('resolveShardsForCandidates — id-index absence oracle', () => {
         const shardForms = new Map<number, string[]>([
             [5, ['anything']], [9, ['arxiv--anything']], [12, ['unknown--anything']],
         ]);
-        const r = await resolveShardsForCandidates(shardForms, candidates, env);
+        const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(r.indexLoaded).toBe(false);
         expect(r.absenceProven).toBe(false);
         expect(r.orderedShards).toEqual([
@@ -101,14 +106,14 @@ describe('resolveShardsForCandidates — id-index absence oracle', () => {
         const env = mockEnv(buildIndexBuffer([
             { form: 'meta-llama--llama-3-8b', shardIdx: 11 },
             { form: 'hf-model--meta-llama--llama-3-8b', shardIdx: 11 },
-        ]));
+        ], BID));
         expect(await loadIdIndex(env)).toBe(true); // warm it (allowed pre-step)
         expect(isIndexWarm()).toBe(true);
         const candidates = ['meta-llama--llama-3-8b', 'hf-model--meta-llama--llama-3-8b'];
         const shardForms = new Map<number, string[]>([
             [11, ['meta-llama--llama-3-8b', 'hf-model--meta-llama--llama-3-8b']],
         ]);
-        const r = await resolveShardsForCandidates(shardForms, candidates, env);
+        const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(r.absenceProven).toBe(false);
         expect(r.orderedShards).toEqual([[11, ['meta-llama--llama-3-8b', 'hf-model--meta-llama--llama-3-8b']]]);
     });
@@ -117,13 +122,13 @@ describe('resolveShardsForCandidates — id-index absence oracle', () => {
         // A bareword fanned out across 10 cold shards but exists in NONE: the
         // high-fan-out path awaits the oracle and proves absence with ZERO probes
         // (the paper/bareword 503 root cause). Verifies the load IS attempted.
-        const env = mockEnv(buildIndexBuffer([{ form: 'real-entity', shardIdx: 4 }]));
+        const env = mockEnv(buildIndexBuffer([{ form: 'real-entity', shardIdx: 4 }], BID));
         const candidates = Array.from({ length: 10 }, (_, i) => `bareword-form-${i}`);
         const shardForms = new Map<number, string[]>(
             candidates.map((c, i) => [i, [c]] as [number, string[]]),
         );
         expect(shardForms.size).toBe(10); // pre-oracle fan-out = 10 (>= 3)
-        const r = await resolveShardsForCandidates(shardForms, candidates, env);
+        const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(env._counter.getCalls).toBe(1); // oracle load WAS attempted
         expect(r.indexLoaded).toBe(true);
         expect(r.absenceProven).toBe(true);

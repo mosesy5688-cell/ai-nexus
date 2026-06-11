@@ -19,14 +19,21 @@
  *   2. Version guard: only SLIM_VERSION (v2) is accepted; the bloated v1 layout
  *      is rejected even if it somehow slipped under the size cap.
  *
- * Binary layout: see id-index-generator.js header (magic "IDIX", v2, pointer-only).
+ * Binary layout: see id-index-generator.js header (magic "IDIX", v2/v3,
+ * pointer-only). v3 adds a build_id coherence token (B4); v2 (no token) parses
+ * fine and exposes a null build_id (-> absence proof degrades downstream).
  */
 import { xxhash64 } from '../utils/xxhash64-core.js';
 
 const HEADER_SIZE = 32;
 const KEY_ENTRY_SIZE = 12;
 const RECORD_SIZE = 8; // slim: shardIdx(2) + type(1) + flags(1) + fniScore(4)
-const SLIM_VERSION = 2;
+// v2 = no build_id (B4 coherence token absent -> reader exposes null -> absence
+// proof degrades). v3 = build_id-stamped header. BOTH parse cleanly: a v2 index
+// is NOT a crash/refusal, it just has no token (backward-compat).
+const SLIM_VERSION_MIN = 2;
+const SLIM_VERSION_MAX = 3;
+const BUILD_ID_VERSION = 3;
 // Refuse anything larger than this so the legacy ~117 MB v1 blob never lands in
 // the isolate. The slim v2 index is ~10-15 MB for ~551K entities.
 const MAX_INDEX_BYTES = 30 * 1024 * 1024;
@@ -45,6 +52,10 @@ let VIEW: DataView | null = null;
 let KEY_COUNT = 0;
 let KEY_TABLE_OFF = 0;
 let RECORD_TABLE_OFF = 0;
+// B4: the bake coherence token stamped in the v3 header (null for v2 / no token).
+// Exposed via getIndexBuildId(); the absence oracle gates absence proof on this
+// === the served manifest build_id (same request, same bake).
+let INDEX_BUILD_ID: string | null = null;
 let triedLoad = false;
 let loadPromise: Promise<boolean> | null = null;
 
@@ -80,10 +91,10 @@ function parseHeader(ab: ArrayBuffer): boolean {
     const dv = new DataView(ab);
     const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
     if (magic !== 'IDIX') return false;
-    // Version guard: only the slim v2 layout is parseable here. The bloated v1
-    // (string-pool) layout is rejected -> caller falls back to the probe.
+    // Version guard: the slim v2 (no build_id) AND v3 (build_id-stamped) layouts
+    // are parseable. The bloated v1 (string-pool) layout is rejected -> probe.
     const version = dv.getUint16(4, true);
-    if (version !== SLIM_VERSION) return false;
+    if (version < SLIM_VERSION_MIN || version > SLIM_VERSION_MAX) return false;
     KEY_COUNT = dv.getUint32(8, true);
     const recordCount = dv.getUint32(12, true);
     KEY_TABLE_OFF = dv.getUint32(16, true);
@@ -91,6 +102,22 @@ function parseHeader(ab: ArrayBuffer): boolean {
     if (KEY_COUNT === 0 || recordCount === 0) return false;
     // Record table must fit inside the buffer.
     if (RECORD_TABLE_OFF + recordCount * RECORD_SIZE > ab.byteLength) return false;
+    // B4: parse the build_id region (v3 only). buildIdLen @24; the string sits in
+    // [HEADER_SIZE, HEADER_SIZE+buildIdLen). On any inconsistency leave it null
+    // (degrade), NOT a parse failure — a stamped index with a corrupt token must
+    // still serve shrink/reorder, only its ABSENCE proof is disabled downstream.
+    INDEX_BUILD_ID = null;
+    if (version >= BUILD_ID_VERSION) {
+        const buildIdLen = dv.getUint16(24, true);
+        if (buildIdLen > 0
+            && HEADER_SIZE + buildIdLen <= KEY_TABLE_OFF
+            && HEADER_SIZE + buildIdLen <= ab.byteLength) {
+            try {
+                INDEX_BUILD_ID = new TextDecoder()
+                    .decode(new Uint8Array(ab, HEADER_SIZE, buildIdLen)) || null;
+            } catch { INDEX_BUILD_ID = null; }
+        }
+    }
     VIEW = dv;
     return true;
 }
@@ -137,6 +164,17 @@ export function isIndexWarm(): boolean {
     return VIEW !== null;
 }
 
+/**
+ * B4 coherence token: the build_id stamped in the loaded index header, or null
+ * when the index is not resident, is a v2 (pre-token) index, or its token region
+ * was absent/corrupt. The absence oracle compares this === the served manifest
+ * build_id (same request) before it allows an absence proof. Returns null (never
+ * throws) so a missing token degrades to "no absence proof", never a crash.
+ */
+export function getIndexBuildId(): string | null {
+    return VIEW !== null ? INDEX_BUILD_ID : null;
+}
+
 function readKeyHash(i: number): bigint {
     return VIEW!.getBigUint64(KEY_TABLE_OFF + i * KEY_ENTRY_SIZE, true);
 }
@@ -179,5 +217,6 @@ export function lookup(idOrSlugOrUmid: string): IdIndexHit | null {
 export function _resetIdIndexForTest(): void {
     VIEW = null; KEY_COUNT = 0;
     KEY_TABLE_OFF = 0; RECORD_TABLE_OFF = 0;
+    INDEX_BUILD_ID = null;
     triedLoad = false; loadPromise = null;
 }

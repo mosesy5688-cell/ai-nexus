@@ -116,7 +116,11 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
             //   - index absent/refused -> DEGRADE to the prior fan-out EXACTLY.
             // The index never decides DATA (the real SELECT still runs), so a
             // collision only mis-routes, never falsely 404s a real entity.
-            const resolution = await resolveShardsForCandidates(shardForms, candidates, env);
+            // B4 coherence gate: absence proof allowed ONLY when the served
+            // manifest's build_id matches the index's stamped build_id (same bake,
+            // this request). Incoherent -> no zero-probe notFound, no destructive
+            // shrink — only non-destructive reorder (full fan-out still probed).
+            const resolution = await resolveShardsForCandidates(shardForms, candidates, env, manifest?.build_id);
             if (resolution.absenceProven) {
                 return { notFound: true };
             }

@@ -27,6 +27,7 @@ import { loadHostedOnMap, enrichHostedOn } from './lib/hosted-on-enricher.js';
 import { startBatchProf, tickBatch, phaseT } from './lib/pack-profiler.js';
 import { recoverTop30k } from './lib/top30k-recovery.js';
 import { generateIdIndex } from './lib/id-index-generator.js';
+import { deriveBuildId } from './lib/build-id.js';
 import { deriveSlug } from './lib/derive-slug.js';
 
 // Cancelled types dropped at pack source (re-pack ages baked rows out): prompt
@@ -50,6 +51,9 @@ async function packDatabase() {
     const rustStatus = initRustBridge();
     console.log(`[VFS] Rust FFI: ${rustStatus.mode} (${rustStatus.modules.join(', ') || 'JS fallback'}) | Commencing V26.7 Streaming Packer (zero accumulator)...`);
     assertMetaShardRoutable(); // V27.95: fail loud pre-loop if meta-shard routing can't use xxhash64 (writer==reader)
+    // B4 coherence token: ONE build-id captured ONCE, threaded to BOTH the
+    // id-index header AND shards_manifest.json (read path proves same-bake).
+    const buildId = deriveBuildId();
 
     await fs.mkdir(SHARD_PATH_DIR, { recursive: true });
     for (const f of await fs.readdir(SHARD_PATH_DIR)) {
@@ -203,7 +207,7 @@ async function packDatabase() {
         if (meshFix.rowsUpdated > 0) console.log(`[VFS] Mesh fix-up: ${meshFix.refsResolved} refs re-resolved across ${meshFix.rowsUpdated} entities.`);
     });
 
-    await phaseT('finalize-pack', () => finalizePack(metaDbs, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary));
+    await phaseT('finalize-pack', () => finalizePack(metaDbs, manifest, shardWriter.shardId, SHARD_PATH_DIR, CACHE_DIR, stats, partitionCounts, injectMetadata, printBuildSummary, buildId));
 
     await phaseT('fni-sanity-check', async () => {
         let totalFni = 0, zeroFni = 0, maxFni = 0;
@@ -222,27 +226,23 @@ async function packDatabase() {
 
     const top30k = await phaseT('top30k-recovery', () => recoverTop30k(metaDbs, cachedIdToShard, idToShardIdx, EMBED_SHARD_DIR));
     closeCache(cacheDb);
-
     await phaseT('hot-shard-vector-core', async () => { await generateHotShard(top30k); await generateVectorCore(top30k); });
-
     await phaseT('cluster-ann-build', async () => {
         const { buildClusterAnnIndex } = await import('./lib/cluster-ann-builder.js');
         await buildClusterAnnIndex(EMBED_SHARD_DIR);
     });
-
     await phaseT('edge-index-meta-anchors', async () => {
         const { generateEdgeIndex } = await import('./lib/edge-index-gen.js');
         const { generateMetaAnchors } = await import('./lib/meta-anchors.js');
         await generateEdgeIndex();
         await generateMetaAnchors();
     });
-
     await phaseT('inverted-index', async () => {
         const { buildInvertedIndexFromShards } = await import('./lib/inverted-index-builder.js');
         await buildInvertedIndexFromShards(metaDbs, path.join(SHARD_PATH_DIR, 'term_index'));
     });
-    // Read-path P1: full-corpus id->shard warm tier (runs while metaDbs open).
-    await phaseT('id-index', () => generateIdIndex(metaDbs));
+    // Read-path P1: full-corpus id->shard warm tier (SAME buildId as finalize-pack).
+    await phaseT('id-index', () => generateIdIndex(metaDbs, buildId));
     Object.values(metaDbs).forEach(db => db.close());
     if (global.gc) global.gc();
     console.log('[VFS] V26.7 Streaming Packer Complete (zero accumulator).');

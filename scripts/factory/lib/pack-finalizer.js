@@ -8,7 +8,7 @@ import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary) {
+export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary, buildId) {
     console.log('[VFS] Computing shard manifest hashes...');
     const hashStart = Date.now();
     for (let i = 0; i <= currentShardId; i++) {
@@ -64,7 +64,11 @@ export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, 
         console.warn(`[VFS-TYPES] Sanity check skipped: ${e.message}`);
     }
 
-    const fullManifest = { shards: manifest, partitions: partitionCounts };
+    // B4 coherence token: the SAME build_id stamped into id-index.bin (passed
+    // from pack-db.js, captured once per bake). The read path proves absence ONLY
+    // when this manifest build_id === the served index build_id (same bake). Top-
+    // level so loadManifest can surface it without descending into partitions.
+    const fullManifest = { build_id: buildId || null, shards: manifest, partitions: partitionCounts };
     const manifestJson = JSON.stringify(fullManifest, null, 2);
     const manifestBytes = Buffer.byteLength(manifestJson, 'utf8');
     if (manifestBytes > 5 * 1024 * 1024) {
