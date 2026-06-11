@@ -20,12 +20,12 @@ const searchExample = JSON.stringify({
 
 const selectExample = JSON.stringify({
   task_interpreted: "text-generation",
-  recommendations: [{
+  entries: [{
     rank: 1, model_id: "hf-model--nvidia--gemma-4-31b-it-nvfp4",
     name: "Gemma-4-31B-IT-NVFP4", fni_score: 49.3,
     params_billions: 20.87, vram_estimate_gb: 17,
-    fni_factors: { semantic: 50, authority: 0, popularity: 70.5, recency: 98.1, quality: 65 },
-    rationale: "#1 for text-generation: strong recency, fits 24GB VRAM"
+    fni_factors: { semantic: null, semantic_note: "query-time baseline; scored live at search; not a per-entity value", authority: 0, popularity: 70.5, recency: 98.1, quality: 65 },
+    fni_summary: "FNI 49.3 catalog entry; leading factor recency (98.1); 21B params."
   }]
 }, null, 2);
 
@@ -314,7 +314,7 @@ const jsonLd = JSON.stringify({
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_select_model</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Filter the catalog by declared metadata; returns FNI-ranked entries with optional per-entry rationale text. Constraints are metadata/heuristic filters, not verified compatibility analysis.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Filter the catalog by declared metadata; returns FNI-ranked entries with an optional per-entry fni_summary (factual FNI factor/spec facts). Constraints are metadata/heuristic filters, not verified compatibility analysis.</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_compare</h3>

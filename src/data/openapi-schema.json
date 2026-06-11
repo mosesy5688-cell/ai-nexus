@@ -24,7 +24,7 @@
       "post": {
         "operationId": "selectModel",
         "summary": "Filter the catalog by declared metadata; returns FNI-ranked entries",
-        "description": "Filter the Free2AITools catalog by declared metadata and return FNI-ranked entries. Constraints are metadata/heuristic filters, not verified compatibility analysis. The caller is responsible for final model selection. Response includes FNI factor breakdown plus optional per-entry rationale text. Note: the response `rationale` and `confidence` field names are retained for compatibility and are slated for a follow-up rename.",
+        "description": "Filter the Free2AITools catalog by declared metadata and return FNI-ranked entries. Constraints are metadata/heuristic filters, not verified compatibility analysis. The caller is responsible for final model selection. Each entry carries its FNI factor breakdown plus an optional factual `fni_summary` (evidence/factor facts, not a fit verdict).",
         "tags": ["Model Selection"],
         "requestBody": {
           "required": true,
@@ -48,7 +48,7 @@
         },
         "responses": {
           "200": {
-            "description": "Ranked model recommendations",
+            "description": "FNI-ranked catalog entries",
             "content": {
               "application/json": {
                 "schema": {
@@ -384,7 +384,7 @@
             }
           },
           "limit": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 },
-          "explain": { "type": "boolean", "default": true, "description": "Include rationale and caveats" }
+          "explain": { "type": "boolean", "default": true, "description": "Include per-entry fni_summary and caveats" }
         }
       },
       "SelectResponse": {
@@ -392,11 +392,10 @@
         "properties": {
           "version": { "type": "string", "example": "fni_v2.0" },
           "task_interpreted": { "type": "string" },
-          "task_confidence": { "type": "number" },
           "total_candidates": { "type": "integer" },
-          "recommendations": {
+          "entries": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/Recommendation" }
+            "items": { "$ref": "#/components/schemas/Entry" }
           },
           "meta": {
             "type": "object",
@@ -406,7 +405,7 @@
           }
         }
       },
-      "Recommendation": {
+      "Entry": {
         "type": "object",
         "properties": {
           "rank": { "type": "integer" },
@@ -417,7 +416,8 @@
           "fni_factors": {
             "type": "object",
             "properties": {
-              "semantic": { "type": "number" },
+              "semantic": { "type": "number", "nullable": true },
+              "semantic_note": { "type": "string" },
               "authority": { "type": "number" },
               "popularity": { "type": "number" },
               "recency": { "type": "number" },
@@ -433,8 +433,7 @@
           "hosted_on": { "type": "array", "items": { "type": "string" } },
           "license_type": { "type": "string" },
           "can_run_local": { "type": "boolean" },
-          "confidence": { "type": "number" },
-          "rationale": { "type": "string" },
+          "fni_summary": { "type": "string", "description": "Factual FNI factor/spec summary of this catalog entry — not a fit verdict" },
           "caveats": { "type": "array", "items": { "type": "string" } },
           "detail_url": { "type": "string", "format": "uri" },
           "badge_url": { "type": "string", "format": "uri" }
