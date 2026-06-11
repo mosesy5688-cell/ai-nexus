@@ -117,14 +117,14 @@ export function getQuickInsights(entity, type) {
     }
 
     else if (safeType === 'paper') {
-        // V27.92 Honest-contract: only badge "High Impact" with a real citation count; only show
-        // Year when a real date/year exists; only show Venue when the venue is actually known.
+        // Content Freeze B6: no "High Impact" verdict adjective — show the raw count
+        // with its source attribution. Only show Year/Venue when actually known.
         const citations = Number(entity.citations || entity.citation_count) || 0;
         insights.push({
             label: 'Citations',
             value: citations > 0 ? formatMetricNumber(citations) : '-',
             highlight: citations > 0,
-            badge: citations >= 100 ? 'High Impact' : null
+            badge: citations > 0 ? 'Semantic Scholar' : null
         });
         const year = entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || null);
         if (year) insights.push({ label: 'Year', value: year });

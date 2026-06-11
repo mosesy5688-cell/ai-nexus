@@ -12,7 +12,7 @@
 
 const SITE_URL = 'https://free2aitools.com';
 const SITE_NAME = 'Free AI Tools';
-const SITE_DESCRIPTION = 'The open-source AI knowledge hub. Discover, explore, and compare AI models with our transparent Free2AITools Nexus Index.';
+const SITE_DESCRIPTION = 'The open-source AI registry. Discover, explore, and compare AI models with our transparent Free2AITools Nexus Index.';
 
 /**
  * Build JSON-LD for Homepage
@@ -34,7 +34,7 @@ export function buildIndexSEO() {
                     '@type': 'SearchAction',
                     'target': {
                         '@type': 'EntryPoint',
-                        'urlTemplate': `${SITE_URL}/explore?q={search_term_string}`
+                        'urlTemplate': `${SITE_URL}/search?q={search_term_string}`
                     },
                     'query-input': 'required name=search_term_string'
                 }

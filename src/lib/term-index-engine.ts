@@ -16,7 +16,7 @@ interface TermIndexManifest {
 
 let cachedManifest: TermIndexManifest | null = null;
 let cachedManifestAt = 0;
-// V27.60 H3: 60s TTL so cross-cron rollover (Mon+Thu) refreshes within 1 min.
+// V27.60 H3: 60s TTL so daily cron rollover refreshes within 1 min.
 // Cost: 1 R2 Class B GET per 60s per isolate (~$0.0000003/min, negligible).
 const MANIFEST_TTL_MS = 60_000;
 

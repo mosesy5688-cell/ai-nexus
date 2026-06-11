@@ -79,14 +79,13 @@ FNI v2.0 = `min(99.9, 0.35·S + 0.25·A + 0.15·P + 0.15·R + 0.10·Q)`
 - `R` Recency (exponential decay on last-modified)
 - `Q` Quality (completeness + utility signals)
 
-Scoring is deterministic per snapshot; daily snapshots are taken at 00:00 UTC.
+Scoring is deterministic per snapshot.
 
 ## Update cadence
 
-- Factory cron: Mon and Thu at 02:00 UTC — full harvest + enrichment +
-  aggregation + R2 upload + CDN purge + probe
-- Daily Snapshot: 00:00 UTC — snapshot the current registry to time-series
-  archive for FNI trend analysis
+Updated daily through an automated data pipeline. The full chain (harvest →
+enrichment → aggregation → R2 upload → CDN purge) runs daily, and a registry
+snapshot is archived each cycle for FNI trend analysis over time.
 
 ## Entity types
 
@@ -122,8 +121,8 @@ This project adds:
 - Daily snapshot archive (FNI trends over time)
 - Agent-first API (this file, MCP, structured JSON)
 
-Comparable in posture to Bloomberg Terminal for finance: not the data source,
-but the canonical structured query layer that downstream consumers depend on.
+Posture: not the data source, but the canonical structured query and reference
+layer that downstream consumers depend on.
 
 ## What this is NOT
 

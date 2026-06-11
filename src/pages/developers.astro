@@ -4,6 +4,16 @@
  * Public-facing docs for Free2AI programmatic access.
  */
 import Layout from '../layouts/Layout.astro';
+import { env } from 'cloudflare:workers';
+import { getTotalEntities, formatTotalEntities } from '../utils/site-stats.js';
+
+// Canonical entity count — single bake-derived source, never hand-maintained.
+let entityCountText = 'half a million+';
+try {
+  const total = await getTotalEntities((env as any)?.R2_ASSETS, !!import.meta.env?.DEV);
+  const phrase = formatTotalEntities(total);
+  if (phrase) entityCountText = phrase;
+} catch (e) {}
 
 const SITE = 'https://free2aitools.com';
 const pageTitle = 'Developer Docs — API, MCP & Badge | Free2AI';
@@ -77,7 +87,7 @@ const jsonLd = JSON.stringify({
       <a href="#api" class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800 hover:border-blue-400 transition-colors">
         <div class="text-2xl mb-2">{`{ }`}</div>
         <h3 class="font-bold text-blue-800 dark:text-blue-300">REST API</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Search hundreds of thousands of AI entities ranked by FNI</p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Search {entityCountText} AI entities ranked by FNI</p>
       </a>
       <a href="#mcp" class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800 hover:border-purple-400 transition-colors">
         <div class="text-2xl mb-2">&lt;/&gt;</div>
@@ -461,7 +471,7 @@ const jsonLd = JSON.stringify({
     <!-- Footer CTA -->
     <section class="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
       <h2 class="text-2xl font-bold mb-4">Build with Free2AI</h2>
-      <p class="text-blue-100 mb-6">Hundreds of thousands of AI entities &middot; FNI-ranked &middot; Updated daily</p>
+      <p class="text-blue-100 mb-6">{entityCountText} AI entities &middot; FNI-ranked &middot; Updated daily</p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <a href="https://github.com/mosesy5688-cell/ai-nexus" target="_blank" rel="noopener noreferrer" class="inline-block bg-white text-blue-600 font-bold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors">
           GitHub

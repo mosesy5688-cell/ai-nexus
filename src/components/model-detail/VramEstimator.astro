@@ -63,14 +63,14 @@ const hasData = estimatedVram !== null && params && params > 0;
               <span>Interactive</span>
            </div>
            <div class="status-badge px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700 shadow-sm transition-colors" id="compatibility-status">
-              Analyze Hardware
+              Estimate fit
            </div>
         </div>
       </div>
 
       <!-- GPU Interactive Selector -->
       <div class="gpu-selector">
-        <label for="gpu-preset" class="text-[9px] font-black text-zinc-400 mb-2 block uppercase tracking-widest">Hardware Compatibility Test</label>
+        <label for="gpu-preset" class="text-[9px] font-black text-zinc-400 mb-2 block uppercase tracking-widest">VRAM Estimator (heuristic estimate)</label>
         <div class="relative">
           <select 
             id="gpu-preset" 

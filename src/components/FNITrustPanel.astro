@@ -60,7 +60,7 @@ const formattedDate = fniCalculatedAt
         Methodology
       </a>
       <a href="/knowledge#fni" class="text-[9px] font-black text-zinc-500 hover:underline uppercase tracking-widest">
-        Index Protocol
+        How FNI works
       </a>
     </div>
   </div>
@@ -151,13 +151,13 @@ const formattedDate = fniCalculatedAt
         <span class="text-xs font-black text-white/50 uppercase tracking-[0.2em] mb-1">Free2AITools</span>
         <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Nexus Index</span>
         <h4 class="text-[9px] font-black text-zinc-500 mb-2 uppercase tracking-widest">
-          Verification Authority
+          Data Sources / Provenance
         </h4>
         <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-medium">
           <a href="https://huggingface.co/metrics" class="text-[#bdc3ff] hover:underline truncate">HuggingFace API</a>
           <a href="https://github.com" class="text-[#bdc3ff] hover:underline truncate">GitHub Metadata</a>
           <a href="https://arxiv.org" class="text-[#bdc3ff] hover:underline truncate">Arxiv Citation DB</a>
-          <a href="/methodology#utility" class="text-[#bdc3ff] hover:underline truncate">System Audit</a>
+          <a href="/methodology#utility" class="text-[#bdc3ff] hover:underline truncate">Methodology</a>
         </div>
       </div>
 
@@ -165,10 +165,10 @@ const formattedDate = fniCalculatedAt
         <div class="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest">
           <span class="flex items-center gap-1.5 text-[#bdc3ff]">
             <span class="w-1.5 h-1.5 rounded-full bg-[#bdc3ff] animate-pulse"></span>
-            Unbiased Data
+            Open data
           </span>
           <span class="text-zinc-600">
-            Node Refresh: {fniCalculatedAt ? new Date(fniCalculatedAt).toISOString().split('T')[0] : 'VFS Live'}
+            Updated: {fniCalculatedAt ? new Date(fniCalculatedAt).toISOString().split('T')[0] : 'Live data'}
           </span>
         </div>
       </div>
