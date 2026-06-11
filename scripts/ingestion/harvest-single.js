@@ -10,7 +10,7 @@ import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import adapters from './adapters/index.js';
 import { shardNDJSON } from './ndjson-sharder.js';
-import { RateLimitExceededError } from './adapters/base-adapter.js';
+import { RateLimitExceededError, FetchError } from './adapters/base-adapter.js';
 
 const OUTPUT_DIR = 'data';
 
@@ -18,9 +18,12 @@ const OUTPUT_DIR = 'data';
  * Harvest from a single source and save as lossless NDJSON stream
  * V22.3: Streaming Ingestion (OOM Protection)
  */
-async function harvestSingle(sourceName, options = {}) {
+export async function harvestSingle(sourceName, options = {}) {
     const { limit = 10000, chunkSize = 500, skipBridge = false } = options;
-    const adapter = adapters[sourceName];
+    // Test seam: allow injecting a fake adapter so the chokepoint's error-vs-empty
+    // gate can be unit-tested without the real source registry or any network.
+    // Production callers never pass _adapter, so the live path is unchanged.
+    const adapter = options._adapter || adapters[sourceName];
 
     if (!adapter) {
         throw new Error(`Adapter for source "${sourceName}" not found`);
@@ -91,6 +94,13 @@ async function harvestSingle(sourceName, options = {}) {
             onBatch: processBatch
         };
 
+        // H1 (fail loud): carries a hard fetch/abort/parse failure out of the
+        // inner catch so the final return can set result.error and trip the
+        // exit gate (main() → process.exit(1)). A RateLimitExceededError
+        // early-finish deliberately does NOT set this (CI-throughput tolerance,
+        // stays success), and a genuinely-empty [] never throws, so it stays
+        // success too. Only ERROR-caused emptiness becomes a hard failure.
+        let fetchHardError = null;
         let rawEntities = [];
         try {
             rawEntities = await adapter.fetch(fetchOptions);
@@ -98,8 +108,15 @@ async function harvestSingle(sourceName, options = {}) {
             if (fetchError instanceof RateLimitExceededError) {
                 console.warn(`\n🛑 [Harvest] ${fetchError.message}`);
                 console.warn(`   ⚠️ Finishing early with ${results.total} entities to preserve CI throughput.`);
+            } else if (fetchError instanceof FetchError) {
+                // A source-level fetch/abort/parse failure. Surface it as a hard
+                // error so the workflow step fails loud instead of laundering
+                // into a green "Complete | Total: 0".
+                console.error(`\n❌ [Harvest] ${sourceName} fetch FAILED (${fetchError.kind}): ${fetchError.detail}`);
+                fetchHardError = fetchError;
             } else {
                 console.error(`   ❌ Fetch error: ${fetchError.message}`);
+                fetchHardError = fetchError;
             }
             rawEntities = [];
         }
@@ -111,10 +128,20 @@ async function harvestSingle(sourceName, options = {}) {
             rawEntities = [];
         }
 
-        // Finalize stream
+        // Finalize stream (always flush what we captured before the failure).
         await new Promise((resolve) => writeStream.end(resolve));
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        // H1 (logging honesty): on a hard fetch failure, NEVER print the green
+        // "✅ Complete | Total: 0" — that is the fake-green laundering. Print a
+        // loud error line and return result.error so the exit gate fires.
+        if (fetchHardError) {
+            console.error(`\n❌ [Harvest] FAILED (fetch error) — ${sourceName} | Captured before failure: ${results.total} | Time: ${duration}s`);
+            console.error(`   Output (partial): ${ndjsonPath}`);
+            return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
+        }
+
         console.log(`\n✅ [Harvest] Complete`);
         console.log(`   Source: ${sourceName} | Total: ${results.total} | Time: ${duration}s`);
         console.log(`   Output: ${ndjsonPath}`);
@@ -177,8 +204,13 @@ async function main() {
     }
 }
 
-main().catch((err) => {
-    // V28: any uncaught hard error fails the step (exit 1) instead of green.
-    console.error(`\n❌ [Harvest] Fatal: ${err && err.stack ? err.stack : err}`);
-    process.exit(1);
-});
+// Main-guard: only run the CLI when invoked directly (node harvest-single.js).
+// Importing this module (e.g. from a unit test exercising harvestSingle()) must
+// NOT trigger main()/process.exit. Mirrors the repo's established guard pattern.
+if (process.argv[1]?.endsWith('harvest-single.js')) {
+    main().catch((err) => {
+        // V28: any uncaught hard error fails the step (exit 1) instead of green.
+        console.error(`\n❌ [Harvest] Fatal: ${err && err.stack ? err.stack : err}`);
+        process.exit(1);
+    });
+}

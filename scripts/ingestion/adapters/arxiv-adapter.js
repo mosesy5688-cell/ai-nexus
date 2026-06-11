@@ -13,7 +13,7 @@
  */
 
 import { parseStringPromise } from 'xml2js';
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, FetchError } from './base-adapter.js';
 import {
     parseArxivXML,
     cleanTitle,
@@ -78,6 +78,11 @@ export class ArXivAdapter extends BaseAdapter {
         let resumptionToken = null;
         let totalFetched = 0;
         let consecutiveErrors = 0;
+        // H1 (fail loud): records a structured fetch/abort/parse failure so the
+        // loop can rethrow instead of laundering an error into a green empty [].
+        // A genuinely-empty OAI response (HTTP 200, parseable, no records) does
+        // NOT set this — it stays a legitimate success-with-zero result.
+        let fetchError = null;
 
         while (totalFetched < limit) {
             let url = `${ARXIV_OAI_BASE}?verb=ListRecords`;
@@ -111,6 +116,10 @@ export class ArXivAdapter extends BaseAdapter {
                         await this.delay(backoff);
                         continue;
                     }
+                    // H1: a non-ok HTTP status that survived the retry ladder is a
+                    // real fetch failure, not a legitimate empty result. Record it
+                    // so the loop rethrows a structured error instead of returning [].
+                    fetchError = new FetchError('arxiv', 'fetch', `OAI HTTP ${response.status}`);
                     console.warn(`   ⚠️ ArXiv OAI failed: ${response.status}`);
                     break;
                 }
@@ -198,8 +207,27 @@ export class ArXivAdapter extends BaseAdapter {
                     await this.delay(30000);
                     continue;
                 }
+                // H1: the retry budget is exhausted. Classify the failure
+                // (AbortError from fetchWithTimeout's deadline vs a connection
+                // fetch error vs an xml2js parse error) and record it so the
+                // loop rethrows a structured error instead of returning a plain
+                // [] that the harvester would report as a green zero-yield run.
+                const kind = error?.name === 'AbortError'
+                    ? 'abort'
+                    : (error instanceof TypeError || error?.code) ? 'fetch' : 'parse';
+                fetchError = new FetchError('arxiv', kind, error?.message || String(error));
                 break;
             }
+        }
+
+        // H1 (fail loud): a recorded fetch/abort/parse failure MUST surface as a
+        // structured error, never as a green empty result. The completion line
+        // below prints ✅ only on the genuine-success path. A legitimate empty
+        // OAI response (HTTP 200, parseable, no records) leaves fetchError null
+        // and stays success.
+        if (fetchError) {
+            console.error(`❌ [ArXiv] OAI Ingestion FAILED (${fetchError.kind}): ${fetchError.detail} — ${seenIds.size} papers fetched before failure`);
+            throw fetchError;
         }
 
         console.log(`✅ [ArXiv] OAI Ingestion Complete: ${seenIds.size} unique papers`);

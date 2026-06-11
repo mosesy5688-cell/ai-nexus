@@ -161,7 +161,12 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=8192'
         run: |
           echo "📥 Harvesting ArXiv..."
-          node scripts/ingestion/harvest-single.js arxiv --limit 100000 --no-bridge || echo "ArXiv adapter skipped"
+          # H1 (fail loud): no `|| echo` swallow here — a hard fetch failure from
+          # harvest-single.js (exit 1) MUST fail this step instead of laundering
+          # into a green zero-yield run. Sibling sources keep their `|| echo`
+          # tolerance (small-source protection) per Founder decision; only the
+          # arXiv line is de-masked in this WO.
+          node scripts/ingestion/harvest-single.js arxiv --limit 100000 --no-bridge
           
       - name: Harvest HuggingFace Papers
         if: github.event.inputs.skip_harvest != 'true'
