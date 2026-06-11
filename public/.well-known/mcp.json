@@ -64,7 +64,7 @@
             }
           },
           "limit": { "type": "number", "default": 5, "description": "Max entries returned (1-20)" },
-          "explain": { "type": "boolean", "default": true, "description": "Include per-entry rationale text and caveats in the response" }
+          "explain": { "type": "boolean", "default": true, "description": "Include per-entry FNI factor summary text and caveats in the response" }
         },
         "required": ["task"]
       }
