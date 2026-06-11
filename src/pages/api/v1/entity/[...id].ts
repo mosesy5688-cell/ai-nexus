@@ -102,7 +102,11 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         //   - index absent/refused -> DEGRADE to the prior fan-out EXACTLY.
         // The index never decides DATA (the real SELECT still runs on the routed
         // shard), so a hash collision only mis-routes, never falsely 404s.
-        const resolution = await resolveShardsForCandidates(shardForms, candidates, env);
+        // B4 coherence gate: pass the served manifest's build_id so the oracle may
+        // prove absence ONLY when it equals the index's stamped build_id (same
+        // bake, same request). Incoherent -> no zero-probe 404, no destructive
+        // shrink — only non-destructive reorder (full fan-out still probed).
+        const resolution = await resolveShardsForCandidates(shardForms, candidates, env, manifest?.build_id);
 
         if (resolution.absenceProven) {
             // Index loaded + every candidate missed it -> genuinely absent. Same

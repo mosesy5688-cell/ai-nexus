@@ -55,8 +55,22 @@
  * never widens the budget, splits it, or probes-everything-then-404; it only
  * decides whether to pay the index's own load cost up front.
  */
-import { loadIdIndex, lookup as idIndexLookup, isIndexWarm } from './id-index-reader.js';
+import { loadIdIndex, lookup as idIndexLookup, isIndexWarm, getIndexBuildId } from './id-index-reader.js';
 import { withOpTimeout } from './op-timeout.js';
+
+// B4 VERSION-COHERENCE GATE (Founder, locked):
+//   "id-index may prove absence only when id-index build-id and served shard
+//    manifest build-id are verified coherent for the same request."
+// absenceProofAllowed === (indexBuildId === manifestBuildId), both non-empty, for
+// THIS request. Under ANY incoherence (mismatch / either build_id missing / index
+// missing / parse fail / manifest missing / stale-unprovable) the index may STILL
+// reorder candidates (non-destructive: every original shard is still probed) but
+// MUST NOT prove absence (no zero-probe 404) and MUST NOT destructively shrink
+// (dropping un-resolved candidate shards while incoherent could hide a real
+// entity baked into a newer served shard the stale index never enumerated).
+function isCoherent(indexBuildId: string | null, manifestBuildId: string | null): boolean {
+    return !!indexBuildId && !!manifestBuildId && indexBuildId === manifestBuildId;
+}
 
 // Bound the index's own load so a cold-isolate fetch+parse cannot eat the probe
 // budget. On miss we degrade to the fan-out (the index is best-effort warm
@@ -74,18 +88,23 @@ export const ORACLE_FANOUT_THRESHOLD = 2;
 
 export interface ShardResolution {
     /**
-     * Shard entries to probe, in order. When the index resolved a candidate this
-     * is shrunk to the resolved shard(s) first; otherwise it is the original
-     * fan-out order (zero regression).
+     * Shard entries to probe, in order. When the index is COHERENT with the
+     * manifest and resolved a candidate this is destructively shrunk to the
+     * resolved shard(s). When the index is INCOHERENT (or unloaded) it is the
+     * full original fan-out — at most NON-DESTRUCTIVELY reordered so any resolved
+     * shard is probed first (every original shard is still present). Zero
+     * regression vs the pre-oracle path.
      */
     orderedShards: [number, string[]][];
     /** True iff loadIdIndex returned true (the index is present + parseable). */
     indexLoaded: boolean;
     /**
-     * True ONLY when the index loaded AND no candidate resolved in it. The caller
-     * may then return an honest 404 with NO shard probes. False whenever the
-     * index is absent/refused (we never assert absence without the oracle) OR a
-     * candidate did resolve.
+     * True ONLY when the index loaded, is build-id-COHERENT with the served
+     * manifest for THIS request, AND no candidate resolved in it. The caller may
+     * then return an honest 404 with NO shard probes. False whenever the index is
+     * absent/refused, INCOHERENT (mismatch / either build_id missing / manifest
+     * missing), OR a candidate did resolve. Under incoherence we NEVER assert
+     * absence and NEVER destructively shrink — only non-destructive reorder.
      */
     absenceProven: boolean;
 }
@@ -101,40 +120,51 @@ async function tryLoadIndex(env: any): Promise<boolean> {
 }
 
 /**
- * Apply the (already-loaded, authoritative) index to the candidate plan: shrink
- * the fan-out to the resolved shard(s), or prove absence when nothing resolves.
+ * Apply the (already-loaded) index to the candidate plan. Behavior splits on the
+ * build-id coherence of THIS request (index build_id === served manifest
+ * build_id):
+ *   - COHERENT   : destructive shrink to the resolved shard(s), OR prove absence
+ *                  (zero-probe 404) when nothing resolves — the index is trusted
+ *                  to enumerate the served corpus.
+ *   - INCOHERENT : NEVER prove absence, NEVER drop a candidate shard. Only a
+ *                  NON-DESTRUCTIVE reorder: resolved shard(s) first, then every
+ *                  remaining original shard in its insertion order. A stale index
+ *                  may mis-resolve or omit a net-new entity, so the full fan-out
+ *                  is still probed (the FALSE-404 attack surface is closed).
  * Pure + synchronous — only call after the index is confirmed resident
- * (tryLoadIndex true OR isIndexWarm()). Mirrors the original loaded-index branch
- * exactly, so the shrink/absence contract is identical on both the warm-peek and
- * the awaited path.
+ * (tryLoadIndex true OR isIndexWarm()).
  */
 function applyLoadedIndex(
     shardForms: Map<number, string[]>,
     candidates: string[],
+    coherent: boolean,
 ): ShardResolution {
-    // Collect the shard(s) the index resolves for any candidate. Restrict the
-    // probe to the form that actually hashed to a resolved shard (the resolved
-    // form is the stored one), shrinking the fan-out to the 1-2 real shards.
+    // Collect the shard(s) the index resolves for any candidate, probing the
+    // form the caller hashed there (preserves the SQL binding). A resolved shard
+    // not in shardForms is still probed with this candidate so a real entity is
+    // never made unreachable.
     const resolved: [number, string[]][] = [];
     const seenShard = new Set<number>();
     for (const c of candidates) {
         const hit = idIndexLookup(c);
-        if (!hit) continue;
-        // The index resolves a canonical write shard; probe that shard with the
-        // candidate forms the CALLER mapped to it (preserves the existing SQL
-        // binding). If the resolved shard is not among shardForms (a candidate
-        // collision / form the caller did not hash there), still probe it with
-        // this candidate so a real entity is never made unreachable.
-        if (seenShard.has(hit.shardIdx)) continue;
+        if (!hit || seenShard.has(hit.shardIdx)) continue;
         seenShard.add(hit.shardIdx);
-        const formsForShard = shardForms.get(hit.shardIdx);
-        resolved.push([hit.shardIdx, formsForShard ?? [c]]);
+        resolved.push([hit.shardIdx, shardForms.get(hit.shardIdx) ?? [c]]);
     }
 
+    if (!coherent) {
+        // INCOHERENT: non-destructive reorder. Resolved shards first (best guess),
+        // then every original shard not already placed — nothing is dropped, so an
+        // entity on a shard the stale index never enumerated is still reached. NO
+        // absence proof (a miss in a stale index proves nothing about the served
+        // corpus).
+        const tail = [...shardForms.entries()].filter(([s]) => !seenShard.has(s));
+        return { orderedShards: [...resolved, ...tail], indexLoaded: true, absenceProven: false };
+    }
     if (resolved.length > 0) {
         return { orderedShards: resolved, indexLoaded: true, absenceProven: false };
     }
-    // Loaded index, zero hits across all candidates -> proven absence.
+    // COHERENT loaded index, zero hits across all candidates -> proven absence.
     return { orderedShards: [], indexLoaded: true, absenceProven: true };
 }
 
@@ -143,16 +173,23 @@ function applyLoadedIndex(
  * BOTH a candidate-set reducer (index-driven type resolution) and an absence
  * oracle. See module header for the three outcomes.
  *
- * @param shardForms  candidate-form -> shard map (each form already hashed to
- *                    its own shard by the caller; Map insertion order = the
- *                    caller's highest-probability-first fan-out order).
- * @param candidates  the ordered candidate forms (same forms as shardForms).
- * @param env         CF env (R2 binding) for loadIdIndex.
+ * @param shardForms       candidate-form -> shard map (each form already hashed
+ *                         to its own shard by the caller; Map insertion order =
+ *                         the caller's highest-probability-first fan-out order).
+ * @param candidates       the ordered candidate forms (same forms as shardForms).
+ * @param env              CF env (R2 binding) for loadIdIndex.
+ * @param manifestBuildId  build_id of the served shards_manifest.json the CALLER
+ *                         already loaded for THIS request (manifest.build_id).
+ *                         null/undefined when the manifest lacks the token (old
+ *                         manifest / parse fail) -> treated as incoherent. The
+ *                         index may prove absence ONLY when this equals the
+ *                         index's own stamped build_id (Founder coherence rule).
  */
 export async function resolveShardsForCandidates(
     shardForms: Map<number, string[]>,
     candidates: string[],
     env: any,
+    manifestBuildId?: string | null,
 ): Promise<ShardResolution> {
     const entries = [...shardForms.entries()];
 
@@ -166,10 +203,11 @@ export async function resolveShardsForCandidates(
         // without the index, so do NOT pay its cold load — behave EXACTLY as the
         // degrade path (original insertion order, full fan-out, no absence claim).
         // EXCEPTION: if a prior request already warmed the index in this isolate,
-        // applying it costs no I/O wait, so take the shrink/absence for free.
-        // isIndexWarm() peeks WITHOUT starting or awaiting a load.
+        // applying it costs no I/O wait, so take the shrink/reorder/absence for
+        // free — GATED on build-id coherence. isIndexWarm() peeks WITHOUT starting
+        // or awaiting a load; getIndexBuildId() is only meaningful once warm.
         if (isIndexWarm()) {
-            return applyLoadedIndex(shardForms, candidates);
+            return applyLoadedIndex(shardForms, candidates, isCoherent(getIndexBuildId(), manifestBuildId ?? null));
         }
         return { orderedShards: entries, indexLoaded: false, absenceProven: false };
     }
@@ -182,6 +220,8 @@ export async function resolveShardsForCandidates(
         return { orderedShards: entries, indexLoaded: false, absenceProven: false };
     }
 
-    // Index is present + parseable -> it is authoritative over presence.
-    return applyLoadedIndex(shardForms, candidates);
+    // Index resident. Absence proof + destructive shrink gated on build-id
+    // coherence with the served manifest for THIS request; incoherent -> only a
+    // non-destructive reorder (no zero-probe 404, no candidate dropped).
+    return applyLoadedIndex(shardForms, candidates, isCoherent(getIndexBuildId(), manifestBuildId ?? null));
 }

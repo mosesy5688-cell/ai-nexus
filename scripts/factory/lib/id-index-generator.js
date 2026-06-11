@@ -18,18 +18,25 @@
 // heuristics without re-baking the format.
 //
 // ---------------------------------------------------------------------------
-// Binary layout (little-endian, version 2) — documented for id-index-reader.ts:
+// Binary layout (little-endian, version 3) — documented for id-index-reader.ts:
 //
 //   Header (32 bytes):
 //     0  magic            "IDIX" (4 ascii bytes)
-//     4  version          UInt16  (= 2)
+//     4  version          UInt16  (= 3; v2 = no build_id, still readable -> degrade)
 //     6  reserved         UInt16
 //     8  keyCount         UInt32  (number of key-table entries; >= recordCount)
 //    12  recordCount      UInt32  (number of records)
-//    16  keyTableOffset   UInt32  (byte offset of key table)
+//    16  keyTableOffset   UInt32  (byte offset of key table; PAST the build_id region)
 //    20  recordTableOffset UInt32 (byte offset of record table)
-//    24  reserved         UInt32  (was strPoolOffset in v1; always 0 in v2)
+//    24  buildIdLen       UInt16  (B4: length in bytes of the build_id UTF-8 string;
+//                                  0 = no build_id. v1 strPoolOffset/v2 reserved->0)
+//    26  reserved         UInt16
 //    28  reserved         UInt32
+//
+//   build_id region: buildIdLen UTF-8 bytes at offset HEADER_SIZE (32), BEFORE the
+//   key table (keyTableOffset = 32 + buildIdLen). Empty in v2. This is the bake
+//   coherence token (B4) — the reader compares it === the served manifest build_id
+//   to gate absence proof; it is OPAQUE (never parsed for structure).
 //
 //   Key table: keyCount entries x 12 bytes, SORTED ascending by keyHash for
 //   binary search. Each entry:
@@ -67,7 +74,10 @@ const ID_INDEX_PATH = './output/data/id-index.bin';
 // rebaked every cycle (never persisted across format), so the reassignment is
 // format- and consumer-safe — it only stops benchmark rows mapping to 255/unknown.
 const TYPE_ENUM = { model: 0, dataset: 1, tool: 3, paper: 5, benchmark: 6 };
-const FORMAT_VERSION = 2;
+// v3 = build_id-stamped header (B4 coherence). v2 readers degrade (no build_id ->
+// treated as missing -> absence proof off). Bumped so a v2 reader never
+// mis-parses the build_id region as a key table.
+const FORMAT_VERSION = 3;
 const HEADER_SIZE = 32;
 const KEY_ENTRY_SIZE = 12;
 const RECORD_SIZE = 8; // slim: shardIdx(2) + type(1) + flags(1) + fniScore(4)
@@ -82,11 +92,15 @@ function pushKey(keySet, keys, form, recordIdx) {
 }
 
 /**
- * Generate data/id-index.bin (slim v2) from the packed meta shards.
+ * Generate data/id-index.bin (slim v3) from the packed meta shards.
  * @param {Object} metaDbs - map slot_N -> better-sqlite3 Database (open).
+ * @param {string} [buildId] - B4 bake coherence token (same value written into
+ *        shards_manifest.json this bake). Stamped into the header; the read path
+ *        gates absence proof on index buildId === manifest buildId. Missing/empty
+ *        -> no token written -> reader degrades (absence proof off).
  */
-export function generateIdIndex(metaDbs) {
-    console.log('[IdIndex] Building full-corpus id-index.bin (slim v2)...');
+export function generateIdIndex(metaDbs, buildId) {
+    console.log('[IdIndex] Building full-corpus id-index.bin (slim v3)...');
 
     const records = [];      // { shardIdx, type, flags, fni }
     const keys = [];         // { hash, recordIdx }
@@ -126,7 +140,14 @@ export function generateIdIndex(metaDbs) {
     // Sort keys ascending by hash so the reader can binary-search.
     keys.sort((a, b) => (a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0));
 
-    const keyTableOffset = HEADER_SIZE;
+    // B4: the build_id UTF-8 string sits between the header and the key table.
+    // keyTableOffset moves past it; the reader reads buildIdLen at the header then
+    // slices [HEADER_SIZE, HEADER_SIZE+buildIdLen). UInt16 length caps it at 65535
+    // bytes (our run-<id>-<sha12> token is < 64 bytes), so clamp defensively.
+    const buildIdBytes = buildId ? Buffer.from(String(buildId), 'utf8').subarray(0, 65535) : Buffer.alloc(0);
+    const buildIdLen = buildIdBytes.length;
+
+    const keyTableOffset = HEADER_SIZE + buildIdLen;
     const recordTableOffset = keyTableOffset + keys.length * KEY_ENTRY_SIZE;
     const totalSize = recordTableOffset + records.length * RECORD_SIZE;
 
@@ -137,7 +158,9 @@ export function generateIdIndex(metaDbs) {
     buf.writeUInt32LE(records.length, 12);
     buf.writeUInt32LE(keyTableOffset, 16);
     buf.writeUInt32LE(recordTableOffset, 20);
-    // Offset 24 (v1 strPoolOffset) is reserved/0 in v2; Buffer.alloc zero-fills.
+    buf.writeUInt16LE(buildIdLen, 24); // B4 coherence token length (0 = none)
+    // Offsets 26/28 reserved; Buffer.alloc zero-fills.
+    if (buildIdLen > 0) buildIdBytes.copy(buf, HEADER_SIZE);
 
     for (let i = 0; i < keys.length; i++) {
         const off = keyTableOffset + i * KEY_ENTRY_SIZE;
@@ -157,7 +180,7 @@ export function generateIdIndex(metaDbs) {
     fsSync.mkdirSync(path.dirname(ID_INDEX_PATH), { recursive: true });
     fsSync.writeFileSync(ID_INDEX_PATH, buf);
     console.log(
-        `[IdIndex] Generated ${ID_INDEX_PATH} (slim v2) ` +
+        `[IdIndex] Generated ${ID_INDEX_PATH} (slim v3, build_id=${buildId || 'none'}) ` +
         `(${records.length} entities, ${keys.length} keys, ${(totalSize / 1024 / 1024).toFixed(2)} MB)` +
         (nullSlug ? ` [skipped ${nullSlug} slug-less rows]` : '')
     );
