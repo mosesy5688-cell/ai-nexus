@@ -3,7 +3,7 @@
   "info": {
     "title": "Free2AITools API",
     "version": "2.0.0",
-    "description": "AI model selection, comparison, and ranking powered by the Free2AITools Nexus Index (FNI). Designed for AI agents and developers building model selection pipelines.",
+    "description": "Structured discovery, evidence, and identity layer for AI agents, powered by the Free2AITools Nexus Index (FNI). Returns FNI-ranked catalog data and evidence for the calling agent to reason over. Discovery layer only: does not perform compatibility analysis (hardware/framework fields are stored heuristics); does not execute, plan, or recommend workflows; does not select or decide on behalf of the caller; does not currently provide live semantic/ANN ranking.",
     "contact": {
       "name": "Free2AITools",
       "url": "https://free2aitools.com/developers"
@@ -23,8 +23,8 @@
     "/api/v1/select": {
       "post": {
         "operationId": "selectModel",
-        "summary": "Select the best AI model for a task",
-        "description": "Returns ranked model recommendations with FNI factor breakdown, confidence scores, and natural language rationale. Supports hardware, license, and deployment constraints.",
+        "summary": "Filter the catalog by declared metadata; returns FNI-ranked entries",
+        "description": "Filter the Free2AITools catalog by declared metadata and return FNI-ranked entries. Constraints are metadata/heuristic filters, not verified compatibility analysis. The caller is responsible for final model selection. Response includes FNI factor breakdown plus optional per-entry rationale text. Note: the response `rationale` and `confidence` field names are retained for compatibility and are slated for a follow-up rename.",
         "tags": ["Model Selection"],
         "requestBody": {
           "required": true,
@@ -132,7 +132,7 @@
     "/api/v1/compare": {
       "get": {
         "operationId": "compareModels",
-        "summary": "Compare 2-10 AI models side-by-side",
+        "summary": "Compare 2-25 AI models side-by-side",
         "description": "Returns FNI factor decomposition, specs, and metadata for each model in parallel columns.",
         "tags": ["Comparison"],
         "parameters": [
@@ -141,7 +141,7 @@
             "in": "query",
             "required": true,
             "schema": { "type": "string" },
-            "description": "Comma-separated model IDs (2-10)",
+            "description": "Comma-separated model IDs (2-25)",
             "example": "meta-llama/Llama-3.1-8B,google/gemma-2-27b"
           }
         ],
@@ -157,7 +157,7 @@
             }
           },
           "400": {
-            "description": "Missing ids parameter, fewer than 2, or more than 10",
+            "description": "Missing ids parameter, fewer than 2, or more than 25",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" }
@@ -261,7 +261,7 @@
             }
           },
           "503": {
-            "description": "All probed shards errored — transient infrastructure issue, caller may retry",
+            "description": "All probed shards errored — transient infrastructure issue, caller may retry. Interim: entity lookup may return transient 503 under cold-path probe budget; 404/503 contract under runtime diagnosis.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" }
@@ -332,7 +332,7 @@
       "post": {
         "operationId": "mcpEndpoint",
         "summary": "MCP Server (JSON-RPC 2.0)",
-        "description": "Model Context Protocol endpoint. Supports tools/list and tools/call for 5 tools: free2aitools_search, free2aitools_rank, free2aitools_explain, free2aitools_select_model, free2aitools_compare. Tool names MUST include the free2aitools_ prefix when invoking tools/call. **For the canonical tool catalog with full input schemas, fetch `/.well-known/mcp.json`** — that file is the authoritative source. This OpenAPI entry intentionally does not duplicate it (DRY).",
+        "description": "Model Context Protocol endpoint. Supports tools/list and tools/call for 5 tools: free2aitools_search, free2aitools_rank, free2aitools_explain, free2aitools_select_model, free2aitools_compare. Tool names MUST include the free2aitools_ prefix when invoking tools/call. **For the canonical tool catalog with full input schemas, fetch `/.well-known/mcp.json`** — that file is the canonical source. This OpenAPI entry intentionally does not duplicate it (DRY).",
         "tags": ["MCP"],
         "requestBody": {
           "required": true,

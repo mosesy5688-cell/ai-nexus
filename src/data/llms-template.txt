@@ -11,7 +11,7 @@ that need to consume Free2AItools data programmatically.
 ## What you can do here
 
 - Search and rank{{TOTAL_ENTITIES_PHRASE}} AI entities by FNI score across HuggingFace, GitHub, ArXiv, Ollama, Replicate, Civitai, and other sources
-- Compare 2-10 models side-by-side with technical specs and license breakdown
+- Compare 2-25 models side-by-side with technical specs and license breakdown
 - Fetch full structured metadata for any entity by ID
 - Get FNI badges (SVG) for any entity for README embedding
 - Discover via MCP (Model Context Protocol) — drop-in for Claude Desktop, Cursor, and similar
@@ -52,22 +52,26 @@ per search; auth/paid tiers (TBD) raise the cap.
     classification / fni / specs / stats / links / relations
   - `?include=body` adds readme_html (~250KB)
   - 404 with `{"error":"Entity not found: <id>"}` when no match
+  - Interim: entity lookup may return transient 503 under cold-path probe
+    budget; 404/503 contract under runtime diagnosis
 
-- `GET /api/v1/compare?ids=<id1>,<id2>[,...]` — side-by-side comparison of 2-10
+- `GET /api/v1/compare?ids=<id1>,<id2>[,...]` — side-by-side comparison of 2-25
   entities. Returns FNI factors + technical specs + license per entity.
 
 - `GET /api/v1/health` — VFS layer observability snapshot: cache-hit counters
   (L0/L1/L2), short-read retry stats, isolate uptime. No auth, not cached.
 
-- `GET /api/v1/badge/<slug-or-id>` — SVG badge with FNI score, color-coded
-  (green ≥ 90 excellent, blue ≥ 70 good, yellow ≥ 50 average, red below).
-  Suitable for README embedding.
+- `GET /api/v1/badge/<slug-or-id>` — SVG badge with FNI score, color-coded by
+  FNI signal (green ≥ 90 high signal, blue ≥ 70 medium signal, yellow ≥ 50 low
+  signal, red below). Suitable for README embedding.
 
 ## FNI score interpretation
 
 FNI v2.0 = `min(99.9, 0.35·S + 0.25·A + 0.15·P + 0.15·R + 0.10·Q)`
 
-- `S` Semantic relevance (ANN cosine similarity, query-time)
+- `S` Semantic relevance (currently dormant — keyword-index based; live
+  semantic/ANN ranking is not currently provided. On static detail/select/
+  compare surfaces this factor is reported as null + a note, not a value)
 - `A` Authority (mesh gravity / cross-source corroboration)
 - `P` Popularity (log-compressed downloads / stars / citations)
 - `R` Recency (exponential decay on last-modified)
@@ -106,8 +110,8 @@ canonical sharding key.
 
 ## Project positioning
 
-Free2AItools is the **structured knowledge layer between raw AI ecosystem
-sources and AI agents**. Raw data lives at HuggingFace, GitHub, ArXiv, etc.
+Free2AItools is a **structured discovery, evidence, and identity layer for AI
+agents**. Raw data lives at HuggingFace, GitHub, ArXiv, etc.
 This project adds:
 
 - Unified schema across sources
@@ -118,6 +122,20 @@ This project adds:
 
 Comparable in posture to Bloomberg Terminal for finance: not the data source,
 but the canonical structured query layer that downstream consumers depend on.
+
+## What this is NOT
+
+Discovery layer only. The calling agent reasons over the data it returns:
+
+- Does NOT perform compatibility analysis. Hardware/framework fields
+  (ollama_compatible, can_run_local, VRAM estimates) are stored heuristics from
+  metadata, not verified runtime checks on the caller's hardware or framework.
+- Does NOT execute, plan, or recommend workflows. No side effects; no actions
+  are taken on the caller's behalf.
+- Does NOT select or decide for the caller. Endpoints filter and FNI-rank the
+  catalog; final model selection is the caller's responsibility.
+- Does NOT currently provide live semantic/ANN ranking. The Semantic (S) factor
+  is dormant (keyword-index based); on static surfaces it is null + a note.
 
 ## Contact
 

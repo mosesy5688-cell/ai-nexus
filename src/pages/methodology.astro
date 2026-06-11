@@ -42,7 +42,7 @@ const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !
       <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
         FNI (Free2AITools Nexus Index) is not just another leaderboard. It's an <strong>objective, transparent, and verifiable</strong> comprehensive evaluation index.
         We believe: <span class="font-semibold text-blue-600 dark:text-blue-400">Credibility = Explainability</span>.
-        Only when we can clearly tell users "why it's ranked #1" can we be considered authoritative.
+        Only when we can clearly tell users "why it's ranked #1" can FNI be the canonical ranking within the Free2AITools index.
       </p>
     </section>
 
@@ -62,12 +62,12 @@ const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !
           <div class="text-3xl mb-2">🧠</div>
           <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2">S - Semantic (35%)</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Query-time relevance
+            Query-time relevance (currently dormant)
           </p>
           <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
-            <li>• Vector similarity matching</li>
-            <li>• AI-powered relevance reranking</li>
-            <li>• Context-aware scoring</li>
+            <li>• Keyword-index based today</li>
+            <li>• Live semantic/ANN ranking not currently provided</li>
+            <li>• Reported as null + note on static surfaces</li>
           </ul>
         </div>
 
@@ -153,8 +153,8 @@ const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !
             <span class="text-2xl">⚖️</span> Radical Neutrality
           </h3>
           <p class="text-gray-600 dark:text-gray-400">
-            The FNI scoring system (L5 Analyst) and commercial recommendation system (L6 Merchant) are <strong>physically separated</strong>.
-            We explicitly prohibit "pay-to-rank." Commercial recommendations are based on technical matching, not bidding.
+            FNI ranks the catalog by published, un-buyable factors only. The index is the product today; there is no paid placement and no "pay-to-rank."
+            By design, any future commercial surface would be kept separate from the FNI scoring path so that ranking can never be bought — a design commitment, not a shipped system.
           </p>
         </div>
 
@@ -213,7 +213,7 @@ const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !
         </div>
         <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
           <h3 class="font-bold text-blue-800 dark:text-blue-300 mb-1">V2.0 (2026) — Free2AITools Nexus Index <span class="text-xs bg-blue-100 dark:bg-blue-800 px-2 py-0.5 rounded">Current</span></h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms.{totalPhrase ? ` ${totalPhrase} entities indexed.` : ''} Agent structured tags for machine-readable model selection.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Five-factor S.A.P.R.Q formula. Multi-source aggregation across 7+ platforms.{totalPhrase ? ` ${totalPhrase} entities indexed.` : ''} Agent structured tags for machine-readable catalog filtering.</p>
         </div>
       </div>
     </section>
@@ -223,7 +223,7 @@ const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
         <span>🤖</span> Agent Structured Tags
       </h2>
-      <p class="text-gray-600 dark:text-gray-400 mb-4">Beyond the five FNI factors, V2.0 provides structured metadata for AI agent model selection:</p>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">Beyond the five FNI factors, V2.0 provides structured metadata for agent-side catalog filtering:</p>
       <div class="grid md:grid-cols-2 gap-4">
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
           <code class="text-sm font-mono text-blue-600 dark:text-blue-400">ollama_compatible</code>
@@ -243,7 +243,7 @@ const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !
         </div>
       </div>
       <p class="text-xs text-gray-500 dark:text-gray-500 mt-3">
-        These tags power the <a href="/developers" class="text-blue-500 underline">select_model API</a> — agents can filter by hardware constraints, license, and deployment target.
+        These tags power the <a href="/developers" class="text-blue-500 underline">select_model API</a> — agents can filter the catalog by these stored-metadata fields (size, license, GGUF/Ollama indicators). They are heuristic metadata filters, not verified runtime compatibility checks.
       </p>
     </section>
 

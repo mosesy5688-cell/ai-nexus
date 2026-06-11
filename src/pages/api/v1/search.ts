@@ -43,7 +43,18 @@ export const GET: APIRoute = async (context) => {
     const body = await internal.json();
 
     // Strip internal fields + wrap with version
-    if (body.results) body.results.forEach((r: any) => { delete r._dbSort; delete r._score; delete r._source; });
+    if (body.results) body.results.forEach((r: any) => {
+        delete r._dbSort; delete r._score; delete r._source;
+        // Contract remediation (D3): fni_s in browse mode is a constant factory
+        // baseline (50), not a per-entity measurement, and live semantic/ANN
+        // ranking is not currently provided. Null it + carry a note so Agents do
+        // not ingest a bare 50.0 as measured relevance (mirrors select/compare/
+        // entity honest-contract). No live UI consumer reads fni_s from /api/v1.
+        if ('fni_s' in r) {
+            r.fni_s = null;
+            r.fni_s_note = 'query-time baseline; semantic/ANN ranking not currently provided; not a per-entity value';
+        }
+    });
     const wrapped = { version: API_VERSION, ...body };
 
     // Preserve original headers (internal cache + CORS) then layer ETag on top

@@ -43,7 +43,7 @@ const { items: rawItems = [], source } = await fetchCatalogData(category);
 const items = (rawItems || []).slice(0, 100).map(truncateListingItem).filter(Boolean);
 
 const pageTitle = `${meta.label} - AI Technical Index | Free2AI`;
-const pageDescription = `Discover the best ${meta.label} AI models, agents, tools and research. Updated daily.`;
+const pageDescription = `Discover and FNI-rank ${meta.label} AI models, agents, tools and research. Updated daily.`;
 
 // V24.9: Only edge-cache pages with data; prevent caching empty/error states
 Astro.response.headers.set('Cache-Control', items.length > 0
