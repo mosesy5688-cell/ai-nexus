@@ -9,6 +9,7 @@ import { xxhash64Mod } from '../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../lib/etag-helper.js';
 import { deriveSlug, looksLikePaper, generatePaperCandidates } from '../../../lib/slug-helper.js';
+import { scanShardsBudgeted } from '../../../lib/compare-budget.js';
 
 const API_VERSION = 'fni_v2.0';
 // V27.60: 10→25 Layer 0 surface generosity for Agent-driven bulk compare.
@@ -72,20 +73,23 @@ export const GET: APIRoute = async ({ url, request }) => {
       }
     }
 
-    const entityMap = new Map<string, any>();
-    await Promise.all([...shardGroups.entries()].map(async ([shardIdx, queryKeys]) => {
-      const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
-      const engine = await getCachedDbConnection(r2Bucket, isDev, dbName);
-      const keys = [...queryKeys];
-      const placeholders = keys.map(() => '?').join(',');
-      const rows = await executeSql(engine.sqlite3, engine.db,
-        `SELECT ${COMPARE_COLS} FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders})`,
-        [...keys, ...keys]);
-      for (const row of rows) {
-        entityMap.set(row.id, row);
-        if (row.slug) entityMap.set(row.slug, row);
-      }
-    }));
+    // B7: budgeted, per-op-firewalled, fan-out-capped cold-shard scan. The global
+    // sqlite lock serializes every op anyway, so a flat sequential loop with a
+    // between-shards wall-clock budget is the only way to bail BEFORE CF's ~30s
+    // ceiling. On exhaustion (budget/cap/op-timeout) we never ride to a dead
+    // connection — we return an honest retryable 503 below.
+    const scan = await scanShardsBudgeted(
+      shardGroups,
+      (dbName) => getCachedDbConnection(r2Bucket, isDev, dbName),
+      (engine, keys) => {
+        const placeholders = keys.map(() => '?').join(',');
+        return executeSql(engine.sqlite3, engine.db,
+          `SELECT ${COMPARE_COLS} FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders})`,
+          [...keys, ...keys]);
+      },
+      start,
+    );
+    const entityMap = scan.entityMap;
 
     const entities = ids.map(id => {
       // Resolve via any candidate key the row was indexed under (row.id /
@@ -125,6 +129,24 @@ export const GET: APIRoute = async ({ url, request }) => {
       };
     });
 
+    // B7 honest 503: if the scan bailed (budget/cap/op-timeout) AND at least one
+    // id is still unresolved, the unresolved ids MAY exist on an un-probed/errored
+    // shard — exactly the entity API's transient semantics. Never report a partial
+    // cold scan as a clean comparison, and never ride to a dead connection. We
+    // surface which ids resolved vs pending (honest partial signal) so an Agent
+    // retries only the rest. If everything resolved (warm cache) we ignore the
+    // bail and return the complete 200 below.
+    const pending = entities.filter((e: any) => !e.found).map((e: any) => e.id);
+    if (scan.exhausted && pending.length > 0) {
+      const resolved = entities.filter((e: any) => e.found).map((e: any) => e.id);
+      console.error('[COMPARE] inconclusive', `reason=${scan.reason} probed=${scan.probedShards}/${shardGroups.size} resolved=${resolved.length}/${ids.length}`);
+      return error(503,
+        'Comparison inconclusive (transient/budget); retry later',
+        { 'Retry-After': '2', 'Cache-Control': 'no-store' },
+        { resolved, pending, reason: scan.reason },
+      );
+    }
+
     return new Response(JSON.stringify({
       version: API_VERSION,
       entities,
@@ -138,6 +160,6 @@ export const GET: APIRoute = async ({ url, request }) => {
 
 export const OPTIONS: APIRoute = async () => new Response(null, { status: 204, headers: CORS_HEADERS });
 
-function error(status: number, message: string) {
-  return new Response(JSON.stringify({ error: message }), { status, headers: CORS_HEADERS });
+function error(status: number, message: string, extraHeaders: Record<string, string> = {}, extraBody: Record<string, any> = {}) {
+  return new Response(JSON.stringify({ error: message, ...extraBody }), { status, headers: { ...CORS_HEADERS, ...extraHeaders } });
 }

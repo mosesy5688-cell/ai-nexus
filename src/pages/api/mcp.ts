@@ -9,6 +9,7 @@ import { POST as selectHandler } from './v1/select.js';
 import { GET as compareHandler } from './v1/compare.js';
 import { GET as entityHandler } from './v1/entity/[...id].js';
 import { callEntity, buildExplainResult } from '../../lib/mcp-explain.js';
+import { callCompare, buildCompareResult } from '../../lib/mcp-compare.js';
 
 const SERVER_INFO = { name: 'free2aitools', version: '2.0.0' };
 
@@ -89,7 +90,7 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_compare',
-        description: 'Compare 2-25 AI models side-by-side showing FNI scores, factor breakdown (Semantic, Authority, Popularity, Recency, Quality), specs (params, VRAM, context length), and license. Read-only, no side effects. Use this when the user wants to decide between specific known models; use free2aitools_select_model to discover models first, then compare the top candidates.',
+        description: 'Compare 2-25 AI models side-by-side showing FNI scores, factor breakdown (Semantic, Authority, Popularity, Recency, Quality), specs (params, VRAM, context length), and license. Read-only, no side effects. Cold upper-range multi-paper requests may return a transient 503 (retry after the indicated delay). Use this when the user wants to decide between specific known models; use free2aitools_select_model to discover models first, then compare the top candidates.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -156,14 +157,13 @@ async function handleToolCall(context: any, toolName: string, args: any) {
             return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
         }
         case 'free2aitools_compare': {
+            // B7: callCompare preserves the HTTP status so a transient/budget 503
+            // (cold multi-paper fan-out) propagates as an isError + retry hint
+            // instead of a thrown generic error / dead connection. Any other
+            // non-200 still throws -> the JSON-RPC error path below reports it.
             const ids = Array.isArray(args.ids) ? args.ids.join(',') : args.ids;
-            const compareUrl = new URL(context.url.href);
-            compareUrl.pathname = '/api/v1/compare';
-            compareUrl.searchParams.set('ids', ids);
-            const res = await compareHandler({ ...context, url: compareUrl });
-            if (!res.ok) throw new Error(`Compare failed: HTTP ${res.status}`);
-            const data = await res.json();
-            return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+            const res = await callCompare(context, ids, (ctx: any) => compareHandler(ctx));
+            return buildCompareResult(res);
         }
         default:
             throw new Error(`Unknown tool: ${toolName}`);

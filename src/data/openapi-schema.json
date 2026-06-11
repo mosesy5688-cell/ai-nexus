@@ -133,7 +133,7 @@
       "get": {
         "operationId": "compareModels",
         "summary": "Compare 2-25 AI models side-by-side",
-        "description": "Returns FNI factor decomposition, specs, and metadata for each model in parallel columns.",
+        "description": "Returns FNI factor decomposition, specs, and metadata for each model in parallel columns. Cold upper-range multi-paper requests may return a transient 503 (retry after the indicated delay).",
         "tags": ["Comparison"],
         "parameters": [
           {
@@ -158,6 +158,14 @@
           },
           "400": {
             "description": "Missing ids parameter, fewer than 2, or more than 25",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "503": {
+            "description": "Comparison inconclusive — transient/budget. Cold upper-range multi-paper requests may exhaust the cold-shard wall-clock budget or fan-out cap; the caller may retry (Retry-After header). Response body lists resolved vs pending ids.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" }

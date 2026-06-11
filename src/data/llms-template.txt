@@ -57,6 +57,8 @@ per search; auth/paid tiers (TBD) raise the cap.
 
 - `GET /api/v1/compare?ids=<id1>,<id2>[,...]` — side-by-side comparison of 2-25
   entities. Returns FNI factors + technical specs + license per entity.
+  - Interim: cold upper-range multi-paper requests may return a transient 503
+    (retry after the indicated delay) under the cold-shard budget / fan-out cap
 
 - `GET /api/v1/health` — VFS layer observability snapshot: cache-hit counters
   (L0/L1/L2), short-read retry stats, isolate uptime. No auth, not cached.
