@@ -11,6 +11,7 @@ import path from 'node:path';
 import adapters from './adapters/index.js';
 import { shardNDJSON } from './ndjson-sharder.js';
 import { RateLimitExceededError, FetchError } from './adapters/base-adapter.js';
+import { evaluateFloorGate } from './harvest-floors.js';
 
 const OUTPUT_DIR = 'data';
 
@@ -140,6 +141,22 @@ export async function harvestSingle(sourceName, options = {}) {
             console.error(`\n❌ [Harvest] FAILED (fetch error) — ${sourceName} | Captured before failure: ${results.total} | Time: ${duration}s`);
             console.error(`   Output (partial): ${ndjsonPath}`);
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
+        }
+
+        // PR-H2a (fail loud): KNOWN-LARGE-SOURCE FLOOR GATE. This gate lives
+        // ABOVE the adapters: the catch-and-return-empty HF adapters never set
+        // result.error, so a real outage would otherwise launder into a green
+        // "Complete | Total: 0". For sources we KNOW are large, a completed
+        // harvest (no adapter error — hadAdapterError=false here, the fetchHardError
+        // path already returned above so we never double-report) whose final
+        // unique-entity count falls below the conservative per-source floor is a
+        // zero/near-zero with no valid-zero proof. Reject it loudly. Sources not
+        // in the floor map are unaffected (small-source tolerance).
+        const gate = evaluateFloorGate({ sourceName, count: results.total, hadAdapterError: false });
+        if (gate.violated) {
+            console.error(`\n❌ HARVEST FLOOR VIOLATION: ${sourceName} yielded ${results.total} < floor ${gate.floor} — known-large source zero/near-zero without valid-zero proof`);
+            console.error(`   Output (partial): ${ndjsonPath} | Time: ${duration}s`);
+            return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: `floor violation: ${results.total} < ${gate.floor}` };
         }
 
         console.log(`\n✅ [Harvest] Complete`);

@@ -119,16 +119,21 @@ describe('harvest-single chokepoint — error-caused emptiness fails, legit empt
 
     it('RateLimitExceededError early-finish -> NO result.error (stays success, exit 0)', async () => {
         const adapter = fakeAdapter(async () => {
-            throw new RateLimitExceededError('arxiv', '120.0');
+            throw new RateLimitExceededError('ollama', '120.0');
         });
-        const result = await harvestSingle('arxiv', { limit: 5, skipBridge: true, _adapter: adapter });
+        // Use a source NOT in the H2a known-large floor map (ollama), so this
+        // test pins the rate-limit-stays-success semantic without the floor gate
+        // (which now fires for known-large sources yielding < floor) interfering.
+        const result = await harvestSingle('ollama', { limit: 5, skipBridge: true, _adapter: adapter });
         expect(result.error).toBeUndefined();
         expect(result.count).toBe(0);
     });
 
-    it('genuine empty [] -> NO result.error (true no-new-data stays success)', async () => {
+    it('genuine empty [] on a SMALL (un-floored) source -> NO result.error (stays success)', async () => {
         const adapter = fakeAdapter(async () => []);
-        const result = await harvestSingle('arxiv', { limit: 5, skipBridge: true, _adapter: adapter });
+        // ollama is not a known-large source -> no floor -> a legitimate empty
+        // harvest stays success, exactly as before H2a.
+        const result = await harvestSingle('ollama', { limit: 5, skipBridge: true, _adapter: adapter });
         expect(result.error).toBeUndefined();
         expect(result.count).toBe(0);
     });

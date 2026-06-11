@@ -288,7 +288,12 @@ jobs:
           S2_API_KEY: ${{ secrets.S2_API_KEY }}
         run: |
           echo "📥 Harvesting Semantic Scholar..."
-          node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 --no-bridge || echo "Semantic Scholar adapter skipped"
+          # PR-H2a (de-mask): semanticscholar is a known-large source (floor-gated
+          # in harvest-floors.js). Removed the `|| echo` mask so its floor-gate
+          # exit(1) can redden the job instead of laundering a zero/near-zero
+          # harvest into green. Sibling small-source `|| echo` lines are left
+          # untouched (Founder-decided small-source tolerance).
+          node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 --no-bridge
 
       - name: Harvest OpenLLM Benchmarks
         if: github.event.inputs.skip_harvest != 'true'

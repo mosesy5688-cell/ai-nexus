@@ -108,6 +108,30 @@ describe('ArXiv first-page recovery — 120s timeout + bounded retry (H1 WO-2b)'
         expect(result.length).toBe(0);
     });
 
+    // (e) PR-H2a resumption-spin bound: a resumptionToken page that keeps
+    // erroring while the retry-fresh re-query only re-yields already-seen IDs
+    // makes ZERO forward progress. After 3 consecutive zero-progress error
+    // batches the loop must stop and throw FetchError (fail loud), instead of
+    // spinning on "+0 papers" until external cancel.
+    it('resumption page erroring with no new progress -> throws FetchError after 3 zero-progress batches', async () => {
+        // Page carrying ONE paper (id 2606.00002) AND a resumptionToken, so the
+        // loop always proceeds to a (failing) token page next. On retry-fresh the
+        // first page is re-fetched and re-yields the SAME already-seen id -> 0 new
+        // unique papers -> zero progress.
+        const ok = OK(FIRST_PAGE_WITH_TOKEN);
+        const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            if (typeof url === 'string' && url.includes('resumptionToken')) {
+                throw makeAbortError(); // token page always fails
+            }
+            return ok as any; // first / retry-fresh page: re-yields the seen paper
+        });
+
+        await expect(adapter.fetchOAI({ limit: 1000, from: '2026-01-01' }))
+            .rejects.toMatchObject({ name: 'FetchError', source: 'arxiv' });
+        // Must NOT have spun indefinitely: the spin bound caps the error batches.
+        expect(fetchSpy).toHaveBeenCalled();
+    });
+
     // (d) no-regression: first page gets 120s, the paginated page keeps 60s.
     it('first page uses 120000ms; subsequent resumptionToken page keeps 60000ms', async () => {
         const fetchSpy = vi
