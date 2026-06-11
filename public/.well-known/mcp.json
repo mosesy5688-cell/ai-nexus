@@ -71,7 +71,7 @@
     },
     {
       "name": "free2aitools_compare",
-      "description": "Compare 2-25 AI models side-by-side with FNI factor decomposition and specs.",
+      "description": "Compare 2-25 AI models side-by-side with FNI factor decomposition and specs. Cold upper-range multi-paper requests may return a transient 503 (retry after the indicated delay).",
       "input_schema": {
         "type": "object",
         "properties": {
