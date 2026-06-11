@@ -24,6 +24,31 @@ export class RateLimitExceededError extends Error {
 }
 
 /**
+ * Custom error for a source-level fetch/parse failure (H1: fail loud).
+ *
+ * A caught network/abort/parse error in an adapter MUST NOT launder into a
+ * plain empty result that the harvester reports as a green zero-yield run.
+ * Throwing this typed error lets the shared chokepoint (harvest-single.js)
+ * distinguish an ERROR-caused emptiness (→ fail the source, exit nonzero)
+ * from a legitimate zero-record result (HTTP 200, parseable, no new data →
+ * stays success). It is intentionally NOT a RateLimitExceededError: rate-limit
+ * early-finish is a deliberate CI-throughput tolerance that stays success.
+ *
+ * @param {string} source - Source identifier (e.g. 'arxiv')
+ * @param {('fetch'|'abort'|'parse')} kind - Failure class for the error taxonomy
+ * @param {string} detail - Human-readable cause
+ */
+export class FetchError extends Error {
+    constructor(source, kind, detail) {
+        super(`Fetch failure for ${source} (${kind}): ${detail}`);
+        this.name = 'FetchError';
+        this.source = source;
+        this.kind = kind;
+        this.detail = detail;
+    }
+}
+
+/**
  * Rate-limit backoff constants (V28: harvest hardening).
  * Used by handleRateLimit() when a 429/403/503 carries NO retry header,
  * so a header-less persistent rate limit escalates and trips a circuit
