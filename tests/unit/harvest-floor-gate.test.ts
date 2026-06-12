@@ -85,6 +85,15 @@ describe('harvest-single — floor gate trips the exit gate for near-zero known-
         expect(result.count).toBe(0);
     });
 
+    it('huggingface catch-and-return-empty outage -> floor gate sets result.error (latent laundering closed)', async () => {
+        const result = await harvestSingle('huggingface', {
+            limit: 5, skipBridge: true, _adapter: bufferAdapter(0),
+        });
+        expect(result.error).toBeTruthy();
+        expect(String(result.error)).toContain('floor violation');
+        expect(result.count).toBe(0);
+    });
+
     it('known-large source AT/ABOVE floor -> NO result.error (stays success)', async () => {
         // Use an env override to keep the test cheap: floor 3, yield 3.
         process.env.HARVEST_FLOOR_GITHUB = '3';

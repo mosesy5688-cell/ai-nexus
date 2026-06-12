@@ -8,6 +8,8 @@
  * (ENTITY_BASELINE_FLOOR in merge-batches.js) passes on the aggregate while a
  * single known-large source silently contributes 0.
  *
+ * This is a minimum anti-laundering floor for known-large sources, not a completeness or quality target.
+ *
  * This gate lives ABOVE the adapters: for sources we KNOW are large, a harvest
  * that completes WITHOUT an adapter error but yields below a conservative floor
  * is treated as a near-zero failure with no valid-zero proof, and must redden
