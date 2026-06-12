@@ -190,6 +190,27 @@ async function main() {
     if (fetched > 0 && blocked / fetched > 0.05) {
         console.warn(`[PARAMS-BACKFILL] ⚠ Blocked/error ratio ${((blocked/fetched)*100).toFixed(1)}% > 5% — investigate upstream`);
     }
+
+    // PR-H2c (observation-only): drop a tiny enrichment state record for the
+    // harvest-health aggregator's separate Enrichment section. ZERO behavior
+    // change to the backfill itself — degraded above 25% (DRAFT), NEVER red. A
+    // write failure here is swallowed to a ::warning so enrichment forensics can
+    // never fail the (continue-on-error) backfill step.
+    try {
+        const stateDir = path.join('data', 'state');
+        fs.mkdirSync(stateDir, { recursive: true });
+        const ratio = fetched > 0 ? blocked / fetched : 0;
+        const THRESHOLD_WARN = 0.25; // DRAFT (mirrors harvest-health DRAFT_ENRICH_RATIO)
+        const rec = {
+            name: 'params-backfill', fetched, blocked,
+            ratio: parseFloat(ratio.toFixed(4)),
+            threshold_warn: THRESHOLD_WARN,
+            status: ratio > THRESHOLD_WARN ? 'degraded' : 'ok',
+        };
+        fs.writeFileSync(path.join(stateDir, 'enrichment-params-backfill.json'), JSON.stringify(rec));
+    } catch (e) {
+        console.warn(`::warning::params-backfill enrichment state write failed: ${e.message}`);
+    }
 }
 
 main().catch(err => { console.error('[PARAMS-BACKFILL] Fatal:', err); process.exit(1); });

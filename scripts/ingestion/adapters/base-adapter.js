@@ -140,6 +140,11 @@ export class BaseAdapter {
         }
         this.sourceName = sourceName;
         this.entityTypes = ['model']; // Override in subclass
+        // H2c (observation): partial-by-design signal. Null = no terminal meta.
+        // An adapter that deliberately finishes partial (e.g. an enrich-budget cap)
+        // sets this to a small plain object; harvest-single reads it to assign a
+        // partial/enrich_budget terminal state. Does NOT affect harvest exit code.
+        this.terminalMeta = null;
     }
 
     // ============================================================

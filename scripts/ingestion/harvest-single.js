@@ -12,6 +12,7 @@ import adapters from './adapters/index.js';
 import { shardNDJSON } from './ndjson-sharder.js';
 import { RateLimitExceededError, FetchError } from './adapters/base-adapter.js';
 import { evaluateFloorGate } from './harvest-floors.js';
+import { emitTerminalState, deriveSuccessStatus, STATUS, TIMEOUT_KIND } from './harvest-state.js';
 
 const OUTPUT_DIR = 'data';
 
@@ -102,6 +103,9 @@ export async function harvestSingle(sourceName, options = {}) {
         // stays success), and a genuinely-empty [] never throws, so it stays
         // success too. Only ERROR-caused emptiness becomes a hard failure.
         let fetchHardError = null;
+        // H2c: terminal-state signals (sidecar-only, never alter exit code).
+        let rateLimited = false;        // RateLimitExceededError early-finish
+        let requestTimeout = false;     // FetchError kind === 'abort'
         let rawEntities = [];
         try {
             rawEntities = await adapter.fetch(fetchOptions);
@@ -109,7 +113,9 @@ export async function harvestSingle(sourceName, options = {}) {
             if (fetchError instanceof RateLimitExceededError) {
                 console.warn(`\n🛑 [Harvest] ${fetchError.message}`);
                 console.warn(`   ⚠️ Finishing early with ${results.total} entities to preserve CI throughput.`);
+                rateLimited = true;
             } else if (fetchError instanceof FetchError) {
+                if (fetchError.kind === 'abort') requestTimeout = true;
                 // A source-level fetch/abort/parse failure. Surface it as a hard
                 // error so the workflow step fails loud instead of laundering
                 // into a green "Complete | Total: 0".
@@ -140,6 +146,8 @@ export async function harvestSingle(sourceName, options = {}) {
         if (fetchHardError) {
             console.error(`\n❌ [Harvest] FAILED (fetch error) — ${sourceName} | Captured before failure: ${results.total} | Time: ${duration}s`);
             console.error(`   Output (partial): ${ndjsonPath}`);
+            // H2c sidecar: hard error -> failed; abort -> timeout/request_timeout. Emit never changes result.error.
+            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: true, floor_violated: false, terminal_meta: requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : undefined });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
         }
 
@@ -156,6 +164,8 @@ export async function harvestSingle(sourceName, options = {}) {
         if (gate.violated) {
             console.error(`\n❌ HARVEST FLOOR VIOLATION: ${sourceName} yielded ${results.total} < floor ${gate.floor} — known-large source zero/near-zero without valid-zero proof`);
             console.error(`   Output (partial): ${ndjsonPath} | Time: ${duration}s`);
+            // H2c sidecar: floor_violation; carry cause=rate_limited when an early-finish drove the shortfall (H2a gate unchanged).
+            emitTerminalState({ source: sourceName, status: STATUS.FLOOR_VIOLATION, yield: results.total, duration_ms: Date.now() - startTime, errors: [`floor violation: ${results.total} < ${gate.floor}`], had_adapter_error: false, floor_violated: true, terminal_meta: rateLimited ? { cause: STATUS.RATE_LIMITED } : undefined });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: `floor violation: ${results.total} < ${gate.floor}` };
         }
 
@@ -172,10 +182,16 @@ export async function harvestSingle(sourceName, options = {}) {
             });
         }
 
+        // H2c sidecar (terminal success path); status precedence in deriveSuccessStatus.
+        const tMeta = adapter.terminalMeta || null;
+        const sv = deriveSuccessStatus({ total: results.total, rateLimited, terminalMeta: tMeta });
+        emitTerminalState({ source: sourceName, status: sv.status, yield: results.total, duration_ms: Date.now() - startTime, errors: [], had_adapter_error: false, floor_violated: false, partial_reason: sv.partial_reason, terminal_meta: tMeta || undefined });
         return { source: sourceName, count: results.total, duration, file: ndjsonPath };
-
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
+        // H2c sidecar (top-level catch). Last in-process terminal point; a runner KILL
+        // leaves NO sidecar -> that step_killed case is the aggregator's inference, never faked here.
+        emitTerminalState({ source: sourceName, status: STATUS.FAILED, yield: 0, duration_ms: Date.now() - startTime, errors: [error.message], had_adapter_error: false, floor_violated: false });
         return { source: sourceName, count: 0, error: error.message };
     }
 }

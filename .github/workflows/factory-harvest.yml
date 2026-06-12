@@ -61,10 +61,16 @@ jobs:
           node scripts/ingestion/harvest-single.js huggingface --limit 100000 --no-bridge
           
       - name: Solidify HuggingFace Batches (Cache)
-        if: github.event.inputs.skip_harvest != 'true'
+        # PR-H2c: if: always() so a sidecar still persists even when the harvest
+        # step failed loud — the aggregator must SEE a failed-class terminal state,
+        # not infer step_killed from a missing cache.
+        if: always() && github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v5
         with:
-          path: data/huggingface_master.ndjson
+          # PR-H2c: extend with the per-source terminal-state sidecar (data/state/).
+          path: |
+            data/huggingface_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-huggingface-${{ github.run_id }}
 
       # V25.8 §2.2: Direct-Stream-to-R2 (dual-write with cache fallback)
@@ -113,10 +119,14 @@ jobs:
           node scripts/ingestion/harvest-single.js github --limit 10000 --no-bridge
           
       - name: Solidify GitHub Batches (Cache)
-        if: github.event.inputs.skip_harvest != 'true'
+        # PR-H2c: if: always() so a sidecar persists even on a failed-loud harvest.
+        if: always() && github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v5
         with:
-          path: data/github_master.ndjson
+          # PR-H2c: extend with the per-source terminal-state sidecar.
+          path: |
+            data/github_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-github-${{ github.run_id }}
 
       # V25.8 §2.2: Direct-Stream-to-R2
@@ -188,10 +198,14 @@ jobs:
           node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 --no-bridge
 
       - name: Solidify Academic Batches (Cache)
-        if: github.event.inputs.skip_harvest != 'true'
+        # PR-H2c: if: always() so sidecars persist even on a failed-loud harvest.
+        if: always() && github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v5
         with:
-          path: data/*_master.ndjson
+          # PR-H2c: extend with the per-source terminal-state sidecars.
+          path: |
+            data/*_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-academic-${{ github.run_id }}
 
       # V25.8 §2.2: Direct-Stream-to-R2
@@ -338,10 +352,14 @@ jobs:
       # re-add the langchain routing entry in scripts/ingestion/adapters/index.js.
 
       - name: Solidify Ecosystem Batches (Cache)
-        if: github.event.inputs.skip_harvest != 'true'
+        # PR-H2c: if: always() so sidecars persist even on a failed-loud harvest.
+        if: always() && github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v5
         with:
-          path: data/*_master.ndjson
+          # PR-H2c: extend with the per-source terminal-state sidecars.
+          path: |
+            data/*_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-ecosystem-${{ github.run_id }}
 
       # V25.8 §2.2: Direct-Stream-to-R2
@@ -444,25 +462,34 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
-          path: data/huggingface_master.ndjson
+          # PR-H2c: restore terminal-state sidecars alongside the batch.
+          path: |
+            data/huggingface_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-huggingface-${{ github.run_id }}
       - name: Restore GitHub Batch (Current Run)
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
-          path: data/github_master.ndjson
+          path: |
+            data/github_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-github-${{ github.run_id }}
       - name: Restore Academic Batch (Current Run)
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
-          path: data/*_master.ndjson
+          path: |
+            data/*_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-academic-${{ github.run_id }}
       - name: Restore Ecosystem Batch (Current Run)
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
-          path: data/*_master.ndjson
+          path: |
+            data/*_master.ndjson
+            data/state/harvest-state-*.json
           key: harvest-raw-ecosystem-${{ github.run_id }}
           
       # V25.8 §2.2: R2 Fallback for harvest batches (if cache missed)
@@ -613,6 +640,73 @@ jobs:
           # so the script reported "Missing: 0 models" while scanning the entire registry.
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: node scripts/factory/params-backfill.js --limit=2000
+
+      # ========================================================
+      # PR-H2c: HARVEST HEALTH (observation layer, runs after Merge + Params Backfill)
+      # ========================================================
+      # 1 R2 GET for the prior harvest-health latest.json. COLD-START RESILIENT:
+      # a miss/permission error just leaves no prev file -> previous_yield=null and
+      # previous-based checks skip; the run must NOT fail because history is unreadable.
+      - name: Restore Previous Harvest Health (R2, cold-start resilient)
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p data/state
+          node scripts/factory/r2-workflow-cli.js restore-file state/harvest-health/latest.json data/state/prev-latest.json || echo "::notice::no prior harvest-health/latest.json on R2 (cold start) — previous-based checks will skip"
+
+      # The aggregator reads the 4 jobs' restored sidecars + prev-latest.json +
+      # the params-backfill enrichment record + manifest, renders the HARVEST SOURCE
+      # HEALTH table to the step summary, sets the HARVEST_HEALTH output, and writes
+      # data/state/harvest-health-latest.json for the upload below. RED (exit 1) is
+      # defense-in-depth ONLY: a gated/H2a-class source that escaped into a green merge.
+      - name: Harvest Health Summary
+        id: harvest_health
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          # 2nd independent input (ANTI-LYING b): each source maps to its containing
+          # job's result (sources do not run as separate jobs). A missing gated sidecar
+          # paired with a failure/cancelled job result => step_killed timeout, not a bare
+          # missing. Job grouping mirrors the jobs above:
+          #   huggingface job -> huggingface | github job -> github
+          #   academic job    -> arxiv, huggingface-papers, huggingface-datasets
+          #   ecosystem job   -> ollama, mcp, replicate, kaggle, civitai, semanticscholar,
+          #                      openllm, benchmark, deepspec, agents
+          STEP_OUTCOMES_JSON: >-
+            {"huggingface":"${{ needs.harvest-huggingface.result }}",
+             "github":"${{ needs.harvest-github.result }}",
+             "arxiv":"${{ needs.harvest-academic.result }}",
+             "huggingface-papers":"${{ needs.harvest-academic.result }}",
+             "huggingface-datasets":"${{ needs.harvest-academic.result }}",
+             "semanticscholar":"${{ needs.harvest-ecosystem.result }}",
+             "ollama":"${{ needs.harvest-ecosystem.result }}",
+             "mcp":"${{ needs.harvest-ecosystem.result }}",
+             "replicate":"${{ needs.harvest-ecosystem.result }}",
+             "kaggle":"${{ needs.harvest-ecosystem.result }}",
+             "civitai":"${{ needs.harvest-ecosystem.result }}",
+             "openllm":"${{ needs.harvest-ecosystem.result }}",
+             "benchmark":"${{ needs.harvest-ecosystem.result }}",
+             "deepspec":"${{ needs.harvest-ecosystem.result }}",
+             "agents":"${{ needs.harvest-ecosystem.result }}"}
+        run: node scripts/ingestion/harvest-health.js
+
+      # Upload the aggregated doc to R2 state/harvest-health/latest.json (next run's
+      # previous_yield source). continue-on-error: an upload miss must not redden the
+      # merge — RED already exited above when it had to.
+      - name: Upload Harvest Health to R2
+        if: always()
+        continue-on-error: true
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          [ -f "data/state/harvest-health-latest.json" ] && node scripts/factory/r2-workflow-cli.js upload-file data/state/harvest-health-latest.json state/harvest-health/latest.json || echo "::warning::no harvest-health-latest.json to upload"
+
       - name: Benchmark Importer (Open LLM Leaderboard)
         continue-on-error: true
         env:
