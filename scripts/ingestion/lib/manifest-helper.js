@@ -61,10 +61,17 @@ export async function finalizeMerge(options) {
             `- Manifest: \`INTEGRITY-V1.1\``,
             `- Merged Hash: \`${mergedHash.substring(0, 8)}...\``,
             ``,
+            // PR-H2c: the old "Source Breakdown" table was FAKE — sourceStats is keyed
+            // by the post-merge `raw_batch_<N>` shard filename (merge-batches.js:113),
+            // not by harvest source, because the Bridge step cats all *_master.ndjson
+            // into one stream and re-shards by size. So every "Source" row was a shard
+            // index (raw_batch_0, raw_batch_1, ...), never huggingface/arxiv/etc. Per-source
+            // truth now comes from the HARVEST SOURCE HEALTH table (harvest-health.js),
+            // which keys off the per-source terminal-state sidecars. Stop rendering the
+            // misleading breakdown rather than print a lie.
             `### 📦 Source Breakdown`,
-            `| Source | Count |`,
-            `|--------|-------|`,
-            ...sourceStats.map(s => `| ${s.source} | ${s.count} |`),
+            `- Per-source yield + health: see the **HARVEST SOURCE HEALTH** table (PR-H2c).`,
+            `- Post-merge shard count: ${sourceStats.length} raw_batch shard(s).`,
             ``
         ].join('\n');
 

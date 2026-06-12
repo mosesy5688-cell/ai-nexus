@@ -29,6 +29,7 @@ export class DatasetsAdapter extends BaseAdapter {
 
     async fetch(options = {}) {
         const { limit = 500, sort = 'downloads', direction = -1, full = true } = options;
+        this.terminalMeta = null; // H2c: clear any prior partial-by-design signal
         console.log(`📥 [HF Datasets] Fetching top ${limit} datasets by ${sort}...`);
 
         const expandParams = [
@@ -76,6 +77,8 @@ export class DatasetsAdapter extends BaseAdapter {
         for (let i = 0; i < datasets.length; i += curBatch) {
             if (Date.now() - enrichStart > ENRICH_BUDGET_MS) {
                 console.warn(`   ⏱️ [HF Datasets] enrich budget (${ENRICH_BUDGET_MS / 60000}min) reached at ${i}/${datasets.length}; returning partial.`);
+                // H2c: minimal partial-by-design signal -> harvest-single maps to partial/enrich_budget.
+                this.terminalMeta = { budgetCapped: true, processed: i, total: datasets.length };
                 break;
             }
             const batch = datasets.slice(i, i + curBatch);
