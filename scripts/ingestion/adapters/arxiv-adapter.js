@@ -109,6 +109,18 @@ export class ArXivAdapter extends BaseAdapter {
         // cannot hang the job. Subsequent (resumptionToken) pages are untouched.
         let firstPageRetries = 0;
         const firstPageRetryDeadline = Date.now() + FIRST_PAGE_RETRY_BUDGET_MS;
+        // PR-H2a (resumption-spin bound): track consecutive error batches that
+        // made ZERO forward progress (entered the catch AND added 0 new unique
+        // papers vs the last loop iteration). The resumptionToken retry-fresh
+        // branch below resets the token and continues; if the fresh query keeps
+        // re-yielding only already-seen IDs (or keeps erroring), the loop can
+        // spin for minutes emitting "+0 papers" batches without ever setting
+        // fetchError — laundering a partial harvest into green. After 3 such
+        // consecutive zero-progress error batches we stop and record a structured
+        // fetchError so the existing end-of-fetch `throw FetchError` fires (fail
+        // loud), instead of spinning until an external cancel.
+        let zeroProgressErrorBatches = 0;
+        let seenAtLoopStart = 0;
         // H1 (fail loud): records a structured fetch/abort/parse failure so the
         // loop can rethrow instead of laundering an error into a green empty [].
         // A genuinely-empty OAI response (HTTP 200, parseable, no records) does
@@ -116,6 +128,9 @@ export class ArXivAdapter extends BaseAdapter {
         let fetchError = null;
 
         while (totalFetched < limit) {
+            // PR-H2a: snapshot unique-paper progress at the top of each iteration
+            // so the catch can tell whether THIS batch advanced the harvest.
+            seenAtLoopStart = seenIds.size;
             let url = `${ARXIV_OAI_BASE}?verb=ListRecords`;
             if (resumptionToken) {
                 url += `&resumptionToken=${encodeURIComponent(resumptionToken)}`;
@@ -236,6 +251,29 @@ export class ArXivAdapter extends BaseAdapter {
 
             } catch (error) {
                 console.error(`   ❌ ArXiv OAI error: ${error.message}`);
+                // PR-H2a (resumption-spin bound): SCOPED to the resumptionToken
+                // pagination path (resumptionToken truthy here) — the cold first-
+                // page path has its own bounded retry (#2183) and is NOT touched.
+                // A token-page error that also made no unique-paper progress is a
+                // zero-progress error batch; reset on any real progress. After 3
+                // consecutive, stop and record a structured fetchError so the loud
+                // throw below fires, instead of the retry-fresh branch spinning on
+                // "+0 papers" until external cancel.
+                if (resumptionToken) {
+                    if (seenIds.size === seenAtLoopStart) {
+                        zeroProgressErrorBatches++;
+                    } else {
+                        zeroProgressErrorBatches = 0;
+                    }
+                    if (zeroProgressErrorBatches >= 3) {
+                        console.warn(`   ⛔ [ArXiv] ${zeroProgressErrorBatches} consecutive zero-progress error batches — failing loud instead of spinning.`);
+                        const kind = error?.name === 'AbortError'
+                            ? 'abort'
+                            : (error instanceof TypeError || error?.code) ? 'fetch' : 'parse';
+                        fetchError = new FetchError('arxiv', kind, `resumption spin: ${zeroProgressErrorBatches} zero-progress error batches — ${error?.message || String(error)}`);
+                        break;
+                    }
+                }
                 // V26.13: If resumptionToken request failed, retry once without token
                 if (resumptionToken && consecutiveErrors < 2) {
                     consecutiveErrors++;
