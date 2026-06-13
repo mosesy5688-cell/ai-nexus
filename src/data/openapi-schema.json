@@ -471,8 +471,8 @@
                 "author": { "type": "string" },
                 "summary": { "type": "string" },
                 "fni_score": { "type": "number" },
-                "downloads": { "type": "integer" },
-                "stars": { "type": "integer" }
+                "downloads": { "type": "integer", "nullable": true },
+                "stars": { "type": "integer", "nullable": true }
               }
             }
           }
@@ -681,10 +681,10 @@
               "stats": {
                 "type": "object",
                 "properties": {
-                  "downloads": { "type": "integer" },
-                  "stars": { "type": "integer" },
-                  "forks": { "type": "integer" },
-                  "citation_count": { "type": "integer" },
+                  "downloads": { "type": "integer", "nullable": true },
+                  "stars": { "type": "integer", "nullable": true },
+                  "forks": { "type": "integer", "nullable": true },
+                  "citation_count": { "type": "integer", "nullable": true },
                   "num_rows": { "type": "integer", "nullable": true },
                   "last_modified": { "type": "string", "nullable": true, "format": "date-time" }
                 }
