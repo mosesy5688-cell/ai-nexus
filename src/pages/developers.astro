@@ -135,7 +135,7 @@ const jsonLd = JSON.stringify({
                     <td class="py-2 font-mono text-blue-600 dark:text-blue-400">limit</td>
                     <td>number</td>
                     <td>5</td>
-                    <td>Max results (1-5, free tier)</td>
+                    <td>Max results (1-20, free tier)</td>
                   </tr>
                   <tr>
                     <td class="py-2 font-mono text-blue-600 dark:text-blue-400">type</td>
@@ -284,7 +284,7 @@ const jsonLd = JSON.stringify({
           <div>
             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Response shape (lean default)</h4>
             <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
-              <pre>{JSON.stringify({ version: "fni_v2.0", entity: { id: "hf-model--meta-llama--Llama-3-8B-Instruct", slug: "meta-llama--Llama-3-8B-Instruct", type: "model", name: "Llama-3-8B-Instruct", author: "meta-llama", fni: { score: 87.5, factors: { semantic: 92, authority: 95, popularity: 88, recency: 85, quality: 80 } }, specs: { params_billions: 8, context_length: 8192, vram: { fp16_gb: 16 }, ollama_compatible: true }, stats: { downloads: 1234567, last_modified: "..." }, links: { detail_url: "...", badge_url: "..." }, relations: { datasets_used: [], related: [] } }, meta: { elapsed_ms: 142, candidates_tried: 3 } }, null, 2)}</pre>
+              <pre>{JSON.stringify({ version: "fni_v2.0", entity: { id: "hf-model--meta-llama--Llama-3-8B-Instruct", slug: "meta-llama--Llama-3-8B-Instruct", type: "model", name: "Llama-3-8B-Instruct", author: "meta-llama", fni: { score: 87.5, factors: { semantic: null, authority: 95, popularity: 88, recency: 85, quality: 80 } }, specs: { params_billions: 8, context_length: 8192, vram: { fp16_gb: 16 }, ollama_compatible: true }, stats: { downloads: 1234567, last_modified: "..." }, links: { detail_url: "...", badge_url: "..." }, relations: { datasets_used: [], related: [] } }, meta: { elapsed_ms: 142, candidates_tried: 3 } }, null, 2)}</pre>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Field semantics: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">0</code> means measured-zero, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">null</code> means not-measured. Treat them differently when scoring downstream.</p>
           </div>
@@ -292,7 +292,7 @@ const jsonLd = JSON.stringify({
       </div>
 
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-        <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — no authentication required. CDN cached. max 5 results for search, max 20 for select.
+        <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — no authentication required. CDN cached. max 20 results for search, max 20 for select.
         <span class="block mt-2">
           <strong class="text-gray-900 dark:text-white">Machine-readable docs:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/llms.txt" class="text-blue-600 dark:text-blue-400 hover:underline">/llms.txt</a></code> (plain markdown index per <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">llmstxt.org</a>), <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline">/.well-known/mcp.json</a></code> (MCP manifest with tool catalog).
         </span>
