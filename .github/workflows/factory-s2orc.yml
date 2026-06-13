@@ -77,7 +77,6 @@ jobs:
           path: |
             rust/shard-router/shard-router-rust.node
             rust/fni-calc/fni-calc-rust.node
-            rust/mesh-engine/mesh-engine-rust.node
             rust/content-extractor/content-extractor-rust.node
             rust/stream-aggregator/stream-aggregator-rust.node
             rust/satellite-tasks/satellite-tasks-rust.node

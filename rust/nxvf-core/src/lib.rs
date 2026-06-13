@@ -2,7 +2,7 @@
 //!
 //! Provides unified shard loading (NXVF V4.1 binary + JSON.gz + JSON),
 //! shard discovery with format priority, and JSON sanitization.
-//! Used by stream-aggregator, satellite-tasks, mesh-engine, fni-calc.
+//! Used by stream-aggregator, satellite-tasks, fni-calc.
 
 use aes::Aes256;
 use cipher::{generic_array::GenericArray, KeyIvInit, StreamCipher};
