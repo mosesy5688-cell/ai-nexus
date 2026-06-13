@@ -14,8 +14,17 @@
  * `null`. This guard locks the doc to the runtime: the six stats fields must be
  * `nullable` (3.0.3 style) while still typed `integer`. A regression that
  * reintroduces a non-nullable promise — re-breaking the honest contract — fails
- * here. Scope is exactly the Founder-fixed six fields; CompareResponse is out of
- * scope and intentionally not asserted.
+ * here. Scope is exactly the Founder-fixed six fields.
+ *
+ * HONEST-CONTRACT-SYNC (G-03/G-04): two further doc⇄runtime gaps are locked here.
+ *  - G-04: compare.ts emits `fni_factors.semantic: null` (V27 honesty sweep —
+ *    fni_s is a query-time baseline, not a per-entity measurement). The OpenAPI
+ *    CompareResponse promised a bare non-nullable `number`, so a strict client
+ *    would reject the runtime null. The resolved-entity branch's semantic must be
+ *    `nullable` while still typed `number`.
+ *  - G-03: the real free-tier search cap is `FREE_TIER_MAX = 20`
+ *    (src/pages/api/v1/search.ts), not 5. The OpenAPI `limit` param maximum must
+ *    match the runtime so the contract does not under-promise the cap.
  */
 import { describe, it, expect } from 'vitest';
 import { createRequire } from 'module';
@@ -51,4 +60,27 @@ describe('HK-1: OpenAPI stats fields match honest-contract runtime nullability',
             expect(prop.nullable).toBe(true);
         });
     }
+});
+
+describe('HONEST-CONTRACT-SYNC: OpenAPI ⇄ runtime contract consistency (G-03/G-04)', () => {
+    it('G-04: CompareResponse resolved fni_factors.semantic is nullable number (matches compare.ts null emission)', () => {
+        const resolved = schema.components.schemas.CompareResponse
+            .properties.entities.items.oneOf[0];
+        const semantic = resolved.properties.fni_factors.properties.semantic;
+        expect(semantic).toBeDefined();
+        // honest-contract: query-time baseline surfaces as `null`, not a measured number.
+        expect(semantic.type).toBe('number');
+        expect(semantic.nullable).toBe(true);
+    });
+
+    it('G-03: search `limit` param maximum matches runtime FREE_TIER_MAX (20)', () => {
+        const limitParam = schema.paths['/api/v1/search'].get.parameters
+            .find((p: any) => p.name === 'limit');
+        expect(limitParam).toBeDefined();
+        // src/pages/api/v1/search.ts: FREE_TIER_MAX = 20.
+        expect(limitParam.schema.maximum).toBe(20);
+        expect(limitParam.schema.minimum).toBe(1);
+        // default stays 5 (search.ts: parseInt(... || '5')).
+        expect(limitParam.schema.default).toBe(5);
+    });
 });

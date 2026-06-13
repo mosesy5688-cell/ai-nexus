@@ -18,7 +18,7 @@ that need to consume Free2AItools data programmatically.
 
 ## Primary API surface
 
-All endpoints return JSON unless noted. CORS open. Free tier hard-cap: 5 results
+All endpoints return JSON unless noted. CORS open. Free tier hard-cap: 20 results
 per search; auth/paid tiers (TBD) raise the cap.
 
 ### Discovery
@@ -42,7 +42,7 @@ per search; auth/paid tiers (TBD) raise the cap.
   - `type` accepts canonical values (`model`, `paper`, `tool`, `dataset`,
     `benchmark`) AND common id-prefix aliases (`hf-model`, `arxiv-paper`,
     `gh-model`, `replicate-model`, etc.) — both resolve to the canonical type
-  - `limit` clamped to 1-5 for free tier
+  - `limit` clamped to 1-20 for free tier
   - Response includes FNI score breakdown (semantic / authority / popularity /
     recency / quality) per result
 

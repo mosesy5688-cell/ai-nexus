@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 5 results. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 20 results. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
         "tags": ["Search"],
         "parameters": [
           {
@@ -111,8 +111,8 @@
           {
             "name": "limit",
             "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 5, "default": 5 },
-            "description": "Max results (free tier capped at 5)"
+            "schema": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 },
+            "description": "Max results (free tier capped at 20)"
           }
         ],
         "responses": {
@@ -499,7 +499,7 @@
                     "fni_factors": {
                       "type": "object",
                       "properties": {
-                        "semantic": { "type": "number" },
+                        "semantic": { "type": "number", "nullable": true },
                         "authority": { "type": "number" },
                         "popularity": { "type": "number" },
                         "recency": { "type": "number" },
