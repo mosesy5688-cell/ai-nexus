@@ -81,7 +81,7 @@ if (tool) {
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 }
-// tool=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
+// tool=null → EntityLayout renders factual "Entity Not Found" fallback (body for humans)
 
 const toolName = tool?.name || 'Unknown Tool';
 const entityId = tool?.id || slugStr;

@@ -83,7 +83,7 @@ if (dataset) {
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 }
-// dataset=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
+// dataset=null → EntityLayout renders factual "Entity Not Found" fallback (body for humans)
 
 const datasetName = dataset?.name || 'Unknown Dataset';
 const entityId = model?.id || slugStr;
