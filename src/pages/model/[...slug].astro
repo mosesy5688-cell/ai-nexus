@@ -89,7 +89,7 @@ if (model) {
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 }
-// model=null → EntityLayout renders "Entity Being Indexed" fallback (body for humans)
+// model=null → EntityLayout renders factual "Entity Not Found" fallback (body for humans)
 
 // Capability Gating
 const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);

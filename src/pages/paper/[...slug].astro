@@ -81,7 +81,7 @@ if (paper) {
   Astro.response.headers.set('Cache-Control', 'no-store');
 } else {
   // Genuinely dead URL: real 404 so Googlebot stops indexing it, while
-  // EntityLayout still renders the "Entity Being Indexed" body for humans.
+  // EntityLayout still renders the factual "Entity Not Found" body for humans.
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 }
