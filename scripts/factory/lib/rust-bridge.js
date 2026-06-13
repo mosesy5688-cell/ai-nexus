@@ -1,7 +1,7 @@
 // V26.5 Rust FFI Bridge — Loads .node N-API binaries; falls back to JS.
 import { createRequire } from 'module'; import { setIvfPqModule } from './ivf-pq-bridge.js'; // ivf-pq wrappers live in ivf-pq-bridge.js (rust-bridge.js at CES 250-line ceiling)
 const require = createRequire(import.meta.url);
-let _shardRouter = null, _fniCalc = null, _meshEngine = null, _contentExtractor = null, _streamAggregator = null, _satelliteTasks = null, _markdownRenderer = null, _mode = 'js';
+let _shardRouter = null, _fniCalc = null, _contentExtractor = null, _streamAggregator = null, _satelliteTasks = null, _markdownRenderer = null, _mode = 'js';
 
 function tryLoadNative(name) {
     try {
@@ -16,12 +16,12 @@ function tryLoadNative(name) {
 export function initRustBridge() {
     const loaded = [];
 
-    for (const [name, setter] of [['shard-router', v => _shardRouter = v], ['fni-calc', v => _fniCalc = v], ['mesh-engine', v => _meshEngine = v], ['content-extractor', v => _contentExtractor = v], ['stream-aggregator', v => _streamAggregator = v], ['satellite-tasks', v => _satelliteTasks = v], ['markdown-renderer', v => _markdownRenderer = v], ['ivf-pq', v => setIvfPqModule(v)]]) {
+    for (const [name, setter] of [['shard-router', v => _shardRouter = v], ['fni-calc', v => _fniCalc = v], ['content-extractor', v => _contentExtractor = v], ['stream-aggregator', v => _streamAggregator = v], ['satellite-tasks', v => _satelliteTasks = v], ['markdown-renderer', v => _markdownRenderer = v], ['ivf-pq', v => setIvfPqModule(v)]]) {
         const mod = tryLoadNative(`${name}-rust`);
         if (mod) { setter(mod); loaded.push(name); }
     }
 
-    const expected = ['shard-router', 'fni-calc', 'mesh-engine', 'content-extractor', 'stream-aggregator', 'satellite-tasks', 'markdown-renderer', 'ivf-pq'];
+    const expected = ['shard-router', 'fni-calc', 'content-extractor', 'stream-aggregator', 'satellite-tasks', 'markdown-renderer', 'ivf-pq'];
     const missing = expected.filter(n => !loaded.includes(n));
     _mode = loaded.length > 0 ? 'rust' : 'js';
     console.log(`[RUST-BRIDGE] Mode: ${_mode} | Loaded: ${loaded.length > 0 ? loaded.join(', ') : 'none (JS fallback)'}`);
@@ -81,13 +81,6 @@ export function calculateFniFFI(entity, options = {}) {
         return { score, rawPop: r.rawPop, metrics: { s: r.s, a: r.a, p: r.p, r: r.r, q: r.q } };
     }
     return calculateFNI(entity, options);
-}
-
-/** Compute hub scores via Rust mesh engine. */
-export function computeHubScoresFFI(edges, nodes) {
-    if (_meshEngine) return _meshEngine.computeHubScores(Buffer.from(JSON.stringify(edges)), Buffer.from(JSON.stringify(nodes)));
-    const { calculateHubScore } = require('./hub-scorer.js');
-    return nodes.map(n => ({ id: n.id, hub_score: calculateHubScore(n, { inDegree: 0, outDegree: 0 }), pagerank: 0, in_degree: 0, out_degree: 0, weighted_citations: 0 }));
 }
 
 /** Extract content from ar5iv HTML and classify (4-bucket). */

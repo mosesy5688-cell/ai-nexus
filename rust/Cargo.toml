@@ -4,7 +4,6 @@ members = [
     "nxvf-core",
     "shard-router",
     "fni-calc",
-    "mesh-engine",
     "content-extractor",
     "stream-aggregator",
     "satellite-tasks",
