@@ -11,6 +11,7 @@ import { GET as entityHandler } from './v1/entity/[...id].js';
 import { callEntity, buildExplainResult } from '../../lib/mcp-explain.js';
 import { callCompare, buildCompareResult } from '../../lib/mcp-compare.js';
 import { callSearchStatus, buildSearchResult } from '../../lib/mcp-search.js';
+import { callSelectStatus, buildSelectResult } from '../../lib/mcp-select.js';
 
 const SERVER_INFO = { name: 'free2aitools', version: '2.0.0' };
 
@@ -144,11 +145,19 @@ async function handleToolCall(context: any, toolName: string, args: any) {
             return buildExplainResult(args.id, res);
         }
         case 'free2aitools_select_model': {
-            const selectBody = JSON.stringify({ task: args.task, constraints: args.constraints, limit: args.limit, explain: args.explain });
-            const fakeReq = new Request(context.url.href, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: selectBody });
-            const res = await selectHandler({ ...context, request: fakeReq });
-            const data = await res.json();
-            return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+            // G-05: callSelectStatus preserves the HTTP status so a transient 503
+            // (rankings DB not yet available / pre-pipeline cold path) propagates
+            // as an isError + retry hint instead of being laundered into a normal
+            // successful tool result. The 200 success body is passed through
+            // byte-for-byte unchanged. See mcp-select.ts. No capability added —
+            // transport-status mapping only; the negative-contract boundary
+            // (no selection/verdict/recommendation) is untouched.
+            const res = await callSelectStatus(
+                context,
+                { task: args.task, constraints: args.constraints, limit: args.limit, explain: args.explain },
+                (ctx: any) => selectHandler(ctx),
+            );
+            return buildSelectResult(res);
         }
         case 'free2aitools_compare': {
             // B7: callCompare preserves the HTTP status so a transient/budget 503
