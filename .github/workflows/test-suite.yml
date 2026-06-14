@@ -22,7 +22,15 @@ jobs:
       - name: C4 Anti-Arbitration Static Gate
         run: node scripts/check-c4-anti-arbitration.mjs
 
-  # L2: Unit Logic (Vitest)
+  # L2: Unit Logic (Vitest) — this job IS the SRS-1 Tier-1 BLOCKING invariant gate.
+  #
+  # SRS-1 (the hermetic, deterministic invariant suite — central registry at
+  # tests/srs1/INVARIANT_REGISTRY.md) runs here: vitest.config.ts collects
+  # **/*.{test,spec}.ts, so both the reused per-fix regressions (tests/unit/*)
+  # and the new SRS-1 invariants (tests/srs1/*) execute in this required job.
+  # A red SRS-1 assertion fails `unit-test` and blocks the merge. Do NOT narrow
+  # the vitest scope to exclude tests/srs1/ — it would silently drop the Tier-1
+  # gate. (SRS-2A is Tier-2 / informational / non-blocking, in its own workflow.)
   unit-test:
     runs-on: ubuntu-latest
     needs: iron-gates
@@ -35,5 +43,5 @@ jobs:
       - name: Install Dependencies (Root)
         run: npm ci
 
-      - name: Run Vitest (Root)
+      - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
         run: npx vitest run --coverage
