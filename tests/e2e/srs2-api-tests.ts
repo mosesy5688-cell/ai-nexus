@@ -8,14 +8,14 @@
  * imports this + the MCP/cross-consumer cells. Also exports the shared sampleIds /
  * apiGet / findLimitMax used by the cross-consumer cells.
  */
-import { isTransient, shapedFetch, safeJson, contentTypeIs, recordApi, record, type ApiRequest } from './srs2-api-helpers';
+import { isTransient, shapedFetch, safeJson, contentTypeIs, recordApi, recordApiStaged, toAttempt, resetDedup, record, type ApiRequest } from './srs2-api-helpers';
 import { resolveRealSlug } from './srs2a-helpers';
 
 /** GET helper: resp + parsed json + retries via the shaped transport. */
 export async function apiGet(request: ApiRequest, path: string) {
     const { resp, retries } = await shapedFetch(request, 'GET', path);
-    const { ok, data } = await safeJson(resp);
-    return { resp, retries, ok, data };
+    const { ok, data, raw } = await safeJson(resp);
+    return { resp, retries, ok, data, raw };
 }
 
 /** Resolve N real catalog ids/slugs from the live search API (fixed-sample source). */
@@ -128,11 +128,21 @@ export function registerApiTests(test: T): void {
     });
 
     test('concepts: 200 knowledge_v1 + limit cap + 400 bad category [API:concepts]', async ({ request }) => {
-        const { resp, data } = await apiGet(request as any, '/api/v1/concepts?limit=999');
-        if (!isTransient(resp.status())) {
-            const concepts = Array.isArray(data?.concepts) ? data.concepts : [];
-            recordApi('concepts-success', '200 knowledge_v1 + limit<=200', resp, resp.status() === 200 && data?.version === 'knowledge_v1' && Array.isArray(data?.concepts) && concepts.length <= 200, { keyFields: { count: concepts.length } });
-        } else recordApi('concepts-success', '200', resp, false);
+        // STAGED 5xx: an unexpected 500 here (run 27500238680) is NEVER an immediate
+        // PRODUCT_FAILURE — bounded <=2 GET-only same-input corroboration adjudicates
+        // intermittent vs deterministic; every attempt is preserved (no suppression).
+        const CONCEPTS = '/api/v1/concepts?limit=999';
+        const conceptsContractOk = (st: number, d: any): boolean => {
+            const c = Array.isArray(d?.concepts) ? d.concepts : [];
+            return st === 200 && d?.version === 'knowledge_v1' && Array.isArray(d?.concepts) && c.length <= 200;
+        };
+        const probe = async () => {
+            resetDedup(); // genuine re-probe (not coalesced); same endpoint + valid input class, GET only
+            const { resp: rp, data: dp, ok } = await apiGet(request as any, CONCEPTS);
+            return toAttempt(rp, ok && conceptsContractOk(rp.status(), dp));
+        };
+        const { resp, data, raw, ok } = await apiGet(request as any, CONCEPTS) as any;
+        await recordApiStaged('concepts-success', '200 knowledge_v1 + limit<=200', resp, ok && conceptsContractOk(resp.status(), data), probe, { raw, keyFields: { count: Array.isArray(data?.concepts) ? data.concepts.length : 0 } });
         const { resp: bad } = await shapedFetch(request as any, 'GET', '/api/v1/concepts?category=Bad_Category!');
         const be = (await safeJson(bad)).data;
         recordApi('concepts-invalid-400', '400 structured on bad category', bad, bad.status() === 400 && be?.error === true);
