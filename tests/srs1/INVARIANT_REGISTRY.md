@@ -56,6 +56,7 @@ proof in the PR body).
 | P-06 | `vfs-metadata` route file ABSENT (no public 501 stub); provider util kept | `tests/unit/vfs-metadata-route-removed.test.ts` | STRUCT | **REUSED** |
 | P-07 | 4 diag routes (`diag`/`db-diag`/`bundle-diag`/`vfs-debug`) ABSENT (never re-public) | `tests/unit/diag-endpoint-public-denial.test.ts` | STRUCT | **REUSED** |
 | P-08 | `/api/v1/health` route + OpenAPI consistent (NO_GAP) | `tests/srs1/openapi-route-parity.test.ts` | STRUCT + CONFIG | **NEW** |
+| P-09 | redirect authority is astro.config/SSR not dead `_redirects` | `tests/srs1/redirect-authority.test.ts` | CONFIG + STRUCT | **NEW** |
 
 ## Registry — MCP / OpenAPI / negative-contract / retired (cross-cutting)
 
@@ -72,12 +73,16 @@ proof in the PR body).
 
 ---
 
-## EXCLUDED (intentional)
+## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
-- **P-09 redirect-authority end-state** is **intentionally excluded** here. It
-  changes during the P-09 cleanup PR. PM owns merge order: **P-09 -> SRS-1**.
-  The P-09 redirect-authority invariant is added during the post-P-09 **rebase**,
-  not in this PR. Do NOT assert the redirect-authority end-state in SRS-1 yet.
+- **P-09 redirect-authority end-state** was intentionally deferred out of the
+  initial SRS-1 PR because it changed during the P-09 cleanup PR (merged to main
+  as `e2f46911`). PM merge order **P-09 -> SRS-1** was honored: SRS-1 was rebased
+  onto post-P-09 main and the redirect-authority invariant
+  (`tests/srs1/redirect-authority.test.ts`, row P-09 above) added then. It pins
+  the *authority shape* (adapter `redirects:` map + SSR pages are live; the dead
+  `public/_redirects` FILE is deleted), complementing the per-fix regression guard
+  `tests/unit/redirect-authority-cleanup.test.ts` (logic not duplicated).
 
 ## Reused vs newly added — summary
 
@@ -85,9 +90,9 @@ proof in the PR body).
   G-05, G-06, G-07, G-08, P-01, P-02, P-03, P-04, P-05, P-06, P-07 (their
   per-fix tests under `tests/unit/` remain the source of truth; SRS-1 points at
   them and, where useful, adds a thin cross-tier re-lock).
-- **NEW hermetic tests added (gaps not previously covered): 8 invariants** — P-08,
-  MCP-SET, NEG-MCP, NEG-RANK, NEG-DOCS, OAS-PARITY, OAS-CAPS, RETIRE-SITEMAP,
-  RETIRE-410 — in 4 files under `tests/srs1/`.
+- **NEW hermetic tests added (gaps not previously covered): 9 invariants** — P-08,
+  P-09, MCP-SET, NEG-MCP, NEG-RANK, NEG-DOCS, OAS-PARITY, OAS-CAPS, RETIRE-SITEMAP,
+  RETIRE-410 — in 5 files under `tests/srs1/`.
 
 ## How SRS-1 is wired as the blocking gate
 
