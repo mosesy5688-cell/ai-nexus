@@ -54,9 +54,12 @@ const INTERNAL_MARKERS = [
 ];
 
 // Normal public API routes that MUST remain reachable (unchanged by P-07).
+// NOTE: src/pages/api/vfs-metadata.ts was REMOVED by P-06 (a dead 501 stub
+// route with zero consumers — not part of the public contract). Its
+// route-absence invariant now lives in vfs-metadata-route-removed.test.ts;
+// it is intentionally NOT listed here.
 const PRESERVED_ROUTES = [
     'src/pages/api/search.ts',
-    'src/pages/api/vfs-metadata.ts',
     'src/pages/api/v1/search.ts',
 ];
 
@@ -92,7 +95,7 @@ describe('diagnostic endpoint public-denial invariant (P-07)', () => {
     });
 
     // Test 5: normal public API routes remain present (no collateral removal).
-    it('normal public API routes (search / entity / vfs-metadata) remain present', () => {
+    it('normal public API routes (search / entity) remain present', () => {
         for (const route of PRESERVED_ROUTES) {
             expect(existsSync(abs(route)), `${route} must remain a live route`).toBe(true);
         }
