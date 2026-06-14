@@ -152,6 +152,10 @@ export interface RunArtifact {
         transient_warnings: number;
         inconclusive_transient: number;
         skipped_or_na: number;
+        /** SRS2-HARNESS-2 provenance counters (preserved, never erased). */
+        severe_events: number;
+        correlated_network_failures: number;
+        uncorrelated_network_failures: number;
     };
     /** True only when there are zero inconclusive-transient cells. */
     clean_stabilization_run: boolean;
@@ -165,15 +169,27 @@ export function record(rec: Omit<ProvenanceRecord, 'pass'> & { pass?: boolean })
 }
 
 function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
-    const s = { passed: 0, product_failures: 0, harness_failures: 0, transient_warnings: 0, inconclusive_transient: 0, skipped_or_na: 0 };
+    const s = {
+        passed: 0, product_failures: 0, harness_failures: 0, transient_warnings: 0,
+        inconclusive_transient: 0, skipped_or_na: 0,
+        severe_events: 0, correlated_network_failures: 0, uncorrelated_network_failures: 0,
+    };
     for (const r of recs) {
         if (r.state === 'PASS') s.passed += 1;
         else if (r.state === 'PRODUCT_FAILURE') s.product_failures += 1;
         else if (r.state === 'HARNESS_FAILURE') s.harness_failures += 1;
         else if (r.state === 'INCONCLUSIVE_TRANSIENT') s.inconclusive_transient += 1;
         else if (r.state === 'SKIPPED_NA') s.skipped_or_na += 1;
-        // Count WARNING-severity events as transient warnings (preserved, not erased).
-        s.transient_warnings += (r.events || []).filter((e) => e.severity === 'WARNING').length;
+        for (const e of r.events || []) {
+            // Count WARNING-severity events as transient warnings (preserved, not erased).
+            if (e.severity === 'WARNING') s.transient_warnings += 1;
+            else s.severe_events += 1;
+            // Provenance: bare net::ERR_FAILED that was/was-not recovered to a URL.
+            if (e.kind === 'console' && /net::ERR_/i.test(e.message)) {
+                if (e.correlated) s.correlated_network_failures += 1;
+                else if (e.classification === 'UNKNOWN_UNCORRELATED_NETWORK_FAILURE') s.uncorrelated_network_failures += 1;
+            }
+        }
     }
     return s;
 }
@@ -191,7 +207,12 @@ export async function emitRunArtifact(buildId: string, snapshotId: string): Prom
         region: process.env.SRS2A_REGION || process.env.RUNNER_OS || 'local',
         cold_or_warm: process.env.SRS2A_CACHE_STATE || 'unknown',
         summary,
-        clean_stabilization_run: summary.inconclusive_transient === 0,
+        // Clean only when zero inconclusive-transient cells AND zero SEVERE events
+        // AND no uncorrelatable net::ERR_FAILED (HARNESS_OBSERVABILITY_FAILURE).
+        clean_stabilization_run:
+            summary.inconclusive_transient === 0 &&
+            summary.severe_events === 0 &&
+            summary.uncorrelated_network_failures === 0,
         records,
     };
     // Per-worker filename so parallel workers do not clobber each other's
@@ -210,6 +231,8 @@ export async function emitRunArtifact(buildId: string, snapshotId: string): Prom
         `[SRS-2A] artifact: ${shardOut} | passed=${summary.passed} product=${summary.product_failures} ` +
         `harness=${summary.harness_failures} warn=${summary.transient_warnings} ` +
         `inconclusive=${summary.inconclusive_transient} skip=${summary.skipped_or_na} ` +
+        `severe=${summary.severe_events} net_correlated=${summary.correlated_network_failures} ` +
+        `net_uncorrelated=${summary.uncorrelated_network_failures} ` +
         `clean=${artifact.clean_stabilization_run}`,
     );
 }

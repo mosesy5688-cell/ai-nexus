@@ -17,7 +17,7 @@ import {
     BASE_URL, DETAIL_TYPES, TEST_UA, resolveRealSlug, withTransientRetry,
     discoverBuildId, discoverSnapshotId, emitRunArtifact, record,
 } from './srs2a-helpers';
-import { attachClassifiedCollector, severeSummary, type EventSink } from './srs2a-classifier';
+import { attachClassifiedCollector, severeSummary, type EventSink } from './srs2a-collector';
 
 const FUTURE_COPY = /being indexed|will appear|being aggregated|coming soon|check back/i;
 const isTransient = (s: number) => s === 429 || s === 503;
