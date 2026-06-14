@@ -3,7 +3,7 @@
 
 # V9.0 Route Consolidation
 /explore /models 301
-/leaderboard /ranking 301
+/leaderboard /benchmarks 301
 
 # Legacy vendor prefix removal
 /model/hf/* /model/:splat 301
