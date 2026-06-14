@@ -1,0 +1,95 @@
+# =============================================================================
+# SRS-2 — API / MCP / Cross-Consumer DEPLOYED baseline
+#
+#   STATUS: INFORMATIONAL / NON-BLOCKING.  This workflow is NOT a required PR
+#   gate. It runs POST-DEPLOY against deployed prod (https://free2aitools.com)
+#   to permanentize the API / MCP / cross-consumer R0 evidence (the
+#   API_CONTRACT_MATRIX + MCP_PARITY_MATRIX cells). A failure here NEVER blocks
+#   a merge or a deploy:
+#     - the job is `continue-on-error: true`
+#     - it is a standalone workflow, not referenced by any branch protection
+#     - it does NOT run on `pull_request`, so it cannot become a PR check
+#
+#   A 429/503-interfered run is NOT clean and does NOT close runtime cells, but
+#   it does NOT block this informational tier. Blocking promotion is a SEPARATE
+#   future Founder gate (2 clean runs + scheduled-origin cycle + P-10 resolved).
+#
+#   Founder authorization: "SRS-2 API/MCP/Cross-Consumer Expansion = FINAL
+#   ACTIVE BUILD SLICE / INFORMATIONAL / NON-BLOCKING."
+# =============================================================================
+name: SRS-2 API/MCP Baseline (informational)
+
+on:
+  # Run after the deploy workflow completes (post-deploy verification).
+  workflow_run:
+    workflows: ["Infra Deploy"]
+    types: [completed]
+  # Daily informational sweep so the baseline stays current as data grows.
+  schedule:
+    - cron: "47 6 * * *"
+  # Manual trigger from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target base URL (default https://free2aitools.com)"
+        required: false
+        default: "https://free2aitools.com"
+
+# Read-only against prod; least-privilege token.
+permissions:
+  contents: read
+
+concurrency:
+  group: srs2-api-mcp-baseline
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    name: API/MCP baseline (non-blocking)
+    runs-on: ubuntu-latest
+    # HARNESS: run inside the OFFICIAL Playwright container so Chromium AND its
+    # system dependencies are PRE-INSTALLED (the fetch-based API/MCP cells only
+    # need @playwright/test's request/runner; the container avoids the
+    # `--with-deps` apt-get hang). Tag pinned to the resolved version (1.58.2).
+    container: mcr.microsoft.com/playwright:v1.58.2-jammy
+    timeout-minutes: 20
+    # NON-BLOCKING: a red result is informational and must not fail the run.
+    continue-on-error: true
+    env:
+      BASE_URL: ${{ github.event.inputs.base_url || 'https://free2aitools.com' }}
+      SRS2A_REGION: ${{ vars.SRS2A_REGION || 'gha-ubuntu' }}
+      SRS2A_CACHE_STATE: warm
+    steps:
+      - name: Checkout (harness only)
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium (no --with-deps; deps already in image)
+        run: npx playwright install chromium
+
+      - name: Run SRS-2 API/MCP/cross-consumer baseline (informational)
+        # Double safety net: tolerate non-zero exit so the artifact still uploads
+        # and the workflow stays green regardless of assertion outcomes. A 429/503
+        # INCONCLUSIVE_TRANSIENT run is expected + fine, NOT a blocker.
+        continue-on-error: true
+        run: npx playwright test tests/e2e/srs2-api-mcp-baseline.spec.ts --reporter=line
+
+      - name: Upload provenance run artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: srs2-api-mcp-baseline-${{ github.run_id }}
+          path: |
+            test-results/srs2a-frontend-baseline*.json
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### SRS-2 API/MCP/Cross-Consumer Baseline (informational, non-blocking)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Target: \`$BASE_URL\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "This run does NOT gate any PR or deploy. 429/503 -> INCONCLUSIVE_TRANSIENT (cells stay UNCLOSED). See artifact for the provenance freeze." >> "$GITHUB_STEP_SUMMARY"
