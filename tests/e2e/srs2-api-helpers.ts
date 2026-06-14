@@ -18,6 +18,7 @@
  */
 import { BASE_URL, TEST_UA, record, withTransientRetry, type CellState } from './srs2a-helpers';
 import { paceNavigation } from './srs2a-critical-transient';
+import { corroborate5xx, successAttempt, type AttemptObservation, type Staged5xxProbe } from './srs2-staged-5xx';
 
 export { BASE_URL, TEST_UA, record };
 
@@ -118,4 +119,43 @@ export function recordApi(
         keyFields: { status, contentType: h['content-type'], cacheControl: h['cache-control'], retryAfter: h['retry-after'], ...extra.keyFields },
     });
     return state;
+}
+
+/** Map a probed response to an AttemptObservation (status + 2xx contract verdict +
+ *  retained body metadata; metadata is NEVER suppressed). `shapeOk` is the caller's
+ *  contract verdict for a 2xx body. */
+export function toAttempt(resp: ApiResp, shapeOk: boolean, raw?: string): AttemptObservation {
+    const s = resp.status();
+    const meta = { contentType: resp.headers()['content-type'], bodyLen: raw?.length };
+    return s >= 200 && s < 300 ? successAttempt(s, shapeOk, meta) : { status: s, bodyMeta: meta };
+}
+
+/**
+ * STAGED record for an EXPECTED-SUCCESS API cell. The original attempt is observed;
+ * on a clean 2xx-with-valid-contract it is a normal PASS (no extra probes). On an
+ * UNEXPECTED 5xx it is NEVER immediately PASS, transient, or final PRODUCT_FAILURE —
+ * the harness runs the bounded (<=2) GET-only corroboration via `probe` and adjudicates
+ * per A/B/D/E. A malformed/schema-violating 2xx is a deterministic contract failure
+ * (PRODUCT_FAILURE, stage D). 429/503 stays INCONCLUSIVE_TRANSIENT (inherited). Every
+ * attempt's status/body metadata is preserved in the record.
+ */
+export async function recordApiStaged(
+    assertion: string, expected: string, original: ApiResp, shapeOk: boolean,
+    probe: Staged5xxProbe, extra: { retries?: number; raw?: string; keyFields?: Record<string, unknown> } = {},
+): Promise<CellState> {
+    const s0 = original.status();
+    if (isTransient(s0)) return recordApi(assertion, expected, original, false, extra);
+    const originalAttempt = toAttempt(original, shapeOk, extra.raw);
+    // Clean 2xx success with a valid contract -> normal PASS (no extra probes).
+    if (s0 >= 200 && s0 < 300 && shapeOk) {
+        return recordApi(assertion, expected, original, true, extra);
+    }
+    // Malformed 2xx OR unexpected 5xx -> staged adjudication (5xx triggers live <=2 probes).
+    const verdict = await corroborate5xx(originalAttempt, probe);
+    record({
+        assertion, expected, actual: `${verdict.classification} :: ${verdict.reason}`, state: verdict.cellState,
+        retries: extra.retries,
+        keyFields: { event: verdict.classification, productFailure: verdict.productFailure, attempts: verdict.attempts, ...extra.keyFields },
+    });
+    return verdict.cellState;
 }

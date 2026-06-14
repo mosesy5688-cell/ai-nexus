@@ -2,10 +2,10 @@
  * SRS-2A Frontend Baseline — shared helpers. Persistent harness against DEPLOYED
  * PROD (default https://free2aitools.com, override via BASE_URL). Read-only,
  * informational/non-blocking baseline closing the Frontend Matrix PENDING_RUNTIME
- * browser cells. Holds: base-url + real-id resolution via the public search API, a
+ * browser cells. Holds base-url + real-id resolution via the public search API, a
  * descriptive test UA, a bounded transient retry (<=2, Retry-After aware), and a
  * per-run PROVENANCE FREEZE artifact writer with SEPARATE outcome counts. The
- * classifier lives in ./srs2a-classifier to honor the 250-line CES floor.
+ * classifier lives in ./srs2a-classifier (SRS-2 staged 5xx in ./srs2-staged-5xx).
  */
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -48,11 +48,9 @@ export async function resolveRealSlug(
     return null;
 }
 
-/**
- * Bounded retry for an EXPLICITLY-classified transient (429 / 503 / network).
- * MAX 2 retries; respects Retry-After (capped); NO infinite retry; NO retry for
- * deterministic contract failures. `isTransient` decides whether to retry.
- */
+/** Bounded retry for an EXPLICITLY-classified transient (429 / 503 / network). MAX
+ *  2 retries; respects Retry-After (capped); NO infinite retry; NO retry for
+ *  deterministic contract failures. `isTransient` decides whether to retry. */
 export async function withTransientRetry<T extends { status(): number; headers(): Record<string, string> }>(
     fn: () => Promise<T>,
     isTransient: (status: number) => boolean,
@@ -76,10 +74,9 @@ function repoSha(): string {
     catch { return process.env.GITHUB_SHA || 'unknown'; }
 }
 
+type HeaderGetter = { get: (url: string, opts?: any) => Promise<{ headers(): Record<string, string> }> };
 /** Discover the deployed build id from a served response header, if exposed. */
-export async function discoverBuildId(
-    request: { get: (url: string, opts?: any) => Promise<{ headers(): Record<string, string> }> },
-): Promise<string> {
+export async function discoverBuildId(request: HeaderGetter): Promise<string> {
     try {
         const resp = await request.get(`${BASE_URL}/`, { headers: { 'user-agent': TEST_UA } });
         const h = resp.headers();
@@ -88,20 +85,20 @@ export async function discoverBuildId(
 }
 
 /** Observe a data-snapshot id from the search API manifest etag, if present. */
-export async function discoverSnapshotId(
-    request: { get: (url: string, opts?: any) => Promise<{ headers(): Record<string, string> }> },
-): Promise<string> {
+export async function discoverSnapshotId(request: HeaderGetter): Promise<string> {
     try {
         const resp = await request.get(`${BASE_URL}/api/v1/search?q=llama&limit=1`, { headers: { 'user-agent': TEST_UA } });
         return resp.headers()['etag'] || 'unobservable';
     } catch { return 'unobservable'; }
 }
 
-/**
- * Final per-cell assertion state. A cell is a clean PASS only when its contract
- * held. INCONCLUSIVE_TRANSIENT is NOT a pass and does NOT close a Matrix cell.
- */
-export type CellState = 'PASS' | 'PRODUCT_FAILURE' | 'HARNESS_FAILURE' | 'INCONCLUSIVE_TRANSIENT' | 'SKIPPED_NA';
+/** Final per-cell assertion state. A clean PASS only when the contract held;
+ *  INCONCLUSIVE_TRANSIENT is NOT a pass and does NOT close a cell. The SRS-2 staged
+ *  5xx states (unexpected 5xx on an expected-success API endpoint; NEVER a silent
+ *  PASS/transient/immediate PRODUCT_FAILURE — see ./srs2-staged-5xx for A/B/D/E)
+ *  extend the base vocabulary. */
+export type CellState = 'PASS' | 'PRODUCT_FAILURE' | 'HARNESS_FAILURE' | 'INCONCLUSIVE_TRANSIENT'
+    | 'SKIPPED_NA' | 'INCONCLUSIVE_INTERMITTENT_5XX' | 'REPRODUCIBLE_SERVER_FAILURE_CANDIDATE' | 'INCONCLUSIVE_MIXED_TRANSIENT';
 
 export interface ProvenanceRecord {
     assertion: string;
@@ -110,10 +107,8 @@ export interface ProvenanceRecord {
     state: CellState;
     keyFields?: Record<string, unknown>;
     retries?: number;
-    /** Every captured+classified browser event for this cell (never erased). */
-    events?: BrowserEvent[];
-    /** Convenience: PASS iff state === 'PASS'. */
-    pass: boolean;
+    events?: BrowserEvent[]; // every captured+classified browser event (never erased)
+    pass: boolean; // convenience: PASS iff state === 'PASS'
 }
 
 export interface RunArtifact {
@@ -125,8 +120,7 @@ export interface RunArtifact {
     utc_time: string;
     region: string;
     cold_or_warm: string;
-    /** SEPARATE outcome counts (Founder-exact summary). */
-    summary: {
+    summary: { // SEPARATE outcome counts (Founder-exact summary)
         passed: number;
         product_failures: number;
         harness_failures: number;
@@ -137,21 +131,24 @@ export interface RunArtifact {
         severe_events: number;
         correlated_network_failures: number;
         uncorrelated_network_failures: number;
-        /** HARNESS-5: critical_transients = CRITICAL_TRANSIENT_UNAVAILABILITY
-         *  (same-origin critical 429/503; NOT a product_failure; >0 => clean=false).
-         *  severe_unknown = UNKNOWN_ERROR + UNKNOWN_UNCORRELATED. noncritical_warnings
-         *  = NONCRITICAL_NETWORK_WARNING. inconclusive_assertions = INCONCLUSIVE cells. */
+        /** H5: critical_transients = CRITICAL_TRANSIENT_UNAVAILABILITY (same-origin
+         *  critical 429/503; NOT product_failure; >0 => clean=false). severe_unknown =
+         *  UNKNOWN_ERROR + UNKNOWN_UNCORRELATED; noncritical_warnings = NONCRITICAL_
+         *  NETWORK_WARNING; inconclusive_assertions = INCONCLUSIVE cells. */
         critical_transients: number;
         severe_unknown: number;
         noncritical_warnings: number;
         inconclusive_assertions: number;
-        /** HARNESS-4 dedup: one RUM request -> one requestfailed + one CORS console;
-         *  raw_events counts BOTH, root_network_failures counts the request ONCE. */
+        /** H4 dedup: RUM request -> requestfailed + CORS console; raw_events counts
+         *  BOTH, root_network_failures counts the request ONCE. */
         raw_events: number;
         root_network_failures: number;
+        /** SRS-2 staged 5xx (every attempt preserved; clean=false, none auto product_failure; see ./srs2-staged-5xx). */
+        intermittent_5xx: number;
+        reproducible_server_failure_candidates: number;
+        mixed_transient_5xx: number;
     };
-    /** True only with zero inconclusive cells + zero critical-transients (H5). */
-    clean_stabilization_run: boolean;
+    clean_stabilization_run: boolean; // true only: zero inconclusive cells + zero critical-transients (H5)
     records: ProvenanceRecord[];
 }
 
@@ -164,10 +161,10 @@ export function record(rec: Omit<ProvenanceRecord, 'pass'> & { pass?: boolean })
 export function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
     const s = {
         passed: 0, product_failures: 0, harness_failures: 0, transient_warnings: 0,
-        inconclusive_transient: 0, skipped_or_na: 0,
-        severe_events: 0, correlated_network_failures: 0, uncorrelated_network_failures: 0,
-        critical_transients: 0, severe_unknown: 0, noncritical_warnings: 0, inconclusive_assertions: 0,
-        raw_events: 0, root_network_failures: 0,
+        inconclusive_transient: 0, skipped_or_na: 0, severe_events: 0,
+        correlated_network_failures: 0, uncorrelated_network_failures: 0, critical_transients: 0,
+        severe_unknown: 0, noncritical_warnings: 0, inconclusive_assertions: 0, raw_events: 0,
+        root_network_failures: 0, intermittent_5xx: 0, reproducible_server_failure_candidates: 0, mixed_transient_5xx: 0,
     };
     const rootUrls = new Set<string>();
     for (const r of recs) {
@@ -175,22 +172,22 @@ export function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
         else if (r.state === 'PRODUCT_FAILURE') s.product_failures += 1;
         else if (r.state === 'HARNESS_FAILURE') s.harness_failures += 1;
         else if (r.state === 'INCONCLUSIVE_TRANSIENT') s.inconclusive_transient += 1;
+        else if (r.state === 'INCONCLUSIVE_INTERMITTENT_5XX') s.intermittent_5xx += 1;
+        else if (r.state === 'REPRODUCIBLE_SERVER_FAILURE_CANDIDATE') s.reproducible_server_failure_candidates += 1;
+        else if (r.state === 'INCONCLUSIVE_MIXED_TRANSIENT') s.mixed_transient_5xx += 1;
         else if (r.state === 'SKIPPED_NA') s.skipped_or_na += 1;
         for (const e of r.events || []) {
             if (e.severity === 'WARNING') s.transient_warnings += 1; // WARNING events preserved
             else s.severe_events += 1;
-            // HARNESS-5 classification-keyed counters (never erased). A CRITICAL_
-            // TRANSIENT is a WARNING that is NOT a product_failure (only clean=false).
+            // H5 classification-keyed counters (never erased; CRITICAL_TRANSIENT is a WARNING, not product_failure, only clean=false).
             if (e.classification === 'CRITICAL_TRANSIENT_UNAVAILABILITY') s.critical_transients += 1;
             else if (e.classification === 'NONCRITICAL_NETWORK_WARNING') s.noncritical_warnings += 1;
             else if (e.classification === 'UNKNOWN_ERROR' || e.classification === 'UNKNOWN_UNCORRELATED_NETWORK_FAILURE') s.severe_unknown += 1;
-            // Provenance: bare net::ERR_FAILED recovered (correlated) or not.
-            if (e.kind === 'console' && /net::ERR_/i.test(e.message)) {
+            if (e.kind === 'console' && /net::ERR_/i.test(e.message)) { // bare net::ERR_ correlated or not
                 if (e.correlated) s.correlated_network_failures += 1;
                 else if (e.classification === 'UNKNOWN_UNCORRELATED_NETWORK_FAILURE') s.uncorrelated_network_failures += 1;
             }
-            // H4 DEDUP: requestfailed + CORS console are BOTH raw events; the
-            // underlying request is counted ONCE by URL (no 2nd root).
+            // H4 DEDUP: requestfailed + CORS console are BOTH raw events; underlying request counted ONCE by URL.
             const isCorsConsole = e.kind === 'console' && e.resourceType === 'cors-console';
             const isNetwork = e.kind === 'requestfailed' || e.kind === 'badresponse' || isCorsConsole
                 || (e.kind === 'console' && /net::ERR_/i.test(e.message));
@@ -201,15 +198,17 @@ export function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
         }
     }
     s.root_network_failures = rootUrls.size;
-    s.inconclusive_assertions = s.inconclusive_transient; // page cells never closed to PASS
+    // UNCLOSED cells: page transients + every staged-5xx cell (none closed to PASS).
+    s.inconclusive_assertions = s.inconclusive_transient + s.intermittent_5xx
+        + s.reproducible_server_failure_candidates + s.mixed_transient_5xx;
     return s;
 }
 
-// OBSERVATION (HARNESS-3/4/5, not a product/observability finding): the CF RUM
-// beacon (POST cloudflareinsights.com/cdn-cgi/rum) may be CORS-blocked in CI
-// (net::ERR_FAILED + CORS console = one noncritical root warning); a CI-egress 429
-// BURST may transiently rate-limit a SAME-ORIGIN CRITICAL asset -> CRITICAL_
-// TRANSIENT_UNAVAILABILITY (transient, NOT a defect; page evidence INVALID).
+// OBSERVATION (HARNESS-3/4/5, not a product finding): the CF RUM beacon (POST
+// cloudflareinsights.com/cdn-cgi/rum) may be CORS-blocked in CI (net::ERR_FAILED +
+// CORS console = one noncritical root warning); a CI-egress 429 BURST may
+// transiently rate-limit a SAME-ORIGIN CRITICAL asset -> CRITICAL_TRANSIENT_
+// UNAVAILABILITY (transient, NOT a defect; page evidence INVALID).
 /** Emit the structured JSON run artifact (PROVENANCE FREEZE) at end of run. */
 export async function emitRunArtifact(buildId: string, snapshotId: string): Promise<void> {
     const summary = summarize(records);
@@ -224,14 +223,16 @@ export async function emitRunArtifact(buildId: string, snapshotId: string): Prom
         cold_or_warm: process.env.SRS2A_CACHE_STATE || 'unknown',
         summary,
         // Clean only with zero inconclusive cells, zero SEVERE events, no
-        // uncorrelatable net::ERR_FAILED, AND zero HARNESS-5 critical-transients
-        // (a same-origin critical 429/503 invalidates this run's evidence — NOT a
-        // clean run, though NOT a product_failure either).
+        // uncorrelatable net::ERR_FAILED, AND zero H5 critical-transients.
         clean_stabilization_run:
             summary.inconclusive_transient === 0 &&
             summary.severe_events === 0 &&
             summary.uncorrelated_network_failures === 0 &&
-            summary.critical_transients === 0,
+            summary.critical_transients === 0 &&
+            // staged-5xx observations are clean=false (none auto product_failure).
+            summary.intermittent_5xx === 0 &&
+            summary.reproducible_server_failure_candidates === 0 &&
+            summary.mixed_transient_5xx === 0,
         records,
     };
     // Per-worker filename (no clobber); worker 0 also writes the canonical name.
