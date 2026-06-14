@@ -17,8 +17,8 @@ export function ensureString(value) {
 }
 
 export function validateImageUrl(url) {
-    if (!url) return '/images/models/default-model.jpg'; // Verify path existence?
-    if (typeof url !== 'string') return '/images/models/default-model.jpg';
+    if (!url) return '/placeholder-model.png'; // tracked fallback asset (public/placeholder-model.png)
+    if (typeof url !== 'string') return '/placeholder-model.png';
     if (url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null) return url;
     return url; // Return as is if no extension but non-empty
 }

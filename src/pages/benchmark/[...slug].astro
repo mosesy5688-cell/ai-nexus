@@ -79,7 +79,7 @@ const entityId = benchmark?.id || slugStr;
 const displayAuthor = benchmark?.leaderboard_source || 'Open LLM Leaderboard v2';
 
 const hasFNI = benchmark?.fni_score !== undefined || benchmark?.fni_percentile !== undefined;
-const placeholderImage = '/images/models/default-model.jpg';
+const placeholderImage = '/placeholder-model.png';
 const coverImage = benchmark?.image_url || placeholderImage;
 
 // honest-contract: render an explicit frozen-snapshot notice when the producer

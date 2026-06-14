@@ -92,7 +92,7 @@ const datasetId = entityId;
 const displayAuthor = dataset?.author || 'Independent / Community';
 
 const hasFNI = dataset?.fni_score !== undefined || dataset?.fni_percentile !== undefined;
-const placeholderImage = '/images/models/default-model.jpg';
+const placeholderImage = '/placeholder-model.png';
 const coverImage = dataset?.image_url || placeholderImage;
 
 const jsonld = dataset ? {

@@ -99,7 +99,7 @@ const hasBenchmarks = hasCapability(model, 'benchmarks');
 const benchBlob = model?.benchmarks || model?.meta_json?.benchmarks;
 const hasBench = toMetricRows(benchBlob).length > 0 || Boolean(model?.mmlu || model?.benchmark_mmlu);
 // SEO: og:image — prefer entity image_url, fall back to Free2AITools default hero.
-const placeholderImage = '/images/models/default-model.jpg';
+const placeholderImage = '/placeholder-model.png';
 const coverImage = model?.image_url || placeholderImage;
 const modelName = model?.name || 'Unknown Model';
 const displayAuthor = model?.author || 'Independent / Community';
