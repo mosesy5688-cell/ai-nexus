@@ -1,0 +1,18 @@
+---
+/**
+ * /leaderboard — 301 Redirect (non-authoritative cache page retired)
+ *
+ * The legacy /leaderboard SSR page read the RETIRED static
+ * /cache/benchmarks.json(.gz) path, masked fetch failure as a loading
+ * placeholder, and fabricated freshness from the current timestamp —
+ * split-truth + non-authoritative cache + fake freshness. It was retired
+ * under the Surface Integrity phase (P-02/P-03).
+ *
+ * In this output:'server' + Cloudflare deployment the SSR worker intercepts
+ * all routes, so public/_redirects FILE rules do NOT fire — only an SSR
+ * redirect page actually redirects. This page is that redirect: a permanent
+ * 301 to /benchmarks (the VFS-backed authoritative catalog). No data fetch,
+ * no cache read, no freshness fabrication, no leaderboard UI.
+ */
+return Astro.redirect('/benchmarks', 301);
+---
