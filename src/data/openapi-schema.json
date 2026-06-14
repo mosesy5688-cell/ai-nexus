@@ -342,6 +342,132 @@
         }
       }
     },
+    "/api/v1/concepts": {
+      "get": {
+        "operationId": "listConcepts",
+        "summary": "List knowledge articles (concepts)",
+        "description": "Layer 0 endpoint. Returns a paginated list of published knowledge articles (concepts) from the anchor knowledge DB, ranked newest-first (published_at DESC, id ASC). Heavy content/highlights columns are excluded from the list payload; per-article detail goes through /api/v1/entity/<id>. Read-only, unauthenticated.",
+        "tags": ["Concepts"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 },
+            "description": "Max articles to return. Clamped to [1, 200]; non-numeric values fall back to 50.",
+            "example": 50
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 0, "default": 0 },
+            "description": "Number of articles to skip for pagination. Floored at 0; non-numeric values fall back to 0.",
+            "example": 0
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,40}$" },
+            "description": "Optional category filter. Must match ^[a-z][a-z0-9-]{0,40}$ (lowercase, starts with a letter, ≤41 chars) or the request is rejected with 400.",
+            "example": "machine-learning"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of published knowledge articles. `next_offset` is null when the final page has been reached; `category` echoes the applied filter (null when none).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConceptsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid category format (did not match ^[a-z][a-z0-9-]{0,40}$). Body is the structured concepts error envelope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConceptsError" }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed to load the knowledge index (upstream/DB error). Body is the structured concepts error envelope with code UPSTREAM_ERROR.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConceptsError" }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "operationId": "conceptsPreflight",
+        "summary": "CORS preflight",
+        "description": "CORS preflight. Returns 204 No Content with the CORS headers (Allow-Methods: GET, OPTIONS).",
+        "tags": ["Concepts"],
+        "responses": {
+          "204": {
+            "description": "No Content — CORS preflight acknowledged."
+          }
+        }
+      }
+    },
+    "/api/v1/trends/batch": {
+      "get": {
+        "operationId": "trendsBatch",
+        "summary": "Batch 7-day FNI trend lookup",
+        "description": "Layer 0 endpoint. Returns the 7-day FNI trend (scores, dates, 7-day change %, direction, and latest score) for up to 25 entities in a single call. Lookup is exact-match by entity id; ids with no trend data are returned in `missing` (never an error). Read-only, unauthenticated.",
+        "tags": ["Trends"],
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Comma-separated entity IDs (1-25). Whitespace is trimmed and empty tokens are dropped before counting.",
+            "example": "meta-llama/Llama-3.1-8B-Instruct,google/gemma-2-27b"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trend entries keyed by entity id. `missing` lists requested ids that had no trend data. When the trend index is unavailable, all requested ids appear in `missing` and `trends` is empty (still 200).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TrendsBatchResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing ids parameter, zero ids after trimming, or more than 25 ids. Body is the simple {error} envelope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error while loading or decoding the trend index. Body is the simple {error} envelope.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "operationId": "trendsBatchPreflight",
+        "summary": "CORS preflight",
+        "description": "CORS preflight. Returns 204 No Content with the CORS headers (Allow-Methods: GET, OPTIONS).",
+        "tags": ["Trends"],
+        "responses": {
+          "204": {
+            "description": "No Content — CORS preflight acknowledged."
+          }
+        }
+      }
+    },
     "/api/mcp": {
       "post": {
         "operationId": "mcpEndpoint",
@@ -728,6 +854,99 @@
             }
           }
         }
+      },
+      "Concept": {
+        "type": "object",
+        "description": "A single knowledge article (concept) list entry. Heavy content/highlights columns are excluded from the list payload.",
+        "properties": {
+          "id": { "type": "string" },
+          "slug": { "type": "string" },
+          "umid": { "type": "string", "nullable": true },
+          "title": { "type": "string" },
+          "subtitle": { "type": "string", "nullable": true },
+          "summary": { "type": "string", "nullable": true },
+          "category": { "type": "string", "nullable": true },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "author": { "type": "string", "nullable": true },
+          "word_count": { "type": "integer", "description": "0 when not recorded." },
+          "published_at": { "type": "string", "nullable": true },
+          "updated_at": { "type": "string", "nullable": true },
+          "canonical_url": { "type": "string", "nullable": true }
+        },
+        "required": ["id", "slug", "title", "tags", "word_count"]
+      },
+      "ConceptsResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "knowledge_v1" },
+          "total_count": { "type": "integer", "description": "Total published articles matching the filter (before pagination)." },
+          "limit": { "type": "integer" },
+          "offset": { "type": "integer" },
+          "next_offset": { "type": "integer", "nullable": true, "description": "Offset for the next page, or null when the final page has been reached." },
+          "category": { "type": "string", "nullable": true, "description": "Echoes the applied category filter; null when none was supplied." },
+          "concepts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Concept" }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "elapsed_ms": { "type": "integer" },
+              "etag": { "type": "string", "nullable": true }
+            }
+          }
+        },
+        "required": ["version", "total_count", "limit", "offset", "next_offset", "category", "concepts", "meta"]
+      },
+      "ConceptsError": {
+        "type": "object",
+        "description": "Structured error envelope returned by /api/v1/concepts (distinct from the simple {error} envelope).",
+        "properties": {
+          "error": { "type": "boolean", "example": true },
+          "code": { "type": "string", "example": "BAD_REQUEST" },
+          "message": { "type": "string" },
+          "endpoint": { "type": "string", "example": "/api/v1/concepts" },
+          "timestamp": { "type": "integer", "description": "Unix epoch milliseconds." },
+          "_gateway_trace": { "type": "string" }
+        },
+        "required": ["error", "code", "message", "endpoint", "timestamp"]
+      },
+      "TrendEntry": {
+        "type": "object",
+        "description": "7-day FNI trend for one entity.",
+        "properties": {
+          "scores": { "type": "array", "items": { "type": "number" }, "description": "Up to 7 daily FNI scores, oldest-first." },
+          "dates": { "type": "array", "items": { "type": "string" }, "description": "Up to 7 ISO dates aligned with scores." },
+          "change7d": { "type": "number", "description": "7-day change percentage." },
+          "direction": { "type": "string", "enum": ["up", "down", "stable"] },
+          "latest": { "type": "number", "description": "Most recent FNI score." }
+        },
+        "required": ["scores", "dates", "change7d", "direction", "latest"]
+      },
+      "TrendsBatchResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "fni_v2.0" },
+          "trends": {
+            "type": "object",
+            "description": "Map of entity id → trend entry. Only ids with trend data are present.",
+            "additionalProperties": { "$ref": "#/components/schemas/TrendEntry" }
+          },
+          "missing": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Requested ids that had no trend data."
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "elapsed_ms": { "type": "integer" },
+              "found": { "type": "integer", "description": "Count of ids resolved to a trend entry." },
+              "requested": { "type": "integer", "description": "Count of ids requested." }
+            }
+          }
+        },
+        "required": ["version", "trends", "missing", "meta"]
       },
       "Error": {
         "type": "object",
