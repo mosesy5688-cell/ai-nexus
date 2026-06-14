@@ -71,7 +71,7 @@ if (!article) {
             title: contentData?.title || configResult?.article.title || slug,
             description: contentData?.description || configResult?.article.description || 'Article details in progress...',
             category: configResult?.category.id || contentData?.category || 'fundamentals',
-            content: contentData?.content || `## ${contentData?.title || configResult?.article.title || slug}\n\nInformation about this topic is currently being aggregated in the Knowledge Mesh.\n\n### Related Concepts\n- [Knowledge base](/knowledge)`,
+            content: contentData?.content || `## ${contentData?.title || configResult?.article.title || slug}\n\nNo article content is available for this entry in the current snapshot.\n\n### Explore\n- [Browse the Knowledge base](/knowledge)`,
             difficulty: configResult?.article.difficulty || contentData?.difficulty || 'Intermediate',
             effort: configResult?.article.effort || contentData?.effort || '5 min',
             slug: slug
