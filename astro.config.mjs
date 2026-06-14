@@ -23,7 +23,18 @@ export default defineConfig({
     '/dataset': '/datasets',
     '/paper': '/papers',
     '/benchmark': '/benchmarks',
-    '/compare': '/ranking'
+    '/compare': '/ranking',
+    // P-09: Legacy vendor-prefix compat. Migrated from the DEAD public/_redirects
+    // FILE (the SSR worker bypasses it in this output:'server' + Cloudflare
+    // deployment) to this adapter-compiled `redirects:` authority, which DOES
+    // fire. Astro's spread-rest segment ([...slug]) preserves the full captured
+    // splat losslessly into the same-named segment of the destination, so
+    // /model/hf/<anything> -> /model/<anything> and /arxiv/<anything> ->
+    // /paper/<anything>. Targets exist (src/pages/model/[...slug].astro,
+    // src/pages/paper/[...slug].astro). No loop: source prefixes differ from
+    // destination prefixes. Default 301 permanent (string form).
+    '/model/hf/[...slug]': '/model/[...slug]',
+    '/arxiv/[...slug]': '/paper/[...slug]'
   },
   adapter: cloudflare({
     // V25.8.3: Use Node.js for prerendering instead of workerd to avoid
