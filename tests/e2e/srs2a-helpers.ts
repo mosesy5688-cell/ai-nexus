@@ -2,14 +2,12 @@
  * SRS-2A Frontend Baseline — shared helpers.
  *
  * Persistent harness against DEPLOYED PROD (default https://free2aitools.com,
- * override via BASE_URL). Read-only. Informational / non-blocking baseline that
- * closes the Frontend Matrix PENDING_RUNTIME browser cells.
- *
- * Holds: base-url resolution, real-id resolution via the public search API, a
- * descriptive test User-Agent, a bounded transient retry (<=2, Retry-After
- * aware), and a per-run PROVENANCE FREEZE artifact writer with SEPARATE outcome
- * counts. The SEVERE browser-error classifier lives in ./srs2a-classifier to
- * honor the 250-line CES floor.
+ * override via BASE_URL). Read-only, informational / non-blocking baseline that
+ * closes the Frontend Matrix PENDING_RUNTIME browser cells. Holds: base-url +
+ * real-id resolution via the public search API, a descriptive test UA, a bounded
+ * transient retry (<=2, Retry-After aware), and a per-run PROVENANCE FREEZE
+ * artifact writer with SEPARATE outcome counts. The classifier lives in
+ * ./srs2a-classifier to honor the 250-line CES floor.
  */
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -47,9 +45,7 @@ export async function resolveRealSlug(
             const hit = results.find((r) => r && r.type === type && typeof r.slug === 'string' && r.slug.length > 0)
                 || results.find((r) => r && typeof r.slug === 'string' && r.slug.length > 0);
             if (hit) return hit.slug as string;
-        } catch {
-            /* transient network — try next query */
-        }
+        } catch { /* transient network — try next query */ }
     }
     return null;
 }
@@ -57,8 +53,7 @@ export async function resolveRealSlug(
 /**
  * Bounded retry for an EXPLICITLY-classified transient (429 / 503 / network).
  * MAX 2 retries; respects Retry-After (capped); NO infinite retry; NO retry for
- * deterministic contract failures (caller must not pass those here). `fn` should
- * return a status; `isTransient` decides whether to retry on that status.
+ * deterministic contract failures. `isTransient` decides whether to retry.
  */
 export async function withTransientRetry<T extends { status(): number; headers(): Record<string, string> }>(
     fn: () => Promise<T>,
@@ -79,11 +74,8 @@ export async function withTransientRetry<T extends { status(): number; headers()
 
 /** Best-effort git SHA of the harness repo (provenance, not the deployed build). */
 function repoSha(): string {
-    try {
-        return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
-    } catch {
-        return process.env.GITHUB_SHA || 'unknown';
-    }
+    try { return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim(); }
+    catch { return process.env.GITHUB_SHA || 'unknown'; }
 }
 
 /** Discover the deployed build id from a served response header, if exposed. */
@@ -94,9 +86,7 @@ export async function discoverBuildId(
         const resp = await request.get(`${BASE_URL}/`, { headers: { 'user-agent': TEST_UA } });
         const h = resp.headers();
         return h['x-build-id'] || h['cf-ray'] || h['etag'] || 'undiscoverable';
-    } catch {
-        return 'undiscoverable';
-    }
+    } catch { return 'undiscoverable'; }
 }
 
 /** Observe a data-snapshot id from the search API manifest etag, if present. */
@@ -106,21 +96,14 @@ export async function discoverSnapshotId(
     try {
         const resp = await request.get(`${BASE_URL}/api/v1/search?q=llama&limit=1`, { headers: { 'user-agent': TEST_UA } });
         return resp.headers()['etag'] || 'unobservable';
-    } catch {
-        return 'unobservable';
-    }
+    } catch { return 'unobservable'; }
 }
 
 /**
  * Final per-cell assertion state. A cell is a clean PASS only when its contract
  * held. INCONCLUSIVE_TRANSIENT is NOT a pass and does NOT close a Matrix cell.
  */
-export type CellState =
-    | 'PASS'
-    | 'PRODUCT_FAILURE'
-    | 'HARNESS_FAILURE'
-    | 'INCONCLUSIVE_TRANSIENT'
-    | 'SKIPPED_NA';
+export type CellState = 'PASS' | 'PRODUCT_FAILURE' | 'HARNESS_FAILURE' | 'INCONCLUSIVE_TRANSIENT' | 'SKIPPED_NA';
 
 export interface ProvenanceRecord {
     assertion: string;
@@ -156,6 +139,11 @@ export interface RunArtifact {
         severe_events: number;
         correlated_network_failures: number;
         uncorrelated_network_failures: number;
+        /** SRS2-HARNESS-4 dedup: one RUM request -> one requestfailed + one CORS
+         * console.error. raw_events counts BOTH; root_network_failures counts the
+         * request ONCE (warn=2 is not two independent failures). */
+        raw_events: number;
+        root_network_failures: number;
     };
     /** True only when there are zero inconclusive-transient cells. */
     clean_stabilization_run: boolean;
@@ -168,12 +156,14 @@ export function record(rec: Omit<ProvenanceRecord, 'pass'> & { pass?: boolean })
     records.push({ ...rec, pass: rec.state === 'PASS' });
 }
 
-function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
+export function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
     const s = {
         passed: 0, product_failures: 0, harness_failures: 0, transient_warnings: 0,
         inconclusive_transient: 0, skipped_or_na: 0,
         severe_events: 0, correlated_network_failures: 0, uncorrelated_network_failures: 0,
+        raw_events: 0, root_network_failures: 0,
     };
+    const rootUrls = new Set<string>();
     for (const r of recs) {
         if (r.state === 'PASS') s.passed += 1;
         else if (r.state === 'PRODUCT_FAILURE') s.product_failures += 1;
@@ -189,16 +179,27 @@ function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
                 if (e.correlated) s.correlated_network_failures += 1;
                 else if (e.classification === 'UNKNOWN_UNCORRELATED_NETWORK_FAILURE') s.uncorrelated_network_failures += 1;
             }
+            // SRS2-HARNESS-4 DEDUP: requestfailed + CORS console.error are BOTH raw
+            // network events; the underlying request is counted ONCE by URL, so a
+            // CORS console that recovered its requestfailed's URL adds no 2nd root.
+            const isCorsConsole = e.kind === 'console' && e.resourceType === 'cors-console';
+            const isNetwork = e.kind === 'requestfailed' || e.kind === 'badresponse' || isCorsConsole
+                || (e.kind === 'console' && /net::ERR_/i.test(e.message));
+            if (isNetwork) {
+                s.raw_events += 1;
+                rootUrls.add(e.url || `noURL:${e.kind}:${e.timestamp}`);
+            }
         }
     }
+    s.root_network_failures = rootUrls.size;
     return s;
 }
 
-// SRS2-HARNESS-3 OBSERVATION (not a product/observability finding): the
-// Cloudflare RUM beacon (POST https://cloudflareinsights.com/cdn-cgi/rum, xhr)
-// may be CORS-blocked (net::ERR_FAILED) in the Playwright CI environment. No
-// product impact established; the event is preserved + counted as a noncritical
-// transient warning. No product or observability gap is registered.
+// OBSERVATION (HARNESS-3/4, not a product/observability finding): the Cloudflare
+// RUM beacon (POST cloudflareinsights.com/cdn-cgi/rum, xhr) may be CORS-blocked
+// in the Playwright CI env, emitting BOTH a net::ERR_FAILED requestfailed and a
+// CORS console.error for the SAME request. Both raw events are preserved +
+// counted as one noncritical root warning; no product/observability gap.
 /** Emit the structured JSON run artifact (PROVENANCE FREEZE) at end of run. */
 export async function emitRunArtifact(buildId: string, snapshotId: string): Promise<void> {
     const summary = summarize(records);
@@ -220,9 +221,8 @@ export async function emitRunArtifact(buildId: string, snapshotId: string): Prom
             summary.uncorrelated_network_failures === 0,
         records,
     };
-    // Per-worker filename so parallel workers do not clobber each other's
-    // records; the canonical (no-suffix) name is also written by the primary
-    // worker so single-worker / CI line runs still have a stable path.
+    // Per-worker filename so parallel workers do not clobber; worker 0 also writes
+    // the canonical (no-suffix) name for a stable single-worker / CI path.
     const worker = process.env.TEST_WORKER_INDEX ?? '0';
     const dir = resolve(process.cwd(), 'test-results');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -238,6 +238,7 @@ export async function emitRunArtifact(buildId: string, snapshotId: string): Prom
         `inconclusive=${summary.inconclusive_transient} skip=${summary.skipped_or_na} ` +
         `severe=${summary.severe_events} net_correlated=${summary.correlated_network_failures} ` +
         `net_uncorrelated=${summary.uncorrelated_network_failures} ` +
+        `raw_events=${summary.raw_events} root_network_failures=${summary.root_network_failures} ` +
         `clean=${artifact.clean_stabilization_run}`,
     );
     // eslint-disable-next-line no-console

@@ -65,8 +65,14 @@ export function attachClassifiedCollector(page: Page, baseUrl: string): EventSin
     page.on('console', (msg) => {
         if (msg.type() !== 'error') return;
         const text = msg.text();
-        const c = classifyConsole(text, Date.now(), sink.failures, sink.transientUrls);
-        push({ kind: 'console', url: '', origin: '', resourceType: 'console', method: '', status: null, errorText: '', frameUrl: '', sameOrigin: true, timestamp: Date.now(), message: text, ...c });
+        const c = classifyConsole(text, Date.now(), sink.failures, sink.transientUrls, ctx());
+        // SRS2-HARNESS-4 DEDUP: a CORS console.error that correlates to the SAME
+        // RUM requestfailed is recorded with the recovered URL (raw text + URL
+        // preserved), so the summary can merge the two raw events into ONE root
+        // network failure (raw_events vs root_network_failures). Both raw events
+        // stay in `events` — NO suppression.
+        const url = c.cors && c.corsUrl ? c.corsUrl : '';
+        push({ kind: 'console', url, origin: url ? originOf(url) : '', resourceType: c.cors ? 'cors-console' : 'console', method: '', status: null, errorText: '', frameUrl: '', sameOrigin: true, timestamp: Date.now(), message: text, classification: c.classification, severity: c.severity, reason: c.reason, correlated: c.correlated });
     });
     page.on('pageerror', (err) => {
         sink.pageErrored = true;
