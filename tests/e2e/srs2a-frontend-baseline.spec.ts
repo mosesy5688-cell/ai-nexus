@@ -1,16 +1,14 @@
 /**
  * SRS-2A — Frontend Playwright DEPLOYED baseline (informational, non-blocking).
- * Read-only against deployed prod (BASE_URL, default https://free2aitools.com).
- * Each assertion closes a Frontend Matrix PENDING_RUNTIME browser cell.
- *
- * CALIBRATED (Founder-exact): browser events run through a SEVERE classifier
- * (./srs2a-classifier) instead of a blanket toHaveLength(0) — a test fails only
- * on a SEVERE product signal; transient 429/503 and noncritical/aborted events
- * become PRESERVED + counted WARNINGs (never erased). The genuine-404 and
- * detail-status cells map 429/503 -> INCONCLUSIVE_TRANSIENT (never PASS).
- * Request shaping: serial ordering, descriptive UA, bounded (<=2) transient
- * retry honoring Retry-After. Contract assertions (redirect / canonical /
- * JSON-LD / honesty-copy) stay STRICT.
+ * Read-only against prod (BASE_URL, default https://free2aitools.com); each
+ * assertion closes a Frontend Matrix PENDING_RUNTIME browser cell. CALIBRATED
+ * (Founder-exact): browser events run through a SEVERE classifier (not a blanket
+ * toHaveLength(0)) — a test fails only on a SEVERE product signal; 429/503 +
+ * noncritical/aborted events are PRESERVED + counted WARNINGs. 429/503 page-status
+ * cells + HARNESS-5 same-origin critical 429/503 -> INCONCLUSIVE_TRANSIENT (never
+ * PASS; recordSevere). Request shaping: serial ordering, descriptive UA, bounded
+ * (<=2) Retry-After retry, REQUEST-RATE CONTROL pacing. Contract assertions
+ * (redirect/canonical/JSON-LD/copy) stay STRICT.
  */
 import { test, expect, devices } from '@playwright/test';
 import {
@@ -18,6 +16,7 @@ import {
     discoverBuildId, discoverSnapshotId, emitRunArtifact, record,
 } from './srs2a-helpers';
 import { attachClassifiedCollector, severeSummary, type EventSink } from './srs2a-collector';
+import { paceNavigation } from './srs2a-critical-transient';
 
 const FUTURE_COPY = /being indexed|will appear|being aggregated|coming soon|check back/i;
 const isTransient = (s: number) => s === 429 || s === 503;
@@ -25,8 +24,11 @@ const isTransient = (s: number) => s === 429 || s === 503;
 let BUILD_ID = 'undiscoverable';
 let SNAPSHOT_ID = 'unobservable';
 
-// REQUEST SHAPING: serial ordering (CI already pins workers=1); descriptive UA
-// on every browser request; NO privileged/allowlist request.
+// REQUEST SHAPING: serial ordering (CI pins workers=1); descriptive UA; NO
+// privileged/allowlist request. REQUEST-RATE CONTROL: a SHORT deterministic
+// minimum-navigation-interval (paceNavigation, beforeEach below) paces OUR traffic
+// under the CF limit that caused the 429 burst — shaping, NOT readiness masking;
+// bounded Retry-After retries (helpers); 429 is NEVER converted to PASS.
 test.describe.configure({ mode: 'serial' });
 test.use({ userAgent: TEST_UA });
 
@@ -34,14 +36,17 @@ test.beforeAll(async ({ request }) => {
     BUILD_ID = await discoverBuildId(request);
     SNAPSHOT_ID = await discoverSnapshotId(request);
 });
-
+test.beforeEach(async () => { await paceNavigation(); });
 test.afterAll(async () => {
     await emitRunArtifact(BUILD_ID, SNAPSHOT_ID);
 });
 
-/** Record the cell (PASS unless SEVERE) then fail on any SEVERE event. */
+/** Record the cell + fail on SEVERE. PRECEDENCE: SEVERE -> PRODUCT_FAILURE; else
+ *  H5 same-origin critical 429/503 -> INCONCLUSIVE_TRANSIENT (never PASS); else PASS. */
 function recordSevere(assertion: string, expected: string, sink: EventSink, extra: Record<string, unknown> = {}): void {
-    record({ assertion, expected, actual: `severe=${sink.severe.length}`, state: sink.severe.length ? 'PRODUCT_FAILURE' : 'PASS', keyFields: extra, events: sink.events });
+    const ct = sink.criticalTransients.length;
+    const state = sink.severe.length ? 'PRODUCT_FAILURE' : (ct ? 'INCONCLUSIVE_TRANSIENT' : 'PASS');
+    record({ assertion, expected, actual: `severe=${sink.severe.length} criticalTransient=${ct}`, state, keyFields: { criticalTransients: sink.criticalTransients, ...extra }, events: sink.events });
     expect(sink.severe, `${assertion} SEVERE events: ${severeSummary(sink)}`).toHaveLength(0);
 }
 
@@ -86,8 +91,7 @@ test.describe('SRS-2A frontend deployed baseline @informational', () => {
             test.skip(!slug, `no resolvable ${type} id on prod right now (sparse type)`);
             const sink = attachClassifiedCollector(page, BASE_URL);
             const resp = await page.goto(`${BASE_URL}/${route}/${slug}`, { waitUntil: 'domcontentloaded' });
-            const status = resp?.status() ?? 0;
-            // 200 PASS; 429/503 INCONCLUSIVE_TRANSIENT (never PASS); other -> fail.
+            const status = resp?.status() ?? 0; // 200 PASS; 429/503 INCONCLUSIVE; other fail
             if (isTransient(status)) {
                 const snip = (await page.locator('body').innerText().catch(() => '')).slice(0, 200);
                 inconclusive(`detail-${type}`, '200', resp, { slug, bodySnippet: snip }, sink);
@@ -101,9 +105,7 @@ test.describe('SRS-2A frontend deployed baseline @informational', () => {
 
     test('genuine 404: 404 + NO future-availability copy (G-01 lock); 429/503 INCONCLUSIVE [FM:404]', async ({ page }) => {
         const resp = await page.goto(`${BASE_URL}/model/zz-nonexistent-${Date.now().toString(36)}`, { waitUntil: 'domcontentloaded' });
-        const status = resp?.status() ?? 0;
-        // G-01: 404 -> PASS/FAIL; 429/503 -> INCONCLUSIVE_TRANSIENT (never PASS),
-        // cell stays UNCLOSED until a real 404 is observed.
+        const status = resp?.status() ?? 0; // G-01: 404 -> PASS/FAIL; 429/503 INCONCLUSIVE
         if (isTransient(status)) {
             const snip = (await page.locator('body').innerText().catch(() => '')).slice(0, 200);
             inconclusive('404-honest', '404 + no future copy', resp, { bodySnippet: snip });
@@ -187,8 +189,8 @@ test.describe('SRS-2A frontend deployed baseline @informational', () => {
         record({ assertion: 'viewports', expected: 'desktop+mobile render', actual: 'ok', state: 'PASS', keyFields: { slug } });
     });
 
-    // canonical + JSON-LD share one detail page load (avoids a duplicate request
-    // for the same sample, per request-shaping). Both stay STRICT contracts.
+    // canonical + JSON-LD share ONE detail load (no duplicate cold load of the
+    // same sample, per REQUEST-RATE CONTROL dedup). Both stay STRICT contracts.
     test('canonical + JSON-LD present/valid on detail [FM:canonical][FM:jsonld]', async ({ page, request }) => {
         const slug = await resolveRealSlug(request as any, 'tool', ['code', 'agent', 'chat']);
         test.skip(!slug, 'no resolvable detail for canonical/JSON-LD check');

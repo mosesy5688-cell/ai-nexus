@@ -22,6 +22,10 @@ export interface EventSink {
     severe: BrowserEvent[];
     failures: BrowserEvent[]; // requestfailed events (correlation source)
     transientUrls: Set<string>;
+    /** HARNESS-5: URLs of same-origin CRITICAL assets that hit a confirmed
+     *  429/503 this run. Non-empty => the page assertion is INCONCLUSIVE_TRANSIENT
+     *  (never PASS) — a transient unavailability, NOT a product defect. */
+    criticalTransients: string[];
     /** SRS2-HARNESS-3: a pageerror (or hydration failure) was seen on this page.
      * Vetoes any optional-telemetry downgrade (telemetry + pageerror -> SEVERE),
      * reconciled across event order at the end of the page interaction. */
@@ -35,7 +39,7 @@ export interface EventSink {
  * correlated. pageerror is ALWAYS SEVERE (uncaught JS exception).
  */
 export function attachClassifiedCollector(page: Page, baseUrl: string): EventSink {
-    const sink: EventSink = { events: [], severe: [], failures: [], transientUrls: new Set(), pageErrored: false };
+    const sink: EventSink = { events: [], severe: [], failures: [], transientUrls: new Set(), criticalTransients: [], pageErrored: false };
     const push = (e: BrowserEvent) => {
         sink.events.push(e);
         if (e.severity === 'SEVERE') sink.severe.push(e);
@@ -48,8 +52,14 @@ export function attachClassifiedCollector(page: Page, baseUrl: string): EventSin
         const req = resp.request();
         const rtype = req.resourceType();
         const so = isSameOrigin(url, baseUrl);
-        const c = classifyResponse(url, rtype, status, so, req.method(), ctx());
+        // Pass the response headers so a same-origin critical 429/503 records the
+        // Retry-After presence/value in its CRITICAL_TRANSIENT conditions snapshot.
+        const c = classifyResponse(url, rtype, status, so, req.method(), ctx(), resp.headers());
         if (c.classification === 'TRANSIENT_RATE_LIMIT') sink.transientUrls.add(url);
+        // HARNESS-5: a same-origin critical 429/503 makes the AFFECTED PAGE cell
+        // INCONCLUSIVE_TRANSIENT (the spec consults sink.criticalTransients); the
+        // URL is also tracked so the spec can attribute it. Both raw facts kept.
+        if (c.criticalTransient) sink.criticalTransients.push(url);
         push({ kind: 'badresponse', url, origin: originOf(url), resourceType: rtype, method: req.method(), status, errorText: '', frameUrl: req.frame()?.url() ?? '', sameOrigin: so, timestamp: Date.now(), correlated: false, message: `HTTP ${status}`, ...c });
     });
     page.on('requestfailed', (req: Request) => {
