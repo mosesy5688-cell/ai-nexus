@@ -97,3 +97,8 @@ cache/
 workflow.log
 upload-checkpoint.json
 
+
+# Playwright / SRS-2A frontend baseline runtime artifacts
+test-results/
+playwright-report/
+playwright/.cache/
