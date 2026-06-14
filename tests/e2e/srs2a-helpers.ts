@@ -1,13 +1,11 @@
 /**
- * SRS-2A Frontend Baseline — shared helpers.
- *
- * Persistent harness against DEPLOYED PROD (default https://free2aitools.com,
- * override via BASE_URL). Read-only, informational / non-blocking baseline that
- * closes the Frontend Matrix PENDING_RUNTIME browser cells. Holds: base-url +
- * real-id resolution via the public search API, a descriptive test UA, a bounded
- * transient retry (<=2, Retry-After aware), and a per-run PROVENANCE FREEZE
- * artifact writer with SEPARATE outcome counts. The classifier lives in
- * ./srs2a-classifier to honor the 250-line CES floor.
+ * SRS-2A Frontend Baseline — shared helpers. Persistent harness against DEPLOYED
+ * PROD (default https://free2aitools.com, override via BASE_URL). Read-only,
+ * informational/non-blocking baseline closing the Frontend Matrix PENDING_RUNTIME
+ * browser cells. Holds: base-url + real-id resolution via the public search API, a
+ * descriptive test UA, a bounded transient retry (<=2, Retry-After aware), and a
+ * per-run PROVENANCE FREEZE artifact writer with SEPARATE outcome counts. The
+ * classifier lives in ./srs2a-classifier to honor the 250-line CES floor.
  */
 import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -139,13 +137,20 @@ export interface RunArtifact {
         severe_events: number;
         correlated_network_failures: number;
         uncorrelated_network_failures: number;
-        /** SRS2-HARNESS-4 dedup: one RUM request -> one requestfailed + one CORS
-         * console.error. raw_events counts BOTH; root_network_failures counts the
-         * request ONCE (warn=2 is not two independent failures). */
+        /** HARNESS-5: critical_transients = CRITICAL_TRANSIENT_UNAVAILABILITY
+         *  (same-origin critical 429/503; NOT a product_failure; >0 => clean=false).
+         *  severe_unknown = UNKNOWN_ERROR + UNKNOWN_UNCORRELATED. noncritical_warnings
+         *  = NONCRITICAL_NETWORK_WARNING. inconclusive_assertions = INCONCLUSIVE cells. */
+        critical_transients: number;
+        severe_unknown: number;
+        noncritical_warnings: number;
+        inconclusive_assertions: number;
+        /** HARNESS-4 dedup: one RUM request -> one requestfailed + one CORS console;
+         *  raw_events counts BOTH, root_network_failures counts the request ONCE. */
         raw_events: number;
         root_network_failures: number;
     };
-    /** True only when there are zero inconclusive-transient cells. */
+    /** True only with zero inconclusive cells + zero critical-transients (H5). */
     clean_stabilization_run: boolean;
     records: ProvenanceRecord[];
 }
@@ -161,6 +166,7 @@ export function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
         passed: 0, product_failures: 0, harness_failures: 0, transient_warnings: 0,
         inconclusive_transient: 0, skipped_or_na: 0,
         severe_events: 0, correlated_network_failures: 0, uncorrelated_network_failures: 0,
+        critical_transients: 0, severe_unknown: 0, noncritical_warnings: 0, inconclusive_assertions: 0,
         raw_events: 0, root_network_failures: 0,
     };
     const rootUrls = new Set<string>();
@@ -171,17 +177,20 @@ export function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
         else if (r.state === 'INCONCLUSIVE_TRANSIENT') s.inconclusive_transient += 1;
         else if (r.state === 'SKIPPED_NA') s.skipped_or_na += 1;
         for (const e of r.events || []) {
-            // Count WARNING-severity events as transient warnings (preserved, not erased).
-            if (e.severity === 'WARNING') s.transient_warnings += 1;
+            if (e.severity === 'WARNING') s.transient_warnings += 1; // WARNING events preserved
             else s.severe_events += 1;
-            // Provenance: bare net::ERR_FAILED that was/was-not recovered to a URL.
+            // HARNESS-5 classification-keyed counters (never erased). A CRITICAL_
+            // TRANSIENT is a WARNING that is NOT a product_failure (only clean=false).
+            if (e.classification === 'CRITICAL_TRANSIENT_UNAVAILABILITY') s.critical_transients += 1;
+            else if (e.classification === 'NONCRITICAL_NETWORK_WARNING') s.noncritical_warnings += 1;
+            else if (e.classification === 'UNKNOWN_ERROR' || e.classification === 'UNKNOWN_UNCORRELATED_NETWORK_FAILURE') s.severe_unknown += 1;
+            // Provenance: bare net::ERR_FAILED recovered (correlated) or not.
             if (e.kind === 'console' && /net::ERR_/i.test(e.message)) {
                 if (e.correlated) s.correlated_network_failures += 1;
                 else if (e.classification === 'UNKNOWN_UNCORRELATED_NETWORK_FAILURE') s.uncorrelated_network_failures += 1;
             }
-            // SRS2-HARNESS-4 DEDUP: requestfailed + CORS console.error are BOTH raw
-            // network events; the underlying request is counted ONCE by URL, so a
-            // CORS console that recovered its requestfailed's URL adds no 2nd root.
+            // H4 DEDUP: requestfailed + CORS console are BOTH raw events; the
+            // underlying request is counted ONCE by URL (no 2nd root).
             const isCorsConsole = e.kind === 'console' && e.resourceType === 'cors-console';
             const isNetwork = e.kind === 'requestfailed' || e.kind === 'badresponse' || isCorsConsole
                 || (e.kind === 'console' && /net::ERR_/i.test(e.message));
@@ -192,14 +201,15 @@ export function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
         }
     }
     s.root_network_failures = rootUrls.size;
+    s.inconclusive_assertions = s.inconclusive_transient; // page cells never closed to PASS
     return s;
 }
 
-// OBSERVATION (HARNESS-3/4, not a product/observability finding): the Cloudflare
-// RUM beacon (POST cloudflareinsights.com/cdn-cgi/rum, xhr) may be CORS-blocked
-// in the Playwright CI env, emitting BOTH a net::ERR_FAILED requestfailed and a
-// CORS console.error for the SAME request. Both raw events are preserved +
-// counted as one noncritical root warning; no product/observability gap.
+// OBSERVATION (HARNESS-3/4/5, not a product/observability finding): the CF RUM
+// beacon (POST cloudflareinsights.com/cdn-cgi/rum) may be CORS-blocked in CI
+// (net::ERR_FAILED + CORS console = one noncritical root warning); a CI-egress 429
+// BURST may transiently rate-limit a SAME-ORIGIN CRITICAL asset -> CRITICAL_
+// TRANSIENT_UNAVAILABILITY (transient, NOT a defect; page evidence INVALID).
 /** Emit the structured JSON run artifact (PROVENANCE FREEZE) at end of run. */
 export async function emitRunArtifact(buildId: string, snapshotId: string): Promise<void> {
     const summary = summarize(records);
@@ -213,37 +223,27 @@ export async function emitRunArtifact(buildId: string, snapshotId: string): Prom
         region: process.env.SRS2A_REGION || process.env.RUNNER_OS || 'local',
         cold_or_warm: process.env.SRS2A_CACHE_STATE || 'unknown',
         summary,
-        // Clean only when zero inconclusive-transient cells AND zero SEVERE events
-        // AND no uncorrelatable net::ERR_FAILED (HARNESS_OBSERVABILITY_FAILURE).
+        // Clean only with zero inconclusive cells, zero SEVERE events, no
+        // uncorrelatable net::ERR_FAILED, AND zero HARNESS-5 critical-transients
+        // (a same-origin critical 429/503 invalidates this run's evidence — NOT a
+        // clean run, though NOT a product_failure either).
         clean_stabilization_run:
             summary.inconclusive_transient === 0 &&
             summary.severe_events === 0 &&
-            summary.uncorrelated_network_failures === 0,
+            summary.uncorrelated_network_failures === 0 &&
+            summary.critical_transients === 0,
         records,
     };
-    // Per-worker filename so parallel workers do not clobber; worker 0 also writes
-    // the canonical (no-suffix) name for a stable single-worker / CI path.
+    // Per-worker filename (no clobber); worker 0 also writes the canonical name.
     const worker = process.env.TEST_WORKER_INDEX ?? '0';
     const dir = resolve(process.cwd(), 'test-results');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     const shardOut = resolve(dir, `srs2a-frontend-baseline.w${worker}.json`);
-    writeFileSync(shardOut, JSON.stringify(artifact, null, 2), 'utf8');
-    if (worker === '0') {
-        writeFileSync(resolve(dir, 'srs2a-frontend-baseline.json'), JSON.stringify(artifact, null, 2), 'utf8');
-    }
+    const json = JSON.stringify(artifact, null, 2);
+    writeFileSync(shardOut, json, 'utf8');
+    if (worker === '0') writeFileSync(resolve(dir, 'srs2a-frontend-baseline.json'), json, 'utf8');
     // eslint-disable-next-line no-console
-    console.log(
-        `[SRS-2A] artifact: ${shardOut} | passed=${summary.passed} product=${summary.product_failures} ` +
-        `harness=${summary.harness_failures} warn=${summary.transient_warnings} ` +
-        `inconclusive=${summary.inconclusive_transient} skip=${summary.skipped_or_na} ` +
-        `severe=${summary.severe_events} net_correlated=${summary.correlated_network_failures} ` +
-        `net_uncorrelated=${summary.uncorrelated_network_failures} ` +
-        `raw_events=${summary.raw_events} root_network_failures=${summary.root_network_failures} ` +
-        `clean=${artifact.clean_stabilization_run}`,
-    );
+    console.log(`[SRS-2A] artifact: ${shardOut} | clean=${artifact.clean_stabilization_run} ` + JSON.stringify(summary));
     // eslint-disable-next-line no-console
-    console.log(
-        '[SRS-2A] OBSERVATION: Cloudflare RUM beacon may be CORS-blocked in the ' +
-        'Playwright CI environment. No product impact established.',
-    );
+    console.log('[SRS-2A] OBSERVATION: CF RUM beacon may be CORS-blocked in CI; a 429 burst may transiently rate-limit a same-origin critical asset. No product impact established.');
 }

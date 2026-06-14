@@ -1,37 +1,35 @@
 /**
- * SRS-2A — SEVERE browser-error CLASSIFIER (Founder-exact; SRS2-HARNESS-2).
+ * SRS-2A — SEVERE browser-error CLASSIFIER (Founder-exact; SRS2-HARNESS-2..5).
  *
  * A blanket ignore of 429 / requestfailed / console.error / net::ERR_FAILED is
  * FORBIDDEN. Every captured event is classified into one bucket and PRESERVED
  * (never erase). A test FAILS on SEVERE; else WARNING/transient counts surfaced.
  *
- * SRS2-HARNESS-2 (PROVENANCE CAPTURE): a bare console `net::ERR_FAILED` carries
- * NO url. We capture requestfailed/response with full provenance and CORRELATE
- * the console event to the nearest same-page requestfailed within a time window
- * to recover the URL. Downgrade rests on that EVIDENCE + allowlist — never a
- * guess. An uncorrelatable net::ERR_FAILED is a HARNESS_OBSERVABILITY failure
- * (UNKNOWN_UNCORRELATED_NETWORK_FAILURE, SEVERE): NOT a clean run.
+ * H2 PROVENANCE: a bare console net::ERR_FAILED carries NO url; we CORRELATE it
+ *   to the nearest same-page requestfailed to recover the URL (evidence, never a
+ *   guess); an uncorrelatable one is UNKNOWN_UNCORRELATED_NETWORK_FAILURE (SEVERE).
+ * H3 OPTIONAL-TELEMETRY ORDER: an EXACT telemetry SIGNATURE (host+path+method) is
+ *   checked BEFORE the generic xhr/fetch rule -> cross-origin beacon = WARNING;
+ *   co-occurring pageerror keeps it SEVERE.
+ * H4 CORS-policy console correlation: the same RUM request also emits a CORS
+ *   console.error with the URL in its TEXT; extracted + re-run through the signature.
+ * H5 CRITICAL_TRANSIENT_UNAVAILABILITY: same-origin CRITICAL asset on a CONFIRMED
+ *   429/503 -> transient (NOT a defect) BUT the page cell is INCONCLUSIVE_TRANSIENT
+ *   (never PASS); deterministic same-origin critical failure stays SEVERE. See
+ *   ./srs2a-critical-transient for the precedence table + condition gate.
  *
- * SRS2-HARNESS-3 (optional-telemetry ORDER): an EXACT telemetry SIGNATURE
- * (host+path+method — CF Insights POST /cdn-cgi/rum, GA POST|GET /collect) is
- * checked BEFORE the generic xhr/fetch page-required rule, so a cross-origin RUM
- * beacon (xhr) is a WARNING. EXACT-MATCH ONLY; a match co-occurring with a
- * pageerror stays SEVERE; the event is PRESERVED + counted, never erased.
- *
- * SRS2-HARNESS-4 (CORS-policy console correlation): the SAME RUM request also
- * emits a CORS console.error with the URL in its TEXT; that URL is extracted +
- * re-run through the SAME exact signature (see classifyConsole + policy module).
- *
- * Taxonomy: SEVERE_PRODUCT_SIGNAL -> fail; TRANSIENT_RATE_LIMIT -> warning
- * (429/503 dep); NONCRITICAL_NETWORK_WARNING -> warning (optional);
- * EXPECTED_NAVIGATION_ABORT -> warning (nav abort); UNKNOWN_UNCORRELATED_NETWORK_
- * FAILURE + UNKNOWN_ERROR -> SEVERE (observability gap / unexplained).
+ * Taxonomy: SEVERE_PRODUCT_SIGNAL -> fail; CRITICAL_TRANSIENT_UNAVAILABILITY ->
+ * warning + page INCONCLUSIVE (never PASS); TRANSIENT_RATE_LIMIT /
+ * NONCRITICAL_NETWORK_WARNING / EXPECTED_NAVIGATION_ABORT -> warning;
+ * UNKNOWN_UNCORRELATED_NETWORK_FAILURE + UNKNOWN_ERROR -> SEVERE.
  */
 import { classifyCorsConsole, type FailureContext, isCorsConsoleText, isExactTelemetrySignature, isKnownOptional } from './srs2a-optional-policy';
+import { criticalTransientVerdict, type Verdict } from './srs2a-critical-transient';
 
 export type Severity = 'SEVERE' | 'WARNING';
 export type Classification =
     | 'SEVERE_PRODUCT_SIGNAL'
+    | 'CRITICAL_TRANSIENT_UNAVAILABILITY'
     | 'TRANSIENT_RATE_LIMIT'
     | 'NONCRITICAL_NETWORK_WARNING'
     | 'EXPECTED_NAVIGATION_ABORT'
@@ -81,11 +79,11 @@ export function isSameOrigin(url: string, baseUrl: string): boolean {
     return !!b && originOf(url) === b;
 }
 
-/**
- * Classify a network response (HTTP status present). 429/503 on a data/API dep
- * is transient; same-origin critical asset 4xx/5xx is SEVERE; known-optional /
- * non-critical third-party is a WARNING.
- */
+/** Classify a network response. PRECEDENCE (HARNESS-5): deterministic same-origin
+ *  critical failure (404/5xx) -> SEVERE; confirmed 429/503 on a same-origin
+ *  critical asset -> CRITICAL_TRANSIENT_UNAVAILABILITY (transient precedence; page
+ *  cell INCONCLUSIVE; never SEVERE, never PASS); 429/503 on a data/API dep ->
+ *  TRANSIENT_RATE_LIMIT; optional/third-party -> NONCRITICAL_NETWORK_WARNING. */
 export function classifyResponse(
     url: string,
     resourceType: string,
@@ -93,24 +91,28 @@ export function classifyResponse(
     sameOrigin: boolean,
     method = '',
     ctx: FailureContext = {},
-): { classification: Classification; severity: Severity; reason: string } {
+    headers?: Record<string, string> | null,
+): Verdict {
     // EXACT telemetry signature wins over the generic xhr/fetch rule on a
-    // non-transient bad status; 429/503 keep TRANSIENT below.
+    // non-transient bad status; 429/503 keep TRANSIENT/critical-transient below.
     if (status !== 429 && status !== 503) {
         const v = telemetryVerdict(url, resourceType, method, sameOrigin, ctx, `${status}`);
         if (v) return v;
     }
-    if (status === 429) {
-        if (/\/api\//.test(url) || resourceType === 'fetch' || resourceType === 'xhr') {
+    if (status === 429 || status === 503) {
+        // PRECEDENCE B: same-origin CRITICAL asset + confirmed 429/503 ->
+        // CRITICAL_TRANSIENT_UNAVAILABILITY (checked BEFORE the data/API downgrade
+        // so a same-origin critical xhr/fetch is NOT swallowed as a plain rate-limit).
+        if (sameOrigin && CRITICAL_TYPES.has(resourceType)) {
+            return criticalTransientVerdict(url, resourceType, status, sameOrigin, headers);
+        }
+        if (status === 429 && (/\/api\//.test(url) || resourceType === 'fetch' || resourceType === 'xhr')) {
             return { classification: 'TRANSIENT_RATE_LIMIT', severity: 'WARNING', reason: '429 on expected data/API dependency' };
         }
-        if (sameOrigin && CRITICAL_TYPES.has(resourceType)) {
-            return { classification: 'SEVERE_PRODUCT_SIGNAL', severity: 'SEVERE', reason: '429 on same-origin critical asset' };
+        if (status === 503) {
+            return { classification: 'TRANSIENT_RATE_LIMIT', severity: 'WARNING', reason: '503 transient upstream' };
         }
         return { classification: 'TRANSIENT_RATE_LIMIT', severity: 'WARNING', reason: '429 (non-critical resource)' };
-    }
-    if (status === 503) {
-        return { classification: 'TRANSIENT_RATE_LIMIT', severity: 'WARNING', reason: '503 transient upstream' };
     }
     if (status === 404 || status >= 500) {
         if (sameOrigin && CRITICAL_TYPES.has(resourceType)) {
@@ -136,7 +138,7 @@ export function classifyResponse(
 function telemetryVerdict(
     url: string, resourceType: string, method: string, sameOrigin: boolean,
     ctx: FailureContext, statusOrFail: string,
-): { classification: Classification; severity: Severity; reason: string } | null {
+): Verdict | null {
     const sig = isExactTelemetrySignature(url, resourceType, method, sameOrigin);
     if (!sig.match) return null;
     if (ctx.pageErrored || ctx.hydrationFailed) {
@@ -146,14 +148,13 @@ function telemetryVerdict(
     return { classification: 'NONCRITICAL_NETWORK_WARNING', severity: 'WARNING', reason: `${sig.reason} ${statusOrFail}; CORS-blocked beacon preserved` };
 }
 
-/**
- * Classify a failed request (no HTTP status). Founder-exact ORDER (HARNESS-3):
- * (1) provenance captured; (2) EXACT telemetry SIGNATURE checked BEFORE the
- * generic xhr/fetch page-required rule — EXACT-MATCH ONLY, vetoed by a
- * co-occurring pageerror/hydration; (3) else the unchanged same-origin/critical/
- * page-required classification; (4) captured-but-unexplained stays SEVERE.
- * net::ERR_FAILED never downgraded by IDENTITY; nav aborts are WARNING.
- */
+/** Classify a failed request (no HTTP status). ORDER (H3): (1) nav abort ->
+ *  WARNING; (2) EXACT telemetry SIGNATURE BEFORE the page-required rule (the ONLY
+ *  sanctioned xhr/fetch downgrade), vetoed by co-occurring pageerror/hydration;
+ *  (3) else conservative same-origin/critical/page-required; (4) captured-but-
+ *  unexplained stays SEVERE. net::ERR_FAILED never downgraded by IDENTITY. NOTE:
+ *  a requestfailed has NO confirmed 429/503 status, so it can never be a H5
+ *  CRITICAL_TRANSIENT (that gate requires a confirmed transient response status). */
 export function classifyRequestFailure(
     url: string,
     resourceType: string,
@@ -161,7 +162,7 @@ export function classifyRequestFailure(
     sameOrigin: boolean,
     method = '',
     ctx: FailureContext = {},
-): { classification: Classification; severity: Severity; reason: string } {
+): Verdict {
     if (ABORT_MESSAGE.test(errorText)) {
         return { classification: 'EXPECTED_NAVIGATION_ABORT', severity: 'WARNING', reason: `aborted by navigation: ${errorText}` };
     }
@@ -187,15 +188,12 @@ export function classifyRequestFailure(
     return { classification: 'SEVERE_PRODUCT_SIGNAL', severity: 'SEVERE', reason: `non-optional third-party failure (${opt.reason}): ${errorText}` };
 }
 
-/**
- * Classify a console.error. A bare net::ERR_FAILED (NO url) is correlated to the
- * nearest requestfailed; a correlated 429/503 is a WARNING; an uncorrelatable
- * net::ERR_FAILED is UNKNOWN_UNCORRELATED_NETWORK_FAILURE (SEVERE). HARNESS-4: a
- * CORS-policy console.error carries its URL in the TEXT; the URL is extracted +
- * re-run through the EXACT signature (same RUM beacon context) and downgraded
- * ONLY on a real match with no pageerror/hydration — flagged `cors` so the
- * collector dedups it against the SAME requestfailed. Else: SEVERE.
- */
+/** Classify a console.error. A bare net::ERR_FAILED (NO url) is correlated to the
+ *  nearest requestfailed (correlated transient/critical-transient inherits that
+ *  verdict); an uncorrelatable one is UNKNOWN_UNCORRELATED_NETWORK_FAILURE (SEVERE).
+ *  H4: a CORS console.error carries its URL in the TEXT; extracted + re-run through
+ *  the EXACT signature, downgraded ONLY on a real match with no pageerror/hydration
+ *  (flagged `cors` for dedup against the SAME requestfailed). Else SEVERE. */
 export function classifyConsole(
     text: string,
     now: number,
