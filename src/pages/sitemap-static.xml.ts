@@ -10,7 +10,6 @@ const BASE_URL = 'https://free2aitools.com';
 const STATIC_PAGES = [
     { path: '/', priority: '1.0', changefreq: 'daily' },
     { path: '/ranking', priority: '0.9', changefreq: 'daily' },
-    { path: '/leaderboard', priority: '0.9', changefreq: 'daily' },
     { path: '/models', priority: '0.9', changefreq: 'daily' },
     { path: '/explore', priority: '0.8', changefreq: 'daily' },
     { path: '/search', priority: '0.8', changefreq: 'daily' },

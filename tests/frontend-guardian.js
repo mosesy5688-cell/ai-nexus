@@ -61,7 +61,6 @@ const CONFIG = {
     pages: [
         { name: 'Home', path: '/', critical: true },
         { name: 'Explore', path: '/explore', critical: true },
-        { name: 'Leaderboard', path: '/leaderboard', critical: true },
         { name: 'Ranking', path: '/ranking', critical: true },
         { name: 'Knowledge Index', path: '/knowledge', critical: true }
     ],
