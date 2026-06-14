@@ -42,6 +42,12 @@ jobs:
   baseline:
     name: Frontend baseline (non-blocking)
     runs-on: ubuntu-latest
+    # HARNESS: run inside the OFFICIAL Playwright container so Chromium AND its
+    # system dependencies are PRE-INSTALLED. This eliminates the `--with-deps`
+    # apt-get hang that previously stalled every run until the 20-min timeout
+    # cancelled the job before any test executed. Tag is pinned to the EXACT
+    # @playwright/test version resolved in package-lock.json (1.58.2).
+    container: mcr.microsoft.com/playwright:v1.58.2-jammy
     timeout-minutes: 20
     # NON-BLOCKING: a red result is informational and must not fail the run.
     continue-on-error: true
@@ -53,17 +59,13 @@ jobs:
       - name: Checkout (harness only)
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "24"
-          cache: "npm"
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright Chromium (no --with-deps; deps already in image)
+        # Browsers + system deps are pre-baked in the container, so this is a
+        # fast, apt-free version nudge that completes in seconds (no hang).
+        run: npx playwright install chromium
 
       - name: Run SRS-2A frontend baseline (informational)
         # Double safety net: tolerate non-zero exit so the artifact still uploads
