@@ -20,8 +20,8 @@
  * telemetry SIGNATURE — a host+path(+method) tuple, NOT a host-only allowlist
  * and NEVER a broad "third-party xhr" downgrade — that the classifier checks
  * BEFORE the generic xhr/fetch page-required severity rule. A beacon-class xhr
- * is recognised ONLY when it matches a signature exactly; everything else falls
- * through to the unchanged, conservative classification (when in doubt SEVERE).
+ * is recognised ONLY on an exact signature match; else it falls through to the
+ * unchanged conservative classification (when in doubt SEVERE).
  */
 
 /** Resource types that can NEVER be optional (page-required to render/run). */
@@ -129,12 +129,11 @@ function pathnameOf(url: string): string {
  * request must be cross-origin (sameOrigin === false): a SAME-ORIGIN xhr to one
  * of these paths is NOT a third-party beacon and never matches here.
  *
- *  - Cloudflare Insights RUM: host == cloudflareinsights.com (or a subdomain,
- *    e.g. static.cloudflareinsights.com) AND path == /cdn-cgi/rum AND
- *    method == POST AND resourceType in {xhr, fetch, beacon}.
+ *  - Cloudflare Insights RUM: host == cloudflareinsights.com (or subdomain) AND
+ *    path == /cdn-cgi/rum AND method == POST AND type in {xhr, fetch, beacon}.
  *  - Google Analytics (beacon endpoints ONLY): host == www.google-analytics.com
  *    OR region*.google-analytics.com ; path == /collect OR /g/collect ;
- *    method in {POST, GET} ; resourceType in {xhr, fetch, beacon}.
+ *    method in {POST, GET} ; type in {xhr, fetch, beacon}.
  *
  * googletagmanager.com SCRIPT loads are deliberately NOT a signature here — a
  * script is page-required, not a beacon, and stays SEVERE on failure.
@@ -188,4 +187,64 @@ export function isExactTelemetrySignature(
         }
     }
     return { match: false, reason: `no exact telemetry signature (host=${host || 'unparseable'}, path=${path}, method=${m})` };
+}
+
+/**
+ * SRS2-HARNESS-4 (CORS-policy console correlation): the SAME RUM request yields a
+ * `requestfailed` AND a separate `console.error` whose URL is embedded in the
+ * message TEXT (a different shape than net::ERR_FAILED). Known CORS blocked shapes
+ * (case-insensitive, single-quoted URL): "Access to XMLHttpRequest at '...'",
+ * "Access to fetch at '...'", "Access to resource at '...'". EXACT-MATCH ONLY:
+ * never broadens CORS handling beyond the exact-signature telemetry case; a
+ * "CORS"/"third-party" label is NOT itself a downgrade reason.
+ */
+const CORS_URL_PATTERNS: RegExp[] = [
+    /Access to XMLHttpRequest at '([^']+)'/i,
+    /Access to fetch at '([^']+)'/i,
+    /Access to resource at '([^']+)'/i,
+];
+
+/** Extract the URL embedded in a known CORS console.error text shape, or null
+ *  when no sanctioned pattern matches (no URL -> caller stays SEVERE). */
+export function extractCorsUrl(text: string): string | null {
+    for (const p of CORS_URL_PATTERNS) {
+        const m = p.exec(text);
+        if (m && m[1]) {
+            try { return new URL(m[1]).toString(); } catch { return null; }
+        }
+    }
+    return null;
+}
+
+/** True iff the text is a recognised CORS-policy blocked-request message. */
+export function isCorsConsoleText(text: string): boolean {
+    return /blocked by CORS policy/i.test(text) || CORS_URL_PATTERNS.some((p) => p.test(text));
+}
+
+export interface CorsVerdict {
+    url: string | null; matched: boolean; sigReason: string; downgrade: boolean; reason: string;
+}
+
+/**
+ * SRS2-HARNESS-4 verdict for a CORS console.error. The extracted URL is re-run
+ * through the EXACT telemetry signature using the SAME beacon context the RUM
+ * request uses (cross-origin POST xhr); a downgrade requires a real signature
+ * match AND no co-occurring pageerror/hydration. Returns the extracted URL, the
+ * match result, and the verdict so raw text + URL + match are ALL preservable.
+ * Never downgrades by the "CORS"/"third-party" label.
+ */
+export function classifyCorsConsole(text: string, ctx: FailureContext = {}): CorsVerdict {
+    const url = extractCorsUrl(text);
+    if (!url) {
+        return { url: null, matched: false, sigReason: 'no extractable URL', downgrade: false, reason: 'CORS console.error with NO extractable URL -> uncorrelated (SEVERE)' };
+    }
+    const sig = isExactTelemetrySignature(url, 'xhr', 'POST', false);
+    if (!sig.match) {
+        return { url, matched: false, sigReason: sig.reason, downgrade: false, reason: `CORS URL ${url} does NOT match an exact telemetry signature (${sig.reason}) -> SEVERE` };
+    }
+    if (ctx.pageErrored || ctx.hydrationFailed) {
+        const co = ctx.pageErrored ? 'pageerror' : 'hydration failure';
+        return { url, matched: true, sigReason: sig.reason, downgrade: false, reason: `CORS ${sig.reason} BUT co-occurs with ${co} -> SEVERE` };
+    }
+    return { url, matched: true, sigReason: sig.reason, downgrade: true, reason: `CORS beacon ${sig.reason}; raw text + extracted URL + match preserved` };
 }
