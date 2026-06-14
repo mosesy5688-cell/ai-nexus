@@ -18,7 +18,8 @@
  *   1. src/pages/leaderboard.astro EXISTS and is redirect-only -> /benchmarks 301.
  *   2. It reads NO /cache/benchmarks path, fabricates NO timestamp, imports NO
  *      leaderboard components.
- *   3. public/_redirects maps /leaderboard -> /benchmarks (harmless secondary).
+ *   3. public/_redirects is ABSENT (P-09: the dead FILE authority was deleted;
+ *      the SSR page above is the sole working /leaderboard redirect authority).
  *   4. sitemap-static.xml.ts MUST NOT emit /leaderboard.
  */
 import { describe, it, expect } from 'vitest';
@@ -55,19 +56,12 @@ describe('P-02/P-03 leaderboard retirement', () => {
         expect(code).not.toContain('leaderboard-client');
     });
 
-    it('public/_redirects has exactly one /leaderboard authority -> /benchmarks', () => {
-        const redirects = readFileSync(path.join(ROOT, 'public/_redirects'), 'utf8');
-        const rules = redirects
-            .split('\n')
-            .map((l) => l.trim())
-            .filter((l) => l && !l.startsWith('#'))
-            .filter((l) => l.split(/\s+/)[0] === '/leaderboard');
-
-        expect(rules).toHaveLength(1);
-        const [source, target, code] = rules[0].split(/\s+/);
-        expect(source).toBe('/leaderboard');
-        expect(target).toBe('/benchmarks');
-        expect(code).toBe('301');
+    it('public/_redirects is absent — SSR page is the sole /leaderboard authority (P-09)', () => {
+        // The public/_redirects FILE was DEAD in this output:'server' + Cloudflare
+        // deployment (the SSR worker bypasses it). It was deleted under P-09 so it
+        // can no longer masquerade as a routing authority. The redirect-only SSR
+        // page above remains the sole working /leaderboard -> /benchmarks 301.
+        expect(existsSync(path.join(ROOT, 'public/_redirects'))).toBe(false);
     });
 
     it('sitemap-static.xml.ts does not list /leaderboard', () => {
