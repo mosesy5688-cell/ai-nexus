@@ -194,6 +194,11 @@ function summarize(recs: ProvenanceRecord[]): RunArtifact['summary'] {
     return s;
 }
 
+// SRS2-HARNESS-3 OBSERVATION (not a product/observability finding): the
+// Cloudflare RUM beacon (POST https://cloudflareinsights.com/cdn-cgi/rum, xhr)
+// may be CORS-blocked (net::ERR_FAILED) in the Playwright CI environment. No
+// product impact established; the event is preserved + counted as a noncritical
+// transient warning. No product or observability gap is registered.
 /** Emit the structured JSON run artifact (PROVENANCE FREEZE) at end of run. */
 export async function emitRunArtifact(buildId: string, snapshotId: string): Promise<void> {
     const summary = summarize(records);
@@ -234,5 +239,10 @@ export async function emitRunArtifact(buildId: string, snapshotId: string): Prom
         `severe=${summary.severe_events} net_correlated=${summary.correlated_network_failures} ` +
         `net_uncorrelated=${summary.uncorrelated_network_failures} ` +
         `clean=${artifact.clean_stabilization_run}`,
+    );
+    // eslint-disable-next-line no-console
+    console.log(
+        '[SRS-2A] OBSERVATION: Cloudflare RUM beacon may be CORS-blocked in the ' +
+        'Playwright CI environment. No product impact established.',
     );
 }

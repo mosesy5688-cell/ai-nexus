@@ -22,6 +22,10 @@ export interface EventSink {
     severe: BrowserEvent[];
     failures: BrowserEvent[]; // requestfailed events (correlation source)
     transientUrls: Set<string>;
+    /** SRS2-HARNESS-3: a pageerror (or hydration failure) was seen on this page.
+     * Vetoes any optional-telemetry downgrade (telemetry + pageerror -> SEVERE),
+     * reconciled across event order at the end of the page interaction. */
+    pageErrored: boolean;
 }
 
 /**
@@ -31,11 +35,12 @@ export interface EventSink {
  * correlated. pageerror is ALWAYS SEVERE (uncaught JS exception).
  */
 export function attachClassifiedCollector(page: Page, baseUrl: string): EventSink {
-    const sink: EventSink = { events: [], severe: [], failures: [], transientUrls: new Set() };
+    const sink: EventSink = { events: [], severe: [], failures: [], transientUrls: new Set(), pageErrored: false };
     const push = (e: BrowserEvent) => {
         sink.events.push(e);
         if (e.severity === 'SEVERE') sink.severe.push(e);
     };
+    const ctx = () => ({ pageErrored: sink.pageErrored });
     page.on('response', (resp: Response) => {
         const status = resp.status();
         if (status < 400) return;
@@ -43,7 +48,7 @@ export function attachClassifiedCollector(page: Page, baseUrl: string): EventSin
         const req = resp.request();
         const rtype = req.resourceType();
         const so = isSameOrigin(url, baseUrl);
-        const c = classifyResponse(url, rtype, status, so);
+        const c = classifyResponse(url, rtype, status, so, req.method(), ctx());
         if (c.classification === 'TRANSIENT_RATE_LIMIT') sink.transientUrls.add(url);
         push({ kind: 'badresponse', url, origin: originOf(url), resourceType: rtype, method: req.method(), status, errorText: '', frameUrl: req.frame()?.url() ?? '', sameOrigin: so, timestamp: Date.now(), correlated: false, message: `HTTP ${status}`, ...c });
     });
@@ -52,7 +57,7 @@ export function attachClassifiedCollector(page: Page, baseUrl: string): EventSin
         const rtype = req.resourceType();
         const so = isSameOrigin(url, baseUrl);
         const errorText = req.failure()?.errorText ?? 'failed';
-        const c = classifyRequestFailure(url, rtype, errorText, so);
+        const c = classifyRequestFailure(url, rtype, errorText, so, req.method(), ctx());
         const e: BrowserEvent = { kind: 'requestfailed', url, origin: originOf(url), resourceType: rtype, method: req.method(), status: null, errorText, frameUrl: req.frame()?.url() ?? '', sameOrigin: so, timestamp: Date.now(), correlated: false, message: errorText, ...c };
         sink.failures.push(e);
         push(e);
@@ -64,6 +69,8 @@ export function attachClassifiedCollector(page: Page, baseUrl: string): EventSin
         push({ kind: 'console', url: '', origin: '', resourceType: 'console', method: '', status: null, errorText: '', frameUrl: '', sameOrigin: true, timestamp: Date.now(), message: text, ...c });
     });
     page.on('pageerror', (err) => {
+        sink.pageErrored = true;
+        reconcilePageError(sink);
         push({
             kind: 'pageerror', url: '', origin: '', resourceType: 'pageerror', method: '', status: null,
             errorText: err.message, frameUrl: '', sameOrigin: true, timestamp: Date.now(), correlated: false,
@@ -72,6 +79,26 @@ export function attachClassifiedCollector(page: Page, baseUrl: string): EventSin
         });
     });
     return sink;
+}
+
+/**
+ * SRS2-HARNESS-3 order-independence: a telemetry beacon failure may be captured
+ * BEFORE the pageerror that vetoes its downgrade. When a pageerror arrives,
+ * promote any already-downgraded optional-telemetry warning to SEVERE (telemetry
+ * + pageerror -> SEVERE). The event is RE-CLASSIFIED in place, never erased, and
+ * mirrored into `severe`. Idempotent: only touches NONCRITICAL telemetry beacons.
+ */
+function reconcilePageError(sink: EventSink): void {
+    for (const e of sink.events) {
+        const isTelemetryWarn = e.severity === 'WARNING'
+            && e.classification === 'NONCRITICAL_NETWORK_WARNING'
+            && /telemetry signature|beacon/i.test(e.reason);
+        if (!isTelemetryWarn) continue;
+        e.severity = 'SEVERE';
+        e.classification = 'SEVERE_PRODUCT_SIGNAL';
+        e.reason = `${e.reason} :: PROMOTED to SEVERE (co-occurring pageerror)`;
+        if (!sink.severe.includes(e)) sink.severe.push(e);
+    }
 }
 
 /** Human-readable one-line summary of the SEVERE events for assertion messages. */
