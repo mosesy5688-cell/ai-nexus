@@ -25,6 +25,9 @@ per search; auth/paid tiers (TBD) raise the cap.
 
 - `GET /.well-known/mcp.json` — MCP server manifest (transport, protocol version,
   tool catalog with input schemas)
+- `GET /openapi.json` — OpenAPI request/response contract for the REST API
+- `GET /developers` — human-readable developer docs with runnable curl / JS /
+  Python quickstart examples (the full language examples live there, not here)
 - `GET /llms.txt` — this file
 - `GET /sitemap.xml` — full URL index
 
@@ -101,7 +104,7 @@ Canonical types (use in `?type=` filter):
 
 Entity IDs use the `<source>-<type>--<author>--<name>` convention:
 
-- `hf-model--meta-llama--Llama-3-8B-Instruct`
+- `hf-model--<author>--<name>`
 - `arxiv-paper--unknown--<arxiv-id>`
 - `gh-tool--<org>--<repo>`
 - `replicate-model--<owner>--<model>`
@@ -146,9 +149,18 @@ Discovery layer only. The calling agent reasons over the data it returns:
 
 ## Notes for agent implementers
 
-- Prefer MCP (`POST /api/mcp`) for first-class Agent integration — JSON-RPC 2.0,
-  tool catalog discoverable via `tools/list`, structured tool responses
-- For HTTP-only flows: `search` → `entity` → optional `compare`
+- Two equivalent surfaces over the same catalog — pick by integration style:
+  REST API (`/api/v1/*`) for scripts / apps / direct HTTP; MCP (`POST /api/mcp`,
+  JSON-RPC 2.0, tool catalog via `tools/list`) for MCP-compatible agents/clients.
+  Neither surface routes, recommends, or selects on your behalf.
+- Canonical workflow (both surfaces): `search` → take the ids from the returned
+  results → inspect entity / FNI evidence → `compare` candidates → the
+  caller/agent makes the final decision. Never hard-code a catalog id; always
+  use the ids `search` returns. REST has no separate `/explain` endpoint —
+  evidence is the entity response (its FNI factors + notes); MCP exposes a
+  `free2aitools_explain` tool.
+- Full runnable curl / JS / Python examples: `GET /developers`. Machine contract:
+  `GET /openapi.json`.
 - All scoring is FNI v2.0; the `fni_version` field in responses identifies the
   exact algorithm version (forward-compatible across snapshots)
 - Field semantics: `0` means measured-zero, `null` means not-measured. Treat

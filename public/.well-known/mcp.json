@@ -38,7 +38,7 @@
       "input_schema": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "description": "Entity name or ID (e.g. 'meta-llama/Llama-3-8B')" }
+          "id": { "type": "string", "description": "Entity id obtained from a free2aitools_search result (use the returned id verbatim; do not hard-code or invent catalog ids)" }
         },
         "required": ["id"]
       }

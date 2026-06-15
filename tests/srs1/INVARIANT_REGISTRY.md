@@ -83,6 +83,34 @@ proof in the PR body).
 > against the packed source `published_year`, never a current-year blacklist). SRS-1 holds the hermetic logic
 > guard; the canary holds the artifact guard.
 
+## Registry — P3-DX-1 (developer-journey reference integration)
+
+> Deterministic documentation/reference invariants only. Live-catalog freshness
+> stays informational (the §15 read-only live verification), never a blocking PR
+> assertion — these locks read repo SOURCE/CONFIG and execute the shipped JS/
+> Python snippets against a local in-process mock (no network, no prod).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| DJ-R1 | No retired/stale catalog id (incl. P3-0 Meta-Llama forms + README badge form) appears in any shipped executable example or machine field across developers.astro / README / llms-template / mcp.json | `tests/srs1/dx-reference-examples.test.ts` | SOURCE/CONFIG | **NEW** |
+| DJ-R2 | Primary entity/compare examples are search-derived (ids read back from results), not fixed-catalog-id; fixed forms are explicitly placeholder/illustration-marked | `tests/srs1/dx-reference-examples.test.ts` | SOURCE | **NEW** |
+| DJ-R3 | Documented routes/links exist in the route/contract inventory (/developers→/openapi.json, search/compare/entity/mcp.json/api-mcp); llms.txt + README point at /developers + /openapi.json | `tests/srs1/dx-reference-examples.test.ts` | STRUCT + CONFIG | **NEW** |
+| DJ-R4 | The curl/JS/Python snippets asserted are the EXACT ones shipped in developers.astro (extracted from the .astro via `dx-snippet-extract.ts`, not test-only copies); each is base-URL-configurable | `tests/srs1/dx-reference-examples.test.ts` | SOURCE | **NEW** |
+| DJ-R5 | Shipped JS snippet parses and behaves correctly against a mock: success/zero-results/400/404/429+Retry-After/503-exhaust/500; null preserved; ids reused | `tests/srs1/dx-reference-behavior.test.ts` | EXEC | **NEW** |
+| DJ-R6 | Shipped Python snippet compiles (py_compile) + carries required status/retry/null-safe constructs; where `requests` is installable, executes against the mock (success + null preserved) | `tests/srs1/dx-reference-behavior.test.ts` | EXEC | **NEW** |
+| DJ-R7 | New flow carries no autonomous-verdict/recommendation/router language; restates caller-decides; REST-vs-MCP chooser stays neutral (no MCP-preferred / REST-legacy / F2AI-routes) on developers.astro + llms.txt | `tests/srs1/dx-reference-examples.test.ts` | SOURCE/CONFIG | **NEW** |
+
+> Files: `dx-reference-examples.test.ts` (static R1-R4/R7), `dx-reference-behavior.test.ts`
+> (behavioral R5/R6), and shared extractor `dx-snippet-extract.ts` (split to honor the
+> CES 250-line monolith ban).
+
+> The R6 python execution is conditional (`it.runIf(requests-importable)`); the
+> compile + construct lock is unconditional, so the invariant never silently
+> no-ops where `requests` is absent. The mock-server R5/R6 runs use async
+> `execFile` (so the in-process server stays serving) and bypass any sandbox
+> HTTP(S)_PROXY for the loopback target (harness-only env; the snippet is run
+> verbatim).
+
 ---
 
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)

@@ -25,9 +25,10 @@ Returns ranked recommendations with params, VRAM estimates, license, and rationa
 
 ### Model Comparison API
 ```bash
-curl "https://free2aitools.com/api/v1/compare?ids=hf-model--meta-llama--llama-3-8b,hf-model--google--gemma-2-27b"
+# <ID_1>,<ID_2> are id values taken from /api/v1/search results — substitute your own.
+curl "https://free2aitools.com/api/v1/compare?ids=<ID_1>,<ID_2>"
 ```
-Side-by-side comparison with FNI factor decomposition.
+Side-by-side comparison with FNI factor decomposition. Obtain ids from the Search API first; see the [Developer Docs](https://free2aitools.com/developers) for a runnable search-first flow.
 
 ### Search API
 ```bash
@@ -48,9 +49,10 @@ Add to Claude, Cursor, Windsurf, or any MCP-compatible client:
 5 tools: `free2aitools_search`, `free2aitools_rank`, `free2aitools_explain`, `free2aitools_select_model`, `free2aitools_compare`.
 
 ### FNI Badge
-Embed live FNI score in your README:
+Embed a live FNI score in your README. Replace `<YOUR_UMID>` with the `id` of
+your entity from a Search API response (this is a template, not a live badge):
 ```markdown
-![FNI Score](https://free2aitools.com/api/v1/badge/hf-model--meta-llama--llama-3.3-70b-instruct)
+![FNI Score](https://free2aitools.com/api/v1/badge/<YOUR_UMID>)
 ```
 
 ### Open Data
