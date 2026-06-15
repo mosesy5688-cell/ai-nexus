@@ -372,6 +372,9 @@ def pick_candidates(query="code generation"):
           <p class="text-xs text-gray-500 dark:text-gray-400">
             Search may return a retryable transient <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">503</code> under cold-path or fallback budget limits. Retry according to the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">Retry-After</code> header.
           </p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">
+            <strong class="text-gray-700 dark:text-gray-300">Pagination:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">page</code> is 1-based and defaults to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">1</code>; combine it with <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">limit</code> and use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">total_count</code> to estimate the remaining pages. The dataset refreshes daily, so results may change between requests; no cursor or snapshot consistency is promised.
+          </p>
         </div>
       </div>
 
@@ -630,7 +633,7 @@ def pick_candidates(query="code generation"):
       </div>
 
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-        <strong class="text-gray-900 dark:text-white">Finding your UMID:</strong> Search for your model/tool using the API, the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">id</code> field in the response is your UMID.
+        <strong class="text-gray-900 dark:text-white">Finding your identifier:</strong> Use the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">id</code> returned by search as the canonical entity identifier for entity, compare, and badge requests. The response also exposes <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">canonical_id</code>, which has the same value. UMID is a separate derived 16-character hexadecimal digest of the canonical ID; callers do not need to compute it for these endpoints.
       </div>
     </section>
 
