@@ -115,15 +115,20 @@ proof in the PR body).
 
 > Deterministic, hermetic CONTRACT-PROJECTION locks: the served machine contracts
 > (OpenAPI prose+schema, MCP static manifest) must match the currently-implemented
-> public runtime. These read repo SOURCE (search.ts / v1/search.ts / mcp.ts /
-> openapi.json.ts / entity-projection.ts) + parse static JSON. ZERO runtime/behavior
-> assertion — they lock the PROJECTION, so a drift either way fails the gate.
+> public runtime. Most rows read repo SOURCE (search.ts / v1/search.ts / mcp.ts /
+> openapi.json.ts / entity-projection.ts) + parse static JSON. DJ-R11 additionally
+> invokes the openapi.json.ts route GET (cloudflare:workers mocked, manifest lookups
+> try/catch to a deterministic fall-through) to assert the ACTUAL transformed OpenAPI
+> output — because the served `/api/v1/search` description is overwritten by that
+> transform and a static-schema-only assertion cannot catch the projection (D-42).
+> ZERO runtime/behavior assertion — they lock the PROJECTION, so a drift either way fails the gate.
 
 | ID | Protected behavior | Assertion file | Evidence | Status |
 |----|--------------------|----------------|----------|--------|
 | DJ-R05 | Search result-limit prose ⇄ schema ⇄ runtime all == 20: openapi.json.ts both wordings + schema `limit.maximum` + runtime `FREE_TIER_MAX` | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
 | DJ-R06 | `SearchResponse` schema field set == ACTUAL public-v1 200 response, DERIVED from search.ts DISPLAY_COLS + respond() + v1/search.ts transforms (fni_s nulled + fni_s_note added; `_dbSort`/`_score`/`_source` stripped) — non-circular, no internal/underscore field, nullability annotated, `total_count` required | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
-| DJ-R10 | Search pagination contract: documented params (q,type,limit,page) == handler acceptance; `page` 1-based/default 1/min 1, offset=(page-1)*limit; refresh/no-snapshot caveat present; no cursor/snapshot promise | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
+| DJ-R10 | Search pagination contract: documented params (q,type,limit,page) == handler acceptance; `page` 1-based/default 1/min 1, offset=(page-1)*limit | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
+| DJ-R11 | SERVED `/api/v1/search` description (the openapi.json.ts TRANSFORM OUTPUT, not the raw static schema) carries pagination semantics (1-based `page`, default 1, offset=(page-1)*limit, total_count) + the consistency caveat (results change on refresh; no cursor/snapshot consistency), while preserving catalog purpose + max-20 + transient-503 note (never reverts to "up to 5"). Pattern B: openapi.json.ts is the sole authoritative owner of the served description; the static schema holds a non-divergent pointer. D-42: a caveat written only into the static schema is silently discarded by the transform — the test invokes the route GET so a future drift cannot disappear during projection. | `tests/srs1/machine-contract-parity.test.ts` | EXEC + CONFIG | **NEW** |
 | DJ-M02 | MCP static `mcp.json` search `type` enum == dynamic `mcp.ts` inputSchema enum (both include `benchmark`, a served entity type) | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
 | DJ-W05 | `EntityResponse.entity` declares `id` + `canonical_id` (same-value, projected `canonical_id: e.id`, both required/non-null) and NO top-level `umid`; no "id IS umid" equivalence in the machine contract | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
 | P3C-NONEXP | No capability expansion under the contract-parity PR: MCP still exactly 5 tools (static+dynamic); OpenAPI path set unchanged (10 endpoints) | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
