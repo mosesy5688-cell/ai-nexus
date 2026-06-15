@@ -7,7 +7,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
-import { verifyRelationContent, verifyHotColumnValues, verifyBakeProducers } from './lib/verify-canaries.js';
+import { verifyRelationContent, verifyHotColumnValues, verifyBakeProducers, verifyCitationIntegrity } from './lib/verify-canaries.js';
 import { verifyAssertions } from './lib/verify-assertions.js';
 
 const args = process.argv.slice(2);
@@ -205,6 +205,7 @@ if (dbName === 'meta-00.db') {
     verifyHotColumnValues(dirPath, check);  // top-FNI hot columns not all-null
     verifyBakeProducers(dirPath, check);    // bake-only binary producers non-empty + sane magic
     verifyAssertions(dirPath, check);       // identity assertions: no false SAME_AS, evidence mandatory
+    verifyCitationIntegrity(dirPath, check); // P3-EVIDENCE-1: no fabricated citations (title-mandatory)
 }
 
 db.close();

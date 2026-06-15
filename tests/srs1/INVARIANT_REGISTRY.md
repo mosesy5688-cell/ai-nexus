@@ -71,6 +71,18 @@ proof in the PR body).
 | RETIRE-SITEMAP | static sitemap advertises NO retired/410/redirect route (allow-list lock) | `tests/srs1/retired-surface.test.ts` | CONFIG | **NEW** |
 | RETIRE-410 | retired entity types `/agent`,`/space`,`/prompt` detail pages set 410 (not 200/404) | `tests/srs1/retired-surface.test.ts` | SOURCE | **NEW** |
 
+## Registry — P3-EVIDENCE (citation integrity)
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| DJ-W02 | Producer `normalizeCitation` never fabricates: no `[object Object]`, no id/slug/hash/placeholder-as-title, no empty field shells, no current/bake-year substitution; title MANDATORY (no genuine title ⇒ `citation` null); author/year/url omitted-not-shelled when absent | `tests/unit/citation-integrity.test.ts` (EXEC, 18 reqs/22 cases) | EXEC | **NEW** |
+
+> Production-tier complement (NOT a hermetic PR test — the packer never runs in CI): the bake canary
+> `verifyCitationIntegrity` (`scripts/factory/lib/verify-canaries.js`, wired in `scripts/factory/verify-db.js`)
+> re-scans every `meta-NN.db` shard at bake time and fail-louds on the same fabrication classes (year judged
+> against the packed source `published_year`, never a current-year blacklist). SRS-1 holds the hermetic logic
+> guard; the canary holds the artifact guard.
+
 ---
 
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
@@ -93,6 +105,9 @@ proof in the PR body).
 - **NEW hermetic tests added (gaps not previously covered): 9 invariants** — P-08,
   P-09, MCP-SET, NEG-MCP, NEG-RANK, NEG-DOCS, OAS-PARITY, OAS-CAPS, RETIRE-SITEMAP,
   RETIRE-410 — in 5 files under `tests/srs1/`.
+- **NEW invariant (P3-EVIDENCE-1): DJ-W02** — hermetic EXEC assertion in
+  `tests/unit/citation-integrity.test.ts` (collected by the same Tier-1 `unit-test` gate),
+  complemented by the bake-time `verifyCitationIntegrity` canary (artifact tier, not a PR test).
 
 ## How SRS-1 is wired as the blocking gate
 
