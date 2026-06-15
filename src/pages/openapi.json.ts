@@ -28,15 +28,22 @@ const HEADERS: Record<string, string> = {
 // Served types: models, tools, datasets, papers, benchmarks. agents/spaces/
 // prompts dropped — agent + prompt cancelled, space merged into model
 // (honest-contract: advertise only what is actually served).
-// B8: the transient disclosure is appended to BOTH the count-injected and
-// catalog-only wordings so the dynamic search description always carries it
-// (matches the static schema's search description + 503 response).
+// P3-CONTRACT-1 PR-A2: this route is the AUTHORITATIVE OWNER of the served
+// /api/v1/search description (Pattern B). The transform below OVERWRITES
+// schema.paths['/api/v1/search'].get.description, so every clause that must
+// reach clients (count, free-tier cap, PAGINATION semantics, consistency
+// CAVEAT, transient 503 note) is composed HERE. The static openapi-schema.json
+// carries a short pointer (not a divergent full duplicate) to keep one coherent
+// ownership model (no silent overwrite of contract text). D-42: a caveat
+// written only into the static schema is discarded by this transform and never served.
 const TRANSIENT_NOTE = ' Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.';
-const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results.' + TRANSIENT_NOTE;
+// Pagination + consistency caveat: MUST reach the served description.
+const PAGINATION_NOTE = ' Pagination is 1-based via `page` (default page is 1; offset = (page - 1) * limit); `total_count` in the response supports client-side page calculation. Results may change between requests as the dataset is refreshed; this endpoint does not provide cursor or snapshot consistency.';
+const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results.' + PAGINATION_NOTE + TRANSIENT_NOTE;
 
 function injectCount(phrase: string | null): string {
     if (!phrase) return SEARCH_DESC_CATALOG;
-    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results.${TRANSIENT_NOTE}`;
+    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results.${PAGINATION_NOTE}${TRANSIENT_NOTE}`;
 }
 
 export const GET: APIRoute = async ({ request }) => {

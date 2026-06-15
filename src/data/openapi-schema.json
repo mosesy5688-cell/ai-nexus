@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 20 results. Pagination is 1-based via `page` (offset = (page-1)*limit); `total_count` in the response supports client-side page calculation. Results may change between requests as the dataset is refreshed; this endpoint does not provide cursor or snapshot consistency. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results. The authoritative served description (live entity count, pagination semantics, consistency caveat, and transient 503 note) is composed by the openapi.json route; see the served /openapi.json.",
         "tags": ["Search"],
         "parameters": [
           {
