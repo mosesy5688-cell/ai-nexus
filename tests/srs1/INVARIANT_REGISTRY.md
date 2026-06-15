@@ -157,6 +157,24 @@ proof in the PR body).
 
 ---
 
+## Registry — P2-TELEMETRY-TA1 (adoption-telemetry substrate & constitutional isolation)
+
+> Deterministic, hermetic SUBSTRATE invariants for the P2 Adoption Telemetry
+> Phase-A TA1 (Founder gate D-2026-0615-49). TA1 ships the AE write adapter +
+> closed-world schema/vocab + classifiers + default-OFF flag + local no-op mock +
+> the no-read/binding-confinement static gate. NO call-site instrumentation
+> (TA2), NO prod writes, telemetry DEFAULT-OFF. North-star: "P2 measures
+> dependence; it does not monetize, rank, recommend, or gate." These tests read
+> repo SOURCE + execute the shared telemetry modules with a mock binding (no
+> network, no prod, no AE write). The static gate is the BLOCKING co-deliverable.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| TEL-SCHEMA | Closed-world event schema: EXACTLY {schema_version, surface, operation/tool, status_class(2xx\|3xx\|4xx\|5xx), cache_class, audience_class, referer_host_class, time_bucket}; 302->3xx (Erratum #4); operation = tool name ONLY for mcp.tools_call; any unknown/extra key rejected; classifiers return only closed classes (undecidable -> unknown) | `tests/srs1/telemetry-schema.test.ts` | EXEC + SOURCE | **NEW** |
+| TEL-PRIVACY | Every FORBIDDEN field name (latency/deployment-SHA/snapshot/body/arguments/query/prompt/entity-id/slug/path/canonical_id/UMID/source-url/raw-ip/raw-UA/raw-referer/cookie/fingerprint/geo/clientInfo/error) is rejected before reaching the sink; the written AE data point carries ONLY the 8 closed-enum dimensions (<=20 blobs, 0 doubles, EXACTLY 1 index); emit() never accepts Request/URL/body | `tests/srs1/telemetry-privacy.test.ts` | EXEC | **NEW** |
+| TEL-ISOLATION | DEFAULT-OFF (flag != 'true' -> no write); no-binding no-op (no write, no throw); failure isolation (throwing sink never throws into caller; lost-write meta-counter increments); waitUntil fire-and-forget; emit returns no serving value; telemetry modules import nothing from FNI/ranking/search/projection/MCP-response | `tests/srs1/telemetry-isolation.test.ts` | EXEC + SOURCE | **NEW** |
+| TEL-GATE | The no-read + binding-confinement static gate (`scripts/check-telemetry-no-read.mjs`) is green AND non-vacuous: binding `ADOPTION_TELEMETRY` confined to the textual allowlist (config + env-type + adapter + mock + gate + telemetry tests); the 13 serve/scoring/projection/ranking/MCP-response no-read paths exist and never name the binding (RUNTIME dereference allowlist = the single write adapter only) | `tests/srs1/telemetry-isolation.test.ts` | EXEC + STRUCT | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the

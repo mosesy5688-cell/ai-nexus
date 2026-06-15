@@ -2,10 +2,18 @@
 /// <reference types="astro/client" />
 
 type R2Bucket = import('@cloudflare/workers-types').R2Bucket;
+type AnalyticsEngineDataset = import('@cloudflare/workers-types').AnalyticsEngineDataset;
 
 interface Env {
     AI: any;
     R2_ASSETS: R2Bucket;
+    // P2 Adoption Telemetry sink (D-2026-0615-49 O-1/O-6 B-1/B-4). Optional: the
+    // binding is absent in local pages dev, so the write adapter no-ops there.
+    // RUNTIME dereference allowlist = the single write adapter only
+    // (src/lib/telemetry/ae-adapter.ts); enforced by check-telemetry-no-read.mjs.
+    ADOPTION_TELEMETRY?: AnalyticsEngineDataset;
+    // Kill switch (SPEC s11). Default-OFF: anything but the string 'true' = off.
+    TELEMETRY_ENABLED?: string;
 }
 
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;

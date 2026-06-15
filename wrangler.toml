@@ -10,3 +10,19 @@ pages_build_output_dir = "dist"
 [[r2_buckets]]
 binding = "R2_ASSETS"
 bucket_name = "ai-nexus-assets"
+
+# P2 Adoption Telemetry -- Workers Analytics Engine sink (D-2026-0615-49 O-1/O-6 B-1).
+# Binding name FROZEN = ADOPTION_TELEMETRY. Dataset names FROZEN here; they are
+# NEVER constructed dynamically from any customer/route/secret at runtime.
+# Production candidate dataset = free2aitools_adoption_v1; preview/canary =
+# free2aitools_adoption_canary_v1. Declaring the binding does NOT enable
+# telemetry: the write adapter is default-OFF (TELEMETRY_ENABLED unset != 'true')
+# and TA1 wires NO call site, so no events are emitted by this PR.
+[[analytics_engine_datasets]]
+binding = "ADOPTION_TELEMETRY"
+dataset = "free2aitools_adoption_v1"
+
+[env.preview]
+[[env.preview.analytics_engine_datasets]]
+binding = "ADOPTION_TELEMETRY"
+dataset = "free2aitools_adoption_canary_v1"
