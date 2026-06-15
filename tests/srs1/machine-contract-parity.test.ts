@@ -1,0 +1,230 @@
+/**
+ * SRS-1 -- P3-CONTRACT-1 machine-contract parity invariants (tier-1, hermetic).
+ *
+ * Locks the served MACHINE CONTRACTS (OpenAPI prose+schema, MCP static manifest)
+ * against the CURRENTLY-IMPLEMENTED public runtime. These guards do NOT change or
+ * assert runtime BEHAVIOR -- they assert the CONTRACT PROJECTION matches the code
+ * that produces the behavior, so a future drift in either direction fails the gate.
+ *
+ *   DJ-R05 (T1) -- search result-limit parity: OpenAPI prose (openapi.json.ts) +
+ *                 schema limit.maximum + runtime FREE_TIER_MAX all == 20.
+ *   DJ-R06 (T2) -- SearchResponse schema == the ACTUAL public-v1 200 response field
+ *                 set, DERIVED from search.ts DISPLAY_COLS + respond() + the
+ *                 v1/search.ts wrapper transforms (NOT read back from the schema --
+ *                 the expected set is computed from runtime source, non-circular).
+ *   DJ-R10 (T3) -- pagination contract: documented search params (q,type,limit,page)
+ *                 == canonical handler acceptance (search.ts).
+ *   DJ-M02 (T4) -- MCP static enum parity: static mcp.json search `type` enum ==
+ *                 dynamic api/mcp.ts inputSchema enum (both include benchmark).
+ *   DJ-W05 (T5) -- identity contract: EntityResponse declares id + canonical_id
+ *                 (same-value semantics, projected from id) and NO top-level umid;
+ *                 no "id IS umid" equivalence in the machine contract.
+ *   T-NONEXP    -- no capability expansion: tool count / endpoint set unchanged.
+ *
+ * HERMETIC: reads repo SOURCE (search.ts / v1/search.ts / mcp.ts / openapi.json.ts /
+ * entity-projection.ts) and parses static JSON (openapi-schema.json / mcp.json). No
+ * module execution, no cloudflare:workers import, no live fetch. Deterministic.
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
+const require = createRequire(import.meta.url);
+const schema = require('../../src/data/openapi-schema.json');
+const mcpJson = require('../../public/.well-known/mcp.json');
+
+const SEARCH_SRC = read('src/pages/api/search.ts');
+const V1_SEARCH_SRC = read('src/pages/api/v1/search.ts');
+const MCP_SRC = read('src/pages/api/mcp.ts');
+const OPENAPI_ROUTE_SRC = read('src/pages/openapi.json.ts');
+const PROJECTION_SRC = read('src/lib/entity-projection.ts');
+
+const SEARCH_PATH = schema.paths['/api/v1/search'].get;
+const SEARCH_ITEM = schema.components.schemas.SearchResponse.properties.results.items.properties;
+const SEARCH_RESP = schema.components.schemas.SearchResponse.properties;
+const ENTITY = schema.components.schemas.EntityResponse.properties.entity;
+
+// -- T2 helper: derive the EXACT public-v1 200 field set from runtime SOURCE --
+// 1. DISPLAY_COLS in search.ts -> the SSR row item fields (e.<col> aliases).
+function displayColFields(): string[] {
+    const m = SEARCH_SRC.match(/const DISPLAY_COLS = `([^`]+)`/);
+    expect(m, 'search.ts must declare DISPLAY_COLS').toBeTruthy();
+    return m![1].split(',').map((c) => c.trim().replace(/^e\./, '')).filter(Boolean);
+}
+// 2. respond() top-level keys (search.ts) -- the un-wrapped envelope.
+const RESPOND_TOP = ['results', 'total_count', 'tier', 'elapsed_ms'];
+
+describe('SRS-1 DJ-R05 (T1): search result-limit prose <-> schema <-> runtime == 20', () => {
+    it('runtime FREE_TIER_MAX == 20 (v1/search.ts)', () => {
+        const m = V1_SEARCH_SRC.match(/const FREE_TIER_MAX = (\d+)/);
+        expect(m).toBeTruthy();
+        expect(Number(m![1])).toBe(20);
+    });
+    it('OpenAPI schema limit.maximum == 20', () => {
+        const limit = SEARCH_PATH.parameters.find((p: any) => p.name === 'limit');
+        expect(limit.schema.maximum).toBe(20);
+    });
+    it('dynamic openapi.json.ts prose says "up to 20 results" (both wordings), never 5', () => {
+        // Both the catalog-only constant and the count-injected template carry the cap.
+        const matches = OPENAPI_ROUTE_SRC.match(/Free tier returns up to (\d+) results/g) || [];
+        expect(matches.length).toBeGreaterThanOrEqual(2);
+        for (const phrase of matches) expect(phrase).toBe('Free tier returns up to 20 results');
+        expect(OPENAPI_ROUTE_SRC).not.toMatch(/returns up to 5 results/);
+    });
+    it('static schema search description also says "up to 20 results", never 5', () => {
+        expect(SEARCH_PATH.description).toMatch(/up to 20 results/);
+        expect(SEARCH_PATH.description).not.toMatch(/up to 5 results/);
+    });
+});
+
+describe('SRS-1 DJ-R06 (T2): SearchResponse schema == actual public-v1 response field set', () => {
+    // Expected RESULT-ITEM set, computed from runtime source (non-circular):
+    //   DISPLAY_COLS, then v1 transform: fni_s kept (nulled) + fni_s_note ADDED,
+    //   internal _dbSort/_score/_source stripped (never selected into DISPLAY_COLS).
+    const expectedItemFields = (() => {
+        const cols = displayColFields();
+        expect(cols).toContain('fni_s'); // v1 wrapper nulls this in place
+        const set = new Set(cols);
+        // v1/search.ts adds fni_s_note alongside the nulled fni_s.
+        expect(V1_SEARCH_SRC).toMatch(/r\.fni_s_note =/);
+        set.add('fni_s_note');
+        return [...set].sort();
+    })();
+
+    it('declared item fields EXACTLY equal the runtime-derived set (no missing, no extra)', () => {
+        const declared = Object.keys(SEARCH_ITEM).sort();
+        expect(declared).toEqual(expectedItemFields);
+    });
+
+    it('top-level fields == respond() envelope + v1 `version` (always-present on 200)', () => {
+        // v1/search.ts wraps with { version, ...body }; respond() emits RESPOND_TOP.
+        expect(V1_SEARCH_SRC).toMatch(/version: API_VERSION, \.\.\.body/);
+        const expectedTop = [...RESPOND_TOP, 'version'].sort();
+        expect(Object.keys(SEARCH_RESP).sort()).toEqual(expectedTop);
+    });
+
+    it('NO internal/underscore-prefixed field is declared in the public schema', () => {
+        // v1/search.ts strips _dbSort/_score/_source before serialization.
+        expect(V1_SEARCH_SRC).toMatch(/delete r\._dbSort; delete r\._score; delete r\._source/);
+        for (const k of [...Object.keys(SEARCH_ITEM), ...Object.keys(SEARCH_RESP)]) {
+            expect(k.startsWith('_')).toBe(false);
+        }
+    });
+
+    it('nullability annotations present: stats/string fields nullable; fni_s null+note', () => {
+        for (const f of ['stars', 'downloads', 'last_modified', 'license', 'pipeline_tag', 'author', 'summary']) {
+            expect(SEARCH_ITEM[f].nullable, `${f} must be nullable`).toBe(true);
+        }
+        // fni_s is nulled by the v1 wrapper -> must be declared nullable + carry note.
+        expect(SEARCH_ITEM.fni_s.nullable).toBe(true);
+        expect(SEARCH_ITEM.fni_s_note.type).toBe('string');
+    });
+
+    it('total_count declared as integer + marked required (respond() always emits it)', () => {
+        expect(SEARCH_ITEM.fni_s).toBeDefined();
+        expect(SEARCH_RESP.total_count.type).toBe('integer');
+        expect(schema.components.schemas.SearchResponse.required).toContain('total_count');
+    });
+});
+
+describe('SRS-1 DJ-R10 (T3): pagination contract -- documented params <-> handler', () => {
+    const declaredParams = SEARCH_PATH.parameters.map((p: any) => p.name).sort();
+
+    it('OpenAPI declares q,type,limit,page (the handler-accepted search params)', () => {
+        expect(declaredParams).toEqual(['limit', 'page', 'q', 'type']);
+    });
+    it('search.ts reads each declared param from searchParams', () => {
+        for (const p of ['q', 'type', 'limit', 'page']) {
+            expect(SEARCH_SRC, `handler must read ${p}`).toMatch(
+                new RegExp(`searchParams\\.get\\('${p}'\\)`),
+            );
+        }
+    });
+    it('page param: 1-based, default 1, minimum 1 (matches search.ts Math.max(...,1))', () => {
+        const page = SEARCH_PATH.parameters.find((p: any) => p.name === 'page');
+        expect(page.schema.minimum).toBe(1);
+        expect(page.schema.default).toBe(1);
+        expect(SEARCH_SRC).toMatch(/Math\.max\(parseInt\(url\.searchParams\.get\('page'\) \|\| '1'\), 1\)/);
+        expect(page.description).toMatch(/offset = \(page-1\)\*limit/);
+        // offset algorithm is exactly (page-1)*limit in the handler (browse + index paths).
+        expect(SEARCH_SRC).toMatch(/const offset = \(page - 1\) \* limit/);
+    });
+    it('description documents refresh/no-snapshot caveat; promises no cursor/snapshot', () => {
+        expect(SEARCH_PATH.description).toMatch(
+            /Results may change between requests as the dataset is refreshed; this endpoint does not provide cursor or snapshot consistency\./,
+        );
+        expect(SEARCH_PATH.description).toMatch(/total_count.*supports client-side page calculation/);
+    });
+});
+
+describe('SRS-1 DJ-M02 (T4): MCP static enum <-> dynamic handler enum parity', () => {
+    // Dynamic enum: parse the search tool inputSchema `type` enum out of mcp.ts source.
+    function handlerSearchTypeEnum(): string[] {
+        const m = MCP_SRC.match(/type:\s*'string',\s*enum:\s*\[([^\]]+)\][^}]*Filter by entity type/);
+        expect(m, 'mcp.ts search inputSchema must declare a type enum').toBeTruthy();
+        return m![1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
+    }
+    function staticSearchTypeEnum(): string[] {
+        const tool = mcpJson.tools.find((t: any) => t.name === 'free2aitools_search');
+        return tool.input_schema.properties.type.enum;
+    }
+
+    it('static mcp.json search type enum == dynamic mcp.ts enum (set parity)', () => {
+        expect(staticSearchTypeEnum().slice().sort()).toEqual(handlerSearchTypeEnum().slice().sort());
+    });
+    it('benchmark is in BOTH enums (served entity type)', () => {
+        expect(staticSearchTypeEnum()).toContain('benchmark');
+        expect(handlerSearchTypeEnum()).toContain('benchmark');
+    });
+    it('benchmark is a served entity type per OpenAPI (type list + search type param enum)', () => {
+        expect(ENTITY.properties.type.description).toMatch(/benchmark/);
+        const typeParam = SEARCH_PATH.parameters.find((p: any) => p.name === 'type');
+        expect(typeParam.schema.enum).toContain('benchmark');
+    });
+});
+
+describe('SRS-1 DJ-W05 (T5): EntityResponse identity contract', () => {
+    it('declares both id and canonical_id', () => {
+        expect(ENTITY.properties.id).toBeDefined();
+        expect(ENTITY.properties.canonical_id).toBeDefined();
+        expect(ENTITY.properties.canonical_id.type).toBe('string');
+    });
+    it('canonical_id is required + non-null (projected from required id: canonical_id == e.id)', () => {
+        expect(ENTITY.required).toContain('id');
+        expect(ENTITY.required).toContain('canonical_id');
+        expect(ENTITY.properties.canonical_id.nullable).not.toBe(true);
+        // entity-projection.ts: canonical_id: e.id (same-value semantics).
+        expect(PROJECTION_SRC).toMatch(/canonical_id: e\.id/);
+    });
+    it('NO top-level umid declared (runtime does not emit it)', () => {
+        expect(ENTITY.properties.umid).toBeUndefined();
+    });
+    it('contract states canonical_id == id (same value), NOT "id is umid"', () => {
+        expect(ENTITY.properties.canonical_id.description).toMatch(/same canonical identifier value as `id`|canonical_id == id/);
+        const idDesc = (ENTITY.properties.id.description || '').toLowerCase();
+        const cidDesc = (ENTITY.properties.canonical_id.description || '').toLowerCase();
+        // No machine-contract equivalence asserting id IS the umid.
+        expect(idDesc).not.toMatch(/is your umid|id is the umid|id == umid/);
+        expect(cidDesc).not.toMatch(/id is your umid|id is the umid|id == umid/);
+    });
+});
+
+describe('SRS-1 T-NONEXP: no capability expansion (counts/endpoints unchanged)', () => {
+    it('MCP still advertises exactly 5 tools (static + dynamic)', () => {
+        expect(mcpJson.tools.length).toBe(5);
+        const dynNames = [...MCP_SRC.matchAll(/name:\s*'(free2aitools_[a-z_]+)'/g)].map((m) => m[1]);
+        expect([...new Set(dynNames)].length).toBe(5);
+    });
+    it('OpenAPI path set unchanged: exactly the 10 declared endpoints', () => {
+        // 9 /api/v1/* + /api/mcp. Lock the count so a contract-only PR cannot
+        // silently add/remove an endpoint.
+        const paths = Object.keys(schema.paths).sort();
+        expect(paths).toContain('/api/v1/search');
+        expect(paths).toContain('/api/mcp');
+        expect(paths.length).toBe(10);
+    });
+});

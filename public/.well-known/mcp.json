@@ -14,7 +14,7 @@
         "properties": {
           "query": { "type": "string", "description": "Natural language search query" },
           "limit": { "type": "number", "default": 10, "description": "Max results (1-20)" },
-          "type": { "type": "string", "enum": ["all", "model", "tool", "dataset", "paper"], "description": "Filter by entity type" }
+          "type": { "type": "string", "enum": ["all", "model", "tool", "dataset", "paper", "benchmark"], "description": "Filter by entity type" }
         },
         "required": ["query"]
       }
