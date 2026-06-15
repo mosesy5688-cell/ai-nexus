@@ -22,6 +22,16 @@ jobs:
       - name: C4 Anti-Arbitration Static Gate
         run: node scripts/check-c4-anti-arbitration.mjs
 
+      # P2 Adoption Telemetry (D-2026-0615-49 O-5, MANDATORY/BLOCKING):
+      # no-read + binding-confinement static gate. Fails if the frozen telemetry
+      # binding is read by any serve/scoring/ranking/projection/MCP path, if the
+      # emitter accepts a Request/URL/Headers param, or if the binding is named
+      # outside its textual allowlist. The confinement scan is genuinely repo-wide
+      # (derived from git ls-files), so this workflow itself must NOT name the bare
+      # binding token. Anti-vacuity + fail-closed self-proof. No npm deps -- pure Node.
+      - name: Telemetry No-Read + Binding-Confinement Static Gate
+        run: node scripts/check-telemetry-no-read.mjs
+
   # L2: Unit Logic (Vitest) — this job IS the SRS-1 Tier-1 BLOCKING invariant gate.
   #
   # SRS-1 (the hermetic, deterministic invariant suite — central registry at
