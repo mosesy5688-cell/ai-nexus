@@ -6,7 +6,37 @@
  */
 export const prerender = false;
 
+import { env } from 'cloudflare:workers';
+import { emit, isEnabled } from '../../../lib/telemetry/ae-adapter';
+import { buildDatasetsEvent } from '../../../lib/telemetry/request-classifier';
+
 const CDN_BASE = 'https://cdn.free2aitools.com';
+
+// P2 Adoption Telemetry (TA2) -- DATASETS IMPL (D-53 O-2). ONLY the real
+// known-file 302 branch emits (surface=datasets.302, status_class 3xx, once);
+// the manifest 200 + unknown-file 404 branches emit ZERO. Isolated swallow; the
+// redirect Response is returned unchanged; the binding token is never named.
+function recordDatasets302(request: Request): void {
+    try {
+        if (!isEnabled(env)) return;
+        const headers = request.headers;
+        let refererHost: string | null = null;
+        const ref = headers.get('referer');
+        if (ref) { try { refererHost = new URL(ref).hostname; } catch { refererHost = null; } }
+        let ownHost: string | null = null;
+        try { ownHost = new URL(request.url).hostname; } catch { ownHost = null; }
+        const event = buildDatasetsEvent({
+            isRealKnownFile302: true,
+            uaString: headers.get('user-agent'),
+            refererHost,
+            ownHost,
+            now: new Date(),
+        });
+        if (event) emit(env, event);
+    } catch {
+        // Telemetry must never affect the redirect response.
+    }
+}
 
 const KNOWN_FILES = [
     { id: 'fni_lite_latest', name: 'FNI Lite (Latest)', path: 'datasets/fni_lite_latest.parquet', tier: 'free', fields: ['id', 'title', 'abstract_300', 'fni_score', 'fni_version'] },
@@ -21,7 +51,9 @@ export async function GET({ request, locals }: { request: Request; locals: any }
         if (!entry) {
             return new Response(JSON.stringify({ error: 'Unknown file' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
         }
-        return Response.redirect(`${CDN_BASE}/${entry.path}`, 302);
+        const redirect = Response.redirect(`${CDN_BASE}/${entry.path}`, 302);
+        recordDatasets302(request);   // O-2: count ONLY the real known-file 302
+        return redirect;
     }
 
     const body = {

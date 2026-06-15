@@ -175,6 +175,35 @@ proof in the PR body).
 | TEL-ISOLATION | DEFAULT-OFF (flag != 'true' -> no write); no-binding no-op (no write, no throw); failure isolation (throwing sink never throws into caller; lost-write meta-counter increments); waitUntil fire-and-forget; emit returns no serving value; telemetry modules import nothing from FNI/ranking/search/projection/MCP-response | `tests/srs1/telemetry-isolation.test.ts` | EXEC + SOURCE | **NEW** |
 | TEL-GATE | The no-read + binding-confinement static gate (`scripts/check-telemetry-no-read.mjs`) is green AND non-vacuous: binding `ADOPTION_TELEMETRY` confined to the textual allowlist (config + env-type + adapter + mock + gate + telemetry tests); the 13 serve/scoring/projection/ranking/MCP-response no-read paths exist and never name the binding (RUNTIME dereference allowlist = the single write adapter only) | `tests/srs1/telemetry-isolation.test.ts` | EXEC + STRUCT | **NEW** |
 
+## Registry — P2-TELEMETRY-TA2 (adoption-telemetry request-path instrumentation)
+
+> Deterministic, hermetic INSTRUMENTATION invariants for the P2 Adoption Telemetry
+> Phase-A TA2 (Founder gate D-2026-0615-53, CONTROLLING). TA2 wires the TA1
+> substrate to the request path via a PURE classifier (`request-classifier.ts`)
+> consumed by 3 call sites (middleware REST/discovery, `mcp.ts` single-finalizer,
+> `datasets.ts` known-file 302). It adds NO canary, NO prod write, NO new binding
+> token, NO env change; telemetry stays DEFAULT-OFF. GLOBAL INVARIANT (O-4): one
+> external request -> at most one event; exactly-one only when eligible (flag ON +
+> approved surface + canonical method + valid MCP op). These tests execute the
+> shared pure builders + the real `emit()` with a mock binding (no network/prod/AE)
+> and invoke the gate's exported structural checks for the mutation proofs. The
+> O-6-repaired static gate (assertion B now structurally consumes
+> `TELEMETRY_MODULES` + the call sites) is the BLOCKING co-deliverable.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| H-01 (corrected) | All requests -> at most one event; an eligible canonical request -> exactly one ONLY when telemetry enabled; excluded/invalid/unknown/wrong-method/flag-OFF -> zero; an /api/mcp request is not double-counted (middleware excludes it; the MCP finalizer is sole owner) | `tests/srs1/telemetry-exactly-once.test.ts` | EXEC | **NEW** |
+| H-23 | Dataset semantic lock (O-2): manifest 200 = 0; unknown-file 404 = 0; real known-file 302 = exactly 1 (surface `datasets.302`, status_class 3xx) | `tests/srs1/telemetry-callsite.test.ts` (+ exactly-once) | EXEC | **NEW** |
+| H-24 | Method lock (O-4): OPTIONS/HEAD/PUT/PATCH/DELETE, GET-only-as-POST, POST-only-as-GET -> classifier drops (null), zero emit | `tests/srs1/telemetry-callsite.test.ts` | EXEC | **NEW** |
+| H-25 | Gate-B mutation proof (O-6): a raw event-key injection, a `console.log(rawUa)` insertion, a Headers-typed emitter param, and a non-frozen builder return type each make a gate structural check FAIL; baseline/revert PASS (invokes the gate's exported `checkReturnedEventKeys`/`checkNoConsole`/`checkEmitSignature`/`checkBuilderReturnType`/`runAssertionB`) | `tests/srs1/telemetry-callsite.test.ts` | EXEC + SOURCE | **NEW** |
+| H-26 | Audience precedence (O-8): MCP > first_party > bot > browser > programmatic-allowlist > unknown; empty/unknown UA and ambiguous "Agent" never -> external_api/mcp_client; raw UA never stored/returned | `tests/srs1/telemetry-callsite.test.ts` | EXEC | **NEW** |
+| H-27 | Cache honesty (O-1): ordinary 200 without a trusted signal -> `none` (never auto-miss); 304 -> `hit`; MCP/datasets never cacheable -> `none`; explicit trusted MISS -> `miss` only when provided | `tests/srs1/telemetry-callsite.test.ts` | EXEC | **NEW** |
+| H-28 | No canary backdoor: no forced-500 / test-header / test-query / test-mode runtime branch in the authorized files | `tests/srs1/telemetry-callsite.test.ts` | SOURCE | **NEW** |
+| H-29 | No binding-allowlist expansion: the binding token still appears ONLY in the unchanged textual allowlist; the 4 TA2 files (middleware/mcp/datasets/classifier) never name it | `tests/srs1/telemetry-exactly-once.test.ts` | EXEC + STRUCT | **NEW** |
+| H-30 | Zero schema delta: `schema.ts`/`vocab.ts`/`ae-adapter.ts`/`mock-binding.ts` carry NO TA2 additions (no instrumentation symbol / cloudflare import leaks into the frozen substrate) | `tests/srs1/telemetry-callsite.test.ts` | SOURCE | **NEW** |
+| TEL-CALLSITE | O-3 MCP classifier (initialize + the 5 frozen tools emit; tools/list/unknown/missing -> null; a known tool emits even on a JSON-RPC error), O-4 surface map by family, O-9 UTC hour bucket, and no raw UA/referer/path/id in any returned event | `tests/srs1/telemetry-callsite.test.ts` | EXEC | **NEW** |
+| TEL-OWNERSHIP | Single-emission ownership: emit returns a meta object (never a Response/serve value); a throwing sink never propagates (counter increments, response untouched); the produced event is flag-independent (byte-identical ON vs OFF) | `tests/srs1/telemetry-exactly-once.test.ts` | EXEC | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the
