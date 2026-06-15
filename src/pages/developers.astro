@@ -19,20 +19,25 @@ const SITE = 'https://free2aitools.com';
 const pageTitle = 'Developer Docs — API, MCP & Badge | Free2AI';
 const pageDescription = 'Integrate Free2AI into your apps and AI agents. REST API, MCP server for Claude/Cursor, and FNI badge for your README.';
 
+// Illustrative response shape only. The `id` values are placeholders for
+// whatever the live catalog returns — never hard-code them; read them back
+// from results[].id and use those downstream (entity / compare).
 const searchExample = JSON.stringify({
   version: "fni_v2.0",
   results: [
-    { id: "hf-model--meta-llama--llama-3-8b", name: "Llama 3 8B", type: "model", fni_score: 87.2 },
-    { id: "hf-model--deepseek-ai--deepseek-v3", name: "DeepSeek V3", type: "model", fni_score: 83.5 }
+    { id: "<id-from-result-1>", name: "<name>", type: "model", fni_score: 87.2 },
+    { id: "<id-from-result-2>", name: "<name>", type: "model", fni_score: 83.5 }
   ],
   meta: { elapsed_ms: 42, total: 2 }
 }, null, 2);
 
+// Illustrative response only. model_id is whatever the live catalog returns
+// (placeholder shown); read it back from the response, never hard-code it.
 const selectExample = JSON.stringify({
   task_interpreted: "text-generation",
   entries: [{
-    rank: 1, model_id: "hf-model--nvidia--gemma-4-31b-it-nvfp4",
-    name: "Gemma-4-31B-IT-NVFP4", fni_score: 49.3,
+    rank: 1, model_id: "<model_id-from-response>",
+    name: "<name>", fni_score: 49.3,
     params_billions: 20.87, vram_estimate_gb: 17,
     fni_factors: { semantic: null, semantic_note: "query-time baseline; scored live at search; not a per-entity value", authority: 0, popularity: 70.5, recency: 98.1, quality: 65 },
     fni_summary: "FNI 49.3 catalog entry; leading factor recency (98.1); 21B params."
@@ -63,6 +68,142 @@ const jsonLd = JSON.stringify({
     { "@type": "ServiceChannel", "serviceUrl": `${SITE}/api/v1/badge/{umid}`, "name": "FNI Badge" }
   ]
 });
+
+// ---------------------------------------------------------------------------
+// Quickstart snippets (search-first canonical workflow). These are the single
+// source of truth for the runnable examples and are extracted verbatim by the
+// DX reference-example regression tests. Every snippet: searches first, derives
+// ids from the returned results (never a hard-coded catalog id), validates
+// non-empty results, distinguishes 400/404/429/500/503, honors Retry-After,
+// and leaves the final decision to the caller. BASE is configurable.
+// ---------------------------------------------------------------------------
+
+const curlSnippet = `#!/usr/bin/env bash
+# Canonical workflow: search -> derive ids from results -> inspect entity ->
+# compare candidates -> the CALLER decides. No id is hard-coded; all ids come
+# from the search response. Prerequisite: jq (https://jqlang.github.io/jq/).
+set -euo pipefail
+BASE="\${F2AI_BASE:-${SITE}}"
+
+# 1) Search. --fail-with-body surfaces 4xx/5xx; we branch on the status code.
+http_code=$(curl -sS -o /tmp/f2ai_search.json -w '%{http_code}' \\
+  "$BASE/api/v1/search?q=code+generation&limit=5") || true
+case "$http_code" in
+  200) ;;                                  # ok
+  400) echo "bad request (400) - fix the query"; exit 1 ;;
+  404) echo "not found (404)"; exit 1 ;;
+  429|503) echo "transient ($http_code) - retry after Retry-After seconds"; exit 75 ;;
+  *)   echo "server error ($http_code)"; exit 1 ;;
+esac
+
+# 2) Derive ids from the result set. Fail honestly if fewer than 2 are returned
+#    (do NOT silently fall through to an empty compare).
+mapfile -t IDS < <(jq -r '.results[].id' /tmp/f2ai_search.json)
+if [ "\${#IDS[@]}" -lt 2 ]; then
+  echo "search returned \${#IDS[@]} result(s); need >= 2 to compare. Stopping."
+  exit 1
+fi
+
+# 3) Inspect one candidate (evidence is in the entity response: FNI factors +
+#    specs). REST has no separate /explain endpoint. URL-encode '/' in the id.
+ID_ENC=\$(printf '%s' "\${IDS[0]}" | jq -sRr @uri)
+curl -sS "$BASE/api/v1/entity/$ID_ENC" | jq '.entity.fni.factors'
+
+# 4) Compare the first two candidates side by side.
+curl -sS "$BASE/api/v1/compare?ids=\${IDS[0]},\${IDS[1]}" | jq '.'
+
+# 5) The caller/agent makes the final selection from this evidence.
+echo "Review the factors above and choose. Free2AI does not decide for you."`;
+
+const jsSnippet = `// Node 18+ (built-in fetch). No SDK, no dependencies.
+// Canonical workflow: search -> ids from results -> entity (evidence) ->
+// compare -> the caller decides. Retries ONLY 429/503, max 2, honors Retry-After.
+const BASE = process.env.F2AI_BASE || "${SITE}";
+
+async function call(path, { timeoutMs = 10000 } = {}) {
+  let attempt = 0;
+  for (;;) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let res;
+    try {
+      res = await fetch(BASE + path, { signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+    // Status check BEFORE parsing the body.
+    if (res.status === 400 || res.status === 404) {
+      throw new Error(\`non-retryable \${res.status} for \${path}\`);
+    }
+    if ((res.status === 429 || res.status === 503) && attempt < 2) {
+      const ra = Number(res.headers.get("retry-after"));
+      const delay = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 500 * (attempt + 1);
+      await new Promise((r) => setTimeout(r, Math.min(delay, 5000)));
+      attempt++;
+      continue;
+    }
+    if (!res.ok) throw new Error(\`request failed \${res.status} for \${path}\`);
+    return res.json();
+  }
+}
+
+export async function pickCandidates(query = "code generation") {
+  const search = await call(\`/api/v1/search?q=\${encodeURIComponent(query)}&limit=5\`);
+  const results = Array.isArray(search.results) ? search.results : [];
+  if (results.length < 2) {
+    throw new Error(\`need >= 2 results to compare; got \${results.length}\`);
+  }
+  // Use the ids the server returned. Preserve null (not-measured) vs 0 (measured).
+  const ids = results.map((r) => r.id);
+  const entity = await call(\`/api/v1/entity/\${encodeURIComponent(ids[0])}\`);
+  const factors = entity?.entity?.fni?.factors ?? null; // may be null; no fabrication
+  const comparison = await call(\`/api/v1/compare?ids=\${ids[0]},\${ids[1]}\`);
+  // The caller/agent reasons over this evidence and makes the final choice.
+  return { ids, factors, comparison };
+}`;
+
+const pySnippet = `# python -m pip install requests
+# Any standards-compliant HTTP client may be used.
+# Canonical workflow: search -> ids from results -> entity (evidence) ->
+# compare -> the caller decides. Retries ONLY 429/503, max 2, honors Retry-After.
+import os
+import time
+import requests
+
+BASE = os.environ.get("F2AI_BASE", "${SITE}")
+
+
+def call(path, timeout=(5, 10)):
+    attempt = 0
+    while True:
+        resp = requests.get(BASE + path, timeout=timeout)
+        if resp.status_code in (400, 404):
+            resp.raise_for_status()  # non-retryable client error
+        if resp.status_code in (429, 503) and attempt < 2:
+            ra = resp.headers.get("Retry-After")
+            try:
+                delay = float(ra) if ra is not None else 0.5 * (attempt + 1)
+            except ValueError:
+                delay = 0.5 * (attempt + 1)
+            time.sleep(min(delay, 5.0))
+            attempt += 1
+            continue
+        resp.raise_for_status()  # raises on remaining 5xx; no indefinite retry
+        return resp.json()
+
+
+def pick_candidates(query="code generation"):
+    search = call(f"/api/v1/search?q={requests.utils.quote(query)}&limit=5")
+    results = search.get("results") or []
+    if len(results) < 2:
+        raise RuntimeError(f"need >= 2 results to compare; got {len(results)}")
+    ids = [r.get("id") for r in results]  # use server-returned ids
+    entity = call(f"/api/v1/entity/{requests.utils.quote(ids[0], safe='')}")
+    # null-safe: factors may be missing/None; never fabricate a default.
+    factors = (entity.get("entity") or {}).get("fni", {}).get("factors")
+    comparison = call(f"/api/v1/compare?ids={ids[0]},{ids[1]}")
+    # The caller/agent reasons over this evidence and makes the final choice.
+    return {"ids": ids, "factors": factors, "comparison": comparison}`;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -100,6 +241,70 @@ const jsonLd = JSON.stringify({
         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Embed live FNI score in your README</p>
       </a>
     </nav>
+
+    <!-- Quickstart: search-first integration (one executable flow) -->
+    <section id="quickstart" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Quickstart</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">
+        One end-to-end flow, runnable with no internal knowledge and no API key.
+        The canonical workflow is always the same:
+      </p>
+      <ol class="text-gray-700 dark:text-gray-300 mb-6 list-decimal list-inside space-y-1">
+        <li><strong>Search</strong> for what you need (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">/api/v1/search</code>).</li>
+        <li><strong>Take the ids from the returned results</strong> — never hard-code a catalog id.</li>
+        <li><strong>Inspect the evidence</strong> for a candidate via its entity response (FNI factors + specs).</li>
+        <li><strong>Compare</strong> two or more candidates (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">/api/v1/compare</code>).</li>
+        <li><strong>You (the caller/agent) make the final decision.</strong> Free2AI returns evidence; it does not choose for you.</li>
+      </ol>
+      <p class="text-xs text-gray-500 dark:text-gray-500 mb-6">
+        Note for REST users: there is no separate REST <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">/explain</code> endpoint. Evidence inspection is the entity response itself — its returned FNI factors and associated notes. (MCP clients have a <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_explain</code> tool; see below.)
+      </p>
+
+      <!-- REST vs MCP chooser -->
+      <div class="grid md:grid-cols-2 gap-4 mb-8">
+        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
+          <h3 class="font-bold text-blue-800 dark:text-blue-300 mb-1">Use the REST API</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">For scripts, apps, and direct HTTP integrations. Plain JSON over HTTPS — curl, Node, Python, anything.</p>
+        </div>
+        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800">
+          <h3 class="font-bold text-purple-800 dark:text-purple-300 mb-1">Use the MCP server</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">For MCP-compatible agents and clients (Claude, Cursor, Windsurf, etc.). Same data, exposed as MCP tools.</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-500 mb-8">
+        Both surfaces serve the same catalog and the same evidence; pick whichever fits how you integrate. Neither one routes, ranks-by-preference, or decides which model you should use.
+      </p>
+
+      <!-- curl -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">curl (bash)</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Requires <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">jq</code>. Set <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">F2AI_BASE</code> to override the base URL.</p>
+        <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+          <pre>{curlSnippet}</pre>
+        </div>
+      </div>
+
+      <!-- JavaScript -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">JavaScript / TypeScript (Node 18+)</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Built-in <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">fetch</code>, no dependencies.</p>
+        <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+          <pre>{jsSnippet}</pre>
+        </div>
+      </div>
+
+      <!-- Python -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Python (requests)</h3>
+        <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+          <pre>{pySnippet}</pre>
+        </div>
+      </div>
+
+      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+        <strong class="text-gray-900 dark:text-white">Machine-readable contract:</strong> the full request/response schema is published as OpenAPI at <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/openapi.json" class="text-blue-600 dark:text-blue-400 hover:underline">/openapi.json</a></code>. Point a code generator or an agent at it to consume the API contract directly.
+      </div>
+    </section>
 
     <!-- Section 1: REST API -->
     <section id="api" class="mb-16">
@@ -233,8 +438,9 @@ const jsonLd = JSON.stringify({
           <div>
             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl (HF-native id form, internal form, or slug — all accepted)</h4>
             <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
-              <pre set:html={`curl "${SITE}/api/v1/compare?ids=meta-llama/Llama-3-8B-Instruct,google/gemma-2-27b"`} />
+              <pre set:html={`# &lt;ID_1&gt;,&lt;ID_2&gt; = two id values taken from /api/v1/search results.\ncurl "${SITE}/api/v1/compare?ids=&lt;ID_1&gt;,&lt;ID_2&gt;"`} />
             </div>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Obtain at least two ids from search first; see <a href="#quickstart" class="text-blue-600 dark:text-blue-400 hover:underline">Quickstart</a> for a runnable end-to-end flow.</p>
           </div>
         </div>
       </div>
@@ -247,11 +453,12 @@ const jsonLd = JSON.stringify({
         <div class="space-y-4">
           <div>
             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Accepted id forms</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mb-2">Grammar templates only (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lt;...&gt;</code> are placeholders, not live ids). In practice take the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">id</code> or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">slug</code> straight from a <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">/api/v1/search</code> result and pass it back unchanged.</p>
             <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
-              <li>HuggingFace-native: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">meta-llama/Llama-3-8B-Instruct</code></li>
-              <li>Bare name (auto-prefixes common sources): <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">Llama-3-8B-Instruct</code></li>
-              <li>Internal canonical: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">hf-model--meta-llama--Llama-3-8B-Instruct</code></li>
-              <li>Slug form (from search response): <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">meta-llama--Llama-3-8B-Instruct</code></li>
+              <li>HuggingFace-native: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lt;author&gt;/&lt;name&gt;</code></li>
+              <li>Bare name (auto-prefixes common sources): <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lt;name&gt;</code></li>
+              <li>Internal canonical: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">hf-model--&lt;author&gt;--&lt;name&gt;</code></li>
+              <li>Slug form (the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">slug</code> field of a search response): <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">&lt;author&gt;--&lt;name&gt;</code></li>
             </ul>
             <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Case-insensitive. Lookup probes the matching shards in parallel and returns the first hit.</p>
           </div>
@@ -276,15 +483,16 @@ const jsonLd = JSON.stringify({
             </ul>
           </div>
           <div>
-            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl</h4>
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">curl (id template — substitute an id obtained from search)</h4>
             <div class="bg-gray-900 rounded-lg p-4 text-green-400 text-sm overflow-x-auto">
-              <pre set:html={`curl "${SITE}/api/v1/entity/meta-llama/Llama-3-8B-Instruct"`} />
+              <pre set:html={`# &lt;ID_FROM_SEARCH&gt; = the id field of a /api/v1/search result (URL-encode '/').\ncurl "${SITE}/api/v1/entity/&lt;ID_FROM_SEARCH&gt;"`} />
             </div>
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">For a copy-paste runnable version that derives the id automatically, see <a href="#quickstart" class="text-blue-600 dark:text-blue-400 hover:underline">Quickstart</a> below.</p>
           </div>
           <div>
             <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Response shape (lean default)</h4>
             <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
-              <pre>{JSON.stringify({ version: "fni_v2.0", entity: { id: "hf-model--meta-llama--Llama-3-8B-Instruct", slug: "meta-llama--Llama-3-8B-Instruct", type: "model", name: "Llama-3-8B-Instruct", author: "meta-llama", fni: { score: 87.5, factors: { semantic: null, authority: 95, popularity: 88, recency: 85, quality: 80 } }, specs: { params_billions: 8, context_length: 8192, vram: { fp16_gb: 16 }, ollama_compatible: true }, stats: { downloads: 1234567, last_modified: "..." }, links: { detail_url: "...", badge_url: "..." }, relations: { datasets_used: [], related: [] } }, meta: { elapsed_ms: 142, candidates_tried: 3 } }, null, 2)}</pre>
+              <pre>{JSON.stringify({ version: "fni_v2.0", entity: { id: "<id-from-search>", slug: "<slug-from-search>", type: "model", name: "<name>", author: "<author>", fni: { score: 87.5, factors: { semantic: null, authority: 95, popularity: 88, recency: 85, quality: 80 } }, specs: { params_billions: 8, context_length: 8192, vram: { fp16_gb: 16 }, ollama_compatible: true }, stats: { downloads: 1234567, last_modified: "..." }, links: { detail_url: "...", badge_url: "..." }, relations: { datasets_used: [], related: [] } }, meta: { elapsed_ms: 142, candidates_tried: 3 } }, null, 2)}</pre>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Field semantics: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">0</code> means measured-zero, <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">null</code> means not-measured. Treat them differently when scoring downstream.</p>
           </div>
@@ -294,7 +502,7 @@ const jsonLd = JSON.stringify({
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
         <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — no authentication required. CDN cached. max 20 results for search, max 20 for select.
         <span class="block mt-2">
-          <strong class="text-gray-900 dark:text-white">Machine-readable docs:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/llms.txt" class="text-blue-600 dark:text-blue-400 hover:underline">/llms.txt</a></code> (plain markdown index per <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">llmstxt.org</a>), <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline">/.well-known/mcp.json</a></code> (MCP manifest with tool catalog).
+          <strong class="text-gray-900 dark:text-white">Machine-readable docs:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/openapi.json" class="text-blue-600 dark:text-blue-400 hover:underline">/openapi.json</a></code> (OpenAPI request/response contract), <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/llms.txt" class="text-blue-600 dark:text-blue-400 hover:underline">/llms.txt</a></code> (plain markdown index per <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">llmstxt.org</a>), <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline">/.well-known/mcp.json</a></code> (MCP manifest with tool catalog).
         </span>
       </div>
     </section>
@@ -333,6 +541,11 @@ const jsonLd = JSON.stringify({
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_compare</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400">Compare 2-25 AI models side-by-side with FNI factor decomposition.</p>
         </div>
+      </div>
+
+      <!-- Recommended MCP call sequence (search-first) -->
+      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 mb-8">
+        <strong class="text-gray-900 dark:text-white">Recommended call sequence:</strong> call <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_search</code> first, take the ids from its results, pass those ids to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_explain</code> for the factor breakdown and to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_compare</code>, then decide outside Free2AI. Do not pass invented ids; use the ones search returned.
       </div>
 
       <!-- Setup Guides -->
