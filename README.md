@@ -2,13 +2,13 @@
 
 [![smithery badge](https://smithery.ai/badge/mosesy5688/free2aitools)](https://smithery.ai/servers/mosesy5688/free2aitools)
 
-Discover, rank, and compare AI models, datasets, papers, agents, spaces, tools, and prompts from 13+ platforms. Updated daily, scored by the Free2AITools Nexus Index (FNI).
+Discover, rank, and compare AI models, datasets, papers, tools, and benchmarks. Updated daily, scored by the Free2AITools Nexus Index (FNI).
 
 **Website**: [free2aitools.com](https://free2aitools.com)
 
 ## What It Does
 
-- **Cross-source catalog** — Models, datasets, papers, agents, tools, spaces, and prompts from HuggingFace, GitHub, ArXiv, Ollama, Replicate, Civitai, and more
+- **Cross-source catalog** — Models, datasets, papers, tools, and benchmarks from HuggingFace, GitHub, ArXiv, Ollama, Replicate, Civitai, and more
 - **FNI Ranking** — 5-factor composite score (Semantic, Authority, Popularity, Recency, Quality) with full breakdown in every API response
 - **Hardware-Aware Selection** — Find models that fit your VRAM, license, and task constraints
 - **Daily Updates** — Automated pipeline refreshes all data daily

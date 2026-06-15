@@ -22,6 +22,7 @@ const STATIC_PAGES = [
     { path: '/knowledge', priority: '0.7', changefreq: 'daily' },
     // /reports removed — `/reports/*` returns 410 Gone (V27.42); a sitemap must not advertise a removed route.
     { path: '/methodology', priority: '0.5', changefreq: 'monthly' },
+    { path: '/developers', priority: '0.5', changefreq: 'monthly' },
     { path: '/about', priority: '0.4', changefreq: 'monthly' },
 ];
 

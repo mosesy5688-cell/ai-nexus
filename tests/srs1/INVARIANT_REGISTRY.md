@@ -133,6 +133,28 @@ proof in the PR body).
 | DJ-W05 | `EntityResponse.entity` declares `id` + `canonical_id` (same-value, projected `canonical_id: e.id`, both required/non-null) and NO top-level `umid`; no "id IS umid" equivalence in the machine contract | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
 | P3C-NONEXP | No capability expansion under the contract-parity PR: MCP still exactly 5 tools (static+dynamic); OpenAPI path set unchanged (10 endpoints) | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
 
+## Registry — P3-CONTRACT-1 PR-B (public honesty & discovery)
+
+> Deterministic, hermetic DOCUMENTATION / CONTRACT-PROJECTION locks on the
+> human-facing public surfaces. They read repo SOURCE/CONFIG only (no live
+> fetch, no behavior assertion) and pin the corrected public wording to the
+> currently-implemented truth so a future drift back to an over-claim fails the
+> gate. ZERO business-logic / producer / serving-semantics dependency.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| T6 (DJ-W01) | methodology.astro Pillar-1 states what exists now (`source`/`source_url`), explicitly says a complete machine-readable `source_trail` is NOT publicly exposed, preserves the PLANNED evidence-chain ambition, promises no raw-snapshot/timestamp/content-hash current field, carries the no-fabrication contract; retired "complete audit trail / every input is traceable" claim gone | `tests/srs1/public-honesty.test.ts` | SOURCE | **NEW** |
+| T7 (DJ-D02) | README current-product wording (headline :5 + Cross-source catalog bullet) lists only served types (models/datasets/papers/tools/benchmarks), carries NO cancelled type (agent/space/prompt) and NO ungrounded platform count ("13+"/"NN+ platforms"); keeps daily-cadence + FNI clause + factual platform names + "and more" | `tests/srs1/public-honesty.test.ts` | CONFIG | **NEW** |
+| T8 (DJ-D03) | sitemap-static STATIC_PAGES INCLUDES `/developers` (discoverable), no duplicates, same-host (built from BASE_URL), retired/410/redirect routes stay excluded | `tests/srs1/public-honesty.test.ts` | CONFIG | **NEW** |
+| T-IDENTITY (DJ-W05 human) | developers.astro distinguishes `id` / `canonical_id` / `umid`; NO "id field ... is your UMID" equivalence; states UMID is a separate derived digest callers need not compute | `tests/srs1/public-honesty.test.ts` | SOURCE | **NEW** |
+| T-PMC-BOUNDARY | corrected PR-B wording preserves the identity sentence (Footer, untouched) + caller-decides negative contract (developers.astro); the touched UMID/pagination blocks introduce no recommend/router/verdict language | `tests/srs1/public-honesty.test.ts` | SOURCE | **NEW** |
+
+> C3 (human pagination note in developers.astro) is the human-prose mirror of the
+> machine-contract DJ-R10/DJ-R11 pagination invariants (PR-A,
+> `machine-contract-parity.test.ts`); the page/total_count semantics it documents
+> are read directly from the shipped `src/pages/api/search.ts` handler (1-based
+> `page`, default 1, `total_count` in `respond()`), so the prose matches runtime.
+
 ---
 
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
