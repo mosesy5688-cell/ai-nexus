@@ -17,14 +17,23 @@
  *  (B) EMITTER PURITY: the write adapter's public emit() signature accepts NO
  *      Request/URL/Headers/body/raw-path param, and no FORBIDDEN field NAME
  *      appears as an identifier in the telemetry modules.
- *  (C) BINDING CONFINEMENT: the binding name ADOPTION_TELEMETRY appears ONLY in
- *      the textual allowlist (config + env-type + adapter + mock + this gate +
- *      telemetry tests); any other file mentioning it fails the gate.
+ *  (C) BINDING CONFINEMENT (GENUINELY REPO-WIDE): the binding name
+ *      ADOPTION_TELEMETRY appears ONLY in the textual allowlist (config +
+ *      env-type + adapter + mock + this gate + telemetry tests). The scan is
+ *      derived from `git ls-files` (the tracked closed set) -- NOT a hand-listed
+ *      src/scripts/tests subset -- so .github/workflows, astro.config.*, root
+ *      *.ts/js/mjs/cjs/json/toml/yml/yaml, public/, etc. are ALL covered. Only
+ *      binary/generated/vendor/build-output/dependency files are excluded. The
+ *      RUNTIME dereference of env.ADOPTION_TELEMETRY is allowed ONLY in the single
+ *      AE write adapter (the rest of the allowlist is textual-declaration only).
+ *      FAIL-CLOSED on: 0 tracked files, 0 scanned text files, or the adapter not
+ *      mentioning the binding (confinement-vacuity).
  *
- * Pure Node, no deps. ASCII-only (CES Art 8.1).
+ * Pure Node, one `git ls-files` exec. ASCII-only (CES Art 8.1).
  */
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -84,30 +93,45 @@ function read(rel) {
   return fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : null;
 }
 
-/** Walk src/ + scripts/ for every file textually mentioning the binding. */
+// Binary/generated/vendor/build-output/dependency exclusions: a file is EXCLUDED
+// from the text scan only if it is one of these (everything else IS scanned, so a
+// new text/config/workflow location can never silently escape confinement).
+const EXCLUDE_EXT = new Set([
+  'wasm', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'webp', 'pdf', 'zip', 'gz',
+  'br', 'zst', 'woff', 'woff2', 'ttf', 'eot', 'db', 'sqlite', 'bin', 'pyc',
+  'lock',
+]);
+const EXCLUDE_PATH_RE = /(^|\/)(node_modules|dist|build|\.astro|coverage|target|vendor|\.git)\//;
+const isBinaryLike = (buf) => buf.includes(0); // NUL byte => treat as binary
+
+/**
+ * Repo-wide binding scan over the TRACKED closed set (`git ls-files`). Scans every
+ * tracked text file for the binding token; excludes only binary/generated/vendor/
+ * build-output/dependency files. Returns hits + scan stats for fail-closed checks.
+ */
 function findBindingMentions() {
-  const roots = ['src', 'scripts', 'tests'];
+  let tracked = [];
+  try {
+    const out = execFileSync('git', ['ls-files', '-z'], { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024 });
+    tracked = out.toString('utf-8').split('\0').filter(Boolean);
+  } catch {
+    return { hits: [], filesScanned: 0, trackedCount: 0 };
+  }
+  const trackedCount = tracked.length;
   const hits = [];
   let filesScanned = 0;
-  const walk = (dir) => {
-    const abs = path.join(REPO_ROOT, dir);
-    if (!fs.existsSync(abs)) return;
-    for (const name of fs.readdirSync(abs)) {
-      const relChild = path.join(dir, name).split(path.sep).join('/');
-      const stat = fs.statSync(path.join(REPO_ROOT, relChild));
-      if (stat.isDirectory()) { walk(relChild); continue; }
-      if (!/\.(ts|js|mjs|cjs|astro|tsx|jsx)$/.test(name)) continue;
-      filesScanned++;
-      const body = read(relChild);
-      if (body && mentionsBinding(body)) hits.push(relChild);
-    }
-  };
-  // wrangler.toml + env.d.ts are scanned via the explicit allowlist members.
-  for (const r of roots) walk(r);
-  const wrangler = read('wrangler.toml');
-  filesScanned++;
-  if (wrangler && mentionsBinding(wrangler)) hits.push('wrangler.toml');
-  return { hits, filesScanned };
+  for (const rel of tracked) {
+    if (EXCLUDE_PATH_RE.test('/' + rel + '/')) continue;
+    const ext = (rel.split('.').pop() || '').toLowerCase();
+    if (rel.includes('.') && EXCLUDE_EXT.has(ext)) continue;
+    const abs = path.join(REPO_ROOT, rel);
+    let buf;
+    try { buf = fs.readFileSync(abs); } catch { continue; }
+    if (isBinaryLike(buf)) continue;   // defensive binary guard (no extension)
+    filesScanned++;
+    if (mentionsBinding(buf.toString('utf-8'))) hits.push(rel);
+  }
+  return { hits, filesScanned, trackedCount };
 }
 
 function main() {
@@ -161,28 +185,39 @@ function main() {
     }
   }
 
-  // (C) BINDING CONFINEMENT
-  const { hits, filesScanned } = findBindingMentions();
+  // (C) BINDING CONFINEMENT -- genuinely repo-wide over `git ls-files`.
+  const { hits, filesScanned, trackedCount } = findBindingMentions();
   totalScanned += filesScanned;
   const leaks = hits.filter((h) => !TEXTUAL_ALLOWLIST.has(h));
-  console.log(`[TEL] (C) files scanned for binding mentions: ${filesScanned}; mentions: ${hits.length}`);
+  console.log(`[TEL] (C) tracked files: ${trackedCount}; text files scanned: ${filesScanned}; binding mentions: ${hits.length}`);
   if (leaks.length) {
     console.error(`[TEL] FAIL (C): binding named outside textual allowlist: ${leaks.join(', ')}`);
     failed = true;
   }
 
-  // ANTI-VACUITY: prove the gate actually scanned targets.
+  // FAIL-CLOSED: 0 tracked files (not a git repo / ls-files failed) or 0 scanned
+  // text files means the confinement scan is vacuous -- treat as a hard failure.
+  if (trackedCount === 0) {
+    console.error('[TEL] FAIL: 0 tracked files (git ls-files empty/failed) -- confinement vacuous.');
+    failed = true;
+  }
+  if (filesScanned === 0) {
+    console.error('[TEL] FAIL: 0 text files scanned -- confinement vacuous.');
+    failed = true;
+  }
+
+  // ANTI-VACUITY: prove the gate actually scanned (A) targets too.
   if (totalScanned === 0 || totalLines === 0) {
     console.error('[TEL] FAIL: scanned 0 files/lines -- gate is vacuous (paths moved?).');
     failed = true;
   }
-  // Prove (C) confined to a NON-EMPTY allowlist that DID match (the adapter must
-  // be among the mentions) -- else confinement check is vacuous.
+  // Prove (C) confined to a NON-EMPTY allowlist that DID match (the adapter -- the
+  // sole RUNTIME-dereference site -- must be among the mentions) else vacuous.
   if (!hits.includes('src/lib/telemetry/ae-adapter.ts')) {
     console.error('[TEL] FAIL: anti-vacuity -- write adapter does not mention the binding; confinement vacuous.');
     failed = true;
   }
-  console.log(`[TEL] anti-vacuity: files scanned=${totalScanned}, no-read lines=${totalLines}, binding mentions=${hits.length}`);
+  console.log(`[TEL] anti-vacuity: total scanned=${totalScanned}, no-read lines=${totalLines}, tracked=${trackedCount}, binding mentions=${hits.length}`);
 
   if (failed) process.exit(1);
   console.log('[TEL] PASS: no serve path reads telemetry; emitter pure; binding confined.');

@@ -60,17 +60,17 @@ describe('TEL-PRIVACY: forbidden fields can never reach the sink', () => {
     const env = makeMockEnv(true);
     // Caller tries to smuggle a query string + raw UA alongside valid dims.
     const res = emit(env, { ...validBase(), query: 'gpt-4', user_agent: 'curl/8' });
-    expect(res.written).toBe(false);            // rejected by closed-world validator
+    expect(res.attempted).toBe(false);          // rejected by closed-world validator
     expect(env.ADOPTION_TELEMETRY.calls.length).toBe(0); // nothing written
   });
 
-  it('emit accepts only the (env, event, waitUntil) shape -- no Request/URL/body', () => {
+  it('emit accepts only the (env, event) shape -- no Request/URL/body', () => {
     // The signature is structurally enum-only; this asserts the runtime behavior:
     // passing a Request-like object as the event is rejected (not classified/leaked).
     const env = makeMockEnv(true);
     const reqLike = { url: 'https://x/y?q=secret', method: 'GET', headers: {} };
     const res = emit(env, reqLike as unknown);
-    expect(res.written).toBe(false);
+    expect(res.attempted).toBe(false);
     expect(env.ADOPTION_TELEMETRY.calls.length).toBe(0);
   });
 });

@@ -22,7 +22,16 @@ bucket_name = "ai-nexus-assets"
 binding = "ADOPTION_TELEMETRY"
 dataset = "free2aitools_adoption_v1"
 
+# env.preview overrides ONLY the telemetry dataset (prod -> canary). Cloudflare
+# Pages: r2_buckets + analytics_engine_datasets are NON-INHERITABLE -- once ANY
+# is overridden in an env, EVERY required non-inheritable binding must be
+# re-declared there or it is dropped. So R2_ASSETS is restated verbatim (serving
+# must not break in preview) and only the dataset name changes to the canary.
+# Guarded by the config-invariant test in tests/srs1/telemetry-isolation.test.ts.
 [env.preview]
+[[env.preview.r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "ai-nexus-assets"
 [[env.preview.analytics_engine_datasets]]
 binding = "ADOPTION_TELEMETRY"
 dataset = "free2aitools_adoption_canary_v1"
