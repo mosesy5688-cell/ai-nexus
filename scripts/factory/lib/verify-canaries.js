@@ -167,6 +167,67 @@ export function verifyBakeProducers(dataDir, check) {
     }
 }
 
+/**
+ * P3-EVIDENCE-1: Citation integrity canary.
+ *
+ * Independently re-scans EVERY published meta-NN.db shard (not only meta-00.db --
+ * a hot row lives in exactly one shard, so the citation population is sharded) and
+ * fails the bake on any FABRICATED citation. Mirrors the producer contract
+ * (umid-generator.normalizeCitation): title MANDATORY + genuine, no id/slug/hash
+ * as title, no [object Object], no empty field shells, year only from the packed
+ * source publication year (published_year) -- a CONFLICT fails, current/bake year
+ * is NOT itself a violation (a real paper may be published this year).
+ */
+const CITATION_SAMPLE = /title=\{([^}]*)\}/;
+const CITATION_YEAR = /year=\{([^}]*)\}/;
+const SHELL_RE = /(title|author|year|url)=\{\s*\}/;
+const HASH_LIKE = /^[0-9a-f]{16,}$/i; // umid / content-hash residue
+
+export function verifyCitationIntegrity(dirPath, check) {
+    const shardFiles = fs.readdirSync(dirPath).filter(f => /^meta-\d+\.db$/.test(f)).sort();
+    if (shardFiles.length === 0) { console.log('[VERIFY] Citation: skipped (no meta-NN.db shards)'); return; }
+    let rows = 0, cited = 0;
+    const v = { objectObject: 0, idAsTitle: 0, shell: 0, noTitle: 0, residue: 0, yearConflict: 0 };
+    for (const f of shardFiles) {
+        const db = new Database(path.join(dirPath, f), { readonly: true });
+        try {
+            const cols = db.prepare('PRAGMA table_info(entities)').all().map(c => c.name);
+            if (!cols.includes('citation')) { db.close(); continue; }
+            const hasYear = cols.includes('published_year');
+            const sel = `id, slug, citation${hasYear ? ', published_year' : ''} FROM entities`;
+            for (const r of db.prepare(`SELECT ${sel}`).iterate()) {
+                rows++;
+                const c = r.citation;
+                if (typeof c !== 'string' || !c) continue; // null citation is contract-valid
+                cited++;
+                if (c.includes('[object Object]')) v.objectObject++;
+                if (SHELL_RE.test(c)) v.shell++;
+                if (/url=\{\s*by Free2AITools\s*\}/i.test(c) || /url=\{\s*\/(papers|models?|datasets|tools|agents|spaces|prompts)\//i.test(c)) v.residue++;
+                const tm = c.match(CITATION_SAMPLE);
+                if (!tm) { v.noTitle++; }
+                else {
+                    const title = tm[1].trim();
+                    if (!title) v.shell++;
+                    else if (title === r.id || title === r.slug || HASH_LIKE.test(title) || /^unknown$/i.test(title)) v.idAsTitle++;
+                }
+                const ym = c.match(CITATION_YEAR);
+                if (ym && hasYear && r.published_year != null) {
+                    const cy = Number(ym[1].trim());
+                    if (Number.isInteger(cy) && cy !== Number(r.published_year)) v.yearConflict++;
+                }
+            }
+        } finally { db.close(); }
+    }
+    // Execution proof: scanned shard count + row count must both be > 0.
+    check('Citation: shards scanned', shardFiles.length > 0 && rows > 0, `${shardFiles.length} shards, ${rows} rows, ${cited} cited`);
+    check('Citation: no [object Object]', v.objectObject === 0, `${v.objectObject} of ${cited}`);
+    check('Citation: no id/hash-as-title', v.idAsTitle === 0, `${v.idAsTitle} of ${cited}`);
+    check('Citation: no empty shells', v.shell === 0, `${v.shell} of ${cited}`);
+    check('Citation: title present', v.noTitle === 0, `${v.noTitle} of ${cited} lack title`);
+    check('Citation: no url residue', v.residue === 0, `${v.residue} of ${cited}`);
+    check('Citation: year vs source', v.yearConflict === 0, `${v.yearConflict} of ${cited} conflict`);
+}
+
 /** Assert a fixed-magic binary exists, matches magic, and has count@offset > 0. */
 function binMagicCount(check, fp, magic, countOffset, label) {
     if (!fs.existsSync(fp)) { check(`Producer: ${label}`, false, 'file missing'); return; }

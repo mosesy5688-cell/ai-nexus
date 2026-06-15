@@ -68,20 +68,114 @@ export function generateCanonicalUrl(entity) {
     return `https://free2aitools.com/${section}/${encodeURIComponent(slug)}`;
 }
 
+// P3-EVIDENCE-1: title-mandatory citation contract. Placeholder/non-title tokens
+// FORBIDDEN as a title (an id/canonical-id/hash/slug/"Unknown" masquerading as a
+// real title is fabricated provenance). A bare word with no whitespace that also
+// equals the entity id/slug is treated as an id residue, not a genuine title.
+const PLACEHOLDER_TITLE = /^(unknown|untitled|n\/?a|none|null|undefined)$/i;
+// A bare 16+ hex string is a umid/content-hash residue, never a genuine title.
+const HASH_TITLE = /^[0-9a-f]{16,}$/i;
+// year sanity floor/ceiling mirrors v25-distiller's published_year validation.
+const YEAR_MIN = 1990;
+const YEAR_MAX = 2100;
+
+/** Trimmed non-empty string, else null. No coercion of non-strings. */
+function cleanStr(v) {
+    if (typeof v !== 'string') return null;
+    const t = v.trim();
+    return t ? t : null;
+}
+
+/** A genuine, explicitly-present title - never an id/slug/hash/placeholder. */
+function resolveTitle(entity) {
+    const candidate = cleanStr(entity.name) || cleanStr(entity.title) || cleanStr(entity.displayName);
+    if (!candidate) return null;
+    if (PLACEHOLDER_TITLE.test(candidate)) return null;
+    if (HASH_TITLE.test(candidate)) return null;
+    // Reject an id/slug/canonical-id echoed into the title field (id-as-title).
+    const idForms = [entity.id, entity.slug, entity.canonical_id, entity.umid]
+        .filter(v => typeof v === 'string' && v).map(v => v.trim());
+    if (idForms.includes(candidate)) return null;
+    return candidate;
+}
+
+/**
+ * Resolve a usable author component (string | string[] | object[] with .name).
+ * Drops unusable members; returns null when none remain (author then OMITTED).
+ */
+function resolveAuthor(entity) {
+    const a = entity.author;
+    if (typeof a === 'string') return cleanStr(a);
+    if (!Array.isArray(a)) return null;
+    const names = [];
+    for (const m of a) {
+        if (typeof m === 'string') { const s = cleanStr(m); if (s) names.push(s); }
+        else if (m && typeof m === 'object') { const s = cleanStr(m.name); if (s) names.push(s); }
+    }
+    return names.length ? names.join(' and ') : null;
+}
+
+/** Explicit structured source publication year only; never the current/bake year. */
+function resolveYear(entity) {
+    let raw = entity.published_year;
+    if (raw == null) {
+        const meta = typeof entity.meta_json === 'object' && entity.meta_json ? entity.meta_json : {};
+        const date = meta.published_date || entity.published_date || null;
+        raw = date ? new Date(date).getFullYear() : null;
+    }
+    const yr = typeof raw === 'number' ? raw : Number(raw);
+    if (!Number.isInteger(yr) || isNaN(yr) || yr <= YEAR_MIN || yr >= YEAR_MAX) return null;
+    return yr;
+}
+
+/** A real, external source URL only - never an internal free2aitools route. */
+function resolveUrl(entity) {
+    const candidates = [entity.source_url,
+        entity.links && entity.links.source, entity.links && entity.links.html];
+    for (const c of candidates) {
+        const s = cleanStr(c);
+        if (!s) continue;
+        if (/free2aitools\.com/i.test(s)) continue;      // internal route residue
+        if (/^https?:\/\//i.test(s)) return s;
+    }
+    return null;
+}
+
+/**
+ * Pure, deterministic citation normalizer (no I/O). Title is MANDATORY; author,
+ * year, url are optional and OMITTED (never empty-shelled / fabricated) when
+ * absent. Returns a BibTeX @misc string, or null when no genuine title exists.
+ * @param {object} entity
+ * @returns {string|null}
+ */
+export function normalizeCitation(entity) {
+    if (!entity || typeof entity !== 'object') return null;
+    const title = resolveTitle(entity);
+    if (!title) return null;                              // title-mandatory: no fabricated presence
+
+    // Cite key MAY be the id/hash - but it never doubles as the human title above.
+    const keySource = cleanStr(entity.id) || title;
+    const citeKey = keySource.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
+
+    const parts = [`title={${title}}`];
+    const author = resolveAuthor(entity);
+    if (author) parts.push(`author={${author}}`);
+    const year = resolveYear(entity);
+    if (year != null) parts.push(`year={${year}}`);
+    const url = resolveUrl(entity);
+    if (url) parts.push(`url={${url}}`);
+    parts.push('note={Indexed by Free2AITools}');
+    return `@misc{${citeKey},${parts.join(',')}}`;
+}
+
 /**
  * Generate academic BibTeX citation string (CDDPP Shield).
- * @param {object} entity - Entity with name, author, type
- * @returns {string} BibTeX citation
+ * Delegates to the pure normalizeCitation contract (P3-EVIDENCE-1).
+ * @param {object} entity
+ * @returns {string|null} BibTeX citation, or null when no genuine title exists.
  */
 export function generateCitation(entity) {
-    const name = entity.name || entity.displayName || entity.id || 'Unknown';
-    const author = Array.isArray(entity.author)
-        ? entity.author.join(' and ')
-        : (entity.author || 'Unknown');
-    const year = new Date().getFullYear();
-    const citeKey = (entity.id || name).replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
-
-    return `@misc{${citeKey},title={${name}},author={${author}},year={${year}},url={${generateCanonicalUrl(entity)}},note={Indexed by Free2AITools}}`;
+    return normalizeCitation(entity);
 }
 
 /**
