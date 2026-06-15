@@ -1,7 +1,25 @@
 import { defineMiddleware } from "astro:middleware";
-import { env } from "cloudflare:workers";
-import { emit, isEnabled } from "./lib/telemetry/ae-adapter";
+import { emit, isEnabled, type TelemetryEnv } from "./lib/telemetry/ae-adapter";
 import { buildRestEvent } from "./lib/telemetry/request-classifier";
+
+// Build-safe env access. `cloudflare:workers` is a WORKER-RUNTIME builtin and is
+// NOT resolvable by the Node ESM loader during `astro build` prerender (middleware
+// executes for prerendered pages too, e.g. /robots.txt). A top-level static import
+// would crash the build (ERR_UNSUPPORTED_ESM_URL_SCHEME). So we DYNAMIC-import it
+// lazily inside a guarded path and memoize per isolate. In the build/prerender
+// context the import throws -> caught -> null -> telemetry no-ops (there is no real
+// request to count). The telemetry binding token is NEVER named in this file.
+let cachedEnv: TelemetryEnv | null | undefined;
+async function getTelemetryEnv(): Promise<TelemetryEnv | null> {
+    if (cachedEnv !== undefined) return cachedEnv;
+    try {
+        const mod: any = await import("cloudflare:workers");
+        cachedEnv = (mod?.env ?? null) as TelemetryEnv | null;
+    } catch {
+        cachedEnv = null;
+    }
+    return cachedEnv;
+}
 
 /**
  * V4.8 Unified Middleware
@@ -22,9 +40,10 @@ import { buildRestEvent } from "./lib/telemetry/request-classifier";
 // /api/mcp + /api/v1/datasets are route-owned (EXCLUDED here, O-2). The binding
 // token is NEVER named here -- the whole env is passed to emit(), which is the
 // only module that dereferences the binding.
-function recordTelemetry(pathname: string, method: string, headers: Headers, ownHost: string | null, status: number): void {
+async function recordTelemetry(pathname: string, method: string, headers: Headers, ownHost: string | null, status: number): Promise<void> {
     try {
-        if (!isEnabled(env)) return;                 // default-OFF short-circuit (no classification work)
+        const env = await getTelemetryEnv();
+        if (!env || !isEnabled(env)) return;         // default-OFF short-circuit (no classification work)
         if (pathname === '/api/mcp' || pathname.startsWith('/api/v1/datasets')) return; // route-owned (O-2)
         const refererHeader = headers.get('referer');
         let refererHost: string | null = null;
@@ -66,7 +85,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
         // P2 telemetry (normal path): classify from the FINAL response status,
         // emit at most once, return the SAME response object unchanged.
-        recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, response.status);
+        await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, response.status);
 
         return response;
     } catch (e: any) {
@@ -85,7 +104,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
                 { status: 500, headers: { 'Content-Type': 'application/json' } }
             );
             // Telemetry on the FINAL error Response (an allowed API surface gets 5xx).
-            recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, apiError.status);
+            await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, apiError.status);
             return apiError;
         }
 
@@ -94,12 +113,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
             const crash = new Response("Critical System Failure: 404 Rendering Crashed", { status: 500 });
             // /404 has no allowed surface -> classifier drops it (no emit), but the
             // call stays symmetric so the exactly-once XOR is structurally provable.
-            recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, crash.status);
+            await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, crash.status);
             return crash;
         }
 
         // Human SSR-crash redirect: the /404 target has no allowed surface -> no emit.
-        recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, 302);
+        await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, 302);
         return context.redirect(errorUrl.toString());
     }
 });
