@@ -1,13 +1,11 @@
 // tests/unit/citation-integrity.test.ts
-//
 // P3-EVIDENCE-1 Citation Integrity. The producer (umid-generator.normalizeCitation)
-// must NEVER fabricate provenance: title is MANDATORY + genuine (never an id/slug/
-// hash/placeholder); author/year/url are optional and OMITTED (never empty-shelled,
-// never "Unknown", never current/bake-year, never internal-route url) when absent;
-// a Semantic-Scholar object author-array ([{authorId,name},...]) must NOT coerce to
-// "[object Object]". The bake canary (verify-canaries.verifyCitationIntegrity)
-// independently re-scans every meta-NN.db shard and hard-fails on any violation.
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+// must NEVER fabricate provenance: title MANDATORY + genuine (never id/slug/hash/
+// placeholder); author/year/url OMITTED when absent (never empty-shelled, "Unknown",
+// current/bake-year, or internal-route url); object author-arrays must NOT coerce to
+// "[object Object]". The bake canary (verifyCitationIntegrity) re-scans every meta-
+// NN.db shard, fail-CLOSES on zero/incomplete coverage, and hard-fails any violation.
+import { describe, it, expect, afterAll } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -16,6 +14,8 @@ import Database from 'better-sqlite3';
 import { normalizeCitation, generateCitation } from '../../scripts/factory/lib/umid-generator.js';
 // @ts-ignore - JS ESM canary.
 import { verifyCitationIntegrity } from '../../scripts/factory/lib/verify-canaries.js';
+// @ts-ignore - single-source shard count the canary fail-closes against (= packer's).
+import { META_SHARD_COUNT } from '../../src/constants/shard-constants.js';
 // @ts-ignore - projection boundary (test #17): null citation passes through unchanged.
 import { sanitizeCitation } from '../../src/utils/text-sanitizer.js';
 
@@ -150,64 +150,101 @@ describe('P3-EVIDENCE-1 projection boundary + invariants (17-18)', () => {
     });
 });
 
-describe('P3-EVIDENCE-1 bake canary - verifyCitationIntegrity execution proof', () => {
-    let tmp: string;
-    let dir: string;
-    const results: { label: string; pass: boolean; detail: string }[] = [];
-    const check = (label: string, pass: boolean, detail = '') => results.push({ label, pass, detail });
-
-    function makeShard(name: string, rows: any[]) {
-        const db = new Database(path.join(dir, name));
-        db.exec('CREATE TABLE entities (id TEXT PRIMARY KEY, slug TEXT, citation TEXT, published_year INTEGER)');
-        const ins = db.prepare('INSERT INTO entities (id, slug, citation, published_year) VALUES (?,?,?,?)');
-        for (const r of rows) ins.run(r.id, r.slug, r.citation, r.published_year ?? null);
+describe('P3-EVIDENCE-1 bake canary - verifyCitationIntegrity fail-closed coverage', () => {
+    const tmpRoots: string[] = [];
+    function newDir(prefix: string): string {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+        tmpRoots.push(root);
+        const dir = path.join(root, 'data');
+        fs.mkdirSync(dir, { recursive: true });
+        return dir;
+    }
+    const shardName = (i: number) => `meta-${String(i).padStart(2, '0')}.db`;
+    // One meta-NN.db with a valid entities+citation schema; rows optional.
+    function makeShard(dir: string, i: number, rows: any[] = [], withCitationCol = true) {
+        const db = new Database(path.join(dir, shardName(i)));
+        const cols = withCitationCol ? 'id TEXT PRIMARY KEY, slug TEXT, citation TEXT, published_year INTEGER' : 'id TEXT PRIMARY KEY, slug TEXT';
+        db.exec(`CREATE TABLE entities (${cols})`);
+        if (withCitationCol) {
+            const ins = db.prepare('INSERT INTO entities (id, slug, citation, published_year) VALUES (?,?,?,?)');
+            for (const r of rows) ins.run(r.id, r.slug, r.citation, r.published_year ?? null);
+        }
         db.close();
     }
+    // The COMPLETE expected shard set; populate(i) seeds rows into selected shards.
+    function makeFullCorpus(dir: string, populate: (i: number) => any[] = () => []) {
+        for (let i = 0; i < META_SHARD_COUNT; i++) makeShard(dir, i, populate(i));
+    }
+    function run(dir: string) {
+        const results: { label: string; pass: boolean; detail: string }[] = [];
+        verifyCitationIntegrity(dir, (label: string, pass: boolean, detail = '') => results.push({ label, pass, detail }));
+        return results;
+    }
+    afterAll(() => { for (const r of tmpRoots) { try { fs.rmSync(r, { recursive: true, force: true }); } catch { /* best effort */ } } });
 
-    beforeAll(() => {
-        tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'citation-canary-'));
-        dir = path.join(tmp, 'data');
-        fs.mkdirSync(dir, { recursive: true });
-        // Clean population across TWO shards proves multi-shard scan (not only meta-00).
-        makeShard('meta-00.db', [
-            { id: 'p1', slug: 'attention', citation: normalizeCitation({ id: 'p1', name: 'Attention', published_year: 2017 }), published_year: 2017 },
-            { id: 'p2', slug: 'gpt', citation: null }, // null citation is valid
-        ]);
-        makeShard('meta-01.db', [
-            { id: 'p3', slug: 'bert', citation: normalizeCitation({ id: 'p3', name: 'BERT', author: [{ name: 'J. Devlin' }] }) },
-        ]);
+    it('A: zero discovered shards (empty dir) -> a check FAILS (no silent pass)', () => {
+        const r = run(newDir('citation-empty-'));
+        expect(r.length).toBeGreaterThan(0);
+        expect(r.some(x => x.pass === false)).toBe(true);                 // canary fails
+        expect(r.some(x => x.label === 'Citation: shards scanned' && x.pass)).toBe(false); // no green proof
     });
-    afterAll(() => { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* best effort */ } });
 
-    it('scans every meta-NN.db shard and PASSES on a clean corpus (execution proof)', () => {
-        results.length = 0;
-        verifyCitationIntegrity(dir, check);
-        const scan = results.find(r => r.label === 'Citation: shards scanned')!;
+    it('B: zero scanned shards (files present, no citation col) -> FAIL', () => {
+        const dir = newDir('citation-unscannable-');
+        for (let i = 0; i < META_SHARD_COUNT; i++) makeShard(dir, i, [], false); // no citation col -> unscanned
+        const scan = run(dir).find(x => x.label === 'Citation: shards scanned')!;
+        expect(scan.pass).toBe(false);
+        expect(scan.detail).toContain('scanned 0');
+    });
+
+    it('C: incomplete coverage (1 missing) -> FAIL and detail names the missing shard', () => {
+        const dir = newDir('citation-incomplete-');
+        makeFullCorpus(dir, i => (i === 0
+            ? [{ id: 'p1', slug: 'attention', citation: normalizeCitation({ id: 'p1', name: 'Attention', published_year: 2017 }), published_year: 2017 }]
+            : []));
+        const missingName = shardName(META_SHARD_COUNT - 1);
+        fs.rmSync(path.join(dir, missingName)); // discovered = expected-1 -> incomplete
+        const r = run(dir);
+        const cov = r.find(x => x.label === 'Citation: complete coverage')!;
+        expect(cov.pass).toBe(false);
+        expect(cov.detail).toContain(missingName);                       // MISSING id named
+        expect(cov.detail).toContain(`expected ${META_SHARD_COUNT}`);
+        expect(r.some(x => x.label === 'Citation: no [object Object]')).toBe(false); // content checks skipped
+    });
+
+    it('D: complete non-zero coverage, clean citations -> all checks PASS', () => {
+        const dir = newDir('citation-clean-');
+        // Real citations in two distinct shards (proves multi-shard scan); rest empty.
+        makeFullCorpus(dir, i => {
+            if (i === 0) return [
+                { id: 'p1', slug: 'attention', citation: normalizeCitation({ id: 'p1', name: 'Attention', published_year: 2017 }), published_year: 2017 },
+                { id: 'p2', slug: 'gpt', citation: null }, // null citation is contract-valid
+            ];
+            if (i === 5) return [{ id: 'p3', slug: 'bert', citation: normalizeCitation({ id: 'p3', name: 'BERT', author: [{ name: 'J. Devlin' }] }) }];
+            return [];
+        });
+        const r = run(dir);
+        const scan = r.find(x => x.label === 'Citation: shards scanned')!;
         expect(scan.pass).toBe(true);
-        expect(scan.detail).toContain('2 shards');
+        expect(scan.detail).toContain(`${META_SHARD_COUNT}/${META_SHARD_COUNT} shards`);
         expect(scan.detail).toContain('3 rows');
-        expect(results.every(r => r.pass)).toBe(true);
+        expect(r.every(x => x.pass)).toBe(true);
+        expect(r.some(x => x.label === 'Citation: no [object Object]' && x.pass)).toBe(true); // content checks ran
     });
 
-    it('HARD-FAILS on [object Object], id-as-title, shells, year-conflict (fail-loud)', () => {
-        const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), 'citation-bad-'));
-        const d2 = path.join(tmp2, 'data');
-        fs.mkdirSync(d2, { recursive: true });
-        const db = new Database(path.join(d2, 'meta-00.db'));
-        db.exec('CREATE TABLE entities (id TEXT PRIMARY KEY, slug TEXT, citation TEXT, published_year INTEGER)');
-        const ins = db.prepare('INSERT INTO entities (id, slug, citation, published_year) VALUES (?,?,?,?)');
-        ins.run('b1', 's1', '@misc{b1,title={T},author={[object Object]},note={x}}', null);
-        ins.run('b2', 's2', '@misc{b2,title={b2},note={x}}', null);              // id-as-title
-        ins.run('b3', 's3', '@misc{b3,title={},author={},note={x}}', null);      // shells + no title-content
-        ins.run('b4', 's4', '@misc{b4,title={Real},year={2020},note={x}}', 2017); // year conflict
-        db.close();
-        const r: { label: string; pass: boolean }[] = [];
-        verifyCitationIntegrity(d2, (label: string, pass: boolean) => r.push({ label, pass }));
+    it('E: complete coverage + adversarial corrupt citations -> content checks FAIL', () => {
+        const dir = newDir('citation-corrupt-');
+        makeFullCorpus(dir, i => (i === 0 ? [
+            { id: 'b1', slug: 's1', citation: '@misc{b1,title={T},author={[object Object]},note={x}}' },
+            { id: 'b2', slug: 's2', citation: '@misc{b2,title={b2},note={x}}' },               // id-as-title
+            { id: 'b3', slug: 's3', citation: '@misc{b3,title={},author={},note={x}}' },        // shells
+            { id: 'b4', slug: 's4', citation: '@misc{b4,title={Real},year={2020},note={x}}', published_year: 2017 }, // year conflict
+        ] : []));
+        const r = run(dir);
         const fail = (lbl: string) => r.find(x => x.label === lbl)!.pass;
         expect(fail('Citation: no [object Object]')).toBe(false);
         expect(fail('Citation: no id/hash-as-title')).toBe(false);
         expect(fail('Citation: no empty shells')).toBe(false);
         expect(fail('Citation: year vs source')).toBe(false);
-        fs.rmSync(tmp2, { recursive: true, force: true });
     });
 });
