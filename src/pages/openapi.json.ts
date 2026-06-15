@@ -32,11 +32,11 @@ const HEADERS: Record<string, string> = {
 // catalog-only wordings so the dynamic search description always carries it
 // (matches the static schema's search description + 503 response).
 const TRANSIENT_NOTE = ' Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.';
-const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 5 results.' + TRANSIENT_NOTE;
+const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results.' + TRANSIENT_NOTE;
 
 function injectCount(phrase: string | null): string {
     if (!phrase) return SEARCH_DESC_CATALOG;
-    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 5 results.${TRANSIENT_NOTE}`;
+    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results.${TRANSIENT_NOTE}`;
 }
 
 export const GET: APIRoute = async ({ request }) => {

@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 20 results. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, and papers, ranked by FNI score. Free tier returns up to 20 results. Pagination is 1-based via `page` (offset = (page-1)*limit); `total_count` in the response supports client-side page calculation. Results may change between requests as the dataset is refreshed; this endpoint does not provide cursor or snapshot consistency. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.",
         "tags": ["Search"],
         "parameters": [
           {
@@ -113,6 +113,12 @@
             "in": "query",
             "schema": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 },
             "description": "Max results (free tier capped at 20)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 },
+            "description": "1-based page; offset = (page-1)*limit"
           }
         ],
         "responses": {
@@ -581,27 +587,42 @@
       },
       "SearchResponse": {
         "type": "object",
+        "description": "Public /api/v1/search 200 response. Fields are the internal SSR search row (DISPLAY_COLS) wrapped by the v1 versioner: `version` is prepended, `fni_s` is nulled (+ `fni_s_note`), and the internal `_dbSort`/`_score`/`_source` fields are stripped before serialization.",
+        "required": ["version", "results", "total_count", "tier", "elapsed_ms"],
         "properties": {
-          "version": { "type": "string" },
-          "tier": { "type": "string" },
-          "elapsed_ms": { "type": "integer" },
+          "version": { "type": "string", "description": "API version tag added by the v1 wrapper (e.g. fni_v2.0). Always present on a 200." },
           "results": {
             "type": "array",
             "items": {
               "type": "object",
+              "description": "One catalog entity (SSR DISPLAY_COLS, v1-transformed). Non-measured numeric/string stats surface as JSON null (honest-contract), not 0 or empty.",
               "properties": {
                 "id": { "type": "string" },
                 "slug": { "type": "string" },
                 "name": { "type": "string" },
-                "type": { "type": "string" },
-                "author": { "type": "string" },
-                "summary": { "type": "string" },
-                "fni_score": { "type": "number" },
+                "type": { "type": "string", "description": "model | tool | dataset | paper | benchmark" },
+                "author": { "type": "string", "nullable": true },
+                "summary": { "type": "string", "nullable": true },
+                "fni_score": { "type": "number", "nullable": true },
+                "fni_s": { "type": "number", "nullable": true, "description": "Always null in the v1 baseline: the Semantic pillar is a query-time baseline, not a per-entity measurement, and live semantic/ANN ranking is not currently provided. See fni_s_note." },
+                "fni_s_note": { "type": "string", "description": "Present alongside fni_s: explains it is a query-time baseline, not a per-entity value." },
+                "fni_a": { "type": "number", "nullable": true, "description": "Authority factor." },
+                "fni_p": { "type": "number", "nullable": true, "description": "Popularity factor." },
+                "fni_r": { "type": "number", "nullable": true, "description": "Recency factor." },
+                "fni_q": { "type": "number", "nullable": true, "description": "Quality factor." },
+                "stars": { "type": "integer", "nullable": true },
                 "downloads": { "type": "integer", "nullable": true },
-                "stars": { "type": "integer", "nullable": true }
+                "last_modified": { "type": "string", "nullable": true, "format": "date-time" },
+                "license": { "type": "string", "nullable": true },
+                "pipeline_tag": { "type": "string", "nullable": true },
+                "params_billions": { "type": "number", "nullable": true },
+                "context_length": { "type": "integer", "nullable": true }
               }
             }
-          }
+          },
+          "total_count": { "type": "integer", "description": "Total matched results before the limit/page slice; supports client-side page calculation. Always present on a 200." },
+          "tier": { "type": "string", "description": "Which search tier produced the results (e.g. inverted_index | cluster_fallback | browse | empty)." },
+          "elapsed_ms": { "type": "integer" }
         }
       },
       "CompareResponse": {
@@ -745,8 +766,10 @@
           "version": { "type": "string", "example": "fni_v2.0" },
           "entity": {
             "type": "object",
+            "required": ["id", "canonical_id"],
             "properties": {
-              "id": { "type": "string" },
+              "id": { "type": "string", "description": "Current canonical served identifier (lookup key). Reuse verbatim." },
+              "canonical_id": { "type": "string", "description": "The same canonical identifier value as `id` (canonical_id == id). A separate derived UMID = SHA256(canonical_id)[:16] is not emitted at the top level of this response." },
               "slug": { "type": "string" },
               "type": { "type": "string", "description": "model | dataset | paper | tool | benchmark | knowledge" },
               "name": { "type": "string" },
