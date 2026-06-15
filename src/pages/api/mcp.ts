@@ -4,8 +4,7 @@
  * 5 tools: search, rank, explain, select_model, compare.
  */
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
-import { emit, isEnabled } from '../../lib/telemetry/ae-adapter';
+import { emit, isEnabled, type TelemetryEnv } from '../../lib/telemetry/ae-adapter';
 import { buildMcpEvent } from '../../lib/telemetry/request-classifier';
 import { GET as searchHandler } from './search.js';
 import { POST as selectHandler } from './v1/select.js';
@@ -177,17 +176,16 @@ async function handleToolCall(context: any, toolName: string, args: any) {
 }
 
 // P2 Adoption Telemetry (TA2) -- SINGLE FINALIZER (D-53 MCP IMPL): classify from
-// the ALREADY-PARSED method + tool name (O-3: only initialize or a known
-// tools/call emits; a known tool counts one call even on a JSON-RPC error),
-// emit at most once inside an isolated swallow, return the SAME Response. Reads
-// response.status ONLY; never reads arguments/JSON-RPC id/clientInfo; the binding
-// token is never named (the whole env is passed to emit()).
+// the ALREADY-PARSED method + tool name (O-3), emit at most once in an isolated
+// swallow, return the SAME Response. Reads response.status ONLY; binding never
+// named. env INJECTED (prod: context.locals.runtime?.env; tests: a mock).
+// Exported so the SRS-1 test drives the SAME code. SYNC + isEnabled-first.
 function hostOf(u: string | null): string | null {
     if (!u) return null;
     try { return new URL(u).hostname; } catch { return null; }
 }
-function finalizeMcpTelemetry(
-    request: Request, parsedMethod: string | null, toolName: string | null, status: number,
+export function finalizeMcpTelemetry(
+    env: TelemetryEnv | undefined, request: Request, parsedMethod: string | null, toolName: string | null, status: number,
 ): void {
     try {
         if (!isEnabled(env)) return;
@@ -240,8 +238,10 @@ export const POST: APIRoute = async (context) => {
             break;
     }
 
-    // Single finalizer: classify from the parsed method + tool name, emit once.
-    finalizeMcpTelemetry(context.request, typeof method === 'string' ? method : null, toolName, response.status);
+    // Single finalizer: env injected synchronously from the Cloudflare adapter
+    // (no static cloudflare:workers import; absent in non-worker -> safe no-op).
+    const telEnv = (context.locals as { runtime?: { env?: TelemetryEnv } })?.runtime?.env;
+    finalizeMcpTelemetry(telEnv, context.request, typeof method === 'string' ? method : null, toolName, response.status);
     return response;
 };
 

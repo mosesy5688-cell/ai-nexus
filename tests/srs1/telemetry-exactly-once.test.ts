@@ -2,27 +2,53 @@
  * SRS-1 TEL-EXACTLY-ONCE -- P2 Adoption Telemetry TA2 single-emission ownership
  * (Founder D-2026-0615-53 GLOBAL INVARIANT O-4 / H-01-corrected).
  *
- * Hermetic, deterministic. Drives the REAL emit() (ae-adapter) through the REAL
- * pure builders (request-classifier) exactly as the call sites do, against the
- * mock binding -- asserting: at-most-one event per request; exactly-one only for
- * an eligible (flag ON + approved surface + canonical method + valid MCP op)
- * request; excluded/invalid/unknown/wrong-method/flag-OFF -> zero; flag-OFF
- * zero-write; sink-failure neutrality; and the response-identity / no-mutation
- * contract (emit returns a meta object, never a Response). No network/prod/AE.
+ * Hermetic, deterministic. Drives the REAL production finalizers exactly as the
+ * call sites do, with an INJECTABLE TelemetryEnv (mock binding) -- NOT mirror
+ * copies. The three exported real finalizers exercised here are:
+ *   - middleware.recordTelemetry(env, pathname, method, headers, ownHost, status)
+ *   - mcp.finalizeMcpTelemetry(env, request, parsedMethod, toolName, status)
+ *   - datasets.recordDatasets302(env, request)
+ * Asserts: at-most-one event per request; exactly-one only for an eligible
+ * (flag ON + approved surface + canonical method + valid MCP op) request;
+ * excluded/invalid/unknown/wrong-method/flag-OFF -> zero; flag-OFF zero-write;
+ * sink-failure neutrality; and the response-identity / no-mutation contract
+ * (onRequest returns the SAME Response object under OFF/ON/sink-throw). No
+ * network, no prod, no AE write. The middleware onRequest is also exercised with
+ * a fake Astro context whose locals.runtime.env is the mock binding.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// astro:middleware is an Astro-injected virtual module unavailable under vitest;
+// defineMiddleware is an identity typing helper at runtime, so mock it to the
+// identity so we can import the REAL middleware (and its REAL recordTelemetry /
+// onRequest). The mcp.ts route transitively imports heavy business handlers
+// (search/select/compare/entity + mcp-* helpers); we mock those to inert stubs so
+// importing the REAL finalizeMcpTelemetry does not pull the whole route graph.
+// These mocks DO NOT touch the telemetry code under test.
+vi.mock('astro:middleware', () => ({ defineMiddleware: (fn: any) => fn }));
+vi.mock('../../src/pages/api/search.js', () => ({ GET: vi.fn() }));
+vi.mock('../../src/pages/api/v1/select.js', () => ({ POST: vi.fn() }));
+vi.mock('../../src/pages/api/v1/compare.js', () => ({ GET: vi.fn() }));
+vi.mock('../../src/pages/api/v1/entity/[...id].js', () => ({ GET: vi.fn() }));
+vi.mock('../../src/lib/mcp-explain.js', () => ({ callEntity: vi.fn(), buildExplainResult: vi.fn() }));
+vi.mock('../../src/lib/mcp-compare.js', () => ({ callCompare: vi.fn(), buildCompareResult: vi.fn() }));
+vi.mock('../../src/lib/mcp-search.js', () => ({ callSearchStatus: vi.fn(), buildSearchResult: vi.fn() }));
+vi.mock('../../src/lib/mcp-select.js', () => ({ callSelectStatus: vi.fn(), buildSelectResult: vi.fn() }));
+
 import {
-  emit, isEnabled, getSubmissionErrorCount, resetSubmissionErrorCount,
+  emit, getSubmissionErrorCount, resetSubmissionErrorCount,
   TELEMETRY_BINDING_NAME,
 } from '../../src/lib/telemetry/ae-adapter';
 import { MockTelemetryDataset } from '../../src/lib/telemetry/mock-binding';
-import {
-  buildRestEvent, buildMcpEvent, buildDatasetsEvent,
-} from '../../src/lib/telemetry/request-classifier';
+import { buildRestEvent } from '../../src/lib/telemetry/request-classifier';
+import { recordTelemetry, onRequest } from '../../src/middleware';
+import { finalizeMcpTelemetry } from '../../src/pages/api/mcp';
+import { recordDatasets302 } from '../../src/pages/api/v1/datasets';
 import { findBindingMentions, TEXTUAL_ALLOWLIST } from '../../scripts/check-telemetry-no-read.mjs';
 
 const NOW = new Date('2026-06-15T13:30:00Z');
 const OWN = 'free2aitools.com';
+const ORIGIN = 'https://free2aitools.com';
 
 // Build a mock env WITHOUT ever writing the bare binding token in this file
 // (binding-confinement: a new file must not name it). The binding key is taken
@@ -35,31 +61,20 @@ function mkEnv(enabled: boolean): { env: any; ds: MockTelemetryDataset } {
   return { env, ds };
 }
 
-// Faithful re-creation of the call-site emit-ownership decision (one guarded
-// block, emit at most once on the produced event). This mirrors the SHAPE the
-// middleware/mcp/datasets call sites use; it does not re-implement classification
-// (it calls the SAME shared builder).
-function ownerEmitRest(env: any, method: string, pathname: string, status: number) {
-  try {
-    if (!isEnabled(env)) return;
-    if (pathname === '/api/mcp' || pathname.startsWith('/api/v1/datasets')) return; // EXCLUDED
-    const ev = buildRestEvent({ method, pathname, uaString: null, refererHost: null, ownHost: OWN, status, now: NOW });
-    if (ev) emit(env, ev);
-  } catch { /* swallow */ }
+// --- thin REAL-call-site drivers (NO classification re-implementation): each
+// calls the SAME exported production finalizer the route/middleware calls. ------
+const headersFor = (): Headers => new Headers();          // empty UA/referer
+function realRest(env: any, method: string, pathname: string, status: number) {
+  recordTelemetry(env, pathname, method, headersFor(), OWN, status);
 }
-function ownerEmitMcp(env: any, mcpMethod: string | null, toolName: string | null, status: number) {
-  try {
-    if (!isEnabled(env)) return;
-    const ev = buildMcpEvent({ method: mcpMethod, toolName, uaString: null, refererHost: null, ownHost: OWN, status, now: NOW });
-    if (ev) emit(env, ev);
-  } catch { /* swallow */ }
+function mkReq(): Request { return new Request(ORIGIN + '/api/mcp'); }
+function realMcp(env: any, mcpMethod: string | null, toolName: string | null, status: number) {
+  finalizeMcpTelemetry(env, mkReq(), mcpMethod, toolName, status);
 }
-function ownerEmitDatasets(env: any, isKnown302: boolean) {
-  try {
-    if (!isEnabled(env)) return;
-    const ev = buildDatasetsEvent({ isRealKnownFile302: isKnown302, uaString: null, refererHost: null, ownHost: OWN, now: NOW });
-    if (ev) emit(env, ev);
-  } catch { /* swallow */ }
+function realDatasets(env: any, isKnown302: boolean) {
+  // The REAL recordDatasets302 ONLY emits the known-file 302 branch (it is only
+  // invoked from that branch in production); a non-known request never calls it.
+  if (isKnown302) recordDatasets302(env, new Request(ORIGIN + '/api/v1/datasets?file=fni_lite_latest'));
 }
 
 describe('TEL-EXACTLY-ONCE: H-01 corrected -- at most one, exactly one when eligible', () => {
@@ -67,49 +82,67 @@ describe('TEL-EXACTLY-ONCE: H-01 corrected -- at most one, exactly one when elig
 
   it('eligible canonical REST request (flag ON) -> exactly one event', () => {
     const { env, ds } = mkEnv(true);
-    ownerEmitRest(env, 'GET', '/api/v1/search', 200);
+    realRest(env, 'GET', '/api/v1/search', 200);
     expect(ds.calls.length).toBe(1);
   });
 
   it('eligible MCP initialize / known tools_call -> exactly one each', () => {
-    const a = mkEnv(true); ownerEmitMcp(a.env, 'initialize', null, 200);
+    const a = mkEnv(true); realMcp(a.env, 'initialize', null, 200);
     expect(a.ds.calls.length).toBe(1);
-    const b = mkEnv(true); ownerEmitMcp(b.env, 'tools/call', 'free2aitools_compare', 200);
+    const b = mkEnv(true); realMcp(b.env, 'tools/call', 'free2aitools_compare', 200);
     expect(b.ds.calls.length).toBe(1);
+  });
+
+  it('a known MCP tool emits ONE even on a JSON-RPC error status', () => {
+    const { env, ds } = mkEnv(true);
+    realMcp(env, 'tools/call', 'free2aitools_search', 500);
+    expect(ds.calls.length).toBe(1);
   });
 
   it('eligible known-file datasets 302 -> exactly one event (H-23)', () => {
     const { env, ds } = mkEnv(true);
-    ownerEmitDatasets(env, true);
+    realDatasets(env, true);
     expect(ds.calls.length).toBe(1);
   });
 
   it('excluded / invalid / unknown / wrong-method / flag-OFF -> zero', () => {
     // EXCLUDED routes via middleware path (route-owned, not double-counted).
-    let e = mkEnv(true); ownerEmitRest(e.env, 'POST', '/api/mcp', 200);
+    let e = mkEnv(true); realRest(e.env, 'POST', '/api/mcp', 200);
     expect(e.ds.calls.length).toBe(0);
-    e = mkEnv(true); ownerEmitRest(e.env, 'GET', '/api/v1/datasets', 200);
+    e = mkEnv(true); realRest(e.env, 'GET', '/api/v1/datasets', 200);
     expect(e.ds.calls.length).toBe(0);
     // wrong method.
-    e = mkEnv(true); ownerEmitRest(e.env, 'OPTIONS', '/api/v1/search', 204);
+    e = mkEnv(true); realRest(e.env, 'OPTIONS', '/api/v1/search', 204);
     expect(e.ds.calls.length).toBe(0);
-    e = mkEnv(true); ownerEmitRest(e.env, 'HEAD', '/api/v1/search', 200);
+    e = mkEnv(true); realRest(e.env, 'HEAD', '/api/v1/search', 200);
     expect(e.ds.calls.length).toBe(0);
-    // unknown route.
-    e = mkEnv(true); ownerEmitRest(e.env, 'GET', '/api/whatever', 200);
+    // unknown route + route-grammar neighbors (Blocker B) -> zero.
+    e = mkEnv(true); realRest(e.env, 'GET', '/api/whatever', 200);
+    expect(e.ds.calls.length).toBe(0);
+    e = mkEnv(true); realRest(e.env, 'GET', '/api/v1/trends', 200);
+    expect(e.ds.calls.length).toBe(0);
+    e = mkEnv(true); realRest(e.env, 'GET', '/api/v1/trendsetter', 200);
+    expect(e.ds.calls.length).toBe(0);
+    e = mkEnv(true); realRest(e.env, 'GET', '/api/v1/badge/', 200);
+    expect(e.ds.calls.length).toBe(0);
+    e = mkEnv(true); realRest(e.env, 'GET', '/api/v1/entity/', 200);
     expect(e.ds.calls.length).toBe(0);
     // MCP: tools/list + unknown tool + missing name -> zero.
-    e = mkEnv(true); ownerEmitMcp(e.env, 'tools/list', null, 200);
+    e = mkEnv(true); realMcp(e.env, 'tools/list', null, 200);
     expect(e.ds.calls.length).toBe(0);
-    e = mkEnv(true); ownerEmitMcp(e.env, 'tools/call', 'free2aitools_unknown', 200);
+    e = mkEnv(true); realMcp(e.env, 'tools/call', 'free2aitools_unknown', 200);
     expect(e.ds.calls.length).toBe(0);
-    e = mkEnv(true); ownerEmitMcp(e.env, 'tools/call', null, 200);
+    e = mkEnv(true); realMcp(e.env, 'tools/call', null, 200);
     expect(e.ds.calls.length).toBe(0);
-    // datasets manifest 200 / unknown 404 -> zero.
-    e = mkEnv(true); ownerEmitDatasets(e.env, false);
+    e = mkEnv(true); realMcp(e.env, null, null, 200);
     expect(e.ds.calls.length).toBe(0);
-    // flag OFF -> zero even for an otherwise-eligible request.
-    const off = mkEnv(false); ownerEmitRest(off.env, 'GET', '/api/v1/search', 200);
+    // datasets manifest 200 / unknown 404 -> the known-302 branch never fires.
+    e = mkEnv(true); realDatasets(e.env, false);
+    expect(e.ds.calls.length).toBe(0);
+    // flag OFF -> zero even for an otherwise-eligible request (each finalizer).
+    const off = mkEnv(false); realRest(off.env, 'GET', '/api/v1/search', 200);
+    realMcp(off.env, 'initialize', null, 200);
+    realDatasets(off.env, true);
     expect(off.ds.calls.length).toBe(0);
   });
 
@@ -118,9 +151,53 @@ describe('TEL-EXACTLY-ONCE: H-01 corrected -- at most one, exactly one when elig
     // finalizer is the SOLE owner. Simulate both owners seeing the same /api/mcp
     // request: middleware excludes it (0), MCP finalizer counts it (1) -> total 1.
     const { env, ds } = mkEnv(true);
-    ownerEmitRest(env, 'POST', '/api/mcp', 200);          // middleware: excluded -> 0
-    ownerEmitMcp(env, 'tools/call', 'free2aitools_search', 200); // MCP finalizer -> 1
+    realRest(env, 'POST', '/api/mcp', 200);                 // middleware: excluded -> 0
+    realMcp(env, 'tools/call', 'free2aitools_search', 200); // MCP finalizer -> 1
     expect(ds.calls.length).toBe(1);  // exactly one, not two
+  });
+});
+
+// --- middleware onRequest response-identity contract via the REAL middleware ---
+// A fake Astro context whose locals.runtime.env is the mock binding, a `next`
+// returning a KNOWN Response. The middleware must return the SAME object (===).
+function mkCtx(env: any, path = '/api/v1/search') {
+  const url = new URL(ORIGIN + path);
+  return {
+    request: new Request(url.toString(), { method: 'GET' }),
+    url,
+    locals: { runtime: { env } },
+    redirect: (to: string) => Response.redirect(to, 302),
+  } as any;
+}
+
+describe('TEL-EXACTLY-ONCE: middleware onRequest response identity (REAL middleware)', () => {
+  beforeEach(() => resetSubmissionErrorCount());
+
+  it('OFF: returns the SAME Response object; zero emit', async () => {
+    const { env, ds } = mkEnv(false);
+    const known = new Response('ok', { status: 200 });
+    const out = await onRequest(mkCtx(env), async () => known);
+    expect(out).toBe(known);
+    expect(ds.calls.length).toBe(0);
+  });
+
+  it('ON: returns the SAME Response object; exactly one emit for an eligible surface', async () => {
+    const { env, ds } = mkEnv(true);
+    const known = new Response('ok', { status: 200 });
+    const out = await onRequest(mkCtx(env, '/api/v1/search'), async () => known);
+    expect(out).toBe(known);
+    expect(ds.calls.length).toBe(1);
+  });
+
+  it('sink-throw: returns the SAME Response object; never throws into the serve path', async () => {
+    const throwing = new MockTelemetryDataset();
+    (throwing as unknown as { writeDataPoint: () => void }).writeDataPoint = () => { throw new Error('AE down'); };
+    const env: any = { TELEMETRY_ENABLED: 'true' };
+    env[TELEMETRY_BINDING_NAME] = throwing;
+    const known = new Response('ok', { status: 200 });
+    const out = await onRequest(mkCtx(env, '/api/v1/search'), async () => known);
+    expect(out).toBe(known);
+    expect(getSubmissionErrorCount()).toBe(1);
   });
 });
 
@@ -135,13 +212,13 @@ describe('TEL-EXACTLY-ONCE: response identity + sink-failure neutrality', () => 
     expect(Object.keys(res).sort()).toEqual(['attempted']);
   });
 
-  it('a throwing sink never propagates -- the response path is untouched', () => {
+  it('a throwing sink never propagates -- the REAL recorder is untouched', () => {
     const throwing = new MockTelemetryDataset();
     (throwing as unknown as { writeDataPoint: () => void }).writeDataPoint = () => { throw new Error('AE down'); };
     const env: any = { TELEMETRY_ENABLED: 'true' };
     env[TELEMETRY_BINDING_NAME] = throwing;       // computed key -> no bare token here
-    // The owner block swallows -- it never throws into the caller.
-    expect(() => ownerEmitRest(env, 'GET', '/api/v1/search', 200)).not.toThrow();
+    // The REAL recordTelemetry swallows -- it never throws into the caller.
+    expect(() => realRest(env, 'GET', '/api/v1/search', 200)).not.toThrow();
     expect(getSubmissionErrorCount()).toBe(1);
   });
 

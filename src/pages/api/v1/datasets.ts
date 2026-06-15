@@ -6,8 +6,7 @@
  */
 export const prerender = false;
 
-import { env } from 'cloudflare:workers';
-import { emit, isEnabled } from '../../../lib/telemetry/ae-adapter';
+import { emit, isEnabled, type TelemetryEnv } from '../../../lib/telemetry/ae-adapter';
 import { buildDatasetsEvent } from '../../../lib/telemetry/request-classifier';
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
@@ -16,7 +15,12 @@ const CDN_BASE = 'https://cdn.free2aitools.com';
 // known-file 302 branch emits (surface=datasets.302, status_class 3xx, once);
 // the manifest 200 + unknown-file 404 branches emit ZERO. Isolated swallow; the
 // redirect Response is returned unchanged; the binding token is never named.
-function recordDatasets302(request: Request): void {
+//
+// env is INJECTED (first param): production passes locals.runtime?.env (the
+// Cloudflare adapter's synchronous Env); tests pass a mock binding. This is the
+// REAL emit site the GET handler calls -- exported so the SRS-1 exactly-once test
+// exercises the SAME code (not a mirror). SYNC + isEnabled-first.
+export function recordDatasets302(env: TelemetryEnv | undefined, request: Request): void {
     try {
         if (!isEnabled(env)) return;
         const headers = request.headers;
@@ -45,6 +49,9 @@ const KNOWN_FILES = [
 export async function GET({ request, locals }: { request: Request; locals: any }) {
     const url = new URL(request.url);
     const file = url.searchParams.get('file');
+    // env injected synchronously from the Cloudflare adapter (no static
+    // cloudflare:workers import; absent in non-worker contexts -> safe no-op).
+    const telEnv = (locals as { runtime?: { env?: TelemetryEnv } })?.runtime?.env;
 
     if (file) {
         const entry = KNOWN_FILES.find(f => f.id === file);
@@ -52,7 +59,7 @@ export async function GET({ request, locals }: { request: Request; locals: any }
             return new Response(JSON.stringify({ error: 'Unknown file' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
         }
         const redirect = Response.redirect(`${CDN_BASE}/${entry.path}`, 302);
-        recordDatasets302(request);   // O-2: count ONLY the real known-file 302
+        recordDatasets302(telEnv, request);   // O-2: count ONLY the real known-file 302
         return redirect;
     }
 

@@ -2,25 +2,6 @@ import { defineMiddleware } from "astro:middleware";
 import { emit, isEnabled, type TelemetryEnv } from "./lib/telemetry/ae-adapter";
 import { buildRestEvent } from "./lib/telemetry/request-classifier";
 
-// Build-safe env access. `cloudflare:workers` is a WORKER-RUNTIME builtin and is
-// NOT resolvable by the Node ESM loader during `astro build` prerender (middleware
-// executes for prerendered pages too, e.g. /robots.txt). A top-level static import
-// would crash the build (ERR_UNSUPPORTED_ESM_URL_SCHEME). So we DYNAMIC-import it
-// lazily inside a guarded path and memoize per isolate. In the build/prerender
-// context the import throws -> caught -> null -> telemetry no-ops (there is no real
-// request to count). The telemetry binding token is NEVER named in this file.
-let cachedEnv: TelemetryEnv | null | undefined;
-async function getTelemetryEnv(): Promise<TelemetryEnv | null> {
-    if (cachedEnv !== undefined) return cachedEnv;
-    try {
-        const mod: any = await import("cloudflare:workers");
-        cachedEnv = (mod?.env ?? null) as TelemetryEnv | null;
-    } catch {
-        cachedEnv = null;
-    }
-    return cachedEnv;
-}
-
 /**
  * V4.8 Unified Middleware
  *
@@ -40,10 +21,21 @@ async function getTelemetryEnv(): Promise<TelemetryEnv | null> {
 // /api/mcp + /api/v1/datasets are route-owned (EXCLUDED here, O-2). The binding
 // token is NEVER named here -- the whole env is passed to emit(), which is the
 // only module that dereferences the binding.
-async function recordTelemetry(pathname: string, method: string, headers: Headers, ownHost: string | null, status: number): Promise<void> {
+//
+// SYNCHRONOUS + NON-BLOCKING + isEnabled-FIRST (D-53 O-5 critical-path rule):
+// recordTelemetry is a plain void function (NOT async, NOT Promise-returning).
+// env is supplied SYNCHRONOUSLY by the caller from context.locals.runtime?.env
+// (the Astro Cloudflare adapter; env.d.ts declares App.Locals extends
+// Runtime<Env>, so locals.runtime.env is typed + synchronous). During `astro
+// build` prerender the worker runtime is absent -> locals.runtime is undefined ->
+// env is undefined -> isEnabled() is false -> safe no-op (NO dynamic import, NO
+// await, NO Promise continuation in the serve path even when OFF). emit() is
+// itself synchronous (writeDataPoint is non-blocking) and called directly inside
+// this isolated try/catch. isEnabled(env) is checked FIRST, before any pathname/
+// UA/referer classification work.
+function recordTelemetry(env: TelemetryEnv | undefined, pathname: string, method: string, headers: Headers, ownHost: string | null, status: number): void {
     try {
-        const env = await getTelemetryEnv();
-        if (!env || !isEnabled(env)) return;         // default-OFF short-circuit (no classification work)
+        if (!isEnabled(env)) return;                 // default-OFF short-circuit FIRST (no classification, no env init)
         if (pathname === '/api/mcp' || pathname.startsWith('/api/v1/datasets')) return; // route-owned (O-2)
         const refererHeader = headers.get('referer');
         let refererHost: string | null = null;
@@ -63,12 +55,19 @@ async function recordTelemetry(pathname: string, method: string, headers: Header
     }
 }
 
+export { recordTelemetry };
+
 export const onRequest = defineMiddleware(async (context, next) => {
     const startTime = performance.now();
     const reqMethod = context.request.method;
     const reqHeaders = context.request.headers;
     const ownHost = context.url.hostname;
     const reqPath = context.url.pathname;
+    // SYNCHRONOUS env from the Cloudflare adapter (typed via App.Locals extends
+    // Runtime<Env>). Absent during `astro build` prerender -> undefined -> no-op.
+    // No await, no dynamic import: telemetry never enters the response-return
+    // critical path. The binding token is never named here.
+    const telEnv = (context.locals as { runtime?: { env?: TelemetryEnv } }).runtime?.env;
 
     try {
         // V18.12.5: Global Resilience Wrap
@@ -84,8 +83,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
         }
 
         // P2 telemetry (normal path): classify from the FINAL response status,
-        // emit at most once, return the SAME response object unchanged.
-        await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, response.status);
+        // emit at most once, return the SAME response object unchanged. SYNC +
+        // NON-BLOCKING (no await) -- never delays the serve path.
+        recordTelemetry(telEnv, reqPath, reqMethod, reqHeaders, ownHost, response.status);
 
         return response;
     } catch (e: any) {
@@ -104,7 +104,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
                 { status: 500, headers: { 'Content-Type': 'application/json' } }
             );
             // Telemetry on the FINAL error Response (an allowed API surface gets 5xx).
-            await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, apiError.status);
+            recordTelemetry(telEnv, reqPath, reqMethod, reqHeaders, ownHost, apiError.status);
             return apiError;
         }
 
@@ -113,12 +113,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
             const crash = new Response("Critical System Failure: 404 Rendering Crashed", { status: 500 });
             // /404 has no allowed surface -> classifier drops it (no emit), but the
             // call stays symmetric so the exactly-once XOR is structurally provable.
-            await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, crash.status);
+            recordTelemetry(telEnv, reqPath, reqMethod, reqHeaders, ownHost, crash.status);
             return crash;
         }
 
         // Human SSR-crash redirect: the /404 target has no allowed surface -> no emit.
-        await recordTelemetry(reqPath, reqMethod, reqHeaders, ownHost, 302);
+        recordTelemetry(telEnv, reqPath, reqMethod, reqHeaders, ownHost, 302);
         return context.redirect(errorUrl.toString());
     }
 });

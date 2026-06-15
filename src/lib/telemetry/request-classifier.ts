@@ -20,40 +20,52 @@ import {
   type Surface, type McpTool, type CacheClass, type AudienceClass,
 } from './vocab';
 
-// ---- O-4 SURFACE MAP (by pathname FAMILY: prefix/exact, never full path) ------
-// Dynamic segments (entity id, badge umid) are used ONLY to match a family and
-// are then DISCARDED -- they never enter the event (schema FORBIDDEN_FIELDS
-// rejects id/slug/path/umid anyway). MCP + datasets are route-owned (not here).
+// ---- O-4 SURFACE MAP (EXACT-ONLY families, never a permissive prefix) ---------
+// Dynamic segments are matched by an EXACT grammar (not startsWith) so unapproved
+// NEIGHBORS (/api/v1/trendsetter, /api/v1/badge/a/b, /api/v1/entity/) map to null,
+// never an approved surface. The matched segment is DISCARDED (never an event
+// field). MCP + datasets are route-owned (not here). /api/search (internal engine)
+// is EXCLUDED by Founder D-53 (NOT COUNTED) -> absent here -> null.
 const EXACT_GET: Record<string, Surface> = {
-  // NOTE: /api/search (the un-versioned INTERNAL engine) is EXCLUDED by Founder
-  // D-53 (NOT COUNTED): it is reused as a function call by /api/v1/search + MCP,
-  // and a direct external hit is internal/legacy, not the advertised adoption
-  // contract. It is intentionally absent here -> classifyRestSurface returns null.
   '/api/v1/search': 'api.v1.search',
   '/api/v1/compare': 'api.v1.compare',
   '/api/v1/concepts': 'api.v1.concepts',
+  // api.v1.trends: the SOLE approved public surface is the EXACT batch path;
+  // /api/v1/trends, /api/v1/trends-anything, /api/v1/trendsetter,
+  // /api/v1/trends/batch/extra all fall through to null (no overmatch).
+  '/api/v1/trends/batch': 'api.v1.trends',
   '/llms.txt': 'discovery.llms_txt',
   '/openapi.json': 'discovery.openapi',
 };
-// Prefix families for GET routes with dynamic / sub-path segments.
-const PREFIX_GET: Array<{ p: string; s: Surface }> = [
-  { p: '/api/v1/entity/', s: 'api.v1.entity' },
-  { p: '/api/v1/trends', s: 'api.v1.trends' },
-  { p: '/api/v1/badge/', s: 'badge' },
-];
 
-/** O-4 canonical-method gate + family surface map for middleware-owned routes.
- *  Returns the closed Surface or null (drop). select is POST-only; everything
- *  else mapped here is GET-only. /api/mcp + /api/v1/datasets are EXCLUDED (the
- *  routes own them) and unrecognized paths return null. */
+// EXACT single-non-empty-segment grammar: matches "/<prefix>/<seg>" where <seg>
+// is non-empty and has NO further '/'. Bare "/<prefix>/" and deeper "/a/b" -> null.
+function matchSingleSegment(pathname: string, prefix: string, surface: Surface): Surface | null {
+  if (!pathname.startsWith(prefix)) return null;
+  const seg = pathname.slice(prefix.length);
+  if (seg.length === 0) return null;       // bare "/<prefix>/" -> null
+  if (seg.includes('/')) return null;      // deeper "/<prefix>/a/b" -> null
+  return surface;
+}
+
+/** O-4 canonical-method gate + EXACT family surface map for middleware-owned
+ *  routes. Returns the closed Surface or null (drop). select is POST-only;
+ *  everything else mapped here is GET-only. /api/mcp + /api/v1/datasets are
+ *  EXCLUDED (the routes own them) and unrecognized / neighbor paths return null. */
 export function classifyRestSurface(method: string, pathname: string): Surface | null {
   const m = method.toUpperCase();
   if (pathname === '/api/v1/select') return m === 'POST' ? 'api.v1.select' : null;
   if (m !== 'GET') return null;
   const exact = EXACT_GET[pathname];
   if (exact) return exact;
-  for (const { p, s } of PREFIX_GET) {
-    if (pathname === p || pathname.startsWith(p)) return s;
+  // badge: exactly ONE non-empty single segment after "/api/v1/badge/".
+  const badge = matchSingleSegment(pathname, '/api/v1/badge/', 'badge');
+  if (badge) return badge;
+  // entity: the route is the [...id] catch-all; require a NON-EMPTY remainder
+  // after "/api/v1/entity/" (ids may contain slashes, so only the empty
+  // remainder is rejected -- "/api/v1/entity/" -> null).
+  if (pathname.startsWith('/api/v1/entity/') && pathname.length > '/api/v1/entity/'.length) {
+    return 'api.v1.entity';
   }
   return null;
 }

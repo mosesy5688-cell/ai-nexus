@@ -260,6 +260,41 @@ export function checkNoRawInReturnString(classifierSrc) {
   return errs;
 }
 
+// (D) MIDDLEWARE SYNC-TELEMETRY invariant (D-53 O-5 critical-path rule): the
+// middleware telemetry recorder must be SYNCHRONOUS + NON-BLOCKING so it never
+// enters the response-return critical path. Three mutation-provable shapes are
+// asserted on the comment-stripped middleware source:
+//   (1) NO `await recordTelemetry(` anywhere (telemetry is never awaited).
+//   (2) recordTelemetry is declared SYNC: `function recordTelemetry(` with NO
+//       leading `async` and NO `Promise<...>` return annotation.
+//   (3) NO awaited dynamic env import after next(): no `await import(` survives
+//       (the prior awaited getTelemetryEnv design is fully removed).
+// Each rule flips on a crafted bad source (a re-introduced `await recordTelemetry`,
+// an `async function recordTelemetry`, or an `await import(` re-appears).
+export const MIDDLEWARE_MODULE = 'src/middleware.ts';
+export function checkMiddlewareSyncTelemetry(middlewareSrcRaw) {
+  const src = stripComments(middlewareSrcRaw);
+  const errs = [];
+  // (1) telemetry is never awaited.
+  if (/\bawait\s+recordTelemetry\s*\(/.test(src)) {
+    errs.push('middleware awaits recordTelemetry (must be sync, non-blocking)');
+  }
+  // (2) recordTelemetry declared synchronous (not async, not Promise-returning).
+  const decl = src.match(/(\basync\s+)?function\s+recordTelemetry\s*\(([\s\S]*?)\)\s*:\s*([^\{]+)\{/);
+  if (!decl) {
+    errs.push('recordTelemetry declaration not found (anti-vacuity)');
+  } else {
+    if (decl[1]) errs.push('recordTelemetry is declared async (must be sync void)');
+    const ret = decl[3].replace(/\s+/g, ' ').trim();
+    if (/Promise\s*</.test(ret)) errs.push('recordTelemetry returns a Promise (must be sync void), got "' + ret + '"');
+  }
+  // (3) no awaited dynamic env import left in the middleware (the removed design).
+  if (/\bawait\s+import\s*\(/.test(src)) {
+    errs.push('middleware still uses await import(...) for env (removed design re-introduced)');
+  }
+  return errs;
+}
+
 // Binary/generated/vendor/build-output/dependency exclusions: a file is EXCLUDED
 // from the text scan only if it is one of these (everything else IS scanned, so a
 // new text/config/workflow location can never silently escape confinement).
@@ -333,6 +368,14 @@ export function runAssertionB(readFn = read) {
     for (const e of checkBuilderReturnType(classifier)) errors.push(`${CLASSIFIER_MODULE}: ${e}`);
     for (const e of checkReturnedEventKeys(classifier)) errors.push(`${CLASSIFIER_MODULE}: ${e}`);
     for (const e of checkNoRawInReturnString(classifier)) errors.push(`${CLASSIFIER_MODULE}: ${e}`);
+  }
+
+  // (D) middleware sync-telemetry invariant (D-53 O-5 critical-path rule).
+  const middleware = readFn(MIDDLEWARE_MODULE);
+  if (middleware === null) errors.push(`middleware module missing: ${MIDDLEWARE_MODULE}`);
+  else {
+    scanned++;
+    for (const e of checkMiddlewareSyncTelemetry(middleware)) errors.push(`${MIDDLEWARE_MODULE}: ${e}`);
   }
 
   // (5) call-site emit() argument shape; require >0 emit calls overall.

@@ -2,12 +2,11 @@
  * SRS-1 TEL-CALLSITE -- P2 Adoption Telemetry TA2 request-path classifier +
  * call-site invariants (Founder D-2026-0615-53, CONTROLLING).
  *
- * Hermetic, deterministic. Asserts the PURE classifier behavior (O-1 cache,
- * O-3 MCP, O-4 method/surface, O-8 audience, O-9 time bucket) + the datasets
- * semantic lock (O-2 / H-23) + method lock (H-24) + audience precedence (H-26)
- * + cache honesty (H-27), plus the gate-B mutation proofs (H-25) and the
- * repo-invariant locks (H-28/H-29/H-30). EXEC against the shared pure modules
- * + the exported gate functions; no network, no prod, no AE write.
+ * Hermetic, deterministic. Asserts the PURE classifier behavior (O-1/O-3/O-4/
+ * O-8/O-9) + datasets semantic lock (O-2/H-23) + method lock (H-24) + audience
+ * precedence (H-26) + cache honesty (H-27) + Blocker-B route grammar, plus the
+ * gate-B mutation proofs (H-25, incl. Blocker-A middleware sync) and the
+ * repo-invariant locks (H-28/H-29/H-30). No network, no prod, no AE write.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -17,7 +16,8 @@ import {
 import { validateEvent } from '../../src/lib/telemetry/schema';
 import {
   runAssertionB, checkReturnedEventKeys, checkNoConsole, checkEmitSignature,
-  checkBuilderReturnType, TA2_CALL_SITES, CLASSIFIER_MODULE,
+  checkBuilderReturnType, checkMiddlewareSyncTelemetry, TA2_CALL_SITES,
+  CLASSIFIER_MODULE, MIDDLEWARE_MODULE,
 } from '../../scripts/check-telemetry-no-read.mjs';
 import fs from 'fs';
 import path from 'path';
@@ -54,6 +54,19 @@ describe('TEL-CALLSITE: O-4 method gate + surface map', () => {
     // datasets + mcp are route-owned -> NOT classified by the REST surface map.
     expect(classifyRestSurface('GET', '/api/v1/datasets')).toBeNull();
     expect(classifyRestSurface('POST', '/api/mcp')).toBeNull();
+  });
+
+  it('Blocker-B route grammar: approved exact families ONLY; neighbors -> null', () => {
+    // trends: ONLY the exact batch path; badge: exactly one non-empty segment;
+    // entity: non-empty [...id] remainder required. Every neighbor -> null.
+    expect(classifyRestSurface('GET', '/api/v1/trends/batch')).toBe('api.v1.trends');
+    expect(classifyRestSurface('GET', '/api/v1/badge/abc123')).toBe('badge');
+    expect(classifyRestSurface('GET', '/api/v1/entity/hf-model--x--y')).toBe('api.v1.entity');
+    for (const p of ['/api/v1/trends', '/api/v1/trends-anything', '/api/v1/trendsetter',
+      '/api/v1/trends/batch/extra', '/api/v1/badge/', '/api/v1/badge/a/b', '/api/v1/entity/']) {
+      expect(classifyRestSurface('GET', p), `expected null for ${p}`).toBeNull();
+      expect(buildRestEvent({ ...baseRest, method: 'GET', pathname: p }), `expected null event for ${p}`).toBeNull();
+    }
   });
 
   it('buildRestEvent returns a schema-valid event for an allowed surface, null otherwise', () => {
@@ -194,6 +207,16 @@ describe('TEL-CALLSITE: H-25 gate-B mutation proofs', () => {
     expect(checkBuilderReturnType(good)).toEqual([]);
     const bad = 'export function buildRestEvent(i: X): any {\n return null;\n}';
     expect(checkBuilderReturnType(bad).join(';')).toMatch(/TelemetryEvent/);
+  });
+
+  it('Blocker-A middleware sync-telemetry: real source PASSES; bad shapes FAIL', () => {
+    // REAL middleware is sync + non-blocking; 4 mutations each flip the gate check.
+    const real = fs.readFileSync(path.join(ROOT, MIDDLEWARE_MODULE), 'utf-8');
+    expect(checkMiddlewareSyncTelemetry(real), checkMiddlewareSyncTelemetry(real).join(' | ')).toEqual([]);
+    expect(checkMiddlewareSyncTelemetry(real + '\nawait recordTelemetry(telEnv, p, m, h, o, 200);').join(';')).toMatch(/await/);
+    expect(checkMiddlewareSyncTelemetry(real.replace('function recordTelemetry(', 'async function recordTelemetry(')).join(';')).toMatch(/async/);
+    expect(checkMiddlewareSyncTelemetry(real.replace(/(function recordTelemetry\([\s\S]*?\))\s*:\s*void/, '$1: Promise<void>')).join(';')).toMatch(/Promise/);
+    expect(checkMiddlewareSyncTelemetry(real + '\nconst x = await import("cloudflare:workers");').join(';')).toMatch(/await import/);
   });
 });
 
