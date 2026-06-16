@@ -178,6 +178,27 @@ proof in the PR body).
 | TEL-ISOLATION | DEFAULT-OFF (flag != 'true' -> no write); no-binding no-op (no write, no throw); failure isolation (throwing sink never throws into caller; lost-write meta-counter increments); waitUntil fire-and-forget; emit returns no serving value; telemetry modules import nothing from FNI/ranking/search/projection/MCP-response | `tests/srs1/telemetry-isolation.test.ts` | EXEC + SOURCE | **NEW** |
 | TEL-GATE | The no-read + binding-confinement static gate (`scripts/check-telemetry-no-read.mjs`) is green AND non-vacuous: binding `ADOPTION_TELEMETRY` confined to the textual allowlist (config + env-type + adapter + mock + gate + telemetry tests); the 13 serve/scoring/projection/ranking/MCP-response no-read paths exist and never name the binding (RUNTIME dereference allowlist = the single write adapter only) | `tests/srs1/telemetry-isolation.test.ts` | EXEC + STRUCT | **NEW** |
 
+## Registry — WO-3-A1 (arXiv OAI transport recovery core)
+
+> Deterministic, hermetic EXEC invariants for WO-3-A1 (Founder D-2026-0616-65).
+> They drive the real `ArXivAdapter.fetchOAI` through an injected `fetchWithTimeout`
+> seam + a zeroed clock/backoff seam (`{ now, sleep }`) so no live network and no
+> real sleep ever occur. The single-arbiter transport budget (`ArxivRecoveryState`)
+> + OAI envelope parser (`arxiv-oai-client.js`) are the system under test. Scope is
+> TRANSPORT RECOVERY ONLY: `normalize()`, ar5iv enrichment, and relation derivation
+> are NOT exercised or changed. Files: `tests/unit/harvest-arxiv-recovery.test.ts`
+> (+ existing `tests/unit/harvest-fail-loud.test.ts`, reused for the FetchError
+> taxonomy).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-SAMETOKEN | A failing resumption page RETAINS its EXACT resumptionToken and retries the SAME token (URL identity asserted) within the single budget; the page is accepted EXACTLY once; the token advances ONLY after a complete valid page; no dup/no miss | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-NOWINDOW | **NEGATIVE invariant**: on a resumption-page timeout the token is NEVER reset to null and NO fresh first-page/window-origin query is issued (every post-first fetch carries the SAME token; no `metadataPrefix` re-query). The old `resumptionToken = null; continue;` window-restart is IMPOSSIBLE | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-TIMEOUT | First page = 120000ms; FIRST attempt of a resumption page keeps 60000ms (no standalone bump); the deep-page budget is raised to 120000ms ONLY on the same-token RETRY | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-EXHAUST | Same token timing out to the per-token limit (3 requests = initial + 2 retries) -> terminal PAGE_TIMEOUT_EXHAUSTED (FetchError kind=abort); partial yield NOT healthy (throws); token NOT cleared; exactly ONE bare first-page query ever issued | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-OAIERR | OAI `<error>` envelope parsed BEFORE records/next-token/clean-end (HTTP 200): badResumptionToken -> BAD_RESUMPTION_TOKEN fail-loud; badArgument/unknown -> OAI_ERROR fail-closed; initial noRecordsMatch -> clean-zero []; resumption noRecordsMatch -> fail-loud; an envelope is NEVER a clean completion | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-CORRECT | Correctness terminals: malformed XML -> MALFORMED_XML (kind=parse); next-token cycle A->B->A -> TOKEN_CYCLE; zero unique progress across the window -> NO_PROGRESS; total budget exhaustion (fake clock) -> TOTAL_BUDGET_EXHAUSTED; genuinely-empty first page -> [] success; healthy output structure parity | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the
