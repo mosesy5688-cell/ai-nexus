@@ -8,8 +8,7 @@ import { ArXivAdapter } from '../../scripts/ingestion/adapters/arxiv-adapter.js'
 // @ts-ignore
 import { ArxivRecoveryState, NO_PROGRESS_WINDOW, TOTAL_BUDGET_MS } from '../../scripts/ingestion/adapters/arxiv-recovery-state.js';
 
-// D-68 amendment helpers (sidecar + transport-precedence tests share this file to
-// honor the CES 250-line cap on harvest-arxiv-budget.test.ts).
+// D-68 amendment helpers (sidecar + transport-precedence tests share this file for the CES 250-line cap).
 const D68_PAGE = (id: string, token?: string) =>
     '<?xml version="1.0"?><OAI-PMH><ListRecords>' +
     `<record><header><datestamp>2026-06-01</datestamp></header>` +
@@ -22,12 +21,9 @@ const D68_HTTP = (status: number) => ({ ok: false, status, text: async () => '',
 const D68_NO_SLEEP = { sleep: async () => undefined, now: () => Date.now() };
 const D68_ABORT = () => { const e = new Error('aborted'); e.name = 'AbortError'; return e; };
 
-// WO-3-A1 D-67 BLOCKER E (observation propagation only): a hard arXiv FetchError
-// carrying structured recovery metadata (err.meta) must be RECORDED into the
-// EXISTING terminal_meta sidecar field as a HARD FAILURE (not success/partial).
-// Hermetic: a fake adapter throws the FetchError; no network, no real sleep. We
-// read the fixed machine line `HARVEST_STATE <json>` that emitTerminalState
-// ALWAYS prints (it cannot fail the harvest), and assert the terminal_meta fields.
+// WO-3-A1 D-67 BLOCKER E: a hard arXiv FetchError's err.meta is RECORDED into the
+// EXISTING terminal_meta sidecar as a HARD FAILURE. Hermetic (fake adapter throws;
+// no network/sleep); asserted via the fixed `HARVEST_STATE <json>` line.
 
 function captureHarvestState(logSpy: any): any | null {
     for (const call of logSpy.mock.calls) {
@@ -42,8 +38,7 @@ function captureHarvestState(logSpy: any): any | null {
 describe('WO-3-A1 D-67 BLOCKER E — FetchError recovery meta reaches the sidecar', () => {
     afterEach(() => { vi.restoreAllMocks(); });
 
-    // TEST 13: FetchError recovery metadata (pages/retries/terminal/kind/yield)
-    // reaches the terminal_meta sidecar, recorded as a HARD FAILURE.
+    // TEST 13: FetchError recovery metadata reaches terminal_meta as a HARD FAILURE.
     it('TEST13 FetchError.meta flows into terminal_meta sidecar; status=failed (hard failure)', async () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
         vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -116,8 +111,7 @@ describe('WO-3-A1 D-68 BLOCKER 1 — invalid page must not mutate recovery state
     // DIRECT-ARBITER: a rejected TOKEN_CYCLE page leaves ZERO partial mutation.
     it('CYCLE-ZEROMUT acceptPage TOKEN_CYCLE rejection mutates NOTHING (pages/uids/fp-set/window/history/clock)', () => {
         const state = new ArxivRecoveryState({ now: () => 1000, sleep: async () => undefined });
-        // Two genuinely-advancing accepted pages establish a pre-cycle baseline.
-        expect(state.acceptPage({ newProductYield: 2, rawNewIds: 2, pageFingerprint: 'fpA', nextToken: 'tokA' })).toBeNull();
+        expect(state.acceptPage({ newProductYield: 2, rawNewIds: 2, pageFingerprint: 'fpA', nextToken: 'tokA' })).toBeNull(); // 2 advancing pages = baseline
         state.beginToken('tokA');
         expect(state.acceptPage({ newProductYield: 3, rawNewIds: 3, pageFingerprint: 'fpB', nextToken: 'tokB' })).toBeNull();
         state.beginToken('tokB');
@@ -182,8 +176,7 @@ describe('WO-3-A1 D-68 BLOCKER 2 — budget-exhausted beats page-timeout (termin
     beforeEach(() => { adapter = new ArXivAdapter(); process.env.ENABLE_AR5IV = 'false'; vi.spyOn(adapter, 'delay').mockResolvedValue(undefined); });
     afterEach(() => { vi.restoreAllMocks(); });
 
-    // CASE (i): remaining budget < 120s; the tokened request aborts AT the clipped
-    // timeout; endSpan consumes the remainder -> TOTAL_BUDGET_EXHAUSTED (not PAGE_TIMEOUT).
+    // CASE (i): tokened request aborts AT the clipped timeout; endSpan consumes the remainder -> TOTAL_BUDGET (not PAGE_TIMEOUT).
     it('BUDGET-i clipped-timeout abort consuming the remainder -> TOTAL_BUDGET_EXHAUSTED (not PAGE_TIMEOUT)', async () => {
         let t = 0; const clock = { now: () => t, sleep: async () => undefined };
         const timeouts: number[] = [];
@@ -198,8 +191,7 @@ describe('WO-3-A1 D-68 BLOCKER 2 — budget-exhausted beats page-timeout (termin
         expect(timeouts[1]).toBe(50000); // tokened request was clipped to remaining budget (< 120000)
     });
 
-    // CASE (ii): AMPLE budget; three full 120s same-token aborts (attempts exhausted,
-    // budget remaining) -> PAGE_TIMEOUT_EXHAUSTED.
+    // CASE (ii): AMPLE budget; three full 120s same-token aborts (attempts exhausted) -> PAGE_TIMEOUT_EXHAUSTED.
     it('BUDGET-ii three full 120s same-token aborts with budget remaining -> PAGE_TIMEOUT_EXHAUSTED (not TOTAL_BUDGET)', async () => {
         let t = 0; const clock = { now: () => t, sleep: async () => undefined }; // backoff zeroed
         const tokenTimeouts: number[] = [];
@@ -212,8 +204,7 @@ describe('WO-3-A1 D-68 BLOCKER 2 — budget-exhausted beats page-timeout (termin
         expect(tokenTimeouts).toEqual([120000, 120000, 120000]); // attempts, not budget, was the limit
     });
 
-    // A retryable wait that cannot FIT the remaining budget -> TOTAL_BUDGET_EXHAUSTED
-    // (not RATE_LIMIT/PAGE_TIMEOUT): the two terminals are never conflated.
+    // A retryable wait that cannot FIT remaining budget -> TOTAL_BUDGET (not RATE_LIMIT/PAGE_TIMEOUT; never conflated).
     it('BUDGET-precedence a backoff/Retry-After wait that cannot fit budget -> TOTAL_BUDGET_EXHAUSTED', async () => {
         let t = 0; const clock = { now: () => t, sleep: async () => undefined };
         vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
@@ -223,5 +214,37 @@ describe('WO-3-A1 D-68 BLOCKER 2 — budget-exhausted beats page-timeout (termin
         });
         await expect(adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, clock))
             .rejects.toMatchObject({ detail: expect.stringContaining('TOTAL_BUDGET_EXHAUSTED') });
+    });
+});
+
+// D-2026-0616-69 — parse-branch budget precedence (2 of 5 tests; other 3 in harvest-arxiv-recovery.test.ts). Malformed TOKENED body -> 'parse' kind.
+const D69_BAD_XML = '<<not valid xml ohno';
+describe('WO-3-A1 D-69 — parse branch budget precedence (FetchError.kind + terminal_meta)', () => {
+    let adapter: any;
+    beforeEach(() => { adapter = new ArXivAdapter(); process.env.ENABLE_AR5IV = 'false'; vi.spyOn(adapter, 'delay').mockResolvedValue(undefined); });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    // PARSE-BUDGET-ii: budget remains but the FULL retry backoff cannot fit -> executeRetryWait refuses -> TOTAL_BUDGET.
+    it('PARSE-BUDGET-ii parse retry-wait that cannot fit budget -> TOTAL_BUDGET_EXHAUSTED', async () => {
+        let t = 0; const clock = { now: () => t, sleep: async () => undefined };
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            if (url.includes('resumptionToken')) return D68_OK(D69_BAD_XML) as any; // parse fails, wait can't fit
+            t += (TOTAL_BUDGET_MS - 5000); return D68_OK(D68_FIRST_TOKEN) as any; // 5000 < 15000 backoff
+        });
+        await expect(adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, clock))
+            .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', detail: expect.stringContaining('TOTAL_BUDGET_EXHAUSTED') });
+    });
+
+    // PARSE-KIND (budget half): budget-refused parse terminal -> kind=abort + meta.terminal=TOTAL_BUDGET (never conflated).
+    it('PARSE-KIND budget-refused parse terminal carries kind=abort + meta.terminal=TOTAL_BUDGET_EXHAUSTED', async () => {
+        let t = 0; const clock = { now: () => t, sleep: async () => undefined };
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string, _o: any, ms: number) => {
+            if (url.includes('resumptionToken')) { t += ms; return D68_OK(D69_BAD_XML) as any; } // span -> budget ~0
+            t += (TOTAL_BUDGET_MS - 50000); return D68_OK(D68_FIRST_TOKEN) as any;
+        });
+        let err: any = null;
+        try { await adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, clock); } catch (e) { err = e; }
+        expect(err.kind).toBe('abort');
+        expect(err.meta.terminal).toBe('TOTAL_BUDGET_EXHAUSTED');
     });
 });

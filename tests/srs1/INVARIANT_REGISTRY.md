@@ -243,6 +243,26 @@ proof in the PR body).
 | WO3A1-INVALID-ZEROMUT | **BLOCKER 1**: a rejected TOKEN_CYCLE page mutates NOTHING — acceptedPages/acceptedUniqueIds/fingerprint-set/progressWindow/tokenHistory/lastProgressAt all identical to the pre-cycle snapshot; `snapshot().accepted_pages` and `terminalError().meta.acceptedPages` carry the PRE-cycle count (CYCLE-ZEROMUT); a rejected NO_PROGRESS stall page is likewise pure (no extra window-0 pushed, pages unchanged) (NOPROG-ZEROMUT); end-to-end `terminal_meta.acceptedPages` EXCLUDES the cycle page + the cycle page is NEVER enriched/committed (CYCLE-META) | `tests/unit/harvest-arxiv-budget.test.ts` | EXEC | **NEW** |
 | WO3A1-BUDGET-PRECEDENCE | **BLOCKER 2**: when the per-request timeout is clipped to the remaining budget and the request aborts at that clipped timeout (endSpan drives remaining to ~0), terminal is TOTAL_BUDGET_EXHAUSTED, NOT PAGE_TIMEOUT_EXHAUSTED (BUDGET-i); with ample budget, three full 120s same-token aborts (attempts exhausted, budget remaining) -> PAGE_TIMEOUT_EXHAUSTED (BUDGET-ii); a Retry-After/backoff wait that cannot fit the remaining budget -> TOTAL_BUDGET_EXHAUSTED (BUDGET-precedence). The two terminals are never conflated | `tests/unit/harvest-arxiv-budget.test.ts` | EXEC | **NEW** |
 
+### D-2026-0616-69 amendment — parse-branch budget precedence (final narrow fix, 5 tests)
+
+> The D-68 BLOCKER 2 budget precedence was applied in the `http` and `fetch` branches
+> but NOT the `parse` (MALFORMED_XML) branch, which still short-circuited
+> `if (canRetryToken() && executeRetryWait()) continue; else MALFORMED_XML` — conflating a
+> budget-refused retry-wait with a parse-attempts-exhausted terminal. The `parse` branch is
+> now made IDENTICAL to the `fetch` branch: (1) `budgetExhausted()` -> TOTAL_BUDGET_EXHAUSTED;
+> (2) `canRetryToken()` true but `executeRetryWait()` refuses (full wait cannot fit remaining
+> budget) -> TOTAL_BUDGET_EXHAUSTED; (3) parse attempts exhausted while budget remains ->
+> MALFORMED_XML. Budget-refusal classification is now consistent across all three retryable
+> branches (http/fetch/parse). MALFORMED_XML stays kind `parse`; TOTAL_BUDGET_EXHAUSTED stays
+> kind `abort` (unchanged `TERMINAL_KIND` map). TAXONOMY: the implementation has COMPLETE +
+> **NINE** fail-loud terminals — BAD_RESUMPTION_TOKEN, OAI_ERROR, PAGE_TIMEOUT_EXHAUSTED,
+> TOTAL_BUDGET_EXHAUSTED, MALFORMED_XML, NO_PROGRESS, TOKEN_CYCLE, FETCH_ERROR,
+> **RATE_LIMIT_EXHAUSTED** (the last previously omitted from prose enumerations).
+
+| ID | Protected behavior (blocker) | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-PARSE-BUDGET-PRECEDENCE | **PARSE-BRANCH PRECEDENCE**: a parse failure whose request consumed the remaining budget (endSpan drives remaining to ~0) -> TOTAL_BUDGET_EXHAUSTED, NOT MALFORMED_XML (PARSE-BUDGET-i); a parse retry-wait that cannot fit the remaining budget (`executeRetryWait` refuses) -> TOTAL_BUDGET_EXHAUSTED (PARSE-BUDGET-ii); 3 same-token parse failures with ample budget (attempts exhausted) -> MALFORMED_XML (PARSE-ATTEMPTS); FetchError.kind + terminal_meta.terminal correct across all three (TOTAL_BUDGET_EXHAUSTED -> abort; MALFORMED_XML -> parse) (PARSE-KIND); the existing single-shot MALFORMED_XML fail-loud (kind=parse) still passes (PARSE-LEGACY). The two terminals are never conflated in the parse branch | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the

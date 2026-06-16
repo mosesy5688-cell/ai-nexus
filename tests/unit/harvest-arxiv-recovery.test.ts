@@ -3,15 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ArXivAdapter } from '../../scripts/ingestion/adapters/arxiv-adapter.js';
 // @ts-ignore
 import { FetchError } from '../../scripts/ingestion/adapters/base-adapter.js';
+// @ts-ignore
+import { TOTAL_BUDGET_MS } from '../../scripts/ingestion/adapters/arxiv-recovery-state.js';
 
-// WO-3-A1 (arXiv OAI Transport Recovery Core), amended by D-2026-0616-67. This
-// file holds the SAME-TOKEN retry + OAI envelope/correctness invariants. The
-// D-67 active-transport budget / structural-ListRecords / arbiter-rate-limit /
-// raw-vs-product-progress tests live in harvest-arxiv-budget.test.ts; the
-// FetchError->terminal_meta evidence test in harvest-arxiv-terminal-meta.test.ts.
-// Drives the real ArXivAdapter.fetchOAI through an injected fetchWithTimeout seam
-// + a zeroed clock/backoff seam ({ now, sleep }) so NO live network / NO real
-// sleep occur. TRANSPORT RECOVERY ONLY (normalize/ar5iv/relations untouched).
+// WO-3-A1 (arXiv OAI Transport Recovery Core), amended D-67/D-69. SAME-TOKEN retry +
+// OAI envelope/correctness + (D-69) 3 of 5 parse-branch budget tests (other 2 in
+// harvest-arxiv-terminal-meta.test.ts). Drives real fetchOAI via injected fetchWithTimeout + zeroed {now,sleep}; NO network/sleep.
 
 const PAGE = (id: string, token?: string) =>
     '<?xml version="1.0"?><OAI-PMH><ListRecords>' +
@@ -213,4 +210,41 @@ describe('ArXiv OAI error envelope + correctness terminals (WO-3-A1)', () => {
         });
         expect(result[0].summary).toContain('Abstract');
     });
+});
+
+// D-2026-0616-69 — parse-branch budget precedence (3 of 5 tests; other 2 in harvest-arxiv-terminal-meta.test.ts). Malformed TOKENED body -> 'parse' kind.
+const BAD_XML = '<<not valid xml ohno';
+const PB_CLK = () => { let t = 0; return { now: () => t, sleep: async () => undefined, add: (ms: number) => { t += ms; } }; };
+describe('WO-3-A1 D-69 — parse branch budget precedence (TOTAL_BUDGET vs MALFORMED_XML)', () => {
+    let adapter: any;
+    beforeEach(() => { adapter = new ArXivAdapter(); process.env.ENABLE_AR5IV = 'false'; vi.spyOn(adapter, 'delay').mockResolvedValue(undefined); });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    // PARSE-BUDGET-i: tokened span consumes the remainder, then parse fails -> budgetExhausted() at parse-branch top wins.
+    it('PARSE-BUDGET-i parse failure consuming the remainder -> TOTAL_BUDGET_EXHAUSTED (not MALFORMED_XML)', async () => {
+        const c = PB_CLK();
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string, _o: any, ms: number) => {
+            if (url.includes('resumptionToken')) { c.add(ms); return OK(BAD_XML) as any; } // span -> budget ~0
+            c.add(TOTAL_BUDGET_MS - 50000); return OK(FIRST_PAGE_WITH_TOKEN) as any; // leaves ~50000ms
+        });
+        await expect(adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, c))
+            .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', detail: expect.stringContaining('TOTAL_BUDGET_EXHAUSTED') });
+    });
+
+    // PARSE-ATTEMPTS: ample budget; 3 same-token parse failures exhaust attempts -> MALFORMED_XML (kind=parse, meta verified).
+    it('PARSE-ATTEMPTS three same-token parse failures with budget remaining -> MALFORMED_XML (kind=parse)', async () => {
+        const c = PB_CLK(); const tk: string[] = [];
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            if (url.includes('resumptionToken')) { tk.push(url); c.add(3000); return OK(BAD_XML) as any; }
+            c.add(3000); return OK(FIRST_PAGE_WITH_TOKEN) as any;
+        });
+        let err: any = null;
+        try { await adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, c); } catch (e) { err = e; }
+        expect(err.kind).toBe('parse'); // PARSE-KIND: MALFORMED_XML -> parse
+        expect(err.meta.terminal).toBe('MALFORMED_XML');
+        expect(tk.length).toBe(3); // initial + 2 retries; attempts (not budget) the limit
+        expect(tk.every(u => u.includes('resumptionToken=TOKEN-XYZ'))).toBe(true);
+    });
+
+    // PARSE-LEGACY (test 5 of 5): single-shot malformed-XML fail-loud (kind=parse) stays intact -- asserted by the 'malformed XML -> MALFORMED_XML' test above.
 });
