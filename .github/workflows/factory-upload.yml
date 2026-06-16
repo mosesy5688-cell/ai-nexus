@@ -49,6 +49,17 @@ env:
   # this token is the supported way to force a full re-embed; force_fresh does NOT
   # (a cold 551K recompute exceeds the 330-min job cap — see #2150 revert below).
   EMBED_CODE_VERSION: 'v1'
+  # P3-EVIDENCE-1 STAGE-B: VFS-pack-CODE version token. BUMP this whenever the code
+  # that produces the packed meta-NN.db rows changes (row-builders.js / pack-db.js)
+  # so the intra-4-4-vfs-pack cache cannot be REUSED across incompatible packer code.
+  # A cache restored under an OLD version (or with a missing/mismatched sentinel) MUST
+  # NOT satisfy skip-detect — pack-db.js re-runs and rewrites the rows. Bumped to
+  # citation-authority-v2 for the row-builders citation re-derivation (final authority
+  # at the pack chokepoint): a re-run on the prior cache would otherwise skip pack-db
+  # and ship the stale raw-citation rows. Scope is the SQLite rows ONLY — the fused
+  # entities + warm embedding caches are intentionally NOT busted (their keys are
+  # untouched), so only the packed rows rebuild while fusion/embeddings stay warm.
+  VFS_PACK_CODE_VERSION: 'citation-authority-v2'
 
 jobs:
   check-upstream:
@@ -652,7 +663,11 @@ jobs:
             exit 1
           fi
           echo "✅ All essential metadata cache files present"
-      # V27.52: restore cycle-scoped vfs-pack cache for skip detection
+      # V27.52: restore cycle-scoped vfs-pack cache for skip detection.
+      # P3-EVIDENCE-1 STAGE-B: the cache key + restore-keys carry VFS_PACK_CODE_VERSION
+      # so a restore can NEVER cross packer-code versions. A cache produced by older
+      # row-builders code lives under a different prefix and is invisible here; the
+      # sentinel gate below is the second, content-level defense.
       - name: Restore VFS Pack Output for Skip Detection (V27.52)
         id: cache-vfs-pack-restore
         if: ${{ !inputs.force_fresh }}
@@ -664,20 +679,39 @@ jobs:
             output/cache/reports/
             output/cache/knowledge/
             output/cache/mesh/
-          key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          key: intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
-            intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-
+            intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # P3-EVIDENCE-1 STAGE-B: skip pack-db ONLY when ALL hold —
+      #   (a) force_fresh is NOT set,
+      #   (b) >= 20 meta-NN.db present,
+      #   (c) the mesh graph is present,
+      #   (d) the version sentinel EXACTLY equals VFS_PACK_CODE_VERSION.
+      # A missing OR mismatched sentinel -> skip_compute=false (must run pack-db.js),
+      # so repaired row-builders code can never be skipped on a re-run of a stale cache.
+      # force_fresh -> unconditional fresh compute (and the fresh pack below overwrites
+      # any restored meta-NN.db). The sentinel file is written by the fresh-pack step.
       - name: Detect vfs-pack output present
         id: detect-vfs-pack
+        env:
+          VFS_PACK_CODE_VERSION: ${{ env.VFS_PACK_CODE_VERSION }}
+          FORCE_FRESH: ${{ inputs.force_fresh }}
         run: |
-          # Reuse Verify Essential Metadata Cache threshold (3 files) + meta-NN.db count
+          SENTINEL=output/meta/vfs-pack-code-version.txt
           META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
-          if [ "$META_COUNT" -ge 20 ] && [ -f output/cache/mesh/graph.json -o -f output/cache/mesh/graph.json.zst ]; then
+          MESH_OK=false
+          { [ -f output/cache/mesh/graph.json ] || [ -f output/cache/mesh/graph.json.zst ]; } && MESH_OK=true
+          SENTINEL_VAL=""
+          [ -f "$SENTINEL" ] && SENTINEL_VAL=$(tr -d '[:space:]' < "$SENTINEL")
+          if [ "$FORCE_FRESH" = "true" ]; then
+            echo "skip_compute=false" >> "$GITHUB_OUTPUT"
+            echo "[STAGE-B] force_fresh=true → unconditional fresh pack-db (cache ignored)"
+          elif [ "$META_COUNT" -ge 20 ] && [ "$MESH_OK" = "true" ] && [ "$SENTINEL_VAL" = "$VFS_PACK_CODE_VERSION" ]; then
             echo "skip_compute=true" >> "$GITHUB_OUTPUT"
-            echo "[V27.52] ${META_COUNT} meta-NN.db + mesh graph present → skip pack-db.js compute"
+            echo "[STAGE-B] ${META_COUNT} meta-NN.db + mesh graph + sentinel '${SENTINEL_VAL}' == '${VFS_PACK_CODE_VERSION}' → skip pack-db.js compute"
           else
             echo "skip_compute=false" >> "$GITHUB_OUTPUT"
-            echo "[V27.52] ${META_COUNT} meta-NN.db present (need ≥20 + mesh/graph) → fresh pack-db"
+            echo "[STAGE-B] fresh pack-db: meta=${META_COUNT}(need>=20) mesh=${MESH_OK} sentinel='${SENTINEL_VAL}'(need '${VFS_PACK_CODE_VERSION}')"
           fi
       - name: Execute Stable 1.0 Packer
         if: steps.detect-vfs-pack.outputs.skip_compute != 'true'
@@ -685,7 +719,17 @@ jobs:
           CACHE_DIR: ./output/cache
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
-        run: node scripts/factory/pack-db.js
+          VFS_PACK_CODE_VERSION: ${{ env.VFS_PACK_CODE_VERSION }}
+        # P3-EVIDENCE-1 STAGE-B: a SUCCESSFUL fresh pack stamps the version sentinel
+        # (output/meta/, carried by the vfs-pack save below). It is written only after
+        # pack-db.js exits 0, so a failed/partial pack leaves no/old sentinel and the
+        # next run will NOT skip. force_fresh reaches here too (skip_compute=false),
+        # and this fresh pack overwrites any restored meta-NN.db.
+        run: |
+          node scripts/factory/pack-db.js
+          mkdir -p output/meta
+          printf '%s' "$VFS_PACK_CODE_VERSION" > output/meta/vfs-pack-code-version.txt
+          echo "[STAGE-B] wrote pack-code sentinel: $(cat output/meta/vfs-pack-code-version.txt)"
       # V27.2 fail-loud gate (always runs as sanity check on both fresh + cached data)
       - name: V27.2 Verify Shard-Meta Consistency
         run: node scripts/factory/verify-shard-meta-consistency.js
@@ -762,6 +806,10 @@ jobs:
           echo "[R2] VFS data backed up: ${META_COUNT} meta-NN.db files to state/vfs-data/"
       # V27.40: end of vfs-pack-db. Save VFS pack output (data/meta/reports/knowledge/mesh)
       # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
+      # P3-EVIDENCE-1 STAGE-B: the save key carries VFS_PACK_CODE_VERSION so a fresh
+      # pack is stored under the current-version prefix only. output/meta/ carries the
+      # version sentinel written by the packer step, so a restore on the matching key
+      # recovers BOTH the rows and the sentinel (skip-gate's content check).
       - name: Save VFS Pack Output to Cache
         if: success() && steps.detect-vfs-pack.outputs.skip_compute != 'true'
         uses: actions/cache/save@v5
@@ -773,7 +821,7 @@ jobs:
             output/cache/knowledge/
             output/cache/mesh/
             output/cache/assertions/
-          key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          key: intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
 
   # V27.40: vfs-derived = sitemap-gen + RSS-gen + SQL-health + cache saves.
   # ~2m; failure here costs minutes, not hours (vs old vfs-packing 2h10m blast radius).
@@ -790,6 +838,10 @@ jobs:
         with:
           aggressive-disk-cleanup: 'false'
           with-rust-ffi: 'false'
+      # P3-EVIDENCE-1 STAGE-B: vfs-derived may restore ONLY output of the matching pack
+      # version — the key + restore-keys prefix carry VFS_PACK_CODE_VERSION so a
+      # cross-version vfs-pack cache can never be pulled into the derived (sitemap/RSS/
+      # health) job that runs over the packed meta-NN.db.
       - name: Restore VFS Pack Output from intra-cache
         id: cache-restore-vfs-pack
         uses: actions/cache/restore@v5
@@ -801,9 +853,9 @@ jobs:
             output/cache/knowledge/
             output/cache/mesh/
             output/cache/assertions/
-          key: intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+          key: intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
-            intra-4-4-vfs-pack-${{ needs.check-upstream.outputs.upstream-run-id }}-
+            intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-
       # V27.40.1 + V27.52: fail-fast on missing meta-NN.db. File-existence detection
       # (cache-hit output false-fires on restore-keys partial match).
       - name: Verify VFS Pack Files Present (defensive)
