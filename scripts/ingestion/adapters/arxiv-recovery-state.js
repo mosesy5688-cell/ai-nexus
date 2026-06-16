@@ -1,22 +1,20 @@
 /**
  * ArXiv OAI Recovery State Machine (WO-3-A1 PR-A1: Transport Recovery Core)
  *
- * SINGLE-ARBITER transport budget for the OAI-PMH ListRecords pagination loop.
- * This module is the ONE owner of all retry/budget/progress state. The adapter,
- * the OAI client, and the outer pagination loop all consult THIS state object --
- * there are no independent retry budgets anywhere else.
+ * SINGLE-ARBITER for ALL retry/budget/progress state of the OAI-PMH ListRecords
+ * pagination loop; no independent retry budgets exist anywhere else.
  *
- * Responsibility split (CES <=250 line anti-monolith):
- *   - arxiv-oai-client.js  : transport (fetch + timeout) + OAI XML parse/error.
- *   - arxiv-recovery-state.js (this) : retry / budget / progress state machine.
- *   - arxiv-adapter.js     : drives the loop, maps records, normalize() (unchanged).
- *
- * TOKEN LIFECYCLE: same-run only. The resumptionToken is NEVER persisted for a
- * cross-day resume; no datestamp/id cursor is created. Logs use a short hash of
- * the token, never the full token as a governance id.
+ * BLOCKER A -- TRUE ACTIVE-TRANSPORT BUDGET: measures ONLY active OAI transport
+ * time (each fetch + XML read/parse + page-validation span, plus arbiter-owned
+ * retry/backoff sleeps). It does NOT accumulate enrichBatch()/ar5iv time, the 20s
+ * inter-page pacing, or normalize/relation work. The adapter wraps each
+ * fetch+parse+validate with startSpan()/endSpan(); pacing + enrichment run
+ * OUTSIDE any span. budgetExhausted()/remaining derive from `transportActiveMs`,
+ * NOT wall-clock since startedAt. TOKEN LIFECYCLE: same-run only, never persisted.
  *
  * @module ingestion/adapters/arxiv-recovery-state
  */
+import { FetchError } from './base-adapter.js';
 
 // First page (cold ListRecords, no resumptionToken) absorbs the OAI slow-tail
 // spike (observed 65-90s). Deep (resumptionToken) pages get the SAME raised 120s
@@ -26,6 +24,8 @@
 export const FIRST_PAGE_TIMEOUT_MS = 120000;
 export const PAGE_TIMEOUT_MS = 120000;
 export const PAGE_RETRY_TIMEOUT_MS = 120000;
+// Per-request hard cap regardless of remaining budget (D-65 deep-page envelope).
+export const MAX_REQUEST_TIMEOUT_MS = 120000;
 
 // Bounded same-token retry: max 3 total requests per token (initial + 2 retries).
 export const MAX_REQUESTS_PER_TOKEN = 3;
@@ -33,12 +33,19 @@ export const MAX_REQUESTS_PER_TOKEN = 3;
 // Injectable/zeroable via the clock+sleep seam so tests never really sleep.
 export const TOKEN_BACKOFF_MS = [15000, 30000];
 
-// Hard ceiling on cumulative transport wall-clock (request budgets + backoff
-// sleeps). A persistently-dead endpoint can never hang the job indefinitely.
-export const TOTAL_BUDGET_MS = 600000;
+// BLOCKER A -- ACTIVE-TRANSPORT ceiling (NOT wall-clock). Derivation: a healthy
+// deep walk is ~60 resumption pages; worst-case deep slow-tail 90s/page ->
+// 60*90s = 5400s, plus a bounded same-token retry allowance (a few pages with
+// 1-2 retries + their 15s/30s arbiter backoff) ~600s -> 6000s, rounded to
+// 6300000ms (105min) of PURE active transport. This EXCLUDES the 20s inter-page
+// pacing (60*20s = 1200s) and all enrichBatch()/ar5iv time, so a healthy ~92min
+// end-to-end walk stays well under it. The old 600000ms wall-clock ceiling
+// counted pacing + enrichment + loop time and killed a healthy walk -- retired.
+export const TOTAL_BUDGET_MS = 6300000;
 
-// NO_PROGRESS: bounded window of accepted pages over which zero unique new IDs
-// is treated as a stall (terminal). Distinct from TOKEN_CYCLE (token identity).
+// NO_PROGRESS: bounded window of accepted pages over which zero RAW transport
+// progress (no new raw record IDs / fingerprint change / token advance) is
+// treated as a stall (terminal). Distinct from TOKEN_CYCLE (token identity).
 export const NO_PROGRESS_WINDOW = 3;
 
 /**
@@ -56,44 +63,57 @@ export function tokenFingerprint(token) {
 
 /**
  * The single-arbiter transport budget + retry/progress state machine.
- *
- * @param {Object} [deps] - Injectable seams (default to real wall clock).
- * @param {() => number} [deps.now] - Monotonic-ish clock (Date.now in prod).
- * @param {(ms:number)=>Promise<void>} [deps.sleep] - Backoff sleep (zeroable in tests).
+ * @param {Object} [deps] - seams: deps.now (clock, Date.now), deps.sleep (zeroable).
  */
 export class ArxivRecoveryState {
     constructor(deps = {}) {
         this.now = deps.now || (() => Date.now());
         this.sleep = deps.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
         this.startedAt = this.now();
-        this.deadline = this.startedAt + TOTAL_BUDGET_MS;
-        // Current token + its attempt counter (initial + retries on the SAME token).
-        this.currentToken = null;
+        this.transportActiveMs = 0; // BLOCKER A: cumulative ACTIVE-transport (spans+sleeps).
+        this._spanStartedAt = null; // open transport span marker.
+        this.currentToken = null;   // current token + its same-token attempt counter.
         this.tokenAttempts = 0;
-        // Progress accounting.
         this.acceptedPages = 0;
         this.acceptedUniqueIds = 0;
+        this.totalRetries = 0;
         this.lastProgressAt = this.startedAt;
-        // NO_PROGRESS sliding window: unique-id deltas across recent accepted pages.
-        this.progressWindow = [];
-        // TOKEN_CYCLE detection: ordered history of accepted next-tokens.
-        this.tokenHistory = [];
+        this.progressWindow = [];   // BLOCKER D: window keyed on RAW progress, not yield.
+        this.seenPageFingerprints = new Set(); // replayed raw page = no-progress.
+        this.tokenHistory = [];     // TOKEN_CYCLE: ordered accepted next-tokens.
     }
 
-    /** True once the cumulative transport wall-clock budget is exhausted. */
+    // -- BLOCKER A: active-transport span accounting -------------------------
+
+    /** Open a transport span (fetch+read+parse+validate). Charges on endSpan. */
+    startSpan() {
+        this._spanStartedAt = this.now();
+    }
+
+    /** Close the open transport span, charging its elapsed ms to the budget. */
+    endSpan() {
+        if (this._spanStartedAt === null) return 0;
+        const elapsed = Math.max(0, this.now() - this._spanStartedAt);
+        this.transportActiveMs += elapsed;
+        this._spanStartedAt = null;
+        return elapsed;
+    }
+
+    /** Remaining ACTIVE-transport budget (never negative). */
+    remainingTransportBudget() {
+        return Math.max(0, TOTAL_BUDGET_MS - this.transportActiveMs);
+    }
+
+    /** True once the cumulative ACTIVE-transport budget is exhausted. */
     budgetExhausted() {
-        return this.now() >= this.deadline;
+        return this.remainingTransportBudget() <= 0;
     }
 
-    /** Whether a backoff of `ms` would fit inside the remaining budget. */
-    backoffFitsBudget(ms) {
-        return this.now() + ms <= this.deadline;
-    }
+    // -- token lifecycle -----------------------------------------------------
 
     /**
-     * Begin (or continue) work on a token. Called before each request. Resets the
-     * attempt counter when the token CHANGES (a genuinely new page), so the
-     * per-token budget is scoped to the exact same token only.
+     * Begin/continue work on a token (called before each request). Resets the
+     * attempt counter when the token CHANGES, scoping the per-token budget.
      */
     beginToken(token) {
         if (token !== this.currentToken) {
@@ -110,41 +130,59 @@ export class ArxivRecoveryState {
     }
 
     /**
-     * The timeout budget for the CURRENT request of the current token.
-     * First page and every deep (resumptionToken) page attempt get the raised
-     * 120s budget (D-65: resumption timeout 60000 -> 120000), so a 65-90s page
-     * clears on its first attempt; same-token retry handles transient failures.
+     * BLOCKER A: per-request timeout = min(120000 deep-page envelope, remaining
+     * active-transport budget). remaining <= 0 -> caller issues no further request.
      */
     requestTimeoutMs() {
-        if (this.currentToken === null) return FIRST_PAGE_TIMEOUT_MS;
-        return this.tokenAttempts > 1 ? PAGE_RETRY_TIMEOUT_MS : PAGE_TIMEOUT_MS;
-    }
-
-    /** Sleep the next bounded backoff for this token, COUNTED against the budget. */
-    async backoffForRetry() {
-        const idx = Math.min(this.tokenAttempts - 1, TOKEN_BACKOFF_MS.length - 1);
-        const ms = TOKEN_BACKOFF_MS[idx];
-        if (!this.backoffFitsBudget(ms)) return false;
-        await this.sleep(ms);
-        return true;
+        return Math.min(MAX_REQUEST_TIMEOUT_MS, this.remainingTransportBudget());
     }
 
     /**
-     * Record a fully-validated, accepted page. Advances progress accounting and
-     * returns a terminal-state hint when the page cannot be safely accepted:
-     *   - 'TOKEN_CYCLE' : nextToken repeats / forms an A->B->A cycle.
-     *   - 'NO_PROGRESS' : zero unique new IDs across the bounded window.
-     *   - null          : page accepted, advance to nextToken.
-     *
-     * @param {number} newUniqueIds - count of unique IDs newly accepted this page.
-     * @param {string|null} nextToken - the next resumptionToken (null = clean end).
+     * BLOCKER C: compute + EXECUTE an arbiter-owned retry wait, charged to the
+     * active-transport budget. Retry-After (when present) wins over the default
+     * backoff but is still bounded by remaining budget. Returns true if the wait
+     * executed (retry SAME token); false if it cannot fit (caller fails loud).
+     * @param {number} [retryAfterMs] - server Retry-After in ms (optional).
      */
-    acceptPage(newUniqueIds, nextToken) {
-        this.acceptedPages++;
-        this.acceptedUniqueIds += newUniqueIds;
-        if (newUniqueIds > 0) this.lastProgressAt = this.now();
+    async executeRetryWait(retryAfterMs) {
+        const idx = Math.min(this.tokenAttempts - 1, TOKEN_BACKOFF_MS.length - 1);
+        const base = TOKEN_BACKOFF_MS[idx];
+        let ms = Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : base;
+        // Bound by remaining budget; if it cannot fit at all, fail loud.
+        if (this.remainingTransportBudget() <= 0) return false;
+        ms = Math.min(ms, this.remainingTransportBudget());
+        await this.sleep(ms);
+        this.transportActiveMs += ms; // arbiter-owned wait IS active-transport time.
+        this.totalRetries++;
+        return true;
+    }
 
-        this.progressWindow.push(newUniqueIds);
+    // -- BLOCKER D: page acceptance (raw vs product progress) ----------------
+
+    /**
+     * BLOCKER D: record a fully-validated, accepted page. Returns a terminal hint:
+     *   'TOKEN_CYCLE' (nextToken repeats / A->B->A) | 'NO_PROGRESS' (zero RAW
+     *   transport progress across the window) | null (accepted, advance token).
+     * RAW progress = a never-seen page fingerprint (= a genuinely new raw record
+     * set). The fingerprint is record-id-only (token-independent), so a replayed
+     * raw page is no-progress even if the server hands a fresh token; rawNewIds is
+     * a secondary signal for the ids-absent fallback. PRODUCT yield (category-
+     * filtered) drives the paper count ONLY: an all-new-raw-IDs page with 0 target-
+     * category entities still has a fresh fingerprint -> progress>0 (never
+     * NO_PROGRESS). nextToken null = clean end.
+     */
+    acceptPage({ newProductYield, rawNewIds, pageFingerprint, nextToken }) {
+        this.acceptedPages++;
+        this.acceptedUniqueIds += newProductYield;
+        const freshFingerprint = pageFingerprint && !this.seenPageFingerprints.has(pageFingerprint);
+        // Fingerprint-authoritative: a replayed raw record set is no-progress even if
+        // rawNewIds>0 (non-target ids are never committed to seenIds, so they would
+        // otherwise re-count forever). rawNewIds only rescues the ids-absent fallback.
+        const rawProgress = (freshFingerprint || (!pageFingerprint && rawNewIds > 0)) ? 1 : 0;
+        if (pageFingerprint) this.seenPageFingerprints.add(pageFingerprint);
+        if (rawProgress > 0) this.lastProgressAt = this.now();
+
+        this.progressWindow.push(rawProgress);
         if (this.progressWindow.length > NO_PROGRESS_WINDOW) this.progressWindow.shift();
         const windowFull = this.progressWindow.length >= NO_PROGRESS_WINDOW;
         const windowDry = this.progressWindow.every((d) => d === 0);
@@ -165,11 +203,38 @@ export class ArxivRecoveryState {
             terminal,
             accepted_pages: this.acceptedPages,
             accepted_unique_ids: this.acceptedUniqueIds,
+            total_retries: this.totalRetries,
             token_attempts: this.tokenAttempts,
             current_token_fp: tokenFingerprint(this.currentToken),
+            elapsed_transport_ms: this.transportActiveMs,
             elapsed_ms: this.now() - this.startedAt,
         };
     }
+
+    /**
+     * BLOCKER E: build a fail-loud FetchError for a non-COMPLETE terminal, carrying
+     * machine-readable structured terminal metadata (`err.meta`) from snapshot().
+     * The adapter throws this; harvest-single propagates meta into terminal_meta.
+     */
+    terminalError(terminal, uniqueIds) {
+        const snap = this.snapshot(terminal);
+        const meta = {
+            terminal, acceptedPages: snap.accepted_pages, totalRetries: snap.total_retries,
+            uniqueIds, elapsedTransportMs: snap.elapsed_transport_ms,
+            tokenFingerprint: snap.current_token_fp,
+        };
+        return new FetchError('arxiv', TERMINAL_KIND[terminal] || 'fetch',
+            `${terminal}: ${uniqueIds} accepted before failure`, meta);
+    }
 }
+
+// Non-COMPLETE terminal -> FetchError kind (H1 fetch/abort/parse taxonomy; all
+// non-COMPLETE fail loud, never a green healthy-partial).
+export const TERMINAL_KIND = {
+    PAGE_TIMEOUT_EXHAUSTED: 'abort', TOTAL_BUDGET_EXHAUSTED: 'abort',
+    FETCH_ERROR: 'fetch', OAI_ERROR: 'fetch', BAD_RESUMPTION_TOKEN: 'fetch',
+    NO_PROGRESS: 'fetch', TOKEN_CYCLE: 'fetch', RATE_LIMIT_EXHAUSTED: 'fetch',
+    MALFORMED_XML: 'parse',
+};
 
 export default ArxivRecoveryState;

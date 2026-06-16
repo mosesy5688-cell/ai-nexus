@@ -180,24 +180,44 @@ proof in the PR body).
 
 ## Registry — WO-3-A1 (arXiv OAI transport recovery core)
 
-> Deterministic, hermetic EXEC invariants for WO-3-A1 (Founder D-2026-0616-65).
+> Deterministic, hermetic EXEC invariants for WO-3-A1 (Founder D-2026-0616-65,
+> amended by the D-2026-0616-67 code-review fix of 5 blockers).
 > They drive the real `ArXivAdapter.fetchOAI` through an injected `fetchWithTimeout`
-> seam + a zeroed clock/backoff seam (`{ now, sleep }`) so no live network and no
-> real sleep ever occur. The single-arbiter transport budget (`ArxivRecoveryState`)
-> + OAI envelope parser (`arxiv-oai-client.js`) are the system under test. Scope is
-> TRANSPORT RECOVERY ONLY: `normalize()`, ar5iv enrichment, and relation derivation
-> are NOT exercised or changed. Files: `tests/unit/harvest-arxiv-recovery.test.ts`
-> (+ existing `tests/unit/harvest-fail-loud.test.ts`, reused for the FetchError
-> taxonomy).
+> seam + a zeroed/injected clock+backoff seam (`{ now, sleep }`) so no live network
+> and no real sleep ever occur. The single-arbiter ACTIVE-transport budget
+> (`ArxivRecoveryState`) + OAI envelope/structure parser (`arxiv-oai-client.js`) are
+> the system under test. Scope is TRANSPORT RECOVERY ONLY: `normalize()`, ar5iv
+> enrichment, and relation derivation are NOT exercised or changed. Files:
+> `tests/unit/harvest-arxiv-recovery.test.ts`, `tests/unit/harvest-arxiv-terminal-meta.test.ts`
+> (+ existing `tests/unit/harvest-fail-loud.test.ts`, reused for the FetchError taxonomy).
 
 | ID | Protected behavior | Assertion file | Evidence | Status |
 |----|--------------------|----------------|----------|--------|
-| WO3A1-SAMETOKEN | A failing resumption page RETAINS its EXACT resumptionToken and retries the SAME token (URL identity asserted) within the single budget; the page is accepted EXACTLY once; the token advances ONLY after a complete valid page; no dup/no miss | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
-| WO3A1-NOWINDOW | **NEGATIVE invariant**: on a resumption-page timeout the token is NEVER reset to null and NO fresh first-page/window-origin query is issued (every post-first fetch carries the SAME token; no `metadataPrefix` re-query). The old `resumptionToken = null; continue;` window-restart is IMPOSSIBLE | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
-| WO3A1-TIMEOUT | First page = 120000ms; FIRST attempt of a resumption page keeps 60000ms (no standalone bump); the deep-page budget is raised to 120000ms ONLY on the same-token RETRY | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
-| WO3A1-EXHAUST | Same token timing out to the per-token limit (3 requests = initial + 2 retries) -> terminal PAGE_TIMEOUT_EXHAUSTED (FetchError kind=abort); partial yield NOT healthy (throws); token NOT cleared; exactly ONE bare first-page query ever issued | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
-| WO3A1-OAIERR | OAI `<error>` envelope parsed BEFORE records/next-token/clean-end (HTTP 200): badResumptionToken -> BAD_RESUMPTION_TOKEN fail-loud; badArgument/unknown -> OAI_ERROR fail-closed; initial noRecordsMatch -> clean-zero []; resumption noRecordsMatch -> fail-loud; an envelope is NEVER a clean completion | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
-| WO3A1-CORRECT | Correctness terminals: malformed XML -> MALFORMED_XML (kind=parse); next-token cycle A->B->A -> TOKEN_CYCLE; zero unique progress across the window -> NO_PROGRESS; total budget exhaustion (fake clock) -> TOTAL_BUDGET_EXHAUSTED; genuinely-empty first page -> [] success; healthy output structure parity | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-SAMETOKEN | A failing resumption page RETAINS its EXACT resumptionToken and retries the SAME token (URL identity asserted) within the single budget; the page is accepted EXACTLY once; the token advances ONLY after a complete valid page; no dup/no miss | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-NOWINDOW | **NEGATIVE invariant**: on a resumption-page timeout the token is NEVER reset to null and NO fresh first-page/window-origin query is issued (every post-first fetch carries the SAME token; no `metadataPrefix` re-query). The old `resumptionToken = null; continue;` window-restart is IMPOSSIBLE | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-EXHAUST | Same token timing out to the per-token limit (3 requests = initial + 2 retries) -> terminal PAGE_TIMEOUT_EXHAUSTED (FetchError kind=abort); partial yield NOT healthy (throws); token NOT cleared; exactly ONE bare first-page query ever issued | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-OAIERR | OAI `<error>` envelope parsed BEFORE records/next-token/clean-end (HTTP 200): badResumptionToken -> BAD_RESUMPTION_TOKEN fail-loud; badArgument/unknown -> OAI_ERROR fail-closed; initial noRecordsMatch -> clean-zero []; resumption noRecordsMatch -> fail-loud; an envelope is NEVER a clean completion | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-CORRECT | Correctness terminals: malformed XML -> MALFORMED_XML (kind=parse); next-token cycle A->B->A -> TOKEN_CYCLE; zero unique progress across the window -> NO_PROGRESS; genuinely-empty first page -> [] success; healthy output structure parity | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+
+### D-2026-0616-67 amendment — 5-blocker code-review fix (14 added tests)
+
+> The budget is now a TRUE ACTIVE-TRANSPORT accumulator (`transportActiveMs`):
+> ONLY the fetch+read/parse+structure+validation span (`startSpan()`..`endSpan()`)
+> + arbiter-owned retry/backoff waits are charged; the 250ms spacing, the 20s
+> inter-page pacing and `enrichBatch()` run OUTSIDE any span and never consume it.
+> `TOTAL_BUDGET_MS` = 6300000 (active-transport ceiling for a ~60-page walk @ 90s
+> worst-case tail + bounded retries; the old 600000ms wall-clock ceiling that
+> counted pacing+enrichment is retired). Per-request timeout = `min(120000,
+> remaining transport budget)`.
+
+| ID | Protected behavior (blocker) | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-A-BUDGET | **BLOCKER A**: a 60+ page healthy walk COMPLETES with 20s pacing + simulated enrichment wall time PRESENT but EXCLUDED from the budget (T1); enrichment + pacing do NOT consume the active-transport budget (T2); request timeout = min(120000, remaining budget) (T3); cumulative active-transport exhaustion -> TOTAL_BUDGET_EXHAUSTED fail-loud (T4) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-B-STRUCT | **BLOCKER B**: tokened response missing `<ListRecords>` -> fail-loud, NEVER COMPLETE (T5); initial missing `<ListRecords>` node -> MALFORMED_XML fail-loud (T6); initial PRESENT empty `<ListRecords>` (zero records) -> clean-zero [] (T7) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-C-ARBITER | **BLOCKER C**: 403/429/503 retries remain SAME-token + stop at <=3/token (4th impossible) and `BaseAdapter.handleRateLimit` is NEVER called (T8); Retry-After is arbiter-executed via the sleep seam + budget-charged (T9) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-D-PROGRESS | **BLOCKER D**: valid non-target-category but raw-advancing pages do NOT fire false NO_PROGRESS (T10); a replayed raw page (same raw ids, fresh token text) -> NO_PROGRESS (T11); token-cycle rejection occurs BEFORE `enrichBatch` + before the seenIds commit (enrich NOT called on the cycle page) (T12) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-E-EVIDENCE | **BLOCKER E**: a FetchError's structured recovery metadata (terminal/acceptedPages/totalRetries/uniqueIds/elapsedTransportMs/tokenFingerprint) flows into the EXISTING `terminal_meta` sidecar field, recorded as a HARD FAILURE (status=failed/timeout, never success/partial) (T13); abort meta merges with `timeout_kind=request_timeout` | `tests/unit/harvest-arxiv-terminal-meta.test.ts` | EXEC | **NEW** |
+| WO3A1-PARITY | T14: existing healthy multi-page parity unchanged (same-token retry once then succeeds -> exact yield, same-token identity) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
 
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 

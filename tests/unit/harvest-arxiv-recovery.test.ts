@@ -4,15 +4,14 @@ import { ArXivAdapter } from '../../scripts/ingestion/adapters/arxiv-adapter.js'
 // @ts-ignore
 import { FetchError } from '../../scripts/ingestion/adapters/base-adapter.js';
 
-// WO-3-A1 (arXiv OAI Transport Recovery Core). REPLACES the old window-origin
-// restart (which discarded a failing resumptionToken and re-issued a fresh
-// first-page query). The new contract: a failing resumption page RETAINS its
-// exact token and retries the SAME token within ONE single-arbiter transport
-// budget (max 3 requests/token = initial + 2 retries); the token advances ONLY
-// after a complete valid page is accepted. The deep-page timeout is 120000 on
-// EVERY attempt (D-65: resumption timeout 60000 -> 120000) so a 65-90s page
-// clears on its first attempt. All non-COMPLETE outcomes fail loud (FetchError),
-// never a green healthy-partial.
+// WO-3-A1 (arXiv OAI Transport Recovery Core), amended by D-2026-0616-67. This
+// file holds the SAME-TOKEN retry + OAI envelope/correctness invariants. The
+// D-67 active-transport budget / structural-ListRecords / arbiter-rate-limit /
+// raw-vs-product-progress tests live in harvest-arxiv-budget.test.ts; the
+// FetchError->terminal_meta evidence test in harvest-arxiv-terminal-meta.test.ts.
+// Drives the real ArXivAdapter.fetchOAI through an injected fetchWithTimeout seam
+// + a zeroed clock/backoff seam ({ now, sleep }) so NO live network / NO real
+// sleep occur. TRANSPORT RECOVERY ONLY (normalize/ar5iv/relations untouched).
 
 const PAGE = (id: string, token?: string) =>
     '<?xml version="1.0"?><OAI-PMH><ListRecords>' +
@@ -63,30 +62,29 @@ describe('ArXiv OAI transport recovery — same-token retry (WO-3-A1)', () => {
         expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
-    it('same-token recovery: resumption page times out once then succeeds -> SAME token, accepted once', async () => {
+    // TEST 14: existing healthy multi-page parity unchanged (kept, not dropped).
+    it('TEST14 healthy parity unchanged: resumption page times out once then succeeds -> SAME token, accepted once', async () => {
         let firstCallUrl = '';
         let retryCallUrl = '';
         let call = 0;
         const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
             if (url.includes('resumptionToken')) {
                 call++;
-                if (call === 1) { firstCallUrl = url; throw makeAbortError(); } // token page fails once
+                if (call === 1) { firstCallUrl = url; throw makeAbortError(); }
                 retryCallUrl = url;
-                return OK(SECOND_PAGE_NO_TOKEN) as any; // retry: succeeds, no next token
+                return OK(SECOND_PAGE_NO_TOKEN) as any;
             }
-            return OK(FIRST_PAGE_WITH_TOKEN) as any; // first page -> TOKEN-XYZ
+            return OK(FIRST_PAGE_WITH_TOKEN) as any;
         });
         const result = await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP);
-        // Page accepted exactly once: 3 unique ids total (first + the retried page).
         expect(result.map((p: any) => p.arxiv_id)).toEqual(['2606.00002', '2606.00003']);
-        // BOTH token requests used the EXACT same token (identity), never a fresh first page.
         expect(firstCallUrl).toContain('resumptionToken=TOKEN-XYZ');
         expect(retryCallUrl).toContain('resumptionToken=TOKEN-XYZ');
         expect(firstCallUrl).toBe(retryCallUrl);
-        expect(fetchSpy).toHaveBeenCalledTimes(3); // first + failed-token + retried-token
+        expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
-    it('deep-page timeout is 120000 on EVERY attempt (initial + same-token retry; D-65 60000->120000)', async () => {
+    it('every request (first + deep + retry) uses the 120000ms deep-page envelope', async () => {
         let tokenCall = 0;
         const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
             if (url.includes('resumptionToken')) {
@@ -97,39 +95,25 @@ describe('ArXiv OAI transport recovery — same-token retry (WO-3-A1)', () => {
             return OK(FIRST_PAGE_WITH_TOKEN) as any;
         });
         await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP);
-        // calls: [0]=first(120000), [1]=deep initial(120000), [2]=deep retry(120000)
         expect(fetchSpy.mock.calls[0][2]).toBe(120000);
         expect(fetchSpy.mock.calls[1][2]).toBe(120000);
         expect(fetchSpy.mock.calls[2][2]).toBe(120000);
     });
 
-    it('first page AND first attempt of a resumption page both use 120000ms (raised, paired with retry)', async () => {
-        const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout')
-            .mockResolvedValueOnce(OK(FIRST_PAGE_WITH_TOKEN) as any)
-            .mockResolvedValueOnce(OK(SECOND_PAGE_NO_TOKEN) as any);
-        const result = await adapter.fetchOAI({ limit: 10, from: '2026-01-01' }, NO_SLEEP);
-        expect(result.length).toBe(2);
-        expect(fetchSpy.mock.calls[0][2]).toBe(120000);
-        expect(fetchSpy.mock.calls[1][2]).toBe(120000);
-    });
-
     it('exhaustion: same token times out to the limit -> PAGE_TIMEOUT_EXHAUSTED fail-loud, no window query', async () => {
         const calledUrls: string[] = [];
-        const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
             calledUrls.push(url);
-            if (url.includes('resumptionToken')) throw makeAbortError(); // token always times out
-            return OK(FIRST_PAGE_WITH_TOKEN) as any; // first page yields TOKEN-XYZ
+            if (url.includes('resumptionToken')) throw makeAbortError();
+            return OK(FIRST_PAGE_WITH_TOKEN) as any;
         });
         await expect(adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP))
             .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', source: 'arxiv' });
-        // Partial yield is NOT healthy: it threw. Token NOT cleared: every token
-        // request kept resumptionToken=TOKEN-XYZ; NO bare first-page re-query was
-        // issued after the first page (exactly 1 non-token call total).
         const tokenCalls = calledUrls.filter(u => u.includes('resumptionToken'));
         const bareCalls = calledUrls.filter(u => !u.includes('resumptionToken'));
         expect(tokenCalls.length).toBe(3); // initial + 2 retries (max 3/token)
         expect(tokenCalls.every(u => u.includes('resumptionToken=TOKEN-XYZ'))).toBe(true);
-        expect(bareCalls.length).toBe(1); // only the original first page
+        expect(bareCalls.length).toBe(1);
     });
 
     // NEGATIVE INVARIANT (mandatory): the OLD window-origin restart is IMPOSSIBLE.
@@ -141,8 +125,6 @@ describe('ArXiv OAI transport recovery — same-token retry (WO-3-A1)', () => {
             return OK(FIRST_PAGE_WITH_TOKEN) as any;
         });
         await expect(adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP)).rejects.toBeInstanceOf(FetchError);
-        // After the first page, EVERY subsequent fetch carried the SAME token; the
-        // bare metadataPrefix first-page URL was NEVER re-issued (window-restart gone).
         const afterFirst = calledUrls.slice(1);
         expect(afterFirst.length).toBeGreaterThan(0);
         expect(afterFirst.every(u => u.includes('resumptionToken=TOKEN-XYZ'))).toBe(true);
@@ -204,7 +186,6 @@ describe('ArXiv OAI error envelope + correctness terminals (WO-3-A1)', () => {
     });
 
     it('token cycle A->B->A -> TOKEN_CYCLE fail-loud', async () => {
-        // first -> tokenA; A -> tokenB; B -> tokenA (cycle).
         vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
             if (url.includes('resumptionToken=tokenA')) return OK(PAGE('id.B', 'tokenB')) as any;
             if (url.includes('resumptionToken=tokenB')) return OK(PAGE('id.A2', 'tokenA')) as any;
@@ -215,27 +196,13 @@ describe('ArXiv OAI error envelope + correctness terminals (WO-3-A1)', () => {
     });
 
     it('zero unique progress across the window -> NO_PROGRESS fail-loud', async () => {
-        // Each page carries a fresh token but only an ALREADY-seen id -> 0 new uniques.
         let n = 0;
-        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async () => {
             n++;
-            // first page yields the only real id; every later page re-yields it.
             return OK(PAGE('dup.id', `tok${n}`)) as any;
         });
         await expect(adapter.fetchOAI({ limit: 1000, from: '2026-01-01' }, NO_SLEEP))
             .rejects.toMatchObject({ detail: expect.stringContaining('NO_PROGRESS') });
-    });
-
-    it('total budget exhaustion -> TOTAL_BUDGET_EXHAUSTED fail-loud', async () => {
-        // Fake clock that jumps past the 600000ms budget after the first page.
-        let t = 0;
-        const clock = { now: () => t, sleep: async () => undefined };
-        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async () => {
-            t += 700000; // exceed TOTAL_BUDGET_MS on the next loop check
-            return OK(FIRST_PAGE_WITH_TOKEN) as any;
-        });
-        await expect(adapter.fetchOAI({ limit: 1000, from: '2026-01-01' }, clock))
-            .rejects.toMatchObject({ detail: expect.stringContaining('TOTAL_BUDGET_EXHAUSTED') });
     });
 
     it('healthy output structure parity: mapped paper carries arxiv_id/title/summary/categories', async () => {

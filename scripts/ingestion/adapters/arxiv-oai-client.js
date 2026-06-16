@@ -67,17 +67,68 @@ export function detectOaiError(parsed) {
 
 /**
  * Extract the ListRecords node, its records, and the next resumptionToken from a
- * parsed (error-free) OAI document. Returns null listRecords for a structurally
- * empty response (HTTP 200, valid XML, no ListRecords) so the caller can treat a
- * genuinely-empty initial response as clean-zero.
+ * parsed (error-free) OAI document.
+ *
+ * BLOCKER B -- STRUCTURAL DISTINCTION. `listRecordsPresent` reports whether the
+ * <ListRecords> node EXISTS at all, independent of <record> count. The caller
+ * MUST consult it before treating an empty batch as a clean end: PRESENT + zero
+ * records + no token -> legal empty page; ABSENT (node missing) -> structural
+ * error (MALFORMED_XML on initial; ALWAYS fail-loud on a tokened request). A
+ * parseable 200 with no <error> and no ListRecords node is NOT a clean end.
  */
 export function extractListRecords(parsed) {
-    const listRecords = parsed?.['OAI-PMH']?.ListRecords?.[0];
-    if (!listRecords) return { listRecords: null, records: [], nextToken: null };
-    const records = listRecords.record || [];
-    const rawToken = listRecords.resumptionToken?.[0];
+    const root = parsed?.['OAI-PMH'];
+    // PRESENCE keyed on the <ListRecords> NODE existing, NOT on it being truthy:
+    // xml2js renders <ListRecords></ListRecords> as [''] (a LEGAL empty page).
+    if (!root || !Object.prototype.hasOwnProperty.call(root, 'ListRecords')) {
+        return { listRecordsPresent: false, listRecords: null, records: [], nextToken: null };
+    }
+    const lr = root.ListRecords?.[0];
+    const node = lr && typeof lr === 'object' ? lr : {};
+    const rawToken = node.resumptionToken?.[0];
     const nextToken = (rawToken && (rawToken._ || rawToken)) || null;
-    return { listRecords, records, nextToken: nextToken || null };
+    return { listRecordsPresent: true, listRecords: node, records: node.record || [], nextToken: nextToken || null };
+}
+
+/**
+ * Order-independent fingerprint of a page's RAW record-id set (BLOCKER D raw-
+ * progress / replayed-page detection). Short non-reversible hash, NOT a
+ * governance id; falls back to a length+token marker when ids are absent.
+ */
+export function pageFingerprint(records, nextToken) {
+    const ids = [];
+    for (const record of records || []) {
+        const id = record?.metadata?.[0]?.['arXiv']?.[0]?.id?.[0];
+        if (id) ids.push(String(id));
+    }
+    const basis = ids.length ? ids.slice().sort().join('|') : `empty:${(records || []).length}:${nextToken || ''}`;
+    let h = 0;
+    for (let i = 0; i < basis.length; i++) h = (h * 31 + basis.charCodeAt(i)) | 0;
+    return 'pg#' + (h >>> 0).toString(16);
+}
+
+/**
+ * Count RAW record IDs on a page NOT already in seenIds, WITHOUT mutating it
+ * (BLOCKER D: raw progress is computed BEFORE category filtering + dedup commit).
+ * A page of all-new raw IDs is transport-progress>0 even if 0 survive the filter.
+ */
+export function countRawNewIds(records, seenIds) {
+    let n = 0;
+    for (const record of records || []) {
+        const id = record?.metadata?.[0]?.['arXiv']?.[0]?.id?.[0];
+        if (id && !seenIds.has(id)) n++;
+    }
+    return n;
+}
+
+/** Read Retry-After (BLOCKER C) into ms: integer-seconds or HTTP-date; null if absent. */
+export function parseRetryAfterMs(response) {
+    const raw = response?.headers?.get?.('retry-after');
+    if (!raw) return null;
+    const seconds = parseInt(raw, 10);
+    if (!isNaN(seconds) && String(seconds) === String(raw).trim()) return seconds * 1000;
+    const dateMs = new Date(raw).getTime() - Date.now();
+    return isNaN(dateMs) ? null : Math.max(0, dateMs);
 }
 
 /**
@@ -125,8 +176,11 @@ export async function fetchOaiPage({ fetchWithTimeout, url, timeoutMs, headers }
         return { kind: 'oai', oaiError };
     }
 
-    const { listRecords, records, nextToken } = extractListRecords(parsed);
-    return { kind: 'page', listRecords, records, nextToken };
+    const { listRecordsPresent, records, nextToken } = extractListRecords(parsed);
+    // BLOCKER B: carry the structural presence signal so the caller can reject a
+    // tokened response missing <ListRecords> (never COMPLETE) and classify an
+    // initial missing-node as MALFORMED_XML rather than a silent empty page.
+    return { kind: 'page', listRecordsPresent, records, nextToken };
 }
 
 /**
@@ -188,6 +242,9 @@ export default {
     buildListRecordsUrl,
     detectOaiError,
     extractListRecords,
+    pageFingerprint,
+    countRawNewIds,
+    parseRetryAfterMs,
     mapOaiRecords,
     classifyOaiError,
 };

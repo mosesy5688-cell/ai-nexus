@@ -1,11 +1,10 @@
 /**
- * ArXiv Papers Adapter — fetches AI/ML papers via OAI-PMH (title/authors/
- * abstract/categories/links). CES split: arxiv-parser.js (XML field parse),
- * arxiv-oai-client.js (transport + envelope), arxiv-recovery-state.js (budget).
- * @module ingestion/adapters/arxiv-adapter
+ * ArXiv Papers Adapter -- AI/ML papers via OAI-PMH. CES split: arxiv-parser.js
+ * (XML parse), arxiv-oai-client.js (transport+envelope), arxiv-recovery-state.js
+ * (active-transport budget). @module ingestion/adapters/arxiv-adapter
  */
 
-import { BaseAdapter, FetchError } from './base-adapter.js';
+import { BaseAdapter } from './base-adapter.js';
 import {
     cleanTitle,
     extractTags,
@@ -19,48 +18,31 @@ import {
     fetchOaiPage,
     buildListRecordsUrl,
     mapOaiRecords,
-    classifyOaiError
+    classifyOaiError,
+    pageFingerprint,
+    countRawNewIds,
+    parseRetryAfterMs
 } from './arxiv-oai-client.js';
 
 // AI/ML relevant ArXiv categories (filter applied during record mapping).
 const AI_CATEGORIES = ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV', 'cs.NE', 'stat.ML'];
 
-// WO-3-A1 (Transport Recovery Core): all retry/budget/timeout state lives in the
-// SINGLE arbiter (arxiv-recovery-state.js); the adapter owns no retry budget.
-// Terminal taxonomy (all non-COMPLETE fail loud, never a green healthy-partial,
-// never a window-origin restart): COMPLETE, BAD_RESUMPTION_TOKEN, OAI_ERROR,
-// PAGE_TIMEOUT_EXHAUSTED, TOTAL_BUDGET_EXHAUSTED, MALFORMED_XML, NO_PROGRESS,
-// TOKEN_CYCLE, FETCH_ERROR. Terminal -> FetchError kind (preserves H1 taxonomy):
-const TERMINAL_KIND = {
-    PAGE_TIMEOUT_EXHAUSTED: 'abort',
-    TOTAL_BUDGET_EXHAUSTED: 'abort',
-    FETCH_ERROR: 'fetch',
-    OAI_ERROR: 'fetch',
-    BAD_RESUMPTION_TOKEN: 'fetch',
-    NO_PROGRESS: 'fetch',
-    TOKEN_CYCLE: 'fetch',
-    MALFORMED_XML: 'parse',
-};
+// WO-3-A1 (Transport Recovery Core): ALL retry/budget/timeout state + the
+// non-COMPLETE terminal -> FetchError mapping (state.terminalError + TERMINAL_KIND)
+// live in the SINGLE arbiter (arxiv-recovery-state.js); the adapter owns none.
 
-/**
- * ArXiv Papers Adapter Implementation
- */
+/** ArXiv Papers Adapter Implementation */
 export class ArXivAdapter extends BaseAdapter {
     constructor() {
         super('arxiv');
         this.entityTypes = ['paper'];
     }
 
-    /**
-     * Fetch papers from ArXiv API.
-     * @param {Object} options
-     * @param {number} options.limit - Number of papers to fetch (default: 100000)
-     */
+    /** Fetch papers from ArXiv API. @param {Object} options (options.limit default 100000) */
     async fetch(options = {}) {
         const { limit = 100000 } = options;
 
-        // V22.8: Fixed 90-day Sliding Window. Latest papers fetched first; the
-        // Global Registry preserves everything older.
+        // V22.8: Fixed 90-day Sliding Window; Global Registry preserves older.
         if (!options.from) {
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -72,11 +54,9 @@ export class ArXivAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch papers using OAI-PMH protocol. WO-3-A1: SAME-TOKEN bounded retry
-     * replaces the old window-origin restart; a failing resumption page RETAINS
-     * its exact token and retries within the single transport budget; the token
-     * advances ONLY after a complete valid page is accepted. Retry/budget/progress
-     * state is owned by the single arbiter (ArxivRecoveryState).
+     * Fetch papers via OAI-PMH. WO-3-A1: SAME-TOKEN bounded retry within the single
+     * ACTIVE-transport budget; token advances ONLY after a valid page is accepted.
+     * All retry/budget/progress state owned by ArxivRecoveryState.
      * @param {Object} [deps] - test seam: { now, sleep } injected into the arbiter.
      */
     async fetchOAI(options = {}, deps = {}) {
@@ -85,41 +65,48 @@ export class ArXivAdapter extends BaseAdapter {
 
         const allPapers = [];
         const seenIds = new Set();
-        // Default the arbiter's backoff sleep to this.delay so existing tests that
-        // mock adapter.delay also zero the retry backoff (no real sleeping). An
-        // explicit deps.sleep (e.g. a fake clock) still overrides.
+        // Default the arbiter's backoff sleep to this.delay so tests mocking
+        // adapter.delay also zero the retry backoff; explicit deps.sleep overrides.
         const state = new ArxivRecoveryState({ sleep: (ms) => this.delay(ms), ...deps });
         let resumptionToken = null; // same-run only; never persisted cross-day.
         let totalFetched = 0;
         let terminal = 'COMPLETE';
 
         while (totalFetched < limit) {
+            // BLOCKER A: ACTIVE-transport budget (not wall-clock). ONLY the
+            // startSpan..endSpan window is charged; spacing+pacing+enrichBatch are OUTSIDE.
             if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
 
             state.beginToken(resumptionToken);
             const url = buildListRecordsUrl(resumptionToken, from);
-            await this.delay(250); // polite per-request spacing (zeroable in tests)
+            await this.delay(250); // polite spacing: OUTSIDE span.
 
+            state.startSpan();
             const page = await fetchOaiPage({
                 fetchWithTimeout: this.fetchWithTimeout.bind(this),
                 url,
-                timeoutMs: state.requestTimeoutMs(),
+                timeoutMs: state.requestTimeoutMs(), // min(120000, remaining budget)
                 headers: { 'User-Agent': 'Free2AITools-OAI/1.0' },
             });
+            // Close the transport span: fetch+read+parse (IO) done; the post-checks
+            // (cycle/progress CPU) are not transport. Arbiter waits self-charge.
+            state.endSpan();
 
-            // Non-page outcomes (page atomicity: nothing accepted until 'page').
+            // BLOCKER C: ALL retryable HTTP outcomes route through the SINGLE arbiter
+            // (canRetryToken + budget-charged wait, Retry-After honored + bounded, then
+            // retry SAME token). Legacy handleRateLimit() (self-sleep+continue) NEVER called.
             if (page.kind === 'http') {
-                if (await this.handleRateLimit(page.response)) continue;
-                if ((page.status === 502 || page.status === 504) && state.canRetryToken()) {
-                    if (await state.backoffForRetry()) continue;
+                if ([403, 429, 502, 503, 504].includes(page.status) && state.canRetryToken()
+                    && await state.executeRetryWait(parseRetryAfterMs(page.response))) {
+                    console.warn(`   🔄 [ArXiv] arbiter retry HTTP ${page.status} ${tokenFingerprint(resumptionToken)}`);
+                    continue;
                 }
-                terminal = 'FETCH_ERROR';
+                terminal = (page.status === 429 || page.status === 403) ? 'RATE_LIMIT_EXHAUSTED' : 'FETCH_ERROR';
                 console.warn(`   ⚠️ ArXiv OAI HTTP ${page.status} (${tokenFingerprint(resumptionToken)})`);
                 break;
             }
-            if (page.kind === 'fetch') {
-                // SAME-TOKEN retry: retain the exact token, retry within budget.
-                if (state.canRetryToken() && await state.backoffForRetry()) {
+            if (page.kind === 'fetch') { // SAME-TOKEN retry within budget; else fail loud.
+                if (state.canRetryToken() && await state.executeRetryWait()) {
                     console.warn(`   🔄 [ArXiv] same-token retry ${tokenFingerprint(resumptionToken)} (${page.errorKind})`);
                     continue;
                 }
@@ -127,7 +114,7 @@ export class ArXivAdapter extends BaseAdapter {
                 break;
             }
             if (page.kind === 'parse') {
-                if (state.canRetryToken() && await state.backoffForRetry()) continue;
+                if (state.canRetryToken() && await state.executeRetryWait()) continue;
                 terminal = 'MALFORMED_XML';
                 break;
             }
@@ -138,11 +125,35 @@ export class ArXivAdapter extends BaseAdapter {
                 break;
             }
 
-            // kind === 'page': accept atomically, THEN advance token.
+            // kind === 'page'. BLOCKER B: missing <ListRecords> node is NEVER a clean
+            // end (tokened -> fail loud; initial -> MALFORMED_XML). PRESENT empty
+            // ListRecords = clean-zero COMPLETE ONLY for an initial zero-accepted
+            // request; a tokened/late empty present page = NO_PROGRESS stall.
+            if (!page.listRecordsPresent) {
+                terminal = 'MALFORMED_XML';
+                console.warn(`   ⛔ [ArXiv] missing <ListRecords> (${resumptionToken ? 'tokened' : 'initial'})`);
+                break;
+            }
+            if (page.records.length === 0 && !page.nextToken) {
+                if (!resumptionToken && seenIds.size === 0) break; // clean-zero COMPLETE
+                terminal = 'NO_PROGRESS';
+                break;
+            }
+
+            // BLOCKER D: RAW progress + TOKEN_CYCLE/NO_PROGRESS evaluated BEFORE seenIds
+            // commit + BEFORE enrichBatch (cycle/invalid page never mutates/enriches).
+            const progress = state.acceptPage({
+                newProductYield: 0, // post-filter product yield; not a progress input
+                rawNewIds: countRawNewIds(page.records, seenIds),
+                pageFingerprint: pageFingerprint(page.records, page.nextToken),
+                nextToken: page.nextToken,
+            });
+            if (progress) { terminal = progress; break; }
+
+            // Passed structure+cycle+progress: commit dedup (mapOaiRecords mutates
+            // seenIds) + enrich -- OUTSIDE any span (not transport time).
             const batch = mapOaiRecords(page.records, seenIds, AI_CATEGORIES);
             await this.enrichBatch(batch);
-            const progress = state.acceptPage(batch.length, page.nextToken);
-            if (progress) { terminal = progress; break; }
 
             totalFetched += batch.length;
             if (onBatch && batch.length > 0) await onBatch(batch);
@@ -151,22 +162,23 @@ export class ArXivAdapter extends BaseAdapter {
 
             resumptionToken = page.nextToken;
             if (!resumptionToken || totalFetched >= limit) break; // clean end.
-            console.log(`   ⏳ [ArXiv] OAI Resumption: Waiting 20s...`);
+            console.log(`   ⏳ [ArXiv] OAI Resumption: Waiting 20s...`); // pacing OUTSIDE span
             await this.delay(20000);
         }
 
         if (terminal !== 'COMPLETE') {
-            const kind = TERMINAL_KIND[terminal] || 'fetch';
-            const snap = state.snapshot(terminal);
-            console.error(`❌ [ArXiv] OAI FAILED [${terminal}] kind=${kind} — accepted ${seenIds.size} before failure (${JSON.stringify(snap)})`);
-            throw new FetchError('arxiv', kind, `${terminal}: ${seenIds.size} accepted before failure`);
+            // BLOCKER E: fail loud with machine-readable structured terminal metadata
+            // (err.meta) built by the single arbiter from its snapshot().
+            const err = state.terminalError(terminal, seenIds.size);
+            console.error(`❌ [ArXiv] OAI FAILED [${terminal}] kind=${err.kind} — accepted ${seenIds.size} (${JSON.stringify(err.meta)})`);
+            throw err;
         }
 
         console.log(`✅ [ArXiv] OAI Ingestion Complete: ${seenIds.size} unique papers`);
         return onBatch ? [] : allPapers;
     }
 
-    /** Ar5iv full-text enrichment (UNCHANGED; PR-A1 does not touch enrichment). */
+    /** Ar5iv enrichment (UNCHANGED; runs OUTSIDE the transport span). */
     async enrichBatch(batch) {
         if (batch.length === 0 || process.env.ENABLE_AR5IV === 'false') return;
         const enrichLimit = Math.min(10, batch.length);
@@ -180,21 +192,15 @@ export class ArXivAdapter extends BaseAdapter {
         }
     }
 
-    /**
-     * Normalize raw ArXiv paper to UnifiedEntity
-     */
+    /** Normalize raw ArXiv paper to UnifiedEntity */
     normalize(raw) {
         const arxivId = raw.arxiv_id;
         const primaryAuthor = raw.authors?.[0] || 'unknown';
 
-        // V27.72: regex-extract datasets from abstract/full-text (arxiv API has
-        // no structured datasets field; whitelist guards against poisoning).
-        // LEGAL-RESILIENCE L1 (Papers Abstract-Only): raw.full_html (up to 500KB
-        // of full third-party paper body via ar5iv) is a TRANSIENT derivation
-        // input ONLY — used here in-process to mine datasets/relations, then
-        // DISCARDED. It MUST NOT be persisted into body_content (which packs into
-        // the cold .bin via row-builders.buildBundleJson and is served to humans
-        // + the public API). Stored/served paper content = abstract + metadata.
+        // V27.72: regex-extract datasets from abstract/full-text (whitelist-guarded).
+        // LEGAL-RESILIENCE L1 (Papers Abstract-Only): raw.full_html (full third-party
+        // body via ar5iv) is a TRANSIENT derivation input ONLY -- mined here then
+        // DISCARDED; never persisted into body_content. Stored = abstract + metadata.
         const corpus = `${raw.title || ''} ${raw.summary || ''} ${raw.full_html || ''}`;
         const entity = {
             id: this.generateId('arxiv', arxivId, 'paper'),
@@ -221,11 +227,9 @@ export class ArXivAdapter extends BaseAdapter {
             quality_score: null
         };
 
-        // Relation derivation (e.g. has_code -> GitHub repos cited in the paper)
-        // still needs the full body. Run it against a TRANSIENT clone carrying the
-        // full text, so the has_code/arxiv edges are preserved while the persisted
-        // entity.body_content stays abstract-only. The full_html clone is discarded
-        // when this function returns — never reaching the packed bundle.
+        // Relation derivation needs the full body: run it against a TRANSIENT clone
+        // carrying full text (preserves has_code/arxiv edges) while persisted
+        // body_content stays abstract-only. The clone is discarded on return.
         entity.relations = this.discoverRelations(
             raw.full_html
                 ? { ...entity, body_content: `${raw.summary || ''}\n\n${raw.full_html}` }

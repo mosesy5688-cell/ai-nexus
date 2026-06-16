@@ -146,8 +146,9 @@ export async function harvestSingle(sourceName, options = {}) {
         if (fetchHardError) {
             console.error(`\n❌ [Harvest] FAILED (fetch error) — ${sourceName} | Captured before failure: ${results.total} | Time: ${duration}s`);
             console.error(`   Output (partial): ${ndjsonPath}`);
-            // H2c sidecar: hard error -> failed; abort -> timeout/request_timeout. Emit never changes result.error.
-            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: true, floor_violated: false, terminal_meta: requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : undefined });
+            // H2c: hard error -> failed; abort -> timeout. BLOCKER E: merge FetchError.meta into terminal_meta.
+            const hardMeta = { ...(requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : {}), ...(fetchHardError.meta || {}) };
+            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: true, floor_violated: false, terminal_meta: Object.keys(hardMeta).length ? hardMeta : undefined });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
         }
 
