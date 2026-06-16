@@ -263,6 +263,38 @@ proof in the PR body).
 |----|--------------------|----------------|----------|--------|
 | WO3A1-PARSE-BUDGET-PRECEDENCE | **PARSE-BRANCH PRECEDENCE**: a parse failure whose request consumed the remaining budget (endSpan drives remaining to ~0) -> TOTAL_BUDGET_EXHAUSTED, NOT MALFORMED_XML (PARSE-BUDGET-i); a parse retry-wait that cannot fit the remaining budget (`executeRetryWait` refuses) -> TOTAL_BUDGET_EXHAUSTED (PARSE-BUDGET-ii); 3 same-token parse failures with ample budget (attempts exhausted) -> MALFORMED_XML (PARSE-ATTEMPTS); FetchError.kind + terminal_meta.terminal correct across all three (TOTAL_BUDGET_EXHAUSTED -> abort; MALFORMED_XML -> parse) (PARSE-KIND); the existing single-shot MALFORMED_XML fail-loud (kind=parse) still passes (PARSE-LEGACY). The two terminals are never conflated in the parse branch | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
 
+## Registry — WO-3-B1 PR-B1A (attempt-scoped cache provenance gate)
+
+> Deterministic, hermetic STATIC workflow-invariant locks for WO-3-B1 PR-B1A
+> (Founder D-2026-0616-70 PART II). They read `.github/workflows/factory-harvest.yml`
+> as TEXT (CRLF-normalized; NO workflow execution, NO network, NO YAML dep) and
+> pin the run_attempt-scoped cache keys + the fail-closed pre-merge complete-set
+> gate. ROOT CAUSE (run 27604921700): the 4 harvest-group caches used a RUN-SCOPED
+> IMMUTABLE key (`github.run_id` only). On a rerun-failed-jobs attempt, attempt-2
+> could not overwrite the partial attempt-1 cache; Merge restored the stale
+> attempt-1 -> partial arxiv + missing HF papers/datasets -> HARVEST_HEALTH=red.
+> Fix = attempt-scoped EXACT keys (run_id + run_attempt) on all 4 save AND the 4
+> Merge current-run restore steps (NO restore-keys prefix), a 4/4-cache-hit gate
+> that fail-louds (ATTEMPT_CACHE_SET_INCOMPLETE + exit 1) BEFORE R2 fallback /
+> NDJSON bridge / merge / health publication, and a parallel skip_harvest
+> source-attempt provenance path (requires source_run_attempt; exact key; 4/4
+> gate; SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE + exit 1). SCOPE: keys + gate only —
+> entity floor / health threshold / adapters / job timeouts / R2 object hierarchy
+> UNCHANGED (that is PR-B1B). Single file: `tests/unit/harvest-cache-provenance.test.ts`.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| B1A-SAVE-ATTEMPT (#1) | all 4 Solidify save keys carry BOTH `${{ github.run_id }}` AND `${{ github.run_attempt }}` | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-NEG-ATTEMPT (#11) | NEGATIVE: no current harvest-raw key uses the run-id-only (no run_attempt) form (line-level: stripping run_attempt from any of the 4 keys -> a bare key line appears -> FAIL; provably tied to run_attempt presence) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-SAVE-IFALWAYS (#2/#13) | all 4 Solidify save steps retain `if: always() && skip_harvest != 'true'` (H2c failed-class terminal sidecar still saved on a failed-loud harvest) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-RESTORE-IDENTICAL (#3) | the 4 Merge current-run restore keys are byte-identical to the 4 save keys (same attempt-scoped string appears >=2x per group) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-NEG-PREFIX (#4/#12) | NEGATIVE: no harvest-raw restore uses a `restore-keys:` prefix (exact-only; converting any current restore to a prefix restore -> regex match -> FAIL) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-ATTEMPT-ENCODED (#7/#8) | every harvest-raw key encodes run_attempt (current) or source_run_attempt (skip) — the property that makes rerun-failed-jobs unable to consume an attempt-1 cache while rerun-all (new run_id) gets a clean set | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-GATE-FAILCLOSED (#5/#6) | a 4/4 complete-set gate exists: references all 4 restore cache-hit outputs, each checked == 'true', any miss -> ATTEMPT_CACHE_SET_INCOMPLETE + exit 1; placed AFTER all 4 current restores | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-GATE-BEFORE-MERGE (#9) | the gate PRECEDES R2 Batch Recovery (Fallback) + the NDJSON bridge (List Batches) + Merge Batches — R2 fallback may not fill a missing current-attempt group (gate exit 1 short-circuits the job) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-SKIP-SOURCE-ATTEMPT (#10) | skip_harvest declares a `source_run_attempt` input, recovers via the EXACT source-attempt key (no prefix), hard-requires BOTH source_run_id + source_run_attempt (pre-check exit 1) and has a 4/4 source-attempt gate (SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE + exit 1) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-SCOPE (#14) | SCOPE guard: merge floor `-lt 85000`, Harvest Health Summary, per-job timeouts (330/300/120), and the R2 fixed-key object hierarchy (`ingestion/raw/`, `state/harvest-health/latest.json`) are UNCHANGED; the test touches no floor/health/adapter module (no product logic re-implemented) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the

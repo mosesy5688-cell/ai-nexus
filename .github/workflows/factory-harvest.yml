@@ -28,6 +28,10 @@ on:
         description: 'Run ID to recover batches from (if skip_harvest is true)'
         required: false
         type: string
+      source_run_attempt:
+        description: 'WO-3-B1 PR-B1A: Run ATTEMPT of source_run_id to recover from (REQUIRED with skip_harvest; caches are attempt-scoped, no prefix guess)'
+        required: false
+        type: string
 
 concurrency:
   group: factory-harvest
@@ -71,7 +75,10 @@ jobs:
           path: |
             data/huggingface_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-huggingface-${{ github.run_id }}
+          # WO-3-B1 PR-B1A: attempt-scoped key. A rerun-failed-jobs attempt gets a
+          # DISTINCT key, so a partial attempt-1 cache can NEVER be restored over a
+          # complete attempt-2 (the immutable run-id-only key was the root cause).
+          key: harvest-raw-huggingface-${{ github.run_id }}-attempt-${{ github.run_attempt }}
 
       # V25.8 §2.2: Direct-Stream-to-R2 (dual-write with cache fallback)
       - name: Stream HuggingFace to R2
@@ -127,7 +134,8 @@ jobs:
           path: |
             data/github_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-github-${{ github.run_id }}
+          # WO-3-B1 PR-B1A: attempt-scoped key (see huggingface save for rationale).
+          key: harvest-raw-github-${{ github.run_id }}-attempt-${{ github.run_attempt }}
 
       # V25.8 §2.2: Direct-Stream-to-R2
       - name: Stream GitHub to R2
@@ -206,7 +214,8 @@ jobs:
           path: |
             data/*_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-academic-${{ github.run_id }}
+          # WO-3-B1 PR-B1A: attempt-scoped key (see huggingface save for rationale).
+          key: harvest-raw-academic-${{ github.run_id }}-attempt-${{ github.run_attempt }}
 
       # V25.8 §2.2: Direct-Stream-to-R2
       - name: Stream Academic to R2
@@ -360,7 +369,8 @@ jobs:
           path: |
             data/*_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-ecosystem-${{ github.run_id }}
+          # WO-3-B1 PR-B1A: attempt-scoped key (see huggingface save for rationale).
+          key: harvest-raw-ecosystem-${{ github.run_id }}-attempt-${{ github.run_attempt }}
 
       # V25.8 §2.2: Direct-Stream-to-R2
       - name: Stream Ecosystem to R2
@@ -428,37 +438,84 @@ jobs:
       # V18.3: Solidification Recovery Logic
       - name: Create Data Directory
         run: mkdir -p data/
+
+      # WO-3-B1 PR-B1A: skip_harvest source-attempt PROVENANCE PRE-CHECK.
+      # The legacy recovery used `source_run_id` only + a `restore-keys:
+      # harvest-raw-<group>-` PREFIX, which would silently pick "the most recent
+      # matching cache" — exactly the stale/partial-attempt substitution this WO
+      # closes. skip_harvest now REQUIRES BOTH source_run_id AND source_run_attempt,
+      # and recovers via the EXACT attempt-scoped key (no prefix). A missing input
+      # hard-stops here BEFORE any restore/merge.
+      - name: Source Attempt Provenance Pre-Check (skip_harvest)
+        if: github.event.inputs.skip_harvest == 'true'
+        run: |
+          if [ -z "${{ github.event.inputs.source_run_id }}" ] || [ -z "${{ github.event.inputs.source_run_attempt }}" ]; then
+            echo "::error::SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE — skip_harvest=true requires BOTH source_run_id AND source_run_attempt (caches are attempt-scoped; no prefix/latest-match guess)."
+            echo "SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE: source_run_id='${{ github.event.inputs.source_run_id }}' source_run_attempt='${{ github.event.inputs.source_run_attempt }}'"
+            exit 1
+          fi
+          echo "✅ source provenance inputs present: run_id=${{ github.event.inputs.source_run_id }} attempt=${{ github.event.inputs.source_run_attempt }}"
+
       - name: Recover Solidified Batches (Cache Fallback)
+        id: recover_hf
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v5
         with:
           path: data/huggingface_master.ndjson
-          key: harvest-raw-huggingface-${{ github.event.inputs.source_run_id }}
-          restore-keys: harvest-raw-huggingface-
+          # WO-3-B1 PR-B1A: EXACT source-attempt key only; NO restore-keys prefix.
+          key: harvest-raw-huggingface-${{ github.event.inputs.source_run_id }}-attempt-${{ github.event.inputs.source_run_attempt }}
       - name: Recover Solidified Batches (GitHub)
+        id: recover_github
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v5
         with:
           path: data/github_master.ndjson
-          key: harvest-raw-github-${{ github.event.inputs.source_run_id }}
-          restore-keys: harvest-raw-github-
+          # WO-3-B1 PR-B1A: EXACT source-attempt key only; NO restore-keys prefix.
+          key: harvest-raw-github-${{ github.event.inputs.source_run_id }}-attempt-${{ github.event.inputs.source_run_attempt }}
       - name: Recover Solidified Batches (Academic)
+        id: recover_academic
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v5
         with:
           path: data/*_master.ndjson
-          key: harvest-raw-academic-${{ github.event.inputs.source_run_id }}
-          restore-keys: harvest-raw-academic-
+          # WO-3-B1 PR-B1A: EXACT source-attempt key only; NO restore-keys prefix.
+          key: harvest-raw-academic-${{ github.event.inputs.source_run_id }}-attempt-${{ github.event.inputs.source_run_attempt }}
       - name: Recover Solidified Batches (Ecosystem)
+        id: recover_ecosystem
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v5
         with:
           path: data/*_master.ndjson
-          key: harvest-raw-ecosystem-${{ github.event.inputs.source_run_id }}
-          restore-keys: harvest-raw-ecosystem-
+          # WO-3-B1 PR-B1A: EXACT source-attempt key only; NO restore-keys prefix.
+          key: harvest-raw-ecosystem-${{ github.event.inputs.source_run_id }}-attempt-${{ github.event.inputs.source_run_attempt }}
+
+      # WO-3-B1 PR-B1A: skip_harvest source-attempt COMPLETE-SET GATE (fail-closed).
+      # Mirrors the current-run gate: require 4/4 EXACT source-attempt cache hits
+      # before any R2 fallback / NDJSON bridge / merge. Any exact miss -> fail-loud,
+      # so a partial source attempt can never be merged via a prefix/latest-match.
+      - name: Source Attempt Provenance Gate (4/4 exact hits required)
+        if: github.event.inputs.skip_harvest == 'true'
+        env:
+          HIT_HF: ${{ steps.recover_hf.outputs.cache-hit }}
+          HIT_GITHUB: ${{ steps.recover_github.outputs.cache-hit }}
+          HIT_ACADEMIC: ${{ steps.recover_academic.outputs.cache-hit }}
+          HIT_ECOSYSTEM: ${{ steps.recover_ecosystem.outputs.cache-hit }}
+        run: |
+          MISSED=""
+          [ "$HIT_HF" = "true" ]        || MISSED="$MISSED huggingface"
+          [ "$HIT_GITHUB" = "true" ]    || MISSED="$MISSED github"
+          [ "$HIT_ACADEMIC" = "true" ]  || MISSED="$MISSED academic"
+          [ "$HIT_ECOSYSTEM" = "true" ] || MISSED="$MISSED ecosystem"
+          if [ -n "$MISSED" ]; then
+            echo "::error::SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE — missing exact source-attempt cache(s):$MISSED"
+            echo "SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE: source_run_id=${{ github.event.inputs.source_run_id }} source_run_attempt=${{ github.event.inputs.source_run_attempt }} missed=$MISSED"
+            exit 1
+          fi
+          echo "✅ SOURCE_ATTEMPT_PROVENANCE_COMPLETE — 4/4 exact source-attempt caches hit."
 
       # V22.8: Restore current batch data from cache (replaces download-artifact for privacy)
       - name: Restore HuggingFace Batch (Current Run)
+        id: restore_hf
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
@@ -466,33 +523,85 @@ jobs:
           path: |
             data/huggingface_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-huggingface-${{ github.run_id }}
+          # WO-3-B1 PR-B1A: EXACT attempt-scoped key only — byte-identical to the save
+          # key; NO restore-keys prefix (an old-attempt cache must NEVER substitute).
+          key: harvest-raw-huggingface-${{ github.run_id }}-attempt-${{ github.run_attempt }}
       - name: Restore GitHub Batch (Current Run)
+        id: restore_github
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
           path: |
             data/github_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-github-${{ github.run_id }}
+          # WO-3-B1 PR-B1A: EXACT attempt-scoped key only; NO restore-keys prefix.
+          key: harvest-raw-github-${{ github.run_id }}-attempt-${{ github.run_attempt }}
       - name: Restore Academic Batch (Current Run)
+        id: restore_academic
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
           path: |
             data/*_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-academic-${{ github.run_id }}
+          # WO-3-B1 PR-B1A: EXACT attempt-scoped key only; NO restore-keys prefix.
+          key: harvest-raw-academic-${{ github.run_id }}-attempt-${{ github.run_attempt }}
       - name: Restore Ecosystem Batch (Current Run)
+        id: restore_ecosystem
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/restore@v5
         with:
           path: |
             data/*_master.ndjson
             data/state/harvest-state-*.json
-          key: harvest-raw-ecosystem-${{ github.run_id }}
-          
+          # WO-3-B1 PR-B1A: EXACT attempt-scoped key only; NO restore-keys prefix.
+          key: harvest-raw-ecosystem-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+
+      # ========================================================
+      # WO-3-B1 PR-B1A: ATTEMPT-SCOPED CACHE PROVENANCE GATE (fail-closed)
+      # ========================================================
+      # ROOT CAUSE (run 27604921700): the 4 group caches used a run-id-only
+      # IMMUTABLE key. On a rerun-failed-jobs attempt, a PARTIAL attempt-1 cache
+      # could not be overwritten by the complete attempt-2 ("another job may be
+      # creating this cache"); Merge restored the stale attempt-1 -> partial arxiv
+      # + missing HF papers/datasets -> HARVEST_HEALTH=red. The keys above are now
+      # attempt-scoped (run_id + run_attempt). This gate ENFORCES that ALL FOUR of
+      # this attempt's EXACT caches were hit before any R2 fallback / NDJSON bridge /
+      # merge / health publication runs. ANY miss -> fail-loud (exit 1), which
+      # short-circuits the job so the downstream R2/bridge/merge steps never run on a
+      # provenance-incomplete set. The fixed-key R2 ingestion/raw fallback below may
+      # NOT silently fill a missing current-attempt group (attempt-scoped R2 is
+      # PR-B1B, out of scope). NOTE: skipped only on the skip_harvest recovery path,
+      # which has its own source-attempt provenance gate.
+      - name: Attempt Cache Provenance Gate (4/4 exact hits required)
+        id: cache_provenance_gate
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          HIT_HF: ${{ steps.restore_hf.outputs.cache-hit }}
+          HIT_GITHUB: ${{ steps.restore_github.outputs.cache-hit }}
+          HIT_ACADEMIC: ${{ steps.restore_academic.outputs.cache-hit }}
+          HIT_ECOSYSTEM: ${{ steps.restore_ecosystem.outputs.cache-hit }}
+        run: |
+          MISSED=""
+          [ "$HIT_HF" = "true" ]        || MISSED="$MISSED huggingface"
+          [ "$HIT_GITHUB" = "true" ]    || MISSED="$MISSED github"
+          [ "$HIT_ACADEMIC" = "true" ]  || MISSED="$MISSED academic"
+          [ "$HIT_ECOSYSTEM" = "true" ] || MISSED="$MISSED ecosystem"
+          if [ -n "$MISSED" ]; then
+            echo "::error::ATTEMPT_CACHE_SET_INCOMPLETE — missing exact attempt-scoped cache(s):$MISSED"
+            echo "ATTEMPT_CACHE_SET_INCOMPLETE: run_id=${{ github.run_id }} run_attempt=${{ github.run_attempt }} missed=$MISSED"
+            echo "A partial/stale prior-attempt cache must NOT be merged. Re-run ALL jobs"
+            echo "(rerun-all, not rerun-failed-jobs) so a complete attempt-scoped set is produced."
+            exit 1
+          fi
+          echo "✅ ATTEMPT_CACHE_SET_COMPLETE — 4/4 exact attempt-scoped caches hit (hf,github,academic,ecosystem)."
+
       # V25.8 §2.2: R2 Fallback for harvest batches (if cache missed)
+      # WO-3-B1 PR-B1A: gated behind the complete-set provenance gate above. On the
+      # normal current-run path the gate exit(1) short-circuits the job before this
+      # runs, so a fixed-key R2 object can NEVER substitute for a missing
+      # current-attempt cache group. This step still serves the skip_harvest recovery
+      # path (gate is skipped there; that path has its own source-attempt gate).
       - name: R2 Batch Recovery (Fallback)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
