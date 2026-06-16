@@ -4,6 +4,14 @@
  */
 import { lookupContextLength } from '../../ingestion/adapters/hf-arch-lookup.js';
 import { bodyForStore } from './content-policy.js';
+// P3-EVIDENCE-1 STAGE-B: the SINGLE citation authority. buildEntityRow is the final
+// pack chokepoint (pack-db.js routes every entity through it into the 96 meta-NN.db),
+// so the packed `citation` column MUST be RE-DERIVED here from this same pure
+// normalizer the upstream uses — never a passthrough of a stale/raw `e.citation`
+// (which could carry a legacy id/slug/hash-as-title or empty shell). umid-generator
+// imports only `crypto`, so this import introduces no cycle (row-builders is not in
+// its require graph). normalizeCitation returns a genuine BibTeX string or null.
+import { normalizeCitation } from './umid-generator.js';
 
 const PARAMS_NAME_RE = /(\d+(?:\.\d+)?)\s*[Bb](?![a-zA-Z])/;
 
@@ -151,7 +159,14 @@ export function buildEntityRow(e, fniMetrics, pBillions, arch, ctxLen, category,
         // inflating each meta-NN.db slot ~40MB → ~340MB and breaching the R2↔GHA
         // ≤50MB rule by 6.8×. Read via packet-loader.fetchBundleReadme on demand.
         '', s(e.ui_related_mesh), s(e.search_vector),
-        s(e.canonical_url), tr(e.citation, 500),
+        // P3-EVIDENCE-1 STAGE-B: FINAL citation authority. RE-DERIVE at the pack
+        // chokepoint via the shared normalizer (NOT a raw e.citation passthrough),
+        // then truncate to the 500-char column budget. normalizeCitation returns a
+        // genuine BibTeX string (title-mandatory; id/slug/hash/"unknown"-as-title or
+        // no-title => null; never a fabricated author/year/internal-url) or null;
+        // pack null AS NULL (not '') so the honest "no genuine citation" contract is
+        // preserved and the bake canary skips it as uncited rather than empty-shell.
+        s(e.canonical_url), (() => { const fc = normalizeCitation(e); return fc == null ? null : tr(fc, 500); })(),
         e.has_fulltext ? 1 : 0,
         (e.has_ollama || e.has_gguf) ? 1 : 0,
         s(e.hosted_on || '[]'),
