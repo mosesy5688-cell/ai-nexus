@@ -34,17 +34,25 @@ export class RateLimitExceededError extends Error {
  * stays success). It is intentionally NOT a RateLimitExceededError: rate-limit
  * early-finish is a deliberate CI-throughput tolerance that stays success.
  *
+ * WO-3-A1 (D-67 BLOCKER E): an OPTIONAL structured `meta` object carries
+ * machine-readable terminal recovery evidence (e.g. { terminal, acceptedPages,
+ * totalRetries, uniqueIds, elapsedTransportMs, tokenFingerprint }) so the
+ * harvester can propagate it into the terminal_meta sidecar. It is OBSERVATION
+ * ONLY -- null by default, never alters control flow or the exit-gate behavior.
+ *
  * @param {string} source - Source identifier (e.g. 'arxiv')
  * @param {('fetch'|'abort'|'parse')} kind - Failure class for the error taxonomy
  * @param {string} detail - Human-readable cause
+ * @param {Object|null} [meta] - Optional structured terminal recovery metadata.
  */
 export class FetchError extends Error {
-    constructor(source, kind, detail) {
+    constructor(source, kind, detail, meta = null) {
         super(`Fetch failure for ${source} (${kind}): ${detail}`);
         this.name = 'FetchError';
         this.source = source;
         this.kind = kind;
         this.detail = detail;
+        this.meta = meta;
     }
 }
 

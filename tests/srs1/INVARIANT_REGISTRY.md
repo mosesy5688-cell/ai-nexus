@@ -178,6 +178,91 @@ proof in the PR body).
 | TEL-ISOLATION | DEFAULT-OFF (flag != 'true' -> no write); no-binding no-op (no write, no throw); failure isolation (throwing sink never throws into caller; lost-write meta-counter increments); waitUntil fire-and-forget; emit returns no serving value; telemetry modules import nothing from FNI/ranking/search/projection/MCP-response | `tests/srs1/telemetry-isolation.test.ts` | EXEC + SOURCE | **NEW** |
 | TEL-GATE | The no-read + binding-confinement static gate (`scripts/check-telemetry-no-read.mjs`) is green AND non-vacuous: binding `ADOPTION_TELEMETRY` confined to the textual allowlist (config + env-type + adapter + mock + gate + telemetry tests); the 13 serve/scoring/projection/ranking/MCP-response no-read paths exist and never name the binding (RUNTIME dereference allowlist = the single write adapter only) | `tests/srs1/telemetry-isolation.test.ts` | EXEC + STRUCT | **NEW** |
 
+## Registry — WO-3-A1 (arXiv OAI transport recovery core)
+
+> Deterministic, hermetic EXEC invariants for WO-3-A1 (Founder D-2026-0616-65,
+> amended by the D-2026-0616-67 code-review fix of 5 blockers).
+> They drive the real `ArXivAdapter.fetchOAI` through an injected `fetchWithTimeout`
+> seam + a zeroed/injected clock+backoff seam (`{ now, sleep }`) so no live network
+> and no real sleep ever occur. The single-arbiter ACTIVE-transport budget
+> (`ArxivRecoveryState`) + OAI envelope/structure parser (`arxiv-oai-client.js`) are
+> the system under test. Scope is TRANSPORT RECOVERY ONLY: `normalize()`, ar5iv
+> enrichment, and relation derivation are NOT exercised or changed. Files:
+> `tests/unit/harvest-arxiv-recovery.test.ts`, `tests/unit/harvest-arxiv-terminal-meta.test.ts`
+> (+ existing `tests/unit/harvest-fail-loud.test.ts`, reused for the FetchError taxonomy).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-SAMETOKEN | A failing resumption page RETAINS its EXACT resumptionToken and retries the SAME token (URL identity asserted) within the single budget; the page is accepted EXACTLY once; the token advances ONLY after a complete valid page; no dup/no miss | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-NOWINDOW | **NEGATIVE invariant**: on a resumption-page timeout the token is NEVER reset to null and NO fresh first-page/window-origin query is issued (every post-first fetch carries the SAME token; no `metadataPrefix` re-query). The old `resumptionToken = null; continue;` window-restart is IMPOSSIBLE | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-EXHAUST | Same token timing out to the per-token limit (3 requests = initial + 2 retries) -> terminal PAGE_TIMEOUT_EXHAUSTED (FetchError kind=abort); partial yield NOT healthy (throws); token NOT cleared; exactly ONE bare first-page query ever issued | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-OAIERR | OAI `<error>` envelope parsed BEFORE records/next-token/clean-end (HTTP 200): badResumptionToken -> BAD_RESUMPTION_TOKEN fail-loud; badArgument/unknown -> OAI_ERROR fail-closed; initial noRecordsMatch -> clean-zero []; resumption noRecordsMatch -> fail-loud; an envelope is NEVER a clean completion | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+| WO3A1-CORRECT | Correctness terminals: malformed XML -> MALFORMED_XML (kind=parse); next-token cycle A->B->A -> TOKEN_CYCLE; zero unique progress across the window -> NO_PROGRESS; genuinely-empty first page -> [] success; healthy output structure parity | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **REUSED** |
+
+### D-2026-0616-67 amendment — 5-blocker code-review fix (14 added tests)
+
+> The budget is now a TRUE ACTIVE-TRANSPORT accumulator (`transportActiveMs`):
+> ONLY the fetch+read/parse+structure+validation span (`startSpan()`..`endSpan()`)
+> + arbiter-owned retry/backoff waits are charged; the 250ms spacing, the 20s
+> inter-page pacing and `enrichBatch()` run OUTSIDE any span and never consume it.
+> `TOTAL_BUDGET_MS` = 6300000 (active-transport ceiling for a ~60-page walk @ 90s
+> worst-case tail + bounded retries; the old 600000ms wall-clock ceiling that
+> counted pacing+enrichment is retired). Per-request timeout = `min(120000,
+> remaining transport budget)`.
+
+| ID | Protected behavior (blocker) | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-A-BUDGET | **BLOCKER A**: a 60+ page healthy walk COMPLETES with 20s pacing + simulated enrichment wall time PRESENT but EXCLUDED from the budget (T1); enrichment + pacing do NOT consume the active-transport budget (T2); request timeout = min(120000, remaining budget) (T3); cumulative active-transport exhaustion -> TOTAL_BUDGET_EXHAUSTED fail-loud (T4) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-B-STRUCT | **BLOCKER B**: tokened response missing `<ListRecords>` -> fail-loud, NEVER COMPLETE (T5); initial missing `<ListRecords>` node -> MALFORMED_XML fail-loud (T6); initial PRESENT empty `<ListRecords>` (zero records) -> clean-zero [] (T7) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-C-ARBITER | **BLOCKER C**: 403/429/503 retries remain SAME-token + stop at <=3/token (4th impossible) and `BaseAdapter.handleRateLimit` is NEVER called (T8); Retry-After is arbiter-executed via the sleep seam + budget-charged (T9) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-D-PROGRESS | **BLOCKER D**: valid non-target-category but raw-advancing pages do NOT fire false NO_PROGRESS (T10); a replayed raw page (same raw ids, fresh token text) -> NO_PROGRESS (T11); token-cycle rejection occurs BEFORE `enrichBatch` + before the seenIds commit (enrich NOT called on the cycle page) (T12) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+| WO3A1-E-EVIDENCE | **BLOCKER E**: a FetchError's structured recovery metadata (terminal/acceptedPages/totalRetries/uniqueIds/elapsedTransportMs/tokenFingerprint) flows into the EXISTING `terminal_meta` sidecar field, recorded as a HARD FAILURE (status=failed/timeout, never success/partial) (T13); abort meta merges with `timeout_kind=request_timeout` | `tests/unit/harvest-arxiv-terminal-meta.test.ts` | EXEC | **NEW** |
+| WO3A1-PARITY | T14: existing healthy multi-page parity unchanged (same-token retry once then succeeds -> exact yield, same-token identity) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+
+### D-2026-0616-68 amendment — 2-blocker narrow fix (5 added tests)
+
+> Two narrow correctness blockers remained after the D-67 5-blocker fix.
+> **Blocker 1 (invalid-page zero-mutation):** `acceptPage()` is now TWO-PHASE — a
+> PURE validate phase evaluates NO_PROGRESS (on the candidate window, computed
+> WITHOUT pushing) and TOKEN_CYCLE (token identity) and RETURNS the terminal
+> BEFORE any mutation; a COMMIT phase (fingerprint add / window push /
+> lastProgressAt / acceptedPages++ / acceptedUniqueIds / tokenHistory push) runs
+> ONLY after validation passes. A rejected cycle/stall page leaves ZERO partial
+> arbiter state, so `snapshot().acceptedPages` and `terminal_meta.acceptedPages`
+> exclude it. **Blocker 2 (budget beats page-timeout):** after a request
+> failure/abort (and after a refused retry-wait), BUDGET precedence is applied in
+> BOTH the `fetch` and `http` branches: `budgetExhausted()` (clipped-timeout abort
+> drove `endSpan` to ~0) -> TOTAL_BUDGET_EXHAUSTED; else attempts exhausted
+> (`canRetryToken()` false) -> PAGE_TIMEOUT_EXHAUSTED (abort) / FETCH_ERROR; else a
+> retry-wait that cannot FIT the remaining budget (`executeRetryWait` now refuses
+> budget-vs-attempts distinctly, charging nothing) -> TOTAL_BUDGET_EXHAUSTED; else
+> retry SAME token. PAGE_TIMEOUT and TOTAL_BUDGET are never conflated.
+
+| ID | Protected behavior (blocker) | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-INVALID-ZEROMUT | **BLOCKER 1**: a rejected TOKEN_CYCLE page mutates NOTHING — acceptedPages/acceptedUniqueIds/fingerprint-set/progressWindow/tokenHistory/lastProgressAt all identical to the pre-cycle snapshot; `snapshot().accepted_pages` and `terminalError().meta.acceptedPages` carry the PRE-cycle count (CYCLE-ZEROMUT); a rejected NO_PROGRESS stall page is likewise pure (no extra window-0 pushed, pages unchanged) (NOPROG-ZEROMUT); end-to-end `terminal_meta.acceptedPages` EXCLUDES the cycle page + the cycle page is NEVER enriched/committed (CYCLE-META) | `tests/unit/harvest-arxiv-budget.test.ts` | EXEC | **NEW** |
+| WO3A1-BUDGET-PRECEDENCE | **BLOCKER 2**: when the per-request timeout is clipped to the remaining budget and the request aborts at that clipped timeout (endSpan drives remaining to ~0), terminal is TOTAL_BUDGET_EXHAUSTED, NOT PAGE_TIMEOUT_EXHAUSTED (BUDGET-i); with ample budget, three full 120s same-token aborts (attempts exhausted, budget remaining) -> PAGE_TIMEOUT_EXHAUSTED (BUDGET-ii); a Retry-After/backoff wait that cannot fit the remaining budget -> TOTAL_BUDGET_EXHAUSTED (BUDGET-precedence). The two terminals are never conflated | `tests/unit/harvest-arxiv-budget.test.ts` | EXEC | **NEW** |
+
+### D-2026-0616-69 amendment — parse-branch budget precedence (final narrow fix, 5 tests)
+
+> The D-68 BLOCKER 2 budget precedence was applied in the `http` and `fetch` branches
+> but NOT the `parse` (MALFORMED_XML) branch, which still short-circuited
+> `if (canRetryToken() && executeRetryWait()) continue; else MALFORMED_XML` — conflating a
+> budget-refused retry-wait with a parse-attempts-exhausted terminal. The `parse` branch is
+> now made IDENTICAL to the `fetch` branch: (1) `budgetExhausted()` -> TOTAL_BUDGET_EXHAUSTED;
+> (2) `canRetryToken()` true but `executeRetryWait()` refuses (full wait cannot fit remaining
+> budget) -> TOTAL_BUDGET_EXHAUSTED; (3) parse attempts exhausted while budget remains ->
+> MALFORMED_XML. Budget-refusal classification is now consistent across all three retryable
+> branches (http/fetch/parse). MALFORMED_XML stays kind `parse`; TOTAL_BUDGET_EXHAUSTED stays
+> kind `abort` (unchanged `TERMINAL_KIND` map). TAXONOMY: the implementation has COMPLETE +
+> **NINE** fail-loud terminals — BAD_RESUMPTION_TOKEN, OAI_ERROR, PAGE_TIMEOUT_EXHAUSTED,
+> TOTAL_BUDGET_EXHAUSTED, MALFORMED_XML, NO_PROGRESS, TOKEN_CYCLE, FETCH_ERROR,
+> **RATE_LIMIT_EXHAUSTED** (the last previously omitted from prose enumerations).
+
+| ID | Protected behavior (blocker) | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-PARSE-BUDGET-PRECEDENCE | **PARSE-BRANCH PRECEDENCE**: a parse failure whose request consumed the remaining budget (endSpan drives remaining to ~0) -> TOTAL_BUDGET_EXHAUSTED, NOT MALFORMED_XML (PARSE-BUDGET-i); a parse retry-wait that cannot fit the remaining budget (`executeRetryWait` refuses) -> TOTAL_BUDGET_EXHAUSTED (PARSE-BUDGET-ii); 3 same-token parse failures with ample budget (attempts exhausted) -> MALFORMED_XML (PARSE-ATTEMPTS); FetchError.kind + terminal_meta.terminal correct across all three (TOTAL_BUDGET_EXHAUSTED -> abort; MALFORMED_XML -> parse) (PARSE-KIND); the existing single-shot MALFORMED_XML fail-loud (kind=parse) still passes (PARSE-LEGACY). The two terminals are never conflated in the parse branch | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the

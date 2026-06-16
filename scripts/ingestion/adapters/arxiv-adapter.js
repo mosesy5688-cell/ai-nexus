@@ -1,80 +1,44 @@
 /**
- * ArXiv Papers Adapter
- * 
- * Fetches AI/ML papers from ArXiv API:
- * - Paper metadata (title, authors, abstract)
- * - ArXiv categories: cs.AI, cs.LG, cs.CL, cs.CV
- * - Links to PDF and source
- * 
- * Split for CES compliance: uses arxiv-parser.js for XML parsing
- * V2.1: Added NSFW filter at fetch level
- * 
- * @module ingestion/adapters/arxiv-adapter
+ * ArXiv Papers Adapter -- AI/ML papers via OAI-PMH. CES split: arxiv-parser.js
+ * (XML parse), arxiv-oai-client.js (transport+envelope), arxiv-recovery-state.js
+ * (active-transport budget). @module ingestion/adapters/arxiv-adapter
  */
 
-import { parseStringPromise } from 'xml2js';
-import { BaseAdapter, NSFW_KEYWORDS, FetchError } from './base-adapter.js';
-import {
-    parseArxivXML,
-    cleanTitle,
-    extractTags,
-    buildMetaJson,
-    calculatePaperQuality
-} from './arxiv-parser.js';
+import { BaseAdapter } from './base-adapter.js';
+import { cleanTitle, extractTags, buildMetaJson, calculatePaperQuality } from './arxiv-parser.js';
 import { fetchAr5ivHtml } from './ar5iv-fetcher.js';
 import { extractDatasetsFromText } from '../../../src/utils/dataset-extractor.js';
+import { ArxivRecoveryState, tokenFingerprint } from './arxiv-recovery-state.js';
+import {
+    fetchOaiPage,
+    buildListRecordsUrl,
+    mapOaiRecords,
+    classifyOaiError,
+    pageFingerprint,
+    countRawNewIds,
+    parseRetryAfterMs
+} from './arxiv-oai-client.js';
 
-const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
-const ARXIV_OAI_BASE = 'https://oaipmh.arxiv.org/oai';
-
-// AI/ML relevant ArXiv categories
+// AI/ML relevant ArXiv categories (filter applied during record mapping).
 const AI_CATEGORIES = ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV', 'cs.NE', 'stat.ML'];
 
-// H1 WO-2b (arXiv first-page timeout/retry RECOVERY). WO-1 root-cause: the OAI
-// endpoint (oaipmh.arxiv.org) is alive but has intermittent FIRST-request tail
-// latency — typically 5-12s, spiking to 65-90s+, independent of window/payload/
-// UA. The old 60s AbortController cut that tail into a (post-#2182) LOUD abort
-// FetchError that still yielded 0. Recovery = give ONLY the first ListRecords a
-// longer budget + a bounded retry so the slow tail can resolve before we give up.
-//
-// FIRST_PAGE_TIMEOUT_MS=120000: the observed spikes hit 65-90s, so 120s clears
-// them with margin. Subsequent resumptionToken pages keep PAGE_TIMEOUT_MS=60000
-// (the prior value) — only the cold first request pays the slow-tail penalty.
-const FIRST_PAGE_TIMEOUT_MS = 120000;
-const PAGE_TIMEOUT_MS = 60000;
-// First-page bounded exponential-backoff retry on AbortError/fetch error. 3
-// retries with 15s/30s/60s backoff = 105s of backoff sleep; combined with up to
-// four 120s request budgets this is generous enough to ride out the spike while
-// the budget cap below still bounds a persistently-dead endpoint.
-const FIRST_PAGE_MAX_RETRIES = 3;
-const FIRST_PAGE_BACKOFF_MS = [15000, 30000, 60000];
-// Bounded retry BUDGET: a hard ceiling on cumulative first-page retry WALL-CLOCK
-// (backoff sleeps + request budgets), so a dead endpoint can never hang the job
-// indefinitely. 105s backoff + 4*120s request budgets ~= 585s worst case; we cap
-// at 600s (10 min). Once the budget is exhausted, the retry loop stops and the
-// #2182 FetchError is thrown — the run fails LOUD, never green zero-yield.
-const FIRST_PAGE_RETRY_BUDGET_MS = 600000;
+// WO-3-A1: ALL retry/budget/timeout state + the 9 non-COMPLETE fail-loud terminals
+// (BAD_RESUMPTION_TOKEN, OAI_ERROR, PAGE_TIMEOUT_EXHAUSTED, TOTAL_BUDGET_EXHAUSTED,
+// MALFORMED_XML, NO_PROGRESS, TOKEN_CYCLE, FETCH_ERROR, RATE_LIMIT_EXHAUSTED) ->
+// FetchError mapping live in the SINGLE arbiter (arxiv-recovery-state.js TERMINAL_KIND).
 
-/**
- * ArXiv Papers Adapter Implementation
- */
+/** ArXiv Papers Adapter Implementation */
 export class ArXivAdapter extends BaseAdapter {
     constructor() {
         super('arxiv');
         this.entityTypes = ['paper'];
     }
 
-    /**
-     * Fetch papers from ArXiv API
-     * @param {Object} options
-     * @param {number} options.limit - Number of papers to fetch (default: 100000)
-     */
+    /** Fetch papers from ArXiv API. @param {Object} options (options.limit default 100000) */
     async fetch(options = {}) {
         const { limit = 100000 } = options;
 
-        // V22.8: Fixed 90-day Sliding Window
-        // This ensures the latest papers are always fetched first,
-        // while the Global Registry preserves everything older.
+        // V22.8: Fixed 90-day Sliding Window; Global Registry preserves older.
         if (!options.from) {
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -86,261 +50,157 @@ export class ArXivAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch papers using OAI-PMH protocol (Incremental & Bulk)
-     * V22.4: Replacing legacy Search API polling
+     * Fetch papers via OAI-PMH. WO-3-A1: SAME-TOKEN bounded retry within the single
+     * ACTIVE-transport budget; token advances ONLY after a valid page is accepted.
+     * All state owned by ArxivRecoveryState; @param deps test seam {now,sleep}.
      */
-    async fetchOAI(options = {}) {
-        const {
-            limit = 10000,
-            from = null, // YYYY-MM-DD
-            onBatch
-        } = options;
-
+    async fetchOAI(options = {}, deps = {}) {
+        const { limit = 10000, from = null, onBatch } = options;
         console.log(`📥 [ArXiv] OAI-PMH Ingestion: target ${limit} papers...`);
 
         const allPapers = [];
         const seenIds = new Set();
-        let resumptionToken = null;
+        // Arbiter backoff defaults to this.delay so tests mocking delay also zero it.
+        const state = new ArxivRecoveryState({ sleep: (ms) => this.delay(ms), ...deps });
+        let resumptionToken = null; // same-run only; never persisted cross-day.
         let totalFetched = 0;
-        let consecutiveErrors = 0;
-        // H1 WO-2b: first-page recovery state. firstPageRetries counts retries of
-        // the cold first ListRecords (resumptionToken === null) only; the budget
-        // deadline bounds total first-page retry wall-clock so a dead endpoint
-        // cannot hang the job. Subsequent (resumptionToken) pages are untouched.
-        let firstPageRetries = 0;
-        const firstPageRetryDeadline = Date.now() + FIRST_PAGE_RETRY_BUDGET_MS;
-        // PR-H2a (resumption-spin bound): track consecutive error batches that
-        // made ZERO forward progress (entered the catch AND added 0 new unique
-        // papers vs the last loop iteration). The resumptionToken retry-fresh
-        // branch below resets the token and continues; if the fresh query keeps
-        // re-yielding only already-seen IDs (or keeps erroring), the loop can
-        // spin for minutes emitting "+0 papers" batches without ever setting
-        // fetchError — laundering a partial harvest into green. After 3 such
-        // consecutive zero-progress error batches we stop and record a structured
-        // fetchError so the existing end-of-fetch `throw FetchError` fires (fail
-        // loud), instead of spinning until an external cancel.
-        let zeroProgressErrorBatches = 0;
-        let seenAtLoopStart = 0;
-        // H1 (fail loud): records a structured fetch/abort/parse failure so the
-        // loop can rethrow instead of laundering an error into a green empty [].
-        // A genuinely-empty OAI response (HTTP 200, parseable, no records) does
-        // NOT set this — it stays a legitimate success-with-zero result.
-        let fetchError = null;
+        let terminal = 'COMPLETE';
 
         while (totalFetched < limit) {
-            // PR-H2a: snapshot unique-paper progress at the top of each iteration
-            // so the catch can tell whether THIS batch advanced the harvest.
-            seenAtLoopStart = seenIds.size;
-            let url = `${ARXIV_OAI_BASE}?verb=ListRecords`;
-            if (resumptionToken) {
-                url += `&resumptionToken=${encodeURIComponent(resumptionToken)}`;
-            } else {
-                url += `&metadataPrefix=arXiv&set=cs`;
-                if (from) url += `&from=${from}`;
-            }
+            // BLOCKER A: ACTIVE-transport budget (only startSpan..endSpan is charged).
+            if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
 
-            // V26.13: Per-request sleep to avoid hammering ArXiv servers
-            await this.delay(250);
+            state.beginToken(resumptionToken);
+            const url = buildListRecordsUrl(resumptionToken, from);
+            await this.delay(250); // polite spacing: OUTSIDE span.
 
-            try {
-                // V28: wrap in fetchWithTimeout (was a bare fetch with NO timeout →
-                // a hung OAI connection could stall the whole CI job indefinitely).
-                // OAI responses can be large; allow 60s. An AbortError lands in the
-                // existing catch below, which already retries gracefully (the
-                // consecutiveErrors / resumptionToken logic is UNCHANGED).
-                // H1 WO-2b: ONLY the cold first ListRecords (resumptionToken === null)
-                // gets the longer 120s budget to absorb the OAI slow-tail spike;
-                // paginated pages keep the prior 60s. The bump is per-request here,
-                // NOT a change to fetchWithTimeout's global default — other adapters
-                // are unaffected.
-                const requestTimeoutMs = resumptionToken ? PAGE_TIMEOUT_MS : FIRST_PAGE_TIMEOUT_MS;
-                const response = await this.fetchWithTimeout(url, {
-                    headers: { 'User-Agent': 'Free2AITools-OAI/1.0' }
-                }, requestTimeoutMs);
+            state.startSpan();
+            const page = await fetchOaiPage({
+                fetchWithTimeout: this.fetchWithTimeout.bind(this),
+                url,
+                timeoutMs: state.requestTimeoutMs(), // min(120000, remaining budget)
+                headers: { 'User-Agent': 'Free2AITools-OAI/1.0' },
+            });
+            state.endSpan(); // close span: IO done; cycle/progress CPU is not transport.
 
-                if (!response.ok) {
-                    if (await this.handleRateLimit(response)) { consecutiveErrors = 0; continue; }
-                    // V26.13: Retry transient errors (502/504) up to 3 times with backoff
-                    if ((response.status === 502 || response.status === 504) && consecutiveErrors < 3) {
-                        consecutiveErrors++;
-                        const backoff = consecutiveErrors * 15000;
-                        console.warn(`   ⚠️ ArXiv OAI ${response.status}, retry ${consecutiveErrors}/3 in ${backoff / 1000}s...`);
-                        await this.delay(backoff);
+            // BLOCKER C: retryable HTTP/fetch/parse outcomes route through the SINGLE
+            // arbiter (canRetryToken + budget-charged wait, Retry-After bounded, retry
+            // SAME token); legacy handleRateLimit() NEVER called. PRECEDENCE (Blocker 2,
+            // identical in http/fetch/parse): (1) budget gone -> TOTAL_BUDGET_EXHAUSTED;
+            // (2) attempts exhausted -> PAGE_TIMEOUT/FETCH_ERROR/RATE_LIMIT/MALFORMED_XML;
+            // (3) retry-wait can't FIT budget -> TOTAL_BUDGET_EXHAUSTED; (4) fit -> retry.
+            if (page.kind === 'http') {
+                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
+                const httpRetryable = [403, 429, 502, 503, 504].includes(page.status);
+                if (httpRetryable && state.canRetryToken()) {
+                    if (await state.executeRetryWait(parseRetryAfterMs(page.response))) {
+                        console.warn(`   🔄 [ArXiv] arbiter retry HTTP ${page.status} ${tokenFingerprint(resumptionToken)}`);
                         continue;
                     }
-                    // H1: a non-ok HTTP status that survived the retry ladder is a
-                    // real fetch failure, not a legitimate empty result. Record it
-                    // so the loop rethrows a structured error instead of returning [].
-                    fetchError = new FetchError('arxiv', 'fetch', `OAI HTTP ${response.status}`);
-                    console.warn(`   ⚠️ ArXiv OAI failed: ${response.status}`);
-                    break;
+                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
                 }
-                consecutiveErrors = 0;
-
-                const xmlText = await response.text();
-                const result = await parseStringPromise(xmlText);
-
-                const listRecords = result['OAI-PMH']?.ListRecords?.[0];
-                if (!listRecords) {
-                    console.warn(`   ⚠️ [ArXiv] No records found in OAI response.`);
-                    break;
-                }
-
-                const records = listRecords.record || [];
-                const batch = [];
-
-                for (const record of records) {
-                    const metadata = record.metadata?.[0]?.['arXiv']?.[0];
-                    if (!metadata) continue;
-
-                    const arxivId = metadata.id?.[0];
-                    if (!arxivId || seenIds.has(arxivId)) continue;
-
-                    // Filter for our target sub-categories if needed
-                    // (OAI 'cs' set is broad, we prioritize ML/AI categories in normalization)
-                    const categories = (metadata.categories?.[0] || '').split(' ');
-                    const isTarget = AI_CATEGORIES.some(cat => categories.includes(cat));
-
-                    if (isTarget) {
-                        seenIds.add(arxivId);
-
-                        // Map OAI-arXiv structure to internal paper structure
-                        const paper = {
-                            arxiv_id: arxivId,
-                            title: metadata.title?.[0]?.replace(/\n/g, ' ').trim(),
-                            summary: metadata.abstract?.[0]?.replace(/\n/g, ' ').trim(),
-                            authors: metadata.authors?.[0]?.author?.map(a => `${a.forenames?.[0] || ''} ${a.keyname?.[0] || ''}`.trim()) || [],
-                            published: record.header?.[0]?.datestamp?.[0],
-                            updated: record.header?.[0]?.datestamp?.[0],
-                            categories: categories,
-                            doi: metadata.doi?.[0],
-                            license: metadata.license?.[0]
-                        };
-
-                        batch.push(paper);
-                    }
-                }
-
-                // V25.8: Ar5iv full-text enrichment for top papers in batch
-                if (batch.length > 0 && process.env.ENABLE_AR5IV !== 'false') {
-                    const enrichLimit = Math.min(10, batch.length); // Max 10 per OAI batch
-                    for (let ei = 0; ei < enrichLimit; ei++) {
-                        try {
-                            const fullHtml = await fetchAr5ivHtml(batch[ei].arxiv_id);
-                            if (fullHtml) batch[ei].full_html = fullHtml;
-                        } catch (err) { console.warn('[ArXiv] ar5iv enrichment failed for ' + (batch[ei]?.arxiv_id || 'unknown') + ': ' + (err?.message || err)); }
-                    }
-                }
-
-                totalFetched += batch.length;
-                if (onBatch && batch.length > 0) {
-                    await onBatch(batch);
-                } else {
-                    allPapers.push(...batch);
-                }
-
-                console.log(`   [ArXiv] OAI Batch: +${batch.length} papers (total unique: ${seenIds.size})`);
-
-                resumptionToken = listRecords.resumptionToken?.[0]?._ || listRecords.resumptionToken?.[0];
-                if (!resumptionToken || totalFetched >= limit) break;
-
-                // ArXiv OAI: wait 20 seconds before next resumption token request
-                // This is stricter than the Search API's 3 seconds
-                console.log(`   ⏳ [ArXiv] OAI Resumption: Waiting 20s...`);
-                await this.delay(20000);
-
-            } catch (error) {
-                console.error(`   ❌ ArXiv OAI error: ${error.message}`);
-                // PR-H2a (resumption-spin bound): SCOPED to the resumptionToken
-                // pagination path (resumptionToken truthy here) — the cold first-
-                // page path has its own bounded retry (#2183) and is NOT touched.
-                // A token-page error that also made no unique-paper progress is a
-                // zero-progress error batch; reset on any real progress. After 3
-                // consecutive, stop and record a structured fetchError so the loud
-                // throw below fires, instead of the retry-fresh branch spinning on
-                // "+0 papers" until external cancel.
-                if (resumptionToken) {
-                    if (seenIds.size === seenAtLoopStart) {
-                        zeroProgressErrorBatches++;
-                    } else {
-                        zeroProgressErrorBatches = 0;
-                    }
-                    if (zeroProgressErrorBatches >= 3) {
-                        console.warn(`   ⛔ [ArXiv] ${zeroProgressErrorBatches} consecutive zero-progress error batches — failing loud instead of spinning.`);
-                        const kind = error?.name === 'AbortError'
-                            ? 'abort'
-                            : (error instanceof TypeError || error?.code) ? 'fetch' : 'parse';
-                        fetchError = new FetchError('arxiv', kind, `resumption spin: ${zeroProgressErrorBatches} zero-progress error batches — ${error?.message || String(error)}`);
-                        break;
-                    }
-                }
-                // V26.13: If resumptionToken request failed, retry once without token
-                if (resumptionToken && consecutiveErrors < 2) {
-                    consecutiveErrors++;
-                    console.warn(`   🔄 [ArXiv] ResumptionToken may be stale — retrying fresh query in 30s...`);
-                    resumptionToken = null;
-                    await this.delay(30000);
-                    continue;
-                }
-                // H1 WO-2b: first-page recovery. The cold first ListRecords
-                // (resumptionToken === null) is the one exposed to the OAI slow-tail
-                // spike. Before #2182's loud FetchError, give it a bounded
-                // exponential-backoff retry (15s/30s/60s, max 3) — but only while the
-                // total first-page retry budget remains. If the budget is exhausted
-                // (or all retries used), we FALL THROUGH to the FetchError below:
-                // #2182's fail-loud is preserved, never degraded back to return [].
-                if (!resumptionToken && firstPageRetries < FIRST_PAGE_MAX_RETRIES) {
-                    const backoffMs = FIRST_PAGE_BACKOFF_MS[firstPageRetries];
-                    if (Date.now() + backoffMs <= firstPageRetryDeadline) {
-                        firstPageRetries++;
-                        console.warn(`   🔄 [ArXiv] First-page fetch failed (${error?.name || 'error'}) — retry ${firstPageRetries}/${FIRST_PAGE_MAX_RETRIES} in ${backoffMs / 1000}s (budget remaining)...`);
-                        await this.delay(backoffMs);
-                        continue;
-                    }
-                    console.warn(`   ⛔ [ArXiv] First-page retry budget exhausted — failing loud.`);
-                }
-                // H1: the retry budget is exhausted. Classify the failure
-                // (AbortError from fetchWithTimeout's deadline vs a connection
-                // fetch error vs an xml2js parse error) and record it so the
-                // loop rethrows a structured error instead of returning a plain
-                // [] that the harvester would report as a green zero-yield run.
-                const kind = error?.name === 'AbortError'
-                    ? 'abort'
-                    : (error instanceof TypeError || error?.code) ? 'fetch' : 'parse';
-                fetchError = new FetchError('arxiv', kind, error?.message || String(error));
+                terminal = (page.status === 429 || page.status === 403) ? 'RATE_LIMIT_EXHAUSTED' : 'FETCH_ERROR';
+                console.warn(`   ⚠️ ArXiv OAI HTTP ${page.status} (${tokenFingerprint(resumptionToken)})`);
                 break;
             }
+            if (page.kind === 'fetch') { // SAME-TOKEN retry within budget; else fail loud.
+                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
+                if (state.canRetryToken()) {
+                    if (await state.executeRetryWait()) {
+                        console.warn(`   🔄 [ArXiv] same-token retry ${tokenFingerprint(resumptionToken)} (${page.errorKind})`);
+                        continue;
+                    }
+                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
+                }
+                terminal = page.errorKind === 'abort' ? 'PAGE_TIMEOUT_EXHAUSTED' : 'FETCH_ERROR';
+                break;
+            }
+            if (page.kind === 'parse') { // SAME budget precedence as fetch branch.
+                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
+                if (state.canRetryToken()) {
+                    if (await state.executeRetryWait()) continue; // retry SAME token
+                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
+                }
+                terminal = 'MALFORMED_XML'; break; // parse attempts exhausted, budget remains
+            }
+            if (page.kind === 'oai') {
+                terminal = classifyOaiError(page.oaiError, resumptionToken, seenIds.size);
+                if (terminal === 'COMPLETE') break; // initial noRecordsMatch -> clean-zero
+                console.warn(`   ⛔ [ArXiv] OAI error ${page.oaiError.code} -> ${terminal}`);
+                break;
+            }
+
+            // kind === 'page'. BLOCKER B: missing <ListRecords> -> MALFORMED_XML (never a
+            // clean end). PRESENT empty = clean-zero COMPLETE only for initial zero-accepted; tokened/late empty = NO_PROGRESS.
+            if (!page.listRecordsPresent) {
+                terminal = 'MALFORMED_XML';
+                console.warn(`   ⛔ [ArXiv] missing <ListRecords> (${resumptionToken ? 'tokened' : 'initial'})`);
+                break;
+            }
+            if (page.records.length === 0 && !page.nextToken) {
+                if (!resumptionToken && seenIds.size === 0) break; // clean-zero COMPLETE
+                terminal = 'NO_PROGRESS';
+                break;
+            }
+
+            // BLOCKER D: RAW progress + TOKEN_CYCLE/NO_PROGRESS validated BEFORE seenIds commit + enrichBatch (rejected page mutates/enriches NOTHING).
+            const progress = state.acceptPage({
+                newProductYield: 0, // post-filter product yield; not a progress input
+                rawNewIds: countRawNewIds(page.records, seenIds),
+                pageFingerprint: pageFingerprint(page.records, page.nextToken),
+                nextToken: page.nextToken,
+            });
+            if (progress) { terminal = progress; break; }
+
+            // Passed validation: commit dedup + enrich OUTSIDE any span (not transport).
+            const batch = mapOaiRecords(page.records, seenIds, AI_CATEGORIES);
+            await this.enrichBatch(batch);
+
+            totalFetched += batch.length;
+            if (onBatch && batch.length > 0) await onBatch(batch);
+            else allPapers.push(...batch);
+            console.log(`   [ArXiv] OAI Batch: +${batch.length} (unique: ${seenIds.size})`);
+
+            resumptionToken = page.nextToken;
+            if (!resumptionToken || totalFetched >= limit) break; // clean end.
+            console.log(`   ⏳ [ArXiv] OAI Resumption: Waiting 20s...`); // pacing OUTSIDE span
+            await this.delay(20000);
         }
 
-        // H1 (fail loud): a recorded fetch/abort/parse failure MUST surface as a
-        // structured error, never as a green empty result. The completion line
-        // below prints ✅ only on the genuine-success path. A legitimate empty
-        // OAI response (HTTP 200, parseable, no records) leaves fetchError null
-        // and stays success.
-        if (fetchError) {
-            console.error(`❌ [ArXiv] OAI Ingestion FAILED (${fetchError.kind}): ${fetchError.detail} — ${seenIds.size} papers fetched before failure`);
-            throw fetchError;
+        if (terminal !== 'COMPLETE') {
+            // BLOCKER E: fail loud with arbiter-built structured terminal meta (err.meta).
+            const err = state.terminalError(terminal, seenIds.size);
+            console.error(`❌ [ArXiv] OAI FAILED [${terminal}] kind=${err.kind} — accepted ${seenIds.size} (${JSON.stringify(err.meta)})`);
+            throw err;
         }
 
         console.log(`✅ [ArXiv] OAI Ingestion Complete: ${seenIds.size} unique papers`);
         return onBatch ? [] : allPapers;
     }
 
-    /**
-     * Normalize raw ArXiv paper to UnifiedEntity
-     */
+    /** Ar5iv enrichment (UNCHANGED; runs OUTSIDE the transport span). */
+    async enrichBatch(batch) {
+        if (batch.length === 0 || process.env.ENABLE_AR5IV === 'false') return;
+        const enrichLimit = Math.min(10, batch.length);
+        for (let ei = 0; ei < enrichLimit; ei++) {
+            try {
+                const fullHtml = await fetchAr5ivHtml(batch[ei].arxiv_id);
+                if (fullHtml) batch[ei].full_html = fullHtml;
+            } catch (err) {
+                console.warn('[ArXiv] ar5iv enrichment failed for ' + (batch[ei]?.arxiv_id || 'unknown') + ': ' + (err?.message || err));
+            }
+        }
+    }
+
+    /** Normalize raw ArXiv paper to UnifiedEntity */
     normalize(raw) {
         const arxivId = raw.arxiv_id;
         const primaryAuthor = raw.authors?.[0] || 'unknown';
 
-        // V27.72: regex-extract datasets from abstract/full-text (arxiv API has
-        // no structured datasets field; whitelist guards against poisoning).
-        // LEGAL-RESILIENCE L1 (Papers Abstract-Only): raw.full_html (up to 500KB
-        // of full third-party paper body via ar5iv) is a TRANSIENT derivation
-        // input ONLY — used here in-process to mine datasets/relations, then
-        // DISCARDED. It MUST NOT be persisted into body_content (which packs into
-        // the cold .bin via row-builders.buildBundleJson and is served to humans
-        // + the public API). Stored/served paper content = abstract + metadata.
+        // V27.72: regex-extract datasets from abstract/full-text (whitelist-guarded).
+        // LEGAL-RESILIENCE L1 (Papers Abstract-Only): raw.full_html (full third-party
+        // body via ar5iv) is a TRANSIENT derivation input ONLY -- mined here then
+        // DISCARDED; never persisted into body_content. Stored = abstract + metadata.
         const corpus = `${raw.title || ''} ${raw.summary || ''} ${raw.full_html || ''}`;
         const entity = {
             id: this.generateId('arxiv', arxivId, 'paper'),
@@ -367,11 +227,9 @@ export class ArXivAdapter extends BaseAdapter {
             quality_score: null
         };
 
-        // Relation derivation (e.g. has_code -> GitHub repos cited in the paper)
-        // still needs the full body. Run it against a TRANSIENT clone carrying the
-        // full text, so the has_code/arxiv edges are preserved while the persisted
-        // entity.body_content stays abstract-only. The full_html clone is discarded
-        // when this function returns — never reaching the packed bundle.
+        // Relation derivation needs the full body: run it against a TRANSIENT clone
+        // carrying full text (preserves has_code/arxiv edges) while persisted
+        // body_content stays abstract-only. The clone is discarded on return.
         entity.relations = this.discoverRelations(
             raw.full_html
                 ? { ...entity, body_content: `${raw.summary || ''}\n\n${raw.full_html}` }

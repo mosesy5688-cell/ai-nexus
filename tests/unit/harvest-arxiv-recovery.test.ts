@@ -3,53 +3,32 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ArXivAdapter } from '../../scripts/ingestion/adapters/arxiv-adapter.js';
 // @ts-ignore
 import { FetchError } from '../../scripts/ingestion/adapters/base-adapter.js';
+// @ts-ignore
+import { TOTAL_BUDGET_MS } from '../../scripts/ingestion/adapters/arxiv-recovery-state.js';
 
-// H1 WO-2b (arXiv first-page timeout/retry RECOVERY). Builds ON #2182's
-// fail-loud: WO-1 found the OAI endpoint is alive but has an intermittent FIRST-
-// request slow tail (5-12s typical, 65-90s+ spikes). The old 60s abort cut that
-// tail into a LOUD abort FetchError yielding 0. Recovery = ONLY the cold first
-// ListRecords gets a 120s budget + a bounded exponential-backoff retry so the
-// spike can resolve. On final exhaustion the #2182 FetchError(kind=abort) MUST
-// still throw — recovery never degrades a genuine failure back to a green [].
+// WO-3-A1 (arXiv OAI Transport Recovery Core), amended D-67/D-69. SAME-TOKEN retry +
+// OAI envelope/correctness + (D-69) 3 of 5 parse-branch budget tests (other 2 in
+// harvest-arxiv-terminal-meta.test.ts). Drives real fetchOAI via injected fetchWithTimeout + zeroed {now,sleep}; NO network/sleep.
 
-// One OAI ListRecords batch carrying a single target (cs.LG) paper, no
-// resumptionToken -> the harvest loop breaks after this one successful page.
-const ONE_TARGET_PAGE =
+const PAGE = (id: string, token?: string) =>
     '<?xml version="1.0"?><OAI-PMH><ListRecords>' +
-    '<record><header><datestamp>2026-06-01</datestamp></header>' +
-    '<metadata><arXiv><id>2606.00001</id><categories>cs.LG</categories>' +
-    '<title>Recovery Works</title><abstract>An abstract.</abstract>' +
+    `<record><header><datestamp>2026-06-01</datestamp></header>` +
+    `<metadata><arXiv><id>${id}</id><categories>cs.LG</categories>` +
+    `<title>Paper ${id}</title><abstract>Abstract ${id}.</abstract>` +
     '</arXiv></metadata></record>' +
+    (token ? `<resumptionToken>${token}</resumptionToken>` : '') +
     '</ListRecords></OAI-PMH>';
 
-// First page WITH a resumptionToken -> the loop fetches a SECOND page.
-const FIRST_PAGE_WITH_TOKEN =
-    '<?xml version="1.0"?><OAI-PMH><ListRecords>' +
-    '<record><header><datestamp>2026-06-01</datestamp></header>' +
-    '<metadata><arXiv><id>2606.00002</id><categories>cs.LG</categories>' +
-    '<title>Page One</title><abstract>First.</abstract>' +
-    '</arXiv></metadata></record>' +
-    '<resumptionToken>TOKEN-XYZ</resumptionToken>' +
-    '</ListRecords></OAI-PMH>';
-
-// Second (paginated) page: another target paper, no further token -> loop ends.
-const SECOND_PAGE_NO_TOKEN =
-    '<?xml version="1.0"?><OAI-PMH><ListRecords>' +
-    '<record><header><datestamp>2026-06-02</datestamp></header>' +
-    '<metadata><arXiv><id>2606.00003</id><categories>cs.LG</categories>' +
-    '<title>Page Two</title><abstract>Second.</abstract>' +
-    '</arXiv></metadata></record>' +
-    '</ListRecords></OAI-PMH>';
-
-// Genuinely-empty OAI envelope: HTTP 200, valid XML, zero records.
+const ONE_TARGET_PAGE = PAGE('2606.00001');
+const FIRST_PAGE_WITH_TOKEN = PAGE('2606.00002', 'TOKEN-XYZ');
+const SECOND_PAGE_NO_TOKEN = PAGE('2606.00003');
 const EMPTY_OAI_XML =
     '<?xml version="1.0"?><OAI-PMH><ListRecords></ListRecords></OAI-PMH>';
+const OAI_ERR = (code: string) =>
+    `<?xml version="1.0"?><OAI-PMH><error code="${code}">bad</error></OAI-PMH>`;
 
 const OK = (xml: string) => ({
-    ok: true,
-    status: 200,
-    text: async () => xml,
-    headers: { get: () => null },
+    ok: true, status: 200, text: async () => xml, headers: { get: () => null },
 });
 
 function makeAbortError() {
@@ -58,93 +37,214 @@ function makeAbortError() {
     return e;
 }
 
-describe('ArXiv first-page recovery — 120s timeout + bounded retry (H1 WO-2b)', () => {
-    let adapter: any;
+// Zeroed clock+sleep seam so the arbiter's bounded backoff never really sleeps.
+const NO_SLEEP = { sleep: async () => undefined, now: () => Date.now() };
 
+describe('ArXiv OAI transport recovery — same-token retry (WO-3-A1)', () => {
+    let adapter: any;
     beforeEach(() => {
         adapter = new ArXivAdapter();
-        // No ar5iv network calls and no real 15s/30s/60s/250ms/20s sleeps.
         process.env.ENABLE_AR5IV = 'false';
         vi.spyOn(adapter, 'delay').mockResolvedValue(undefined);
     });
+    afterEach(() => { vi.restoreAllMocks(); });
 
-    afterEach(() => {
-        vi.restoreAllMocks();
+    it('healthy: initial + multiple resumption pages + last no-token -> exact parity', async () => {
+        const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout')
+            .mockResolvedValueOnce(OK(PAGE('2606.01', 'T1')) as any)
+            .mockResolvedValueOnce(OK(PAGE('2606.02', 'T2')) as any)
+            .mockResolvedValueOnce(OK(PAGE('2606.03')) as any);
+        const result = await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP);
+        expect(result.map((p: any) => p.arxiv_id)).toEqual(['2606.01', '2606.02', '2606.03']);
+        expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
-    // (a) first attempt times out, a retry succeeds -> resolves with papers.
-    it('first attempt aborts, retry succeeds -> resolves with the recovered papers', async () => {
-        const fetchSpy = vi
-            .spyOn(adapter, 'fetchWithTimeout')
-            .mockRejectedValueOnce(makeAbortError()) // first page: slow-tail abort
-            .mockResolvedValueOnce(OK(ONE_TARGET_PAGE) as any); // retry: success
-
-        const result = await adapter.fetchOAI({ limit: 10, from: '2026-01-01' });
-
-        expect(Array.isArray(result)).toBe(true);
-        expect(result.length).toBe(1);
-        expect(result[0].arxiv_id).toBe('2606.00001');
-        // Exactly one retry was spent (2 total attempts).
-        expect(fetchSpy).toHaveBeenCalledTimes(2);
-    });
-
-    // (b) all retries time out -> #2182 FetchError(kind="abort") still throws.
-    it('every first-page attempt aborts -> throws FetchError(kind="abort") (fail-loud preserved)', async () => {
-        const fetchSpy = vi
-            .spyOn(adapter, 'fetchWithTimeout')
-            .mockRejectedValue(makeAbortError());
-
-        await expect(adapter.fetchOAI({ limit: 10, from: '2026-01-01' }))
-            .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', source: 'arxiv' });
-        // Initial attempt + 3 bounded retries = 4 calls, then loud failure.
-        expect(fetchSpy).toHaveBeenCalledTimes(4);
-    });
-
-    // (c) genuinely-empty first page -> still success [] (no false failure).
-    it('genuinely-empty first page (HTTP 200, zero records) -> resolves [] (stays SUCCESS)', async () => {
-        vi.spyOn(adapter, 'fetchWithTimeout').mockResolvedValue(OK(EMPTY_OAI_XML) as any);
-        const result = await adapter.fetchOAI({ limit: 10, from: '2026-01-01' });
-        expect(Array.isArray(result)).toBe(true);
-        expect(result.length).toBe(0);
-    });
-
-    // (e) PR-H2a resumption-spin bound: a resumptionToken page that keeps
-    // erroring while the retry-fresh re-query only re-yields already-seen IDs
-    // makes ZERO forward progress. After 3 consecutive zero-progress error
-    // batches the loop must stop and throw FetchError (fail loud), instead of
-    // spinning on "+0 papers" until external cancel.
-    it('resumption page erroring with no new progress -> throws FetchError after 3 zero-progress batches', async () => {
-        // Page carrying ONE paper (id 2606.00002) AND a resumptionToken, so the
-        // loop always proceeds to a (failing) token page next. On retry-fresh the
-        // first page is re-fetched and re-yields the SAME already-seen id -> 0 new
-        // unique papers -> zero progress.
-        const ok = OK(FIRST_PAGE_WITH_TOKEN);
+    // TEST 14: existing healthy multi-page parity unchanged (kept, not dropped).
+    it('TEST14 healthy parity unchanged: resumption page times out once then succeeds -> SAME token, accepted once', async () => {
+        let firstCallUrl = '';
+        let retryCallUrl = '';
+        let call = 0;
         const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
-            if (typeof url === 'string' && url.includes('resumptionToken')) {
-                throw makeAbortError(); // token page always fails
+            if (url.includes('resumptionToken')) {
+                call++;
+                if (call === 1) { firstCallUrl = url; throw makeAbortError(); }
+                retryCallUrl = url;
+                return OK(SECOND_PAGE_NO_TOKEN) as any;
             }
-            return ok as any; // first / retry-fresh page: re-yields the seen paper
+            return OK(FIRST_PAGE_WITH_TOKEN) as any;
         });
-
-        await expect(adapter.fetchOAI({ limit: 1000, from: '2026-01-01' }))
-            .rejects.toMatchObject({ name: 'FetchError', source: 'arxiv' });
-        // Must NOT have spun indefinitely: the spin bound caps the error batches.
-        expect(fetchSpy).toHaveBeenCalled();
+        const result = await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP);
+        expect(result.map((p: any) => p.arxiv_id)).toEqual(['2606.00002', '2606.00003']);
+        expect(firstCallUrl).toContain('resumptionToken=TOKEN-XYZ');
+        expect(retryCallUrl).toContain('resumptionToken=TOKEN-XYZ');
+        expect(firstCallUrl).toBe(retryCallUrl);
+        expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
-    // (d) no-regression: first page gets 120s, the paginated page keeps 60s.
-    it('first page uses 120000ms; subsequent resumptionToken page keeps 60000ms', async () => {
-        const fetchSpy = vi
-            .spyOn(adapter, 'fetchWithTimeout')
-            .mockResolvedValueOnce(OK(FIRST_PAGE_WITH_TOKEN) as any) // first page
-            .mockResolvedValueOnce(OK(SECOND_PAGE_NO_TOKEN) as any); // resumed page
-
-        const result = await adapter.fetchOAI({ limit: 10, from: '2026-01-01' });
-
-        expect(result.length).toBe(2);
-        expect(fetchSpy).toHaveBeenCalledTimes(2);
-        // Arg #3 (timeoutMs) of each call: first page 120s, resumed page 60s.
+    it('every request (first + deep + retry) uses the 120000ms deep-page envelope', async () => {
+        let tokenCall = 0;
+        const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            if (url.includes('resumptionToken')) {
+                tokenCall++;
+                if (tokenCall === 1) throw makeAbortError();
+                return OK(SECOND_PAGE_NO_TOKEN) as any;
+            }
+            return OK(FIRST_PAGE_WITH_TOKEN) as any;
+        });
+        await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP);
         expect(fetchSpy.mock.calls[0][2]).toBe(120000);
-        expect(fetchSpy.mock.calls[1][2]).toBe(60000);
+        expect(fetchSpy.mock.calls[1][2]).toBe(120000);
+        expect(fetchSpy.mock.calls[2][2]).toBe(120000);
     });
+
+    it('exhaustion: same token times out to the limit -> PAGE_TIMEOUT_EXHAUSTED fail-loud, no window query', async () => {
+        const calledUrls: string[] = [];
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            calledUrls.push(url);
+            if (url.includes('resumptionToken')) throw makeAbortError();
+            return OK(FIRST_PAGE_WITH_TOKEN) as any;
+        });
+        await expect(adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', source: 'arxiv' });
+        const tokenCalls = calledUrls.filter(u => u.includes('resumptionToken'));
+        const bareCalls = calledUrls.filter(u => !u.includes('resumptionToken'));
+        expect(tokenCalls.length).toBe(3); // initial + 2 retries (max 3/token)
+        expect(tokenCalls.every(u => u.includes('resumptionToken=TOKEN-XYZ'))).toBe(true);
+        expect(bareCalls.length).toBe(1);
+    });
+
+    // NEGATIVE INVARIANT (mandatory): the OLD window-origin restart is IMPOSSIBLE.
+    it('NEGATIVE: on a resumption-page timeout the token is NEVER reset to null / no fresh first-page query', async () => {
+        const calledUrls: string[] = [];
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            calledUrls.push(url);
+            if (url.includes('resumptionToken')) throw makeAbortError();
+            return OK(FIRST_PAGE_WITH_TOKEN) as any;
+        });
+        await expect(adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP)).rejects.toBeInstanceOf(FetchError);
+        const afterFirst = calledUrls.slice(1);
+        expect(afterFirst.length).toBeGreaterThan(0);
+        expect(afterFirst.every(u => u.includes('resumptionToken=TOKEN-XYZ'))).toBe(true);
+        expect(afterFirst.some(u => u.includes('metadataPrefix'))).toBe(false);
+    });
+});
+
+describe('ArXiv OAI error envelope + correctness terminals (WO-3-A1)', () => {
+    let adapter: any;
+    beforeEach(() => {
+        adapter = new ArXivAdapter();
+        process.env.ENABLE_AR5IV = 'false';
+        vi.spyOn(adapter, 'delay').mockResolvedValue(undefined);
+    });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    it('HTTP200 + badResumptionToken envelope -> BAD_RESUMPTION_TOKEN fail-loud (not clean end)', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) =>
+            (url.includes('resumptionToken') ? OK(OAI_ERR('badResumptionToken')) : OK(FIRST_PAGE_WITH_TOKEN)) as any);
+        await expect(adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ name: 'FetchError', detail: expect.stringContaining('BAD_RESUMPTION_TOKEN') });
+    });
+
+    it('HTTP200 + badArgument envelope -> fail-loud', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockResolvedValue(OK(OAI_ERR('badArgument')) as any);
+        await expect(adapter.fetchOAI({ limit: 10, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ detail: expect.stringContaining('OAI_ERROR') });
+    });
+
+    it('HTTP200 + UNKNOWN error code -> fail-closed (OAI_ERROR)', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockResolvedValue(OK(OAI_ERR('wibbleWobble')) as any);
+        await expect(adapter.fetchOAI({ limit: 10, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ detail: expect.stringContaining('OAI_ERROR') });
+    });
+
+    it('initial-request noRecordsMatch -> clean-zero []', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockResolvedValue(OK(OAI_ERR('noRecordsMatch')) as any);
+        const result = await adapter.fetchOAI({ limit: 10, from: '2026-01-01' }, NO_SLEEP);
+        expect(result).toEqual([]);
+    });
+
+    it('resumption-request noRecordsMatch -> fail-loud (never a clean end on a token)', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) =>
+            (url.includes('resumptionToken') ? OK(OAI_ERR('noRecordsMatch')) : OK(FIRST_PAGE_WITH_TOKEN)) as any);
+        await expect(adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ detail: expect.stringContaining('OAI_ERROR') });
+    });
+
+    it('genuinely-empty first page (HTTP 200, zero records) -> [] (stays SUCCESS)', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockResolvedValue(OK(EMPTY_OAI_XML) as any);
+        const result = await adapter.fetchOAI({ limit: 10, from: '2026-01-01' }, NO_SLEEP);
+        expect(result).toEqual([]);
+    });
+
+    it('malformed XML -> MALFORMED_XML fail-loud (kind=parse)', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockResolvedValue(OK('<<not valid xml ohno') as any);
+        await expect(adapter.fetchOAI({ limit: 10, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ kind: 'parse', detail: expect.stringContaining('MALFORMED_XML') });
+    });
+
+    it('token cycle A->B->A -> TOKEN_CYCLE fail-loud', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            if (url.includes('resumptionToken=tokenA')) return OK(PAGE('id.B', 'tokenB')) as any;
+            if (url.includes('resumptionToken=tokenB')) return OK(PAGE('id.A2', 'tokenA')) as any;
+            return OK(PAGE('id.first', 'tokenA')) as any;
+        });
+        await expect(adapter.fetchOAI({ limit: 1000, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ detail: expect.stringContaining('TOKEN_CYCLE') });
+    });
+
+    it('zero unique progress across the window -> NO_PROGRESS fail-loud', async () => {
+        let n = 0;
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async () => {
+            n++;
+            return OK(PAGE('dup.id', `tok${n}`)) as any;
+        });
+        await expect(adapter.fetchOAI({ limit: 1000, from: '2026-01-01' }, NO_SLEEP))
+            .rejects.toMatchObject({ detail: expect.stringContaining('NO_PROGRESS') });
+    });
+
+    it('healthy output structure parity: mapped paper carries arxiv_id/title/summary/categories', async () => {
+        vi.spyOn(adapter, 'fetchWithTimeout').mockResolvedValue(OK(ONE_TARGET_PAGE) as any);
+        const result = await adapter.fetchOAI({ limit: 10, from: '2026-01-01' }, NO_SLEEP);
+        expect(result[0]).toMatchObject({
+            arxiv_id: '2606.00001', title: 'Paper 2606.00001', categories: ['cs.LG'],
+        });
+        expect(result[0].summary).toContain('Abstract');
+    });
+});
+
+// D-2026-0616-69 — parse-branch budget precedence (3 of 5 tests; other 2 in harvest-arxiv-terminal-meta.test.ts). Malformed TOKENED body -> 'parse' kind.
+const BAD_XML = '<<not valid xml ohno';
+const PB_CLK = () => { let t = 0; return { now: () => t, sleep: async () => undefined, add: (ms: number) => { t += ms; } }; };
+describe('WO-3-A1 D-69 — parse branch budget precedence (TOTAL_BUDGET vs MALFORMED_XML)', () => {
+    let adapter: any;
+    beforeEach(() => { adapter = new ArXivAdapter(); process.env.ENABLE_AR5IV = 'false'; vi.spyOn(adapter, 'delay').mockResolvedValue(undefined); });
+    afterEach(() => { vi.restoreAllMocks(); });
+
+    // PARSE-BUDGET-i: tokened span consumes the remainder, then parse fails -> budgetExhausted() at parse-branch top wins.
+    it('PARSE-BUDGET-i parse failure consuming the remainder -> TOTAL_BUDGET_EXHAUSTED (not MALFORMED_XML)', async () => {
+        const c = PB_CLK();
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string, _o: any, ms: number) => {
+            if (url.includes('resumptionToken')) { c.add(ms); return OK(BAD_XML) as any; } // span -> budget ~0
+            c.add(TOTAL_BUDGET_MS - 50000); return OK(FIRST_PAGE_WITH_TOKEN) as any; // leaves ~50000ms
+        });
+        await expect(adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, c))
+            .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', detail: expect.stringContaining('TOTAL_BUDGET_EXHAUSTED') });
+    });
+
+    // PARSE-ATTEMPTS: ample budget; 3 same-token parse failures exhaust attempts -> MALFORMED_XML (kind=parse, meta verified).
+    it('PARSE-ATTEMPTS three same-token parse failures with budget remaining -> MALFORMED_XML (kind=parse)', async () => {
+        const c = PB_CLK(); const tk: string[] = [];
+        vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
+            if (url.includes('resumptionToken')) { tk.push(url); c.add(3000); return OK(BAD_XML) as any; }
+            c.add(3000); return OK(FIRST_PAGE_WITH_TOKEN) as any;
+        });
+        let err: any = null;
+        try { await adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, c); } catch (e) { err = e; }
+        expect(err.kind).toBe('parse'); // PARSE-KIND: MALFORMED_XML -> parse
+        expect(err.meta.terminal).toBe('MALFORMED_XML');
+        expect(tk.length).toBe(3); // initial + 2 retries; attempts (not budget) the limit
+        expect(tk.every(u => u.includes('resumptionToken=TOKEN-XYZ'))).toBe(true);
+    });
+
+    // PARSE-LEGACY (test 5 of 5): single-shot malformed-XML fail-loud (kind=parse) stays intact -- asserted by the 'malformed XML -> MALFORMED_XML' test above.
 });
