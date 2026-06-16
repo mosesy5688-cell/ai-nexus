@@ -147,10 +147,13 @@ export class ArxivRecoveryState {
     async executeRetryWait(retryAfterMs) {
         const idx = Math.min(this.tokenAttempts - 1, TOKEN_BACKOFF_MS.length - 1);
         const base = TOKEN_BACKOFF_MS[idx];
-        let ms = Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : base;
-        // Bound by remaining budget; if it cannot fit at all, fail loud.
-        if (this.remainingTransportBudget() <= 0) return false;
-        ms = Math.min(ms, this.remainingTransportBudget());
+        const ms = Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : base;
+        // REFUSED-DUE-TO-BUDGET (Blocker 2): if the FULL wait cannot fit the remaining
+        // active-transport budget, refuse without sleeping/charging so the adapter
+        // classifies TOTAL_BUDGET_EXHAUSTED (budgetExhausted() true), not a clipped
+        // partial wait masquerading as a retry. Refusal-due-to-ATTEMPTS is the
+        // adapter's canRetryToken() gate; this gate is purely budget.
+        if (ms > this.remainingTransportBudget()) return false;
         await this.sleep(ms);
         this.transportActiveMs += ms; // arbiter-owned wait IS active-transport time.
         this.totalRetries++;
@@ -160,40 +163,36 @@ export class ArxivRecoveryState {
     // -- BLOCKER D: page acceptance (raw vs product progress) ----------------
 
     /**
-     * BLOCKER D: record a fully-validated, accepted page. Returns a terminal hint:
-     *   'TOKEN_CYCLE' (nextToken repeats / A->B->A) | 'NO_PROGRESS' (zero RAW
-     *   transport progress across the window) | null (accepted, advance token).
-     * RAW progress = a never-seen page fingerprint (= a genuinely new raw record
-     * set). The fingerprint is record-id-only (token-independent), so a replayed
-     * raw page is no-progress even if the server hands a fresh token; rawNewIds is
-     * a secondary signal for the ids-absent fallback. PRODUCT yield (category-
-     * filtered) drives the paper count ONLY: an all-new-raw-IDs page with 0 target-
-     * category entities still has a fresh fingerprint -> progress>0 (never
-     * NO_PROGRESS). nextToken null = clean end.
+     * BLOCKER D: validate a fully-fetched page; returns terminal hint 'TOKEN_CYCLE'
+     * (nextToken repeats / A->B->A) | 'NO_PROGRESS' (zero RAW progress across the
+     * window) | null (accepted, advance). RAW progress = a never-seen record-id-only
+     * fingerprint (replayed page = no-progress even with a fresh token); rawNewIds
+     * rescues the ids-absent fallback. PRODUCT yield drives paper count only.
+     * TWO-PHASE: a rejected page mutates NOTHING (validate is pure), so snapshot()/
+     * terminal_meta exclude it; mutation happens ONLY in the commit phase below.
      */
     acceptPage({ newProductYield, rawNewIds, pageFingerprint, nextToken }) {
-        this.acceptedPages++;
-        this.acceptedUniqueIds += newProductYield;
+        // PHASE 1 VALIDATE (PURE -- zero mutation before a pass).
         const freshFingerprint = pageFingerprint && !this.seenPageFingerprints.has(pageFingerprint);
-        // Fingerprint-authoritative: a replayed raw record set is no-progress even if
-        // rawNewIds>0 (non-target ids are never committed to seenIds, so they would
-        // otherwise re-count forever). rawNewIds only rescues the ids-absent fallback.
         const rawProgress = (freshFingerprint || (!pageFingerprint && rawNewIds > 0)) ? 1 : 0;
+        // Candidate window (committed tail + this page) evaluated WITHOUT pushing.
+        const candidateWindow = [...this.progressWindow.slice(-(NO_PROGRESS_WINDOW - 1)), rawProgress];
+        if (candidateWindow.length >= NO_PROGRESS_WINDOW && candidateWindow.every((d) => d === 0)) {
+            return 'NO_PROGRESS';
+        }
+        // Exact repeat of the current token, or an A->B->A oscillation.
+        if (nextToken && (nextToken === this.currentToken || this.tokenHistory.indexOf(nextToken) !== -1)) {
+            return 'TOKEN_CYCLE';
+        }
+
+        // PHASE 2 COMMIT (only after validation passes). All mutation happens here.
         if (pageFingerprint) this.seenPageFingerprints.add(pageFingerprint);
         if (rawProgress > 0) this.lastProgressAt = this.now();
-
         this.progressWindow.push(rawProgress);
         if (this.progressWindow.length > NO_PROGRESS_WINDOW) this.progressWindow.shift();
-        const windowFull = this.progressWindow.length >= NO_PROGRESS_WINDOW;
-        const windowDry = this.progressWindow.every((d) => d === 0);
-        if (windowFull && windowDry) return 'NO_PROGRESS';
-
-        if (nextToken) {
-            // Exact repeat of the token we just used, or an A->B->A oscillation.
-            const seenIdx = this.tokenHistory.indexOf(nextToken);
-            if (nextToken === this.currentToken || seenIdx !== -1) return 'TOKEN_CYCLE';
-            this.tokenHistory.push(nextToken);
-        }
+        this.acceptedPages++;
+        this.acceptedUniqueIds += newProductYield;
+        if (nextToken) this.tokenHistory.push(nextToken);
         return null;
     }
 

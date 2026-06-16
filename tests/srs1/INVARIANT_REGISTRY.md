@@ -219,6 +219,30 @@ proof in the PR body).
 | WO3A1-E-EVIDENCE | **BLOCKER E**: a FetchError's structured recovery metadata (terminal/acceptedPages/totalRetries/uniqueIds/elapsedTransportMs/tokenFingerprint) flows into the EXISTING `terminal_meta` sidecar field, recorded as a HARD FAILURE (status=failed/timeout, never success/partial) (T13); abort meta merges with `timeout_kind=request_timeout` | `tests/unit/harvest-arxiv-terminal-meta.test.ts` | EXEC | **NEW** |
 | WO3A1-PARITY | T14: existing healthy multi-page parity unchanged (same-token retry once then succeeds -> exact yield, same-token identity) | `tests/unit/harvest-arxiv-recovery.test.ts` | EXEC | **NEW** |
 
+### D-2026-0616-68 amendment — 2-blocker narrow fix (5 added tests)
+
+> Two narrow correctness blockers remained after the D-67 5-blocker fix.
+> **Blocker 1 (invalid-page zero-mutation):** `acceptPage()` is now TWO-PHASE — a
+> PURE validate phase evaluates NO_PROGRESS (on the candidate window, computed
+> WITHOUT pushing) and TOKEN_CYCLE (token identity) and RETURNS the terminal
+> BEFORE any mutation; a COMMIT phase (fingerprint add / window push /
+> lastProgressAt / acceptedPages++ / acceptedUniqueIds / tokenHistory push) runs
+> ONLY after validation passes. A rejected cycle/stall page leaves ZERO partial
+> arbiter state, so `snapshot().acceptedPages` and `terminal_meta.acceptedPages`
+> exclude it. **Blocker 2 (budget beats page-timeout):** after a request
+> failure/abort (and after a refused retry-wait), BUDGET precedence is applied in
+> BOTH the `fetch` and `http` branches: `budgetExhausted()` (clipped-timeout abort
+> drove `endSpan` to ~0) -> TOTAL_BUDGET_EXHAUSTED; else attempts exhausted
+> (`canRetryToken()` false) -> PAGE_TIMEOUT_EXHAUSTED (abort) / FETCH_ERROR; else a
+> retry-wait that cannot FIT the remaining budget (`executeRetryWait` now refuses
+> budget-vs-attempts distinctly, charging nothing) -> TOTAL_BUDGET_EXHAUSTED; else
+> retry SAME token. PAGE_TIMEOUT and TOTAL_BUDGET are never conflated.
+
+| ID | Protected behavior (blocker) | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| WO3A1-INVALID-ZEROMUT | **BLOCKER 1**: a rejected TOKEN_CYCLE page mutates NOTHING — acceptedPages/acceptedUniqueIds/fingerprint-set/progressWindow/tokenHistory/lastProgressAt all identical to the pre-cycle snapshot; `snapshot().accepted_pages` and `terminalError().meta.acceptedPages` carry the PRE-cycle count (CYCLE-ZEROMUT); a rejected NO_PROGRESS stall page is likewise pure (no extra window-0 pushed, pages unchanged) (NOPROG-ZEROMUT); end-to-end `terminal_meta.acceptedPages` EXCLUDES the cycle page + the cycle page is NEVER enriched/committed (CYCLE-META) | `tests/unit/harvest-arxiv-budget.test.ts` | EXEC | **NEW** |
+| WO3A1-BUDGET-PRECEDENCE | **BLOCKER 2**: when the per-request timeout is clipped to the remaining budget and the request aborts at that clipped timeout (endSpan drives remaining to ~0), terminal is TOTAL_BUDGET_EXHAUSTED, NOT PAGE_TIMEOUT_EXHAUSTED (BUDGET-i); with ample budget, three full 120s same-token aborts (attempts exhausted, budget remaining) -> PAGE_TIMEOUT_EXHAUSTED (BUDGET-ii); a Retry-After/backoff wait that cannot fit the remaining budget -> TOTAL_BUDGET_EXHAUSTED (BUDGET-precedence). The two terminals are never conflated | `tests/unit/harvest-arxiv-budget.test.ts` | EXEC | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the

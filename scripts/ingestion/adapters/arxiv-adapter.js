@@ -5,12 +5,7 @@
  */
 
 import { BaseAdapter } from './base-adapter.js';
-import {
-    cleanTitle,
-    extractTags,
-    buildMetaJson,
-    calculatePaperQuality
-} from './arxiv-parser.js';
+import { cleanTitle, extractTags, buildMetaJson, calculatePaperQuality } from './arxiv-parser.js';
 import { fetchAr5ivHtml } from './ar5iv-fetcher.js';
 import { extractDatasetsFromText } from '../../../src/utils/dataset-extractor.js';
 import { ArxivRecoveryState, tokenFingerprint } from './arxiv-recovery-state.js';
@@ -27,9 +22,8 @@ import {
 // AI/ML relevant ArXiv categories (filter applied during record mapping).
 const AI_CATEGORIES = ['cs.AI', 'cs.LG', 'cs.CL', 'cs.CV', 'cs.NE', 'stat.ML'];
 
-// WO-3-A1 (Transport Recovery Core): ALL retry/budget/timeout state + the
-// non-COMPLETE terminal -> FetchError mapping (state.terminalError + TERMINAL_KIND)
-// live in the SINGLE arbiter (arxiv-recovery-state.js); the adapter owns none.
+// WO-3-A1: ALL retry/budget/timeout state + non-COMPLETE terminal -> FetchError
+// mapping live in the SINGLE arbiter (arxiv-recovery-state.js); adapter owns none.
 
 /** ArXiv Papers Adapter Implementation */
 export class ArXivAdapter extends BaseAdapter {
@@ -65,16 +59,14 @@ export class ArXivAdapter extends BaseAdapter {
 
         const allPapers = [];
         const seenIds = new Set();
-        // Default the arbiter's backoff sleep to this.delay so tests mocking
-        // adapter.delay also zero the retry backoff; explicit deps.sleep overrides.
+        // Arbiter backoff defaults to this.delay so tests mocking delay also zero it.
         const state = new ArxivRecoveryState({ sleep: (ms) => this.delay(ms), ...deps });
         let resumptionToken = null; // same-run only; never persisted cross-day.
         let totalFetched = 0;
         let terminal = 'COMPLETE';
 
         while (totalFetched < limit) {
-            // BLOCKER A: ACTIVE-transport budget (not wall-clock). ONLY the
-            // startSpan..endSpan window is charged; spacing+pacing+enrichBatch are OUTSIDE.
+            // BLOCKER A: ACTIVE-transport budget (only startSpan..endSpan is charged).
             if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
 
             state.beginToken(resumptionToken);
@@ -88,27 +80,37 @@ export class ArXivAdapter extends BaseAdapter {
                 timeoutMs: state.requestTimeoutMs(), // min(120000, remaining budget)
                 headers: { 'User-Agent': 'Free2AITools-OAI/1.0' },
             });
-            // Close the transport span: fetch+read+parse (IO) done; the post-checks
-            // (cycle/progress CPU) are not transport. Arbiter waits self-charge.
-            state.endSpan();
+            state.endSpan(); // close span: IO done; cycle/progress CPU is not transport.
 
             // BLOCKER C: ALL retryable HTTP outcomes route through the SINGLE arbiter
-            // (canRetryToken + budget-charged wait, Retry-After honored + bounded, then
-            // retry SAME token). Legacy handleRateLimit() (self-sleep+continue) NEVER called.
+            // (canRetryToken + budget-charged wait, Retry-After bounded, then retry SAME
+            // token); legacy handleRateLimit() NEVER called. PRECEDENCE (Blocker 2):
+            // BUDGET beats page-timeout. (1) budget gone (clipped-timeout abort drove
+            // endSpan to ~0) -> TOTAL_BUDGET_EXHAUSTED; (2) attempts exhausted
+            // (canRetryToken false) -> PAGE_TIMEOUT/FETCH_ERROR/RATE_LIMIT; (3) attempts
+            // remain but retry-wait can't FIT budget -> TOTAL_BUDGET_EXHAUSTED; (4) fit -> retry.
             if (page.kind === 'http') {
-                if ([403, 429, 502, 503, 504].includes(page.status) && state.canRetryToken()
-                    && await state.executeRetryWait(parseRetryAfterMs(page.response))) {
-                    console.warn(`   🔄 [ArXiv] arbiter retry HTTP ${page.status} ${tokenFingerprint(resumptionToken)}`);
-                    continue;
+                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
+                const httpRetryable = [403, 429, 502, 503, 504].includes(page.status);
+                if (httpRetryable && state.canRetryToken()) {
+                    if (await state.executeRetryWait(parseRetryAfterMs(page.response))) {
+                        console.warn(`   🔄 [ArXiv] arbiter retry HTTP ${page.status} ${tokenFingerprint(resumptionToken)}`);
+                        continue;
+                    }
+                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
                 }
                 terminal = (page.status === 429 || page.status === 403) ? 'RATE_LIMIT_EXHAUSTED' : 'FETCH_ERROR';
                 console.warn(`   ⚠️ ArXiv OAI HTTP ${page.status} (${tokenFingerprint(resumptionToken)})`);
                 break;
             }
             if (page.kind === 'fetch') { // SAME-TOKEN retry within budget; else fail loud.
-                if (state.canRetryToken() && await state.executeRetryWait()) {
-                    console.warn(`   🔄 [ArXiv] same-token retry ${tokenFingerprint(resumptionToken)} (${page.errorKind})`);
-                    continue;
+                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
+                if (state.canRetryToken()) {
+                    if (await state.executeRetryWait()) {
+                        console.warn(`   🔄 [ArXiv] same-token retry ${tokenFingerprint(resumptionToken)} (${page.errorKind})`);
+                        continue;
+                    }
+                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
                 }
                 terminal = page.errorKind === 'abort' ? 'PAGE_TIMEOUT_EXHAUSTED' : 'FETCH_ERROR';
                 break;
@@ -125,10 +127,9 @@ export class ArXivAdapter extends BaseAdapter {
                 break;
             }
 
-            // kind === 'page'. BLOCKER B: missing <ListRecords> node is NEVER a clean
-            // end (tokened -> fail loud; initial -> MALFORMED_XML). PRESENT empty
-            // ListRecords = clean-zero COMPLETE ONLY for an initial zero-accepted
-            // request; a tokened/late empty present page = NO_PROGRESS stall.
+            // kind === 'page'. BLOCKER B: missing <ListRecords> is NEVER a clean end
+            // (-> MALFORMED_XML). PRESENT empty ListRecords = clean-zero COMPLETE ONLY
+            // for an initial zero-accepted request; a tokened/late empty page = NO_PROGRESS.
             if (!page.listRecordsPresent) {
                 terminal = 'MALFORMED_XML';
                 console.warn(`   ⛔ [ArXiv] missing <ListRecords> (${resumptionToken ? 'tokened' : 'initial'})`);
@@ -140,8 +141,8 @@ export class ArXivAdapter extends BaseAdapter {
                 break;
             }
 
-            // BLOCKER D: RAW progress + TOKEN_CYCLE/NO_PROGRESS evaluated BEFORE seenIds
-            // commit + BEFORE enrichBatch (cycle/invalid page never mutates/enriches).
+            // BLOCKER D: RAW progress + TOKEN_CYCLE/NO_PROGRESS validated BEFORE seenIds
+            // commit + BEFORE enrichBatch (rejected page mutates/enriches NOTHING).
             const progress = state.acceptPage({
                 newProductYield: 0, // post-filter product yield; not a progress input
                 rawNewIds: countRawNewIds(page.records, seenIds),
@@ -150,8 +151,7 @@ export class ArXivAdapter extends BaseAdapter {
             });
             if (progress) { terminal = progress; break; }
 
-            // Passed structure+cycle+progress: commit dedup (mapOaiRecords mutates
-            // seenIds) + enrich -- OUTSIDE any span (not transport time).
+            // Passed validation: commit dedup + enrich OUTSIDE any span (not transport).
             const batch = mapOaiRecords(page.records, seenIds, AI_CATEGORIES);
             await this.enrichBatch(batch);
 
@@ -167,8 +167,7 @@ export class ArXivAdapter extends BaseAdapter {
         }
 
         if (terminal !== 'COMPLETE') {
-            // BLOCKER E: fail loud with machine-readable structured terminal metadata
-            // (err.meta) built by the single arbiter from its snapshot().
+            // BLOCKER E: fail loud with arbiter-built structured terminal meta (err.meta).
             const err = state.terminalError(terminal, seenIds.size);
             console.error(`❌ [ArXiv] OAI FAILED [${terminal}] kind=${err.kind} — accepted ${seenIds.size} (${JSON.stringify(err.meta)})`);
             throw err;
