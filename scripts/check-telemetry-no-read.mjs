@@ -1,11 +1,6 @@
+#!/usr/bin/env node
 /**
  * P2 Adoption Telemetry -- NO-READ + BINDING-CONFINEMENT static gate (BLOCKING).
- *
- * (Run via `node scripts/check-telemetry-no-read.mjs`. The leading shebang was
- * removed in TA2: with the added ES-module exports, Vite's SSR transform (used
- * by vitest to import the gate functions for the H-25 mutation proofs) hoists the
- * imports ABOVE a mid-file shebang and then chokes on it. The file is always
- * invoked through `node`, never as a bare executable, so the shebang is moot.)
  *
  * Authority: SPEC s8 (THE INVARIANT: "Telemetry data must never be read by FNI
  * scoring, ranking, search result ordering, entity projection, or MCP response
@@ -66,20 +61,6 @@ const NO_READ_PATHS = [
   'src/lib/entity-projection.ts',
   'src/lib/cluster-rerank.ts',
   'src/middleware.ts',
-  // TA2: the pure classifier is a serve-adjacent module that must NEVER name the
-  // binding (it deals only in already-extracted primitives; emit() is elsewhere).
-  'src/lib/telemetry/request-classifier.ts',
-  // TA2: the route-owned datasets emit site must never name the binding either.
-  'src/pages/api/v1/datasets.ts',
-];
-
-// (B) TA2 call sites: the instrumented files that invoke emit(). Their emit()
-// call argument shape is structurally checked (must be emit(env, <eventVar>) --
-// never emit(request..)/emit(...url)/emit(...headers)/raw object literal).
-const TA2_CALL_SITES = [
-  'src/middleware.ts',
-  'src/pages/api/mcp.ts',
-  'src/pages/api/v1/datasets.ts',
 ];
 
 // (C) TEXTUAL allowlist: the ONLY files permitted to mention the binding name.
@@ -105,194 +86,11 @@ const TELEMETRY_MODULES = [
   'src/lib/telemetry/schema.ts',
   'src/lib/telemetry/ae-adapter.ts',
   'src/lib/telemetry/mock-binding.ts',
-  'src/lib/telemetry/request-classifier.ts',
 ];
-
-// (B) The pure event-builder module whose exported builders must be typed
-// `: TelemetryEvent | null` and whose returned event objects must carry ONLY the
-// 8 allowed keys (raw ephemeral inputs like pathname/uaString are allowed as
-// LOCAL processing -- the structural checks ban them only as EVENT KEYS / as
-// values surfaced in return/error/reason/fallback, never as honest locals).
-const CLASSIFIER_MODULE = 'src/lib/telemetry/request-classifier.ts';
-const EVENT_ALLOWED_KEYS = [
-  'schema_version', 'surface', 'operation', 'status_class',
-  'cache_class', 'audience_class', 'referer_host_class', 'time_bucket',
-];
-// Raw-input identifiers that may be LOCAL processing in the classifier but must
-// NEVER appear as an event key or be surfaced raw in a return/reason/fallback.
-const RAW_INPUT_TOKENS = ['uaString', 'refererHost', 'pathname', 'rawUa', 'userAgent'];
 
 function read(rel) {
   const abs = path.join(REPO_ROOT, rel);
   return fs.existsSync(abs) ? fs.readFileSync(abs, 'utf-8') : null;
-}
-
-// ---------------------------------------------------------------------------
-// (B) EMITTER PURITY -- structural checks that ACTUALLY CONSUME the telemetry
-// modules (D-53 O-6). Each function takes raw source text and returns an array
-// of violation strings (empty == pass), so the mutation-proof tests can feed a
-// crafted/mutated source and assert the check flips. ASCII-only.
-//
-// Comments/strings would create false positives (a comment that says "no
-// console.*" or "passed to emit()"), so the structural scans first STRIP block
-// + line comments. This is a code-shape check, not a comment-prose check.
-// ---------------------------------------------------------------------------
-
-/** Remove block comments and line comments (good-enough for scanning TS source
- *  for code shapes; not a full parser, but it never leaves comment prose that
- *  could trip the structural checks). */
-export function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-}
-
-/** B(1): emit() signature accepts no Request|URL|Headers param type. */
-export function checkEmitSignature(adapterSrc) {
-  const errs = [];
-  const m = adapterSrc.match(/export function emit\(([\s\S]*?)\)\s*:/);
-  if (!m) return ['emit() signature not found'];
-  const sig = m[1];
-  for (const t of EMITTER_FORBIDDEN_PARAM_TYPES) {
-    if (new RegExp(`:\\s*${t}\\b`).test(sig)) errs.push(`emit() accepts forbidden param type ${t}`);
-  }
-  return errs;
-}
-
-/** B(2): every exported `buildXEvent` builder is typed `: TelemetryEvent | null`
- *  (the frozen return type only). A builder returning a wider/other type fails. */
-export function checkBuilderReturnType(classifierSrcRaw) {
-  const classifierSrc = stripComments(classifierSrcRaw);
-  const errs = [];
-  const re = /export function (build\w*Event)\s*\([\s\S]*?\)\s*:\s*([^{]+)\{/g;
-  let mm; let found = 0;
-  while ((mm = re.exec(classifierSrc)) !== null) {
-    found++;
-    const ret = mm[2].replace(/\s+/g, ' ').trim();
-    if (!/^TelemetryEvent \| null$/.test(ret)) {
-      errs.push(`${mm[1]} return type must be "TelemetryEvent | null", got "${ret}"`);
-    }
-  }
-  if (found === 0) errs.push('no buildXEvent builders found (anti-vacuity)');
-  return errs;
-}
-
-/** B(3): no FORBIDDEN/raw key name is assigned INTO a returned event object.
- *  We scan the classifier's returned object literals (the body of each builder's
- *  `return { ... }`) and assert every written key is in EVENT_ALLOWED_KEYS and
- *  no raw-input token appears as a key. Honest locals are untouched. */
-export function checkReturnedEventKeys(classifierSrcRaw) {
-  const classifierSrc = stripComments(classifierSrcRaw);
-  const errs = [];
-  const re = /return\s*\{([\s\S]*?)\};/g;
-  let mm; let scanned = 0;
-  while ((mm = re.exec(classifierSrc)) !== null) {
-    const objBody = mm[1];
-    // Only treat as an EVENT object literal if it sets schema_version (the marker
-    // of the frozen event shape) -- avoids flagging unrelated small return objects.
-    if (!/\bschema_version\s*:/.test(objBody)) continue;
-    scanned++;
-    const keyRe = /(^|[,{]\s*)([A-Za-z_]\w*)\s*:/g;
-    let km;
-    while ((km = keyRe.exec(objBody)) !== null) {
-      const key = km[2];
-      if (RAW_INPUT_TOKENS.includes(key)) errs.push(`raw-input token "${key}" used as an event key`);
-      else if (!EVENT_ALLOWED_KEYS.includes(key)) errs.push(`non-allowed key "${key}" in returned event`);
-    }
-  }
-  if (scanned === 0) errs.push('no returned event object literal found (anti-vacuity)');
-  return errs;
-}
-
-/** B(4): telemetry modules contain no console.* and no raw-value logging. */
-export function checkNoConsole(moduleSrcRaw) {
-  const moduleSrc = stripComments(moduleSrcRaw);
-  return /\bconsole\s*\./.test(moduleSrc) ? ['console.* present in telemetry module'] : [];
-}
-
-/** B(5): a call site never passes a Request/URL/Headers/raw object literal to
- *  emit(); the first emit() argument must be the bare `env` identifier and the
- *  second must be a simple identifier (the event var), not a constructed shape. */
-export function checkCallSiteEmit(callSiteSrcRaw) {
-  const callSiteSrc = stripComments(callSiteSrcRaw);
-  const errs = [];
-  const re = /\bemit\s*\(([^)]*)\)/g;
-  let mm; let found = 0;
-  while ((mm = re.exec(callSiteSrc)) !== null) {
-    found++;
-    const args = mm[1].split(',').map((s) => s.trim());
-    if (args.length < 2) { errs.push(`emit() call has too few args: emit(${mm[1]})`); continue; }
-    if (args[0] !== 'env') errs.push(`emit() first arg must be bare "env", got "${args[0]}"`);
-    if (!/^[A-Za-z_]\w*$/.test(args[1])) errs.push(`emit() second arg must be a simple event identifier, got "${args[1]}"`);
-    if (/\b(request|url|headers|new\s+URL|new\s+Request|new\s+Headers|\{)/i.test(mm[1])) {
-      errs.push(`emit() passes a raw Request/URL/Headers/object: emit(${mm[1]})`);
-    }
-  }
-  // found may be 0 for a call site that only defines a recorder; not vacuous here
-  // because the aggregate B check asserts >0 emit calls across all call sites.
-  return { errs, found };
-}
-
-/** B(6): a raw-input token is never surfaced in a return/error/reason/fallback
- *  STRING or thrown value. Honest locals (assignment, function args) are fine; we
- *  only flag a raw token appearing inside a return-string / reason: / throw. */
-export function checkNoRawInReturnString(classifierSrc) {
-  const errs = [];
-  // The string-quote class is built from char codes (39=single, 34=double,
-  // 96=backtick) so this source carries NO backtick inside a regex literal --
-  // such a backtick is mis-tokenized as a template-literal start by some module
-  // loaders. Both regexes here are built via new RegExp(string) for the same
-  // reason (no backtick template literals near regex literals in this file).
-  const QUOTE = '[' + String.fromCharCode(39, 34, 96) + ']';
-  const surfRe = new RegExp('\\breturn\\s+' + QUOTE + '|reason\\s*:\\s*' + QUOTE + '|throw\\s+');
-  const lineComment = new RegExp('(^|[^:])//.*$');
-  const lines = classifierSrc.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    const ln = lines[i].replace(lineComment, '$1'); // drop trailing line comment
-    if (!surfRe.test(ln)) continue;
-    for (const tok of RAW_INPUT_TOKENS) {
-      const tokRe = new RegExp('(?<![A-Za-z0-9_])' + tok + '(?![A-Za-z0-9_])');
-      if (tokRe.test(ln)) {
-        errs.push('raw-input token "' + tok + '" surfaced in return/reason/throw at line ' + (i + 1));
-      }
-    }
-  }
-  return errs;
-}
-
-// (D) MIDDLEWARE SYNC-TELEMETRY invariant (D-53 O-5 critical-path rule): the
-// middleware telemetry recorder must be SYNCHRONOUS + NON-BLOCKING so it never
-// enters the response-return critical path. Three mutation-provable shapes are
-// asserted on the comment-stripped middleware source:
-//   (1) NO `await recordTelemetry(` anywhere (telemetry is never awaited).
-//   (2) recordTelemetry is declared SYNC: `function recordTelemetry(` with NO
-//       leading `async` and NO `Promise<...>` return annotation.
-//   (3) NO awaited dynamic env import after next(): no `await import(` survives
-//       (the prior awaited getTelemetryEnv design is fully removed).
-// Each rule flips on a crafted bad source (a re-introduced `await recordTelemetry`,
-// an `async function recordTelemetry`, or an `await import(` re-appears).
-export const MIDDLEWARE_MODULE = 'src/middleware.ts';
-export function checkMiddlewareSyncTelemetry(middlewareSrcRaw) {
-  const src = stripComments(middlewareSrcRaw);
-  const errs = [];
-  // (1) telemetry is never awaited.
-  if (/\bawait\s+recordTelemetry\s*\(/.test(src)) {
-    errs.push('middleware awaits recordTelemetry (must be sync, non-blocking)');
-  }
-  // (2) recordTelemetry declared synchronous (not async, not Promise-returning).
-  const decl = src.match(/(\basync\s+)?function\s+recordTelemetry\s*\(([\s\S]*?)\)\s*:\s*([^\{]+)\{/);
-  if (!decl) {
-    errs.push('recordTelemetry declaration not found (anti-vacuity)');
-  } else {
-    if (decl[1]) errs.push('recordTelemetry is declared async (must be sync void)');
-    const ret = decl[3].replace(/\s+/g, ' ').trim();
-    if (/Promise\s*</.test(ret)) errs.push('recordTelemetry returns a Promise (must be sync void), got "' + ret + '"');
-  }
-  // (3) no awaited dynamic env import left in the middleware (the removed design).
-  if (/\bawait\s+import\s*\(/.test(src)) {
-    errs.push('middleware still uses await import(...) for env (removed design re-introduced)');
-  }
-  return errs;
 }
 
 // Binary/generated/vendor/build-output/dependency exclusions: a file is EXCLUDED
@@ -336,63 +134,6 @@ function findBindingMentions() {
   return { hits, filesScanned, trackedCount };
 }
 
-/**
- * (B) aggregate assertion -- ACTUALLY CONSUMES TELEMETRY_MODULES + the call
- * sites with the structural checks above. Returns { errors[], scanned } so main
- * can fail-closed and so the mutation-proof test can invoke it directly. It is
- * MUTATION-PROVABLE: injecting a raw event key, a console.log(rawUa), or a
- * Headers-typed emit param makes one of the sub-checks return a non-empty array.
- */
-export function runAssertionB(readFn = read) {
-  const errors = [];
-  let scanned = 0;
-
-  // (1) emit() signature.
-  const adapter = readFn('src/lib/telemetry/ae-adapter.ts');
-  if (adapter === null) errors.push('write adapter missing');
-  else { scanned++; for (const e of checkEmitSignature(adapter)) errors.push(e); }
-
-  // Consume EVERY telemetry module: none may contain console.* (4).
-  for (const rel of TELEMETRY_MODULES) {
-    const src = readFn(rel);
-    if (src === null) { errors.push(`telemetry module missing: ${rel}`); continue; }
-    scanned++;
-    for (const e of checkNoConsole(src)) errors.push(`${rel}: ${e}`);
-  }
-
-  // (2)(3)(6) classifier structural purity.
-  const classifier = readFn(CLASSIFIER_MODULE);
-  if (classifier === null) errors.push(`classifier module missing: ${CLASSIFIER_MODULE}`);
-  else {
-    scanned++;
-    for (const e of checkBuilderReturnType(classifier)) errors.push(`${CLASSIFIER_MODULE}: ${e}`);
-    for (const e of checkReturnedEventKeys(classifier)) errors.push(`${CLASSIFIER_MODULE}: ${e}`);
-    for (const e of checkNoRawInReturnString(classifier)) errors.push(`${CLASSIFIER_MODULE}: ${e}`);
-  }
-
-  // (D) middleware sync-telemetry invariant (D-53 O-5 critical-path rule).
-  const middleware = readFn(MIDDLEWARE_MODULE);
-  if (middleware === null) errors.push(`middleware module missing: ${MIDDLEWARE_MODULE}`);
-  else {
-    scanned++;
-    for (const e of checkMiddlewareSyncTelemetry(middleware)) errors.push(`${MIDDLEWARE_MODULE}: ${e}`);
-  }
-
-  // (5) call-site emit() argument shape; require >0 emit calls overall.
-  let totalEmitCalls = 0;
-  for (const rel of TA2_CALL_SITES) {
-    const src = readFn(rel);
-    if (src === null) { errors.push(`call site missing: ${rel}`); continue; }
-    scanned++;
-    const { errs, found } = checkCallSiteEmit(src);
-    totalEmitCalls += found;
-    for (const e of errs) errors.push(`${rel}: ${e}`);
-  }
-  if (totalEmitCalls === 0) errors.push('anti-vacuity: no emit() call found across TA2 call sites');
-
-  return { errors, scanned };
-}
-
 function main() {
   console.log('[TEL] Adoption-Telemetry no-read + binding-confinement static gate');
   let failed = false;
@@ -424,18 +165,24 @@ function main() {
     failed = true;
   }
 
-  // (B) EMITTER PURITY -- structural, consuming TELEMETRY_MODULES + call sites.
-  const b = runAssertionB();
-  totalScanned += b.scanned;
-  console.log(`[TEL] (B) emitter-purity structural checks: ${b.scanned} module(s)/call-site(s) scanned`);
-  if (b.scanned === 0) {
-    console.error('[TEL] FAIL (B): scanned 0 modules -- assertion B vacuous.'); failed = true;
-  }
-  if (b.errors.length) {
-    console.error(`[TEL] FAIL (B): ${b.errors.join(' | ')}`); failed = true;
+  // (B) EMITTER PURITY
+  const adapter = read('src/lib/telemetry/ae-adapter.ts');
+  if (adapter === null) {
+    console.error('[TEL] FAIL (B): write adapter missing'); failed = true;
   } else {
-    console.log('[TEL] (B) emitter pure: signature clean; builders TelemetryEvent|null; '
-      + 'returned events 8-key only; no console.*; call sites emit(env, event); no raw surfacing.');
+    totalScanned++;
+    const sigMatch = adapter.match(/export function emit\(([\s\S]*?)\)\s*:/);
+    if (!sigMatch) {
+      console.error('[TEL] FAIL (B): could not locate emit() signature'); failed = true;
+    } else {
+      const sig = sigMatch[1];
+      for (const t of EMITTER_FORBIDDEN_PARAM_TYPES) {
+        if (new RegExp(`:\\s*${t}\\b`).test(sig)) {
+          console.error(`[TEL] FAIL (B): emit() accepts forbidden param type ${t}`); failed = true;
+        }
+      }
+      console.log(`[TEL] (B) emit() signature scanned (len ${sig.length}); forbidden param types absent`);
+    }
   }
 
   // (C) BINDING CONFINEMENT -- genuinely repo-wide over `git ls-files`.
@@ -476,11 +223,7 @@ function main() {
   console.log('[TEL] PASS: no serve path reads telemetry; emitter pure; binding confined.');
 }
 
-export {
-  NO_READ_PATHS, TEXTUAL_ALLOWLIST, findBindingMentions, BINDING,
-  TELEMETRY_MODULES, TA2_CALL_SITES, CLASSIFIER_MODULE, EVENT_ALLOWED_KEYS,
-  RAW_INPUT_TOKENS,
-};
+export { NO_READ_PATHS, TEXTUAL_ALLOWLIST, findBindingMentions, BINDING };
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) main();

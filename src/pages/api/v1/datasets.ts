@@ -6,41 +6,7 @@
  */
 export const prerender = false;
 
-import { emit, isEnabled, type TelemetryEnv } from '../../../lib/telemetry/ae-adapter';
-import { buildDatasetsEvent } from '../../../lib/telemetry/request-classifier';
-
 const CDN_BASE = 'https://cdn.free2aitools.com';
-
-// P2 Adoption Telemetry (TA2) -- DATASETS IMPL (D-53 O-2). ONLY the real
-// known-file 302 branch emits (surface=datasets.302, status_class 3xx, once);
-// the manifest 200 + unknown-file 404 branches emit ZERO. Isolated swallow; the
-// redirect Response is returned unchanged; the binding token is never named.
-//
-// env is INJECTED (first param): production passes locals.runtime?.env (the
-// Cloudflare adapter's synchronous Env); tests pass a mock binding. This is the
-// REAL emit site the GET handler calls -- exported so the SRS-1 exactly-once test
-// exercises the SAME code (not a mirror). SYNC + isEnabled-first.
-export function recordDatasets302(env: TelemetryEnv | undefined, request: Request): void {
-    try {
-        if (!isEnabled(env)) return;
-        const headers = request.headers;
-        let refererHost: string | null = null;
-        const ref = headers.get('referer');
-        if (ref) { try { refererHost = new URL(ref).hostname; } catch { refererHost = null; } }
-        let ownHost: string | null = null;
-        try { ownHost = new URL(request.url).hostname; } catch { ownHost = null; }
-        const event = buildDatasetsEvent({
-            isRealKnownFile302: true,
-            uaString: headers.get('user-agent'),
-            refererHost,
-            ownHost,
-            now: new Date(),
-        });
-        if (event) emit(env, event);
-    } catch {
-        // Telemetry must never affect the redirect response.
-    }
-}
 
 const KNOWN_FILES = [
     { id: 'fni_lite_latest', name: 'FNI Lite (Latest)', path: 'datasets/fni_lite_latest.parquet', tier: 'free', fields: ['id', 'title', 'abstract_300', 'fni_score', 'fni_version'] },
@@ -49,18 +15,13 @@ const KNOWN_FILES = [
 export async function GET({ request, locals }: { request: Request; locals: any }) {
     const url = new URL(request.url);
     const file = url.searchParams.get('file');
-    // env injected synchronously from the Cloudflare adapter (no static
-    // cloudflare:workers import; absent in non-worker contexts -> safe no-op).
-    const telEnv = (locals as { runtime?: { env?: TelemetryEnv } })?.runtime?.env;
 
     if (file) {
         const entry = KNOWN_FILES.find(f => f.id === file);
         if (!entry) {
             return new Response(JSON.stringify({ error: 'Unknown file' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
         }
-        const redirect = Response.redirect(`${CDN_BASE}/${entry.path}`, 302);
-        recordDatasets302(telEnv, request);   // O-2: count ONLY the real known-file 302
-        return redirect;
+        return Response.redirect(`${CDN_BASE}/${entry.path}`, 302);
     }
 
     const body = {
