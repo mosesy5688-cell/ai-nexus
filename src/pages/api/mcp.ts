@@ -4,6 +4,8 @@
  * 5 tools: search, rank, explain, select_model, compare.
  */
 import type { APIRoute } from 'astro';
+import { emit, isEnabled, type TelemetryEnv } from '../../lib/telemetry/ae-adapter';
+import { buildMcpEvent } from '../../lib/telemetry/request-classifier';
 import { GET as searchHandler } from './search.js';
 import { POST as selectHandler } from './v1/select.js';
 import { GET as compareHandler } from './v1/compare.js';
@@ -173,40 +175,74 @@ async function handleToolCall(context: any, toolName: string, args: any) {
     }
 }
 
+// P2 Adoption Telemetry (TA2) -- SINGLE FINALIZER (D-53 MCP IMPL): classify from
+// the ALREADY-PARSED method + tool name (O-3), emit at most once in an isolated
+// swallow, return the SAME Response. Reads response.status ONLY; binding never
+// named. env INJECTED (prod: context.locals.runtime?.env; tests: a mock).
+// Exported so the SRS-1 test drives the SAME code. SYNC + isEnabled-first.
+function hostOf(u: string | null): string | null {
+    if (!u) return null;
+    try { return new URL(u).hostname; } catch { return null; }
+}
+export function finalizeMcpTelemetry(
+    env: TelemetryEnv | undefined, request: Request, parsedMethod: string | null, toolName: string | null, status: number,
+): void {
+    try {
+        if (!isEnabled(env)) return;
+        const headers = request.headers;
+        const event = buildMcpEvent({
+            method: parsedMethod, toolName, uaString: headers.get('user-agent'),
+            refererHost: hostOf(headers.get('referer')), ownHost: hostOf(request.url),
+            status, now: new Date(),
+        });
+        if (event) emit(env, event);
+    } catch { /* telemetry must never affect the response */ }
+}
+
 export const POST: APIRoute = async (context) => {
     let body: any;
     try { body = await context.request.json(); } catch {
+        // Invalid JSON (parse error): zero emit (no parsed method to classify).
         return jsonrpcError(null, -32700, 'Parse error');
     }
 
     const { id, method, params } = body;
+    let response: Response;
+    let toolName: string | null = null;
 
     switch (method) {
         case 'initialize':
-            return jsonrpc(id, {
+            response = jsonrpc(id, {
                 protocolVersion: '2025-03-26',
                 serverInfo: SERVER_INFO,
                 instructions: SERVER_BOUNDARY,
                 capabilities: { tools: {} }
             });
-
+            break;
         case 'tools/list':
-            return jsonrpc(id, { tools: TOOLS });
-
+            response = jsonrpc(id, { tools: TOOLS });
+            break;
         case 'tools/call': {
-            const toolName = params?.name;
+            toolName = params?.name ?? null;
             const args = params?.arguments || {};
             try {
                 const result = await handleToolCall(context, toolName, args);
-                return jsonrpc(id, result);
+                response = jsonrpc(id, result);
             } catch (e: any) {
-                return jsonrpcError(id, -32603, e.message);
+                response = jsonrpcError(id, -32603, e.message);
             }
+            break;
         }
-
         default:
-            return jsonrpcError(id, -32601, `Method not found: ${method}`);
+            response = jsonrpcError(id, -32601, `Method not found: ${method}`);
+            break;
     }
+
+    // Single finalizer: env injected synchronously from the Cloudflare adapter
+    // (no static cloudflare:workers import; absent in non-worker -> safe no-op).
+    const telEnv = (context.locals as { runtime?: { env?: TelemetryEnv } })?.runtime?.env;
+    finalizeMcpTelemetry(telEnv, context.request, typeof method === 'string' ? method : null, toolName, response.status);
+    return response;
 };
 
 export const OPTIONS: APIRoute = async () => {
