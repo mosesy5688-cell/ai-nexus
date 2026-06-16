@@ -1,21 +1,16 @@
-/**
- * Bake silent-zero canaries (extracted from verify-db.js to stay under CES 250).
- *
- * CI never runs the packer (#2137/#2144), so verify-db.js is the bake's ONLY defense
- * against a producer silently emitting zeros/empties. Canaries close the gaps the
- * 2026-06-06 backend audit flagged: per-edge-type topology, hot columns going
- * total-null, bake-only binary producers shipping empty/corrupt, and citation
- * fabrication. Every threshold is CONSERVATIVE (a false canary blocks every bake).
- */
+// Bake silent-zero canaries (extracted from verify-db.js to stay under CES 250). CI never
+// runs the packer (#2137/#2144), so verify-db.js is the bake's ONLY defense against a
+// producer silently emitting zeros/empties: per-edge-type topology, hot-column null-out,
+// bake-only binary producers, and citation fabrication. Thresholds are CONSERVATIVE.
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
-// Single-source shard count the packer loops to WRITE meta-NN.db (pack-db.js);
-// reused as verifyCitationIntegrity's fail-closed `expected` floor.
+// Single-source shard count the packer loops to WRITE meta-NN.db; also the citation
+// canary's fail-closed `expected` floor.
 import { META_SHARD_COUNT } from '../../../src/constants/shard-constants.js';
 
-// Mesh topology + PR-1 resolution canary lives in its own module (CES 250);
-// re-exported so verify-db.js keeps importing it from here.
+// Mesh topology + PR-1 resolution canary (own module, CES 250); re-exported so verify-db.js
+// keeps importing it from here.
 export { verifyRelationContent } from './verify-mesh-canary.js';
 
 /**
@@ -149,27 +144,34 @@ export function verifyBakeProducers(dataDir, check) {
     }
 }
 
-/**
- * P3-EVIDENCE-1: Citation integrity canary. Re-scans EVERY meta-NN.db shard and
- * fails the bake on any FABRICATED citation, mirroring the producer contract
- * (umid-generator.normalizeCitation): title MANDATORY + genuine, no id/slug/hash as
- * title, no [object Object], no empty shells, year only from packed published_year
- * (a CONFLICT fails; current/bake year is NOT a violation). FAIL-CLOSED: zero/
- * incomplete shard coverage hard-fails — a permanent canary must never go green at
- * zero work, even when wiring guarantees shards (defense-in-depth).
- */
+// P3-EVIDENCE-1 citation integrity canary: re-scans EVERY meta-NN.db shard, mirrors the
+// producer contract (umid-generator.normalizeCitation) -- title mandatory+genuine, no
+// id/slug/hash-title, no [object Object], no shells, no internal url, year-conflict fails.
+// FAIL-CLOSED: zero/incomplete shard coverage hard-fails (never green at zero work).
 const CITATION_SAMPLE = /title=\{([^}]*)\}/;
 const CITATION_YEAR = /year=\{([^}]*)\}/;
 const SHELL_RE = /(title|author|year|url)=\{\s*\}/;
 const HASH_LIKE = /^[0-9a-f]{16,}$/i; // umid / content-hash residue
 const RESIDUE_RE = /url=\{\s*by Free2AITools\s*\}/i;
 const ROUTE_RE = /url=\{\s*\/(papers|models?|datasets|tools|agents|spaces|prompts)\//i;
+// P3-EVIDENCE-1 STAGE-B (D-59): ABSOLUTE internal Free2AITools URL in url={...} ONLY
+// (the relative-route / "by Free2AITools" residue checks above miss it; the live 96-shard
+// baseline showed ~99.99% of served citations carry one). Host = free2aitools.com or any
+// subdomain; http/https; case-insensitive; external urls (arxiv/github/hf) PASS; url field
+// only (a domain in title/note never false-positives). PURE; exported for the canary test.
+const URL_FIELD_RE = /url=\{([^}]*)\}/i;
+const INTERNAL_HOST_RE = /^https?:\/\/(?:[a-z0-9-]+\.)*free2aitools\.com(?:[/:?#]|$)/i;
+export function citationHasInternalUrl(c) {
+    const m = (typeof c === 'string' ? c : '').match(URL_FIELD_RE);
+    return !!m && INTERNAL_HOST_RE.test(m[1].trim());
+}
 
 /** Tally one citation string's violations into v (mutates). */
 function tallyCitation(c, r, hasYear, v) {
     if (c.includes('[object Object]')) v.objectObject++;
     if (SHELL_RE.test(c)) v.shell++;
     if (RESIDUE_RE.test(c) || ROUTE_RE.test(c)) v.residue++;
+    if (citationHasInternalUrl(c)) v.internalUrl++;
     const tm = c.match(CITATION_SAMPLE);
     if (!tm) { v.noTitle++; }
     else {
@@ -206,15 +208,13 @@ function scanShard(fp, v) {
 
 export function verifyCitationIntegrity(dirPath, check) {
     const discovered = fs.readdirSync(dirPath).filter(f => /^meta-\d+\.db$/.test(f)).sort();
-    // EXPECTED = META_SHARD_COUNT (constant the packer looped to WRITE these shards):
-    // authoritative + deterministic + no file-I/O fail mode (vs a shards_manifest read).
-    const expected = META_SHARD_COUNT;
+    const expected = META_SHARD_COUNT; // packer's WRITE count; authoritative fail-closed floor
     if (discovered.length === 0) { // GUARD 1 — zero discovered: FAIL, never silent return
         check('Citation: shards present', false, `0 discovered, expected ${expected} meta-NN.db shards`);
         return;
     }
     let rows = 0, cited = 0, scanned = 0;
-    const v = { objectObject: 0, idAsTitle: 0, shell: 0, noTitle: 0, residue: 0, yearConflict: 0 };
+    const v = { objectObject: 0, idAsTitle: 0, shell: 0, noTitle: 0, residue: 0, internalUrl: 0, yearConflict: 0 };
     for (const f of discovered) {
         const res = scanShard(path.join(dirPath, f), v); // null = unopenable / no citation col
         if (res) { scanned++; rows += res.rows; cited += res.cited; }
@@ -230,13 +230,13 @@ export function verifyCitationIntegrity(dirPath, check) {
         check('Citation: complete coverage', false, `expected ${expected}, discovered ${discovered.length}, scanned ${scanned}, missing: ${miss}`);
         return;
     }
-    // Content checks run ONLY here (scanned == expected && scanned > 0 && rows > 0).
     check('Citation: shards scanned', scanned === expected && rows > 0, `${scanned}/${expected} shards, ${rows} rows, ${cited} cited`);
     check('Citation: no [object Object]', v.objectObject === 0, `${v.objectObject} of ${cited}`);
     check('Citation: no id/hash-as-title', v.idAsTitle === 0, `${v.idAsTitle} of ${cited}`);
     check('Citation: no empty shells', v.shell === 0, `${v.shell} of ${cited}`);
     check('Citation: title present', v.noTitle === 0, `${v.noTitle} of ${cited} lack title`);
     check('Citation: no url residue', v.residue === 0, `${v.residue} of ${cited}`);
+    check('Citation: no internal Free2AITools URL', v.internalUrl === 0, `${v.internalUrl} of ${cited}`);
     check('Citation: year vs source', v.yearConflict === 0, `${v.yearConflict} of ${cited} conflict`);
 }
 
