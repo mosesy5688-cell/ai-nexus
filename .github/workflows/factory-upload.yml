@@ -451,6 +451,10 @@ jobs:
           # (2) upload ALL data objects (part-*.json.zst + .complete) FIRST, EXCLUDING
           # manifest.json so it is uploaded strictly LAST.
           node scripts/factory/r2-workflow-cli.js backup-dir output/cache/fused/ "${STAGING}" --extensions=.json.zst,.complete
+          # (2a) explicitly upload the .complete sentinel so it never depends on the
+          # backup-dir extension matcher (Rust FFI walkDirWithMd5 is unverified for the
+          # dotfile; JS fallback uses endsWith which is fine). Idempotent re-upload.
+          node scripts/factory/r2-workflow-cli.js upload-file output/cache/fused/.complete "${STAGING}.complete"
           # (2b) manifest.json LAST (after every data object is durable).
           node scripts/factory/r2-workflow-cli.js upload-file output/cache/fused/manifest.json "${STAGING}manifest.json"
           # (3) run-scoped descriptor handoff.json LAST OF ALL. Points ONLY at the
@@ -570,6 +574,10 @@ jobs:
             # excludes the producer manifest.json (uploaded separately, LAST). Restore
             # it explicitly so `verify` has the producer manifest to verify against.
             node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" output/cache/fused/manifest.json --strict
+            # Explicitly restore the .complete sentinel so recovery never depends on
+            # restore-dir having captured the dotfile (belt-and-suspenders for the
+            # producer-side explicit upload above). Before verify so the .complete gate sees it.
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}.complete" output/cache/fused/.complete --strict
             OUT=$(verify) || { echo "::error::Exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
             GOT=$(printf '%s' "$OUT" | tail -n1)
             if [ "$GOT" != "$EXPECT_SET_SHA" ]; then
@@ -685,6 +693,9 @@ jobs:
             rm -rf output/cache/fused/; mkdir -p output/cache/fused/
             node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/fused/ --strict
             node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" output/cache/fused/manifest.json --strict
+            # Explicitly restore the .complete sentinel so recovery never depends on
+            # restore-dir having captured the dotfile (before verify so the gate sees it).
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}.complete" output/cache/fused/.complete --strict
             OUT=$(verify) || { echo "::error::VFS exact-staging recovery failed verification ($STAGING_PREFIX)."; exit 1; }
             [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::VFS recovered set hash != Persist $EXPECT_SET_SHA."; exit 1; }
             echo "✅ [HANDOFF] VFS recovered + verified from exact staging"
@@ -1132,6 +1143,9 @@ jobs:
             rm -rf output/cache/fused/; mkdir -p output/cache/fused/
             node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/fused/ --strict
             node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" output/cache/fused/manifest.json --strict
+            # Explicitly restore the .complete sentinel so recovery never depends on
+            # restore-dir having captured the dotfile (before verify so the gate sees it).
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}.complete" output/cache/fused/.complete --strict
             OUT=$(verify) || { echo "::error::Upload exact-staging recovery failed verification ($STAGING_PREFIX)."; exit 1; }
             [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Upload recovered set hash != Persist $EXPECT_SET_SHA."; exit 1; }
             echo "✅ [HANDOFF] Upload recovered + verified from exact staging"
