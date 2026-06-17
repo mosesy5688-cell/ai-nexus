@@ -310,7 +310,10 @@ jobs:
           [ -f "cache/global-registry.json.zst" ] && cp cache/global-registry.json.zst output/cache/ || true
           [ -d "cache/registry" ] && cp -r cache/registry/* output/cache/registry/ 2>/dev/null || true
           echo "✅ Registry aligned: $(ls output/cache/registry/ 2>/dev/null | wc -l) shards"
-      # V27.52: restore cycle-scoped fused cache for re-dispatch reuse.
+      # V27.52: restore cycle-scoped fused cache for re-dispatch reuse. S1-BR: EXACT
+      # key only — the restore-keys prefix is removed so a re-dispatch can never pull a
+      # FOREIGN-attempt's fused output (identity-ambiguous) and skip recompute on it. An
+      # exact-key miss simply recomputes (the >=400 gates + handoff re-validate fresh).
       - name: Restore Fused Cache (V27.52)
         id: cache-fused-restore
         if: ${{ !inputs.force_fresh }}
@@ -318,8 +321,6 @@ jobs:
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
-          restore-keys: |
-            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
       - name: Detect fused output present
         id: detect-fused
         run: |
@@ -399,12 +400,67 @@ jobs:
       # V27.40 end of master-fusion-compute. V27.52: per-dispatch unique save key
       # gated on detect-fused (mirrors Compute condition — fires when fresh compute
       # ran, skips when restore-keys hit and Verify gates already validated cached data).
+      # S1-BR: generate the producer manifest BEFORE the cache save so the GHA
+      # fast-path cache carries manifest.json (lets consumers verify the GHA hit
+      # against the descriptor without always falling back to exact staging). Runs
+      # after the .complete + >=400 gates, so the carrier set is sentinel-passing.
+      - name: Generate Fused Handoff Manifest (S1-BR)
+        if: success()
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+        run: node scripts/factory/fused-handoff-manifest.js generate output/cache/fused/ output/cache/fused/manifest.json
       - name: Save Fused Entities to Cache
         if: success() && steps.detect-fused.outputs.skip_compute != 'true'
         uses: actions/cache/save@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+      # S1-BR EXACT-PRODUCER R2 HANDOFF — Compute produces a DURABLE, run +
+      # PRODUCER-attempt scoped, content-verified handoff to R2 so Persist never
+      # depends on the LRU-evicted GHA fused cache (the root cause: the cache
+      # carrying output/cache/fused/ was unretrievable at Persist restore time,
+      # forcing a fail-closed empty-state guard). Runs AFTER the .complete + >=400
+      # gates above, so output/cache/fused/ is sentinel-passing. PRODUCER attempt =
+      # github.run_attempt OF THIS compute job (the attempt that produced the set).
+      # Order: (1) local manifest -> (2) ALL data + .complete + manifest.json to the
+      # attempt-scoped staging prefix (manifest LAST) -> (3) handoff.json descriptor
+      # LAST OF ALL at the run level. Fail-loud on any step (no empty handoff).
+      - name: Produce Exact-Producer R2 Handoff (S1-BR)
+        if: success()
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"
+          RUN="${HANDOFF_FACTORY_RUN_ID}"
+          ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/fused/${UP}/${RUN}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (1) local manifest over the carrier set (part-*.json.zst + .complete).
+          node scripts/factory/fused-handoff-manifest.js generate output/cache/fused/ output/cache/fused/manifest.json
+          # (2) upload ALL data objects (part-*.json.zst + .complete) FIRST, EXCLUDING
+          # manifest.json so it is uploaded strictly LAST.
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/fused/ "${STAGING}" --extensions=.json.zst,.complete
+          # (2b) manifest.json LAST (after every data object is durable).
+          node scripts/factory/r2-workflow-cli.js upload-file output/cache/fused/manifest.json "${STAGING}manifest.json"
+          # (3) run-scoped descriptor handoff.json LAST OF ALL. Points ONLY at the
+          # CURRENT upstream + CURRENT factory run + this producer attempt — no list,
+          # no prefix guess, no previous-run fallback.
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('output/cache/fused/manifest.json')).digest('hex'))")
+          export SET_SHA=$(node -e "const m=require('./output/cache/fused/manifest.json');process.stdout.write(m.set_sha256)")
+          node -e "const f=require('fs');f.writeFileSync('output/cache/fused/handoff.json',JSON.stringify({producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),head_sha:String(process.env.HANDOFF_HEAD_SHA),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file output/cache/fused/handoff.json "${RUN_PREFIX}/handoff.json"
+          echo "✅ [HANDOFF] staging=${STAGING} set_sha256=${SET_SHA} descriptor=${RUN_PREFIX}/handoff.json"
 
   # V27.40: master-fusion-persist isolates R2 backup from heavy compute.
   # Transient R2 failure → re-run only persist (~3-5m), not 1h20m fusion.
@@ -413,31 +469,119 @@ jobs:
     needs: [master-fusion-compute, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # S1-BR: expose the VERIFIED handoff identity so downstream consumers
+    # (vfs-pack-db, upload) verify their restored fused set EQUALS this exact one
+    # and recover from the SAME exact producer staging prefix on any miss/mismatch.
+    outputs:
+      verified_fused_manifest_sha: ${{ steps.handoff-verify.outputs.manifest_sha }}
+      verified_fused_set_sha: ${{ steps.handoff-verify.outputs.set_sha }}
+      verified_fused_staging_prefix: ${{ steps.handoff-verify.outputs.staging_prefix }}
+      verified_fused_producer_attempt: ${{ steps.handoff-verify.outputs.producer_attempt }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
           aggressive-disk-cleanup: 'false'
           with-rust-ffi: 'false'
-      - name: Restore Fused Entities from intra-cache
+      # S1-BR AUTHORITATIVE ORDER. The GHA fused cache is an OPTIONAL FAST PATH,
+      # NOT authority — the run-scoped descriptor + content-verified producer
+      # staging prefix is. (1) read descriptor -> (2) verify provenance ->
+      # (3) TRY exact-key GHA restore (NO restore-keys prefix) -> (4) verify the
+      # GHA-restored content EXACTLY matches the descriptor manifest + set hash ->
+      # (5) on miss OR mismatch: wipe local fused/ + restore from the EXACT producer
+      # staging prefix -> (6) full manifest verification -> (7) mark VERIFIED ->
+      # (8) only THEN publish the compatibility copy to state/fused-entities/.
+      - name: Fetch + Verify Handoff Descriptor (S1-BR)
+        id: handoff-verify
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_RUN_ATTEMPT: ${{ github.run_attempt }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"
+          DESC_KEY="state/_handoff/fused/${UP}/${RUN}/handoff.json"
+          # (1) read the run-scoped descriptor (missing/malformed => fail-loud).
+          if ! node scripts/factory/r2-workflow-cli.js restore-file "${DESC_KEY}" /tmp/handoff.json; then
+            echo "::error::Handoff descriptor ${DESC_KEY} unretrievable — Compute must write it LAST. Fail-closed (no empty-state publish)."
+            exit 1
+          fi
+          if [ ! -s /tmp/handoff.json ]; then echo "::error::Handoff descriptor empty/missing"; exit 1; fi
+          # (2) verify provenance: current upstream + current run; producer_attempt
+          # <= current run_attempt; exact staging prefix derivation. Emits prefix\tset.
+          OUT=$(node scripts/factory/fused-handoff-manifest.js verify-descriptor /tmp/handoff.json)
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1)
+          SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          MANIFEST_SHA=$(node -e "process.stdout.write(String(require('/tmp/handoff.json').manifest_sha256))")
+          PRODUCER_ATTEMPT=$(node -e "process.stdout.write(String(require('/tmp/handoff.json').producer_attempt))")
+          echo "staging_prefix=${STAGING_PREFIX}" >> "$GITHUB_OUTPUT"
+          echo "set_sha=${SET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "manifest_sha=${MANIFEST_SHA}" >> "$GITHUB_OUTPUT"
+          echo "producer_attempt=${PRODUCER_ATTEMPT}" >> "$GITHUB_OUTPUT"
+          echo "✅ [HANDOFF] descriptor verified: staging=${STAGING_PREFIX} set=${SET_SHA}"
+      # (3) OPTIONAL FAST PATH: exact-key GHA cache restore. NO restore-keys prefix —
+      # a prefix hit is identity-ambiguous and is NOT authority. A miss is fine; the
+      # exact-staging recovery below is the durable source of truth.
+      - name: Restore Fused Entities (GHA fast path, exact key only)
         id: cache-restore-fused
         uses: actions/cache/restore@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
-          restore-keys: |
-            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      # V27.40.1 + V27.52: fail-fast on missing files. V27.52 swapped from cache-hit
-      # (which false-fires on restore-keys partial match) to file-existence detection.
-      - name: Verify Fused Files Present (defensive)
+      # (4)+(5)+(6) verify GHA content == descriptor manifest/set EXACTLY; on miss OR
+      # mismatch wipe local fused/ and restore from the EXACT producer staging prefix,
+      # then full-verify. (7) mark VERIFIED_FUSED_HANDOFF. An exact GHA hit with 400
+      # files + .complete is NOT acceptable unless it matches the handoff manifest.
+      - name: Verify or Recover Fused from Exact Staging (S1-BR)
+        env:
+          STAGING_PREFIX: ${{ steps.handoff-verify.outputs.staging_prefix }}
+          EXPECT_SET_SHA: ${{ steps.handoff-verify.outputs.set_sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          FUSED_COUNT=$(find output/cache/fused -name 'part-*.json.zst' 2>/dev/null | wc -l)
-          if [ "$FUSED_COUNT" -lt 1 ]; then
-            echo "::error::No fused/part-*.json.zst found post-restore. master-fusion-compute should have written via primary key OR restore-keys partial hit. Aborting persist to avoid R2 empty-state upload."
-            exit 1
+          set -uo pipefail
+          verify() {
+            node scripts/factory/fused-handoff-manifest.js verify output/cache/fused/ output/cache/fused/manifest.json
+          }
+          NEED_RECOVER=0
+          # GHA fast path is only trusted if it carries the producer's manifest.json AND
+          # full verification passes (set hash + per-file + counts).
+          if [ -f output/cache/fused/manifest.json ] && OUT=$(verify); then
+            GOT=$(printf '%s' "$OUT" | tail -n1)
+            if [ "$GOT" = "$EXPECT_SET_SHA" ]; then
+              echo "✅ [HANDOFF] GHA fast-path content matches descriptor set_sha=$GOT"
+            else
+              echo "⚠️ [HANDOFF] GHA set hash $GOT != descriptor $EXPECT_SET_SHA — recover from exact staging"; NEED_RECOVER=1
+            fi
+          else
+            echo "⚠️ [HANDOFF] GHA fast path missing/unverified — recover from exact staging"; NEED_RECOVER=1
           fi
-          echo "✅ Fused entities present: $FUSED_COUNT files"
-      - name: Backup Fused Entities to R2
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache/fused/
+            mkdir -p output/cache/fused/
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/fused/ --strict
+            # backup-dir's restore fast-path uses its own _manifest.json sidecar and
+            # excludes the producer manifest.json (uploaded separately, LAST). Restore
+            # it explicitly so `verify` has the producer manifest to verify against.
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" output/cache/fused/manifest.json --strict
+            OUT=$(verify) || { echo "::error::Exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
+            GOT=$(printf '%s' "$OUT" | tail -n1)
+            if [ "$GOT" != "$EXPECT_SET_SHA" ]; then
+              echo "::error::Recovered set hash $GOT != descriptor $EXPECT_SET_SHA. Fail-closed."; exit 1
+            fi
+            echo "✅ [HANDOFF] recovered + verified from exact staging set_sha=$GOT"
+          fi
+          echo "VERIFIED_FUSED_HANDOFF=1"
+      # (8) COMPATIBILITY PUBLICATION COPY only. state/fused-entities/ is NEVER a
+      # pre-Persist recovery input, NEVER exact-cycle authority, NEVER a prefix-fallback
+      # input — it is written ONLY after VERIFIED above (not an atomic promotion).
+      - name: Publish Fused Compatibility Copy to R2
         if: success()
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -505,33 +649,46 @@ jobs:
           [ ! -f "output/cache/trending.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trending.json.zst output/cache/trending.json.zst || true
           [ ! -f "output/cache/trend-data.json.zst" ] && node scripts/factory/r2-workflow-cli.js restore-file state/satellite-trending/trend-data.json.zst output/cache/trend-data.json.zst || true
           # V27.38: trends-summary.json.zst fallback removed (V27.36 paused generation)
-      - name: Restore Fused Entities
+      # S1-BR consumer (VFS Packing): may first try the exact-key GHA cache, but the
+      # restored fused set's manifest/set hash MUST EQUAL the Persist-VERIFIED identity.
+      # NO restore-keys prefix (identity-ambiguous), NO state/fused-entities/ fixed
+      # fallback (that fixed prefix is a compatibility copy, not current-run authority).
+      # On miss OR mismatch: wipe local fused/ + restore from the EXACT producer staging
+      # prefix from Persist's output, then re-verify; verification failure => fail-loud.
+      - name: Restore Fused Entities (GHA fast path, exact key only)
         id: cache-fused
         uses: actions/cache/restore@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
-          restore-keys: |
-            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      # V27.52: file-existence check (cache-hit false-fires on restore-keys partial match)
-      - name: Detect fused for R2 fallback
-        id: detect-fused-vfs
-        run: |
-          if find output/cache/fused -name 'part-*.json.zst' 2>/dev/null | head -1 | grep -q .; then
-            echo "needs_r2=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "needs_r2=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: R2 Fallback for Fused Entities
-        if: steps.detect-fused-vfs.outputs.needs_r2 == 'true'
+      - name: Verify or Recover Fused from Exact Staging (S1-BR)
         env:
+          STAGING_PREFIX: ${{ needs.master-fusion-persist.outputs.verified_fused_staging_prefix }}
+          EXPECT_SET_SHA: ${{ needs.master-fusion-persist.outputs.verified_fused_set_sha }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          mkdir -p output/cache/fused
-          node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
+          set -uo pipefail
+          if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SET_SHA}" ]; then
+            echo "::error::Persist did not export a verified fused identity — cannot consume fused safely."; exit 1
+          fi
+          verify() { node scripts/factory/fused-handoff-manifest.js verify output/cache/fused/ output/cache/fused/manifest.json; }
+          NEED_RECOVER=0
+          if [ -f output/cache/fused/manifest.json ] && OUT=$(verify) && [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "✅ [HANDOFF] VFS fast-path fused matches Persist set_sha=$EXPECT_SET_SHA"
+          else
+            echo "⚠️ [HANDOFF] VFS fused miss/mismatch — recover from exact staging"; NEED_RECOVER=1
+          fi
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache/fused/; mkdir -p output/cache/fused/
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/fused/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" output/cache/fused/manifest.json --strict
+            OUT=$(verify) || { echo "::error::VFS exact-staging recovery failed verification ($STAGING_PREFIX)."; exit 1; }
+            [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::VFS recovered set hash != Persist $EXPECT_SET_SHA."; exit 1; }
+            echo "✅ [HANDOFF] VFS recovered + verified from exact staging"
+          fi
       # Embedding-shard restore. The EMBED_CODE_VERSION token in the key busts the
       # cache when the embedding logic changes (pack-db.js re-embeds only ids NOT in
       # the restored shards, so a stale token would freeze every vector); bump it to
@@ -940,33 +1097,45 @@ jobs:
           restore-keys: |
             r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-
             r2-upload-manifest-
-      - name: Restore Fused Entities from Cache
+      # S1-BR consumer (Final Upload): exact-key GHA fast path, then the restored
+      # fused set MUST match the Persist-VERIFIED identity. NO restore-keys prefix,
+      # NO state/fused-entities/ identity-ambiguous current-run fallback. On miss OR
+      # mismatch: wipe local fused/ + restore from the EXACT producer staging prefix
+      # from Persist's output, then re-verify; verification failure => fail-loud.
+      - name: Restore Fused Entities (GHA fast path, exact key only)
         id: cache-fused-upload
         uses: actions/cache/restore@v5
         with:
           path: output/cache/fused/
           key: intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
-          restore-keys: |
-            intra-4-4-fused-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      # V27.52: file-existence check for R2 fallback decision
-      - name: Detect fused for upload R2 fallback
-        id: detect-fused-upload
-        run: |
-          if find output/cache/fused -name 'part-*.json.zst' 2>/dev/null | head -1 | grep -q .; then
-            echo "needs_r2=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "needs_r2=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: R2 Fallback for Fused Entities (Upload Job)
-        if: steps.detect-fused-upload.outputs.needs_r2 == 'true'
+      - name: Verify or Recover Fused from Exact Staging (S1-BR)
         env:
+          STAGING_PREFIX: ${{ needs.master-fusion-persist.outputs.verified_fused_staging_prefix }}
+          EXPECT_SET_SHA: ${{ needs.master-fusion-persist.outputs.verified_fused_set_sha }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          mkdir -p output/cache/fused
-          node scripts/factory/r2-workflow-cli.js restore-dir state/fused-entities/ output/cache/fused/
+          set -uo pipefail
+          if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SET_SHA}" ]; then
+            echo "::error::Persist did not export a verified fused identity — cannot consume fused safely."; exit 1
+          fi
+          verify() { node scripts/factory/fused-handoff-manifest.js verify output/cache/fused/ output/cache/fused/manifest.json; }
+          NEED_RECOVER=0
+          if [ -f output/cache/fused/manifest.json ] && OUT=$(verify) && [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "✅ [HANDOFF] Upload fast-path fused matches Persist set_sha=$EXPECT_SET_SHA"
+          else
+            echo "⚠️ [HANDOFF] Upload fused miss/mismatch — recover from exact staging"; NEED_RECOVER=1
+          fi
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache/fused/; mkdir -p output/cache/fused/
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/fused/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" output/cache/fused/manifest.json --strict
+            OUT=$(verify) || { echo "::error::Upload exact-staging recovery failed verification ($STAGING_PREFIX)."; exit 1; }
+            [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Upload recovered set hash != Persist $EXPECT_SET_SHA."; exit 1; }
+            echo "✅ [HANDOFF] Upload recovered + verified from exact staging"
+          fi
       - name: Restore Global Registry Cache (V22.8 Cycle)
         uses: actions/cache/restore@v5
         with:
@@ -1189,6 +1358,57 @@ jobs:
         with:
           path: output/cache/last-upload-manifest.json
           key: r2-upload-manifest-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+      # S1-BR STAGING LIFECYCLE. Reached ONLY after the Final Upload step above
+      # succeeded (same job, gated success()). (a) delete THIS run's exact staging
+      # prefix + descriptor — recovery evidence is no longer needed once the cycle
+      # shipped; (b) bounded GC: delete ONLY OTHER run prefixes under
+      # state/_handoff/fused/ whose newest object is older than RETENTION_DAYS (7).
+      # NEVER deletes: the current run, the current descriptor's producer-attempt
+      # target, state/fused-entities/ (compatibility copy), or any other carrier
+      # (delete-prefix refuses anything outside state/_handoff/). On a downstream
+      # FAILURE this step does not run, so the exact staging is RETAINED for the
+      # evidence-based failed-job recovery (one re-run reads the same descriptor).
+      - name: Cleanup + GC Fused Handoff Staging (S1-BR)
+        if: success()
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          PRODUCER_ATTEMPT: ${{ needs.master-fusion-persist.outputs.verified_fused_producer_attempt }}
+          RETENTION_DAYS: '7'
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"
+          CUR_RUN_PREFIX="state/_handoff/fused/${UP}/${RUN}/"
+          # (a) delete the current run's whole run prefix (every per-attempt subtree's
+          # data + manifest + the handoff.json descriptor). This is a literal prefix
+          # delete, NOT a glob/latest lookup; delete-prefix refuses anything outside
+          # state/_handoff/.
+          node scripts/factory/r2-workflow-cli.js delete-prefix "${CUR_RUN_PREFIX}" || echo "⚠️ current-run staging cleanup partial (will be GC'd later)"
+          # (b) bounded GC of OLD run prefixes only. Enumerate upstream dirs, then each
+          # run dir, read its handoff.json created_at, and delete-prefix ONLY runs older
+          # than RETENTION_DAYS — never the current run, never any non-_handoff carrier.
+          # Best-effort: a GC hiccup must never block the shipped cycle (|| true).
+          GC_CUR_RUN="${RUN}" GC_RETENTION_DAYS="${RETENTION_DAYS}" bash -c '
+            set -uo pipefail
+            now=$(date -u +%s)
+            keep_after=$(( now - GC_RETENTION_DAYS*86400 ))
+            for up in $(node scripts/factory/r2-workflow-cli.js list-prefix state/_handoff/fused/ --delimiter=/ 2>/dev/null); do
+              for runp in $(node scripts/factory/r2-workflow-cli.js list-prefix "$up" --delimiter=/ 2>/dev/null); do
+                rid=$(basename "$runp")
+                [ "$rid" = "$GC_CUR_RUN" ] && continue
+                node scripts/factory/r2-workflow-cli.js restore-file "${runp}handoff.json" /tmp/gc-desc.json >/dev/null 2>&1 || continue
+                created=$(node -e "try{process.stdout.write(String(Math.floor(Date.parse(require(\"/tmp/gc-desc.json\").created_at)/1000)))}catch{process.stdout.write(\"0\")}")
+                if [ -n "$created" ] && [ "$created" -gt 0 ] && [ "$created" -lt "$keep_after" ]; then
+                  echo "[GC] deleting aged run prefix $runp (created epoch=$created)"
+                  node scripts/factory/r2-workflow-cli.js delete-prefix "$runp" || true
+                fi
+              done
+            done
+          ' || echo "⚠️ handoff GC best-effort skip"
       # V27.3 three-tier verification order:
       #   Upload -> L2 R2 origin probe -> Purge -> Drain -> L3 CDN probe
       # L2 confirms R2-side integrity (orthogonal to CDN), so a later CDN failure
