@@ -10,6 +10,18 @@
  *   node r2-workflow-cli.js restore-dir <r2Prefix> <localDir> [--strict]
  *   node r2-workflow-cli.js backup-dir <localDir> <r2Prefix> [--extensions=.json,.zst]
  *   node r2-workflow-cli.js restore-rust-ffi [crate1,crate2,...]
+ *   node r2-workflow-cli.js list-prefix <r2Prefix> [--delimiter=/]
+ *   node r2-workflow-cli.js delete-prefix <r2Prefix> [--dry-run]
+ *
+ * list-prefix / delete-prefix (S1-BR EXACT-PRODUCER R2 HANDOFF, narrow add):
+ *   list-prefix    — enumerate object keys under a prefix (paginated). With
+ *                    --delimiter=/ it instead emits the immediate "subdirectory"
+ *                    CommonPrefixes (used by the bounded staging GC to discover
+ *                    old run prefixes). Keys/prefixes printed one per line.
+ *   delete-prefix  — delete every object under a prefix (batched 1000). A bare
+ *                    or `state/`/`state/fused-entities/`-style production prefix
+ *                    is REFUSED — only `state/_handoff/` staging prefixes are
+ *                    deletable, so the GC can never touch a carrier/publication.
  */
 import fs from 'fs';
 import {
@@ -117,9 +129,35 @@ async function main() {
             console.log('[R2-CLI] Rust FFI binaries backed up to R2 vault');
             break;
         }
+        case 'list-prefix': {
+            const positional = rest.filter(a => !a.startsWith('--'));
+            const [r2Prefix] = positional;
+            if (!r2Prefix) { console.error('Usage: list-prefix <r2Prefix> [--delimiter=/]'); process.exit(1); }
+            const delimiter = parseOpt(rest, 'delimiter', null);
+            const { keys, prefixes } = await listPrefix(r2Prefix, delimiter);
+            const out = delimiter ? prefixes : keys;
+            for (const k of out) console.log(k);
+            console.error(`[R2-CLI] list-prefix: ${out.length} ${delimiter ? 'common-prefixes' : 'keys'} under ${r2Prefix}`);
+            break;
+        }
+        case 'delete-prefix': {
+            const positional = rest.filter(a => !a.startsWith('--'));
+            const [r2Prefix] = positional;
+            if (!r2Prefix) { console.error('Usage: delete-prefix <r2Prefix> [--dry-run]'); process.exit(1); }
+            assertHandoffStagingPrefix(r2Prefix);
+            const dryRun = rest.includes('--dry-run');
+            const { keys } = await listPrefix(r2Prefix, null);
+            if (dryRun) {
+                console.error(`[R2-CLI] delete-prefix DRY-RUN: would delete ${keys.length} objects under ${r2Prefix}`);
+                break;
+            }
+            const deleted = await deleteKeys(keys);
+            console.error(`[R2-CLI] delete-prefix: deleted ${deleted}/${keys.length} objects under ${r2Prefix}`);
+            break;
+        }
         default:
             console.error(`Unknown action: ${action}`);
-            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi');
+            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi, list-prefix, delete-prefix');
             process.exit(1);
     }
 }
@@ -127,6 +165,56 @@ async function main() {
 function parseOpt(args, name, defaultVal) {
     const arg = args.find(a => a.startsWith(`--${name}=`));
     return arg ? arg.split('=')[1] : defaultVal;
+}
+
+// Safety: delete-prefix may ONLY operate inside the handoff staging tree. This
+// blocks the bounded GC (or a mis-call) from ever deleting state/fused-entities/
+// (the compatibility publication copy), any other state/ carrier, or a bare/root
+// prefix. Fail-loud rather than guess a lenient scope.
+const HANDOFF_STAGING_ROOT = 'state/_handoff/';
+function assertHandoffStagingPrefix(prefix) {
+    const p = String(prefix || '');
+    if (!p.startsWith(HANDOFF_STAGING_ROOT) || p.length <= HANDOFF_STAGING_ROOT.length) {
+        console.error(`[R2-CLI] FATAL: delete-prefix refused — '${p}' is not under '${HANDOFF_STAGING_ROOT}'. Only handoff staging prefixes are deletable.`);
+        process.exit(1);
+    }
+}
+
+async function s3AndBucket() {
+    const { createR2Client } = await import('./lib/r2-helpers.js');
+    return { s3: createR2Client(), bucket: process.env.R2_BUCKET || 'ai-nexus-assets' };
+}
+
+// List object keys under a prefix (paginated). With a delimiter, also returns the
+// immediate CommonPrefixes (used by the GC to enumerate old run "directories").
+async function listPrefix(prefix, delimiter) {
+    const { ListObjectsV2Command } = await import('@aws-sdk/client-s3');
+    const { s3, bucket } = await s3AndBucket();
+    const keys = []; const prefixes = []; let tk;
+    do {
+        const r = await s3.send(new ListObjectsV2Command({
+            Bucket: bucket, Prefix: prefix, MaxKeys: 1000,
+            Delimiter: delimiter || undefined, ContinuationToken: tk
+        }));
+        for (const o of r.Contents || []) keys.push(o.Key);
+        for (const cp of r.CommonPrefixes || []) prefixes.push(cp.Prefix);
+        tk = r.NextContinuationToken;
+    } while (tk);
+    return { keys, prefixes };
+}
+
+async function deleteKeys(keys) {
+    if (keys.length === 0) return 0;
+    const { DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+    const { s3, bucket } = await s3AndBucket();
+    let deleted = 0;
+    for (let i = 0; i < keys.length; i += 1000) {
+        const batch = keys.slice(i, i + 1000).map(Key => ({ Key }));
+        const r = await s3.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: batch } }));
+        deleted += (r.Deleted || []).length;
+        for (const err of r.Errors || []) console.error(`[R2-CLI] delete error ${err.Key}: ${err.Message}`);
+    }
+    return deleted;
 }
 
 main().catch(err => { console.error(`[R2-CLI] Fatal: ${err.message}`); process.exit(1); });

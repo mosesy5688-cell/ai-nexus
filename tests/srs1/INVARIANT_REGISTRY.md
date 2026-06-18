@@ -295,6 +295,29 @@ proof in the PR body).
 | B1A-SKIP-SOURCE-ATTEMPT (#10) | skip_harvest declares a `source_run_attempt` input, recovers via the EXACT source-attempt key (no prefix), hard-requires BOTH source_run_id + source_run_attempt (pre-check exit 1) and has a 4/4 source-attempt gate (SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE + exit 1) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
 | B1A-SCOPE (#14) | SCOPE guard: merge floor `-lt 85000`, Harvest Health Summary, per-job timeouts (330/300/120), and the R2 fixed-key object hierarchy (`ingestion/raw/`, `state/harvest-health/latest.json`) are UNCHANGED; the test touches no floor/health/adapter module (no product logic re-implemented) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
 
+## Registry — MFH PR-A (master-fusion EXACT-PRODUCER R2 HANDOFF, S1-BR)
+
+> Deterministic, hermetic invariants for the MASTER-FUSION-HANDOFF PR-A (Founder
+> D-73). ROOT CAUSE: Factory 4/4 "Master Fusion (Persist R2)" fail-closed because
+> the GHA cache carrying the fused output (output/cache/fused/) from "Master Fusion
+> (Compute)" was unretrievable at Persist restore time (LRU eviction/consistency
+> miss); the empty-state guard correctly refused to publish. FIX: a DURABLE,
+> run + PRODUCER-attempt scoped, content-verified EXACT-PRODUCER R2 handoff
+> (`state/_handoff/fused/<upstream>/<run>/attempt-<n>/` + a run-scoped `handoff.json`
+> descriptor written LAST). Persist reads the descriptor, verifies provenance, uses
+> the GHA cache only as an OPTIONAL fast path (no restore-keys), and recovers from
+> the EXACT producer staging on miss/mismatch BEFORE the compatibility publish;
+> VFS + Upload verify their restored fused set EQUALS Persist's VERIFIED identity
+> and recover from the SAME exact staging, never from the fixed state/fused-entities/
+> copy. EXEC tests drive the real verifier module (`fused-handoff-manifest.js`) on a
+> temp dir (no R2). STATIC tests read `factory-upload.yml` as text (no execution).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| MFH-MANIFEST | Manifest schema + counts: full field set; `.complete` counted as a file; per-file {relative_path,size_bytes,sha256}; set_sha256 over the STABLE-SORTED (path,sha256) tuples; manifest carries NO self-hash; verification enforces EXACT set equality (missing/extra => fail), per-file size + sha256, set hash, >=400 part + >=400 processedShards + `.complete` gates; NEVER count-only | `tests/unit/fused-handoff-manifest.test.ts` | EXEC | **NEW** |
+| MFH-DESCRIPTOR | Run-scoped descriptor provenance: current upstream + current factory run; producer_attempt a positive int <= current run_attempt; exact_staging_prefix == derived run+attempt path (no list-latest / no prefix guess / no previous-run fallback); missing/malformed => fail-loud | `tests/unit/fused-handoff-manifest.test.ts` | EXEC | **NEW** |
+| MFH-DAG | Workflow DAG: Compute produces staging (data -> manifest LAST -> descriptor LAST-of-all, set -e); Persist reads+verifies descriptor, GHA exact-key fast path (NO restore-keys), verify-or-recover from EXACT staging, fixed copy written ONLY after VERIFIED + exposes verified job outputs; VFS + Upload accept only set hash == Persist output + recover EXACT staging + never read fixed state/fused-entities/; cleanup deletes current staging on Final Upload success, retains on failure, bounded 7-day GC refuses current run / non-_handoff carriers; delete-prefix locked to state/_handoff/; SCOPE: master-fusion algorithm, .complete/>=400 gates, timeouts, production uploader UNCHANGED | `tests/unit/fused-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the
