@@ -318,6 +318,44 @@ proof in the PR body).
 | MFH-DESCRIPTOR | Run-scoped descriptor provenance: current upstream + current factory run; producer_attempt a positive int <= current run_attempt; exact_staging_prefix == derived run+attempt path (no list-latest / no prefix guess / no previous-run fallback); missing/malformed => fail-loud | `tests/unit/fused-handoff-manifest.test.ts` | EXEC | **NEW** |
 | MFH-DAG | Workflow DAG: Compute produces staging (data -> manifest LAST -> descriptor LAST-of-all, set -e); Persist reads+verifies descriptor, GHA exact-key fast path (NO restore-keys), verify-or-recover from EXACT staging, fixed copy written ONLY after VERIFIED + exposes verified job outputs; VFS + Upload accept only set hash == Persist output + recover EXACT staging + never read fixed state/fused-entities/; cleanup deletes current staging on Final Upload success, retains on failure, bounded 7-day GC refuses current run / non-_handoff carriers; delete-prefix locked to state/_handoff/; SCOPE: master-fusion algorithm, .complete/>=400 gates, timeouts, production uploader UNCHANGED | `tests/unit/fused-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
 
+## Registry — TA2-GATE PR-G1 (preview-grade cold-load runtime gate)
+
+> Deterministic, hermetic invariants for the TA2 PREVIEW-GRADE RUNTIME GATE
+> (Founder D-2026-0619-77). TWO classes in one file
+> `tests/unit/ta2-preview-runtime-gate.test.ts` (collected by the Tier-1
+> `unit-test` job): (1) STATIC workflow-invariant locks reading
+> `.github/workflows/ta2-preview-runtime-gate.yml` + the two `scripts/ci/ta2-*.mjs`
+> as TEXT (CRLF-normalized; no workflow execution, no network, no YAML dep;
+> negative-presence locks inspect EXECUTABLE source with comments stripped); and
+> (2) HERMETIC smoke-runner EXEC tests that import the pure predicates from
+> `scripts/ci/ta2-preview-smoke.mjs` and drive `probe` with a MOCKED `fetch` (no
+> live network). ROOT CAUSE (TA2-INCIDENT-1, SEV-1): a telemetry import pulled into
+> the Worker-ENTRY synchronous cold-load chain made every Worker/SSR route return
+> empty-body HTTP 500 in prod, while astro-build/vitest/tsc/local-miniflare ALL
+> FALSE-PASSED — only a REAL CF preview deploy + a COLD first request catches it.
+> SCOPE: the gate workflow + its two harness scripts ONLY; it deploys an EPHEMERAL
+> `*.pages.dev` PREVIEW (never production / never `--branch=main`), holds the CF
+> preview token (`CF_PREVIEW_API_TOKEN`, GitHub Environment `ta2-preview`) ONLY in
+> the deploy + cleanup jobs, and never references the production `CLOUDFLARE_API_TOKEN`.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| TA2G-TRIGGER | trigger is `pull_request` to main ONLY (NEVER `pull_request_target`); fork PRs (head repo != base repo) fail-closed as TRUSTED_BRANCH_REQUIRED and the required `preview-smoke` check exits 1 (if: always() — no skip wedge, no green N/A) | `tests/unit/ta2-preview-runtime-gate.test.ts` | CONFIG | **NEW** |
+| TA2G-SECRET | deploy + cleanup reference `CF_PREVIEW_API_TOKEN` via Environment `ta2-preview`; build + smoke jobs hold NO CF secret; the production `CLOUDFLARE_API_TOKEN` is never referenced; token never echoed (NEGATIVE: exposing the token to build/smoke trips the lock) | `tests/unit/ta2-preview-runtime-gate.test.ts` | CONFIG | **NEW** |
+| TA2G-JOBS | four trust-domain jobs: build (checkout EXACT control SHA, mirror infra-deploy build+restructure, SHA-256 dist manifest, immutable artifact) -> deploy (download artifact, NO install/build/candidate-exec, `pages deploy dist --branch=<preview>`, output exact id+url) -> smoke (preview URL only) -> cleanup | `tests/unit/ta2-preview-runtime-gate.test.ts` | CONFIG | **NEW** |
+| TA2G-PREVIEW-NAME | deterministic preview branch `ta2-pr-<PR>-run-<RUN_ID>-attempt-<RUN_ATTEMPT>-<CONTROL>`; HARD-ASSERT not main / not prod branch / not empty / control in a fixed set; never `--branch=main`; URL must be `*.pages.dev` and any `free2aitools.com` result fails (NEGATIVE: a `--branch=main` mutation trips the no-main lock) | `tests/unit/ta2-preview-runtime-gate.test.ts` | CONFIG | **NEW** |
+| TA2G-PIN-TEL-R2 | ALL third-party actions pinned by 40-hex commit SHA; telemetry stays OFF (no `TELEMETRY_ENABLED` in executable YAML); `[env.preview]` canary AE dataset retained in `wrangler.toml`; an added request-path R2 WRITE on the shared `R2_ASSETS` binding blocks the preview (PREVIEW_R2_ISOLATION_REQUIRED + exit 1) | `tests/unit/ta2-preview-runtime-gate.test.ts` | CONFIG | **NEW** |
+| TA2G-CLEANUP | cleanup runs `if: always()`, deletes by EXACT deployment id with `--force` (aliased previews), VERIFIES absence, and a cleanup/verify failure is RED (`process.exit(1)`, never warning-only) (NEGATIVE: downgrading cleanup to a warning drops the exit-1 path) | `tests/unit/ta2-preview-runtime-gate.test.ts` | CONFIG + SOURCE | **NEW** |
+| TA2G-QUAL | INDEPENDENT `qualification-verdict` passes ONLY when candidate=PASS AND broken=EXPECTED_RUNTIME_FAIL AND recovered=PASS AND current_base=PASS AND every cleanup=PASS; the four controls map to candidate / broken(`cd64c8b4`) / recovered(`b5107e4c`) / current(PR base); a build/deploy failure CANNOT masquerade as a positive-control success (the deploy-result gate precedes the broken->EXPECTED_RUNTIME_FAIL relabel); matrix `fail-fast: false` so the expected-fail control never reds the job | `tests/unit/ta2-preview-runtime-gate.test.ts` | CONFIG | **NEW** |
+| TA2G-SMOKE | EXEC: exactly the six endpoints in order with `/api/v1/health` FIRST (cold, no warm-up); per-endpoint content-type sanity (json for api/openapi/mcp, text/* for llms) + minimum structure (health JSON / mcp JSON-RPC / openapi openapi+paths / search object); 5xx / empty-body / wrong-content-type / parse-fail / timeout all FAIL-CLOSED; production custom domain + non-`*.pages.dev` hosts rejected; a healthy record carries ONLY status/content-type/length/sha256/parse (NO raw body, header or secret archived) | `tests/unit/ta2-preview-runtime-gate.test.ts` | EXEC | **NEW** |
+
+> Live-tier complement (NOT a hermetic PR test — requires real preview deploys):
+> the A/B/C QUALIFICATION run itself (deploying candidate / `cd64c8b4` / `b5107e4c`
+> / current-base to ephemeral previews) is gated on the admin setting up
+> `CF_PREVIEW_API_TOKEN` + the `ta2-preview` GitHub Environment and has NOT been
+> executed yet. SRS-1 holds the hermetic logic guard (the workflow + smoke
+> semantics); the live qualification holds the empirical positive-control proof.
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the

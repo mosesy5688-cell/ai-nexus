@@ -1,0 +1,468 @@
+name: TA2 Preview Runtime Gate
+
+# TA2-RUNTIME-GATE PR-G1 — PREVIEW-GRADE COLD-LOAD REQUIRED CHECK.
+#
+# On EVERY same-repo branch PR to main this gate builds the candidate, deploys an
+# EPHEMERAL Cloudflare Pages PREVIEW (never production), runs a 6-endpoint cold-
+# start smoke, and cleans up. It exists to catch the TA2-INCIDENT-1 failure class
+# (a telemetry import pulled into the Worker-entry cold-load chain made every
+# Worker/SSR route return empty-body HTTP 500 in prod, while local Node/vitest/
+# miniflare all FALSE-PASSED). Only a REAL CF preview deploy catches it.
+#
+# SECURITY: trigger is `pull_request` ONLY (NEVER pull_request_target). Fork PRs
+# (head repo != base repo) FAIL-CLOSED as TRUSTED_BRANCH_REQUIRED. The CF preview
+# token (CF_PREVIEW_API_TOKEN) is exposed ONLY to the deploy + cleanup jobs via
+# the `ta2-preview` GitHub Environment; build + smoke jobs hold NO CF secret. The
+# production CLOUDFLARE_API_TOKEN is NEVER referenced. All third-party actions are
+# pinned by commit SHA. TELEMETRY stays OFF (no TELEMETRY_ENABLED).
+#
+# The required check published for branch protection is:
+#     "TA2 Preview Runtime Gate / preview-smoke"
+# (added to required checks later, by an admin, post-qualification — NOT here.)
+
+on:
+  pull_request:
+    branches: [main]
+
+# One in-flight run per PR; a new push cancels the prior preview run.
+concurrency:
+  group: ta2-preview-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PAGES_PROJECT: ai-nexus
+  PROD_BRANCH: main
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # gate-guard (NO CF secret): trust-domain decision + deterministic preview
+  # branch name + R2 write-surface detection. Fork PRs fail-closed here.
+  # ---------------------------------------------------------------------------
+  gate-guard:
+    name: gate-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      trusted: ${{ steps.trust.outputs.trusted }}
+      candidate_sha: ${{ steps.trust.outputs.candidate_sha }}
+      base_sha: ${{ steps.trust.outputs.base_sha }}
+    steps:
+      - name: Checkout (candidate integration SHA)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Trust-domain decision (fork = fail-closed)
+        id: trust
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          echo "candidate_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "base_sha=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+          if [ "${HEAD_REPO}" != "${BASE_REPO}" ]; then
+            echo "TRUSTED_BRANCH_REQUIRED: head repo '${HEAD_REPO}' != base repo '${BASE_REPO}'."
+            echo "Fork PRs cannot receive the CF preview secret; the gate fails closed."
+            echo "trusted=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Same-repo branch PR — preview deploy permitted."
+            echo "trusted=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: R2 write-surface scan (PREVIEW_R2_ISOLATION_REQUIRED)
+        if: steps.trust.outputs.trusted == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          # The preview SHARES the production R2_ASSETS binding (WRITE-capable).
+          # If the candidate diff ADDS/MODIFIES a request-path R2 WRITE call we
+          # MUST NOT deploy it to a prod-bound bucket. Scan the ADDED lines of the
+          # PR diff for serve-path R2 write verbs against the R2_ASSETS binding.
+          ADDED=$(git diff "${BASE_SHA}...${GITHUB_SHA}" -- 'src/**' | grep -E '^\+' | grep -v '^\+\+\+' || true)
+          WRITE_RE='R2_ASSETS[^;]*\.(put|delete|createMultipartUpload|resumeMultipartUpload)\s*\('
+          if echo "$ADDED" | grep -E "$WRITE_RE" ; then
+            echo "::error::PREVIEW_R2_ISOLATION_REQUIRED — candidate adds request-path R2 WRITE on the shared R2_ASSETS binding."
+            echo "The preview shares production R2_ASSETS (WRITE-capable). Blocking deploy."
+            exit 1
+          fi
+          echo "No new request-path R2 write surface on R2_ASSETS — preview deploy permitted."
+
+  # ---------------------------------------------------------------------------
+  # A/B/C QUALIFICATION MATRIX — runs the four controls ON THIS PR. Each control
+  # runs build -> deploy -> smoke -> cleanup as SEPARATE trust-domain jobs (below
+  # this matrix is the per-control orchestration via reusable composite steps).
+  # The matrix job NEVER goes red just because `broken` is expected to fail; it
+  # records a structured per-control verdict consumed by qualification-verdict.
+  # CONTROLS:
+  #   candidate (PR integration SHA)  -> expect PASS
+  #   broken    (cd64c8b4)            -> expect EXPECTED_RUNTIME_FAIL
+  #   recovered (b5107e4c)            -> expect PASS
+  #   current   (PR base SHA)         -> expect PASS
+  # ---------------------------------------------------------------------------
+
+  # (A) BUILD — NO CF secret. Checkout the EXACT control SHA, run the SAME
+  # build+restructure as infra-deploy, SHA-256 manifest dist, upload as artifact.
+  build:
+    name: build (${{ matrix.control }})
+    needs: gate-guard
+    if: needs.gate-guard.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - control: candidate
+            sha: ${{ needs.gate-guard.outputs.candidate_sha }}
+          - control: broken
+            sha: cd64c8b4
+          - control: recovered
+            sha: b5107e4c
+          - control: current
+            sha: ${{ needs.gate-guard.outputs.base_sha }}
+    steps:
+      - name: Checkout EXACT control SHA
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: ${{ matrix.sha }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+        env:
+          ASTRO_SKIP_BINDING_CHECK: "true"
+
+      - name: Build Project (mirror infra-deploy)
+        run: npm run build
+        env:
+          ASTRO_SKIP_BINDING_CHECK: "true"
+
+      - name: Restructure artifacts for Cloudflare Pages (mirror infra-deploy)
+        run: |
+          node -e "
+            const fs = require('fs');
+            const workerProxy = \"export { default } from './server/entry.mjs';\";
+            fs.writeFileSync('dist/_worker.js', workerProxy);
+            if (fs.existsSync('dist/client')) {
+              fs.cpSync('dist/client', 'dist', { recursive: true });
+              fs.rmSync('dist/client', { recursive: true, force: true });
+            }
+            const targets = ['dist/wrangler.json', 'dist/server/wrangler.json', 'dist/_worker.js/wrangler.json'];
+            targets.forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
+            if (fs.existsSync('.wrangler')) fs.rmSync('.wrangler', { recursive: true, force: true });
+            console.log('Restructure complete. Standard Pages Layout + SSR Proxy ready.');
+          "
+
+      - name: Compute dist SHA-256 manifest
+        run: |
+          set -euo pipefail
+          find dist -type f -print0 | sort -z | xargs -0 sha256sum > dist-manifest.sha256
+          sha256sum dist-manifest.sha256 | awk '{print "dist_set_sha256="$1}' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dist artifact (immutable)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ta2-dist-${{ matrix.control }}
+          path: |
+            dist
+            dist-manifest.sha256
+          retention-days: 3
+          if-no-files-found: error
+
+  # (B) DEPLOY — environment ta2-preview (holds CF_PREVIEW_API_TOKEN). Download
+  # the dist artifact; do NOT npm install, do NOT run the build script, do NOT
+  # execute candidate code. Deploy a PREVIEW (branch != main) and output the
+  # exact deployment ID + preview URL.
+  deploy:
+    name: deploy (${{ matrix.control }})
+    needs: build
+    if: needs.gate-guard.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ta2-preview
+    permissions:
+      contents: read
+      deployments: write
+    strategy:
+      fail-fast: false
+      matrix:
+        control: [candidate, broken, recovered, current]
+    outputs:
+      deployment_id: ${{ steps.out.outputs.deployment_id }}
+      preview_url: ${{ steps.out.outputs.preview_url }}
+      preview_branch: ${{ steps.name.outputs.preview_branch }}
+    steps:
+      - name: Download dist artifact (no source, no install, no build)
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ta2-dist-${{ matrix.control }}
+          path: .
+
+      - name: Compute + HARD-ASSERT deterministic preview branch name
+        id: name
+        env:
+          CONTROL: ${{ matrix.control }}
+        run: |
+          set -euo pipefail
+          # ta2-pr-<PR>-run-<RUN_ID>-attempt-<RUN_ATTEMPT>-<CONTROL>. Fully derived
+          # from immutable run context; NOT user-overridable.
+          PB="ta2-pr-${{ github.event.pull_request.number }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}-${CONTROL}"
+          case "$CONTROL" in candidate|broken|recovered|current) : ;; *) echo "::error::bad control '$CONTROL'"; exit 1 ;; esac
+          if [ -z "$PB" ] || [ "$PB" = "main" ] || [ "$PB" = "$PROD_BRANCH" ]; then
+            echo "::error::preview branch hard-assert failed: '$PB'"; exit 1
+          fi
+          echo "preview_branch=$PB" >> "$GITHUB_OUTPUT"
+          echo "Preview branch: $PB"
+
+      - name: Deploy ephemeral preview (NEVER production)
+        id: cf
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CF_PREVIEW_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=ai-nexus --branch=${{ steps.name.outputs.preview_branch }}
+        env:
+          ASTRO_SKIP_BINDING_CHECK: "true"
+
+      - name: HARD-ASSERT preview URL is a *.pages.dev preview + resolve EXACT id
+        id: out
+        env:
+          # wrangler-action v4 outputs deployment-url (the preview URL). It does
+          # NOT emit a deployment id, so we resolve the EXACT id from the project
+          # deployment list, matching our deterministic preview branch + url.
+          PREVIEW_URL: ${{ steps.cf.outputs.deployment-url }}
+          PREVIEW_BRANCH: ${{ steps.name.outputs.preview_branch }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PREVIEW_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          HOST=$(echo "${PREVIEW_URL}" | sed -E 's#^https?://([^/]+).*#\1#' | tr 'A-Z' 'a-z')
+          echo "deploy host=$HOST branch=${PREVIEW_BRANCH}"
+          if [ "${PREVIEW_BRANCH}" = "main" ] || [ "${PREVIEW_BRANCH}" = "${PROD_BRANCH}" ]; then
+            echo "::error::preview branch resolved to production branch"; exit 1
+          fi
+          case "$HOST" in
+            free2aitools.com|*.free2aitools.com)
+              echo "::error::deploy resolved to the production custom domain"; exit 1 ;;
+          esac
+          case "$HOST" in
+            *.pages.dev) echo "OK: preview host under *.pages.dev" ;;
+            *) echo "::error::deploy host '$HOST' is not under *.pages.dev"; exit 1 ;;
+          esac
+          # Resolve the EXACT deployment id (UUID) for this preview branch.
+          DID=$(npx --yes wrangler@4 pages deployment list --project-name=ai-nexus 2>/dev/null \
+            | grep -F "${PREVIEW_BRANCH}" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
+          if [ -z "$DID" ]; then echo "::error::could not resolve deployment id for ${PREVIEW_BRANCH}"; exit 1; fi
+          echo "deployment_id=${DID}" >> "$GITHUB_OUTPUT"
+          echo "preview_url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
+          echo "resolved deployment id (masked): ${DID:0:8}..."
+          # Per-CONTROL handoff: matrix-job `needs.*.outputs` do NOT fan out per
+          # matrix value, so smoke + cleanup read this artifact keyed by control.
+          printf '{"control":"%s","deployment_id":"%s","preview_url":"%s","preview_branch":"%s"}\n' \
+            "${{ matrix.control }}" "${DID}" "${PREVIEW_URL}" "${PREVIEW_BRANCH}" > deploy-info.json
+
+      - name: Upload per-control deploy info (id/url/branch only)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ta2-deploy-${{ matrix.control }}
+          path: deploy-info.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # (C) SMOKE — NO CF secret. Run the 6-endpoint cold-start smoke against the
+  # preview URL ONLY. This is the job whose check name is the required gate.
+  preview-smoke:
+    name: preview-smoke
+    needs: [gate-guard, deploy]
+    # ALWAYS report a terminal conclusion: fork PRs (untrusted) reach this job and
+    # fail closed (TRUSTED_BRANCH_REQUIRED) so the required check is never skipped.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        control: [candidate, broken, recovered, current]
+    steps:
+      - name: Fail closed for fork / untrusted PRs
+        if: needs.gate-guard.outputs.trusted != 'true'
+        run: |
+          echo "::error::TRUSTED_BRANCH_REQUIRED — this PR is not a same-repo branch PR."
+          echo "The preview-grade runtime gate cannot run; required check fails closed."
+          exit 1
+
+      - name: Fail if upstream deploy did not succeed
+        if: needs.deploy.result != 'success'
+        run: |
+          echo "::error::deploy job did not succeed (result=${{ needs.deploy.result }}); gate RED."
+          exit 1
+
+      - name: Checkout (smoke runner only)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+
+      - name: Download THIS control's deploy info (per-control, not matrix output)
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ta2-deploy-${{ matrix.control }}
+          path: .
+
+      - name: 6-endpoint COLD-START smoke (preview URL only)
+        id: smoke
+        env:
+          CANDIDATE_SHA: ${{ github.sha }}
+          CONTROL: ${{ matrix.control }}
+          SMOKE_RESULT_PATH: smoke-${{ matrix.control }}.json
+        run: |
+          set +e
+          PREVIEW_URL=$(node -e "process.stdout.write(require('./deploy-info.json').preview_url)")
+          DEPLOYMENT_ID=$(node -e "process.stdout.write(require('./deploy-info.json').deployment_id)")
+          export PREVIEW_URL DEPLOYMENT_ID
+          node scripts/ci/ta2-preview-smoke.mjs "${PREVIEW_URL}"
+          RC=$?
+          if [ "$RC" -eq 0 ]; then VERDICT=PASS; else VERDICT=FAIL; fi
+          # The `broken` control is the positive control: a 5xx/empty/unparseable
+          # COLD smoke on a build+deploy that SUCCEEDED is EXPECTED_RUNTIME_FAIL,
+          # NOT an ordinary failure. (build/deploy creation failures do NOT count;
+          # those short-circuit before this job via the deploy-result gate above.)
+          if [ "$CONTROL" = "broken" ] && [ "$VERDICT" = "FAIL" ]; then
+            VERDICT=EXPECTED_RUNTIME_FAIL
+          fi
+          echo "control=${CONTROL} verdict=${VERDICT}"
+          echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"
+          echo "${CONTROL} ${VERDICT}" > control-verdict.txt
+
+      - name: Upload structured per-control verdict (status/ct/len/sha only)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ta2-smoke-${{ matrix.control }}
+          path: |
+            smoke-${{ matrix.control }}.json
+            control-verdict.txt
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Per-control gate result
+        if: needs.gate-guard.outputs.trusted == 'true'
+        env:
+          CONTROL: ${{ matrix.control }}
+          VERDICT: ${{ steps.smoke.outputs.verdict }}
+        run: |
+          # candidate/recovered/current MUST PASS. broken MUST be
+          # EXPECTED_RUNTIME_FAIL. Any other combination is RED.
+          case "$CONTROL" in
+            broken)
+              [ "$VERDICT" = "EXPECTED_RUNTIME_FAIL" ] || { echo "::error::broken control did not reproduce the runtime fail (verdict=$VERDICT)"; exit 1; } ;;
+            *)
+              [ "$VERDICT" = "PASS" ] || { echo "::error::$CONTROL control failed (verdict=$VERDICT)"; exit 1; } ;;
+          esac
+          echo "$CONTROL gate result OK ($VERDICT)"
+
+  # (D) CLEANUP — environment ta2-preview, if: always(). Delete by EXACT id
+  # (--force for aliased previews) + VERIFY absence. Cleanup failure = RED.
+  cleanup:
+    name: cleanup (${{ matrix.control }})
+    needs: [gate-guard, deploy, preview-smoke]
+    if: always() && needs.gate-guard.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ta2-preview
+    permissions:
+      contents: read
+      deployments: write
+    strategy:
+      fail-fast: false
+      matrix:
+        control: [candidate, broken, recovered, current]
+    steps:
+      - name: Checkout (cleanup runner only)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+
+      - name: Download THIS control's deploy info (may be absent if deploy failed)
+        id: dl
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ta2-deploy-${{ matrix.control }}
+          path: .
+
+      - name: Delete preview by EXACT id + VERIFY absence (RED on failure)
+        if: steps.dl.outcome == 'success' && hashFiles('deploy-info.json') != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PREVIEW_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_ID=$(node -e "process.stdout.write(require('./deploy-info.json').deployment_id)")
+          PREVIEW_BRANCH=$(node -e "process.stdout.write(require('./deploy-info.json').preview_branch)")
+          export DEPLOYMENT_ID PREVIEW_BRANCH
+          node scripts/ci/ta2-preview-cleanup.mjs
+
+      - name: No deployment to clean (deploy did not create one)
+        if: steps.dl.outcome != 'success' || hashFiles('deploy-info.json') == ''
+        run: echo "No preview deployment created for ${{ matrix.control }} — nothing to clean."
+
+  # ---------------------------------------------------------------------------
+  # qualification-verdict — INDEPENDENT consumer of the per-control results.
+  # PASSES ONLY when candidate=PASS AND broken=EXPECTED_RUNTIME_FAIL AND
+  # recovered=PASS AND current=PASS AND every cleanup=PASS.
+  # ---------------------------------------------------------------------------
+  qualification-verdict:
+    name: qualification-verdict
+    needs: [gate-guard, preview-smoke, cleanup]
+    if: always() && needs.gate-guard.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download all per-control smoke verdicts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ta2-smoke-*
+          path: verdicts
+
+      - name: Independent A/B/C verdict
+        env:
+          CLEANUP_RESULT: ${{ needs.cleanup.result }}
+          SMOKE_RESULT: ${{ needs.preview-smoke.result }}
+        run: |
+          set -euo pipefail
+          read_v() { cat "verdicts/ta2-smoke-$1/control-verdict.txt" 2>/dev/null | awk '{print $2}'; }
+          C=$(read_v candidate); B=$(read_v broken); R=$(read_v recovered); U=$(read_v current)
+          echo "candidate=$C broken=$B recovered=$R current=$U cleanup=$CLEANUP_RESULT"
+          FAILED=0
+          [ "$C" = "PASS" ] || { echo "::error::candidate != PASS ($C)"; FAILED=1; }
+          [ "$B" = "EXPECTED_RUNTIME_FAIL" ] || { echo "::error::broken != EXPECTED_RUNTIME_FAIL ($B)"; FAILED=1; }
+          [ "$R" = "PASS" ] || { echo "::error::recovered != PASS ($R)"; FAILED=1; }
+          [ "$U" = "PASS" ] || { echo "::error::current base != PASS ($U)"; FAILED=1; }
+          [ "$CLEANUP_RESULT" = "success" ] || { echo "::error::a cleanup job did not pass ($CLEANUP_RESULT)"; FAILED=1; }
+          [ "$FAILED" -eq 0 ] || { echo "QUALIFICATION_VERDICT=FAIL"; exit 1; }
+          echo "QUALIFICATION_VERDICT=PASS"
