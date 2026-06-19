@@ -193,8 +193,8 @@ describe('TA2 gate — cleanup + qualification', () => {
   });
   it('the four controls map to candidate/broken(cd64c8b4)/recovered(b5107e4c)/current(base)', () => {
     const b = jobBlock('build');
-    expect(b).toContain('sha: cd64c8b4');
-    expect(b).toContain('sha: b5107e4c');
+    expect(b).toContain('sha: cd64c8b49ffda41ff92188642dd6a8e95a8022fc');
+    expect(b).toContain('sha: b5107e4c4cb274e1eb560128a28bc1682eb828ad');
     expect(b).toContain('${{ needs.gate-guard.outputs.candidate_sha }}');
     expect(b).toContain('${{ needs.gate-guard.outputs.base_sha }}');
   });

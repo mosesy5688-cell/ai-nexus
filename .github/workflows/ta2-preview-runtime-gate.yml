@@ -122,9 +122,9 @@ jobs:
           - control: candidate
             sha: ${{ needs.gate-guard.outputs.candidate_sha }}
           - control: broken
-            sha: cd64c8b4
+            sha: cd64c8b49ffda41ff92188642dd6a8e95a8022fc
           - control: recovered
-            sha: b5107e4c
+            sha: b5107e4c4cb274e1eb560128a28bc1682eb828ad
           - control: current
             sha: ${{ needs.gate-guard.outputs.base_sha }}
     steps:
