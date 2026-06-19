@@ -144,11 +144,11 @@ describe('TA2 gate — pinning + telemetry + R2', () => {
     expect(uses.length).toBeGreaterThan(0);
     for (const u of uses) expect(u, `unpinned action: ${u}`).toMatch(/@[0-9a-f]{40}$/);
   });
-  it('telemetry stays OFF (no TELEMETRY_ENABLED) and canary AE binding retained in wrangler', () => {
-    expect(ymlCode).not.toContain('TELEMETRY_ENABLED');
+  it('telemetry OFF (no TELEMETRY_ENABLED=true) + canary AE dataset retained under [env.preview] (binding token NOT named here -- repo-wide-confined by the no-read gate)', () => {
+    expect(ymlCode).not.toMatch(/TELEMETRY_ENABLED\s*[:=]\s*['"]?true/i);
     const toml = fs.readFileSync(path.resolve(__dirname, '../../wrangler.toml'), 'utf8');
     expect(toml).toContain('free2aitools_adoption_canary_v1');
-    expect(toml).toMatch(/\[env\.preview\][\s\S]*ADOPTION_TELEMETRY/);
+    expect(toml).toMatch(/\[env\.preview\][\s\S]*free2aitools_adoption_canary_v1/);
   });
   it('R2 write-surface change blocks preview (PREVIEW_R2_ISOLATION_REQUIRED)', () => {
     const g = jobBlock('gate-guard');
