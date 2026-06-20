@@ -138,6 +138,23 @@ jobs:
           ref: ${{ matrix.sha }}
           fetch-depth: 0
 
+      - name: Resolve + HARD-ASSERT the EXACT built commit identity
+        id: ident
+        env:
+          CONTROL: ${{ matrix.control }}
+          REQUESTED_REF: ${{ matrix.sha }}
+        run: |
+          set -euo pipefail
+          # The identity that BINDS the runtime test to the EXACT built commit is
+          # the commit this matrix leg CHECKED OUT -- `git rev-parse HEAD` -- NOT
+          # github.sha (the PR merge-context SHA) and NOT the requested label/ref.
+          RESOLVED=$(git rev-parse HEAD)
+          if ! printf '%s' "$RESOLVED" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::resolved_commit_sha '${RESOLVED}' is not a full 40-hex SHA"; exit 1
+          fi
+          echo "resolved_commit_sha=${RESOLVED}" >> "$GITHUB_OUTPUT"
+          echo "control=${CONTROL} requested_ref=${REQUESTED_REF} resolved_commit_sha=${RESOLVED}"
+
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -170,19 +187,38 @@ jobs:
             console.log('Restructure complete. Standard Pages Layout + SSR Proxy ready.');
           "
 
-      - name: Compute dist SHA-256 manifest
+      - name: Compute dist SHA-256 manifest + self-binding build identity
+        env:
+          CONTROL: ${{ matrix.control }}
+          REQUESTED_REF: ${{ matrix.sha }}
+          RESOLVED_COMMIT_SHA: ${{ steps.ident.outputs.resolved_commit_sha }}
         run: |
           set -euo pipefail
+          # Deterministic SHA-256 over the built dist = sha256 of the sorted
+          # file-list + per-file-hash manifest. This is the build_artifact_sha256
+          # that binds the EXACT bytes deployed downstream.
           find dist -type f -print0 | sort -z | xargs -0 sha256sum > dist-manifest.sha256
-          sha256sum dist-manifest.sha256 | awk '{print "dist_set_sha256="$1}' >> "$GITHUB_STEP_SUMMARY"
+          BUILD_ARTIFACT_SHA256=$(sha256sum dist-manifest.sha256 | awk '{print $1}')
+          echo "dist_set_sha256=${BUILD_ARTIFACT_SHA256}" >> "$GITHUB_STEP_SUMMARY"
+          # Re-assert the resolved commit identity (defence-in-depth: never trust a
+          # blank propagated value) and write the self-binding build-identity.json
+          # INTO the dist artifact so every downstream job READS it, never recomputes
+          # from github.sha / PR merge-context.
+          if ! printf '%s' "${RESOLVED_COMMIT_SHA}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::resolved_commit_sha '${RESOLVED_COMMIT_SHA}' is not a full 40-hex SHA"; exit 1
+          fi
+          printf '{"schema":"ta2-build-identity/v1","control":"%s","requested_ref":"%s","resolved_commit_sha":"%s","build_artifact_sha256":"%s"}\n' \
+            "${CONTROL}" "${REQUESTED_REF}" "${RESOLVED_COMMIT_SHA}" "${BUILD_ARTIFACT_SHA256}" > build-identity.json
+          echo "build identity: $(cat build-identity.json)"
 
-      - name: Upload dist artifact (immutable)
+      - name: Upload dist artifact (immutable, carries build-identity.json)
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ta2-dist-${{ matrix.control }}
           path: |
             dist
             dist-manifest.sha256
+            build-identity.json
           retention-days: 3
           if-no-files-found: error
 
@@ -249,6 +285,7 @@ jobs:
           # deployment list, matching our deterministic preview branch + url.
           PREVIEW_URL: ${{ steps.cf.outputs.deployment-url }}
           PREVIEW_BRANCH: ${{ steps.name.outputs.preview_branch }}
+          CONTROL: ${{ matrix.control }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PREVIEW_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
@@ -266,6 +303,22 @@ jobs:
             *.pages.dev) echo "OK: preview host under *.pages.dev" ;;
             *) echo "::error::deploy host '$HOST' is not under *.pages.dev"; exit 1 ;;
           esac
+          # READ the propagated build identity from the downloaded dist artifact --
+          # do NOT recompute from github.sha. The deployment binds to the EXACT
+          # commit the build leg checked out, carried in build-identity.json.
+          if [ ! -f build-identity.json ]; then
+            echo "::error::build-identity.json missing from dist artifact (identity not propagated)"; exit 1
+          fi
+          BI_CONTROL=$(node -e "process.stdout.write(require('./build-identity.json').control)")
+          REQUESTED_REF=$(node -e "process.stdout.write(require('./build-identity.json').requested_ref)")
+          RESOLVED_COMMIT_SHA=$(node -e "process.stdout.write(require('./build-identity.json').resolved_commit_sha)")
+          BUILD_ARTIFACT_SHA256=$(node -e "process.stdout.write(require('./build-identity.json').build_artifact_sha256)")
+          if [ "${BI_CONTROL}" != "${CONTROL}" ]; then
+            echo "::error::build-identity control '${BI_CONTROL}' != deploy control '${CONTROL}'"; exit 1
+          fi
+          if ! printf '%s' "${RESOLVED_COMMIT_SHA}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::propagated resolved_commit_sha '${RESOLVED_COMMIT_SHA}' is not a full 40-hex SHA"; exit 1
+          fi
           # Resolve the EXACT deployment id (UUID) for this preview branch.
           DID=$(npx --yes wrangler@4 pages deployment list --project-name=ai-nexus 2>/dev/null \
             | grep -F "${PREVIEW_BRANCH}" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
@@ -275,10 +328,13 @@ jobs:
           echo "resolved deployment id (masked): ${DID:0:8}..."
           # Per-CONTROL handoff: matrix-job `needs.*.outputs` do NOT fan out per
           # matrix value, so smoke + cleanup read this artifact keyed by control.
-          printf '{"control":"%s","deployment_id":"%s","preview_url":"%s","preview_branch":"%s"}\n' \
-            "${{ matrix.control }}" "${DID}" "${PREVIEW_URL}" "${PREVIEW_BRANCH}" > deploy-info.json
+          # It carries the PROPAGATED build identity (control/requested_ref/
+          # resolved_commit_sha/build_artifact_sha256) + the deployment binding.
+          printf '{"control":"%s","requested_ref":"%s","resolved_commit_sha":"%s","build_artifact_sha256":"%s","deployment_id":"%s","preview_url":"%s","preview_branch":"%s"}\n' \
+            "${CONTROL}" "${REQUESTED_REF}" "${RESOLVED_COMMIT_SHA}" "${BUILD_ARTIFACT_SHA256}" "${DID}" "${PREVIEW_URL}" "${PREVIEW_BRANCH}" > deploy-info.json
+          echo "deploy identity bound: control=${CONTROL} resolved=${RESOLVED_COMMIT_SHA} build_sha=${BUILD_ARTIFACT_SHA256}"
 
-      - name: Upload per-control deploy info (id/url/branch only)
+      - name: Upload per-control deploy info (identity + id/url/branch)
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ta2-deploy-${{ matrix.control }}
@@ -335,14 +391,20 @@ jobs:
       - name: 6-endpoint COLD-START smoke (preview URL only)
         id: smoke
         env:
-          CANDIDATE_SHA: ${{ github.sha }}
           CONTROL: ${{ matrix.control }}
           SMOKE_RESULT_PATH: smoke-${{ matrix.control }}.json
         run: |
           set +e
+          # CORE FIX (TA2-GATE-PROVENANCE-1): the smoke identity is the PROPAGATED
+          # build identity (the EXACT commit the build leg checked out), READ from
+          # deploy-info.json -- NEVER github.sha / PR merge-context. Export each
+          # field so the smoke runner self-binds its result to the built commit.
+          RESOLVED_COMMIT_SHA=$(node -e "process.stdout.write(require('./deploy-info.json').resolved_commit_sha)")
+          REQUESTED_REF=$(node -e "process.stdout.write(require('./deploy-info.json').requested_ref)")
+          BUILD_ARTIFACT_SHA256=$(node -e "process.stdout.write(require('./deploy-info.json').build_artifact_sha256)")
           PREVIEW_URL=$(node -e "process.stdout.write(require('./deploy-info.json').preview_url)")
           DEPLOYMENT_ID=$(node -e "process.stdout.write(require('./deploy-info.json').deployment_id)")
-          export PREVIEW_URL DEPLOYMENT_ID
+          export RESOLVED_COMMIT_SHA REQUESTED_REF BUILD_ARTIFACT_SHA256 PREVIEW_URL DEPLOYMENT_ID CONTROL
           node scripts/ci/ta2-preview-smoke.mjs "${PREVIEW_URL}"
           RC=$?
           if [ "$RC" -eq 0 ]; then VERDICT=PASS; else VERDICT=FAIL; fi
@@ -422,14 +484,31 @@ jobs:
       - name: Delete preview by EXACT id + VERIFY absence (RED on failure)
         if: steps.dl.outcome == 'success' && hashFiles('deploy-info.json') != ''
         env:
+          CONTROL: ${{ matrix.control }}
+          CLEANUP_RESULT_PATH: cleanup-${{ matrix.control }}.json
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PREVIEW_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          # Propagate the SAME identity (control/requested_ref/resolved_commit_sha/
+          # build_artifact_sha256 + deployment_id) into the cleanup runner so the
+          # cleanup-result self-binds to the EXACT built commit for verdict cross-check.
+          RESOLVED_COMMIT_SHA=$(node -e "process.stdout.write(require('./deploy-info.json').resolved_commit_sha)")
+          REQUESTED_REF=$(node -e "process.stdout.write(require('./deploy-info.json').requested_ref)")
+          BUILD_ARTIFACT_SHA256=$(node -e "process.stdout.write(require('./deploy-info.json').build_artifact_sha256)")
           DEPLOYMENT_ID=$(node -e "process.stdout.write(require('./deploy-info.json').deployment_id)")
           PREVIEW_BRANCH=$(node -e "process.stdout.write(require('./deploy-info.json').preview_branch)")
-          export DEPLOYMENT_ID PREVIEW_BRANCH
+          export CONTROL RESOLVED_COMMIT_SHA REQUESTED_REF BUILD_ARTIFACT_SHA256 DEPLOYMENT_ID PREVIEW_BRANCH CLEANUP_RESULT_PATH
           node scripts/ci/ta2-preview-cleanup.mjs
+
+      - name: Upload per-control cleanup result (identity + id only)
+        if: steps.dl.outcome == 'success' && hashFiles('cleanup-*.json') != ''
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ta2-cleanup-${{ matrix.control }}
+          path: cleanup-${{ matrix.control }}.json
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: No deployment to clean (deploy did not create one)
         if: steps.dl.outcome != 'success' || hashFiles('deploy-info.json') == ''
@@ -442,7 +521,7 @@ jobs:
   # ---------------------------------------------------------------------------
   qualification-verdict:
     name: qualification-verdict
-    needs: [gate-guard, preview-smoke, cleanup]
+    needs: [gate-guard, build, deploy, preview-smoke, cleanup]
     if: always() && needs.gate-guard.outputs.trusted == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -453,20 +532,52 @@ jobs:
           pattern: ta2-smoke-*
           path: verdicts
 
-      - name: Independent A/B/C verdict
+      - name: Download all per-control build identities
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ta2-dist-*
+          path: builds
+
+      - name: Download all per-control deploy identities
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ta2-deploy-*
+          path: deploys
+
+      - name: Download all per-control cleanup identities
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: ta2-cleanup-*
+          path: cleanups
+
+      - name: Independent A/B/C verdict + EXACT identity-chain validation
         env:
           CLEANUP_RESULT: ${{ needs.cleanup.result }}
           SMOKE_RESULT: ${{ needs.preview-smoke.result }}
+          CANDIDATE_SHA: ${{ needs.gate-guard.outputs.candidate_sha }}
+          # EXPECTED EXACT control SHAs (D-78 §6). candidate is validated against
+          # the integration SHA gate-guard resolved (NOT hardcoded); current is the
+          # PR base SHA. The two historical controls are pinned literally.
+          EXPECT_BROKEN: cd64c8b49ffda41ff92188642dd6a8e95a8022fc
+          EXPECT_RECOVERED: b5107e4c4cb274e1eb560128a28bc1682eb828ad
+          EXPECT_CURRENT: ${{ needs.gate-guard.outputs.base_sha }}
         run: |
           set -euo pipefail
           read_v() { cat "verdicts/ta2-smoke-$1/control-verdict.txt" 2>/dev/null | awk '{print $2}'; }
           C=$(read_v candidate); B=$(read_v broken); R=$(read_v recovered); U=$(read_v current)
           echo "candidate=$C broken=$B recovered=$R current=$U cleanup=$CLEANUP_RESULT"
           FAILED=0
+          # (1) The ORIGINAL behavioural verdict (unchanged): per-control runtime
+          # result + every cleanup passing. Matrix label alone NEVER qualifies.
           [ "$C" = "PASS" ] || { echo "::error::candidate != PASS ($C)"; FAILED=1; }
           [ "$B" = "EXPECTED_RUNTIME_FAIL" ] || { echo "::error::broken != EXPECTED_RUNTIME_FAIL ($B)"; FAILED=1; }
           [ "$R" = "PASS" ] || { echo "::error::recovered != PASS ($R)"; FAILED=1; }
           [ "$U" = "PASS" ] || { echo "::error::current base != PASS ($U)"; FAILED=1; }
           [ "$CLEANUP_RESULT" = "success" ] || { echo "::error::a cleanup job did not pass ($CLEANUP_RESULT)"; FAILED=1; }
+          # (2) FAIL-CLOSED EXACT IDENTITY-CHAIN validation (D-78 §6), ANDed in.
+          if ! node scripts/ci/ta2-preview-cleanup.mjs --verify-identity-chain \
+              builds deploys verdicts cleanups; then
+            echo "::error::identity-chain validation FAILED"; FAILED=1
+          fi
           [ "$FAILED" -eq 0 ] || { echo "QUALIFICATION_VERDICT=FAIL"; exit 1; }
           echo "QUALIFICATION_VERDICT=PASS"

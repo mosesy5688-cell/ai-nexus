@@ -12,16 +12,27 @@
 // production custom domain free2aitools.com). The runner asserts that, issues
 // the FIRST /api/v1/health request IMMEDIATELY (no warm-up), and FAILS CLOSED on
 // any timeout / 5xx / empty body / wrong content-type / parse failure. It records
-// ONLY status, content-type, body length, body SHA-256, parse result, the
-// candidate SHA, the deployment ID and the preview URL — NEVER full bodies,
-// Authorization headers or secrets.
+// ONLY status, content-type, body length, body SHA-256, parse result, the EXACT
+// built-commit identity (control / requested_ref / resolved_commit_sha /
+// build_artifact_sha256), the deployment ID and the preview URL — NEVER full
+// bodies, Authorization headers or secrets.
+//
+// TA2-GATE-PROVENANCE-1 (D-78): the recorded identity binds this runtime result
+// to the EXACT commit the build leg checked out. resolved_commit_sha MUST be the
+// PROPAGATED build identity (read from deploy-info.json via env), NEVER github.sha
+// / the PR merge-context SHA. The smoke FAILS CLOSED if resolved_commit_sha is
+// absent or not a full 40-hex SHA — an identity defect can never pass silently.
 import crypto from 'node:crypto';
 
 const PREVIEW_URL = (process.argv[2] || process.env.PREVIEW_URL || '').trim();
-const CANDIDATE_SHA = (process.env.CANDIDATE_SHA || '').trim();
+const CONTROL = (process.env.CONTROL || '').trim();
+const REQUESTED_REF = (process.env.REQUESTED_REF || '').trim();
+const RESOLVED_COMMIT_SHA = (process.env.RESOLVED_COMMIT_SHA || '').trim();
+const BUILD_ARTIFACT_SHA256 = (process.env.BUILD_ARTIFACT_SHA256 || '').trim();
 const DEPLOYMENT_ID = (process.env.DEPLOYMENT_ID || '').trim();
 const PER_REQ_TIMEOUT_MS = 30000;
 const PROD_HOST = 'free2aitools.com';
+const FULL_SHA_RE = /^[0-9a-f]{40}$/;
 
 // The EXACT six endpoints that 500'd in TA2-INCIDENT-1. Order matters: cold
 // /api/v1/health is issued FIRST (entry/module-load failure shows here first,
@@ -129,10 +140,27 @@ export async function probe(base, ep) {
   return { rec };
 }
 
+// Identity fail-closed: the propagated resolved_commit_sha MUST be a full 40-hex
+// SHA. An abbreviated / missing / requested_ref-only identity is an identity
+// DEFECT and the smoke fails closed (never records a runtime PASS without binding
+// it to the EXACT built commit). Exported pure predicate for hermetic tests.
+export function checkBuildIdentity({ resolvedCommitSha }) {
+  const sha = (resolvedCommitSha || '').trim();
+  if (!sha) throw 'resolved_commit_sha is absent (identity not propagated from build)';
+  if (!FULL_SHA_RE.test(sha)) throw `resolved_commit_sha "${sha}" is not a full 40-hex SHA`;
+  return sha;
+}
+
 async function main() {
   const base = assertPreviewUrl(PREVIEW_URL);
+  // FAIL CLOSED before any probe if the EXACT built-commit identity is defective.
+  let resolvedCommitSha;
+  try {
+    resolvedCommitSha = checkBuildIdentity({ resolvedCommitSha: RESOLVED_COMMIT_SHA });
+  } catch (msg) { fail(`identity: ${msg}`); }
   console.log(`TA2 cold-start smoke -> ${base.origin}`);
-  console.log(`candidate_sha=${CANDIDATE_SHA || '(unset)'} deployment_id=${DEPLOYMENT_ID || '(unset)'}`);
+  console.log(`control=${CONTROL || '(unset)'} requested_ref=${REQUESTED_REF || '(unset)'}`);
+  console.log(`resolved_commit_sha=${resolvedCommitSha} build_artifact_sha256=${BUILD_ARTIFACT_SHA256 || '(unset)'} deployment_id=${DEPLOYMENT_ID || '(unset)'}`);
   const records = [];
   let failed = 0;
   // STRICTLY SEQUENTIAL, /api/v1/health FIRST and IMMEDIATELY (no warm-up):
@@ -151,10 +179,16 @@ async function main() {
     records.push(rec);
   }
   const summary = {
-    schema: 'ta2-preview-smoke/v1',
-    preview_url: base.origin,
-    candidate_sha: CANDIDATE_SHA || null,
+    schema: 'ta2-preview-smoke/v2',
+    control: CONTROL || null,
+    requested_ref: REQUESTED_REF || null,
+    // The EXACT built-commit identity, PROPAGATED from the build artifact (NOT
+    // github.sha). This is the field that binds the runtime result to the commit
+    // each matrix control actually built.
+    resolved_commit_sha: resolvedCommitSha,
+    build_artifact_sha256: BUILD_ARTIFACT_SHA256 || null,
     deployment_id: DEPLOYMENT_ID || null,
+    preview_url: base.origin,
     endpoint_count: ENDPOINTS.length,
     failed,
     verdict: failed === 0 ? 'PASS' : 'FAIL',

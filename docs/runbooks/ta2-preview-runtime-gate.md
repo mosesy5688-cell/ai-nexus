@@ -39,8 +39,38 @@ The six smoke endpoints (exactly the set that 500'd in the incident):
 `/api/v1/datasets`, `/openapi.json`, `/llms.txt`. The FIRST `/api/v1/health`
 request is issued IMMEDIATELY (no warm-up). Any 5xx / empty body / wrong
 content-type / parse-fail / timeout = gate FAIL. The smoke records ONLY status,
-content-type, body length, body SHA-256, parse result, candidate SHA, deployment
-ID, and preview URL — never full bodies, Authorization headers, or secrets.
+content-type, body length, body SHA-256, parse result, the EXACT built-commit
+identity (control / requested_ref / resolved_commit_sha / build_artifact_sha256),
+deployment ID, and preview URL — never full bodies, Authorization headers, or
+secrets.
+
+## EXACT built-commit identity (TA2-GATE-PROVENANCE-1, D-2026-0620-78)
+
+The gate binds every runtime result to the EXACT commit each matrix control
+actually built — NOT the PR merge-context `github.sha`. After it checks out its
+control ref, each BUILD leg computes `resolved_commit_sha = git rev-parse HEAD`
+(HARD-ASSERTED `/^[0-9a-f]{40}$/`, build FAILS otherwise) plus a deterministic
+`build_artifact_sha256` (sha256 of the sorted dist file-list + per-file-hash
+manifest), and writes a self-binding `build-identity.json` INTO the dist
+artifact. The same `{control, requested_ref, resolved_commit_sha,
+build_artifact_sha256}` is propagated, never recomputed:
+
+```
+BUILD  -> build-identity.json  (inside ta2-dist-<control>)
+DEPLOY -> deploy-info.json     (ta2-deploy-<control>: reads build-identity.json, adds deployment_id/preview_url)
+SMOKE  -> smoke-<control>.json (ta2-smoke-<control>: resolved_commit_sha READ from deploy-info.json, NOT github.sha)
+CLEANUP-> cleanup-<control>.json (ta2-cleanup-<control>)
+VERDICT-> downloads all four; `ta2-preview-cleanup.mjs --verify-identity-chain`
+```
+
+`qualification-verdict` ANDs the original PASS expression with an EXACT
+identity-chain check that FAILS CLOSED if, for any control: a
+`resolved_commit_sha` is absent/not-40-hex; the build/deploy/smoke/cleanup SHAs
+are not ALL identical; the `build_artifact_sha256` differs across stages; or the
+control label does not map to its EXPECTED SHA (`broken`=`cd64c8b4…`,
+`recovered`=`b5107e4c…`, `current`=PR base, `candidate`=the gate-guard
+`candidate_sha`). The smoke runner itself ALSO fails closed before any probe when
+`resolved_commit_sha` is missing/abbreviated. Matrix label alone never qualifies.
 
 ## A/B/C qualification (the gate's own acceptance test)
 
