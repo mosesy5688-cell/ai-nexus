@@ -33,8 +33,7 @@ describe('TA2 gate - trigger + trust domain', () => {
     expect(yml).toMatch(/\non:\n {2}pull_request:\n {4}branches:\s*\[main\]/);
     expect(ymlCode).not.toContain('pull_request_target');
   });
-  it('NEGATIVE: a pull_request_target trigger would fail this lock', () =>
-    expect(yml.replace('pull_request:', 'pull_request_target:').includes('pull_request_target')).toBe(true));
+  it('NEGATIVE: a pull_request_target trigger would fail this lock', () => expect(yml.replace('pull_request:', 'pull_request_target:').includes('pull_request_target')).toBe(true));
   it('fork fail-closed (TRUSTED_BRANCH_REQUIRED + exit 1); same-repo enforcement; no green N/A skip wedge', () => {
     has(jobBlock('gate-guard'), 'trusted=false', '"${HEAD_REPO}" != "${BASE_REPO}"', 'trusted=true');
     has(jobBlock('preview-smoke'), 'TRUSTED_BRANCH_REQUIRED', 'if: always()');
@@ -58,12 +57,10 @@ describe('TA2 gate - secret/environment trust boundary', () => {
     expect(smokeCode).not.toMatch(/console\.[a-z]+\([^)]*TOKEN/i);
     expect(cleanupCode).not.toMatch(/console\.[a-z]+\([^)]*TOKEN/i);
   });
-  it('NEGATIVE: exposing the token to the smoke job would trip the build+smoke lock', () =>
-    expect((jobBlock('preview-smoke') + '\n          apiToken: ${{ secrets.CF_PREVIEW_API_TOKEN }}').includes('CF_PREVIEW_API_TOKEN')).toBe(true));
+  it('NEGATIVE: exposing the token to the smoke job would trip the build+smoke lock', () => expect((jobBlock('preview-smoke') + '\n          apiToken: ${{ secrets.CF_PREVIEW_API_TOKEN }}').includes('CF_PREVIEW_API_TOKEN')).toBe(true));
 });
 describe('TA2 gate - four trust-domain jobs', () => {
-  it('build: checkout exact control SHA, mirror infra-deploy build+restructure, upload immutable dist', () =>
-    has(jobBlock('build'), 'ref: ${{ matrix.sha }}', 'npm ci', 'npm run build', "fs.writeFileSync('dist/_worker.js'", 'dist-manifest.sha256', 'actions/upload-artifact@'));
+  it('build: checkout exact control SHA, mirror infra-deploy build+restructure, upload immutable dist', () => has(jobBlock('build'), 'ref: ${{ matrix.sha }}', 'npm ci', 'npm run build', "fs.writeFileSync('dist/_worker.js'", 'dist-manifest.sha256', 'actions/upload-artifact@'));
   it('deploy: downloads dist, does NOT npm install / run build / execute candidate', () => {
     expect(jobBlock('deploy')).toContain('actions/download-artifact@');
     for (const t of ['npm ci', 'npm run build']) expect(jobBlock('deploy')).not.toContain(t);
@@ -79,10 +76,8 @@ describe('TA2 gate - four trust-domain jobs', () => {
   });
 });
 describe('TA2 gate - preview naming + production exclusion', () => {
-  it('deterministic name ta2-pr-<PR>-run-<RUN_ID>-attempt-<RUN_ATTEMPT>-<CONTROL>', () =>
-    expect(jobBlock('deploy')).toContain('PB="ta2-pr-${{ github.event.pull_request.number }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}-${CONTROL}"'));
-  it('HARD-ASSERT branch not main / prod / empty; controls a fixed set; URL must be *.pages.dev', () =>
-    has(jobBlock('deploy'), '[ "$PB" = "main" ]', '[ "$PB" = "$PROD_BRANCH" ]', '[ -z "$PB" ]', 'candidate|broken|recovered|current)', '*.pages.dev', 'free2aitools.com|*.free2aitools.com'));
+  it('deterministic name ta2-pr-<PR>-run-<RUN_ID>-attempt-<RUN_ATTEMPT>-<CONTROL>', () => expect(jobBlock('deploy')).toContain('PB="ta2-pr-${{ github.event.pull_request.number }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}-${CONTROL}"'));
+  it('HARD-ASSERT branch not main / prod / empty; controls a fixed set; URL must be *.pages.dev', () => has(jobBlock('deploy'), '[ "$PB" = "main" ]', '[ "$PB" = "$PROD_BRANCH" ]', '[ -z "$PB" ]', 'candidate|broken|recovered|current)', '*.pages.dev', 'free2aitools.com|*.free2aitools.com'));
   it('no main-branch deployment (NEGATIVE: a branch=main mutation trips the no-main lock)', () => {
     expect(yml).not.toContain('--branch=main');
     expect(yml).toContain('--branch=${{ steps.name.outputs.preview_branch }}');
@@ -117,14 +112,22 @@ describe('TA2 gate - cleanup + qualification', () => {
     expect(cleanupCode).not.toMatch(/continue-on-error/i);
     expect(cleanupCode.replace(/process\.exit\(1\)/g, 'console.warn("warn")')).not.toContain('process.exit(1)');
   });
-  it('qualification-verdict is INDEPENDENT and passes only on the exact control matrix', () =>
-    has(jobBlock('qualification-verdict'), 'candidate != PASS', 'broken != EXPECTED_RUNTIME_FAIL', 'recovered != PASS', 'current base != PASS', 'a cleanup job did not pass', 'QUALIFICATION_VERDICT=PASS'));
+  it('qualification-verdict is INDEPENDENT and passes only on the exact control matrix', () => has(jobBlock('qualification-verdict'), 'candidate != PASS', 'broken != EXPECTED_RUNTIME_FAIL', 'recovered != PASS', 'current base != PASS', 'a cleanup job did not pass', 'QUALIFICATION_VERDICT=PASS'));
+  // Regression lock (run 27872096688): EVERY job running `node scripts/...` MUST checkout (pinned) BEFORE it, else MODULE_NOT_FOUND fails the verdict closed.
+  const CO = 'uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1';
+  it('every job running node scripts/ checks out (pinned) BEFORE it; verdict checkout precedes downloads', () => {
+    for (const j of ['gate-guard', 'build', 'preview-smoke', 'cleanup', 'qualification-verdict']) {
+      const b = jobBlock(j), s = b.indexOf('node scripts/'); if (s < 0) continue;
+      expect(b.indexOf(CO), `${j}: pinned checkout missing/after node scripts/`).toBeGreaterThanOrEqual(0);
+      expect(b.indexOf(CO), `${j}: checkout must precede node scripts/`).toBeLessThan(s);
+    }
+    expect(jobBlock('qualification-verdict').indexOf('uses: actions/checkout@')).toBeLessThan(jobBlock('qualification-verdict').indexOf('actions/download-artifact@'));
+  });
   it('broken EXPECTED_RUNTIME_FAIL requires deploy success first; matrix fail-fast false', () => {
     has(jobBlock('preview-smoke'), "needs.deploy.result != 'success'", 'fail-fast: false');
     expect(jobBlock('preview-smoke')).toMatch(/CONTROL" = "broken" \] && \[ "\$VERDICT" = "FAIL" \][\s\S]*EXPECTED_RUNTIME_FAIL/);
   });
-  it('the four controls map to candidate/broken(cd64c8b4)/recovered(b5107e4c)/current(base)', () =>
-    has(jobBlock('build'), 'sha: cd64c8b49ffda41ff92188642dd6a8e95a8022fc', 'sha: b5107e4c4cb274e1eb560128a28bc1682eb828ad', '${{ needs.gate-guard.outputs.candidate_sha }}', '${{ needs.gate-guard.outputs.base_sha }}'));
+  it('the four controls map to candidate/broken(cd64c8b4)/recovered(b5107e4c)/current(base)', () => has(jobBlock('build'), 'sha: cd64c8b49ffda41ff92188642dd6a8e95a8022fc', 'sha: b5107e4c4cb274e1eb560128a28bc1682eb828ad', '${{ needs.gate-guard.outputs.candidate_sha }}', '${{ needs.gate-guard.outputs.base_sha }}'));
 });
 describe('TA2 smoke runner - endpoints + cold-first', () => {
   it('exactly the six endpoints, /api/v1/health FIRST (cold, no warm-up)', () => {
@@ -235,11 +238,9 @@ describe('TA2 identity - verdict EXACT chain fail-closed (D-78 S6, EXEC, temp fi
   it('artifact-hash mismatch across stages FAILS', () => fails((t) => { t.candidate.smoke.build_artifact_sha256 = 'z'.repeat(64); }));
   it('abbreviated SHA in a stage FAILS', () => fails((t) => { t.broken.build.resolved_commit_sha = 'cd64c8b4'; }));
   it('missing resolved_commit_sha in a stage FAILS', () => fails((t) => { delete t.candidate.build.resolved_commit_sha; }));
-  it('requested_ref without resolved_commit_sha FAILS (label alone insufficient)', () =>
-    fails((t) => { t.candidate.smoke = { control: 'candidate', requested_ref: 'candidate' }; }));
+  it('requested_ref without resolved_commit_sha FAILS (label alone insufficient)', () => fails((t) => { t.candidate.smoke = { control: 'candidate', requested_ref: 'candidate' }; }));
   it('a missing stage record FAILS (matrix label alone cannot satisfy)', () => fails((t) => { t.broken.cleanup = null; }));
-  it('wrong control-to-SHA mapping FAILS (broken built recovered`s SHA)', () =>
-    fails((t) => { for (const k of Object.keys(t.broken)) t.broken[k].resolved_commit_sha = EXPECT.recovered; }));
+  it('wrong control-to-SHA mapping FAILS (broken built recovered`s SHA)', () => fails((t) => { for (const k of Object.keys(t.broken)) t.broken[k].resolved_commit_sha = EXPECT.recovered; }));
   it('candidate built the WRONG integration SHA (not gate-guard candidate_sha) FAILS', () =>
     fails((t) => { for (const k of Object.keys(t.candidate)) t.candidate[k].resolved_commit_sha = 'e'.repeat(40); }));
   it('verdict stays FAIL-CLOSED: an expected SHA absent/non-40hex FAILS', () => {

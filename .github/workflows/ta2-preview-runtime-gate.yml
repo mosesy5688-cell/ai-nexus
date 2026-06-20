@@ -526,6 +526,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # This job runs a REPO script (scripts/ci/ta2-preview-cleanup.mjs
+      # --verify-identity-chain), so it MUST check out the source tree first;
+      # without this the script is absent on the runner and the verdict fails
+      # closed with MODULE_NOT_FOUND. Default checkout of the PR ref is fine: the
+      # verdict only needs the script file — the validation reads the EXACT SHAs
+      # from the DOWNLOADED artifacts, not from the checked-out tree.
+      - name: Checkout (verdict runner only — needs the verify script)
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 1
+
       - name: Download all per-control smoke verdicts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
