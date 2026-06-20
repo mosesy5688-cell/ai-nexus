@@ -9,9 +9,9 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-// @ts-expect-error — pure Node .mjs harness, no types
+// @ts-expect-error - pure Node .mjs harness, no types
 import { checkPreviewUrl, ctIsSane, assertStructure, probe, ENDPOINTS, checkBuildIdentity } from '../../scripts/ci/ta2-preview-smoke.mjs';
-// @ts-expect-error — pure Node .mjs harness, no types
+// @ts-expect-error - pure Node .mjs harness, no types
 import { verifyIdentityChain, defaultIdentityTree, writeIdentityTree } from '../../scripts/ci/ta2-preview-cleanup.mjs';
 const yml = fs.readFileSync(path.resolve(__dirname, '../../.github/workflows/ta2-preview-runtime-gate.yml'), 'utf8').replace(/\r\n/g, '\n');
 const smokeSrc = fs.readFileSync(path.resolve(__dirname, '../../scripts/ci/ta2-preview-smoke.mjs'), 'utf8');
@@ -28,7 +28,7 @@ const ymlCode = stripC(yml);
 const smokeCode = stripC(smokeSrc.replace(/\/\/[^\n]*/g, ''));
 const cleanupCode = stripC(cleanupSrc.replace(/\/\/[^\n]*/g, ''));
 const has = (block: string, ...needles: string[]) => { for (const n of needles) expect(block, n).toContain(n); };
-describe('TA2 gate — trigger + trust domain', () => {
+describe('TA2 gate - trigger + trust domain', () => {
   it('triggers on pull_request to main ONLY, never pull_request_target', () => {
     expect(yml).toMatch(/\non:\n {2}pull_request:\n {4}branches:\s*\[main\]/);
     expect(ymlCode).not.toContain('pull_request_target');
@@ -43,7 +43,7 @@ describe('TA2 gate — trigger + trust domain', () => {
     expect(jobBlock('preview-smoke')).toMatch(/if: always\(\)[\s\S]*exit 1/);
   });
 });
-describe('TA2 gate — secret/environment trust boundary', () => {
+describe('TA2 gate - secret/environment trust boundary', () => {
   it('deploy + cleanup hold CF_PREVIEW_API_TOKEN via Environment ta2-preview', () => {
     for (const j of ['deploy', 'cleanup']) has(jobBlock(j), 'environment: ta2-preview', 'secrets.CF_PREVIEW_API_TOKEN');
   });
@@ -61,7 +61,7 @@ describe('TA2 gate — secret/environment trust boundary', () => {
   it('NEGATIVE: exposing the token to the smoke job would trip the build+smoke lock', () =>
     expect((jobBlock('preview-smoke') + '\n          apiToken: ${{ secrets.CF_PREVIEW_API_TOKEN }}').includes('CF_PREVIEW_API_TOKEN')).toBe(true));
 });
-describe('TA2 gate — four trust-domain jobs', () => {
+describe('TA2 gate - four trust-domain jobs', () => {
   it('build: checkout exact control SHA, mirror infra-deploy build+restructure, upload immutable dist', () =>
     has(jobBlock('build'), 'ref: ${{ matrix.sha }}', 'npm ci', 'npm run build', "fs.writeFileSync('dist/_worker.js'", 'dist-manifest.sha256', 'actions/upload-artifact@'));
   it('deploy: downloads dist, does NOT npm install / run build / execute candidate', () => {
@@ -78,7 +78,7 @@ describe('TA2 gate — four trust-domain jobs', () => {
     expect(jobBlock('preview-smoke')).not.toContain('free2aitools.com');
   });
 });
-describe('TA2 gate — preview naming + production exclusion', () => {
+describe('TA2 gate - preview naming + production exclusion', () => {
   it('deterministic name ta2-pr-<PR>-run-<RUN_ID>-attempt-<RUN_ATTEMPT>-<CONTROL>', () =>
     expect(jobBlock('deploy')).toContain('PB="ta2-pr-${{ github.event.pull_request.number }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}-${CONTROL}"'));
   it('HARD-ASSERT branch not main / prod / empty; controls a fixed set; URL must be *.pages.dev', () =>
@@ -89,7 +89,7 @@ describe('TA2 gate — preview naming + production exclusion', () => {
     expect(yml.replace('--branch=${{ steps.name.outputs.preview_branch }}', '--branch=main')).toContain('--branch=main');
   });
 });
-describe('TA2 gate — pinning + telemetry + R2', () => {
+describe('TA2 gate - pinning + telemetry + R2', () => {
   it('ALL third-party actions pinned by 40-hex commit SHA', () => {
     const uses = [...yml.matchAll(/uses:\s*([^\s]+)/g)].map((m) => m[1]);
     expect(uses.length).toBeGreaterThan(0);
@@ -106,7 +106,7 @@ describe('TA2 gate — pinning + telemetry + R2', () => {
     expect(jobBlock('gate-guard')).toMatch(/grep -E "\$WRITE_RE"[\s\S]*exit 1/);
   });
 });
-describe('TA2 gate — cleanup + qualification', () => {
+describe('TA2 gate - cleanup + qualification', () => {
   it('cleanup always runs (if: always()) and deletes by exact id with --force', () => {
     expect(jobBlock('cleanup')).toContain('if: always()');
     has(cleanupSrc, "'pages', 'deployment', 'delete', DEPLOYMENT_ID", "'--force'");
@@ -126,7 +126,7 @@ describe('TA2 gate — cleanup + qualification', () => {
   it('the four controls map to candidate/broken(cd64c8b4)/recovered(b5107e4c)/current(base)', () =>
     has(jobBlock('build'), 'sha: cd64c8b49ffda41ff92188642dd6a8e95a8022fc', 'sha: b5107e4c4cb274e1eb560128a28bc1682eb828ad', '${{ needs.gate-guard.outputs.candidate_sha }}', '${{ needs.gate-guard.outputs.base_sha }}'));
 });
-describe('TA2 smoke runner — endpoints + cold-first', () => {
+describe('TA2 smoke runner - endpoints + cold-first', () => {
   it('exactly the six endpoints, /api/v1/health FIRST (cold, no warm-up)', () => {
     expect(ENDPOINTS.map((e: any) => e.path)).toEqual(['/api/v1/health', '/api/v1/search?q=test', '/api/mcp', '/api/v1/datasets', '/openapi.json', '/llms.txt']);
     expect(smokeCode).not.toMatch(/warm.?up/i);
@@ -147,7 +147,7 @@ describe('TA2 smoke runner — endpoints + cold-first', () => {
     expect(checkPreviewUrl('https://abc.ai-nexus.pages.dev').hostname).toContain('pages.dev');
   });
 });
-describe('TA2 smoke runner — fail-closed via mocked fetch', () => {
+describe('TA2 smoke runner - fail-closed via mocked fetch', () => {
   const realFetch = globalThis.fetch; afterEach(() => { globalThis.fetch = realFetch; });
   const base = new URL('https://abc.ai-nexus.pages.dev');
   const mk = (status: number, ct: string, body: string) => () => Promise.resolve(new Response(body, { status, headers: { 'content-type': ct } }));
@@ -172,7 +172,7 @@ describe('TA2 smoke runner — fail-closed via mocked fetch', () => {
 // ===== TA2-GATE-PROVENANCE-1 (D-2026-0620-78): every artifact self-binds its EXACT
 // built-commit identity; the verdict fails closed on any identity defect. =====
 const EXPECT = { broken: 'cd64c8b49ffda41ff92188642dd6a8e95a8022fc', recovered: 'b5107e4c4cb274e1eb560128a28bc1682eb828ad', current: '1aaa535e5402e2a0e1a2882faf0a96bfc6ac6189', candidate: 'a'.repeat(40) };
-describe('TA2 identity — BUILD emits EXACT built commit (D-78 §4)', () => {
+describe('TA2 identity - BUILD emits EXACT built commit (D-78 S4)', () => {
   it('resolved_commit_sha = `git rev-parse HEAD` AFTER checkout; build FAILS if not 40-hex', () => {
     const b = jobBlock('build');
     expect(b).toContain('RESOLVED=$(git rev-parse HEAD)');
@@ -187,7 +187,7 @@ describe('TA2 identity — BUILD emits EXACT built commit (D-78 §4)', () => {
     expect(stripC(b)).not.toContain('github.sha');
   });
 });
-describe('TA2 identity — END-TO-END propagation (D-78 §5)', () => {
+describe('TA2 identity - END-TO-END propagation (D-78 S5)', () => {
   it('deploy READS build-identity.json (no github.sha recompute) + forwards identity', () => {
     const d = stripC(jobBlock('deploy'));
     has(d, "require('./build-identity.json').resolved_commit_sha", 'build-identity.json missing', 'requested_ref', 'resolved_commit_sha', 'build_artifact_sha256', 'deployment_id');
@@ -208,7 +208,7 @@ describe('TA2 identity — END-TO-END propagation (D-78 §5)', () => {
       'EXPECT_RECOVERED: b5107e4c4cb274e1eb560128a28bc1682eb828ad', 'EXPECT_CURRENT: ${{ needs.gate-guard.outputs.base_sha }}');
   });
 });
-describe('TA2 identity — verdict EXACT chain fail-closed (D-78 §6, EXEC, temp fixtures)', () => {
+describe('TA2 identity - verdict EXACT chain fail-closed (D-78 S6, EXEC, temp fixtures)', () => {
   it('smoke fail-closed: full 40-hex passes every control; abbreviated/missing/github.sha-shaped all FAIL', () => {
     for (const c of Object.values(EXPECT)) expect(checkBuildIdentity({ resolvedCommitSha: c })).toBe(c);
     for (const v of ['cd64c8b4', '', 'eec05489']) expect(() => checkBuildIdentity({ resolvedCommitSha: v })).toThrow();

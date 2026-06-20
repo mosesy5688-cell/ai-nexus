@@ -1,5 +1,7 @@
-#!/usr/bin/env node
 // scripts/ci/ta2-preview-smoke.mjs
+// Invoked as `node scripts/ci/ta2-preview-smoke.mjs <preview-url>` (no shebang: the
+// hermetic SRS-1 test imports this module under vitest, whose evaluator rejects a
+// re-evaluated `#!` line; the workflow always calls it via `node`).
 // TA2-RUNTIME-GATE PR-G1 — 6-endpoint COLD-START smoke against an ephemeral
 // Cloudflare Pages PREVIEW deployment. Pure Node 24 fetch, NO new deps.
 //

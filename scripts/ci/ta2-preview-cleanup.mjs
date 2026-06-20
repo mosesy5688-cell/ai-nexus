@@ -1,5 +1,7 @@
-#!/usr/bin/env node
 // scripts/ci/ta2-preview-cleanup.mjs
+// Invoked as `node scripts/ci/ta2-preview-cleanup.mjs [--verify-identity-chain ...]`
+// (no shebang: the hermetic SRS-1 test imports this module under vitest, whose
+// evaluator rejects a re-evaluated `#!` line; the workflow always calls it via `node`).
 // TA2-RUNTIME-GATE PR-G1 — ephemeral preview CLEANUP + VERIFICATION.
 //
 // Deletes the preview deployment by its EXACT deployment ID and then VERIFIES
