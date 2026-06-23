@@ -34,7 +34,17 @@ pub const PARSE_ACCOUNTING_PROTOCOL: u32 = 1;
 /// W3-O1 per-drop record carried ACROSS the NAPI boundary (camelCase to Node).
 /// Irreversible coordinates ONLY — never payload bytes, source text, tokens, or
 /// keys. `payloadFingerprint`/`serdeLine`/`serdeColumn` are null when N/A.
-#[napi(object)]
+///
+/// `use_nullable = true` is LOAD-BEARING for the W3-O1 contract (Founder D-90):
+/// the default `#[napi(object)]` projection OMITS an `Option::None` field from
+/// the JS object, so Node reads it back as `undefined`. The spec — and the CI
+/// verifier `verify-parse-accounting-binding.mjs` — require a no-payload drop to
+/// present `payloadFingerprint === null` (JS null), NOT `undefined`. With
+/// `use_nullable`, napi-derive emits `obj.set(field, Null)` for the `None` arm,
+/// yielding a real JS `null`; the `Some` arm still emits the 16-hex fingerprint
+/// string. This also makes `serdeLine`/`serdeColumn` present as JS null (not
+/// undefined) for non-json-parse drops, matching their "null when N/A" contract.
+#[napi(object, use_nullable = true)]
 pub struct ParseDropRecord {
     pub part: String,
     pub entry_index: u32,
@@ -314,6 +324,48 @@ mod tests {
             generate_umid("arxiv-paper--2017--attention-is-all-you-need"),
             "8e055264c3931891"
         );
+    }
+
+    /// W3-O1: the NAPI projection of an offset-boundary (no-payload) drop must
+    /// carry `payload_fingerprint == None`. With `#[napi(object, use_nullable)]`
+    /// on ParseDropRecord, napi-derive renders this `None` as JS `null` (not
+    /// `undefined`) — which is what the CI verifier asserts on the real .node.
+    /// A real-payload drop must still carry the 16-hex fingerprint string.
+    #[test]
+    fn no_payload_drop_projects_none_real_payload_projects_fingerprint() {
+        let mut report = nxvf_core::ShardParseReport::new("part-000.bin", 2);
+        report.record_parsed();
+        report.record_drop(nxvf_core::DropRecord::no_payload("part-000.bin", 1));
+        let acc = build_parse_accounting(&report);
+
+        assert_eq!(acc.drop_records.len(), 1);
+        let rec = &acc.drop_records[0];
+        // no-payload → None (→ JS null via use_nullable) + status + no serde coords.
+        assert!(rec.payload_fingerprint.is_none());
+        assert_eq!(rec.fingerprint_status, "unavailable_no_payload");
+        assert_eq!(rec.error_class, "offset_boundary");
+        assert!(rec.serde_line.is_none());
+        assert!(rec.serde_column.is_none());
+
+        // A real-payload (json-parse) drop still projects a 16-hex fingerprint.
+        let mut report2 = nxvf_core::ShardParseReport::new("part-000.bin", 1);
+        report2.record_drop(nxvf_core::DropRecord::with_payload(
+            "part-000.bin",
+            0,
+            nxvf_core::DropClass::JsonParse,
+            b"{bad",
+            1,
+            2,
+        ));
+        let acc2 = build_parse_accounting(&report2);
+        let rec2 = &acc2.drop_records[0];
+        let fp = rec2.payload_fingerprint.as_deref().expect("fingerprint set");
+        assert_eq!(fp.len(), 16);
+        assert!(fp.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(rec2.fingerprint_status, "ok");
+        // json-parse drop DOES carry serde coords.
+        assert_eq!(rec2.serde_line, Some(1));
+        assert_eq!(rec2.serde_column, Some(2));
     }
 }
 
