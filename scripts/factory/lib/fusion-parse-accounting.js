@@ -9,7 +9,7 @@
  */
 
 import {
-    newCanaryAggregate, foldShard, finalizeCanary, dropLogLine,
+    newCanaryAggregate, foldShard, foldFallbackShard, finalizeCanary, dropLogLine,
 } from './fusion-parse-canary.js';
 
 /** Create the per-run accumulator. */
@@ -26,6 +26,17 @@ export function collectShardAccounting(agg, acc, log = console.log) {
     foldShard(agg, acc);
     const records = acc && Array.isArray(acc.dropRecords) ? acc.dropRecords : [];
     for (const rec of records) log(dropLogLine(rec));
+}
+
+/**
+ * Account for a shard fused by the JS fallback path (fuseShardFFI returned null).
+ * The JS fallback emits NO parse-attrition summary, so its attrition is
+ * unobserved — this shard MUST still be counted (as not-applicable) so the run
+ * can never read as a clean dropped=0 PASS while these shards' drops are
+ * invisible. Without this fold the shard is silently skipped (DEFECT 1).
+ */
+export function collectFallbackShard(agg) {
+    foldFallbackShard(agg);
 }
 
 /**

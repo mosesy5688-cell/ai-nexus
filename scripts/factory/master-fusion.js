@@ -9,7 +9,7 @@ import path from 'path';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
 import { initRustBridge, fuseShardFFI, parseAccountingCapability } from './lib/rust-bridge.js';
-import { newParseAccounting, collectShardAccounting, finalizeParseAccounting } from './lib/fusion-parse-accounting.js';
+import { newParseAccounting, collectShardAccounting, collectFallbackShard, finalizeParseAccounting } from './lib/fusion-parse-accounting.js';
 import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
 import { generateUMID, generateDevUMID } from './lib/umid-generator.js';
 import { fuseShardJS } from './lib/fuse-shard-js.js';
@@ -218,7 +218,11 @@ async function main() {
                 await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
                     shardId: i, entities: fused, _ts: new Date().toISOString()
                 })));
-                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${fused.length} entities (JS)`);
+                // W3-O1 DEFECT 1: the JS fallback has NO parse-attrition monitoring.
+                // Count this shard as not-applicable so its unobserved attrition can
+                // never read as a clean dropped=0 PASS (never silently skipped).
+                collectFallbackShard(parseAcct);
+                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${fused.length} entities (JS, parse-attrition not-applicable)`);
             }
             processedCount++;
         } catch (e) {
