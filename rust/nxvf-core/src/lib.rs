@@ -14,6 +14,9 @@ use std::io::{BufReader, Read};
 use std::sync::OnceLock;
 use std::{fs, path::Path};
 
+pub mod parse_report;
+pub use parse_report::{DropClass, DropRecord, ShardParseReport};
+
 // ── NXVF V4.1 Constants ────────────────────────────────────────────
 
 const HEADER_SIZE: usize = 29;
@@ -99,10 +102,7 @@ fn derive_entity_iv(key: &[u8; 32], shard_name: &str, offset: u32) -> [u8; 16] {
 fn decrypt_payload(key: &[u8; 32], shard_name: &str, payload: &[u8], offset: u32) -> Vec<u8> {
     let iv = derive_entity_iv(key, shard_name, offset);
     let mut decrypted = payload.to_vec();
-    let mut cipher = Aes256Ctr::new(
-        GenericArray::from_slice(key),
-        GenericArray::from_slice(&iv),
-    );
+    let mut cipher = Aes256Ctr::new(GenericArray::from_slice(key), GenericArray::from_slice(&iv));
     cipher.apply_keystream(&mut decrypted);
     decrypted
 }
@@ -130,13 +130,21 @@ pub fn extract_scores_from_shard(file_path: &str) -> Result<Vec<(String, f64)>, 
     }
     // JSON.gz/.json.zst/.json fallback — must full-parse (rare legacy path)
     let entities = load_shard_entities(file_path)?;
-    Ok(entities.iter().filter_map(|e| {
-        let id = e.get("id")?.as_str()?;
-        if id.is_empty() { return None; }
-        let score = e.get("fni_score").and_then(|v| v.as_f64())
-            .or_else(|| e.get("fni").and_then(|v| v.as_f64())).unwrap_or(0.0);
-        Some((id.to_string(), score))
-    }).collect())
+    Ok(entities
+        .iter()
+        .filter_map(|e| {
+            let id = e.get("id")?.as_str()?;
+            if id.is_empty() {
+                return None;
+            }
+            let score = e
+                .get("fni_score")
+                .and_then(|v| v.as_f64())
+                .or_else(|| e.get("fni").and_then(|v| v.as_f64()))
+                .unwrap_or(0.0);
+            Some((id.to_string(), score))
+        })
+        .collect())
 }
 
 fn extract_scores_from_binary_shard(file_path: &str) -> Result<Vec<(String, f64)>, String> {
@@ -147,31 +155,48 @@ fn extract_scores_from_binary_shard(file_path: &str) -> Result<Vec<(String, f64)
     let header = parse_header(&data).ok_or_else(|| format!("Bad header: {}", file_path))?;
     let ot_start = header.offset_table_offset as usize;
     let ot_end = ot_start + header.entity_count as usize * 8;
-    if ot_end > data.len() { return Err(format!("Offset table overflow: {}", file_path)); }
+    if ot_end > data.len() {
+        return Err(format!("Offset table overflow: {}", file_path));
+    }
     let offset_table = &data[ot_start..ot_end];
-    let shard_name = Path::new(file_path).file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let shard_name = Path::new(file_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
     let aes_key = get_aes_key();
     let mut results = Vec::with_capacity(header.entity_count as usize);
 
     for i in 0..header.entity_count as usize {
         let base = i * 8;
-        let offset = u32::from_le_bytes(offset_table[base..base+4].try_into().unwrap_or([0;4]));
-        let size = u32::from_le_bytes(offset_table[base+4..base+8].try_into().unwrap_or([0;4]));
+        let offset = u32::from_le_bytes(offset_table[base..base + 4].try_into().unwrap_or([0; 4]));
+        let size = u32::from_le_bytes(
+            offset_table[base + 4..base + 8]
+                .try_into()
+                .unwrap_or([0; 4]),
+        );
         let end = offset as usize + size as usize;
-        if end > data.len() { continue; }
+        if end > data.len() {
+            continue;
+        }
         let mut payload = data[offset as usize..end].to_vec();
         if !is_valid_payload(&payload) {
             if let Some(key) = aes_key {
                 let decrypted = decrypt_payload(key, shard_name, &payload, offset);
-                if is_valid_payload(&decrypted) { payload = decrypted; }
+                if is_valid_payload(&decrypted) {
+                    payload = decrypted;
+                }
             }
         }
         if payload.len() >= 4 && payload[0..4] == ZSTD_MAGIC {
-            if let Ok(d) = zstd::decode_all(payload.as_slice()) { payload = d; }
+            if let Ok(d) = zstd::decode_all(payload.as_slice()) {
+                payload = d;
+            }
         } else if payload.len() >= 2 && payload[0..2] == GZIP_MAGIC {
             let mut dec = GzDecoder::new(payload.as_slice());
             let mut d = Vec::new();
-            if dec.read_to_end(&mut d).is_ok() { payload = d; }
+            if dec.read_to_end(&mut d).is_ok() {
+                payload = d;
+            }
         }
         // Slim parse: serde only allocates id + fni_score, skips body_content/readme/etc.
         if let Ok(e) = serde_json::from_slice::<SlimEntity>(&payload) {
@@ -187,12 +212,28 @@ fn extract_scores_from_binary_shard(file_path: &str) -> Result<Vec<(String, f64)
 // ── Public API ──────────────────────────────────────────────────────
 
 /// Read and decode a binary NXVF V4.1 shard file into entity JSON values.
+///
+/// Thin survivor-only wrapper over `read_binary_shard_with_report`. The survivor
+/// Vec is byte-identical and same-order vs the report variant — the parse
+/// accounting is a pure side-channel and never alters the kept entity set.
 pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, String> {
-    let data = fs::read(file_path)
-        .map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
+    let (entities, _report) = read_binary_shard_with_report(file_path)?;
+    Ok(entities)
+}
 
-    let header = parse_header(&data)
-        .ok_or_else(|| format!("Invalid NXVF header: {}", file_path))?;
+/// W3-O1 (D-88/D-90): decode a binary NXVF shard AND produce a structured
+/// `ShardParseReport`. The survivor Vec is identical (byte + order) to the
+/// pre-feature reader; the report is a side-channel that COUNTS, CLASSIFIES,
+/// and FINGERPRINTS every silently-dropped entry. The decode/codec path is
+/// UNCHANGED — every `continue` site that previously dropped an entry now also
+/// appends an irreversible-coordinate `DropRecord` (no payload/text/token).
+pub fn read_binary_shard_with_report(
+    file_path: &str,
+) -> Result<(Vec<serde_json::Value>, ShardParseReport), String> {
+    let data = fs::read(file_path).map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
+
+    let header =
+        parse_header(&data).ok_or_else(|| format!("Invalid NXVF header: {}", file_path))?;
 
     let ot_start = header.offset_table_offset as usize;
     let ot_end = ot_start + header.entity_count as usize * 8;
@@ -216,15 +257,20 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
         .unwrap_or("");
     let aes_key = get_aes_key();
     let mut entities = Vec::with_capacity(header.entity_count as usize);
+    let mut report = ShardParseReport::new(shard_name, header.entity_count);
 
     for i in 0..header.entity_count as usize {
         let base = i * 8;
-        let offset =
-            u32::from_le_bytes(offset_table[base..base + 4].try_into().unwrap_or([0; 4]));
-        let size =
-            u32::from_le_bytes(offset_table[base + 4..base + 8].try_into().unwrap_or([0; 4]));
+        let offset = u32::from_le_bytes(offset_table[base..base + 4].try_into().unwrap_or([0; 4]));
+        let size = u32::from_le_bytes(
+            offset_table[base + 4..base + 8]
+                .try_into()
+                .unwrap_or([0; 4]),
+        );
         let end = offset as usize + size as usize;
         if end > data.len() {
+            // offset-boundary drop: NOTHING was read -> null fingerprint.
+            report.record_drop(DropRecord::no_payload(shard_name, i));
             continue;
         }
 
@@ -246,6 +292,14 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
                 Ok(decompressed) => payload = decompressed,
                 Err(e) => {
                     eprintln!("[NXVF-CORE] Zstd error in {}[{}]: {}", shard_name, i, e);
+                    report.record_drop(DropRecord::with_payload(
+                        shard_name,
+                        i,
+                        DropClass::Zstd,
+                        &payload,
+                        0,
+                        0,
+                    ));
                     continue;
                 }
             }
@@ -258,6 +312,14 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
                 Ok(_) => payload = decompressed,
                 Err(e) => {
                     eprintln!("[NXVF-CORE] Gzip error in {}[{}]: {}", shard_name, i, e);
+                    report.record_drop(DropRecord::with_payload(
+                        shard_name,
+                        i,
+                        DropClass::Gzip,
+                        &payload,
+                        0,
+                        0,
+                    ));
                     continue;
                 }
             }
@@ -265,12 +327,16 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
 
         // JSON parse with sanitization fallback + forced-decrypt retry
         match serde_json::from_slice::<serde_json::Value>(&payload) {
-            Ok(val) => entities.push(val),
+            Ok(val) => {
+                entities.push(val);
+                report.record_parsed();
+            }
             Err(e) => {
                 let raw_str = String::from_utf8_lossy(&payload);
                 let sanitized = sanitize_json_escapes(&raw_str);
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&sanitized) {
                     entities.push(val);
+                    report.record_parsed();
                     continue;
                 }
                 // Forced-decrypt retry: isValidPayload false positive (~1/65536)
@@ -290,20 +356,33 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
                     }
                     if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&retry) {
                         entities.push(val);
+                        report.record_parsed();
                         continue;
                     }
                 }
                 eprintln!("[NXVF-CORE] Parse error {}[{}]: {}", shard_name, i, e);
+                // json-parse drop: fingerprint the FINAL payload bytes that
+                // serde rejected, carry serde line/column coordinates.
+                report.record_drop(DropRecord::with_payload(
+                    shard_name,
+                    i,
+                    DropClass::JsonParse,
+                    &payload,
+                    e.line() as u32,
+                    e.column() as u32,
+                ));
             }
         }
     }
 
     eprintln!(
-        "[NXVF-CORE] Read {} entities from {}",
+        "[NXVF-CORE] Read {} entities from {} (declared={}, dropped={})",
         entities.len(),
-        shard_name
+        shard_name,
+        report.declared_entity_count,
+        report.dropped_entity_count()
     );
-    Ok(entities)
+    Ok((entities, report))
 }
 
 /// Load entities from a shard file (any format: .bin, .json.gz, .json, .json.zst).
@@ -313,8 +392,7 @@ pub fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>, String>
         return read_binary_shard(path);
     }
 
-    let file = fs::File::open(path)
-        .map_err(|e| format!("Cannot open {}: {}", path, e))?;
+    let file = fs::File::open(path).map_err(|e| format!("Cannot open {}: {}", path, e))?;
 
     let mut raw = String::new();
     if path.ends_with(".json.zst") || path.ends_with(".zst") {
@@ -356,8 +434,7 @@ pub fn discover_shards(dir: &str) -> Result<Vec<String>, String> {
     // Map shard index (e.g. "part-000") → (priority, full_path)
     let mut shard_map: BTreeMap<String, (u8, String)> = BTreeMap::new();
 
-    let entries = fs::read_dir(dir)
-        .map_err(|e| format!("Cannot read shard dir {}: {}", dir, e))?;
+    let entries = fs::read_dir(dir).map_err(|e| format!("Cannot read shard dir {}: {}", dir, e))?;
 
     for entry in entries.filter_map(|e| e.ok()) {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -410,16 +487,19 @@ pub fn for_each_raw_entity<F>(file_path: &str, mut callback: F) -> Result<usize,
 where
     F: FnMut(&[u8]) -> Result<(), String>,
 {
-    let file = fs::File::open(file_path)
-        .map_err(|e| format!("Cannot open {}: {}", file_path, e))?;
-    let mut reader: Box<dyn Read> = if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
-        Box::new(zstd::Decoder::new(BufReader::new(file))
-            .map_err(|e| format!("Zstd init {}: {}", file_path, e))?)
-    } else if file_path.ends_with(".gz") {
-        Box::new(GzDecoder::new(BufReader::new(file)))
-    } else {
-        Box::new(BufReader::new(file))
-    };
+    let file =
+        fs::File::open(file_path).map_err(|e| format!("Cannot open {}: {}", file_path, e))?;
+    let mut reader: Box<dyn Read> =
+        if file_path.ends_with(".json.zst") || file_path.ends_with(".zst") {
+            Box::new(
+                zstd::Decoder::new(BufReader::new(file))
+                    .map_err(|e| format!("Zstd init {}: {}", file_path, e))?,
+            )
+        } else if file_path.ends_with(".gz") {
+            Box::new(GzDecoder::new(BufReader::new(file)))
+        } else {
+            Box::new(BufReader::new(file))
+        };
     let mut buf = Vec::<u8>::new();
     let mut chunk = vec![0u8; 65536];
     let mut depth: i32 = 0;
@@ -429,18 +509,26 @@ where
     let mut count = 0usize;
 
     loop {
-        let n = reader.read(&mut chunk).map_err(|e| format!("Read {}: {}", file_path, e))?;
-        if n == 0 { break; }
+        let n = reader
+            .read(&mut chunk)
+            .map_err(|e| format!("Read {}: {}", file_path, e))?;
+        if n == 0 {
+            break;
+        }
         let scan_start = buf.len();
         buf.extend_from_slice(&chunk[..n]);
 
         for i in scan_start..buf.len() {
             let c = buf[i];
-            if c == b'"' && !escaped { in_string = !in_string; }
+            if c == b'"' && !escaped {
+                in_string = !in_string;
+            }
             escaped = c == b'\\' && !escaped && in_string;
             if !in_string {
                 if c == b'{' {
-                    if depth == 1 { obj_start = Some(i); }
+                    if depth == 1 {
+                        obj_start = Some(i);
+                    }
                     depth += 1;
                 } else if c == b'}' {
                     depth -= 1;
@@ -455,8 +543,14 @@ where
             }
         }
         match obj_start {
-            None => { buf.clear(); }
-            Some(s) => { let tail = buf[s..].to_vec(); buf = tail; obj_start = Some(0); }
+            None => {
+                buf.clear();
+            }
+            Some(s) => {
+                let tail = buf[s..].to_vec();
+                buf = tail;
+                obj_start = Some(0);
+            }
         }
     }
     Ok(count)
@@ -470,7 +564,9 @@ where
     if file_path.ends_with(".bin") {
         let entities = read_binary_shard(file_path)?;
         let count = entities.len();
-        for e in entities { callback(e)?; }
+        for e in entities {
+            callback(e)?;
+        }
         return Ok(count);
     }
     for_each_raw_entity(file_path, |raw| {
@@ -614,8 +710,7 @@ pub fn load_json_file(base_path: &str) -> Result<serde_json::Value, String> {
 
 /// Compress data with Zstd and write to file.
 pub fn write_zstd(path: &str, data: &[u8], level: i32) -> Result<(), String> {
-    let compressed =
-        zstd::encode_all(data, level).map_err(|e| format!("Zstd compress: {}", e))?;
+    let compressed = zstd::encode_all(data, level).map_err(|e| format!("Zstd compress: {}", e))?;
     fs::write(path, compressed).map_err(|e| format!("Write {}: {}", path, e))
 }
 
@@ -636,8 +731,7 @@ pub fn write_gzip(path: &str, data: &[u8]) -> Result<(), String> {
     use flate2::Compression;
     use std::io::Write;
 
-    let file =
-        fs::File::create(path).map_err(|e| format!("Cannot create {}: {}", path, e))?;
+    let file = fs::File::create(path).map_err(|e| format!("Cannot create {}: {}", path, e))?;
     let mut encoder = GzEncoder::new(file, Compression::default());
     encoder
         .write_all(data)

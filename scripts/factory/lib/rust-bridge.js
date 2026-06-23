@@ -241,3 +241,8 @@ export async function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDi
 // V25.12: Markdown -> sanitized HTML via Rust (pulldown-cmark + ammonia). Null = caller falls back to JS.
 export function renderHtmlFFI(md) { if (!_markdownRenderer) return null; try { return _markdownRenderer.renderHtml(md); } catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): renderHtml: ${e.message}`); return null; } }
 export function getRustMode() { return _mode; }
+/** W3-O1 (D-89): raw parse-accounting capability surface for the JS canary. Classification logic lives in fusion-capability.js (rust-bridge at CES ceiling). Returns the self-declaring protocol constant (or undefined on a legacy addon) + whether the monitored fuseShard export exists + engine mode. NEVER returns a default 0. */
+export function parseAccountingCapability() {
+    const proto = _streamAggregator?.PARSE_ACCOUNTING_PROTOCOL;
+    return { protocolConstant: typeof proto === 'number' ? proto : undefined, hasFuseShard: typeof _streamAggregator?.fuseShard === 'function', engineMode: _mode };
+}

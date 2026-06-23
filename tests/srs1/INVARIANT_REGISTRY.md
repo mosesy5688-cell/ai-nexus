@@ -381,6 +381,48 @@ proof in the PR body).
   `tests/unit/citation-integrity.test.ts` (collected by the same Tier-1 `unit-test` gate),
   complemented by the bake-time `verifyCitationIntegrity` canary (artifact tier, not a PR test).
 
+## Registry — W3-O1 (fused-input parse-attrition OBSERVABILITY)
+
+> Deterministic, hermetic invariants for W3-O1 (Founder D-88 / D-89 / D-90).
+> The Factory 4/4 NXVF binary-shard reader silently dropped any entry that
+> failed to decode/parse (~0.005%/cycle). W3-O1 makes those drops COUNTED,
+> CLASSIFIED, FINGERPRINTED, and surfaced as a PURE SIDE-CHANNEL — the codec,
+> the offset table, the payload bytes, the entity survivors (byte + order), and
+> the >=90% floor are ALL UNCHANGED. Two test tiers:
+> (1) Rust (`rust/nxvf-core/tests/parse_attrition.rs` + the `parse_report` unit
+> tests in `rust/nxvf-core/src/parse_report.rs`) prove conservation
+> (declared==parsed+dropped), the json-parse SUBSET classification, per-record
+> fields, raw-byte SHA-256 fingerprint fidelity (distinct invalid-UTF-8 -> distinct
+> fp), the no-payload null, and survivor byte+order equality vs the legacy reader.
+> (2) Vitest EXEC (`tests/unit/fusion-parse-attrition.test.ts`, collected by the
+> Tier-1 `unit-test` job) drives the REAL JS canary + capability classifier
+> (`scripts/factory/lib/fusion-capability.js` + `fusion-parse-canary.js` +
+> `fusion-parse-accounting.js`) over synthetic NAPI-camelCase summaries: the
+> 3-state capability-aware canary, the iron anti-empty-set rule, the
+> drop_detail_records_seen == dropped fail-closed enforcement, and the
+> sentinel-leak guard (no raw payload/source/token in any record or log line).
+> A built-`.node` binding verifier (`scripts/factory/verify-parse-accounting-binding.mjs`,
+> exit 2 when the addon is absent; NOT wired into any workflow) proves the
+> records cross the real NAPI boundary. SCOPE: AES/Zstd/gzip/offset-table/payload
+> bytes/entity fields/`>=90%` floor UNCHANGED; observe-only.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| W3O1-CONSERVE | Reader produces a structured report; `declared_entity_count == parsed_entity_count + dropped_entity_count`; `parse_error_count` = the json-parse SUBSET only (offset-boundary/zstd/gzip are DISTINCT classes, not folded in); each dropped entry yields a structured record (part, entry_index, error_class, serde line/col, payload_length, fingerprint, fingerprint_status, attribution_status) | `rust/nxvf-core/tests/parse_attrition.rs` + `rust/nxvf-core/src/parse_report.rs` (unit) + `tests/unit/fusion-parse-attrition.test.ts` (aggregate) | EXEC | **NEW** |
+| W3O1-FINGERPRINT | `payload_fingerprint` = SHA-256 over the RAW payload BYTES truncated to 16 hex (no UTF-8/lossy/JSON projection — two distinct invalid-UTF-8 byte sequences that collapse under lossy conversion STILL differ); no-payload (offset-boundary) -> fingerprint null + `fingerprint_status=unavailable_no_payload` (empty bytes NEVER hashed-as-identity); attribution_status ALWAYS "unavailable" (NXVF has no out-of-JSON identity envelope; no regex-scan of malformed bytes) | `rust/nxvf-core/tests/parse_attrition.rs` + `rust/nxvf-core/src/parse_report.rs` | EXEC | **NEW** |
+| W3O1-SURVIVOR | The fused survivor set is byte-identical AND same-order vs the pre-feature reader; `read_binary_shard` is a thin survivor-only wrapper over the report variant (accounting is a pure side-channel that never alters the kept set) | `rust/nxvf-core/tests/parse_attrition.rs` | EXEC | **NEW** |
+| W3O1-CAP | Capability handshake: the Rust/NAPI surface exports `PARSE_ACCOUNTING_PROTOCOL===1` + a self-declaring `parseAccounting.protocolVersion`; JS classifies engine_mode ('rust'\|'js') + protocol (1\|'legacy'\|'unavailable'); a default-zero/absent field is NEVER inferred as protocol 1 | `tests/unit/fusion-parse-attrition.test.ts` | EXEC | **NEW** |
+| W3O1-CANARY | 3-state canary: PRESENT_VALID(+0->PASS / +drops->DEGRADED, never blocks); EXPECTED_BUT_MISSING (v1-capable but summary missing/old/non-conserved OR aggregate non-conservation OR drop-detail incomplete -> FAIL + the ONLY new blocking case); NOT_ACTIVE_OR_NOT_APPLICABLE (legacy/JS/no monitored shard/zero shards -> NOT_EVALUATED/WARN, never PASS, never blocks). IRON RULE: UNKNOWN never -> PASS; legacy/inactive never -> integrity FAIL. Anti-empty-set: no-summary/zero-records/zero-shards/addon-without-field/default-zero/empty-object never reported as dropped=0 PASS; every verdict carries a reason code + the full field set | `tests/unit/fusion-parse-attrition.test.ts` | EXEC | **NEW** |
+| W3O1-SURFACED | Master Fusion emits one `NXVF_PARSE_DROP {json}` per drop record + an aggregate `NXVF_PARSE_ACCOUNTING` summary including `drop_detail_records_seen`; under a v1 run `drop_detail_records_seen == dropped_entity_count` is ENFORCED fail-closed (stranded records throw, BEFORE the sentinel); the fail-closed path does NOT touch the `>=90%` floor; records + logs carry ONLY irreversible coordinates (sentinel-leak guard: no raw payload/source/token) | `tests/unit/fusion-parse-attrition.test.ts` | EXEC | **NEW** |
+
+> Built-`.node` binding complement (NOT a hermetic PR test — requires the native
+> build): `scripts/factory/verify-parse-accounting-binding.mjs` asserts the
+> protocol export returns 1 and a REAL `fuseShard` on a crafted one-offset-boundary
+> NXVF shard returns `parseAccounting.protocolVersion===1` with a drop-records
+> array whose length === the dropped count. It exits 2 (not fail) where the
+> `.node` is absent so it is runnable anywhere; it is intentionally NOT wired into
+> any workflow (GHA log lines + the existing sentinel aggregate are sufficient).
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
