@@ -166,6 +166,20 @@ jobs:
             console.log('identity-cluster: buildIdentityClusters verified');
           "
 
+      # W3-O1 (Founder D-94): prove the per-drop parse-accounting NAPI contract on
+      # the SAME final-head Linux .node this run just built+placed. The verifier
+      # loads rust/stream-aggregator/stream-aggregator-rust.node, runs the REAL
+      # fuseShard on a crafted one-offset-boundary-drop NXVF shard, and asserts the
+      # protocol==1 / dropRecords-array / length===droppedEntityCount / null-
+      # fingerprint / conservation contract. The ls -la prints the exact file from
+      # THIS run's "Place .node Files" (proves same-run/same-SHA, not an npm/cache/
+      # main artifact). Non-zero exit fails this job (no suppression); exit 2 (.node
+      # absent) cannot occur here because "Place .node Files" ran above.
+      - name: W3-O1 Parse-Accounting NAPI Binding Gate
+        run: |
+          ls -la rust/stream-aggregator/stream-aggregator-rust.node
+          node scripts/factory/verify-parse-accounting-binding.mjs
+
       - name: IVF-PQ Rust-JS Parity Gate
         # CI runs `napi build`, NOT `cargo test`, so the Rust #[test] suite is not a
         # gate (#2132/#2136 lesson). This node step IS the Rust==JS lockstep gate.
