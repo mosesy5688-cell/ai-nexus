@@ -24,11 +24,122 @@ fn generate_umid(canonical_id: &str) -> String {
     out
 }
 
+/// W3-O1 (D-89/D-90) capability handshake constant. Value 1 = this addon emits
+/// protocol-v1 parse accounting + per-drop detail records across the NAPI
+/// boundary. The JS canary reads THIS (never a default-zero field) to classify
+/// the engine as protocol-v1-capable. A legacy addon lacks this export entirely.
+#[napi]
+pub const PARSE_ACCOUNTING_PROTOCOL: u32 = 1;
+
+/// W3-O1 per-drop record carried ACROSS the NAPI boundary (camelCase to Node).
+/// Irreversible coordinates ONLY — never payload bytes, source text, tokens, or
+/// keys. `payloadFingerprint`/`serdeLine`/`serdeColumn` are null when N/A.
+///
+/// `use_nullable = true` is LOAD-BEARING for the W3-O1 contract (Founder D-90):
+/// the default `#[napi(object)]` projection OMITS an `Option::None` field from
+/// the JS object, so Node reads it back as `undefined`. The spec — and the CI
+/// verifier `verify-parse-accounting-binding.mjs` — require a no-payload drop to
+/// present `payloadFingerprint === null` (JS null), NOT `undefined`. With
+/// `use_nullable`, napi-derive emits `obj.set(field, Null)` for the `None` arm,
+/// yielding a real JS `null`; the `Some` arm still emits the 16-hex fingerprint
+/// string. This also makes `serdeLine`/`serdeColumn` present as JS null (not
+/// undefined) for non-json-parse drops, matching their "null when N/A" contract.
+#[napi(object, use_nullable = true)]
+pub struct ParseDropRecord {
+    pub part: String,
+    pub entry_index: u32,
+    pub error_class: String,
+    pub serde_line: Option<u32>,
+    pub serde_column: Option<u32>,
+    pub payload_length: u32,
+    pub payload_fingerprint: Option<String>,
+    pub fingerprint_status: String,
+    pub attribution_status: String,
+}
+
+/// W3-O1 structured parse accounting for a single fused shard. `protocolVersion`
+/// is self-declaring (== PARSE_ACCOUNTING_PROTOCOL) so the JS summary can never
+/// infer v1 from an absent/default field. `dropRecords` carries EVERY dropped
+/// entry; its length MUST equal `droppedEntityCount` (drop-detail completeness).
+#[napi(object)]
+pub struct ParseAccounting {
+    pub protocol_version: u32,
+    /// "binary" when the monitored NXVF reader ran; "not_applicable" for legacy
+    /// JSON shards (no binary parse-attrition path on that read).
+    pub engine_path: String,
+    pub part: String,
+    pub declared_entity_count: u32,
+    pub parsed_entity_count: u32,
+    pub dropped_entity_count: u32,
+    pub parse_error_count: u32,
+    pub conserved: bool,
+    pub drop_records: Vec<ParseDropRecord>,
+}
+
 #[napi(object)]
 pub struct FuseShardResult {
     pub entity_count: u32,
     pub filtered_relations: u32,
     pub enriched_count: u32,
+    /// W3-O1 side-channel parse accounting (D-88/D-90). Always present.
+    pub parse_accounting: ParseAccounting,
+}
+
+/// Map a nxvf-core ShardParseReport into the NAPI-facing ParseAccounting.
+fn build_parse_accounting(report: &nxvf_core::ShardParseReport) -> ParseAccounting {
+    let drop_records = report
+        .records
+        .iter()
+        .map(|r| ParseDropRecord {
+            part: r.part.clone(),
+            entry_index: r.entry_index,
+            error_class: r.error_class.as_str().to_string(),
+            // serde line/column only meaningful for json-parse drops.
+            serde_line: if r.error_class == nxvf_core::DropClass::JsonParse {
+                Some(r.serde_line)
+            } else {
+                None
+            },
+            serde_column: if r.error_class == nxvf_core::DropClass::JsonParse {
+                Some(r.serde_column)
+            } else {
+                None
+            },
+            payload_length: r.payload_length,
+            payload_fingerprint: r.payload_fingerprint.clone(),
+            fingerprint_status: r.fingerprint_status.to_string(),
+            attribution_status: r.attribution_status.to_string(),
+        })
+        .collect();
+    ParseAccounting {
+        protocol_version: PARSE_ACCOUNTING_PROTOCOL,
+        engine_path: "binary".to_string(),
+        part: report.part.clone(),
+        declared_entity_count: report.declared_entity_count,
+        parsed_entity_count: report.parsed_entity_count,
+        dropped_entity_count: report.dropped_entity_count(),
+        parse_error_count: report.parse_error_count(),
+        conserved: report.is_conserved(),
+        drop_records,
+    }
+}
+
+/// Accounting for a NON-monitored shard read (legacy JSON path): no binary
+/// parse-attrition exists there, so this is protocol-v1 but engine_path
+/// "not_applicable" with zero declared/dropped and an empty record set. The JS
+/// canary treats not_applicable as NOT a conserved-summary signal.
+fn not_applicable_accounting(part: &str) -> ParseAccounting {
+    ParseAccounting {
+        protocol_version: PARSE_ACCOUNTING_PROTOCOL,
+        engine_path: "not_applicable".to_string(),
+        part: part.to_string(),
+        declared_entity_count: 0,
+        parsed_entity_count: 0,
+        dropped_entity_count: 0,
+        parse_error_count: 0,
+        conserved: true,
+        drop_records: Vec::new(),
+    }
 }
 
 /// Fuse a single shard: read → closed-world filter → FNI → enrich → project → write.
@@ -52,15 +163,28 @@ pub fn fuse_shard(
         .collect();
 
     // 2. Load FNI thresholds
-    let thresholds = nxvf_core::load_json_file(&fni_thresholds_path)
-        .unwrap_or_else(|_| json!({}));
+    let thresholds = nxvf_core::load_json_file(&fni_thresholds_path).unwrap_or_else(|_| json!({}));
     let score_pcts = thresholds
         .get("scorePercentiles")
         .and_then(|v| v.as_object());
 
-    // 3. Read shard
-    let entities = nxvf_core::load_shard_entities(&shard_path)
-        .map_err(|e| Error::from_reason(format!("read shard: {e}")))?;
+    // 3. Read shard. For the monitored NXVF binary path use the reporting
+    // variant (survivors byte+order identical; accounting is side-channel).
+    let part_name = std::path::Path::new(&shard_path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
+    let (entities, parse_accounting) = if shard_path.ends_with(".bin") {
+        let (e, report) = nxvf_core::read_binary_shard_with_report(&shard_path)
+            .map_err(|e| Error::from_reason(format!("read shard: {e}")))?;
+        let acc = build_parse_accounting(&report);
+        (e, acc)
+    } else {
+        let e = nxvf_core::load_shard_entities(&shard_path)
+            .map_err(|e| Error::from_reason(format!("read shard: {e}")))?;
+        (e, not_applicable_accounting(&part_name))
+    };
 
     let mut fused = Vec::with_capacity(entities.len());
     let mut filtered_rels = 0u32;
@@ -97,10 +221,7 @@ pub fn fuse_shard(
         entity["umid"] = json!(fresh_umid);
 
         // A. Closed-world relation filter
-        if let Some(rels) = entity
-            .get_mut("relations")
-            .and_then(|v| v.as_array_mut())
-        {
+        if let Some(rels) = entity.get_mut("relations").and_then(|v| v.as_array_mut()) {
             let before = rels.len();
             rels.retain(|r| {
                 r.get("target_id")
@@ -162,13 +283,13 @@ pub fn fuse_shard(
     if let Some(parent) = std::path::Path::new(&output_path).parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    nxvf_core::write_zstd(&output_path, &serialized, 3)
-        .map_err(|e| Error::from_reason(e))?;
+    nxvf_core::write_zstd(&output_path, &serialized, 3).map_err(|e| Error::from_reason(e))?;
 
     Ok(FuseShardResult {
         entity_count: fused.len() as u32,
         filtered_relations: filtered_rels,
         enriched_count: enriched,
+        parse_accounting,
     })
 }
 
@@ -203,6 +324,48 @@ mod tests {
             generate_umid("arxiv-paper--2017--attention-is-all-you-need"),
             "8e055264c3931891"
         );
+    }
+
+    /// W3-O1: the NAPI projection of an offset-boundary (no-payload) drop must
+    /// carry `payload_fingerprint == None`. With `#[napi(object, use_nullable)]`
+    /// on ParseDropRecord, napi-derive renders this `None` as JS `null` (not
+    /// `undefined`) — which is what the CI verifier asserts on the real .node.
+    /// A real-payload drop must still carry the 16-hex fingerprint string.
+    #[test]
+    fn no_payload_drop_projects_none_real_payload_projects_fingerprint() {
+        let mut report = nxvf_core::ShardParseReport::new("part-000.bin", 2);
+        report.record_parsed();
+        report.record_drop(nxvf_core::DropRecord::no_payload("part-000.bin", 1));
+        let acc = build_parse_accounting(&report);
+
+        assert_eq!(acc.drop_records.len(), 1);
+        let rec = &acc.drop_records[0];
+        // no-payload → None (→ JS null via use_nullable) + status + no serde coords.
+        assert!(rec.payload_fingerprint.is_none());
+        assert_eq!(rec.fingerprint_status, "unavailable_no_payload");
+        assert_eq!(rec.error_class, "offset_boundary");
+        assert!(rec.serde_line.is_none());
+        assert!(rec.serde_column.is_none());
+
+        // A real-payload (json-parse) drop still projects a 16-hex fingerprint.
+        let mut report2 = nxvf_core::ShardParseReport::new("part-000.bin", 1);
+        report2.record_drop(nxvf_core::DropRecord::with_payload(
+            "part-000.bin",
+            0,
+            nxvf_core::DropClass::JsonParse,
+            b"{bad",
+            1,
+            2,
+        ));
+        let acc2 = build_parse_accounting(&report2);
+        let rec2 = &acc2.drop_records[0];
+        let fp = rec2.payload_fingerprint.as_deref().expect("fingerprint set");
+        assert_eq!(fp.len(), 16);
+        assert!(fp.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(rec2.fingerprint_status, "ok");
+        // json-parse drop DOES carry serde coords.
+        assert_eq!(rec2.serde_line, Some(1));
+        assert_eq!(rec2.serde_column, Some(2));
     }
 }
 

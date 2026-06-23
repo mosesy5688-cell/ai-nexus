@@ -1,15 +1,15 @@
 /**
- * Master Fusion Orchestrator V26.8
- * Architecture: Late-Binding FNI & Closed-World Integrity
- * V26.8: Zero double-read enrichment — Phase 1 captures shard→IDs,
- *         Phase 3 builds global entity→R2 mapping, Phase 4 downloads per-shard O(1) disk.
+ * Master Fusion Orchestrator V26.8 — Late-Binding FNI & Closed-World Integrity.
+ * Zero double-read enrichment: Phase 1 captures shard→IDs, Phase 3 builds global
+ * entity→R2 mapping, Phase 4 downloads per-shard O(1) disk. W3-O1: parse-attrition.
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
-import { initRustBridge, fuseShardFFI } from './lib/rust-bridge.js';
+import { initRustBridge, fuseShardFFI, parseAccountingCapability } from './lib/rust-bridge.js';
+import { newParseAccounting, collectShardAccounting, collectFallbackShard, finalizeParseAccounting } from './lib/fusion-parse-accounting.js';
 import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
 import { generateUMID, generateDevUMID } from './lib/umid-generator.js';
 import { fuseShardJS } from './lib/fuse-shard-js.js';
@@ -48,11 +48,8 @@ async function main() {
     let fniThresholds = { scorePercentiles: {}, citationCounts: {} };
     const thresholdsPath = path.join(CONFIG.OUTPUT_DIR, 'cache/fni-thresholds.json');
     try {
-        if (await fs.access(thresholdsPath).then(() => true).catch(() => false)) {
-            fniThresholds = JSON.parse(await fs.readFile(thresholdsPath, 'utf-8'));
-        } else {
-            console.warn('  [WARN] fni-thresholds.json not found.');
-        }
+        if (await fs.access(thresholdsPath).then(() => true).catch(() => false)) fniThresholds = JSON.parse(await fs.readFile(thresholdsPath, 'utf-8'));
+        else console.warn('  [WARN] fni-thresholds.json not found.');
     } catch { /* use defaults */ }
 
     // Phase 3: Enrichment — scan R2 + build global entity→enrichment mapping (memory only)
@@ -82,14 +79,8 @@ async function main() {
             let prodHits = 0, devHits = 0;
             for (const id of allValidIds) {
                 const prodUmid = generateUMID(id);
-                if (enrichmentMap.has(prodUmid)) {
-                    entityEnrichMap.set(id, prodUmid); prodHits++;
-                } else {
-                    const devUmid = generateDevUMID(id);
-                    if (enrichmentMap.has(devUmid)) {
-                        entityEnrichMap.set(id, devUmid); devHits++;
-                    }
-                }
+                if (enrichmentMap.has(prodUmid)) { entityEnrichMap.set(id, prodUmid); prodHits++; }
+                else { const devUmid = generateDevUMID(id); if (enrichmentMap.has(devUmid)) { entityEnrichMap.set(id, devUmid); devHits++; } }
             }
             console.log(`  [OK] ${entityEnrichMap.size} entities have enrichment (prod=${prodHits}, devSalt=${devHits})`);
         }
@@ -128,6 +119,7 @@ async function main() {
     // §18.22.4: Three-layer silent early-exit defense (see fusion-completion-guard.js).
     const expectedFusionCount = shardFiles.length;
     const exitGuard = installExitGuard(() => ({ processed: processedCount, expected: expectedFusionCount }));
+    const parseAcct = newParseAccounting(); // W3-O1 (D-88/89/90) side-channel parse-attrition
 
     for (let i = 0; i < shardFiles.length; i++) {
         const shardPath = path.join(CONFIG.ARTIFACT_DIR, shardFiles[i]);
@@ -219,13 +211,18 @@ async function main() {
             const result = fuseShardFFI(shardPath, validIdsJson, thresholdsPath, enrichmentDir, outPath);
             if (result) {
                 totalEnriched += result.enrichedCount;
+                collectShardAccounting(parseAcct, result.parseAccounting); // W3-O1 side-channel
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${coldWritten} cold, ${result.enrichedCount} enriched)`);
             } else {
                 const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir);
                 await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
                     shardId: i, entities: fused, _ts: new Date().toISOString()
                 })));
-                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${fused.length} entities (JS)`);
+                // W3-O1 DEFECT 1: the JS fallback has NO parse-attrition monitoring.
+                // Count this shard as not-applicable so its unobserved attrition can
+                // never read as a clean dropped=0 PASS (never silently skipped).
+                collectFallbackShard(parseAcct);
+                console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${fused.length} entities (JS, parse-attrition not-applicable)`);
             }
             processedCount++;
         } catch (e) {
@@ -239,10 +236,13 @@ async function main() {
 
     assertCompletion(processedCount, expectedFusionCount);
 
+    // W3-O1: finalize 3-state canary. Blocking FAIL throws here (fail-closed, pre-sentinel); legacy/JS/N-A warn; floor untouched.
+    const parseSummary = finalizeParseAccounting(parseAccountingCapability(), parseAcct, expectedFusionCount);
+
     shardEntityIds.clear(); entityEnrichMap.clear(); enrichmentMap.clear(); coldShardKeys = [];
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
     process.removeListener('exit', exitGuard);
-    await writeSentinel(outDir, { processedShards: processedCount, expectedShards: expectedFusionCount, enriched: totalEnriched, downloaded: totalDl });
+    await writeSentinel(outDir, { processedShards: processedCount, expectedShards: expectedFusionCount, enriched: totalEnriched, downloaded: totalDl, parseAccounting: { state: parseSummary.state, dropped: parseSummary.dropped_entity_count, drop_detail_records_seen: parseSummary.drop_detail_records_seen } });
 
     console.log(`[FUSION V26.8] Complete! ${processedCount}/${expectedFusionCount} shards, ${totalDl} dl, ${totalEnriched} enriched`);
 }
