@@ -29,6 +29,35 @@ pub struct FuseShardResult {
     pub entity_count: u32,
     pub filtered_relations: u32,
     pub enriched_count: u32,
+    /// W3-O1 parse-attrition accounting for THIS shard (structured side-channel,
+    /// never parsed from console text). master-fusion.js accumulates these.
+    pub parse_accounting: ParseAccounting,
+}
+
+/// W3-O1 capability-handshake protocol constant exported on the stream-aggregator
+/// NAPI surface (Finding B / D-89). The JS bridge reads this to PROVE a v1-capable
+/// reader is live: a stale `.node` lacking this export is classified NOT_ACTIVE
+/// (WARN, no publication block) instead of masquerading as an integrity FAIL.
+/// Mirrors `nxvf_core::parse_report::NXVF_PARSE_ACCOUNTING_PROTOCOL`.
+#[napi]
+pub fn nxvf_parse_accounting_protocol() -> u32 {
+    nxvf_core::parse_report::NXVF_PARSE_ACCOUNTING_PROTOCOL
+}
+
+/// W3-O1 per-shard parse accounting surfaced across the NAPI boundary. Carries
+/// ONLY counts + a conservation flag + distinct error classes — no payloads,
+/// source text, tokens, or keys. `conserved == false` is a fail-closed signal.
+/// `protocol_version` self-declares the handshake so a default-zero/absent field
+/// can never be inferred as v1 (Finding A anti-empty-set + Finding B handshake).
+#[napi(object)]
+pub struct ParseAccounting {
+    pub protocol_version: u32,
+    pub declared: u32,
+    pub parsed: u32,
+    pub dropped: u32,
+    pub parse_errors: u32,
+    pub conserved: bool,
+    pub error_classes: Vec<String>,
 }
 
 /// Fuse a single shard: read → closed-world filter → FNI → enrich → project → write.
@@ -58,8 +87,10 @@ pub fn fuse_shard(
         .get("scorePercentiles")
         .and_then(|v| v.as_object());
 
-    // 3. Read shard
-    let entities = nxvf_core::load_shard_entities(&shard_path)
+    // 3. Read shard (W3-O1: accounted variant surfaces per-entry parse attrition
+    // via a structured side-channel; the entity Vec is byte-identical to the
+    // non-accounted reader, so fusion output is unchanged).
+    let (entities, parse_report) = nxvf_core::load_shard_entities_accounted(&shard_path)
         .map_err(|e| Error::from_reason(format!("read shard: {e}")))?;
 
     let mut fused = Vec::with_capacity(entities.len());
@@ -169,6 +200,19 @@ pub fn fuse_shard(
         entity_count: fused.len() as u32,
         filtered_relations: filtered_rels,
         enriched_count: enriched,
+        parse_accounting: ParseAccounting {
+            protocol_version: parse_report.protocol_version,
+            declared: parse_report.declared_entity_count as u32,
+            parsed: parse_report.parsed_entity_count as u32,
+            dropped: parse_report.dropped_entity_count as u32,
+            parse_errors: parse_report.parse_error_count as u32,
+            conserved: parse_report.conserved(),
+            error_classes: parse_report
+                .distinct_error_classes()
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        },
     })
 }
 

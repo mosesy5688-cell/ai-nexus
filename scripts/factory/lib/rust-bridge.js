@@ -118,13 +118,11 @@ export function buildEnrichmentManifestFFI(keys) {
     else { const re = /enrichment\/fulltext\/[a-f0-9]{2}\/([a-f0-9]+)\.md\.gz$/; for (const k of keys) { const m = k.match(re); if (m) manifest.set(m[1], k); } }
     return manifest;
 }
-
 /** Validate fusion content quality. */
 export function validateFusionContentFFI(fulltext, originalBody) {
     if (_contentExtractor) { const r = _contentExtractor.validateFusionContent(fulltext, originalBody); return { text: r.text, hasFulltext: r.hasFulltext, classification: r.classification }; }
     return _jsFallbackClassify(fulltext.length > originalBody.length ? fulltext : originalBody);
 }
-
 /** V55.9: Zstd file/buffer compress/decompress via Rust. */
 export function zstdCompressFileFFI(inputPath, outputPath, level = 3) { return _streamAggregator?.zstdCompressFile?.(inputPath, outputPath, level) ?? null; }
 export function zstdCompressBufferFFI(data, level = 3) { return _streamAggregator?.zstdCompressBuffer?.(data, level) ?? null; }
@@ -172,7 +170,6 @@ export function buildRelationsGraphFFI(nodesJson, relationsJson) {
     }
     return null;
 }
-
 /** V26.5: Knowledge linker — prefer direct shard reading. */
 export function computeKnowledgeLinksFromDirFFI(shardDir, outputDir) {
     if (_satelliteTasks?.computeKnowledgeLinksFromDir) {
@@ -188,7 +185,6 @@ export function computeKnowledgeLinksFFI(entitiesJson) {
     }
     return null;
 }
-
 /** V26.5: Alt linker — prefer direct shard reading. */
 export function computeAltRelationsFromDirFFI(shardDir, outputDir) {
     if (_satelliteTasks?.computeAltRelationsFromDir) {
@@ -205,7 +201,10 @@ export function computeAltRelationsFFI(entitiesJson) {
     return null;
 }
 
-/** V26.5: Shard fusion — Rust-native per-shard processing for master-fusion. */
+/** V26.5: Shard fusion — Rust-native per-shard processing for master-fusion.
+ *  W3-O1: the returned struct also carries `parseAccounting` (declared/parsed/
+ *  dropped/parseErrors/conserved/errorClasses) — a structured side-channel for
+ *  parse-attrition observability, passed straight through (no console parsing). */
 export function fuseShardFFI(shardPath, validIdsJson, thresholdsPath, enrichmentDir, outputPath) {
     if (_streamAggregator?.fuseShard) {
         try { return _streamAggregator.fuseShard(shardPath, validIdsJson, thresholdsPath, enrichmentDir, outputPath); }
@@ -213,7 +212,6 @@ export function fuseShardFFI(shardPath, validIdsJson, thresholdsPath, enrichment
     }
     return null;
 }
-
 /** V26.5: Mesh graph — prefer file reading. */
 export function buildMeshGraphFromFilesFFI(explicitPath, knowledgePath, reportsPath, outputDir) {
     if (_satelliteTasks?.buildMeshGraphFromFiles) {
@@ -229,7 +227,6 @@ export function buildMeshGraphFFI(explicitJson, knowledgeLinksJson, reportsJson)
     }
     return null;
 }
-
 /** V26.9: AsyncTask — returns Promise, worker thread execution. */
 export async function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDir, outputDir) {
     if (_streamAggregator?.buildStatsAndRouteDeltas) {
@@ -241,3 +238,13 @@ export async function buildStatsAndRouteDeltasFFI(shardDir, artifactDir, deltaDi
 // V25.12: Markdown -> sanitized HTML via Rust (pulldown-cmark + ammonia). Null = caller falls back to JS.
 export function renderHtmlFFI(md) { if (!_markdownRenderer) return null; try { return _markdownRenderer.renderHtml(md); } catch (e) { console.error(`[RUST-BRIDGE] ❌ FFI FAILED (JS fallback): renderHtml: ${e.message}`); return null; } }
 export function getRustMode() { return _mode; }
+/** W3-O1 (D-89 Finding B) capability handshake. engineMode='rust' iff fuseShard
+ *  native entry exists else 'js'. protocol = exported protocol number (==1 capable);
+ *  'legacy' = rust module present but no protocol export (stale .node); 'unavailable'
+ *  = no rust module (JS fallback). Pure — never infers v1 from an absent field. */
+export function classifyAccountingProtocol(sa) {
+    const protocol = !sa?.fuseShard ? 'unavailable'
+        : typeof sa.nxvfParseAccountingProtocol === 'function' ? sa.nxvfParseAccountingProtocol() : 'legacy';
+    return { engineMode: sa?.fuseShard ? 'rust' : 'js', protocol };
+}
+export function parseAccountingCapability() { return classifyAccountingProtocol(_streamAggregator); }

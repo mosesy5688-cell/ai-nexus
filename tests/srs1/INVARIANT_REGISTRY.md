@@ -357,6 +357,23 @@ proof in the PR body).
 > executed yet. SRS-1 holds the hermetic logic guard (the workflow + smoke
 > semantics); the live qualification holds the empirical positive-control proof.
 
+## Registry — W3-O1 (fused-input parse-attrition observability, D-2026-0623-88/89)
+
+> Observe-only: makes the previously-silent ~0.005%/cycle NXVF parse drops COUNTED /
+> CLASSIFIED / FINGERPRINTED + a 3-state capability-aware canary. NO data mutation,
+> NO source sanitize (W3-A NOT AUTHORIZED), NO tolerant/mutating decoder (W3-B
+> REJECTED), NO change to the >=90% publication floor or the AES/Zstd/offset codec.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| W3O1-CONSERVE | The NXVF binary-shard reader produces a structured `ShardParseReport` where `declared_entity_count == parsed_entity_count + dropped_entity_count` ALWAYS (every loop iteration records exactly one parsed OR one classified drop: offset_boundary / zstd_error / gzip_error / json_parse_error), `parse_error_count` is the json-parse subset only, and the returned entity Vec is byte-identical to the pre-W3 reader (thin `read_binary_shard` wrapper over `read_binary_shard_accounted`). Each drop carries ONLY part + entry_index + error_class + serde line/column + payload_length + an IRREVERSIBLE sha256-16 fingerprint + `attribution_status="unavailable"` — never the raw payload/source/token/key. | `rust/nxvf-core/tests/parse_attrition.rs` + `rust/nxvf-core/src/parse_report.rs` (`#[cfg(test)]`) | EXEC | **NEW** |
+| W3O1-3STATE (D-89) | The fusion canary splits "missing" into THREE states and NEVER false-PASSes nor false-FAILs: **PRESENT_VALID** (capability protocol==1 AND >=1 self-declaring v1 conserved summary) -> dropped==0 PASS / dropped>0 DEGRADED (never blocks); **EXPECTED_BUT_MISSING** (protocol v1 live but a Rust-path shard summary is absent/old/non-conserved, or aggregate non-conservation) -> FAIL + publicationBlocked (the ONLY new block); **NOT_ACTIVE_OR_NOT_APPLICABLE** (legacy `.node` with no protocol export / JS fallback / no monitored Rust shard / zero shards) -> NOT_EVALUATED/WARN, never blocks, never PASS. A default-zero/absent field is NEVER inferred as a valid v1 summary; a missing protocol field can never become PASS; every verdict carries an explicit reason code. Capability handshake: Rust exports `NXVF_PARSE_ACCOUNTING_PROTOCOL=1` (NAPI `nxvfParseAccountingProtocol()`) + per-summary `protocol_version`; bridge `classifyAccountingProtocol` maps to `{engineMode, protocol: 1|'legacy'|'unavailable'}`. | `tests/unit/parse-integrity-canary.test.ts` (15 gates) + `scripts/factory/lib/parse-integrity-canary.js` | EXEC | **NEW** |
+
+> Runtime activation is NOT proven by merge: it requires a natural Factory cycle that
+> loads the protocol-v1 `.node` and emits a conserved `NXVF_PARSE_INTEGRITY` summary.
+> A stale/legacy `.node` is reported NOT_ACTIVE (WARN), never blocks publication, and
+> never closes W3-O1. Native-build/cache distribution is OUT OF SCOPE for this PR.
+
 ## P-09 — added at post-P-09 rebase (merge order: P-09 -> SRS-1)
 
 - **P-09 redirect-authority end-state** was intentionally deferred out of the

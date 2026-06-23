@@ -9,12 +9,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
-import { initRustBridge, fuseShardFFI } from './lib/rust-bridge.js';
+import { initRustBridge, fuseShardFFI, parseAccountingCapability } from './lib/rust-bridge.js';
 import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
 import { generateUMID, generateDevUMID } from './lib/umid-generator.js';
 import { fuseShardJS } from './lib/fuse-shard-js.js';
 import { installExitGuard, assertCompletion, writeSentinel } from './lib/fusion-completion-guard.js';
 import { bodyForStore, isFullBodyRemoved } from './lib/content-policy.js';
+import { newParseIntegrityAggregate, accumulateParseAccounting, accumulateNotApplicable, finalizeParseIntegrity } from './lib/parse-integrity-canary.js';
 
 const CONFIG = {
     CACHE_DIR: process.env.CACHE_DIR || './cache',
@@ -123,7 +124,7 @@ async function main() {
     console.log(`  [DIAG] enrich=${entityEnrichMap.size}, coldBundles=${coldShardKeys.length}`);
     let totalEnriched = 0, totalDl = 0, totalNeeded = 0, totalMissingShard = 0;
     let processedCount = 0;
-    const DL_CONCURRENCY = 100;
+    const DL_CONCURRENCY = 100, parseIntegrity = newParseIntegrityAggregate(parseAccountingCapability()); // W3-O1 (D-89 capability handshake)
 
     // §18.22.4: Three-layer silent early-exit defense (see fusion-completion-guard.js).
     const expectedFusionCount = shardFiles.length;
@@ -219,12 +220,12 @@ async function main() {
             const result = fuseShardFFI(shardPath, validIdsJson, thresholdsPath, enrichmentDir, outPath);
             if (result) {
                 totalEnriched += result.enrichedCount;
+                accumulateParseAccounting(parseIntegrity, result.parseAccounting); // W3-O1
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${result.entityCount} entities (Rust, ${dlCount} dl, ${coldWritten} cold, ${result.enrichedCount} enriched)`);
             } else {
+                accumulateNotApplicable(parseIntegrity); // W3-O1: Rust reader not invoked for this shard (NOT_APPLICABLE, not a failure)
                 const fused = await fuseShardJS(shardPath, allValidIds, fniThresholds, entityEnrichMap, enrichmentDir);
-                await fs.writeFile(outPath, await zstdCompress(JSON.stringify({
-                    shardId: i, entities: fused, _ts: new Date().toISOString()
-                })));
+                await fs.writeFile(outPath, await zstdCompress(JSON.stringify({ shardId: i, entities: fused, _ts: new Date().toISOString() })));
                 console.log(`  [OK] Shard ${i}/${shardFiles.length}: ${fused.length} entities (JS)`);
             }
             processedCount++;
@@ -242,8 +243,7 @@ async function main() {
     shardEntityIds.clear(); entityEnrichMap.clear(); enrichmentMap.clear(); coldShardKeys = [];
     await fs.rm(enrichmentDir, { recursive: true }).catch(() => {});
     process.removeListener('exit', exitGuard);
-    await writeSentinel(outDir, { processedShards: processedCount, expectedShards: expectedFusionCount, enriched: totalEnriched, downloaded: totalDl });
-
+    await writeSentinel(outDir, { processedShards: processedCount, expectedShards: expectedFusionCount, enriched: totalEnriched, downloaded: totalDl, ...finalizeParseIntegrity(parseIntegrity) });
     console.log(`[FUSION V26.8] Complete! ${processedCount}/${expectedFusionCount} shards, ${totalDl} dl, ${totalEnriched} enriched`);
 }
 

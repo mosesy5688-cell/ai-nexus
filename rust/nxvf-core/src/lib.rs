@@ -14,6 +14,9 @@ use std::io::{BufReader, Read};
 use std::sync::OnceLock;
 use std::{fs, path::Path};
 
+pub mod parse_report;
+pub use parse_report::{DropRecord, ErrorClass, ShardParseReport};
+
 // ── NXVF V4.1 Constants ────────────────────────────────────────────
 
 const HEADER_SIZE: usize = 29;
@@ -187,7 +190,23 @@ fn extract_scores_from_binary_shard(file_path: &str) -> Result<Vec<(String, f64)
 // ── Public API ──────────────────────────────────────────────────────
 
 /// Read and decode a binary NXVF V4.1 shard file into entity JSON values.
+///
+/// THIN WRAPPER (W3-O1): delegates to `read_binary_shard_accounted` and returns
+/// ONLY the entity Vec, so all existing callers + the entity output stay
+/// byte-identical. The structured `ShardParseReport` is discarded here; callers
+/// that want the accounting call `read_binary_shard_accounted` directly.
 pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, String> {
+    read_binary_shard_accounted(file_path).map(|(entities, _report)| entities)
+}
+
+/// W3-O1 accounting worker: the REAL read logic, plus a structured
+/// `ShardParseReport` that COUNTS / CLASSIFIES / FINGERPRINTS every dropped
+/// entry. OBSERVE-ONLY — no payload/entity/codec/floor mutation. The entity Vec
+/// it returns is byte-identical to the pre-W3 reader (the accounting is a pure
+/// side-channel; it never changes which entities are pushed).
+pub fn read_binary_shard_accounted(
+    file_path: &str,
+) -> Result<(Vec<serde_json::Value>, ShardParseReport), String> {
     let data = fs::read(file_path)
         .map_err(|e| format!("Cannot read {}: {}", file_path, e))?;
 
@@ -216,6 +235,7 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
         .unwrap_or("");
     let aes_key = get_aes_key();
     let mut entities = Vec::with_capacity(header.entity_count as usize);
+    let mut report = ShardParseReport::new(header.entity_count as usize);
 
     for i in 0..header.entity_count as usize {
         let base = i * 8;
@@ -225,6 +245,10 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
             u32::from_le_bytes(offset_table[base + 4..base + 8].try_into().unwrap_or([0; 4]));
         let end = offset as usize + size as usize;
         if end > data.len() {
+            // Offset-boundary drop: nothing was read, so fingerprint empty bytes.
+            report.record_drop(DropRecord::new(
+                shard_name, i, ErrorClass::OffsetBoundary, 0, 0, &[],
+            ));
             continue;
         }
 
@@ -246,6 +270,9 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
                 Ok(decompressed) => payload = decompressed,
                 Err(e) => {
                     eprintln!("[NXVF-CORE] Zstd error in {}[{}]: {}", shard_name, i, e);
+                    report.record_drop(DropRecord::new(
+                        shard_name, i, ErrorClass::ZstdError, 0, 0, &payload,
+                    ));
                     continue;
                 }
             }
@@ -258,6 +285,9 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
                 Ok(_) => payload = decompressed,
                 Err(e) => {
                     eprintln!("[NXVF-CORE] Gzip error in {}[{}]: {}", shard_name, i, e);
+                    report.record_drop(DropRecord::new(
+                        shard_name, i, ErrorClass::GzipError, 0, 0, &payload,
+                    ));
                     continue;
                 }
             }
@@ -265,12 +295,16 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
 
         // JSON parse with sanitization fallback + forced-decrypt retry
         match serde_json::from_slice::<serde_json::Value>(&payload) {
-            Ok(val) => entities.push(val),
+            Ok(val) => {
+                entities.push(val);
+                report.record_parsed();
+            }
             Err(e) => {
                 let raw_str = String::from_utf8_lossy(&payload);
                 let sanitized = sanitize_json_escapes(&raw_str);
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&sanitized) {
                     entities.push(val);
+                    report.record_parsed();
                     continue;
                 }
                 // Forced-decrypt retry: isValidPayload false positive (~1/65536)
@@ -290,10 +324,23 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
                     }
                     if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&retry) {
                         entities.push(val);
+                        report.record_parsed();
                         continue;
                     }
                 }
+                // THE W3 case: real json-parse drop after all retries. Keep the
+                // existing per-entry eprintln evidence (gate 18) AND record the
+                // structured drop alongside it (coords parsed from the serde err).
                 eprintln!("[NXVF-CORE] Parse error {}[{}]: {}", shard_name, i, e);
+                let (line, column) = parse_report::parse_serde_coords(&e.to_string());
+                report.record_drop(DropRecord::new(
+                    shard_name,
+                    i,
+                    ErrorClass::JsonParseError,
+                    line,
+                    column,
+                    &payload,
+                ));
             }
         }
     }
@@ -303,7 +350,7 @@ pub fn read_binary_shard(file_path: &str) -> Result<Vec<serde_json::Value>, Stri
         entities.len(),
         shard_name
     );
-    Ok(entities)
+    Ok((entities, report))
 }
 
 /// Load entities from a shard file (any format: .bin, .json.gz, .json, .json.zst).
@@ -348,6 +395,26 @@ pub fn load_shard_entities(path: &str) -> Result<Vec<serde_json::Value>, String>
     } else {
         Ok(vec![data])
     }
+}
+
+/// W3-O1 accounting variant of `load_shard_entities`. For `.bin` shards it
+/// returns the real `ShardParseReport` (per-entry attrition). For whole-file
+/// JSON formats there is no per-entry drop site in this reader — the whole file
+/// either parses or errors — so the report is conservatively complete:
+/// declared == parsed == len, dropped == 0. The entity Vec is identical to
+/// `load_shard_entities` for every format.
+pub fn load_shard_entities_accounted(
+    path: &str,
+) -> Result<(Vec<serde_json::Value>, ShardParseReport), String> {
+    if path.ends_with(".bin") {
+        return read_binary_shard_accounted(path);
+    }
+    let entities = load_shard_entities(path)?;
+    let mut report = ShardParseReport::new(entities.len());
+    for _ in 0..entities.len() {
+        report.record_parsed();
+    }
+    Ok((entities, report))
 }
 
 /// Discover shard files with format priority: .bin > .json.zst > .json.gz > .json
