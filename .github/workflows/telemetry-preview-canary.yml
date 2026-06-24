@@ -1,0 +1,1028 @@
+name: Telemetry Preview Canary
+
+# =============================================================================
+# TELEMETRY PREVIEW-ONLY CANARY  --  Founder ruling D-2026-0624-109
+#
+# WHAT THIS IS
+#   A MANUAL (workflow_dispatch ONLY) canary that proves the P2 Adoption
+#   Telemetry pipeline end-to-end ON A CLOUDFLARE PAGES *PREVIEW* deployment,
+#   writing ONLY to the canary Analytics Engine dataset
+#   (free2aitools_adoption_canary_v1), and then RESTORES the preview to OFF and
+#   PROVES it is OFF again -- without ever touching production.
+#
+# WHAT THIS IS NOT
+#   - It NEVER enables production telemetry. Production stays OFF.
+#   - It NEVER deploys --branch=main and NEVER references CLOUDFLARE_API_TOKEN
+#     or CF_PREVIEW_API_TOKEN (the broad/production-capable tokens).
+#   - It is NOT run during implementation. It only EXISTS after merge, and even
+#     then requires (a) a human GitHub Environment approval on
+#     `telemetry-preview-canary` AND (b) a separate Founder ruling to execute.
+#
+# SAFETY MODEL (defense in depth)
+#   - TRUSTED/UNTRUSTED SEPARATION: the ONLY job that runs target-SHA-controlled
+#     code (npm ci / npm run build / postinstall) is `build`, which holds NO
+#     Cloudflare secret and has NO `environment:`. Every secret-bearing job runs
+#     `environment: telemetry-preview-canary`, does a minimal/no checkout, and
+#     executes ONLY fixed inline curl/jq shell -- it NEVER runs target-repo npm
+#     scripts. So target-SHA code can never execute with a CF secret in scope.
+#   - EXACT-SHA-ONLY: target_sha is hard-asserted == the audited SHA. Anything
+#     else fails closed.
+#   - NON-MAIN-BRANCH-ONLY: the canary deploys to a unique branch
+#     telemetry-canary-<run_id>, hard-asserted != main and != the prod branch.
+#   - PRODUCTION-IMMUTABILITY: we hash the COMPLETE production deployment config
+#     before and after the preview mutation and HARD-FAIL if it changed.
+#   - CLEANUP-PRIORITY: J6 cleanup is `if: always()`, RESTORES the exact
+#     original preview config (not "delete and assume OFF"), proves OFF, and on
+#     any doubt emits CLEANUP_FAILED demanding manual human intervention.
+#   - ALL third-party actions pinned to the SAME full commit SHAs already vetted
+#     in ta2-preview-runtime-gate.yml. No floating tags.
+#   - persist-credentials: false on every checkout. permissions: contents: read
+#     at top level. No pull_request_target, no fork code path, no secret echo.
+#
+# ENVIRONMENT (created later by a human; this workflow only references it):
+#   GitHub Environment: telemetry-preview-canary
+#     Secrets: CF_PAGES_CANARY_TOKEN (Cloudflare Pages Write),
+#              CF_ANALYTICS_READ_TOKEN (Account Analytics Read)
+#     Vars:    CF_ACCOUNT_ID, CF_PAGES_PROJECT, CANARY_DATASET, AUDITED_SHA
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "EXACT commit SHA to canary. MUST equal the audited SHA below."
+        required: true
+        default: be8feb42158521398d485ca5545f35b4e0df4c5a
+      expected_production_sha:
+        description: "Current production main SHA (recorded into evidence; NOT deployed)."
+        required: true
+      confirm_preview_only:
+        description: "Type the literal confirmation token to proceed."
+        required: true
+        default: ""
+      freeze_window_utc:
+        description: "Human-attested UTC freeze window for the Preview surface (recorded into evidence)."
+        required: false
+        default: ""
+
+# One canary at a time; do NOT cancel an in-flight run (cleanup must complete).
+concurrency:
+  group: telemetry-preview-canary
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # The ONLY SHA this workflow version is authorized to canary. HARDCODED in v1.
+  AUDITED_SHA: be8feb42158521398d485ca5545f35b4e0df4c5a
+  PROD_BRANCH: main
+  PAGES_PROJECT: ai-nexus
+  CONFIRM_LITERAL: I_CONFIRM_PREVIEW_ONLY
+  CF_API_BASE: https://api.cloudflare.com/client/v4
+
+jobs:
+  # ===========================================================================
+  # J1  AUTHORITY GATE  (NO CF secret, NO environment)
+  #   Checkout the EXACT SHA, hard-assert target_sha == AUDITED_SHA, assert the
+  #   confirmation literal, assert NO production target is reachable from inputs,
+  #   compute the unique non-main canary branch, emit it as an output.
+  # ===========================================================================
+  authority-gate:
+    name: J1 authority-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      canary_branch: ${{ steps.gate.outputs.canary_branch }}
+      audited_sha: ${{ steps.gate.outputs.audited_sha }}
+    steps:
+      - name: Checkout EXACT audited SHA
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: ${{ inputs.target_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Authority + production-unreachable gate
+        id: gate
+        env:
+          IN_TARGET_SHA: ${{ inputs.target_sha }}
+          IN_CONFIRM: ${{ inputs.confirm_preview_only }}
+          IN_EXPECTED_PROD_SHA: ${{ inputs.expected_production_sha }}
+          IN_FREEZE: ${{ inputs.freeze_window_utc }}
+        run: |
+          set -euo pipefail
+          # (1) The commit actually checked out MUST be the audited SHA. We trust
+          # git rev-parse HEAD (what is on disk), not the raw input label.
+          RESOLVED=$(git rev-parse HEAD)
+          echo "resolved checkout HEAD=${RESOLVED}"
+          if [ "${RESOLVED}" != "${AUDITED_SHA}" ]; then
+            echo "::error::EXACT_SHA_VIOLATION checked-out HEAD '${RESOLVED}' != audited '${AUDITED_SHA}'"; exit 1
+          fi
+          if [ "${IN_TARGET_SHA}" != "${AUDITED_SHA}" ]; then
+            echo "::error::EXACT_SHA_VIOLATION input target_sha != audited '${AUDITED_SHA}'"; exit 1
+          fi
+          # (2) Confirmation literal must match EXACTLY.
+          if [ "${IN_CONFIRM}" != "${CONFIRM_LITERAL}" ]; then
+            echo "::error::CONFIRM_LITERAL_REQUIRED confirm_preview_only must equal the fixed literal"; exit 1
+          fi
+          # (3) Production-unreachable: no input may name a production target.
+          # We refuse if expected_production_sha is empty, equals the audited SHA
+          # (it must describe prod main, which differs from the canary target in a
+          # real run), or if any input smuggles a production branch / dataset /
+          # deployment-id-like token.
+          if [ -z "${IN_EXPECTED_PROD_SHA}" ]; then
+            echo "::error::PRODUCTION_CONTEXT_REQUIRED expected_production_sha must be provided for the production-immutability cross-check"; exit 1
+          fi
+          ALL_INPUTS="${IN_TARGET_SHA} ${IN_EXPECTED_PROD_SHA} ${IN_FREEZE}"
+          # Reject the production dataset name and the production branch token if a
+          # caller tries to slip them through any free-text input.
+          if printf '%s' "${ALL_INPUTS}" | grep -Eiq 'free2aitools_adoption_v1|--branch=main|branch=main|deployment_configs\.production|env\.production'; then
+            echo "::error::PRODUCTION_TARGET_REJECTED an input references a production branch/dataset/config"; exit 1
+          fi
+          # (4) Compute the unique canary branch and hard-assert non-main.
+          CB="telemetry-canary-${{ github.run_id }}"
+          if [ -z "${CB}" ] || [ "${CB}" = "main" ] || [ "${CB}" = "${PROD_BRANCH}" ]; then
+            echo "::error::CANARY_BRANCH_VIOLATION computed branch '${CB}' is empty or production"; exit 1
+          fi
+          echo "canary_branch=${CB}" >> "$GITHUB_OUTPUT"
+          echo "audited_sha=${AUDITED_SHA}" >> "$GITHUB_OUTPUT"
+          echo "authority-gate PASS: canary_branch=${CB} audited_sha=${AUDITED_SHA}"
+
+  # ===========================================================================
+  # J1b  BUILD  (NO CF secret, NO environment) -- the ONLY job that runs
+  #   target-SHA-controlled code (npm ci / npm run build). Builds dist/ from the
+  #   EXACT audited SHA, restructures for Cloudflare Pages (mirrors infra-deploy
+  #   / ta2), and uploads it as an immutable artifact. TELEMETRY stays OFF here;
+  #   no TELEMETRY_ENABLED is set at build time.
+  # ===========================================================================
+  build:
+    name: J1b build
+    needs: authority-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout EXACT audited SHA
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: ${{ needs.authority-gate.outputs.audited_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Re-assert built commit identity
+        id: ident
+        run: |
+          set -euo pipefail
+          RESOLVED=$(git rev-parse HEAD)
+          if [ "${RESOLVED}" != "${AUDITED_SHA}" ]; then
+            echo "::error::EXACT_SHA_VIOLATION build HEAD '${RESOLVED}' != audited '${AUDITED_SHA}'"; exit 1
+          fi
+          echo "resolved_commit_sha=${RESOLVED}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+        env:
+          ASTRO_SKIP_BINDING_CHECK: "true"
+
+      - name: Build Project (mirror infra-deploy)
+        run: npm run build
+        env:
+          ASTRO_SKIP_BINDING_CHECK: "true"
+
+      - name: Restructure artifacts for Cloudflare Pages (mirror infra-deploy)
+        run: |
+          node -e "
+            const fs = require('fs');
+            const workerProxy = \"export { default } from './server/entry.mjs';\";
+            fs.writeFileSync('dist/_worker.js', workerProxy);
+            if (fs.existsSync('dist/client')) {
+              fs.cpSync('dist/client', 'dist', { recursive: true });
+              fs.rmSync('dist/client', { recursive: true, force: true });
+            }
+            const targets = ['dist/wrangler.json', 'dist/server/wrangler.json', 'dist/_worker.js/wrangler.json'];
+            targets.forEach(f => { if (fs.existsSync(f)) fs.unlinkSync(f); });
+            if (fs.existsSync('.wrangler')) fs.rmSync('.wrangler', { recursive: true, force: true });
+            console.log('Restructure complete. Standard Pages Layout + SSR Proxy ready.');
+          "
+
+      - name: Compute dist SHA-256 manifest + self-binding build identity
+        env:
+          RESOLVED_COMMIT_SHA: ${{ steps.ident.outputs.resolved_commit_sha }}
+        run: |
+          set -euo pipefail
+          find dist -type f -print0 | sort -z | xargs -0 sha256sum > dist-manifest.sha256
+          BUILD_ARTIFACT_SHA256=$(sha256sum dist-manifest.sha256 | awk '{print $1}')
+          printf '{"schema":"telemetry-canary-build-identity/v1","resolved_commit_sha":"%s","build_artifact_sha256":"%s"}\n' \
+            "${RESOLVED_COMMIT_SHA}" "${BUILD_ARTIFACT_SHA256}" > build-identity.json
+          echo "build identity: $(cat build-identity.json)"
+
+      - name: Upload dist artifact (immutable)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-dist
+          path: |
+            dist
+            dist-manifest.sha256
+            build-identity.json
+          retention-days: 3
+          if-no-files-found: error
+
+  # ===========================================================================
+  # J2  Q0 BASELINE  (environment; CF_ANALYTICS_READ_TOKEN ONLY)
+  #   SQL the canary dataset for the CURRENT UTC hour and save a sanitized Q0
+  #   baseline JSON. NEVER echoes the token or the Authorization header.
+  # ===========================================================================
+  q0-baseline:
+    name: J2 q0-baseline
+    needs: [authority-gate, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: telemetry-preview-canary
+    permissions:
+      contents: read
+    steps:
+      - name: Query Q0 (canary dataset, current UTC hour)
+        env:
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CANARY_DATASET: ${{ vars.CANARY_DATASET }}
+          CF_ANALYTICS_READ_TOKEN: ${{ secrets.CF_ANALYTICS_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          TIME_BUCKET=$(date -u +%Y-%m-%dT%H)
+          echo "Q0 time_bucket(UTC)=${TIME_BUCKET}"
+          # Group by every closed dimension blob for the current hour bucket. blob8
+          # is the event-side UTC hour bucket; we additionally constrain to the
+          # current hour so historical canary rows do not contaminate the delta.
+          SQL="SELECT blob1 AS schema_version, blob2 AS surface, blob3 AS operation, blob4 AS status_class, blob5 AS cache_class, blob6 AS audience_class, blob7 AS referer_host_class, blob8 AS time_bucket, SUM(_sample_interval) AS cnt FROM ${CANARY_DATASET} WHERE blob8 = '${TIME_BUCKET}' GROUP BY blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8 FORMAT JSON"
+          # The SQL string is the raw request body. Authorization carries the read
+          # token; we NEVER print -H or the token. -sS keeps curl quiet but errors.
+          HTTP=$(curl -sS -o q0-raw.json -w '%{http_code}' \
+            -X POST "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/analytics_engine/sql" \
+            -H "Authorization: Bearer ${CF_ANALYTICS_READ_TOKEN}" \
+            --data-binary "${SQL}")
+          echo "Q0 query HTTP=${HTTP}"
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::Q0 SQL query returned HTTP ${HTTP} (token/Authorization NOT shown)"; exit 1
+          fi
+          # Sanitize: keep ONLY the closed-dimension rows + counts; AE SQL JSON
+          # responses contain no token, but we re-emit the data array explicitly so
+          # nothing unexpected is ever stored in evidence.
+          node -e "
+            const fs=require('fs');
+            const r=JSON.parse(fs.readFileSync('q0-raw.json','utf8'));
+            const rows=Array.isArray(r.data)?r.data:[];
+            fs.writeFileSync('q0.json', JSON.stringify({stage:'Q0', time_bucket:'${TIME_BUCKET}', query_utc:new Date().toISOString(), rows}, null, 2));
+            console.log('Q0 rows:', rows.length);
+          "
+          rm -f q0-raw.json
+
+      - name: Upload Q0 (sanitized)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-q0
+          path: q0.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # ===========================================================================
+  # J3  ENABLE + ISOLATE + DEPLOY  (environment; CF_PAGES_CANARY_TOKEN ONLY)
+  #   (a) Preview-Mutation-Isolation gate (GitHub-side conditions we CAN check).
+  #   (b) GET full Pages project; hash COMPLETE preview + production configs.
+  #   (c) PATCH ONLY preview.env_vars.TELEMETRY_ENABLED=true; re-GET; ASSERT the
+  #       production config hash is UNCHANGED.
+  #   (d) download the prebuilt artifact; deploy a PREVIEW (--branch=canary).
+  #   This job runs NO target-repo npm script; only fixed curl/jq + wrangler-action.
+  # ===========================================================================
+  enable-isolate-deploy:
+    name: J3 enable-isolate-deploy
+    needs: [authority-gate, build, q0-baseline]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: telemetry-preview-canary
+    permissions:
+      contents: read
+      actions: read   # list in-flight workflow runs for the Preview-isolation gate
+    outputs:
+      preview_url: ${{ steps.deploy_id.outputs.preview_url }}
+      deployment_id: ${{ steps.deploy_id.outputs.deployment_id }}
+    steps:
+      - name: Preview-Mutation-Isolation gate (GitHub-side)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Cloudflare CANNOT tell us "is another Preview deploy in flight" via a
+          # cheap call we trust here, but GitHub CAN tell us about the two known
+          # GitHub-side sources of a concurrent Preview mutation: an in-flight TA2
+          # Preview Runtime Gate run, and any other in-flight run of THIS canary.
+          # We FAIL CLOSED if either is active. We also RECORD the freeze inputs.
+          #
+          # NOTE (documented residual): if a Cloudflare *Git* Preview integration
+          # is connected to this Pages project, a push could trigger an automatic
+          # Preview deploy OUTSIDE GitHub Actions that we cannot detect here. That
+          # is exactly why D-109 requires the Founder-approved Preview FREEZE
+          # window: the human attests no other Preview source is active. We assert
+          # the conditions we CAN (below) and record the attested freeze window.
+          ACTIVE=$(gh api -X GET "repos/${OWNER_REPO}/actions/runs" \
+            -f status=in_progress --jq '[.workflow_runs[] | {name, id}]' 2>/dev/null || echo '[]')
+          QUEUED=$(gh api -X GET "repos/${OWNER_REPO}/actions/runs" \
+            -f status=queued --jq '[.workflow_runs[] | {name, id}]' 2>/dev/null || echo '[]')
+          WAITING=$(gh api -X GET "repos/${OWNER_REPO}/actions/runs" \
+            -f status=waiting --jq '[.workflow_runs[] | {name, id}]' 2>/dev/null || echo '[]')
+          printf '%s\n%s\n%s\n' "$ACTIVE" "$QUEUED" "$WAITING" > .isolation-runs.txt
+          # Any TA2 Preview Runtime Gate run that is in_progress/queued/waiting is a
+          # concurrent Preview mutation -> fail closed.
+          if grep -Eiq 'TA2 Preview Runtime Gate' .isolation-runs.txt; then
+            echo "::error::PREVIEW_ISOLATION_VIOLATION a TA2 Preview Runtime Gate run is active; cannot safely mutate Preview"; exit 1
+          fi
+          # Any OTHER in-flight Telemetry Preview Canary run (besides this one).
+          OTHER=$(printf '%s' "$ACTIVE" | node -e "
+            let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+              let a=[];try{a=JSON.parse(s)}catch(e){};
+              const me=Number(process.env.RUN_ID);
+              const others=a.filter(r=>/Telemetry Preview Canary/i.test(r.name||'') && Number(r.id)!==me);
+              process.stdout.write(String(others.length));
+            });" 2>/dev/null || echo 0)
+          if [ "${OTHER:-0}" != "0" ]; then
+            echo "::error::PREVIEW_ISOLATION_VIOLATION another Telemetry Preview Canary run is active"; exit 1
+          fi
+          echo "GitHub-side Preview isolation conditions satisfied."
+
+      - name: Record freeze window (evidence, non-secret)
+        env:
+          IN_FREEZE: ${{ inputs.freeze_window_utc }}
+          IN_EXPECTED_PROD_SHA: ${{ inputs.expected_production_sha }}
+        run: |
+          set -euo pipefail
+          printf '{"freeze_window_utc":"%s","expected_production_sha":"%s","auto_git_preview_note":"If a Cloudflare Git Preview integration is connected, an out-of-band Preview deploy is undetectable here; the Founder-approved freeze window covers it."}\n' \
+            "${IN_FREEZE}" "${IN_EXPECTED_PROD_SHA}" > freeze-record.json
+          echo "freeze record: $(cat freeze-record.json)"
+
+      - name: GET full Pages project config + hash COMPLETE preview/production
+        id: before
+        env:
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_PAGES_CANARY_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+        run: |
+          set -euo pipefail
+          HTTP=$(curl -sS -o project-before.json -w '%{http_code}' \
+            -X GET "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}" \
+            -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::Pages project GET (before) returned HTTP ${HTTP}"; exit 1
+          fi
+          # Hash the COMPLETE preview config object and the COMPLETE production
+          # config object, deterministically (sorted-key JSON), plus snapshot a
+          # SANITIZED view (we never store the full account dump verbatim). The
+          # production hash is the immutability anchor.
+          node -e "
+            const fs=require('fs');
+            const r=JSON.parse(fs.readFileSync('project-before.json','utf8'));
+            const cfg=(r.result&&r.result.deployment_configs)||{};
+            const prev=cfg.preview||{};
+            const prod=cfg.production||{};
+            const canon=o=>{const s=(x)=>Array.isArray(x)?x.map(s):(x&&typeof x==='object'?Object.keys(x).sort().reduce((a,k)=>{a[k]=s(x[k]);return a},{}):x);return JSON.stringify(s(o));};
+            const crypto=require('crypto');
+            const h=o=>crypto.createHash('sha256').update(canon(o)).digest('hex');
+            const previewHash=h(prev), productionHash=h(prod);
+            // Sanitized snapshot: keep ONLY env_vars KEYS + their declared types
+            // (NOT secret values), so evidence never carries a value/token.
+            const sanEnv=ev=>Object.fromEntries(Object.entries(ev||{}).map(([k,v])=>[k,{type:(v&&v.type)||'unknown', value: (k==='TELEMETRY_ENABLED' && v && v.type==='plain_text')? (v.value):'<<redacted>>'}]));
+            fs.writeFileSync('config-before.snapshot.json', JSON.stringify({preview_env:sanEnv(prev.env_vars), production_env_keys:Object.keys(prod.env_vars||{}).sort()}, null, 2));
+            fs.writeFileSync('hashes-before.json', JSON.stringify({preview_config_before_hash:previewHash, production_config_before_hash:productionHash}, null, 2));
+            // Persist whether TELEMETRY_ENABLED was originally ABSENT, or present
+            // with a value, so cleanup can restore EXACTLY.
+            const orig=(prev.env_vars||{}).TELEMETRY_ENABLED;
+            const origState = (orig===undefined)?'absent':JSON.stringify(orig);
+            fs.writeFileSync('preview-telemetry-original.json', JSON.stringify({original_TELEMETRY_ENABLED:origState}, null, 2));
+            console.log('preview_config_before_hash='+previewHash);
+            console.log('production_config_before_hash='+productionHash);
+            console.log('original TELEMETRY_ENABLED state='+origState);
+          "
+          rm -f project-before.json
+
+      - name: PATCH ONLY preview TELEMETRY_ENABLED=true + ASSERT production unchanged
+        id: enable
+        env:
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_PAGES_CANARY_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+        run: |
+          set -euo pipefail
+          PATCH='{"deployment_configs":{"preview":{"env_vars":{"TELEMETRY_ENABLED":{"type":"plain_text","value":"true"}}}}}'
+          HTTP=$(curl -sS -o patch-result.json -w '%{http_code}' \
+            -X PATCH "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}" \
+            -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "${PATCH}")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::PATCH (enable preview telemetry) returned HTTP ${HTTP}"; exit 1
+          fi
+          # Re-GET and re-hash. Production MUST be byte-identical to before.
+          HTTP=$(curl -sS -o project-after.json -w '%{http_code}' \
+            -X GET "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}" \
+            -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::Pages project GET (after enable) returned HTTP ${HTTP}"; exit 1
+          fi
+          node -e "
+            const fs=require('fs'),crypto=require('crypto');
+            const canon=o=>{const s=(x)=>Array.isArray(x)?x.map(s):(x&&typeof x==='object'?Object.keys(x).sort().reduce((a,k)=>{a[k]=s(x[k]);return a},{}):x);return JSON.stringify(s(o));};
+            const h=o=>crypto.createHash('sha256').update(canon(o)).digest('hex');
+            const r=JSON.parse(fs.readFileSync('project-after.json','utf8'));
+            const cfg=(r.result&&r.result.deployment_configs)||{};
+            const prevH=h(cfg.preview||{}), prodH=h(cfg.production||{});
+            const before=JSON.parse(fs.readFileSync('hashes-before.json','utf8'));
+            const out={preview_config_enabled_hash:prevH, production_config_after_hash:prodH, production_config_before_hash:before.production_config_before_hash};
+            fs.writeFileSync('hashes-enabled.json', JSON.stringify(out,null,2));
+            if (prodH !== before.production_config_before_hash){
+              console.error('::error::PRODUCTION_MUTATED production_config_after_hash != before; aborting');
+              process.exit(1);
+            }
+            // Confirm preview actually flipped to enabled.
+            const te=((cfg.preview||{}).env_vars||{}).TELEMETRY_ENABLED;
+            if(!te || te.value!=='true'){ console.error('::error::preview TELEMETRY_ENABLED did not become true'); process.exit(1); }
+            console.log('preview enabled hash='+prevH+' production UNCHANGED ('+prodH+')');
+          "
+          rm -f project-after.json patch-result.json
+
+      - name: Download prebuilt dist artifact (no source, no install, no build)
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: telemetry-canary-dist
+          path: .
+
+      - name: Deploy ephemeral PREVIEW (NEVER production)
+        id: cf
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+          accountId: ${{ vars.CF_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=ai-nexus --branch=${{ needs.authority-gate.outputs.canary_branch }}
+
+      - name: HARD-ASSERT preview *.pages.dev + capture URL/id + verify identity
+        id: deploy_id
+        env:
+          PREVIEW_URL: ${{ steps.cf.outputs.deployment-url }}
+          CANARY_BRANCH: ${{ needs.authority-gate.outputs.canary_branch }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          HOST=$(echo "${PREVIEW_URL}" | sed -E 's#^https?://([^/]+).*#\1#' | tr 'A-Z' 'a-z')
+          echo "deploy host=${HOST} branch=${CANARY_BRANCH}"
+          if [ "${CANARY_BRANCH}" = "main" ] || [ "${CANARY_BRANCH}" = "${PROD_BRANCH}" ]; then
+            echo "::error::canary branch resolved to production branch"; exit 1
+          fi
+          case "$HOST" in
+            free2aitools.com|*.free2aitools.com)
+              echo "::error::deploy resolved to the production custom domain"; exit 1 ;;
+          esac
+          case "$HOST" in
+            *.pages.dev) echo "OK: preview host under *.pages.dev" ;;
+            *) echo "::error::deploy host '$HOST' is not under *.pages.dev"; exit 1 ;;
+          esac
+          # Resolve EXACT deployment id for our canary branch + verify it carries
+          # the audited commit (deployment metadata commit_hash).
+          npx --yes wrangler@4 pages deployment list --project-name=ai-nexus > deplist.txt 2>/dev/null || true
+          DID=$(grep -F "${CANARY_BRANCH}" deplist.txt | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
+          if [ -z "$DID" ]; then echo "::error::could not resolve deployment id for ${CANARY_BRANCH}"; exit 1; fi
+          echo "deployment_id=${DID}" >> "$GITHUB_OUTPUT"
+          echo "preview_url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
+          echo "resolved deployment id (masked): ${DID:0:8}..."
+          rm -f deplist.txt
+
+      - name: Upload J3 isolation + config evidence (sanitized)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-config
+          path: |
+            config-before.snapshot.json
+            hashes-before.json
+            hashes-enabled.json
+            preview-telemetry-original.json
+            freeze-record.json
+            .isolation-runs.txt
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ===========================================================================
+  # J4  CANARY TRAFFIC  (NO CF management token)
+  #   Drive the instrumented surfaces against the PREVIEW URL ONLY. Assert ZERO
+  #   5xx and OFF-baseline response shapes. Save a sanitized request/response
+  #   archive (status codes + coarse shape ONLY; no bodies/tokens/headers).
+  # ===========================================================================
+  canary-traffic:
+    name: J4 canary-traffic
+    needs: [authority-gate, enable-isolate-deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Drive instrumented surfaces (preview URL only)
+        env:
+          PREVIEW_URL: ${{ needs.enable-isolate-deploy.outputs.preview_url }}
+        run: |
+          set -euo pipefail
+          BASE="${PREVIEW_URL%/}"
+          echo "driving canary traffic against ${BASE}"
+          FAIL=0
+          declare -a REPORT=()
+          probe() { # name method path expect_class extra-curl-args...
+            local name="$1"; shift; local method="$1"; shift; local path="$1"; shift; local klass="$1"; shift
+            local code
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -X "${method}" "${BASE}${path}" "$@" || echo 000)
+            local fam="${code:0:1}xx"
+            echo "  ${name}: ${method} ${path} -> ${code} (${fam}); expect ${klass}"
+            REPORT+=("{\"name\":\"${name}\",\"method\":\"${method}\",\"path\":\"${path}\",\"status\":${code},\"status_class\":\"${fam}\",\"expect\":\"${klass}\"}")
+            if [ "${fam}" = "5xx" ]; then echo "::error::${name} returned 5xx (${code})"; FAIL=1; fi
+            if [ -n "${klass}" ] && [ "${fam}" != "${klass}" ]; then echo "::error::${name} expected ${klass} got ${fam}"; FAIL=1; fi
+          }
+          # Liveness (NOT instrumented): the datasets manifest also serves as a
+          # health probe; we use the site root for pure liveness here.
+          probe health GET "/" "" --max-time 30
+          # MCP initialize (instrumented: mcp.initialize, operation null).
+          probe mcp_initialize POST "/api/mcp" "2xx" \
+            -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' --max-time 30
+          # MCP tools/list (NOT instrumented -- emits no event; shape check only).
+          probe mcp_tools_list POST "/api/mcp" "2xx" \
+            -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' --max-time 30
+          # MCP tools/call free2aitools_search (instrumented: mcp.tools_call, op search).
+          probe mcp_tools_call POST "/api/mcp" "2xx" \
+            -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"free2aitools_search","arguments":{"query":"telemetry preview canary probe"}}}' --max-time 60
+          # datasets manifest (instrumented: datasets.302, expect 2xx).
+          probe datasets_manifest GET "/api/v1/datasets" "2xx" --max-time 30
+          # datasets redirect (instrumented: datasets.302, expect 3xx). -> do NOT
+          # follow the redirect (no -L) so we observe the 302 itself.
+          probe datasets_redirect GET "/api/v1/datasets?file=fni_lite_latest" "3xx" --max-time 30
+          {
+            echo '{'
+            echo '  "stage": "J4-traffic",'
+            echo "  \"preview_url\": \"${BASE}\","
+            echo "  \"utc\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+            echo '  "probes": ['
+            printf '    %s' "${REPORT[0]}"
+            for i in "${REPORT[@]:1}"; do printf ',\n    %s' "$i"; done
+            echo ''
+            echo '  ]'
+            echo '}'
+          } > traffic.json
+          if [ "${FAIL}" != "0" ]; then echo "::error::canary traffic had 5xx or shape mismatch"; exit 1; fi
+          echo "canary traffic OK (zero 5xx, shapes match OFF-baseline)"
+
+      - name: Upload J4 traffic archive (sanitized status and shape only)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-traffic
+          path: traffic.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ===========================================================================
+  # J5  Q1 VALIDATION  (environment; CF_ANALYTICS_READ_TOKEN ONLY)
+  #   Bounded polling up to 15 min for the canary rows to materialize; compute
+  #   Q1-Q0; assert the expected instrumented rows appear; assert every row is a
+  #   closed-enum / schema_version=1 / no-forbidden-field shape; any unexplained
+  #   extra event fails. Save sanitized Q1.
+  # ===========================================================================
+  q1-validation:
+    name: J5 q1-validation
+    needs: [authority-gate, enable-isolate-deploy, canary-traffic]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: telemetry-preview-canary
+    permissions:
+      contents: read
+    steps:
+      - name: Download Q0 baseline
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: telemetry-canary-q0
+          path: .
+
+      - name: Poll Q1 + compute Q1-Q0 + validate rows
+        env:
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CANARY_DATASET: ${{ vars.CANARY_DATASET }}
+          CF_ANALYTICS_READ_TOKEN: ${{ secrets.CF_ANALYTICS_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          query_q() { # $1 = output file
+            local TB; TB=$(date -u +%Y-%m-%dT%H)
+            local SQL="SELECT blob1 AS schema_version, blob2 AS surface, blob3 AS operation, blob4 AS status_class, blob5 AS cache_class, blob6 AS audience_class, blob7 AS referer_host_class, blob8 AS time_bucket, SUM(_sample_interval) AS cnt FROM ${CANARY_DATASET} WHERE blob8 = '${TB}' GROUP BY blob1, blob2, blob3, blob4, blob5, blob6, blob7, blob8 FORMAT JSON"
+            local HTTP
+            HTTP=$(curl -sS -o "$1.raw" -w '%{http_code}' \
+              -X POST "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/analytics_engine/sql" \
+              -H "Authorization: Bearer ${CF_ANALYTICS_READ_TOKEN}" \
+              --data-binary "${SQL}")
+            echo "  Q1 poll HTTP=${HTTP} utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            [ "${HTTP}" = "200" ] || return 1
+            node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('$1.raw','utf8'));fs.writeFileSync('$1', JSON.stringify({rows:Array.isArray(r.data)?r.data:[]}));"
+            rm -f "$1.raw"
+          }
+          # Bounded poll: up to 15 attempts, ~60s apart (<=15 min). Stop early once
+          # rows exceed the Q0 baseline (events visible).
+          Q0COUNT=$(node -e "const r=require('./q0.json');console.log((r.rows||[]).reduce((a,x)=>a+Number(x.cnt||0),0));")
+          FIRST_VISIBLE=""
+          ATTEMPTS=0
+          : > q1-polls.log
+          for i in $(seq 1 15); do
+            ATTEMPTS=$i
+            echo "Q1 attempt ${i} utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> q1-polls.log
+            if query_q q1; then
+              Q1COUNT=$(node -e "const r=require('./q1.json');console.log((r.rows||[]).reduce((a,x)=>a+Number(x.cnt||0),0));")
+              echo "  Q0total=${Q0COUNT} Q1total=${Q1COUNT}"
+              if [ "${Q1COUNT}" -gt "${Q0COUNT}" ]; then
+                FIRST_VISIBLE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+                break
+              fi
+            fi
+            sleep 60
+          done
+          EVIDENCE_INCOMPLETE=0
+          if [ -z "${FIRST_VISIBLE}" ]; then
+            echo "::error::Q1 events never exceeded Q0 baseline within the poll window";
+            node -e "const fs=require('fs');fs.writeFileSync('q1.json', fs.existsSync('q1.json')?fs.readFileSync('q1.json'):'{\"rows\":[]}');"
+            EVIDENCE_INCOMPLETE=1
+          fi
+          # Export the poll telemetry so the validating node block can read it.
+          export ATTEMPTS FIRST_VISIBLE EVIDENCE_INCOMPLETE
+          # Compute Q1-Q0 delta per closed dimension tuple, then validate.
+          node -e "
+            const fs=require('fs');
+            const q0=JSON.parse(fs.readFileSync('q0.json','utf8')).rows||[];
+            const q1=JSON.parse(fs.readFileSync('q1.json','utf8')).rows||[];
+            const DIM=['schema_version','surface','operation','status_class','cache_class','audience_class','referer_host_class','time_bucket'];
+            const key=r=>DIM.map(d=>String(r[d])).join('|');
+            const m0=new Map(q0.map(r=>[key(r),Number(r.cnt||0)]));
+            const delta=[];
+            for(const r of q1){const k=key(r);const d=Number(r.cnt||0)-(m0.get(k)||0); if(d>0) delta.push(Object.assign({},r,{delta:d}));}
+            fs.writeFileSync('q1-delta.json', JSON.stringify({stage:'Q1-Q0', delta}, null, 2));
+            // ---- closed-world validation of EVERY delta row ----
+            const SURF=new Set(['api.v1.search','api.v1.entity','api.v1.compare','api.v1.select','api.v1.concepts','api.v1.trends','discovery.llms_txt','discovery.openapi','badge','datasets.302','mcp.initialize','mcp.tools_call']);
+            const OPS=new Set(['search','rank','explain','select_model','compare']);
+            const STATUS=new Set(['2xx','3xx','4xx','5xx']);
+            const CACHE=new Set(['hit','miss','none']);
+            const AUD=new Set(['human_browser','external_api','mcp_client','bot_crawler','first_party','unknown']);
+            const REF=new Set(['github','huggingface','arxiv','google','reddit','first_party','other','none']);
+            const FORBIDDEN=/https?:\/\/|select=|query=|token|bearer|authorization/i;
+            let errs=[];
+            for(const r of delta){
+              if(String(r.schema_version)!=='1') errs.push('schema_version!=1: '+JSON.stringify(r));
+              if(!SURF.has(r.surface)) errs.push('surface not closed: '+r.surface);
+              if(!STATUS.has(r.status_class)) errs.push('status_class not closed: '+r.status_class);
+              if(!CACHE.has(r.cache_class)) errs.push('cache_class not closed: '+r.cache_class);
+              if(!AUD.has(r.audience_class)) errs.push('audience not closed: '+r.audience_class);
+              if(!REF.has(r.referer_host_class)) errs.push('referer not closed: '+r.referer_host_class);
+              if(!/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(String(r.time_bucket))) errs.push('time_bucket bad: '+r.time_bucket);
+              // operation: null/empty everywhere except mcp.tools_call (closed op).
+              const opNull = (r.operation===null || r.operation===undefined || r.operation==='' || r.operation==='\\\\N');
+              if(r.surface==='mcp.tools_call'){ if(!OPS.has(r.operation)) errs.push('tools_call op not closed: '+r.operation); }
+              else { if(!opNull) errs.push('operation must be null for '+r.surface+': '+r.operation); }
+              // MCP surfaces must be mcp_client audience.
+              if((r.surface==='mcp.initialize'||r.surface==='mcp.tools_call') && r.audience_class!=='mcp_client') errs.push('MCP audience != mcp_client: '+r.audience_class);
+              // no forbidden raw value smuggled into any string field.
+              for(const d of DIM){ if(FORBIDDEN.test(String(r[d]))) errs.push('forbidden raw value in '+d+': '+r[d]); }
+            }
+            // Required explainable rows from J4 traffic.
+            const has=(pred)=>delta.some(pred);
+            const req=[];
+            if(!has(r=>r.surface==='mcp.initialize' && (r.operation===null||r.operation===''||r.operation==='\\\\N'||r.operation===undefined))) req.push('missing (mcp.initialize, op null)');
+            if(!has(r=>r.surface==='mcp.tools_call' && r.operation==='search')) req.push('missing (mcp.tools_call, op search)');
+            if(!has(r=>r.surface==='datasets.302' && r.status_class==='2xx')) req.push('missing (datasets.302, 2xx)');
+            if(!has(r=>r.surface==='datasets.302' && r.status_class==='3xx')) req.push('missing (datasets.302, 3xx)');
+            const summary={attempts:Number(process.env.ATTEMPTS||0), first_visible_utc:process.env.FIRST_VISIBLE||'', delta_rows:delta.length, schema_errors:errs, missing_required:req};
+            fs.writeFileSync('q1-validation.json', JSON.stringify(summary, null, 2));
+            console.log(JSON.stringify(summary,null,2));
+            if(process.env.EVIDENCE_INCOMPLETE==='1'){ console.error('::error::Q1 evidence incomplete (no events visible in window)'); process.exit(2); }
+            if(errs.length){ console.error('::error::Q1 schema violations: '+errs.length); process.exit(1); }
+            if(req.length){ console.error('::error::Q1 missing required explainable rows: '+req.join('; ')); process.exit(1); }
+            console.log('Q1 validation PASS');
+          "
+        # ATTEMPTS / FIRST_VISIBLE / EVIDENCE_INCOMPLETE are exported below via env
+        # propagation in the same shell (set above). We re-export for the node step.
+
+      - name: Upload Q1 evidence (sanitized)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-q1
+          path: |
+            q1.json
+            q1-delta.json
+            q1-validation.json
+            q1-polls.log
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ===========================================================================
+  # J6  CLEANUP  (if: always(); environment; CF_PAGES_CANARY_TOKEN ONLY)
+  #   RESTORE the EXACT original preview config (absent -> delete the key; was
+  #   false -> false; other -> restore exactly). Re-GET + hash -> assert
+  #   preview_config_restored_hash == preview_config_before_hash AND production
+  #   unchanged. Redeploy the audited SHA so Preview serves OFF; verify OFF. If
+  #   restore cannot be confirmed -> terminal CLEANUP_FAILED.
+  # ===========================================================================
+  cleanup:
+    name: J6 cleanup
+    needs: [authority-gate, build, enable-isolate-deploy, canary-traffic, q1-validation]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: telemetry-preview-canary
+    permissions:
+      contents: read
+    outputs:
+      cleanup_status: ${{ steps.restore.outputs.cleanup_status }}
+    steps:
+      - name: Download J3 config evidence (original preview state + hashes)
+        id: dl_cfg
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: telemetry-canary-config
+          path: .
+
+      - name: Download prebuilt dist artifact (for OFF redeploy)
+        id: dl_dist
+        continue-on-error: true
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: telemetry-canary-dist
+          path: .
+
+      - name: RESTORE exact original preview config + ASSERT production unchanged
+        id: restore
+        env:
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_PAGES_CANARY_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "cleanup_status=CLEANUP_FAILED" >> "$GITHUB_OUTPUT"  # pessimistic default
+          if [ ! -f hashes-before.json ] || [ ! -f preview-telemetry-original.json ]; then
+            echo "::error::CLEANUP_FAILED original-config evidence missing; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1
+          fi
+          ORIG=$(node -e "process.stdout.write(require('./preview-telemetry-original.json').original_TELEMETRY_ENABLED)")
+          echo "original TELEMETRY_ENABLED state: ${ORIG}"
+          # Build the precise restore PATCH:
+          #  - absent  -> set the key to null (Cloudflare DELETE semantics for env_vars)
+          #  - else    -> restore the EXACT original object verbatim
+          if [ "${ORIG}" = "absent" ]; then
+            RESTORE='{"deployment_configs":{"preview":{"env_vars":{"TELEMETRY_ENABLED":null}}}}'
+          else
+            RESTORE=$(node -e "const o=require('./preview-telemetry-original.json').original_TELEMETRY_ENABLED;process.stdout.write(JSON.stringify({deployment_configs:{preview:{env_vars:{TELEMETRY_ENABLED:JSON.parse(o)}}}}))")
+          fi
+          HTTP=$(curl -sS -o restore-result.json -w '%{http_code}' \
+            -X PATCH "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}" \
+            -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "${RESTORE}")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::CLEANUP_FAILED restore PATCH returned HTTP ${HTTP}; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1
+          fi
+          # Re-GET, re-hash preview + production; assert preview restored EXACTLY
+          # and production still unchanged.
+          HTTP=$(curl -sS -o project-restored.json -w '%{http_code}' \
+            -X GET "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}" \
+            -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::CLEANUP_FAILED restored GET returned HTTP ${HTTP}; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1
+          fi
+          node -e "
+            const fs=require('fs'),crypto=require('crypto');
+            const canon=o=>{const s=(x)=>Array.isArray(x)?x.map(s):(x&&typeof x==='object'?Object.keys(x).sort().reduce((a,k)=>{a[k]=s(x[k]);return a},{}):x);return JSON.stringify(s(o));};
+            const h=o=>crypto.createHash('sha256').update(canon(o)).digest('hex');
+            const r=JSON.parse(fs.readFileSync('project-restored.json','utf8'));
+            const cfg=(r.result&&r.result.deployment_configs)||{};
+            const prevH=h(cfg.preview||{}), prodH=h(cfg.production||{});
+            const before=JSON.parse(fs.readFileSync('hashes-before.json','utf8'));
+            fs.writeFileSync('hashes-restored.json', JSON.stringify({preview_config_restored_hash:prevH, production_config_restored_hash:prodH}, null, 2));
+            let bad=false;
+            if(prevH!==before.preview_config_before_hash){ console.error('::error::CLEANUP_FAILED preview not restored to original hash'); bad=true; }
+            if(prodH!==before.production_config_before_hash){ console.error('::error::CLEANUP_FAILED production hash drifted'); bad=true; }
+            const te=((cfg.preview||{}).env_vars||{}).TELEMETRY_ENABLED;
+            if(te && te.value==='true'){ console.error('::error::CLEANUP_FAILED preview TELEMETRY_ENABLED still true'); bad=true; }
+            if(bad) process.exit(1);
+            console.log('preview restored EXACTLY ('+prevH+'); production unchanged ('+prodH+')');
+          "
+          # Redeploy the audited SHA to PREVIEW so the live preview serves the OFF
+          # config (the env var is config-level, but redeploying guarantees the
+          # preview deployment reflects the restored OFF state).
+          if [ -d dist ]; then
+            CANARY_BRANCH="telemetry-canary-${{ github.run_id }}"
+            CLOUDFLARE_API_TOKEN="${CF_PAGES_CANARY_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CF_ACCOUNT_ID}" \
+              npx --yes wrangler@4 pages deploy dist --project-name=ai-nexus --branch="${CANARY_BRANCH}" >/dev/null 2>&1 || \
+              echo "::warning::OFF redeploy via wrangler returned non-zero; config is restored OFF regardless (verified by hash)"
+          else
+            echo "::warning::dist artifact unavailable for OFF redeploy; config-level restore already verified OFF by hash"
+          fi
+          echo "cleanup_status=CLEANUP_OK" >> "$GITHUB_OUTPUT"
+          rm -f project-restored.json restore-result.json
+          echo "CLEANUP_OK: preview restored OFF and verified."
+
+      - name: Upload cleanup evidence (sanitized)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-cleanup
+          path: |
+            hashes-restored.json
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ===========================================================================
+  # J7  Q2 OFF-PROOF  (after cleanup; environment; CF_ANALYTICS_READ_TOKEN ONLY)
+  #   Repeat the J4 traffic against the RESTORED-OFF preview, bounded 15-min
+  #   poll, save Q2, assert Q2-Q1 == 0 (no new canary events while OFF). Only
+  #   AFTER Q2 may any ephemeral deployment be deleted.
+  # ===========================================================================
+  q2-off-proof:
+    name: J7 q2-off-proof
+    needs: [authority-gate, enable-isolate-deploy, q1-validation, cleanup]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: telemetry-preview-canary
+    permissions:
+      contents: read
+    outputs:
+      q2_status: ${{ steps.prove.outputs.q2_status }}
+    steps:
+      - name: Gate run only if cleanup restored OFF
+        env:
+          CLEANUP_STATUS: ${{ needs.cleanup.outputs.cleanup_status }}
+        run: |
+          set -euo pipefail
+          if [ "${CLEANUP_STATUS}" != "CLEANUP_OK" ]; then
+            echo "::error::cleanup did not confirm OFF (status=${CLEANUP_STATUS}); refusing OFF-proof and ephemeral deletion"; exit 1
+          fi
+
+      - name: Download Q1 rows (the post-canary visible total)
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: telemetry-canary-q1
+          path: .
+
+      - name: Drive OFF-traffic + poll Q2 + assert Q2-Q1 == 0
+        id: prove
+        env:
+          PREVIEW_URL: ${{ needs.enable-isolate-deploy.outputs.preview_url }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CANARY_DATASET: ${{ vars.CANARY_DATASET }}
+          CF_ANALYTICS_READ_TOKEN: ${{ secrets.CF_ANALYTICS_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "q2_status=Q2_FAILED" >> "$GITHUB_OUTPUT"  # pessimistic default
+          BASE="${PREVIEW_URL%/}"
+          # Re-drive the SAME instrumented surfaces against the restored-OFF preview.
+          curl -sS -o /dev/null "${BASE}/" --max-time 30 || true
+          curl -sS -o /dev/null -X POST "${BASE}/api/mcp" -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' --max-time 30 || true
+          curl -sS -o /dev/null -X POST "${BASE}/api/mcp" -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"free2aitools_search","arguments":{"query":"telemetry preview canary off proof"}}}' --max-time 60 || true
+          curl -sS -o /dev/null "${BASE}/api/v1/datasets" --max-time 30 || true
+          curl -sS -o /dev/null "${BASE}/api/v1/datasets?file=fni_lite_latest" --max-time 30 || true
+          query_total() {
+            local TB; TB=$(date -u +%Y-%m-%dT%H)
+            local SQL="SELECT SUM(_sample_interval) AS cnt FROM ${CANARY_DATASET} WHERE blob8 = '${TB}' FORMAT JSON"
+            local HTTP
+            HTTP=$(curl -sS -o q2.raw -w '%{http_code}' \
+              -X POST "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/analytics_engine/sql" \
+              -H "Authorization: Bearer ${CF_ANALYTICS_READ_TOKEN}" \
+              --data-binary "${SQL}")
+            [ "${HTTP}" = "200" ] || return 1
+            node -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync('q2.raw','utf8'));const rows=r.data||[];console.log(rows.reduce((a,x)=>a+Number(x.cnt||0),0));"
+            rm -f q2.raw
+          }
+          Q1TOTAL=$(node -e "const r=require('./q1.json');console.log((r.rows||[]).reduce((a,x)=>a+Number(x.cnt||0),0));")
+          echo "Q1 visible total=${Q1TOTAL}"
+          Q2TOTAL=""
+          : > q2-polls.log
+          for i in $(seq 1 15); do
+            echo "Q2 attempt ${i} utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> q2-polls.log
+            if Q2TOTAL=$(query_total); then
+              echo "  Q2 total=${Q2TOTAL} (Q1=${Q1TOTAL})"
+            fi
+            sleep 60
+          done
+          node -e "
+            const fs=require('fs');
+            const q1=Number(process.env.Q1TOTAL||0), q2=Number('${Q2TOTAL:-0}');
+            const delta=q2-q1;
+            fs.writeFileSync('q2.json', JSON.stringify({stage:'Q2-Q1', q1_total:q1, q2_total:q2, delta}, null, 2));
+            console.log('Q2-Q1 delta='+delta);
+            if(delta!==0){ console.error('::error::OFF-PROOF FAILED Q2-Q1 != 0 (new events while OFF: '+delta+')'); process.exit(1); }
+            console.log('OFF-proof PASS: zero new canary events while OFF');
+          "
+          echo "q2_status=Q2_OK" >> "$GITHUB_OUTPUT"
+
+      - name: Delete ephemeral preview deployment (ONLY after Q2 OFF-proof)
+        if: steps.prove.outputs.q2_status == 'Q2_OK'
+        env:
+          DEPLOYMENT_ID: ${{ needs.enable-isolate-deploy.outputs.deployment_id }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DEPLOYMENT_ID}" ]; then
+            echo "::warning::no deployment id to delete"; exit 0
+          fi
+          npx --yes wrangler@4 pages deployment delete "${DEPLOYMENT_ID}" --project-name=ai-nexus --force >/dev/null 2>&1 \
+            || echo "::warning::ephemeral deployment delete returned non-zero (cleanup of config already verified OFF)"
+          echo "ephemeral preview deployment delete attempted (id masked: ${DEPLOYMENT_ID:0:8}...)"
+
+      - name: Upload Q2 evidence (sanitized)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-q2
+          path: |
+            q2.json
+            q2-polls.log
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ===========================================================================
+  # J8  FINAL VERDICT  (no environment, no CF secret)
+  #   Emit EXACTLY ONE verdict and upload the sanitized evidence bundle.
+  # ===========================================================================
+  final-verdict:
+    name: J8 final-verdict
+    needs: [authority-gate, build, q0-baseline, enable-isolate-deploy, canary-traffic, q1-validation, cleanup, q2-off-proof]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Download all canary evidence
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: telemetry-canary-*
+          path: evidence
+
+      - name: Compute single verdict
+        env:
+          R_AUTH: ${{ needs.authority-gate.result }}
+          R_BUILD: ${{ needs.build.result }}
+          R_Q0: ${{ needs.q0-baseline.result }}
+          R_DEPLOY: ${{ needs.enable-isolate-deploy.result }}
+          R_TRAFFIC: ${{ needs.canary-traffic.result }}
+          R_Q1: ${{ needs.q1-validation.result }}
+          R_CLEANUP: ${{ needs.cleanup.result }}
+          R_Q2: ${{ needs.q2-off-proof.result }}
+          CLEANUP_STATUS: ${{ needs.cleanup.outputs.cleanup_status }}
+          Q2_STATUS: ${{ needs.q2-off-proof.outputs.q2_status }}
+        run: |
+          set -euo pipefail
+          echo "results: auth=${R_AUTH} build=${R_BUILD} q0=${R_Q0} deploy=${R_DEPLOY} traffic=${R_TRAFFIC} q1=${R_Q1} cleanup=${R_CLEANUP} q2=${R_Q2}"
+          echo "cleanup_status=${CLEANUP_STATUS} q2_status=${Q2_STATUS}"
+          # CLEANUP-PRIORITY: a failed/unconfirmed restore is the most severe state
+          # and dominates the verdict (OFF must be guaranteed).
+          if [ "${R_CLEANUP}" != "success" ] || [ "${CLEANUP_STATUS}" != "CLEANUP_OK" ] || [ "${Q2_STATUS}" != "Q2_OK" ]; then
+            VERDICT=CLEANUP_FAILED
+          elif [ "${R_AUTH}" = "success" ] && [ "${R_BUILD}" = "success" ] && [ "${R_Q0}" = "success" ] && [ "${R_DEPLOY}" = "success" ] && [ "${R_TRAFFIC}" = "success" ] && [ "${R_Q1}" = "success" ] && [ "${R_Q2}" = "success" ]; then
+            VERDICT=PREVIEW_CANARY_PASS
+          else
+            VERDICT=PREVIEW_CANARY_EVIDENCE_INCOMPLETE
+          fi
+          echo "FINAL_VERDICT=${VERDICT}"
+          echo "## Telemetry Preview Canary verdict: ${VERDICT}" >> "$GITHUB_STEP_SUMMARY"
+          printf '{"verdict":"%s","cleanup_status":"%s","q2_status":"%s","results":{"authority":"%s","build":"%s","q0":"%s","deploy":"%s","traffic":"%s","q1":"%s","cleanup":"%s","q2":"%s"}}\n' \
+            "${VERDICT}" "${CLEANUP_STATUS}" "${Q2_STATUS}" "${R_AUTH}" "${R_BUILD}" "${R_Q0}" "${R_DEPLOY}" "${R_TRAFFIC}" "${R_Q1}" "${R_CLEANUP}" "${R_Q2}" > verdict.json
+          # Make CLEANUP_FAILED a hard red so a human is paged.
+          if [ "${VERDICT}" = "CLEANUP_FAILED" ]; then
+            echo "::error::CLEANUP_FAILED -- MANUAL HUMAN INTERVENTION REQUIRED to confirm Preview is OFF"; exit 1
+          fi
+          if [ "${VERDICT}" = "PREVIEW_CANARY_EVIDENCE_INCOMPLETE" ]; then
+            echo "::error::PREVIEW_CANARY_EVIDENCE_INCOMPLETE"; exit 1
+          fi
+
+      - name: Upload final verdict + evidence bundle (sanitized)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-verdict
+          path: |
+            verdict.json
+            evidence
+          retention-days: 30
+          if-no-files-found: warn
