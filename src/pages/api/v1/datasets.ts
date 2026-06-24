@@ -6,11 +6,31 @@
  */
 export const prerender = false;
 
+// Route-local Adoption Telemetry (DEFAULT-OFF, fail-open, #2218-safe). Imported
+// ONLY here + mcp.ts; NEVER from middleware. Does not name the AE binding token.
+import { emitRoute, extractTelemetryEnv } from '../../../lib/telemetry/route-telemetry';
+import { hostFromReferer, isBotUa } from '../../../lib/telemetry/route-classify';
+
 const CDN_BASE = 'https://cdn.free2aitools.com';
 
 const KNOWN_FILES = [
     { id: 'fni_lite_latest', name: 'FNI Lite (Latest)', path: 'datasets/fni_lite_latest.parquet', tier: 'free', fields: ['id', 'title', 'abstract_300', 'fni_score', 'fni_version'] },
 ];
+
+// Route-local recorder. DEFAULT-OFF, fail-open, NON-BLOCKING: emits a closed
+// low-cardinality event (datasets surface + coarse status) to the write adapter,
+// which no-ops unless explicitly enabled & bound. NEVER alters the response/
+// status/body/latency control flow; failure swallowed in emitRoute. Audience/
+// referer derive from header VALUES (never stored raw); NO query/path recorded.
+function recordDatasets(request: Request, locals: any, status: number): void {
+    try {
+        emitRoute(extractTelemetryEnv(locals), {
+            surface: 'datasets.302', status, cacheClass: 'none',
+            refererHost: hostFromReferer(request?.headers?.get?.('referer')),
+            audience: { isBot: isBotUa(request?.headers?.get?.('user-agent')) },
+        });
+    } catch { /* fail-open: telemetry never touches the serve path */ }
+}
 
 export async function GET({ request, locals }: { request: Request; locals: any }) {
     const url = new URL(request.url);
@@ -19,9 +39,13 @@ export async function GET({ request, locals }: { request: Request; locals: any }
     if (file) {
         const entry = KNOWN_FILES.find(f => f.id === file);
         if (!entry) {
-            return new Response(JSON.stringify({ error: 'Unknown file' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+            const response = new Response(JSON.stringify({ error: 'Unknown file' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+            recordDatasets(request, locals, response.status);
+            return response;
         }
-        return Response.redirect(`${CDN_BASE}/${entry.path}`, 302);
+        const response = Response.redirect(`${CDN_BASE}/${entry.path}`, 302);
+        recordDatasets(request, locals, response.status);
+        return response;
     }
 
     const body = {
@@ -37,7 +61,7 @@ export async function GET({ request, locals }: { request: Request; locals: any }
         })),
     };
 
-    return new Response(JSON.stringify(body, null, 2), {
+    const response = new Response(JSON.stringify(body, null, 2), {
         status: 200,
         headers: {
             'Content-Type': 'application/json',
@@ -45,4 +69,6 @@ export async function GET({ request, locals }: { request: Request; locals: any }
             'Access-Control-Allow-Origin': '*',
         },
     });
+    recordDatasets(request, locals, response.status);
+    return response;
 }
