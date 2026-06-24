@@ -598,16 +598,49 @@ jobs:
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
-      - name: Restore Core Registry from Cache
+      # D-2026-0624-113: RESTORE-FOOTPRINT hotfix. Trending only READS
+      # cache/registry/ (rankings + shardReader; see scripts/factory/aggregator.js
+      # runSatelliteTask + lib/registry-loader.js loadRegistryShardsSequentially)
+      # and cache/fni-history/ (--task=trend; lib/registry-history.js loadFniHistory).
+      # artifacts/, cache/deltas/, output/meta/ are OUTPUT-only/Rust-rebuilt dirs
+      # (rust/stream-aggregator StatsTask Phase 3 tolerates a missing artifacts/ via
+      # `if let Ok(read_dir)` and recreates cache/deltas/ itself). Restoring the full
+      # intra-cycle-${run_id}-core archive (output/+cache/+artifacts/, append-only)
+      # overran the runner disk ("No space left on device", 2026-06-24). Restore the
+      # SMALL same-run registry-only cache merge-core-persist already produced instead.
+      - name: Disk usage before registry restore
+        run: df -h .
+      - name: Restore Global Registry from Cache (registry-only footprint)
+        id: cache-restore-registry
         uses: actions/cache/restore@v5
         with:
           path: |
-            output/
-            cache/
-            artifacts/
-          key: intra-cycle-${{ github.run_id }}-core
-      - name: Free Disk (satellite jobs only need cache/registry)
-        run: rm -rf artifacts/ cache/deltas/ output/meta/ 2>/dev/null; echo "Freed $(df -h . | tail -1 | awk '{print $4}') available"
+            cache/global-registry.json.zst
+            cache/registry/
+          key: global-registry-${{ github.run_id }}
+      # Fail-closed: same-run registry cache MUST hit (merge-core-persist wrote it
+      # before this job's `needs` was satisfied). Mirror the persist-job guard at
+      # ~line 344 — never proceed on an empty cache (would silently emit empty
+      # trending.json poisoning the satellite-trending cache + R2).
+      - name: Verify Registry Cache Hit (fail closed)
+        if: steps.cache-restore-registry.outputs.cache-hit != 'true'
+        run: |
+          echo "::error::Cache miss on global-registry-${{ github.run_id }}. merge-core-persist must have written it before this job ran. Aborting Trending to avoid emitting empty results. Recovery: 'Re-run failed jobs' in GHA UI."
+          exit 1
+      - name: Verify Registry Shards Present (fail closed on zero)
+        run: |
+          SHARD_COUNT=$(find cache/registry -name 'part-*.bin' -o -name 'part-*.json.zst' -o -name 'part-*.json' 2>/dev/null | wc -l)
+          if [ "$SHARD_COUNT" -eq 0 ]; then
+            echo "::error::Registry restore yielded 0 shards in cache/registry/. Refusing to generate trending from an empty registry."
+            exit 1
+          fi
+          echo "✅ Registry restored: $SHARD_COUNT shards"
+      - name: Disk usage after registry restore
+        run: df -h .
+      # Output dirs the Rust StatsTask + generators write into (no longer restored
+      # via the full-core archive; create explicitly so writes don't fail).
+      - name: Prepare Output Directories
+        run: mkdir -p output/cache cache/deltas artifacts
       - name: Restore FNI History from Cache
         uses: actions/cache/restore@v5
         with:
@@ -627,6 +660,7 @@ jobs:
           ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
         run: |
+          df -h .  # scalability watch: disk before Trending generation
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
           node scripts/factory/aggregator.js --task=trend
