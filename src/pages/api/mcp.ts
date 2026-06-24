@@ -12,6 +12,11 @@ import { callEntity, buildExplainResult } from '../../lib/mcp-explain.js';
 import { callCompare, buildCompareResult } from '../../lib/mcp-compare.js';
 import { callSearchStatus, buildSearchResult } from '../../lib/mcp-search.js';
 import { callSelectStatus, buildSelectResult } from '../../lib/mcp-select.js';
+// Route-local Adoption Telemetry (DEFAULT-OFF, fail-open, #2218-safe). Imported
+// ONLY here + datasets.ts; NEVER from middleware. Does not name the AE binding.
+import { emitRoute, extractTelemetryEnv } from '../../lib/telemetry/route-telemetry';
+import { mcpToolToOperation, hostFromReferer, isBotUa } from '../../lib/telemetry/route-classify';
+import type { McpTool } from '../../lib/telemetry/vocab';
 
 const SERVER_INFO = { name: 'free2aitools', version: '2.0.0' };
 
@@ -173,6 +178,28 @@ async function handleToolCall(context: any, toolName: string, args: any) {
     }
 }
 
+// Route-local telemetry recorder. DEFAULT-OFF, fail-open, NON-BLOCKING: emits a
+// closed low-cardinality event (surface + closed tool enum + coarse status) to the
+// write adapter, which no-ops unless explicitly enabled & bound. NEVER alters the
+// response/status/body/latency control flow; any failure is swallowed in emitRoute.
+// Audience/referer derive from already-read header VALUES (never stored raw); NO
+// request body/args are recorded.
+function recordMcp(
+    context: any,
+    surface: 'mcp.initialize' | 'mcp.tools_call',
+    operation: McpTool | null,
+    status: number,
+): void {
+    try {
+        const headers = context?.request?.headers;
+        emitRoute(extractTelemetryEnv(context?.locals), {
+            surface, status, operation, cacheClass: 'none',
+            refererHost: hostFromReferer(headers?.get?.('referer')),
+            audience: { isMcpClient: true, isBot: isBotUa(headers?.get?.('user-agent')) },
+        });
+    } catch { /* fail-open: telemetry never touches the serve path */ }
+}
+
 export const POST: APIRoute = async (context) => {
     let body: any;
     try { body = await context.request.json(); } catch {
@@ -182,13 +209,16 @@ export const POST: APIRoute = async (context) => {
     const { id, method, params } = body;
 
     switch (method) {
-        case 'initialize':
-            return jsonrpc(id, {
+        case 'initialize': {
+            const response = jsonrpc(id, {
                 protocolVersion: '2025-03-26',
                 serverInfo: SERVER_INFO,
                 instructions: SERVER_BOUNDARY,
                 capabilities: { tools: {} }
             });
+            recordMcp(context, 'mcp.initialize', null, response.status);
+            return response;
+        }
 
         case 'tools/list':
             return jsonrpc(id, { tools: TOOLS });
@@ -196,11 +226,16 @@ export const POST: APIRoute = async (context) => {
         case 'tools/call': {
             const toolName = params?.name;
             const args = params?.arguments || {};
+            const operation = mcpToolToOperation(toolName);
             try {
                 const result = await handleToolCall(context, toolName, args);
-                return jsonrpc(id, result);
+                const response = jsonrpc(id, result);
+                recordMcp(context, 'mcp.tools_call', operation, response.status);
+                return response;
             } catch (e: any) {
-                return jsonrpcError(id, -32603, e.message);
+                const response = jsonrpcError(id, -32603, e.message);
+                recordMcp(context, 'mcp.tools_call', operation, response.status);
+                return response;
             }
         }
 

@@ -462,6 +462,32 @@ proof in the PR body).
 > `recommendations`), with no `confidence` field. This invariant LOCKS that
 > already-correct state so the forbidden verdict vocabulary cannot regress back in.
 
+## Registry — P2-TELEMETRY-TA2-RL (adoption-telemetry route-local re-attempt, #2218-safe)
+
+> Deterministic, hermetic invariants for the P2 Adoption Telemetry Phase-A
+> ROUTE-LOCAL re-attempt (Founder gate D-2026-0624-103 — the #2218-safe redo of
+> TA2). It instruments ONLY the two approved request paths (MCP `src/pages/api/
+> mcp.ts`, datasets `src/pages/api/v1/datasets.ts`) from WITHIN the route handlers
+> (NEVER from middleware), emitting a bounded low-cardinality event via the
+> EXISTING substrate (`emit`) + the EXISTING AE binding. Telemetry is DEFAULT-OFF,
+> fail-open, non-blocking; deploy stays OFF. The new helpers `route-telemetry.ts`
+> (env extraction + closed-event build + emit forward) and `route-classify.ts`
+> (pure pre-classifiers) carry NO raw Request/URL/Headers/body. These tests
+> execute the REAL route handlers with internal handlers stubbed + an AE TEST
+> DOUBLE (`mock-binding.ts`) — no network, no prod, no AE write — and walk the
+> middleware static-import graph to prove the #2218 import edge is impossible.
+> This is a TELEMETRY CODE CANDIDATE: DEFAULT-OFF, NOT active, NOT adoption-proven.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| TEL-RL-OFF | DEFAULT-OFF equivalence: with `TELEMETRY_ENABLED != 'true'`, both MCP (initialize/tools_call) and datasets (200/302/404) responses are byte/status equal to the no-locals baseline AND ZERO AE writes are attempted on the mock binding (gates 1, 11, 12) | `tests/srs1/telemetry-route-local.test.ts` | EXEC | **NEW** |
+| TEL-RL-ON | ENABLED + bound => EXACTLY ONE bounded write per instrumented dispatch; index is the surface (`mcp.initialize`/`mcp.tools_call`/`datasets.302`); 8 closed-enum blobs, 0 doubles, 1 index; tool enum + status class (200->2xx/302->3xx/404->4xx) + UTC hour bucket present; cardinality bounded to known closed enum values (gates 2, 8) | `tests/srs1/telemetry-route-local.test.ts` | EXEC | **NEW** |
+| TEL-RL-FAILOPEN | FAIL-OPEN: missing binding => no write/no throw; a SYNCHRONOUSLY throwing sink leaves status/body unchanged and only increments the submission-error counter; a hostile `locals.runtime` getter cannot throw into / alter the route; the MCP tool-error (500) path returns the SAME JSON-RPC error ON vs OFF (gates 3, 4, 5, 14) | `tests/srs1/telemetry-route-local.test.ts` | EXEC | **NEW** |
+| TEL-RL-PRIVACY | The written payload carries NO raw url/query/body/header/token/path/host (only the closed referer-host CLASS); a smuggled forbidden dimension (e.g. `ip`) is rejected by the substrate schema before the sink (gates 6, 7) | `tests/srs1/telemetry-route-local.test.ts` | EXEC | **NEW** |
+| TEL-RL-TRAFFIC | A known-crawler UA is classed `bot_crawler` (NOT `external_api`/real-user); an unknown external UA is `unknown` (EXTERNAL_OR_UNCLASSIFIED), never force-classified as a user (gate 13) | `tests/srs1/telemetry-route-local.test.ts` | EXEC | **NEW** |
+| TEL-RL-NONVAC | NON-VACUITY: BOTH approved routes still import `route-telemetry` AND call `emitRoute(...)` (the test FAILS if route instrumentation is removed); NEITHER route names the AE binding token (no-read invariant preserved) (gate 15) | `tests/srs1/telemetry-route-local.test.ts` | SOURCE | **NEW** |
+| TEL-RL-BUNDLE | IMPORT/BUNDLE SAFETY (#2218 prevention): `src/middleware.ts` has NO direct telemetry import edge AND no telemetry module is reachable from the transitive middleware static-import (Worker-startup) chain; NON-VACUITY mutation — injecting a `middleware -> telemetry` static import MAKES the graph walk FAIL, removing it restores PASS (repo stays clean); a resolver self-check proves the walker resolves a real edge (gates 9, 10, 16) | `tests/srs1/telemetry-bundle-boundary.test.ts` | STRUCT | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
