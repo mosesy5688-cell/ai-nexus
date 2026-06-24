@@ -423,6 +423,45 @@ proof in the PR body).
 > `.node` is absent so it is runnable anywhere; it is intentionally NOT wired into
 > any workflow (GHA log lines + the existing sentinel aggregate are sufficient).
 
+## Registry — FD-16 / C0-CH-001 (verdict-vocabulary contract-honesty lock)
+
+> Deterministic, hermetic POSITIVE-VOCABULARY ABSENCE locks for FD-16 /
+> C0-CH-001 (Founder D-99 G-1/G-2/G-3, Page Messaging Contract Sec 5 forbidden
+> list). NORTH STAR: the discovery layer delivers an evidence chain, it does not
+> emit a SELECTION VERDICT. These read repo SOURCE of `select.ts` /
+> `rationale-builder.ts` / `mcp.ts` / `mcp-select.ts` (comment/doc blocks STRIPPED
+> so prose that NAMES a banned token as banned — e.g. "no pseudo-confidence" — does
+> not false-trip) + parse the static `mcp.json` + `openapi-schema.json`. They are
+> the COMPLEMENT of NEG-MCP/NEG-RANK/NEG-DOCS: those assert the NOT-section is
+> PRESENT; FD-16 asserts the forbidden POSITIVE verdict tokens (a `recommendations`
+> response key, a `confidence` field/scalar, "best AI model", "ranked
+> recommendations", an affirmative "selected"-as-verdict) never reappear on the
+> select/MCP/OpenAPI machine contract — a regression the present-NOT-section guard
+> alone would not catch (a surface can carry the NOT-section AND still leak a
+> `recommendations` key or `confidence` scalar). The wire array is the neutral
+> `entries`; the honest evidence (`fni_summary`, `caveats`, FNI factor breakdown)
+> is RETAINED. NO module execution, no `cloudflare:workers` import, no live fetch.
+> Non-vacuity proven: injecting a `confidence` Entry property reds T5.
+> SCOPE: machine surfaces only — NO producer/ranking/FNI/Factory dependency.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| FD16-WIRE (T1) | `/api/v1/select` response uses `entries`, NEVER a `recommendations` key; emits NO `confidence` field/scalar; RETAINS `fni_summary`/`caveats`/`fni_factors`; endpoint path `/api/v1/select` + `operationId selectModel` unchanged | `tests/srs1/verdict-vocabulary.test.ts` | SOURCE + CONFIG | **NEW** |
+| FD16-RATIONALE (T2) | `rationale-builder.ts` produces `{ fni_summary, caveats }` evidence facts and NO `confidence` producer/field anywhere in code | `tests/srs1/verdict-vocabulary.test.ts` | SOURCE | **NEW** |
+| FD16-MCP (T3) | MCP `select_model` tool description (handler AND static `mcp.json`) carries NO "best AI model" / "ranked recommendations" / `confidence` / affirmative "selected"-verdict; any "recommend" is the NEGATIVE disclaimer; states the CALLER makes the final choice | `tests/srs1/verdict-vocabulary.test.ts` | SOURCE + CONFIG | **NEW** |
+| FD16-PASSTHRU (T4) | `mcp-select.ts` relays the 200 select body verbatim — injects no `recommendations`/`confidence`/"best AI model" (only the transient-503 retry text is synthesized) | `tests/srs1/verdict-vocabulary.test.ts` | SOURCE | **NEW** |
+| FD16-OAS (T5) | Served OpenAPI: `SelectResponse` uses `entries` + declares NO `recommendations`; `Entry` declares NO `confidence` + retains `fni_summary`/`caveats`/`fni_factors`; select path/Entry prose carry no "best AI model"/"ranked recommendations"/confidence + state caller-decides | `tests/srs1/verdict-vocabulary.test.ts` | CONFIG | **NEW** |
+| FD16-NONEXP (T6) | Tool identifier remains EXACTLY `free2aitools_select_model` and the OpenAPI endpoint path remains EXACTLY `/api/v1/select` (no identifier/path drift under the honesty correction) | `tests/srs1/verdict-vocabulary.test.ts` | SOURCE + CONFIG | **NEW** |
+
+> State note (audit trail): at the time FD-16 was registered the machine surfaces
+> already CONFORMED on `origin/main` — the `recommendations` key + synthetic
+> `confidence` scalar + "best/ranked recommendations/selected" verdict prose flagged
+> in the original C0-CH-001 ticket had already been removed by the
+> P3-CONTRACT-1 PR-A contract-alignment work (`5900b5c3d`) and the G-05/§A wording
+> fixes (`3e5694dbb`, `560dfe4f0`); the live select wire shape is `entries` (not
+> `recommendations`), with no `confidence` field. This invariant LOCKS that
+> already-correct state so the forbidden verdict vocabulary cannot regress back in.
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
