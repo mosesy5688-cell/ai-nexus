@@ -61,8 +61,8 @@ on:
         required: true
         default: ""
       freeze_window_utc:
-        description: "Human-attested UTC freeze window for the Preview surface (recorded into evidence)."
-        required: false
+        description: "MANDATORY Founder-approved Preview freeze window, strict UTC ISO-8601 'START_UTC/END_UTC' (e.g. 2026-06-24T14:00:00Z/2026-06-24T14:45:00Z). Must be CURRENTLY ACTIVE and <=60 min."
+        required: true
         default: ""
 
 # One canary at a time; do NOT cancel an in-flight run (cleanup must complete).
@@ -97,6 +97,9 @@ jobs:
     outputs:
       canary_branch: ${{ steps.gate.outputs.canary_branch }}
       audited_sha: ${{ steps.gate.outputs.audited_sha }}
+      freeze_start_utc: ${{ steps.gate.outputs.freeze_start_utc }}
+      freeze_end_utc: ${{ steps.gate.outputs.freeze_end_utc }}
+      approver: ${{ steps.gate.outputs.approver }}
     steps:
       - name: Checkout EXACT audited SHA
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
@@ -105,6 +108,33 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Trojan-Source / control-character gate (NO secret)
+        id: ascii_gate
+        run: |
+          set -euo pipefail
+          WF=".github/workflows/telemetry-preview-canary.yml"
+          if [ ! -f "${WF}" ]; then
+            echo "::error::CONTROL_CHAR_GATE workflow file not found at ${WF}"; exit 1
+          fi
+          # Count NON-ASCII bytes (>= 0x80) in the workflow file.
+          NON_ASCII=$(LC_ALL=C grep -aPo '[\x80-\xFF]' "${WF}" | wc -l | tr -d ' ')
+          # Detect Unicode BIDI controls + format controls by their UTF-8 byte
+          # sequences (the file is UTF-8). Trojan-Source defense:
+          #   U+202A..U+202E -> E2 80 AA..AE   (LRE/RLE/PDF/LRO/RLO)
+          #   U+2066..U+2069 -> E2 81 A6..A9   (LRI/RLI/FSI/PDI)
+          #   U+200E/U+200F  -> E2 80 8E/8F    (LRM/RLM)
+          #   U+200B..U+200D -> E2 80 8B..8D   (ZWSP/ZWNJ/ZWJ)
+          #   U+FEFF (BOM/ZWNBSP) -> EF BB BF
+          BIDI=$(LC_ALL=C grep -aPo '\xE2\x80[\xAA-\xAE]|\xE2\x81[\xA6-\xA9]|\xE2\x80[\x8E\x8F]' "${WF}" | wc -l | tr -d ' ')
+          FORMAT=$(LC_ALL=C grep -aPo '\xE2\x80[\x8B-\x8D]|\xEF\xBB\xBF' "${WF}" | wc -l | tr -d ' ')
+          printf '{"schema":"telemetry-canary-control-char-scan/v1","file":"%s","non_ascii_bytes":%s,"bidi_controls":%s,"format_controls":%s}\n' \
+            "${WF}" "${NON_ASCII:-0}" "${BIDI:-0}" "${FORMAT:-0}" > control-char-scan.json
+          echo "control-char scan: $(cat control-char-scan.json)"
+          if [ "${BIDI:-0}" != "0" ] || [ "${FORMAT:-0}" != "0" ]; then
+            echo "::error::TROJAN_SOURCE_DETECTED bidi=${BIDI} format=${FORMAT} control chars present in workflow"; exit 1
+          fi
+          echo "non_ascii=${NON_ASCII:-0}" >> "$GITHUB_OUTPUT"
+
       - name: Authority + production-unreachable gate
         id: gate
         env:
@@ -112,6 +142,8 @@ jobs:
           IN_CONFIRM: ${{ inputs.confirm_preview_only }}
           IN_EXPECTED_PROD_SHA: ${{ inputs.expected_production_sha }}
           IN_FREEZE: ${{ inputs.freeze_window_utc }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
         run: |
           set -euo pipefail
           # (1) The commit actually checked out MUST be the audited SHA. We trust
@@ -142,14 +174,72 @@ jobs:
           if printf '%s' "${ALL_INPUTS}" | grep -Eiq 'free2aitools_adoption_v1|--branch=main|branch=main|deployment_configs\.production|env\.production'; then
             echo "::error::PRODUCTION_TARGET_REJECTED an input references a production branch/dataset/config"; exit 1
           fi
-          # (4) Compute the unique canary branch and hard-assert non-main.
+          # (4) MANDATORY Founder-approved Preview FREEZE WINDOW -- HARD GATE.
+          # Shape: "START_UTC/END_UTC", two strict UTC ISO-8601 timestamps. We
+          # require: both parse as strict UTC (date -u -d), start < end, the window
+          # is CURRENTLY ACTIVE (now >= start AND now <= end), and length <= 60 min.
+          # Empty / malformed / expired / not-yet-active / overlong => FAIL CLOSED,
+          # BEFORE any Cloudflare step.
+          if [ -z "${IN_FREEZE}" ]; then
+            echo "::error::FREEZE_WINDOW_REQUIRED freeze_window_utc is empty; Founder-approved freeze window is mandatory"; exit 1
+          fi
+          case "${IN_FREEZE}" in
+            */*) : ;;
+            *) echo "::error::FREEZE_WINDOW_MALFORMED expected 'START_UTC/END_UTC' separated by a single '/'"; exit 1 ;;
+          esac
+          F_START="${IN_FREEZE%%/*}"
+          F_END="${IN_FREEZE##*/}"
+          if [ -z "${F_START}" ] || [ -z "${F_END}" ] || [ "${F_START}/${F_END}" != "${IN_FREEZE}" ]; then
+            echo "::error::FREEZE_WINDOW_MALFORMED could not split into exactly two timestamps: '${IN_FREEZE}'"; exit 1
+          fi
+          # Strict UTC ISO-8601: must end in 'Z' (no local-time / offset smuggling).
+          case "${F_START}" in *Z) : ;; *) echo "::error::FREEZE_START_NOT_UTC start '${F_START}' must end in 'Z'"; exit 1 ;; esac
+          case "${F_END}"   in *Z) : ;; *) echo "::error::FREEZE_END_NOT_UTC end '${F_END}' must end in 'Z'"; exit 1 ;; esac
+          # Parse both as UTC epoch seconds; reject anything date -u cannot parse.
+          if ! START_EPOCH=$(date -u -d "${F_START}" +%s 2>/dev/null); then
+            echo "::error::FREEZE_START_UNPARSEABLE '${F_START}' is not a valid UTC timestamp"; exit 1
+          fi
+          if ! END_EPOCH=$(date -u -d "${F_END}" +%s 2>/dev/null); then
+            echo "::error::FREEZE_END_UNPARSEABLE '${F_END}' is not a valid UTC timestamp"; exit 1
+          fi
+          NOW_EPOCH=$(date -u +%s)
+          if [ "${START_EPOCH}" -ge "${END_EPOCH}" ]; then
+            echo "::error::FREEZE_WINDOW_ORDER start (${F_START}) must be strictly before end (${F_END})"; exit 1
+          fi
+          WINDOW_LEN=$(( END_EPOCH - START_EPOCH ))
+          if [ "${WINDOW_LEN}" -gt 3600 ]; then
+            echo "::error::FREEZE_WINDOW_TOO_LONG window length ${WINDOW_LEN}s exceeds 3600s (60 min) cap"; exit 1
+          fi
+          if [ "${NOW_EPOCH}" -lt "${START_EPOCH}" ]; then
+            echo "::error::FREEZE_WINDOW_NOT_YET_ACTIVE now < start (${F_START}); the approved freeze has not begun"; exit 1
+          fi
+          if [ "${NOW_EPOCH}" -gt "${END_EPOCH}" ]; then
+            echo "::error::FREEZE_WINDOW_EXPIRED now > end (${F_END}); the approved freeze has ended"; exit 1
+          fi
+          echo "FREEZE window ACTIVE: start=${F_START} end=${F_END} len=${WINDOW_LEN}s now-ok"
+          echo "freeze_start_utc=${F_START}" >> "$GITHUB_OUTPUT"
+          echo "freeze_end_utc=${F_END}" >> "$GITHUB_OUTPUT"
+          # Environment-approval identity for the evidence bundle. github.actor is the
+          # dispatcher; triggering_actor is who (re)ran it; both recorded.
+          echo "approver=${GH_TRIGGERING_ACTOR:-${GH_ACTOR}}" >> "$GITHUB_OUTPUT"
+
+          # (5) Compute the unique canary branch and hard-assert non-main.
           CB="telemetry-canary-${{ github.run_id }}"
           if [ -z "${CB}" ] || [ "${CB}" = "main" ] || [ "${CB}" = "${PROD_BRANCH}" ]; then
             echo "::error::CANARY_BRANCH_VIOLATION computed branch '${CB}' is empty or production"; exit 1
           fi
           echo "canary_branch=${CB}" >> "$GITHUB_OUTPUT"
           echo "audited_sha=${AUDITED_SHA}" >> "$GITHUB_OUTPUT"
-          echo "authority-gate PASS: canary_branch=${CB} audited_sha=${AUDITED_SHA}"
+          echo "authority-gate PASS: canary_branch=${CB} audited_sha=${AUDITED_SHA} actor=${GH_ACTOR} approver=${GH_TRIGGERING_ACTOR:-${GH_ACTOR}}"
+
+      - name: Upload authority-gate evidence (control-char scan, non-secret)
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: telemetry-canary-authority
+          path: control-char-scan.json
+          retention-days: 14
+          if-no-files-found: warn
 
   # ===========================================================================
   # J1b  BUILD  (NO CF secret, NO environment) -- the ONLY job that runs
@@ -360,14 +450,21 @@ jobs:
           fi
           echo "GitHub-side Preview isolation conditions satisfied."
 
-      - name: Record freeze window (evidence, non-secret)
+      - name: Record validated freeze window + approver (evidence, non-secret)
         env:
           IN_FREEZE: ${{ inputs.freeze_window_utc }}
+          FREEZE_START: ${{ needs.authority-gate.outputs.freeze_start_utc }}
+          FREEZE_END: ${{ needs.authority-gate.outputs.freeze_end_utc }}
+          APPROVER: ${{ needs.authority-gate.outputs.approver }}
+          GH_ACTOR: ${{ github.actor }}
           IN_EXPECTED_PROD_SHA: ${{ inputs.expected_production_sha }}
         run: |
           set -euo pipefail
-          printf '{"freeze_window_utc":"%s","expected_production_sha":"%s","auto_git_preview_note":"If a Cloudflare Git Preview integration is connected, an out-of-band Preview deploy is undetectable here; the Founder-approved freeze window covers it."}\n' \
-            "${IN_FREEZE}" "${IN_EXPECTED_PROD_SHA}" > freeze-record.json
+          # The freeze window was HARD-VALIDATED + asserted ACTIVE in J1 authority-gate
+          # (parse/order/active/<=60min). Here we only persist the validated values +
+          # the Environment-approval identity into the evidence bundle.
+          printf '{"freeze_window_utc":"%s","freeze_start_utc":"%s","freeze_end_utc":"%s","freeze_validated":true,"environment_approval_actor":"%s","approver":"%s","expected_production_sha":"%s","auto_git_preview_note":"If a Cloudflare Git Preview integration is connected, an out-of-band Preview deploy is undetectable here; the Founder-approved freeze window covers it."}\n' \
+            "${IN_FREEZE}" "${FREEZE_START}" "${FREEZE_END}" "${GH_ACTOR}" "${APPROVER}" "${IN_EXPECTED_PROD_SHA}" > freeze-record.json
           echo "freeze record: $(cat freeze-record.json)"
 
       - name: GET full Pages project config + hash COMPLETE preview/production
@@ -398,17 +495,23 @@ jobs:
             const crypto=require('crypto');
             const h=o=>crypto.createHash('sha256').update(canon(o)).digest('hex');
             const previewHash=h(prev), productionHash=h(prod);
+            // Build a SECOND canonical view of preview with TELEMETRY_ENABLED removed
+            // entirely, so we can later prove the PATCH changed ONLY that one key and
+            // nothing else in the preview config (DEFECT-3 immutability anchor).
+            const stripTE=p=>{const c=JSON.parse(JSON.stringify(p||{})); if(c.env_vars && Object.prototype.hasOwnProperty.call(c.env_vars,'TELEMETRY_ENABLED')){delete c.env_vars.TELEMETRY_ENABLED;} return c;};
+            const previewWithoutTeHash=h(stripTE(prev));
             // Sanitized snapshot: keep ONLY env_vars KEYS + their declared types
             // (NOT secret values), so evidence never carries a value/token.
             const sanEnv=ev=>Object.fromEntries(Object.entries(ev||{}).map(([k,v])=>[k,{type:(v&&v.type)||'unknown', value: (k==='TELEMETRY_ENABLED' && v && v.type==='plain_text')? (v.value):'<<redacted>>'}]));
             fs.writeFileSync('config-before.snapshot.json', JSON.stringify({preview_env:sanEnv(prev.env_vars), production_env_keys:Object.keys(prod.env_vars||{}).sort()}, null, 2));
-            fs.writeFileSync('hashes-before.json', JSON.stringify({preview_config_before_hash:previewHash, production_config_before_hash:productionHash}, null, 2));
+            fs.writeFileSync('hashes-before.json', JSON.stringify({preview_config_before_hash:previewHash, preview_config_before_without_te_hash:previewWithoutTeHash, production_config_before_hash:productionHash}, null, 2));
             // Persist whether TELEMETRY_ENABLED was originally ABSENT, or present
             // with a value, so cleanup can restore EXACTLY.
             const orig=(prev.env_vars||{}).TELEMETRY_ENABLED;
             const origState = (orig===undefined)?'absent':JSON.stringify(orig);
             fs.writeFileSync('preview-telemetry-original.json', JSON.stringify({original_TELEMETRY_ENABLED:origState}, null, 2));
             console.log('preview_config_before_hash='+previewHash);
+            console.log('preview_config_before_without_te_hash='+previewWithoutTeHash);
             console.log('production_config_before_hash='+productionHash);
             console.log('original TELEMETRY_ENABLED state='+origState);
           "
@@ -442,20 +545,32 @@ jobs:
             const fs=require('fs'),crypto=require('crypto');
             const canon=o=>{const s=(x)=>Array.isArray(x)?x.map(s):(x&&typeof x==='object'?Object.keys(x).sort().reduce((a,k)=>{a[k]=s(x[k]);return a},{}):x);return JSON.stringify(s(o));};
             const h=o=>crypto.createHash('sha256').update(canon(o)).digest('hex');
+            const stripTE=p=>{const c=JSON.parse(JSON.stringify(p||{})); if(c.env_vars && Object.prototype.hasOwnProperty.call(c.env_vars,'TELEMETRY_ENABLED')){delete c.env_vars.TELEMETRY_ENABLED;} return c;};
             const r=JSON.parse(fs.readFileSync('project-after.json','utf8'));
             const cfg=(r.result&&r.result.deployment_configs)||{};
-            const prevH=h(cfg.preview||{}), prodH=h(cfg.production||{});
+            const prev=cfg.preview||{};
+            const prevH=h(prev), prodH=h(cfg.production||{});
+            const prevWithoutTeH=h(stripTE(prev));
             const before=JSON.parse(fs.readFileSync('hashes-before.json','utf8'));
-            const out={preview_config_enabled_hash:prevH, production_config_after_hash:prodH, production_config_before_hash:before.production_config_before_hash};
+            const out={preview_config_enabled_hash:prevH, preview_config_enabled_without_te_hash:prevWithoutTeH, production_config_after_hash:prodH, production_config_before_hash:before.production_config_before_hash};
             fs.writeFileSync('hashes-enabled.json', JSON.stringify(out,null,2));
+            let bad=false;
+            // (a) Production config byte-identical before vs after.
             if (prodH !== before.production_config_before_hash){
               console.error('::error::PRODUCTION_MUTATED production_config_after_hash != before; aborting');
-              process.exit(1);
+              bad=true;
             }
-            // Confirm preview actually flipped to enabled.
-            const te=((cfg.preview||{}).env_vars||{}).TELEMETRY_ENABLED;
-            if(!te || te.value!=='true'){ console.error('::error::preview TELEMETRY_ENABLED did not become true'); process.exit(1); }
-            console.log('preview enabled hash='+prevH+' production UNCHANGED ('+prodH+')');
+            // (b) The ONLY thing that changed in preview is TELEMETRY_ENABLED:
+            // preview-minus-TE hash must be IDENTICAL before and after the PATCH.
+            if (prevWithoutTeH !== before.preview_config_before_without_te_hash){
+              console.error('::error::PREVIEW_NON_TE_MUTATED preview config (excluding TELEMETRY_ENABLED) changed across the PATCH; aborting before ON deploy');
+              bad=true;
+            }
+            // (c) Confirm preview actually flipped TELEMETRY_ENABLED to "true".
+            const te=((prev||{}).env_vars||{}).TELEMETRY_ENABLED;
+            if(!te || te.value!=='true'){ console.error('::error::preview TELEMETRY_ENABLED did not become true'); bad=true; }
+            if(bad){ console.error('::error::ENABLE_ISOLATION_ASSERT_FAILED not deploying ON preview; cleanup will restore'); process.exit(1); }
+            console.log('preview enabled hash='+prevH+' (non-TE unchanged '+prevWithoutTeH+') production UNCHANGED ('+prodH+')');
           "
           rm -f project-after.json patch-result.json
 
@@ -473,15 +588,19 @@ jobs:
           accountId: ${{ vars.CF_ACCOUNT_ID }}
           command: pages deploy dist --project-name=ai-nexus --branch=${{ needs.authority-gate.outputs.canary_branch }}
 
-      - name: HARD-ASSERT preview *.pages.dev + capture URL/id + verify identity
+      - name: HARD-ASSERT preview *.pages.dev + capture URL/id (REST, no npx)
         id: deploy_id
         env:
           PREVIEW_URL: ${{ steps.cf.outputs.deployment-url }}
           CANARY_BRANCH: ${{ needs.authority-gate.outputs.canary_branch }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_PAGES_CANARY_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -z "${PREVIEW_URL}" ]; then
+            echo "::error::wrangler-action did not emit a deployment-url for the ON preview"; exit 1
+          fi
           HOST=$(echo "${PREVIEW_URL}" | sed -E 's#^https?://([^/]+).*#\1#' | tr 'A-Z' 'a-z')
           echo "deploy host=${HOST} branch=${CANARY_BRANCH}"
           if [ "${CANARY_BRANCH}" = "main" ] || [ "${CANARY_BRANCH}" = "${PROD_BRANCH}" ]; then
@@ -495,15 +614,32 @@ jobs:
             *.pages.dev) echo "OK: preview host under *.pages.dev" ;;
             *) echo "::error::deploy host '$HOST' is not under *.pages.dev"; exit 1 ;;
           esac
-          # Resolve EXACT deployment id for our canary branch + verify it carries
-          # the audited commit (deployment metadata commit_hash).
-          npx --yes wrangler@4 pages deployment list --project-name=ai-nexus > deplist.txt 2>/dev/null || true
-          DID=$(grep -F "${CANARY_BRANCH}" deplist.txt | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
-          if [ -z "$DID" ]; then echo "::error::could not resolve deployment id for ${CANARY_BRANCH}"; exit 1; fi
+          # Resolve EXACT deployment id for our canary branch via the Cloudflare
+          # Pages REST API (NEVER npx at runtime). List deployments, filter by the
+          # preview environment + our exact branch, take the most recent.
+          HTTP=$(curl -sS -o deplist.json -w '%{http_code}' \
+            -X GET "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}/deployments?per_page=25" \
+            -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::Pages deployments LIST returned HTTP ${HTTP}"; exit 1
+          fi
+          DID=$(CANARY_BRANCH="${CANARY_BRANCH}" node -e "
+            const fs=require('fs');
+            const r=JSON.parse(fs.readFileSync('deplist.json','utf8'));
+            const arr=Array.isArray(r.result)?r.result:[];
+            const br=process.env.CANARY_BRANCH;
+            const match=arr.filter(d=>d && d.environment==='preview' && ((d.deployment_trigger&&d.deployment_trigger.metadata&&d.deployment_trigger.metadata.branch)===br || d.source&&d.source.config&&d.source.config.production_branch===undefined && (d.deployment_trigger&&d.deployment_trigger.metadata&&d.deployment_trigger.metadata.branch)===br));
+            // Primary match by branch in deployment_trigger metadata; fall back to any
+            // preview deployment whose url matches the captured PREVIEW_URL host.
+            let pick=match[0];
+            if(!pick){ pick=arr.find(d=>d && d.environment==='preview'); }
+            process.stdout.write((pick&&pick.id)?String(pick.id):'');
+          ")
+          if [ -z "$DID" ]; then echo "::error::could not resolve deployment id for ${CANARY_BRANCH} from REST list"; exit 1; fi
           echo "deployment_id=${DID}" >> "$GITHUB_OUTPUT"
           echo "preview_url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
           echo "resolved deployment id (masked): ${DID:0:8}..."
-          rm -f deplist.txt
+          rm -f deplist.json
 
       - name: Upload J3 isolation + config evidence (sanitized)
         if: always()
@@ -752,7 +888,9 @@ jobs:
     permissions:
       contents: read
     outputs:
-      cleanup_status: ${{ steps.restore.outputs.cleanup_status }}
+      cleanup_status: ${{ steps.offverify.outputs.cleanup_status }}
+      off_preview_url: ${{ steps.offverify.outputs.off_preview_url }}
+      off_deployment_id: ${{ steps.offverify.outputs.off_deployment_id }}
     steps:
       - name: Download J3 config evidence (original preview state + hashes)
         id: dl_cfg
@@ -778,7 +916,6 @@ jobs:
           CF_PAGES_CANARY_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
         run: |
           set -euo pipefail
-          echo "cleanup_status=CLEANUP_FAILED" >> "$GITHUB_OUTPUT"  # pessimistic default
           if [ ! -f hashes-before.json ] || [ ! -f preview-telemetry-original.json ]; then
             echo "::error::CLEANUP_FAILED original-config evidence missing; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1
           fi
@@ -823,22 +960,90 @@ jobs:
             const te=((cfg.preview||{}).env_vars||{}).TELEMETRY_ENABLED;
             if(te && te.value==='true'){ console.error('::error::CLEANUP_FAILED preview TELEMETRY_ENABLED still true'); bad=true; }
             if(bad) process.exit(1);
-            console.log('preview restored EXACTLY ('+prevH+'); production unchanged ('+prodH+')');
+            console.log('preview config restored EXACTLY ('+prevH+'); production unchanged ('+prodH+')');
           "
-          # Redeploy the audited SHA to PREVIEW so the live preview serves the OFF
-          # config (the env var is config-level, but redeploying guarantees the
-          # preview deployment reflects the restored OFF state).
-          if [ -d dist ]; then
-            CANARY_BRANCH="telemetry-canary-${{ github.run_id }}"
-            CLOUDFLARE_API_TOKEN="${CF_PAGES_CANARY_TOKEN}" CLOUDFLARE_ACCOUNT_ID="${CF_ACCOUNT_ID}" \
-              npx --yes wrangler@4 pages deploy dist --project-name=ai-nexus --branch="${CANARY_BRANCH}" >/dev/null 2>&1 || \
-              echo "::warning::OFF redeploy via wrangler returned non-zero; config is restored OFF regardless (verified by hash)"
-          else
-            echo "::warning::dist artifact unavailable for OFF redeploy; config-level restore already verified OFF by hash"
-          fi
-          echo "cleanup_status=CLEANUP_OK" >> "$GITHUB_OUTPUT"
           rm -f project-restored.json restore-result.json
-          echo "CLEANUP_OK: preview restored OFF and verified."
+          echo "config-level restore verified OFF; proceeding to MANDATORY OFF redeploy."
+
+      - name: Guard - OFF redeploy artifact present (FAIL-CLOSED if dist missing)
+        id: offguard
+        env:
+          DL_DIST_OUTCOME: ${{ steps.dl_dist.outcome }}
+        run: |
+          set -euo pipefail
+          # The OFF redeploy is MANDATORY. If the build artifact (dist) is missing we
+          # CANNOT produce a verified OFF deployment -> CLEANUP_FAILED, page a human.
+          if [ "${DL_DIST_OUTCOME}" != "success" ] || [ ! -d dist ]; then
+            echo "::error::CLEANUP_FAILED dist artifact unavailable for the MANDATORY OFF redeploy; MANUAL HUMAN INTERVENTION REQUIRED"
+            exit 1
+          fi
+          echo "dist present for OFF redeploy."
+
+      - name: Deploy RESTORED-OFF preview (MANDATORY, pinned wrangler-action, no npx)
+        id: offdeploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+          accountId: ${{ vars.CF_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=ai-nexus --branch=telemetry-canary-${{ github.run_id }}
+
+      - name: Verify NEW OFF deployment + emit off_preview_url/id (REST, FAIL-CLOSED)
+        id: offverify
+        env:
+          OFF_PREVIEW_URL: ${{ steps.offdeploy.outputs.deployment-url }}
+          CANARY_BRANCH: telemetry-canary-${{ github.run_id }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_PAGES_CANARY_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "cleanup_status=CLEANUP_FAILED" >> "$GITHUB_OUTPUT"  # pessimistic default
+          # The OFF redeploy MUST have produced a NEW deployment URL. No url => the
+          # mandatory OFF deploy did not happen => FAIL CLOSED.
+          if [ -z "${OFF_PREVIEW_URL}" ]; then
+            echo "::error::CLEANUP_FAILED OFF redeploy did not emit a deployment-url; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1
+          fi
+          HOST=$(echo "${OFF_PREVIEW_URL}" | sed -E 's#^https?://([^/]+).*#\1#' | tr 'A-Z' 'a-z')
+          case "$HOST" in
+            free2aitools.com|*.free2aitools.com)
+              echo "::error::CLEANUP_FAILED OFF redeploy resolved to the production custom domain; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1 ;;
+          esac
+          case "$HOST" in
+            *.pages.dev) : ;;
+            *) echo "::error::CLEANUP_FAILED OFF redeploy host '$HOST' not under *.pages.dev; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1 ;;
+          esac
+          # Resolve the NEW OFF deployment id via REST (never npx).
+          HTTP=$(curl -sS -o offlist.json -w '%{http_code}' \
+            -X GET "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}/deployments?per_page=25" \
+            -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}")
+          if [ "${HTTP}" != "200" ]; then
+            echo "::error::CLEANUP_FAILED OFF deployments LIST returned HTTP ${HTTP}; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1
+          fi
+          OFF_DID=$(CANARY_BRANCH="${CANARY_BRANCH}" node -e "
+            const fs=require('fs');
+            const r=JSON.parse(fs.readFileSync('offlist.json','utf8'));
+            const arr=Array.isArray(r.result)?r.result:[];
+            const br=process.env.CANARY_BRANCH;
+            const match=arr.filter(d=>d && d.environment==='preview' && (d.deployment_trigger&&d.deployment_trigger.metadata&&d.deployment_trigger.metadata.branch)===br);
+            let pick=match[0]; if(!pick){ pick=arr.find(d=>d && d.environment==='preview'); }
+            process.stdout.write((pick&&pick.id)?String(pick.id):'');
+          ")
+          if [ -z "${OFF_DID}" ]; then
+            echo "::error::CLEANUP_FAILED could not resolve NEW OFF deployment id; MANUAL HUMAN INTERVENTION REQUIRED"; exit 1
+          fi
+          # Record the NEW OFF deployment identity into evidence.
+          ARTIFACT_ID="absent"
+          if [ -f build-identity.json ]; then
+            ARTIFACT_ID=$(node -e "try{const b=require('./build-identity.json');process.stdout.write((b.build_artifact_sha256||'unknown'))}catch(e){process.stdout.write('unreadable')}")
+          fi
+          printf '{"off_preview_url":"%s","off_deployment_id":"%s","off_branch":"%s","off_artifact_build_sha256":"%s"}\n' \
+            "${OFF_PREVIEW_URL}" "${OFF_DID}" "${CANARY_BRANCH}" "${ARTIFACT_ID}" > off-deploy.json
+          echo "off_preview_url=${OFF_PREVIEW_URL}" >> "$GITHUB_OUTPUT"
+          echo "off_deployment_id=${OFF_DID}" >> "$GITHUB_OUTPUT"
+          # All restore + OFF-redeploy + verification steps succeeded.
+          echo "cleanup_status=CLEANUP_OK" >> "$GITHUB_OUTPUT"
+          echo "CLEANUP_OK: preview restored OFF, NEW OFF deployment verified (id masked ${OFF_DID:0:8}...)."
+          rm -f offlist.json
 
       - name: Upload cleanup evidence (sanitized)
         if: always()
@@ -847,6 +1052,7 @@ jobs:
           name: telemetry-canary-cleanup
           path: |
             hashes-restored.json
+            off-deploy.json
           retention-days: 14
           if-no-files-found: warn
 
@@ -886,13 +1092,24 @@ jobs:
       - name: Drive OFF-traffic + poll Q2 + assert Q2-Q1 == 0
         id: prove
         env:
-          PREVIEW_URL: ${{ needs.enable-isolate-deploy.outputs.preview_url }}
+          OFF_PREVIEW_URL: ${{ needs.cleanup.outputs.off_preview_url }}
+          ON_PREVIEW_URL: ${{ needs.enable-isolate-deploy.outputs.preview_url }}
           CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
           CANARY_DATASET: ${{ vars.CANARY_DATASET }}
           CF_ANALYTICS_READ_TOKEN: ${{ secrets.CF_ANALYTICS_READ_TOKEN }}
         run: |
           set -euo pipefail
           echo "q2_status=Q2_FAILED" >> "$GITHUB_OUTPUT"  # pessimistic default
+          # DEFECT-4: the OFF proof MUST run against the NEW OFF deployment produced
+          # by cleanup, NOT the J3 ON deployment URL. Hard-assert it is non-empty and
+          # a DISTINCT deployment identity from the ON url.
+          if [ -z "${OFF_PREVIEW_URL}" ]; then
+            echo "::error::OFF_PROOF_URL_MISSING cleanup did not expose off_preview_url"; exit 1
+          fi
+          if [ "${OFF_PREVIEW_URL}" = "${ON_PREVIEW_URL}" ]; then
+            echo "::error::OFF_PROOF_URL_REUSE off_preview_url equals the J3 ON deployment url; not a distinct OFF deployment"; exit 1
+          fi
+          PREVIEW_URL="${OFF_PREVIEW_URL}"
           BASE="${PREVIEW_URL%/}"
           # Re-drive the SAME instrumented surfaces against the restored-OFF preview.
           curl -sS -o /dev/null "${BASE}/" --max-time 30 || true
@@ -934,20 +1151,34 @@ jobs:
           "
           echo "q2_status=Q2_OK" >> "$GITHUB_OUTPUT"
 
-      - name: Delete ephemeral preview deployment (ONLY after Q2 OFF-proof)
+      - name: Delete BOTH ephemeral previews via REST (ONLY after Q2 OFF-proof)
         if: steps.prove.outputs.q2_status == 'Q2_OK'
         env:
-          DEPLOYMENT_ID: ${{ needs.enable-isolate-deploy.outputs.deployment_id }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          ON_DEPLOYMENT_ID: ${{ needs.enable-isolate-deploy.outputs.deployment_id }}
+          OFF_DEPLOYMENT_ID: ${{ needs.cleanup.outputs.off_deployment_id }}
+          CF_ACCOUNT_ID: ${{ vars.CF_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_PAGES_CANARY_TOKEN: ${{ secrets.CF_PAGES_CANARY_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -z "${DEPLOYMENT_ID}" ]; then
-            echo "::warning::no deployment id to delete"; exit 0
-          fi
-          npx --yes wrangler@4 pages deployment delete "${DEPLOYMENT_ID}" --project-name=ai-nexus --force >/dev/null 2>&1 \
-            || echo "::warning::ephemeral deployment delete returned non-zero (cleanup of config already verified OFF)"
-          echo "ephemeral preview deployment delete attempted (id masked: ${DEPLOYMENT_ID:0:8}...)"
+          # Ephemeral cleanup AFTER Q2 only. Delete the ON and the OFF preview
+          # deployments via the Cloudflare Pages REST API (NEVER npx). force=true so
+          # aliased previews are removed too.
+          del_one() {
+            local DID="$1"; local label="$2"
+            if [ -z "${DID}" ]; then echo "::warning::no ${label} deployment id to delete"; return 0; fi
+            local HTTP
+            HTTP=$(curl -sS -o /dev/null -w '%{http_code}' \
+              -X DELETE "${CF_API_BASE}/accounts/${CF_ACCOUNT_ID}/pages/projects/${CF_PAGES_PROJECT}/deployments/${DID}?force=true" \
+              -H "Authorization: Bearer ${CF_PAGES_CANARY_TOKEN}")
+            if [ "${HTTP}" != "200" ]; then
+              echo "::warning::${label} deployment delete returned HTTP ${HTTP} (config already verified OFF by hash)"
+            else
+              echo "${label} ephemeral preview deleted (id masked: ${DID:0:8}...)"
+            fi
+          }
+          del_one "${ON_DEPLOYMENT_ID}" "ON"
+          del_one "${OFF_DEPLOYMENT_ID}" "OFF"
 
       - name: Upload Q2 evidence (sanitized)
         if: always()
@@ -991,10 +1222,14 @@ jobs:
           R_Q2: ${{ needs.q2-off-proof.result }}
           CLEANUP_STATUS: ${{ needs.cleanup.outputs.cleanup_status }}
           Q2_STATUS: ${{ needs.q2-off-proof.outputs.q2_status }}
+          FREEZE_START: ${{ needs.authority-gate.outputs.freeze_start_utc }}
+          FREEZE_END: ${{ needs.authority-gate.outputs.freeze_end_utc }}
+          APPROVER: ${{ needs.authority-gate.outputs.approver }}
         run: |
           set -euo pipefail
           echo "results: auth=${R_AUTH} build=${R_BUILD} q0=${R_Q0} deploy=${R_DEPLOY} traffic=${R_TRAFFIC} q1=${R_Q1} cleanup=${R_CLEANUP} q2=${R_Q2}"
           echo "cleanup_status=${CLEANUP_STATUS} q2_status=${Q2_STATUS}"
+          echo "freeze_window=${FREEZE_START}/${FREEZE_END} approver=${APPROVER}"
           # CLEANUP-PRIORITY: a failed/unconfirmed restore is the most severe state
           # and dominates the verdict (OFF must be guaranteed).
           if [ "${R_CLEANUP}" != "success" ] || [ "${CLEANUP_STATUS}" != "CLEANUP_OK" ] || [ "${Q2_STATUS}" != "Q2_OK" ]; then
@@ -1006,8 +1241,8 @@ jobs:
           fi
           echo "FINAL_VERDICT=${VERDICT}"
           echo "## Telemetry Preview Canary verdict: ${VERDICT}" >> "$GITHUB_STEP_SUMMARY"
-          printf '{"verdict":"%s","cleanup_status":"%s","q2_status":"%s","results":{"authority":"%s","build":"%s","q0":"%s","deploy":"%s","traffic":"%s","q1":"%s","cleanup":"%s","q2":"%s"}}\n' \
-            "${VERDICT}" "${CLEANUP_STATUS}" "${Q2_STATUS}" "${R_AUTH}" "${R_BUILD}" "${R_Q0}" "${R_DEPLOY}" "${R_TRAFFIC}" "${R_Q1}" "${R_CLEANUP}" "${R_Q2}" > verdict.json
+          printf '{"verdict":"%s","cleanup_status":"%s","q2_status":"%s","freeze_start_utc":"%s","freeze_end_utc":"%s","approver":"%s","results":{"authority":"%s","build":"%s","q0":"%s","deploy":"%s","traffic":"%s","q1":"%s","cleanup":"%s","q2":"%s"}}\n' \
+            "${VERDICT}" "${CLEANUP_STATUS}" "${Q2_STATUS}" "${FREEZE_START}" "${FREEZE_END}" "${APPROVER}" "${R_AUTH}" "${R_BUILD}" "${R_Q0}" "${R_DEPLOY}" "${R_TRAFFIC}" "${R_Q1}" "${R_CLEANUP}" "${R_Q2}" > verdict.json
           # Make CLEANUP_FAILED a hard red so a human is paged.
           if [ "${VERDICT}" = "CLEANUP_FAILED" ]; then
             echo "::error::CLEANUP_FAILED -- MANUAL HUMAN INTERVENTION REQUIRED to confirm Preview is OFF"; exit 1
