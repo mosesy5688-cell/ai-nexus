@@ -19,7 +19,7 @@ that need to consume Free2AItools data programmatically.
 ## Primary API surface
 
 All endpoints return JSON unless noted. CORS open. Free tier hard-cap: 20 results
-per search; auth/paid tiers (TBD) raise the cap.
+per search. No authentication required today; limits may change in future.
 
 ### Discovery
 
@@ -69,6 +69,15 @@ per search; auth/paid tiers (TBD) raise the cap.
 - `GET /api/v1/badge/<slug-or-id>` — SVG badge with FNI score, color-coded by
   FNI signal (green ≥ 90 high signal, blue ≥ 70 medium signal, yellow ≥ 50 low
   signal, red below). Suitable for README embedding.
+
+- `GET /api/v1/concepts[?limit=N][&offset=N][&category=<slug>]` — paginated list
+  of published knowledge articles (concepts), newest-first. `limit` clamped to
+  1-200 (default 50); `offset` floored at 0; `category` must match
+  `^[a-z][a-z0-9-]{0,40}$`.
+
+- `GET /api/v1/trends/batch?ids=<id1>,<id2>[,...]` — batch 7-day FNI trend lookup
+  (scores, dates, 7-day change %, direction) for 1-25 entities by id. Ids with no
+  trend data are returned in `missing`, never as an error.
 
 ## FNI score interpretation
 
@@ -145,14 +154,17 @@ Discovery layer only. The calling agent reasons over the data it returns:
 
 - Site: https://free2aitools.com
 - Strategic positioning + roadmap: see Free2AItools V∞ Roadmap (internal)
-- Free tier supports anonymous public API access; auth + raised limits TBD.
+- Free tier supports anonymous public API access. No authentication required today; limits may change in future.
 
 ## Notes for agent implementers
 
 - Two equivalent surfaces over the same catalog — pick by integration style:
   REST API (`/api/v1/*`) for scripts / apps / direct HTTP; MCP (`POST /api/mcp`,
   JSON-RPC 2.0, tool catalog via `tools/list`) for MCP-compatible agents/clients.
-  Neither surface routes, recommends, or selects on your behalf.
+  Neither surface routes, recommends, or selects on your behalf. The two surfaces
+  use different default result limits — MCP search/rank default to 10, REST search
+  defaults to 5; both clamp to a max of 20. Pass an explicit `limit` for a specific
+  count.
 - Canonical workflow (both surfaces): `search` → take the ids from the returned
   results → inspect entity / FNI evidence → `compare` candidates → the
   caller/agent makes the final decision. Never hard-code a catalog id; always

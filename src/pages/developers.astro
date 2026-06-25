@@ -272,7 +272,7 @@ def pick_candidates(query="code generation"):
         </div>
       </div>
       <p class="text-xs text-gray-500 dark:text-gray-500 mb-8">
-        Both surfaces serve the same catalog and the same evidence; pick whichever fits how you integrate. Neither one routes, ranks-by-preference, or decides which model you should use.
+        Both surfaces serve the same catalog and the same evidence; pick whichever fits how you integrate. Neither one routes, ranks-by-preference, or decides which model you should use. Note: the two surfaces use different default result limits — MCP search/rank default to 10 results, REST search defaults to 5; both clamp to a max of 20. Pass an explicit <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">limit</code> if you need a specific count.
       </p>
 
       <!-- curl -->

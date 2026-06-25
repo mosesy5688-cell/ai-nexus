@@ -10,7 +10,7 @@ Discover, rank, and compare AI models, datasets, papers, tools, and benchmarks. 
 
 - **Cross-source catalog** — Models, datasets, papers, tools, and benchmarks from HuggingFace, GitHub, ArXiv, Ollama, Replicate, Civitai, and more
 - **FNI Ranking** — 5-factor composite score (Semantic, Authority, Popularity, Recency, Quality) with full breakdown in every API response
-- **Hardware-Aware Selection** — Find models that fit your VRAM, license, and task constraints
+- **Hardware-aware filtering** — filter models by VRAM, license, and task-category metadata (heuristic filters, not verified compatibility)
 - **Daily Updates** — Automated pipeline refreshes all data daily
 
 ## For Developers & AI Agents
@@ -21,7 +21,7 @@ curl -s https://free2aitools.com/api/v1/select \
   -H "Content-Type: application/json" \
   -d '{"task":"text-generation","constraints":{"max_vram_gb":8}}'
 ```
-Returns ranked recommendations with params, VRAM estimates, license, and rationale.
+Returns FNI-ranked catalog entries with params, VRAM estimates, license, and a factual FNI factor summary (fni_summary) — not a fit verdict; the caller decides.
 
 ### Model Comparison API
 ```bash

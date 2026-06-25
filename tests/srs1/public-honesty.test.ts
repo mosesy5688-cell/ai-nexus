@@ -156,6 +156,46 @@ describe('SRS-1 T-IDENTITY: developers.astro identifier wording', () => {
     });
 });
 
+// --- G-5 (D-121): free-service honesty on machine surfaces --------------
+// The agent-ingested surfaces (llms.txt template + OpenAPI schema) must state
+// only present facts: no advertisement of an UNBUILT paid/auth tier
+// (Commercialization Constitution C2: unbuilt capabilities never on API-Docs /
+// machine surfaces), no "unlimited", no numeric monthly quota, no SLA uptime-%
+// claim. The honest "limits may change in future" caveat IS permitted.
+describe('SRS-1 G-5: machine surfaces carry no unbuilt-tier / unlimited / quota / SLA copy', () => {
+    const surfaces: ReadonlyArray<readonly [string, string]> = [
+        ['llms-template.txt', read('src/data/llms-template.txt')],
+        ['openapi-schema.json', read('src/data/openapi-schema.json')],
+    ];
+
+    for (const [name, src] of surfaces) {
+        it(`${name}: no unbuilt paid/auth-tier advertisement ("paid tiers (TBD) raise the cap" / "raised limits TBD")`, () => {
+            expect(src).not.toMatch(/paid\s+tiers?\s*\(tbd\)/i);
+            expect(src).not.toMatch(/raise the cap/i);
+            expect(src).not.toMatch(/raised limits\s+TBD/i);
+        });
+        it(`${name}: no "unlimited" claim`, () => {
+            expect(src).not.toMatch(/\bunlimited\b/i);
+        });
+        it(`${name}: no numeric monthly request quota`, () => {
+            expect(src).not.toMatch(/\d[\d,]*\s*requests?\s*(?:per|\/)\s*month/i);
+        });
+        it(`${name}: no SLA uptime-percentage claim`, () => {
+            // Guard the "99.9% uptime"-style SLA claim. Technical observability
+            // fields ("isolate uptime", "isolate_uptime_ms") carry no % and are
+            // therefore not matched.
+            expect(src).not.toMatch(/\d+(?:\.\d+)?\s*%\s*uptime/i);
+            expect(src).not.toMatch(/uptime\s*[:=]?\s*\d+(?:\.\d+)?\s*%/i);
+        });
+    }
+
+    it('llms-template states the honest present fact + may-change caveat (no paid-tier naming)', () => {
+        const llms = read('src/data/llms-template.txt');
+        expect(llms).toMatch(/Free tier hard-cap: 20 results/);
+        expect(llms).toMatch(/limits may change in future/i);
+    });
+});
+
 // --- T-PMC-BOUNDARY: preserved identity + negative contract -------------
 describe('SRS-1 T-PMC-BOUNDARY: identity + negative contract preserved', () => {
     const dev = read('src/pages/developers.astro');
