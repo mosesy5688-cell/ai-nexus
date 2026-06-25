@@ -55,3 +55,17 @@ jobs:
 
       - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
         run: npx vitest run --coverage
+
+      # D-127 (Founder B3/B5, BLOCKING): the @free2aitools/sdk workspace is NOT
+      # collected by the root vitest run (packages/** is excluded so root SRS-1
+      # does not double-collect SDK tests). Verify it explicitly INSIDE this same
+      # required `unit-test` context — build (tsc), typecheck (tsc --noEmit), and
+      # the SDK's own vitest suite. Each command's exit code is honored: any SDK
+      # build/typecheck/test failure fails THIS required job. No continue-on-error,
+      # no swallowed exits, no separate check name. The SDK live-smoke test is
+      # network-gated (skipped unless SDK_LIVE_SMOKE=1) so this stays hermetic.
+      - name: Verify @free2aitools/sdk workspace (build + typecheck + test)
+        run: |
+          npm run build --workspace @free2aitools/sdk
+          npm run typecheck --workspace @free2aitools/sdk
+          npm test --workspace @free2aitools/sdk
