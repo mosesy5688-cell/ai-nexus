@@ -2,19 +2,17 @@
  * SRS-1 -- P3-CONTRACT-1 machine-contract parity invariants (tier-1, hermetic).
  *
  * Locks the served MACHINE CONTRACTS (OpenAPI prose+schema, MCP static manifest)
- * against the CURRENTLY-IMPLEMENTED public runtime: a drift in either direction fails.
+ * against the CURRENTLY-IMPLEMENTED public runtime: drift in either direction fails.
  *   DJ-R05 (T1) search result-limit parity (prose + schema + runtime all == 20).
  *   DJ-R06 (T2) SearchResponse schema == runtime-derived public-v1 200 field set.
  *   DJ-R10 (T3) pagination contract: documented params == handler acceptance.
  *   DJ-R11 (A2) SERVED /api/v1/search description (openapi.json.ts transform OUTPUT)
  *               carries pagination + consistency caveat; see D-42.
- *   DJ-M02 (T4) MCP static enum parity (both include benchmark).
- *   DJ-W05 (T5) identity contract: EntityResponse id + canonical_id, no top-level umid.
+ *   DJ-M02 (T4) MCP static enum parity. DJ-W05 (T5) EntityResponse id/canonical_id.
  *   T-NONEXP    no capability expansion: tool count / endpoint set unchanged.
  *
- * Reads repo SOURCE + parses static JSON; A2 additionally invokes the openapi.json.ts
- * route GET (cloudflare:workers mocked in vitest.config; manifest lookups try/catch to
- * a deterministic fall-through). No live fetch. Deterministic.
+ * Reads repo SOURCE + parses static JSON; A2 invokes the openapi.json.ts route GET
+ * (cloudflare:workers mocked in vitest.config). No live fetch. Deterministic.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -39,8 +37,7 @@ const SEARCH_PATH = schema.paths['/api/v1/search'].get;
 const SEARCH_ITEM = schema.components.schemas.SearchResponse.properties.results.items.properties;
 const SEARCH_RESP = schema.components.schemas.SearchResponse.properties;
 const ENTITY = schema.components.schemas.EntityResponse.properties.entity;
-
-// A2 helper: the ACTUAL served /api/v1/search description (openapi.json.ts transform output, not raw schema).
+// A2 helper: the ACTUAL served /api/v1/search description (openapi.json.ts transform output).
 let _servedDesc: string | null = null;
 async function servedSearchDescription(): Promise<string> {
     if (_servedDesc != null) return _servedDesc;
@@ -49,7 +46,6 @@ async function servedSearchDescription(): Promise<string> {
     _servedDesc = body?.paths?.['/api/v1/search']?.get?.description ?? '';
     return _servedDesc!;
 }
-
 // T2 helper: derive the EXACT public-v1 200 field set from runtime SOURCE (DISPLAY_COLS aliases).
 function displayColFields(): string[] {
     const m = SEARCH_SRC.match(/const DISPLAY_COLS = `([^`]+)`/);
@@ -67,19 +63,25 @@ describe('SRS-1 DJ-R05 (T1): search result-limit prose <-> schema <-> runtime ==
         const limit = SEARCH_PATH.parameters.find((p: any) => p.name === 'limit');
         expect(limit.schema.maximum).toBe(20);
     });
-    it('dynamic openapi.json.ts prose says "up to 20 results" (both wordings), never 5', () => {
-        const matches = OPENAPI_ROUTE_SRC.match(/Free tier returns up to (\d+) results/g) || [];
+    it('dynamic openapi.json.ts per-request cap "up to 20 results per request" in BOTH branches; no 5; no tier', () => {
+        // D-123: per-request wording replaced tier framing in both no-count + count branches.
+        const matches = OPENAPI_ROUTE_SRC.match(/Returns up to (\d+) results per request\./g) || [];
         expect(matches.length).toBeGreaterThanOrEqual(2);
-        for (const phrase of matches) expect(phrase).toBe('Free tier returns up to 20 results');
-        expect(OPENAPI_ROUTE_SRC).not.toMatch(/returns up to 5 results/);
+        for (const phrase of matches) expect(phrase).toBe('Returns up to 20 results per request.');
+        expect(OPENAPI_ROUTE_SRC).not.toMatch(/returns up to 5 results/i);
+        expect(OPENAPI_ROUTE_SRC).not.toMatch(/free tier/i); // D-123 negative
     });
-    it('static schema search description also says "up to 20 results", never 5', () => {
-        expect(SEARCH_PATH.description).toMatch(/up to 20 results/);
+    it('static schema search description + limit param state the per-request cap of 20; no 5; no tier', () => {
+        expect(SEARCH_PATH.description).toMatch(/Returns up to 20 results per request\./);
         expect(SEARCH_PATH.description).not.toMatch(/up to 5 results/);
+        expect(SEARCH_PATH.description).not.toMatch(/free tier/i); // D-123 negative
+        const limit = SEARCH_PATH.parameters.find((p: any) => p.name === 'limit');
+        expect(limit.description).toMatch(/Maximum results per request \(capped at 20\)/);
+        expect(limit.description).not.toMatch(/free tier/i);
     });
 });
 describe('SRS-1 DJ-R06 (T2): SearchResponse schema == actual public-v1 response field set', () => {
-    // Expected RESULT-ITEM set from runtime source (non-circular): DISPLAY_COLS + fni_s_note; fni_s nulled.
+    // RESULT-ITEM set from runtime source (non-circular): DISPLAY_COLS + fni_s_note; fni_s nulled.
     const expectedItemFields = (() => {
         const cols = displayColFields();
         expect(cols).toContain('fni_s'); // v1 wrapper nulls this in place
@@ -99,8 +101,7 @@ describe('SRS-1 DJ-R06 (T2): SearchResponse schema == actual public-v1 response 
         expect(Object.keys(SEARCH_RESP).sort()).toEqual(expectedTop);
     });
     it('NO internal/underscore-prefixed field is declared in the public schema', () => {
-        // v1/search.ts strips _dbSort/_score/_source before serialization.
-        expect(V1_SEARCH_SRC).toMatch(/delete r\._dbSort; delete r\._score; delete r\._source/);
+        expect(V1_SEARCH_SRC).toMatch(/delete r\._dbSort; delete r\._score; delete r\._source/); // stripped pre-serialize
         for (const k of [...Object.keys(SEARCH_ITEM), ...Object.keys(SEARCH_RESP)]) {
             expect(k.startsWith('_')).toBe(false);
         }
@@ -136,14 +137,12 @@ describe('SRS-1 DJ-R10 (T3): pagination contract -- documented params <-> handle
         expect(page.schema.default).toBe(1);
         expect(SEARCH_SRC).toMatch(/Math\.max\(parseInt\(url\.searchParams\.get\('page'\) \|\| '1'\), 1\)/);
         expect(page.description).toMatch(/offset = \(page-1\)\*limit/);
-        // offset algorithm is exactly (page-1)*limit in the handler (browse + index paths).
-        expect(SEARCH_SRC).toMatch(/const offset = \(page - 1\) \* limit/);
+        expect(SEARCH_SRC).toMatch(/const offset = \(page - 1\) \* limit/); // (page-1)*limit in handler
     });
 });
 // A2 / D-42: the served /api/v1/search description is produced by the openapi.json.ts
-// TRANSFORM, which OVERWRITES the static path description. These tests invoke that
-// transform and assert on its OUTPUT (not the raw static schema, which the deployed bug
-// proved insufficient: the caveat lived only in the static schema and was discarded).
+// TRANSFORM, which OVERWRITES the static path description; assert on its OUTPUT (the
+// deployed bug proved the static-only caveat is discarded and never served).
 describe('SRS-1 DJ-R11 (A2): SERVED /api/v1/search description projection (openapi.json.ts owner)', () => {
     let served = '';
     beforeAll(async () => { served = await servedSearchDescription(); });
@@ -157,15 +156,16 @@ describe('SRS-1 DJ-R11 (A2): SERVED /api/v1/search description projection (opena
         expect(served).toMatch(/Results may change between requests as the dataset is refreshed/);
         expect(served).toMatch(/does not provide cursor or snapshot consistency/);
     });
-    it('T-A3-3 preservation: catalog purpose + max 20 + transient note; never "up to 5"', () => {
+    it('T-A3-3 preservation: catalog purpose + per-request cap 20 + transient note; no "up to 5"; no tier', () => {
         expect(served).toMatch(/Full-text search across the Free2AITools catalog/);
-        expect(served).toMatch(/Free tier returns up to 20 results/);
+        expect(served).toMatch(/Returns up to 20 results per request\./);
         expect(served).toMatch(/retryable transient 503 under cold-path or fallback budget limits/);
         expect(served).not.toMatch(/up to 5 results/);
+        expect(served).not.toMatch(/free tier/i); // D-123 negative
     });
     it('T-A3-4 projection-owner regression: caveat survives transform (FAILS vs static-only bug)', async () => {
-        // The deployed-bug projection: cap + transient note but NO caveat (pre-A2 SEARCH_DESC).
-        const buggyServed = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results. Search may return a retryable transient 503; retry according to Retry-After.';
+        // Deployed-bug projection: cap + transient note but NO caveat. NEUTRAL per-request wording (D-123).
+        const buggyServed = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Returns up to 20 results per request. Search may return a retryable transient 503; retry according to Retry-After.';
         expect(buggyServed).not.toMatch(/does not provide cursor or snapshot consistency/);
         const actual = await servedSearchDescription();
         expect(actual).toMatch(/does not provide cursor or snapshot consistency/);
