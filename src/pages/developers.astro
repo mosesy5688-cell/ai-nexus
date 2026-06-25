@@ -340,7 +340,7 @@ def pick_candidates(query="code generation"):
                     <td class="py-2 font-mono text-blue-600 dark:text-blue-400">limit</td>
                     <td>number</td>
                     <td>5</td>
-                    <td>Max results (1-20, free tier)</td>
+                    <td>Maximum results per request (1–20)</td>
                   </tr>
                   <tr>
                     <td class="py-2 font-mono text-blue-600 dark:text-blue-400">type</td>
@@ -503,7 +503,7 @@ def pick_candidates(query="code generation"):
       </div>
 
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
-        <strong class="text-gray-900 dark:text-white">Rate Limits:</strong> Free tier — no authentication required. CDN cached. max 20 results for search, max 20 for select.
+        <strong class="text-gray-900 dark:text-white">Access and limits:</strong> No authentication is currently required. CDN cached. Search and select return at most 20 results per request. Limits and abuse controls may change.
         <span class="block mt-2">
           <strong class="text-gray-900 dark:text-white">Machine-readable docs:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/openapi.json" class="text-blue-600 dark:text-blue-400 hover:underline">/openapi.json</a></code> (OpenAPI request/response contract), <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/llms.txt" class="text-blue-600 dark:text-blue-400 hover:underline">/llms.txt</a></code> (plain markdown index per <a href="https://llmstxt.org" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">llmstxt.org</a>), <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded"><a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline">/.well-known/mcp.json</a></code> (MCP manifest with tool catalog).
         </span>

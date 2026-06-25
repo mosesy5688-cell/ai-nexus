@@ -160,13 +160,10 @@ describe('SRS-1 T-IDENTITY: developers.astro identifier wording', () => {
 });
 
 // --- G-5 (D-121 / D-122): free-service honesty on machine surfaces -------
-// The agent-ingested surfaces (llms.txt template + OpenAPI schema + MCP static
-// manifest) must state only present facts: NO product-tier vocabulary at all
-// ("free tier" implies a paid counterpart that does not exist), no advertisement
-// of an UNBUILT paid/auth tier (Commercialization Constitution C2: unbuilt
-// capabilities never on API-Docs / machine surfaces), no "unlimited", no numeric
-// monthly quota, no SLA uptime-% claim. The honest present-tense service
-// description ("Limits and abuse controls may change") IS permitted.
+// Agent-ingested surfaces (llms.txt template + OpenAPI schema + MCP manifest)
+// state only present facts: NO product-tier vocabulary ("free tier" implies a
+// non-existent paid counterpart), no UNBUILT paid/auth tier (Commercialization
+// Constitution C2), no "unlimited", no numeric monthly quota, no SLA uptime-%.
 describe('SRS-1 G-5: machine surfaces carry no tier / unlimited / quota / SLA copy', () => {
     const surfaces: ReadonlyArray<readonly [string, string]> = [
         ['llms-template.txt', read('src/data/llms-template.txt')],
@@ -174,50 +171,53 @@ describe('SRS-1 G-5: machine surfaces carry no tier / unlimited / quota / SLA co
         ['mcp.json', read('public/.well-known/mcp.json')],
     ];
 
+    // Per-surface: no unbuilt-tier advertisement, no paid/auth tier hierarchy,
+    // no "unlimited" claim, no numeric monthly quota, no SLA uptime-% claim.
+    // (Technical "isolate uptime"/"isolate_uptime_ms" fields carry no % so are
+    // not matched by the uptime-% guards.)
     for (const [name, src] of surfaces) {
-        it(`${name}: no unbuilt-tier advertisement ("(TBD) raise the cap" / "raised limits TBD")`, () => {
+        it(`${name}: no tier / unlimited / quota / SLA copy`, () => {
             expect(src).not.toMatch(/tiers?\s*\(tbd\)/i);
             expect(src).not.toMatch(/raise the cap/i);
             expect(src).not.toMatch(/raised limits\s+TBD/i);
-        });
-        it(`${name}: no "paid tier" / "auth tier" hierarchy (a non-existent paid counterpart)`, () => {
             expect(src).not.toMatch(/\bpaid\s+tiers?\b/i);
             expect(src).not.toMatch(/\bauth\s+tier\b/i);
-        });
-        it(`${name}: no "unlimited" claim`, () => {
             expect(src).not.toMatch(/\bunlimited\b/i);
-        });
-        it(`${name}: no numeric monthly request quota`, () => {
             expect(src).not.toMatch(/\d[\d,]*\s*requests?\s*(?:per|\/)\s*month/i);
-        });
-        it(`${name}: no SLA uptime-percentage claim`, () => {
-            // Guard the "99.9% uptime"-style SLA claim. Technical observability
-            // fields ("isolate uptime", "isolate_uptime_ms") carry no % and are
-            // therefore not matched.
             expect(src).not.toMatch(/\d+(?:\.\d+)?\s*%\s*uptime/i);
             expect(src).not.toMatch(/uptime\s*[:=]?\s*\d+(?:\.\d+)?\s*%/i);
         });
     }
 
-    // D-122 C-5 (deepened) was scoped to the llms.txt template — the surface the
-    // Founder corrected. The "free tier" token absence is therefore asserted on
-    // llms-template only. (openapi-schema.json retains "Free tier returns up to 20
-    // results", which is a separate, pre-existing phrasing LOCKED by
-    // machine-contract-parity T1 and OUT OF D-122 SCOPE — editing it would be a
-    // schema change this amendment is forbidden from making.)
-    it('llms-template.txt: NO "free tier" product-tier vocabulary (D-122 deepening)', () => {
+    // D-122 C-5 (deepened) is scoped to the llms.txt template only. (openapi-
+    // schema.json retains "Free tier returns up to 20 results" — separate, pre-
+    // existing phrasing LOCKED by machine-contract-parity T1, OUT OF SCOPE.)
+    it('llms-template.txt: NO "free tier" vocab + honest present-tense description', () => {
         const llms = read('src/data/llms-template.txt');
         expect(llms).not.toMatch(/\bfree\s+tier\b/i);
         expect(llms).not.toMatch(/\bpaid\s+tiers?\b/i);
         expect(llms).not.toMatch(/\bauth\s+tier\b/i);
-    });
-
-    it('llms-template states the honest present-tense service description (no tier naming)', () => {
-        const llms = read('src/data/llms-template.txt');
-        // D-122 Founder wording: present fact + honest may-change, no tier hierarchy.
         expect(llms).toMatch(/Public API search results are\s+capped at 20 per request/);
         expect(llms).toMatch(/No authentication is currently required/);
         expect(llms).toMatch(/Limits and\s+abuse controls may change/);
+    });
+});
+
+// --- G-5b (D-125 §8): human developer surface tier-terminology hygiene ---
+// The HUMAN /developers page is a public surface and must carry the same
+// tier-vocabulary honesty floor as the machine surfaces: NO free/paid/auth
+// tier hierarchy (implies a non-existent paid counterpart), no "unlimited"
+// capacity claim, no numeric monthly request quota, no SLA uptime-% claim.
+describe('SRS-1 G-5b: developers.astro carries no tier / unlimited / quota / SLA copy', () => {
+    const dev = read('src/pages/developers.astro');
+    it('no free/paid/auth tier, unlimited, monthly-quota, or SLA-uptime% copy', () => {
+        expect(dev).not.toMatch(/\bfree\s+tier\b/i);
+        expect(dev).not.toMatch(/\bpaid\s+tiers?\b/i);
+        expect(dev).not.toMatch(/\bauth\s+tier\b/i);
+        expect(dev).not.toMatch(/\bunlimited\b/i);
+        expect(dev).not.toMatch(/\d[\d,]*\s*requests?\s*(?:per|\/)\s*month/i);
+        expect(dev).not.toMatch(/\d+(?:\.\d+)?\s*%\s*uptime/i);
+        expect(dev).not.toMatch(/uptime\s*[:=]?\s*\d+(?:\.\d+)?\s*%/i);
     });
 });
 
