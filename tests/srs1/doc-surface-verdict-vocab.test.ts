@@ -1,16 +1,21 @@
 /**
- * SRS-1 — doc-surface verdict-vocabulary invariant (tier-1, hermetic). [D-121 / G-3]
+ * SRS-1 — doc-surface honesty invariants (tier-1, hermetic). [D-121 / D-122]
  *
- * Extends the verdict-vocabulary lock (verdict-vocabulary.test.ts, which pins the
- * select / MCP / OpenAPI MACHINE contract) to the public DOC copy: README.md and
- * the llms.txt template. These are surfaces a caller / agent reads as capability
- * claims, so the Page Messaging Contract Section-5 FORBIDDEN verdict vocabulary
- * applies to them too. They must not (re)introduce an AFFIRMATIVE verdict
- * vocabulary for the select / rank capability.
+ * G-3 (verdict vocabulary): extends the verdict-vocabulary lock
+ * (verdict-vocabulary.test.ts, which pins the select / MCP / OpenAPI MACHINE
+ * contract) to the public DOC copy: README.md and the llms.txt template. These
+ * are surfaces a caller / agent reads as capability claims, so the Page Messaging
+ * Contract Section-5 FORBIDDEN verdict vocabulary applies to them too. They must
+ * not (re)introduce an AFFIRMATIVE verdict vocabulary for the select / rank
+ * capability.
+ *   PERMITTED (NOT matched): the NEGATIVE disclaimer forms — "not a fit verdict",
+ *   "the caller decides", "does NOT … recommend", "Neither surface routes,
+ *   recommends, or selects on your behalf".
  *
- * PERMITTED (NOT matched): the NEGATIVE disclaimer forms — "not a fit verdict",
- * "the caller decides", "does NOT … recommend", "Neither surface routes,
- * recommends, or selects on your behalf".
+ * A-1 (adoption / directory presence): the README Smithery reference may be a
+ * PLAIN directory link only (lowest evidence tier — listing presence). A
+ * graphical badge or any derived metric is FORBIDDEN (a badge reads as an
+ * adoption signal; the Core Authority Register records adoption as NOT PROVEN).
  *
  * HERMETIC: reads repo SOURCE only. No live fetch. Deterministic.
  */
@@ -63,5 +68,34 @@ describe('SRS-1 G-3 (D-121): README + llms-template carry NO affirmative verdict
         // revert to the stale copy that the absence checks alone would miss).
         expect(README).toMatch(/FNI-ranked catalog entries/);
         expect(README).toMatch(/not a fit verdict/i);
+    });
+});
+
+describe('SRS-1 A-1 (D-122): README Smithery = plain directory link only, no badge/metric', () => {
+    it('contains NO Smithery IMAGE badge (no markdown image whose URL has smithery + badge)', () => {
+        // Markdown image form: ![alt](url). Fail if any image URL references a
+        // smithery badge endpoint.
+        const imageBadge = /!\[[^\]]*\]\([^)]*smithery[^)]*badge[^)]*\)/i;
+        expect(README).not.toMatch(imageBadge);
+        // Also fail on the bare smithery/badge endpoint host (defensive).
+        expect(README).not.toMatch(/smithery\.ai\/badge\//i);
+    });
+
+    it('DOES allow a plain Smithery directory TEXT link (listing presence only)', () => {
+        // Plain link form: [text](https://smithery.ai/servers/...). Present + not an image.
+        const plainLink = /\[[^\]]*\]\(https:\/\/smithery\.ai\/servers\/[^)]+\)/i;
+        expect(README).toMatch(plainLink);
+        // The plain link must not be preceded by '!' (which would make it an image).
+        const m = README.match(/(.)\[[^\]]*\]\(https:\/\/smithery\.ai\/servers\//);
+        if (m) expect(m[1]).not.toBe('!');
+    });
+
+    it('carries NO adoption / endorsement framing anywhere in the README', () => {
+        expect(README).not.toMatch(/\bused by\b/i);
+        expect(README).not.toMatch(/\btrusted by\b/i);
+        expect(README).not.toMatch(/\bverified integration\b/i);
+        // No uptime / health percentage claim near the listing or elsewhere.
+        expect(README).not.toMatch(/\d+(?:\.\d+)?\s*%\s*(uptime|health)/i);
+        expect(README).not.toMatch(/\b(uptime|health)\b[^.\n]{0,20}\d+(?:\.\d+)?\s*%/i);
     });
 });

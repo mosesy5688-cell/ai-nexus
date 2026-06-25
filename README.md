@@ -1,7 +1,5 @@
 # Free2AITools — The Open-Source AI Registry
 
-[![smithery badge](https://smithery.ai/badge/mosesy5688/free2aitools)](https://smithery.ai/servers/mosesy5688/free2aitools)
-
 Discover, rank, and compare AI models, datasets, papers, tools, and benchmarks. Updated daily, scored by the Free2AITools Nexus Index (FNI).
 
 **Website**: [free2aitools.com](https://free2aitools.com)
@@ -47,6 +45,8 @@ Add to Claude, Cursor, Windsurf, or any MCP-compatible client:
 }
 ```
 5 tools: `free2aitools_search`, `free2aitools_rank`, `free2aitools_explain`, `free2aitools_select_model`, `free2aitools_compare`.
+
+Also listed on the [Smithery directory listing](https://smithery.ai/servers/mosesy5688/free2aitools).
 
 ### FNI Badge
 Embed a live FNI score in your README. Replace `<YOUR_UMID>` with the `id` of

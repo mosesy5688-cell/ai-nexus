@@ -73,20 +73,23 @@ describe('SRS-1 T6: methodology source_trail wording is honest', () => {
 // --- T7: README served types + no ungrounded count ----------------------
 describe('SRS-1 T7: README current-product wording is honest', () => {
     const readme = read('README.md');
-    const lines = readme.split('\n');
-    const headline = lines[4] || '';           // README.md:5
+    // Content-anchored (not line-index): the marketing headline is the
+    // "Discover, rank, and compare …" sentence. (D-122 removed the Smithery image
+    // badge above it, shifting line numbers — anchoring by content keeps this
+    // guard biting regardless of header-line offsets.)
+    const headline = (readme.match(/^Discover, rank,[^\n]*/m) || [''])[0];
     const catalogBullet = (readme.match(/\*\*Cross-source catalog\*\*[^\n]*/) || [''])[0];
 
-    it('headline (:5) lists only served entity types', () => {
+    it('headline lists only served entity types', () => {
         expect(headline).toMatch(/models, datasets, papers, tools, and benchmarks/i);
     });
 
-    it('headline (:5) drops the ungrounded "13+ platforms" count with no numeric replacement', () => {
+    it('headline drops the ungrounded "13+ platforms" count with no numeric replacement', () => {
         expect(headline).not.toMatch(/13\+/);
         expect(headline).not.toMatch(/\d+\+\s*(platforms|sources)/i);
     });
 
-    it('headline (:5) keeps the daily-cadence + FNI clause', () => {
+    it('headline keeps the daily-cadence + FNI clause', () => {
         expect(headline).toMatch(/Updated daily, scored by the Free2AITools Nexus Index \(FNI\)\./);
     });
 
@@ -156,23 +159,30 @@ describe('SRS-1 T-IDENTITY: developers.astro identifier wording', () => {
     });
 });
 
-// --- G-5 (D-121): free-service honesty on machine surfaces --------------
-// The agent-ingested surfaces (llms.txt template + OpenAPI schema) must state
-// only present facts: no advertisement of an UNBUILT paid/auth tier
-// (Commercialization Constitution C2: unbuilt capabilities never on API-Docs /
-// machine surfaces), no "unlimited", no numeric monthly quota, no SLA uptime-%
-// claim. The honest "limits may change in future" caveat IS permitted.
-describe('SRS-1 G-5: machine surfaces carry no unbuilt-tier / unlimited / quota / SLA copy', () => {
+// --- G-5 (D-121 / D-122): free-service honesty on machine surfaces -------
+// The agent-ingested surfaces (llms.txt template + OpenAPI schema + MCP static
+// manifest) must state only present facts: NO product-tier vocabulary at all
+// ("free tier" implies a paid counterpart that does not exist), no advertisement
+// of an UNBUILT paid/auth tier (Commercialization Constitution C2: unbuilt
+// capabilities never on API-Docs / machine surfaces), no "unlimited", no numeric
+// monthly quota, no SLA uptime-% claim. The honest present-tense service
+// description ("Limits and abuse controls may change") IS permitted.
+describe('SRS-1 G-5: machine surfaces carry no tier / unlimited / quota / SLA copy', () => {
     const surfaces: ReadonlyArray<readonly [string, string]> = [
         ['llms-template.txt', read('src/data/llms-template.txt')],
         ['openapi-schema.json', read('src/data/openapi-schema.json')],
+        ['mcp.json', read('public/.well-known/mcp.json')],
     ];
 
     for (const [name, src] of surfaces) {
-        it(`${name}: no unbuilt paid/auth-tier advertisement ("paid tiers (TBD) raise the cap" / "raised limits TBD")`, () => {
-            expect(src).not.toMatch(/paid\s+tiers?\s*\(tbd\)/i);
+        it(`${name}: no unbuilt-tier advertisement ("(TBD) raise the cap" / "raised limits TBD")`, () => {
+            expect(src).not.toMatch(/tiers?\s*\(tbd\)/i);
             expect(src).not.toMatch(/raise the cap/i);
             expect(src).not.toMatch(/raised limits\s+TBD/i);
+        });
+        it(`${name}: no "paid tier" / "auth tier" hierarchy (a non-existent paid counterpart)`, () => {
+            expect(src).not.toMatch(/\bpaid\s+tiers?\b/i);
+            expect(src).not.toMatch(/\bauth\s+tier\b/i);
         });
         it(`${name}: no "unlimited" claim`, () => {
             expect(src).not.toMatch(/\bunlimited\b/i);
@@ -189,10 +199,25 @@ describe('SRS-1 G-5: machine surfaces carry no unbuilt-tier / unlimited / quota 
         });
     }
 
-    it('llms-template states the honest present fact + may-change caveat (no paid-tier naming)', () => {
+    // D-122 C-5 (deepened) was scoped to the llms.txt template — the surface the
+    // Founder corrected. The "free tier" token absence is therefore asserted on
+    // llms-template only. (openapi-schema.json retains "Free tier returns up to 20
+    // results", which is a separate, pre-existing phrasing LOCKED by
+    // machine-contract-parity T1 and OUT OF D-122 SCOPE — editing it would be a
+    // schema change this amendment is forbidden from making.)
+    it('llms-template.txt: NO "free tier" product-tier vocabulary (D-122 deepening)', () => {
         const llms = read('src/data/llms-template.txt');
-        expect(llms).toMatch(/Free tier hard-cap: 20 results/);
-        expect(llms).toMatch(/limits may change in future/i);
+        expect(llms).not.toMatch(/\bfree\s+tier\b/i);
+        expect(llms).not.toMatch(/\bpaid\s+tiers?\b/i);
+        expect(llms).not.toMatch(/\bauth\s+tier\b/i);
+    });
+
+    it('llms-template states the honest present-tense service description (no tier naming)', () => {
+        const llms = read('src/data/llms-template.txt');
+        // D-122 Founder wording: present fact + honest may-change, no tier hierarchy.
+        expect(llms).toMatch(/Public API search results are\s+capped at 20 per request/);
+        expect(llms).toMatch(/No authentication is currently required/);
+        expect(llms).toMatch(/Limits and\s+abuse controls may change/);
     });
 });
 

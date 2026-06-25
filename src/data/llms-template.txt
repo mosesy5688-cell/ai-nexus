@@ -18,8 +18,9 @@ that need to consume Free2AItools data programmatically.
 
 ## Primary API surface
 
-All endpoints return JSON unless noted. CORS open. Free tier hard-cap: 20 results
-per search. No authentication required today; limits may change in future.
+All endpoints return JSON unless noted. CORS open. Public API search results are
+capped at 20 per request. No authentication is currently required. Limits and
+abuse controls may change.
 
 ### Discovery
 
@@ -45,7 +46,7 @@ per search. No authentication required today; limits may change in future.
   - `type` accepts canonical values (`model`, `paper`, `tool`, `dataset`,
     `benchmark`) AND common id-prefix aliases (`hf-model`, `arxiv-paper`,
     `gh-model`, `replicate-model`, etc.) — both resolve to the canonical type
-  - `limit` clamped to 1-20 for free tier
+  - `limit` is clamped to 1-20 per request
   - Response includes FNI score breakdown (semantic / authority / popularity /
     recency / quality) per result
 
@@ -154,7 +155,7 @@ Discovery layer only. The calling agent reasons over the data it returns:
 
 - Site: https://free2aitools.com
 - Strategic positioning + roadmap: see Free2AItools V∞ Roadmap (internal)
-- Free tier supports anonymous public API access. No authentication required today; limits may change in future.
+- The public API currently supports anonymous access. No authentication is required; limits and abuse controls may change.
 
 ## Notes for agent implementers
 
