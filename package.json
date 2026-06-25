@@ -3,6 +3,9 @@
   "version": "2.1.0",
   "type": "module",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run copy:wasm && astro dev",
     "clean": "node -e \"import('fs').then(f=>f.existsSync('.astro')&&f.rmSync('.astro',{recursive:true}))\"",
