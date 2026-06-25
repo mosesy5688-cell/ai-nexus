@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Free tier returns up to 20 results. The authoritative served description (live entity count, pagination semantics, consistency caveat, and transient 503 note) is composed by the openapi.json route; see the served /openapi.json.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Returns up to 20 results per request. The authoritative served description (live entity count, pagination semantics, consistency caveat, and transient 503 note) is composed by the openapi.json route; see the served /openapi.json.",
         "tags": ["Search"],
         "parameters": [
           {
@@ -112,7 +112,7 @@
             "name": "limit",
             "in": "query",
             "schema": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 },
-            "description": "Max results (free tier capped at 20)"
+            "description": "Maximum results per request (capped at 20)"
           },
           {
             "name": "page",

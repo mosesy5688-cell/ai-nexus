@@ -15,61 +15,59 @@ try {
   if (data) {
     meshStats = data;
   } else {
-    // Fallback stats for V16.8.15 R5.7.3 (Unified Factory Sync)
-    meshStats = { 
-      nodes: 125152, 
-      edges: 47685, 
-      by_type: { 
-        model: 51502, paper: 55257, agent: 148, space: 1022, 
-        dataset: 16140, tool: 1050, knowledge: 29, report: 1,
-        concept: 3, prompt: 342
-      } 
-    };
+    // Fallback stats for V16.8.15 R5.7.3 (Unified Factory Sync).
+    // by_type retained for the nodes/edges totals only; the served-type grid no
+    // longer renders per-type numbers (D-121 C-2 option a).
+    meshStats = { nodes: 125152, edges: 47685, by_type: {} };
   }
 } catch (e) {
   // Use defaults from above
 }
 
-// Node type icons, colors and navigation links
+// Node type icons, colors and navigation links.
+// SERVED-TYPE GRID ONLY (D-121 / C-1): every entry here must be a currently-served
+// entity type. Cancelled/merged types are NOT listed because their routes
+// 301-redirect (dead links) and the project no longer serves them:
+//   - V27.36: 'report'  removed (daily AI report generation paused).
+//   - D-121 C-1: 'agent'  removed — type cancelled  (/agents 301s to /tools).
+//                'space'  removed — merged into model (/spaces 301s to /models).
+//                'prompt' removed — type cancelled  (/prompts 301s to /tools).
+// Served set mirrors src/components/Header.astro nav: models / tools / datasets /
+// papers / knowledge.
 const typeConfig = {
   model: { icon: '🧠', color: 'bg-black/40', label: 'Models', href: '/models' },
-  agent: { icon: '🤖', color: 'bg-black/40', label: 'Agents', href: '/agents' },
-  space: { icon: '🚀', color: 'bg-black/40', label: 'Spaces', href: '/spaces' },
   tool: { icon: '🔧', color: 'bg-black/40', label: 'Tools', href: '/tools' },
-  prompt: { icon: '✍️', color: 'bg-black/40', label: 'Prompts', href: '/prompts' },
   dataset: { icon: '📊', color: 'bg-black/40', label: 'Datasets', href: '/datasets' },
   paper: { icon: '📄', color: 'bg-black/40', label: 'Papers', href: '/papers' },
-  // V27.36: 'report' entry removed from the home mesh navigation grid (daily AI
-  // report generation paused — see scripts/factory/lib/daily-report.js).
   knowledge: { icon: '📚', color: 'bg-black/40', label: 'Knowledge', href: '/knowledge' }
 };
 
-const nodesByType = meshStats.by_type || {};
+// D-121 C-2 (option a): per-type numeric counts DROPPED from this navigation
+// strip. They were sourced from `mesh_stats.by_type` (knowledge-graph NODE
+// counts, a different Factory artifact on a different cycle) and summed to a
+// total that diverged from the headline catalog count (manifest
+// partitions.total_entities). Surfacing two non-reconciling totals on one page
+// is an honest-contract gap; re-sourcing per-type counts from the same manifest
+// cycle would require new runtime data plumbing into this presentation
+// component (SCOPE_EXPANSION). The strip is now pure navigation — no numbers.
 const totalNodes = meshStats.nodes || 0;
 const totalEdges = meshStats.edges || 0;
 ---
 
 <section class="mesh-visualizer bg-[var(--bg-canvas)] rounded-sm p-6 border border-[var(--border-hairline)] relative overflow-hidden">
-  <!-- Interactive Navigation Mesh -->
-  <div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-9 gap-2">
-    {Object.entries(typeConfig).map(([type, config]) => {
-      const count = nodesByType[type] || 0;
-      
-      return (
-        <a href={config.href} class="group flex flex-col items-center p-3 bg-[var(--bg-surface)] rounded-sm border border-[var(--border-hairline)] hover:border-zinc-500 transition-all">
-          <div class={`w-10 h-10 ${config.color} rounded-sm flex items-center justify-center text-white text-xl border border-white/5 group-hover:scale-110 transition-transform`}>
-            {config.icon}
+  <!-- Interactive Navigation Mesh (served-type nav only; no per-type counts) -->
+  <div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+    {Object.entries(typeConfig).map(([type, config]) => (
+      <a href={config.href} class="group flex flex-col items-center p-3 bg-[var(--bg-surface)] rounded-sm border border-[var(--border-hairline)] hover:border-zinc-500 transition-all">
+        <div class={`w-10 h-10 ${config.color} rounded-sm flex items-center justify-center text-white text-xl border border-white/5 group-hover:scale-110 transition-transform`}>
+          {config.icon}
+        </div>
+        <div class="text-center mt-2">
+          <div class="text-[9px] font-black text-white uppercase tracking-tighter">
+            {config.label}
           </div>
-          <div class="text-center mt-2">
-            <div class="text-[9px] font-black text-white uppercase tracking-tighter">
-              {config.label}
-            </div>
-            <div class="text-[9px] font-bold text-zinc-600 tabular-nums">
-              {count > 0 ? count.toLocaleString() : '-'}
-            </div>
-          </div>
-        </a>
-      );
-    })}
+        </div>
+      </a>
+    ))}
   </div>
 </section>
