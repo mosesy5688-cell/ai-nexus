@@ -69,14 +69,43 @@ function errorResponse(status: number, message: string, isHead: boolean): Respon
     });
 }
 
+/**
+ * Canonical-index unavailability (D-140 Lane S-C §14): the canonical index
+ * (/sitemaps/sitemap-index.xml) could not be read. Return an EXPLICIT, honest
+ * non-200 — 503 — with Retry-After and a cache policy that prevents long-lived
+ * caching of the failure. We deliberately do NOT emit an empty <sitemapindex>,
+ * do NOT fabricate a hard-coded child inventory, and do NOT serve a
+ * last-known-good fallback — a transient origin miss must never masquerade as an
+ * authoritative (but empty/stale) index.
+ */
+function indexUnavailableResponse(isHead: boolean): Response {
+    return new Response(isHead ? null : 'Sitemap index temporarily unavailable', {
+        status: 503,
+        headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Retry-After': '120',
+            'Cache-Control': 'no-store',
+        },
+    });
+}
+
 async function handle(filename: string | undefined, method: 'GET' | 'HEAD'): Promise<Response> {
     const isHead = method === 'HEAD';
     if (!filename) return errorResponse(404, 'Not found', isHead);
 
     try {
         if (filename === 'sitemap-index.xml') {
-            const res = await fetch(`${R2_CDN_BASE}/sitemaps/${filename}`);
-            if (!res.ok) return errorResponse(404, 'Sitemap index not found', isHead);
+            let res: Response;
+            try {
+                res = await fetch(`${R2_CDN_BASE}/sitemaps/${filename}`);
+            } catch {
+                // Network failure / timeout reaching origin — honest 503, never
+                // laundered into a fake/empty 200 index.
+                return indexUnavailableResponse(isHead);
+            }
+            // Upstream miss (404/5xx/etc.) — explicit 503 + Retry-After, no
+            // empty-index, no fabricated child inventory, no stale fallback.
+            if (!res.ok) return indexUnavailableResponse(isHead);
             const xml = await res.text();
             return new Response(isHead ? null : xml, {
                 status: 200,

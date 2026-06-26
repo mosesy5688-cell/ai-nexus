@@ -156,10 +156,14 @@ describe('GET /sitemaps/[filename] — same-host gzip-XML pass-through', () => {
         expect(fetchMock).toHaveBeenCalledWith('https://cdn.free2aitools.com/sitemaps/sitemap-index.xml');
     });
 
-    it('6b. missing sitemap-index upstream -> 404 (unchanged)', async () => {
+    it('6b. missing sitemap-index upstream -> 503 + Retry-After (D-140 Lane S-C §14)', async () => {
+        // Canonical-index unavailability is now an explicit honest 503, never a
+        // fake/empty 200 and never a stale 404 masquerading as a final answer.
         vi.stubGlobal('fetch', vi.fn(async () => upstream({ status: 404, ok: false })));
         const res = await GET(ctx('sitemap-index.xml'));
-        expect(res.status).toBe(404);
+        expect(res.status).toBe(503);
+        expect(res.headers.get('Retry-After')).toBeTruthy();
+        expect(res.headers.get('Cache-Control')).toMatch(/no-store|max-age=[0-5]?\d\b/);
     });
 
     it('7. a non-sitemap-shard filename is NOT proxied (still 404)', async () => {
