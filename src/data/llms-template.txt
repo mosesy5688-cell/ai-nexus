@@ -151,6 +151,24 @@ Discovery layer only. The calling agent reasons over the data it returns:
 - Does NOT currently provide live semantic/ANN ranking. The Semantic (S) factor
   is dormant (keyword-index based); on static surfaces it is null + a note.
 
+## Privacy and data handling (for agents)
+
+- No account, no API key, and no payment are required to use the API or MCP server.
+- The human-facing website loads NO optional browser analytics (no Google Tag
+  Manager, no Google Analytics, no Cloudflare Web Analytics beacon).
+- Hosting/CDN/security infrastructure (Cloudflare) MAY process necessary
+  operational request, network, security, and diagnostic data, as any web host
+  does. This is platform-level processing, not optional analytics inserted by
+  this project.
+- The codebase contains optional, route-local aggregate telemetry that is
+  disabled unless explicitly enabled by deployment config; its schema prohibits
+  request bodies, prompts, raw queries, cookies, IP, geo, user-agent, and raw
+  referrer. Whether it is enabled in any given production deployment is NOT
+  asserted here.
+- Results are FNI-ranked by deterministic algorithm. No sponsor or advertising
+  relationship influences ranking or which entities are returned.
+- See https://free2aitools.com/privacy and /terms for the human-readable policy.
+
 ## Contact
 
 - Site: https://free2aitools.com

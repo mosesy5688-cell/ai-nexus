@@ -1,47 +1,47 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 const pageTitle = "Terms of Service | Free2AITools";
-const pageDescription = "Terms of Service for Free2AITools API and services.";
+const pageDescription = "Terms of Service for the Free2AITools public API, MCP server, and website.";
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <div class="max-w-3xl mx-auto px-4 py-16 prose prose-invert prose-sm">
     <h1 class="text-2xl font-black text-[var(--text-strong)] uppercase tracking-tight">Terms of Service</h1>
-    <p class="text-xs text-zinc-500">Last updated: May 1, 2026</p>
+    <p class="text-xs text-zinc-500">Last updated: June 27, 2026</p>
 
     <h2>1. Acceptance</h2>
     <p>By accessing or using Free2AITools ("Service"), you agree to these Terms. If you do not agree, do not use the Service.</p>
 
     <h2>2. Service Description</h2>
-    <p>Free2AITools provides an AI model selection API, MCP server, FNI ranking data, and related tools. The Service aggregates publicly available data from third-party platforms and computes rankings using the Free2AITools Nexus Index (FNI) algorithm.</p>
+    <p>Free2AITools provides a public AI discovery index: a REST API, an MCP server, and related web tools. The Service aggregates publicly available data from third-party platforms and computes rankings using the Free2AITools Nexus Index (FNI) algorithm. Its outputs support discovery, identity, evidence, and comparison; they are not decisions on your behalf.</p>
 
-    <h2>3. API Usage</h2>
+    <h2>3. Access</h2>
     <ul>
-      <li>Free tier: 500 API calls per month, subject to rate limiting.</li>
-      <li>Paid tiers: Usage limits as specified in your subscription plan.</li>
-      <li>You may not use the API for illegal purposes, abuse detection systems, or resell API access without permission.</li>
-      <li>We reserve the right to suspend accounts that violate rate limits or these terms.</li>
+      <li>The public API and MCP server currently require no account and no API key.</li>
+      <li>Access is currently free.</li>
+      <li>Reasonable technical rate limits and abuse protections may apply. These limits may change at any time.</li>
+      <li>You may not use the Service for unlawful purposes or in a manner that abuses, overloads, or attempts to disrupt the Service or its underlying infrastructure.</li>
+      <li>Unlawful or abusive traffic may be blocked. Because there is no account system, blocking is applied at the request, network, or infrastructure level, not against a user account.</li>
     </ul>
 
     <h2>4. Data and Rankings</h2>
     <ul>
       <li>FNI scores are computed algorithmically. We do not guarantee the accuracy or completeness of any data.</li>
-      <li>Rankings are not endorsements. Model selection decisions are your responsibility.</li>
+      <li>Rankings are not endorsements. You (the caller or agent) retain final responsibility for any decision made using the Service's outputs.</li>
       <li>Data is sourced from public APIs and may not reflect real-time availability.</li>
     </ul>
 
-    <h2>5. Subscriptions and Payments</h2>
+    <h2>5. Availability</h2>
     <ul>
-      <li>Paid subscriptions are billed monthly through our payment processor.</li>
-      <li>You may cancel at any time. Cancellation takes effect at the end of the current billing period.</li>
-      <li>Prices may change with 30 days notice.</li>
+      <li>The Service is provided on a best-effort basis. No service-level agreement (SLA) is promised and availability is not guaranteed.</li>
+      <li>The Service, its endpoints, and these limits may change, be suspended, or be discontinued at any time without notice.</li>
     </ul>
 
     <h2>6. Intellectual Property</h2>
-    <p>The FNI algorithm, API design, and website content are the property of Free2AITools. The underlying model data belongs to its respective owners and platforms.</p>
+    <p>The FNI algorithm, API design, and website content are the property of Free2AITools. The underlying model, dataset, paper, and tool data belongs to its respective owners and platforms.</p>
 
     <h2>7. Limitation of Liability</h2>
-    <p>The Service is provided "as is" without warranties of any kind. We are not liable for any damages arising from use of the Service, including but not limited to incorrect model recommendations, API downtime, or data inaccuracies.</p>
+    <p>The Service is provided "as is" without warranties of any kind. We are not liable for any damages arising from use of the Service, including but not limited to incorrect rankings, recommendations derived from the data, downtime, or data inaccuracies.</p>
 
     <h2>8. Modifications</h2>
     <p>We may update these Terms at any time. Continued use after changes constitutes acceptance.</p>

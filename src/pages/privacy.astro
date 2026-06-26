@@ -1,59 +1,63 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 const pageTitle = "Privacy Policy | Free2AITools";
-const pageDescription = "Privacy Policy for Free2AITools API and services.";
+const pageDescription = "Privacy Policy for the Free2AITools public API, MCP server, and website.";
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <div class="max-w-3xl mx-auto px-4 py-16 prose prose-invert prose-sm">
     <h1 class="text-2xl font-black text-[var(--text-strong)] uppercase tracking-tight">Privacy Policy</h1>
-    <p class="text-xs text-zinc-500">Last updated: May 1, 2026</p>
+    <p class="text-xs text-zinc-500">Last updated: June 27, 2026</p>
 
-    <h2>1. Information We Collect</h2>
-    <h3>API Usage</h3>
+    <h2>1. Optional browser analytics: removed</h2>
     <ul>
-      <li>Anonymous request logs: timestamp, endpoint, response time, status code.</li>
-      <li>We do NOT log query content, search terms, or model selection criteria.</li>
-      <li>API keys are stored as SHA-256 hashes. We never store plaintext keys.</li>
-    </ul>
-    <h3>Website</h3>
-    <ul>
-      <li>Cloudflare Analytics: anonymous page views, country, device type.</li>
-      <li>No cookies for tracking. No third-party analytics besides Cloudflare.</li>
-      <li>Google Tag Manager loads after 3-second delay and respects Do Not Track.</li>
-    </ul>
-    <h3>Payments</h3>
-    <ul>
-      <li>Payment processing is handled entirely by our payment processor (Merchant of Record).</li>
-      <li>We never see or store your credit card information.</li>
-      <li>We receive only: email, subscription tier, and payment status.</li>
+      <li>This site loads <strong>no optional browser analytics</strong>. There is no Google Tag Manager, no Google Analytics, and no Cloudflare Web Analytics beacon.</li>
+      <li>No project-inserted optional analytics or tracking scripts run on these pages.</li>
     </ul>
 
-    <h2>2. How We Use Information</h2>
+    <h2>2. Hosting and infrastructure</h2>
     <ul>
-      <li>API logs: aggregate usage statistics, rate limiting, service improvement.</li>
-      <li>Email: subscription management and service notifications only.</li>
-      <li>We do NOT sell, share, or transfer personal data to third parties.</li>
+      <li>The site and API are served through Cloudflare's hosting, CDN, and security infrastructure.</li>
+      <li>As part of delivering and protecting any web service, that infrastructure may process necessary request, network, security, and diagnostic data (for example connection metadata and request routing/abuse-protection signals). This is standard operational processing by the hosting provider, not optional analytics inserted by this project.</li>
+      <li>We do not claim that "no logs" or "no infrastructure processing" exist. Such operational processing is governed by the hosting provider's own terms and policies.</li>
     </ul>
 
-    <h2>3. Data Storage</h2>
+    <h2>3. Browser storage used by site features</h2>
+    <p>Some interface features store small values in your browser's <code>localStorage</code> on your own device. This is local to your browser, not a server-side account database, and is not transmitted to us as an analytics signal:</p>
     <ul>
-      <li>All data is stored on Cloudflare infrastructure (R2 storage, Workers KV).</li>
-      <li>API logs are retained for 90 days, then deleted.</li>
-      <li>Account data is retained until you cancel your subscription.</li>
+      <li><strong>Favorites</strong> — entities you mark are kept locally (<code>ai-nexus-favorites</code>).</li>
+      <li><strong>UI state</strong> — expand/collapse state of page sections (<code>section-*</code>).</li>
+      <li><strong>Technical cache / fallback</strong> — a data-source partition list (<code>_vfs_partitions</code>) and a degraded-entity marker (<code>degraded_entities</code>) used to load and recover catalog data efficiently.</li>
+    </ul>
+    <p>You can clear this at any time from your browser's site-data controls. It lives only on your device.</p>
+
+    <h2>4. API and MCP requests</h2>
+    <ul>
+      <li>When you call the public API or MCP server, the request parameters you send (such as your query and filters) are processed to produce a response. We do not claim that request content is never processed.</li>
+      <li>The API and MCP server require no account and no API key, so requests are not tied to a stored user identity by this project.</li>
+      <li>We do not state a fixed retention period for request data here. Operational handling of requests at the infrastructure level is governed by the hosting provider's policies.</li>
     </ul>
 
-    <h2>4. Your Rights</h2>
+    <h2>5. Optional aggregate telemetry (code contract)</h2>
     <ul>
-      <li>You may request deletion of your account and associated data at any time.</li>
-      <li>You may request a copy of your data.</li>
-      <li>Contact us via <a href="https://github.com/mosesy5688-cell/ai-nexus/issues">GitHub Issues</a> for any privacy requests.</li>
+      <li>The codebase contains optional, route-local aggregate telemetry. It is <strong>disabled unless explicitly enabled by deployment configuration</strong>.</li>
+      <li>Where it is enabled, its schema is constrained to aggregate signals only. The schema prohibits recording request bodies, prompts, raw queries, cookies, IP addresses, geolocation, user-agent strings, and raw referrers.</li>
+      <li>This section describes the code contract only. It does not assert whether this telemetry is enabled or disabled in any particular production deployment.</li>
     </ul>
 
-    <h2>5. Open Source</h2>
+    <h2>6. How we use information</h2>
+    <ul>
+      <li>We do not run optional browser analytics and do not maintain user accounts, so there is no profile of you to sell, share, or transfer.</li>
+      <li>Request handling exists to answer API/MCP requests and to keep the Service available and protected from abuse.</li>
+    </ul>
+
+    <h2>7. Open Source</h2>
     <p>Free2AITools is open source. You can audit our data handling by reviewing the <a href="https://github.com/mosesy5688-cell/ai-nexus">source code</a>.</p>
 
-    <h2>6. Changes</h2>
+    <h2>8. Changes</h2>
     <p>We may update this policy. Changes will be posted on this page with an updated date.</p>
+
+    <h2>9. Contact</h2>
+    <p>Privacy questions: <a href="https://github.com/mosesy5688-cell/ai-nexus/issues">GitHub Issues</a></p>
   </div>
 </Layout>
