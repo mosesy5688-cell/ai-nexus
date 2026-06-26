@@ -1,0 +1,10 @@
+# Free2AItools security contact (RFC 9116).
+# Lane C of Founder directive D-135 (F9). Trust / admission metadata.
+# Contact channels below are REAL, verifiable GitHub repository channels.
+# No private email address is published (none has been verified).
+
+Contact: https://github.com/mosesy5688-cell/ai-nexus/security/advisories
+Contact: https://github.com/mosesy5688-cell/ai-nexus/issues
+Expires: 2027-06-26T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://free2aitools.com/.well-known/security.txt

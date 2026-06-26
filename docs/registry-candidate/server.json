@@ -1,0 +1,31 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.free2aitools/free2aitools",
+  "title": "Free2AItools",
+  "description": "Structured AI-entity discovery, evidence, and identity layer for agents.",
+  "version": "2.0.1",
+  "websiteUrl": "https://free2aitools.com/developers",
+  "repository": {
+    "url": "https://github.com/mosesy5688-cell/ai-nexus",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://free2aitools.com/api/mcp"
+    }
+  ],
+  "_meta": {
+    "com.free2aitools/lane-c-candidate": {
+      "status": "REVIEW_ONLY_CANDIDATE_NOT_PUBLISHED",
+      "directive": "D-135 Lane C (F1)",
+      "identity_ownership": "IDENTITY_OWNERSHIP_UNVERIFIED",
+      "namespace_note": "The 'com.free2aitools' namespace prefix is NOT yet verified/controlled in the official MCP Registry. Namespace ownership (DNS-based or GitHub-based) MUST be proven before any publication. Do not treat this candidate as evidence of a controlled namespace.",
+      "version_coupling_note": "version=2.0.1 references the MCP SERVER version domain only. It is coupled to Lane B's MCP server version: if Lane B does NOT bump the served server version to 2.0.1, this candidate MUST be reconciled back to the actually-served version (2.0.0). This is a coordination point with Lane B, not an independent assertion.",
+      "license_note": "Project is MIT (root LICENSE + packages/sdk/LICENSE). The 2025-12-11 server.schema.json has no top-level license field; license is conveyed via the repository (LICENSE in repo root) and is intentionally not fabricated into an unsupported field.",
+      "schema_validation": "Field shape validated against the cited 2025-12-11 server.schema.json (required: name, description, version; remotes[].type in {streamable-http, sse}; repository requires url+source). Official registry CLI / publish dry-run NOT run in this environment.",
+      "served_manifest_distinction": "This file is DISTINCT from public/.well-known/mcp.json. That .well-known file is the served, site-local MCP manifest (tool catalog); this file is an official-Registry submission CANDIDATE and is intentionally placed at a non-served docs path so it is never mistaken for a published or served artifact.",
+      "publication_status": "NO Registry publication has occurred. This is a review-only candidate awaiting Founder authorization and namespace-ownership verification."
+    }
+  }
+}
