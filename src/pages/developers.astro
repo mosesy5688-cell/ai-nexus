@@ -684,6 +684,47 @@ def pick_candidates(query="code generation"):
       </a>
     </section>
 
+    <!-- Section 6: Trust, Versions & Lifecycle (D-135 Lane C) -->
+    <section id="trust" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Trust, Versions &amp; Lifecycle</h2>
+
+      <!-- Security contact -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="font-bold text-gray-900 dark:text-white mb-2">Security contact</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          Report a security issue via the GitHub repository's <a href="https://github.com/mosesy5688-cell/ai-nexus/security/advisories" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">security advisories</a>, or open a <a href="https://github.com/mosesy5688-cell/ai-nexus/issues" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">GitHub issue</a>. A machine-readable copy is published at <a href="/.well-known/security.txt" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">/.well-known/security.txt</a> (RFC 9116).
+        </p>
+      </div>
+
+      <!-- Version domains -->
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="font-bold text-gray-900 dark:text-white mb-2">Version domains (distinct, not a single version)</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Free2AItools exposes several independent components, each with its own version domain. These are <strong>distinct</strong> and are <strong>not</strong> kept in numeric equality — do not assume one number applies to another.
+        </p>
+        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc list-inside">
+          <li><strong>SDK package</strong> (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">@free2aitools/sdk</code>): <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">0.1.0</code></li>
+          <li><strong>MCP server</strong>: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">2.0.0</code> (manifest at <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">/.well-known/mcp.json</code>)</li>
+          <li><strong>OpenAPI document</strong>: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">2.0.0</code> (served at <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">/openapi.json</code>)</li>
+          <li><strong>Application / root package</strong>: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">2.1.0</code></li>
+          <li><strong>FNI / data contract</strong>: <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">fni_v2.0</code> (the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">version</code> field in API/MCP responses)</li>
+        </ul>
+      </div>
+
+      <!-- Lifecycle, removal, no-account -->
+      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 space-y-3">
+        <div>
+          <strong class="text-gray-900 dark:text-white">No account, no persistent registration.</strong> There is currently no server-side user account and no persistent client registration. The API requires no authentication today, and the MCP server holds no per-client state between requests.
+        </div>
+        <div>
+          <strong class="text-gray-900 dark:text-white">Disconnecting / removing the MCP server.</strong> The MCP server is a remote HTTP endpoint with no stored client identity. To stop using it, remove the Free2AItools entry from your MCP client configuration (for example, delete it from <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">claude_desktop_config.json</code> / <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">.mcp.json</code> or your client's MCP settings) and restart the client. No server-side de-registration step is required, because nothing about your client is stored.
+        </div>
+        <div>
+          <strong class="text-gray-900 dark:text-white">Deprecation notices.</strong> Breaking changes and deprecations, when they occur, are communicated through the <a href="https://github.com/mosesy5688-cell/ai-nexus" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">GitHub repository</a> (releases / changelog) and reflected in the version domains above. There is <strong>no guaranteed deprecation or advance-notice window</strong> for this free service at this time; do not rely on a fixed notice period or a long-term availability guarantee.
+        </div>
+      </div>
+    </section>
+
     <!-- Footer CTA -->
     <section class="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
       <h2 class="text-2xl font-bold mb-4">Build with Free2AI</h2>
