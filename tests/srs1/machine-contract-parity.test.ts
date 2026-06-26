@@ -86,8 +86,7 @@ describe('SRS-1 DJ-R06 (T2): SearchResponse schema == actual public-v1 response 
         const cols = displayColFields();
         expect(cols).toContain('fni_s'); // v1 wrapper nulls this in place
         const set = new Set(cols);
-        // v1/search.ts adds fni_s_note alongside the nulled fni_s. D-135 (F3): this
-        // now runs via the shared normalizeSearchEvidence owner (REST v1 <-> MCP).
+        // v1/search.ts adds fni_s_note via the shared normalizeSearchEvidence owner (D-135 F3, REST v1 <-> MCP).
         expect(V1_SEARCH_SRC).toMatch(/normalizeSearchEvidence\(r\)/);
         set.add('fni_s_note');
         return [...set].sort();
