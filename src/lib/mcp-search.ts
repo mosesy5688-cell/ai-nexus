@@ -16,6 +16,12 @@
  * returned unchanged. Any other non-200 throws so mcp.ts's catch reports it.
  */
 import type { McpToolResult } from './mcp-explain.js';
+// D-135 (F3): same shared owner REST v1 /api/v1/search uses. MCP search/rank
+// dispatch goes straight to the internal /api/search (bypassing the v1 wrapper),
+// so the raw rows still carry the constant `fni_s: 50` baseline with no caveat.
+// Normalize here at the MCP response boundary so MCP matches REST v1 evidence
+// semantics (fni_s = null + canonical note) WITHOUT a divergent hard-coded copy.
+import { normalizeSearchEvidence, EVIDENCE_CONTRACT_VERSION } from '../constants/evidence-contract.js';
 
 /** Internal search-endpoint result with the HTTP status preserved. */
 export interface SearchCallResult {
@@ -65,7 +71,20 @@ export function buildSearchResult(res: SearchCallResult): McpToolResult {
     }
     const data = res.data || {};
     if (Array.isArray(data.results)) {
-        for (const r of data.results) { delete r._dbSort; delete r._score; delete r._source; }
+        // F3: strip internal sort fields AND normalize the Semantic-evidence
+        // fields so MCP never presents the unmeasured `fni_s: 50` baseline as a
+        // measured value. IDs, ordering, total_count, fni_score, and the
+        // non-semantic pillars (A/P/R/Q) are untouched — no re-rank, no remote
+        // call, no synthetic replacement score.
+        for (const r of data.results) {
+            delete r._dbSort; delete r._score; delete r._source;
+            normalizeSearchEvidence(r);
+        }
     }
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+    // Carry the public evidence-contract version on the MCP envelope so an Agent
+    // sees the same version tag REST v1 attaches (the internal /api/search body
+    // has none). Non-destructive: spread the data after `version` so any existing
+    // body field wins if a future internal route ever sets its own `version`.
+    const payload = { version: EVIDENCE_CONTRACT_VERSION, ...data };
+    return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
 }
