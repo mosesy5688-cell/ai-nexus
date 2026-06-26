@@ -188,7 +188,8 @@ describe('SRS-1 D135-C 6.6: version domains documented as distinct', () => {
 
     it('lists each distinct version domain with its actual value', () => {
         expect(dev).toMatch(/0\.1\.0/); // SDK
-        expect(dev).toMatch(/2\.0\.0/); // MCP server / OpenAPI
+        expect(dev).toMatch(/2\.0\.1/); // MCP server (D-135 F3 bump; independent of OpenAPI)
+        expect(dev).toMatch(/2\.0\.0/); // OpenAPI document
         expect(dev).toMatch(/2\.1\.0/); // app/root package
         expect(dev).toMatch(/fni_v2\.0/); // data contract
     });
@@ -198,14 +199,19 @@ describe('SRS-1 D135-C 6.6: version domains documented as distinct', () => {
         const mcp = JSON.parse(read(MCP_MANIFEST));
         const rootPkg = JSON.parse(read('package.json'));
         const sdkPkg = JSON.parse(read('packages/sdk/package.json'));
+        // D-135 (F3): the MCP server version is an INDEPENDENT domain from the
+        // OpenAPI document version — the MCP evidence-semantics bump moved MCP to
+        // 2.0.1 while OpenAPI stayed 2.0.0. They are not locked to a shared value.
+        expect(mcp.version).toBe('2.0.1');
         expect(openapi.info.version).toBe('2.0.0');
-        expect(mcp.version).toBe('2.0.0');
+        expect(mcp.version).not.toBe(openapi.info.version); // no artificial equality
         expect(rootPkg.version).toBe('2.1.0');
         expect(sdkPkg.version).toBe('0.1.0');
         // The domains are genuinely NOT all equal — proves the doc is truthful.
         const distinct = new Set([
             sdkPkg.version,
             mcp.version,
+            openapi.info.version,
             rootPkg.version
         ]);
         expect(distinct.size).toBeGreaterThan(1);
