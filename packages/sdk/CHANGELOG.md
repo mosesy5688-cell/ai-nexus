@@ -4,6 +4,17 @@ All notable changes to `@free2aitools/sdk` are documented here. The format is
 based on Keep a Changelog; this package follows SemVer (pre-1.0: `0.x` minors may
 break, patches are compatible fixes).
 
+## [0.1.0]
+
+### Changed
+
+- Packaging hardening (no runtime/API behavior change): added MIT `LICENSE`
+  file (matching the long-standing README MIT claim) and shipped it in the
+  package; added `repository`, `homepage`, and `bugs` publish metadata; dropped
+  emitted source maps (`sourceMap`/`declarationMap` off) so the archive no
+  longer references unshipped `src/`. `private: true` is retained — this is not
+  a publish.
+
 ## [Unreleased]
 
 ### Added
