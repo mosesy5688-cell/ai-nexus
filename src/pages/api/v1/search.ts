@@ -9,9 +9,12 @@ import { env } from 'cloudflare:workers';
 import { GET as internalSearch } from '../search.js';
 import { loadManifest } from '../../../lib/sqlite-engine.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../lib/etag-helper.js';
+// D-135 (F3): shared owner of the search-path Semantic-evidence semantics so the
+// MCP search/rank dispatch and this REST v1 surface cannot drift.
+import { normalizeSearchEvidence, EVIDENCE_CONTRACT_VERSION } from '../../../constants/evidence-contract.js';
 
 const FREE_TIER_MAX = 20;
-const API_VERSION = 'fni_v2.0';
+const API_VERSION = EVIDENCE_CONTRACT_VERSION;
 
 export const GET: APIRoute = async (context) => {
     // Hard-cap limit for free tier
@@ -57,10 +60,9 @@ export const GET: APIRoute = async (context) => {
         // ranking is not currently provided. Null it + carry a note so Agents do
         // not ingest a bare 50.0 as measured relevance (mirrors select/compare/
         // entity honest-contract). No live UI consumer reads fni_s from /api/v1.
-        if ('fni_s' in r) {
-            r.fni_s = null;
-            r.fni_s_note = 'query-time baseline; semantic/ANN ranking not currently provided; not a per-entity value';
-        }
+        // D-135 (F3): wording now lives in the shared evidence-contract owner so
+        // the MCP search/rank dispatch applies the SAME caveat (no divergent copy).
+        normalizeSearchEvidence(r);
     });
     const wrapped = { version: API_VERSION, ...body };
 

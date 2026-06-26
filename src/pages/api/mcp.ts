@@ -18,7 +18,14 @@ import { emitRoute, extractTelemetryEnv } from '../../lib/telemetry/route-teleme
 import { mcpToolToOperation, hostFromReferer, isBotUa } from '../../lib/telemetry/route-classify';
 import type { McpTool } from '../../lib/telemetry/vocab';
 
-const SERVER_INFO = { name: 'free2aitools', version: '2.0.0' };
+// D-135: MCP server version. F3 changed MCP evidence semantics (search/rank now
+// emit fni_s=null + note, not the unmeasured `50`), so bumped 2.0.0 -> 2.0.1.
+// Owner = here + public/.well-known/mcp.json only (NOT OpenAPI/SDK/root package).
+const SERVER_INFO = { name: 'free2aitools', version: '2.0.1' };
+
+// F4: advertised default result limit for MCP search + rank, pinned so an omitted
+// limit does NOT inherit the internal /api/search fallback of 12 (max stays 20).
+const MCP_SEARCH_DEFAULT_LIMIT = '10';
 
 // Negative-contract boundary (N1-N4): Free2AITools is a structured discovery,
 // evidence, and identity layer for AI agents. Surfaced in initialize.instructions
@@ -34,7 +41,7 @@ const JSONRPC_HEADERS = {
 const TOOLS = [
     {
         name: 'free2aitools_search',
-        description: 'Search the Free2AITools catalog of AI models, datasets, papers, and tools by keyword. Returns results ranked by FNI (Free2AITools Nexus Index), a 5-factor score combining Semantic relevance, Authority, Popularity, Recency, and Quality. Read-only, no side effects. Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After. Use this for broad discovery; use free2aitools_select_model instead when you have specific hardware or license constraints.',
+        description: 'Keyword discovery over the Free2AITools catalog of AI models, datasets, papers, and tools. Returns matching catalog entries (metadata) ranked by FNI (Free2AITools Nexus Index), a 5-factor score: Semantic relevance, Authority, Popularity, Recency, Quality. The Semantic factor is a query-time baseline, not a live per-entity measurement (fni_s is returned null with a note). USE WHEN you need to discover which AI entities exist for a topic or keyword. DO NOT USE for general web search, to run/call/execute a model, to get a generated or inferred answer, or to route to an inference provider — this returns catalog metadata only, for the calling agent to reason over and decide on. Free discovery catalog: results are FNI-ranked, never paid placement / sponsored, and there is no billing or payment. Read-only, no side effects. May return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After. Use free2aitools_select_model instead when you have specific hardware or license constraints.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -47,7 +54,7 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_rank',
-        description: 'Keyword-search AI entities using the task text as query input. Returns FNI-ranked catalog entries. Does not perform task-fit recommendation or compatibility analysis. Read-only, no side effects. May return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After. Use free2aitools_search for keyword-based discovery, or free2aitools_select_model to apply hardware/license metadata filters.',
+        description: 'Keyword-search AI entities using the task/query text as input and return FNI-ranked catalog entries. Mechanically this is the same keyword search as free2aitools_search with the task text folded into the query; it does NOT perform task-fit recommendation, compatibility analysis, model inference, or model execution, and it is NOT an inference router. USE WHEN you have task text and want catalog entries ordered by FNI. The caller makes the final selection; results are never paid placement and there is no billing. Read-only, no side effects. May return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After. Use free2aitools_search for plain keyword discovery, or free2aitools_select_model to apply hardware/license metadata filters.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -60,7 +67,7 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_explain',
-        description: 'Explain why a specific entity received its FNI ranking score by showing the 5-factor breakdown: Semantic (S), Authority (A), Popularity (P), Recency (R), Quality (Q). FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q. Read-only. Use this after search or rank to understand why an entity scored high or low; use free2aitools_compare instead for side-by-side differences between multiple entities.',
+        description: 'Explain why one specific entity received its FNI score, returning the 5-factor breakdown: Semantic (S), Authority (A), Popularity (P), Recency (R), Quality (Q). FNI = 0.35*S + 0.25*A + 0.15*P + 0.15*R + 0.10*Q (the S factor is a baseline, surfaced with a caveat, not a measured per-entity value). USE WHEN you already have one entity id (from a search/rank/select result) and want its score rationale. DO NOT USE to search/discover entities, to run a model, or to get a recommendation — this only describes scoring evidence for the caller to interpret. Read-only, no side effects, no billing. Use free2aitools_compare instead for side-by-side differences across multiple entities.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -71,7 +78,7 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_select_model',
-        description: 'Filter the Free2AITools catalog by declared metadata and return FNI-ranked entries. Constraints are metadata/heuristic filters, not verified compatibility analysis. The caller is responsible for final model selection. Read-only, no side effects. Use free2aitools_search for unconstrained keyword search, or free2aitools_rank for keyword-based ranking without metadata filters.',
+        description: 'Filter the Free2AITools catalog by declared hardware/license metadata and return FNI-ranked candidate entries. USE WHEN you have concrete constraints (VRAM, params, license, context length, local-runnability) and want candidates narrowed by them. Constraints are metadata/heuristic filters over stored fields, NOT verified compatibility analysis, model inference, or model execution; this tool does not decide for you and is not an inference router. The caller is responsible for the final selection. Results are FNI-ranked, never paid placement, with no billing. Read-only, no side effects. Use free2aitools_search for unconstrained keyword discovery, or free2aitools_rank for keyword ranking without metadata filters.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -97,11 +104,11 @@ const TOOLS = [
     },
     {
         name: 'free2aitools_compare',
-        description: 'Compare 2-25 AI models side-by-side showing FNI scores, factor breakdown (Semantic, Authority, Popularity, Recency, Quality), specs (params, VRAM, context length), and license. Read-only, no side effects. Cold upper-range multi-paper requests may return a transient 503 (retry after the indicated delay). Use this when the user wants to decide between specific known models; use free2aitools_select_model to discover models first, then compare the top candidates.',
+        description: 'Compare 2-25 AI catalog entities side-by-side — any catalog entity type (models, datasets, papers, tools), not models only — showing FNI scores, factor breakdown (Semantic, Authority, Popularity, Recency, Quality), specs (params, VRAM, context length) where applicable, and license. USE WHEN you already have 2+ specific entity ids and want a structured side-by-side. DO NOT USE to discover entities, to run/execute a model, or to get a recommendation; the tool presents comparison facts for the caller to decide on, is not an inference router, and returns no paid placement. Read-only, no side effects, no billing. Cold upper-range multi-paper requests may return a transient 503 (retry after the indicated delay). Use free2aitools_select_model or free2aitools_search to discover candidates first, then compare the top ones.',
         inputSchema: {
             type: 'object',
             properties: {
-                ids: { type: 'array', items: { type: 'string' }, description: 'Entity IDs to compare (2-25). Use model_id from select_model results or id from search results (e.g. ["hf-model--meta-llama--llama-3-8b", "hf-model--google--gemma-2-27b"])' }
+                ids: { type: 'array', items: { type: 'string' }, description: 'Catalog entity IDs to compare (2-25), any entity type. Use the id from search/rank/select_model results verbatim (e.g. ["hf-model--meta-llama--llama-3-8b", "arxiv--2401.00001"])' }
             },
             required: ['ids']
         }
@@ -122,10 +129,10 @@ function jsonrpcError(id: any, code: number, message: string) {
 async function handleToolCall(context: any, toolName: string, args: any) {
     switch (toolName) {
         case 'free2aitools_search': {
-            // B8: callSearchStatus preserves the HTTP status so a transient 503
-            // (cold-path / fallback budget) propagates as an isError + retry hint
-            // instead of being forwarded as a fake-empty result. See mcp-search.ts.
-            const searchParams: Record<string, string> = { q: args.query || '' };
+            // B8: callSearchStatus preserves the HTTP status (transient 503 ->
+            // isError + retry, not a fake-empty result). F4: pin the advertised
+            // default 10 so an omitted limit does not fall through to the internal 12.
+            const searchParams: Record<string, string> = { q: args.query || '', limit: MCP_SEARCH_DEFAULT_LIMIT };
             if (args.limit) searchParams.limit = String(Math.min(args.limit, 20));
             if (args.type && args.type !== 'all') searchParams.type = args.type;
             const res = await callSearchStatus(context, searchParams, (ctx: any) => searchHandler(ctx));
@@ -134,29 +141,25 @@ async function handleToolCall(context: any, toolName: string, args: any) {
         case 'free2aitools_rank': {
             // B8: same transient propagation as search — rank IS keyword search.
             const query = args.task ? `${args.task} ${args.query || ''}`.trim() : (args.query || '');
-            const searchParams: Record<string, string> = { q: query };
+            // F4: same advertised default 10 as search (not the internal 12).
+            const searchParams: Record<string, string> = { q: query, limit: MCP_SEARCH_DEFAULT_LIMIT };
             if (args.limit) searchParams.limit = String(Math.min(args.limit, 20));
             const res = await callSearchStatus(context, searchParams, (ctx: any) => searchHandler(ctx));
             return buildSearchResult(res);
         }
         case 'free2aitools_explain': {
-            // V27.10: exact-match by id via entity endpoint instead of fuzzy
-            // keyword search. Previously callSearch(q=args.id) failed to match
-            // slug-form ids reliably (e.g. "vllm-project--vllm" returned "no
-            // entity found" because keyword search tokenized the slug).
-            // B4: callEntity preserves the HTTP status so buildExplainResult can
-            // keep a transient 503 distinct from a genuine 404 (see mcp-explain.ts).
+            // V27.10: exact-match by id via entity endpoint (not fuzzy keyword
+            // search, which tokenized slug-form ids). B4: callEntity preserves the
+            // HTTP status so a transient 503 stays distinct from a genuine 404.
             const res = await callEntity(context, args.id, (ctx: any) => entityHandler(ctx));
             return buildExplainResult(args.id, res);
         }
         case 'free2aitools_select_model': {
             // G-05: callSelectStatus preserves the HTTP status so a transient 503
-            // (rankings DB not yet available / pre-pipeline cold path) propagates
-            // as an isError + retry hint instead of being laundered into a normal
-            // successful tool result. The 200 success body is passed through
-            // byte-for-byte unchanged. See mcp-select.ts. No capability added —
-            // transport-status mapping only; the negative-contract boundary
-            // (no selection/verdict/recommendation) is untouched.
+            // (rankings DB cold path) propagates as isError + retry hint instead of
+            // being laundered into a normal result; the 200 body passes through
+            // unchanged. Transport-status mapping only — no capability added, the
+            // negative-contract boundary (no selection/verdict) is untouched.
             const res = await callSelectStatus(
                 context,
                 { task: args.task, constraints: args.constraints, limit: args.limit, explain: args.explain },
@@ -166,9 +169,8 @@ async function handleToolCall(context: any, toolName: string, args: any) {
         }
         case 'free2aitools_compare': {
             // B7: callCompare preserves the HTTP status so a transient/budget 503
-            // (cold multi-paper fan-out) propagates as an isError + retry hint
-            // instead of a thrown generic error / dead connection. Any other
-            // non-200 still throws -> the JSON-RPC error path below reports it.
+            // (cold multi-paper fan-out) propagates as isError + retry hint; any
+            // other non-200 throws -> the JSON-RPC error path below reports it.
             const ids = Array.isArray(args.ids) ? args.ids.join(',') : args.ids;
             const res = await callCompare(context, ids, (ctx: any) => compareHandler(ctx));
             return buildCompareResult(res);
@@ -179,11 +181,10 @@ async function handleToolCall(context: any, toolName: string, args: any) {
 }
 
 // Route-local telemetry recorder. DEFAULT-OFF, fail-open, NON-BLOCKING: emits a
-// closed low-cardinality event (surface + closed tool enum + coarse status) to the
-// write adapter, which no-ops unless explicitly enabled & bound. NEVER alters the
-// response/status/body/latency control flow; any failure is swallowed in emitRoute.
-// Audience/referer derive from already-read header VALUES (never stored raw); NO
-// request body/args are recorded.
+// closed low-cardinality event (surface + closed tool enum + coarse status) to a
+// write adapter that no-ops unless enabled & bound. NEVER alters the serve path;
+// failures are swallowed in emitRoute. Audience/referer derive from already-read
+// header VALUES (never stored raw); NO request body/args are recorded.
 function recordMcp(
     context: any,
     surface: 'mcp.initialize' | 'mcp.tools_call',

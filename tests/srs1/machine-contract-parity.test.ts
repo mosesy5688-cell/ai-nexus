@@ -86,8 +86,8 @@ describe('SRS-1 DJ-R06 (T2): SearchResponse schema == actual public-v1 response 
         const cols = displayColFields();
         expect(cols).toContain('fni_s'); // v1 wrapper nulls this in place
         const set = new Set(cols);
-        // v1/search.ts adds fni_s_note alongside the nulled fni_s.
-        expect(V1_SEARCH_SRC).toMatch(/r\.fni_s_note =/);
+        // v1/search.ts adds fni_s_note via the shared normalizeSearchEvidence owner (D-135 F3, REST v1 <-> MCP).
+        expect(V1_SEARCH_SRC).toMatch(/normalizeSearchEvidence\(r\)/);
         set.add('fni_s_note');
         return [...set].sort();
     })();
@@ -193,7 +193,7 @@ describe('SRS-1 DJ-M02 (T4): MCP static enum <-> dynamic handler enum parity', (
     }
     function staticSearchTypeEnum(): string[] {
         const tool = mcpJson.tools.find((t: any) => t.name === 'free2aitools_search');
-        return tool.input_schema.properties.type.enum;
+        return tool.inputSchema.properties.type.enum; // D-135 (F5): MCP-standard inputSchema (was input_schema)
     }
     it('static mcp.json search type enum == dynamic mcp.ts enum (set parity)', () => {
         expect(staticSearchTypeEnum().slice().sort()).toEqual(handlerSearchTypeEnum().slice().sort());
