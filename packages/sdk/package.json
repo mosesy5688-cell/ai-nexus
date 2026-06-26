@@ -1,10 +1,19 @@
 {
   "name": "@free2aitools/sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Free, public TypeScript SDK for the Free2AITools AI discovery / evidence / identity REST API. Retrieves candidates, evidence, and FNI rankings; the caller makes the final decision.",
   "private": true,
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mosesy5688-cell/ai-nexus.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://free2aitools.com",
+  "bugs": {
+    "url": "https://github.com/mosesy5688-cell/ai-nexus/issues"
+  },
   "sideEffects": false,
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -17,7 +26,9 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
