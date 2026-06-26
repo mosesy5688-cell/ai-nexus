@@ -78,19 +78,9 @@ const siteMeta = {
     <script is:inline define:vars={{ siteMeta }}>
         window.__SITE_META__ = siteMeta;
     </script>
-    <!-- V21.16: Extreme Performance Strategy - Delayed Third-Party Scripts -->
-    <script is:inline>
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                // Google Tag Manager
-                (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-                new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-                'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-                })(window,document,'script','dataLayer','GTM-58C2CQ8G');
-            }, 3000);
-        });
-    </script>
+    <!-- D-142: Optional browser analytics intentionally removed. No Google Tag
+         Manager, no Cloudflare Web Analytics beacon, and no project-inserted
+         optional analytics are loaded on human pages. See /privacy. -->
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -177,11 +167,6 @@ const siteMeta = {
     </style>
 </head>
 <body class="bg-[var(--bg-canvas)] text-[var(--text-primary)] font-sans antialiased flex flex-col min-h-screen selection:bg-zinc-500/30">
-    <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-58C2CQ8G"
-    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
-    
     <script is:inline>
         // V16.9.24: Prevent FOUC by applying theme immediately
         function applyTheme() {
@@ -201,8 +186,5 @@ const siteMeta = {
         <slot />
     </main>
     <Footer />
-    <!-- Cloudflare Web Analytics -->
-    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "4fc9edaf18874b89b14863f5f0eb83de"}'></script>
-    <!-- End Cloudflare Web Analytics -->
 </body>
 </html>
