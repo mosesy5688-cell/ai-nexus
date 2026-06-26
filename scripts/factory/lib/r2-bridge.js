@@ -69,6 +69,28 @@ export async function uploadFileMultipartFFI(client, localPath, remotePath) {
     return uploadFileMultipart(client, process.env.R2_BUCKET || 'ai-nexus-assets', localPath, remotePath);
 }
 
+/**
+ * HEAD a remote object to prove existence/identity (D-140 §5 child verification).
+ * Returns { exists, etag }. 404 -> exists:false; any other error is surfaced
+ * fail-loud (never masked as "missing"). Always uses the JS S3 client (the Rust
+ * R2Client has no HEAD path); reuses the cached JS client for connection reuse.
+ */
+export async function headObjectIdentityFFI(client, remotePath) {
+    const { HeadObjectCommand } = await import('@aws-sdk/client-s3');
+    const s3 = (client && client.constructor?.name !== 'R2Client')
+        ? client
+        : (_cachedJsClient ||= require('./r2-helpers.js').createR2Client());
+    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    try {
+        const r = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: remotePath }));
+        return { exists: true, etag: r.ETag?.replace(/"/g, '') };
+    } catch (e) {
+        const code = e?.$metadata?.httpStatusCode, name = e?.name || '';
+        if (code === 404 || name === 'NotFound' || name === 'NoSuchKey') return { exists: false, etag: undefined };
+        throw new Error(`HEAD ${remotePath} failed: ${e?.message || name || 'unknown'}`);
+    }
+}
+
 /** Stream JSON to R2. */
 export async function streamToR2FFI(client, key, data) {
     if (_r2Engine && client?.constructor?.name === 'R2Client') {

@@ -5,7 +5,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
-import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadFileFFI, uploadFileMultipartFFI } from './lib/r2-bridge.js';
+import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadFileFFI, uploadFileMultipartFFI, headObjectIdentityFFI } from './lib/r2-bridge.js';
+import { isSitemapIndex, isSitemapChild, publishSitemapIndex } from './lib/sitemap-publication.js';
 
 dotenv.config();
 
@@ -59,16 +60,20 @@ function toRemotePath(localPath) {
 }
 
 async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
-    let success = 0, fail = 0, unchanged = 0;
+    let success = 0, fail = 0, unchanged = 0, childFail = 0;
     const changedPaths = [];
     const queue = files.filter(f => {
         const remotePath = toRemotePath(f.path);
         if (CONFIG.PREFIX_FILTER.length > 0 && !CONFIG.PREFIX_FILTER.some(p => remotePath.startsWith(p))) return false;
+        // D-140 §5: the sitemap INDEX is NEVER part of the unordered Phase-1
+        // concurrency batch. It is published in a separate Phase 2 (publishSitemapIndex)
+        // strictly AFTER every referenced child is uploaded + remotely verified.
+        if (isSitemapIndex(remotePath)) return false;
         return !uploadedSet.has(remotePath);
     });
 
     console.log(`📊 To upload: ${queue.length} files`);
-    if (queue.length === 0) return { success: 0, fail: 0, skipped: files.length, unchanged: 0 };
+    if (queue.length === 0) return { success: 0, fail: 0, skipped: files.length, unchanged: 0, changedPaths, childFail: 0 };
 
     for (let i = 0; i < queue.length; i += CONFIG.CONCURRENCY) {
         const batch = queue.slice(i, i + CONFIG.CONCURRENCY);
@@ -94,6 +99,8 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
             } else {
                 console.error(`\n   [FAIL] Upload: ${result.path} | Error: ${result.error}`);
                 fail++;
+                // D-140 §5: a child-shard upload failure must block index publication.
+                if (isSitemapChild(result.path)) childFail++;
             }
         }
 
@@ -104,7 +111,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
         if ((success + unchanged) % 1000 === 0) await saveCheckpoint(checkpoint);
     }
     console.log(''); // New line after progress
-    return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths };
+    return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths, childFail };
 }
 
 async function main() {
@@ -137,7 +144,7 @@ async function main() {
 
     console.log(`[LOCAL-SYNC] Locally skipped: ${locallySkipped} files (MD5 matched manifest)`);
 
-    const { success, fail, skipped, unchanged, changedPaths } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
+    const { success, fail, skipped, unchanged, changedPaths, childFail } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
 
     // Update local manifest with new successful hashes
     for (const file of filesToUpload) {
@@ -147,6 +154,28 @@ async function main() {
     await saveLocalManifest(localManifestPath, localManifest);
 
     await saveCheckpoint(checkpoint);
+
+    // D-140 §5 PHASE 2 — child-before-index publication barrier. Phase 1 above
+    // uploaded every child shard (and all non-index objects) but NEVER the index.
+    // Now (only after Phase 1) verify each referenced child exists on R2, then
+    // publish the index. One missing/failed child -> index NOT published -> JOB_FAIL.
+    const indexItems = allFiles
+        .map(f => ({ localPath: f.path, remotePath: toRemotePath(f.path) }))
+        .filter(it => isSitemapIndex(it.remotePath)
+            && (CONFIG.PREFIX_FILTER.length === 0 || CONFIG.PREFIX_FILTER.some(p => it.remotePath.startsWith(p))));
+    const candidate = indexItems.find(it => it.remotePath === 'sitemaps/sitemap-index.xml');
+    let indexPublishFailed = false;
+    if (candidate) {
+        const pub = await publishSitemapIndex({
+            phase1Ok: childFail === 0,
+            indexItems,
+            candidateIndexLocalPath: candidate.localPath,
+            headFn: (rp) => headObjectIdentityFFI(s3, rp),
+            uploadFn: (lp, rp) => uploadFileFFI(s3, lp, rp, r2ETagMap.get(rp)),
+        });
+        console.log(`[SITEMAP-PUBLISH] candidateChildren=${pub.candidateChildren} verifiedChildren=${pub.verifiedChildren} status=${pub.status} published=${pub.published}`);
+        if (!pub.published) indexPublishFailed = true; // fail-loud: never downgrade to a warning.
+    }
 
     // V25.8: Zero Deletion Policy — Entropy Purge permanently disabled.
     // R2 storage is append-only. Manual cleanup via wrangler CLI if needed.
@@ -167,6 +196,10 @@ async function main() {
     console.log(`[PURGE-LIST] ${allManifestPaths.length} paths (full manifest, ${changedPaths.length} fresh) → ${purgeListPath}`);
 
     console.log(`\n✅ Upload Complete! New: ${success}, Locally Skipped: ${locallySkipped}, Unchanged on R2: ${unchanged}, Fail: ${fail}`);
+    if (indexPublishFailed) {
+        console.error('❌ JOB_FAIL: sitemap INDEX_NOT_PUBLISHED (child-before-index barrier). Old index left in place.');
+        process.exit(1);
+    }
     if (fail > 0) process.exit(1);
 }
 

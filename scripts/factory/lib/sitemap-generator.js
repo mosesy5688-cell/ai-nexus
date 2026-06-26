@@ -11,11 +11,18 @@
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
-import { promisify } from 'util';
 import Database from 'better-sqlite3';
 import { getEntityRoute, getTypeFromId } from '../../../src/utils/mesh-routing-core.js';
 
-const gzip = promisify(zlib.gzip);
+// D-140 Lane S-A §4.1 — DETERMINISTIC TRUE-GZIP. Produce a REAL single-member
+// gzip of the XML: bytes 1f 8b, `gzip -t` OK, ONE decompress yields <urlset>, a
+// SECOND fails (not double-gzipped). zlib's header embeds mtime + OS byte; mtime:0
+// + fixed level + Node's fixed OS=0xff (unknown) makes identical XML -> identical
+// bytes. gzipSync (no promisify) = explicit single-shot deterministic encode.
+const GZIP_OPTS = { level: zlib.constants.Z_BEST_COMPRESSION, mtime: 0 };
+export function gzipSitemapXml(xml) {
+    return zlib.gzipSync(Buffer.from(xml, 'utf8'), GZIP_OPTS);
+}
 
 const BASE_URL = 'https://free2aitools.com';
 const MAX_URLS_PER_FILE = 45000;
@@ -103,12 +110,22 @@ export async function generateSitemap(source, outputDir = './output') {
         }
         content += '</urlset>';
 
-        await fs.writeFile(path.join(sitemapDir, filename), content);
-        const gzipped = await gzip(content);
+        // §4.1: uncompressed XML must stay <50MB (45,000-URL cap is far under).
+        const xmlBytes = Buffer.byteLength(content, 'utf8');
+        if (xmlBytes >= 50 * 1024 * 1024) {
+            throw new Error(`[SITEMAP] ${filename} uncompressed XML ${xmlBytes} bytes >= 50MB`);
+        }
+        // §4.2: publish ONLY ONE canonical child representation — the `.gz`. We do
+        // NOT write the public plain `sitemap-N.xml` (would be a competing child).
+        const gzipped = gzipSitemapXml(content);
+        // §4.1 fail-loud canary: artifact MUST be real gzip (1f 8b), not plain XML.
+        if (gzipped.length < 2 || gzipped[0] !== 0x1f || gzipped[1] !== 0x8b) {
+            throw new Error(`[SITEMAP] ${filename}.gz is not a valid gzip member (missing 1f 8b)`);
+        }
         await fs.writeFile(path.join(sitemapDir, `${filename}.gz`), gzipped);
 
         sitemapFiles.push(filename);
-        console.log(`  [SITEMAP] Generated ${filename} with ${currentUrlBatch.length} URLs.`);
+        console.log(`  [SITEMAP] Generated ${filename}.gz (${currentUrlBatch.length} URLs, ${xmlBytes}B XML -> ${gzipped.length}B gzip).`);
 
         currentUrlBatch = [];
         fileIndex++;
@@ -220,12 +237,11 @@ export async function generateSitemap(source, outputDir = './output') {
 
         await fs.writeFile(path.join(sitemapDir, 'sitemap-index.xml'), indexContent);
 
-        // Final SEO Root Mirror
-        const mirrorSource = sitemapFiles.length === 1 ? sitemapFiles[0] : 'sitemap-index.xml';
-        await fs.copyFile(
-            path.join(sitemapDir, mirrorSource),
-            path.join(outputDir, 'sitemap.xml')
-        );
+        // Final SEO Root Mirror. §4.2: the public plain child `.xml` is no longer
+        // emitted, so the root `sitemap.xml` always mirrors the index (a valid
+        // <sitemapindex> for both single- and multi-shard cases; served inline as
+        // uncompressed application/xml, never as a competing canonical child).
+        await fs.writeFile(path.join(outputDir, 'sitemap.xml'), indexContent);
     }
 
     console.log(`[SITEMAP] ✅ Complete: ${totalUrls} URLs in ${sitemapFiles.length} file(s).`);
