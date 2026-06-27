@@ -183,10 +183,11 @@ jobs:
 
   # ===========================================================================
   # JOB 2 — stage
-  # Runs only when confirm_stage==true. NO build / test / install / lifecycle.
-  # Downloads the EXACT Job-1 tarball, re-verifies it, asserts private===false
-  # (fail-closed) and npm/Node minimums, then `npm stage publish` (staged).
-  # OIDC (id-token:write) is confined HERE.
+  # Runs only when confirm_stage==true. NO build / test / install / lifecycle /
+  # tool acquisition (only setup-node provisions the pinned runtime). Downloads
+  # the EXACT Job-1 tarball, re-verifies it, asserts private===false
+  # (fail-closed) and EXACT Node 24.18.0 / npm 11.16.0 pins, then
+  # `npm stage publish` (staged). OIDC (id-token:write) is confined HERE.
   # ===========================================================================
   stage:
     name: Stage publish (OIDC, exact audited tarball)
@@ -263,30 +264,39 @@ jobs:
           echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
           echo "✅ Re-verify passed: sha256=$ACTUAL_SHA name=$T_NAME version=$T_VERSION private=false"
 
-      # FAIL-CLOSED toolchain minimums: npm >= 11.15.0 (staged publish), Node >=
-      # 22.14.0. Install/upgrade npm, then hard-assert both versions.
-      - name: Assert npm >= 11.15.0 and Node >= 22.14.0 (fail-closed)
+      # Pin the stage-job runtime. setup-node is the ONLY tool provisioning
+      # permitted in this id-token:write job — no `npm install -g`, no npx,
+      # corepack, curl/wget installer, or any other tool acquisition may run in
+      # the OIDC credential domain (D-153). Node 24.18.0 ships npm 11.16.0
+      # (>= the 11.15.0 staged-publishing floor), so no global npm install is
+      # needed. Cache DISABLED for reproducibility.
+      - name: Setup Node.js (pinned runtime for staged publish)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24.18.0'
+
+      # EXACT (not floor) fail-closed toolchain pins, asserted BEFORE staging.
+      # While the runtime is pinned, the versions MUST EQUAL the expected pins;
+      # any drift aborts before `npm stage publish`. (Future upgrades are an
+      # ordinary reviewed workflow PR that bumps these constants.)
+      - name: Assert exact Node 24.18.0 and npm 11.16.0 (fail-closed)
         run: |
           set -euo pipefail
-          npm install -g npm@latest
+          EXPECTED_NODE="24.18.0"
+          EXPECTED_NPM="11.16.0"
           NODE_V=$(node --version | sed 's/^v//')
           NPM_V=$(npm --version)
-          echo "node=$NODE_V npm=$NPM_V"
+          echo "node=$NODE_V npm=$NPM_V (expected node=$EXPECTED_NODE npm=$EXPECTED_NPM)"
 
-          ver_ge() {
-            # returns 0 if $1 >= $2
-            [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
-          }
-
-          if ! ver_ge "$NODE_V" "22.14.0"; then
-            echo "::error::Node $NODE_V < required 22.14.0"
+          if [ "$NODE_V" != "$EXPECTED_NODE" ]; then
+            echo "::error::Node $NODE_V != required exact $EXPECTED_NODE"
             exit 1
           fi
-          if ! ver_ge "$NPM_V" "11.15.0"; then
-            echo "::error::npm $NPM_V < required 11.15.0"
+          if [ "$NPM_V" != "$EXPECTED_NPM" ]; then
+            echo "::error::npm $NPM_V != required exact $EXPECTED_NPM"
             exit 1
           fi
-          echo "✅ Toolchain minimums satisfied."
+          echo "✅ Exact toolchain pins satisfied."
 
       # STAGED publish of the EXACT audited tarball via OIDC. `npm stage publish`
       # (NOT `npm publish`): the package is queued and a human maintainer must
