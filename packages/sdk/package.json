@@ -51,7 +51,7 @@
     "rest-sdk"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
