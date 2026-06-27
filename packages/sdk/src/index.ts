@@ -1,6 +1,6 @@
 /**
- * @free2aitools/sdk (PACKAGE NAME CANDIDATE — npm name + org ownership NOT yet
- * verified; package is `private` for now).
+ * @free2aitools/sdk (CONFIRMED package name; npm org `free2aitools` created and
+ * `@free2aitools` scope reserved; not yet published — package is `private` for now).
  *
  * A free, public TypeScript SDK for the Free2AITools AI discovery / evidence /
  * identity REST API (https://free2aitools.com). Unauthenticated, no telemetry,

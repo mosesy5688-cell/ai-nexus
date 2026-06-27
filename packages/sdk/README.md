@@ -22,16 +22,17 @@ reason over them. It is built on standard Web APIs (`fetch`, `AbortController`,
 
 ## Package name + status
 
-- **Package name is a CANDIDATE:** `@free2aitools/sdk`. The npm name's
-  availability and `@free2aitools` org ownership are **NOT yet verified**. Do not
-  assume the name is owned or available.
+- **Package name is CONFIRMED:** `@free2aitools/sdk`. The npm org
+  `free2aitools` is **created** and the `@free2aitools` scope is reserved.
+- **Not yet published.** The package is **not** on npm yet; publication is
+  pending Founder authorization and gated separately (D-125), out of scope here.
 - The package is **`"private": true`** for now to prevent accidental publish.
-  Publishing is gated separately (D-125) and out of scope here.
+  That guard is removed only at the later, authorized publish step.
 
-## Install (once published)
+## Install (available once published)
 
 ```bash
-npm install @free2aitools/sdk   # name is a candidate; not yet published
+npm install @free2aitools/sdk   # confirmed name; available once published
 ```
 
 ## Usage
