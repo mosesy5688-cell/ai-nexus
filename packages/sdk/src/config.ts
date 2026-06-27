@@ -32,7 +32,7 @@ export function resolveConfig(opts: Free2AIClientOptions = {}): ResolvedConfig {
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   if (typeof fetchImpl !== "function") {
     throw new Error(
-      "No fetch implementation available. Pass options.fetch or run on a platform with a global fetch (Node 20+, Workers, browsers).",
+      "No fetch implementation available. Pass options.fetch or run on a platform with a global fetch (Node 22+, Workers, browsers).",
     );
   }
   return {

@@ -1,34 +1,31 @@
-import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { describe, it, expect, beforeAll } from "vitest";
+import { readFileSync, existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { execSync } from "node:child_process";
 
 // D-155 §4 — SDK runtime-floor (Node support policy) invariant + mutation tests.
-// Node 20 is EOL; the public SDK runtime floor is Node >=22. ASSERT the corrected
-// posture and FAIL if it is reverted (engines back to ">=20") or if any Node-20
-// supported-runtime wording is reintroduced into the package surfaces.
+// Node 20 is EOL; the public floor is Node >=22. Assert the corrected posture
+// and FAIL if reverted (engines ">=20") or any Node-20 wording is reintroduced.
 
-const PKG_PATH = resolve(__dirname, "../package.json");
-const README_PATH = resolve(__dirname, "../README.md");
+const PKG_ROOT = resolve(__dirname, "..");
+const PKG_PATH = resolve(PKG_ROOT, "package.json");
+const README_PATH = resolve(PKG_ROOT, "README.md");
+const SRC_CONFIG_PATH = resolve(PKG_ROOT, "src/config.ts");
 
 const PKG_RAW = readFileSync(PKG_PATH, "utf8");
 const README_RAW = readFileSync(README_PATH, "utf8");
+const SRC_CONFIG_RAW = readFileSync(SRC_CONFIG_PATH, "utf8");
 const pkg = JSON.parse(PKG_RAW) as Record<string, any>;
 
 // ---- Invariant predicates (each returns true when the posture is GOOD) ------
-
-// engines.node must be exactly ">=22" (the corrected floor), not ">=20".
 function enginesFloorIsNode22(p: Record<string, any>): boolean {
   return p?.engines?.node === ">=22";
 }
-
-// No supported-runtime surface (engines OR README prose) may claim Node 20 /
-// ">=20" / "Node.js 20" / "Node 20+" as a supported runtime.
+// Reject any Node 20 / ">=20" / "Node.js 20" / "Node 20+" supported-runtime claim.
 const NODE20_RUNTIME = /\bnode(?:\.js)?\s*20\b|>=\s*20\b|node\s*20\+/i;
 function noNode20RuntimeWording(text: string): boolean {
   return !NODE20_RUNTIME.test(text);
 }
-
-// README must positively state the Node 22 floor.
 function readmeStatesNode22Floor(text: string): boolean {
   return /\bnode(?:\.js)?\s*22\b|node\s*22\+/i.test(text);
 }
@@ -59,13 +56,11 @@ describe("D-155 SDK Node support policy — corrected posture holds", () => {
   });
 
   it("SDK has zero runtime dependencies", () => {
-    // Either absent or an empty object — never a populated dependency tree.
     expect(Object.keys(pkg.dependencies ?? {})).toEqual([]);
   });
 });
 
 // ---- Mutation tests: reintroduce the EOL policy, prove the gate goes RED -----
-
 describe("D-155 mutation tests — reverting to Node 20 FAILS", () => {
   it("reverting engines.node to \">=20\" fails the floor invariant", () => {
     const mutated = { ...pkg, engines: { node: ">=20" } };
@@ -84,5 +79,156 @@ describe("D-155 mutation tests — reverting to Node 20 FAILS", () => {
 
   it("a bare \"Node 20\" support claim anywhere fails the scan", () => {
     expect(noNode20RuntimeWording("Supported runtimes: Node 20.")).toBe(false);
+  });
+});
+
+// SOURCE LAYER (D-160 RC-A) — extend the scan to src/config.ts. #2244 shipped
+// green while src/config.ts still emitted "Node 20+" because the gate scanned
+// only package.json + README; scanning the source means it WOULD be caught here.
+describe("D-160 RC-A SOURCE LAYER — src/config.ts carries no Node-20 wording", () => {
+  it("src/config.ts has NO Node-20 supported-runtime wording", () => {
+    expect(noNode20RuntimeWording(SRC_CONFIG_RAW)).toBe(true);
+  });
+
+  it("mutation: injecting a \"Node 20+\" claim into src/config.ts content fails", () => {
+    // Pure in-memory string mutation — the file on disk is NOT touched.
+    const mutated = SRC_CONFIG_RAW.replace(
+      "Node 22+, Workers, browsers",
+      "Node 20+, Workers, browsers",
+    );
+    expect(mutated).not.toBe(SRC_CONFIG_RAW); // non-vacuity: corrected wording existed
+    expect(noNode20RuntimeWording(mutated)).toBe(false);
+    expect(noNode20RuntimeWording(SRC_CONFIG_RAW)).toBe(true); // unmutated stays GREEN
+  });
+});
+
+// ARTIFACT LAYER (D-160 RC-A) — bind the invariant to a FRESHLY built + packed
+// tarball, never stale local dist (the layer entirely missing in #2244). Force a
+// clean build + pack, then scan EVERY shipped surface (packed package.json /
+// README / CHANGELOG / every dist/**/*.js + *.d.ts). FAIL-CLOSED: a vacuous
+// "scanned nothing, found nothing" must FAIL.
+interface PackedArtifact {
+  tgzPath: string;
+  entries: string[];
+  contents: Map<string, string>; // entry path -> content, for every scanned surface
+}
+
+const TGZ_NAME = "free2aitools-sdk-0.1.0.tgz";
+const PACKED_CONFIG_ENTRY = "package/dist/config.js";
+
+// Entries we require to be scanned (the shipped runtime + doc surfaces).
+function isScannableEntry(entry: string): boolean {
+  return (
+    entry === "package/package.json" ||
+    entry === "package/README.md" ||
+    entry === "package/CHANGELOG.md" ||
+    /^package\/dist\/.*\.(js|d\.ts)$/.test(entry)
+  );
+}
+
+let packed: PackedArtifact | null = null;
+let packError: Error | null = null;
+
+beforeAll(() => {
+  const tgzPath = resolve(PKG_ROOT, TGZ_NAME);
+  try {
+    // 1) Drop any existing dist + tgz so stale artifacts can NOT be relied on.
+    rmSync(resolve(PKG_ROOT, "dist"), { recursive: true, force: true });
+    rmSync(tgzPath, { force: true });
+    // 2) Fresh build (tsc -p tsconfig.json via the `build` script). 3) Pack.
+    execSync("npm run build", { cwd: PKG_ROOT, stdio: "pipe" });
+    execSync("npm pack", { cwd: PKG_ROOT, stdio: "pipe" });
+    if (!existsSync(tgzPath)) {
+      throw new Error(`npm pack did not produce ${TGZ_NAME}`);
+    }
+    // 4) Enumerate the EXACT tarball. Reference it by bare name from cwd: GNU
+    //    tar reads an absolute Windows path ("G:\...") as a remote host (the
+    //    drive colon), so name-from-dir is the portable form (POSIX CI too).
+    const listing = execSync(`tar -tzf "${TGZ_NAME}"`, {
+      cwd: PKG_ROOT,
+      encoding: "utf8",
+    });
+    const entries = listing
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    // 5) Read every scannable entry's bytes straight out of the tarball.
+    const contents = new Map<string, string>();
+    for (const entry of entries) {
+      if (!isScannableEntry(entry)) continue;
+      const body = execSync(`tar -xzf "${TGZ_NAME}" -O "${entry}"`, {
+        cwd: PKG_ROOT,
+        encoding: "utf8",
+        maxBuffer: 32 * 1024 * 1024,
+      });
+      contents.set(entry, body);
+    }
+    packed = { tgzPath, entries, contents };
+  } catch (err) {
+    packError = err instanceof Error ? err : new Error(String(err));
+  } finally {
+    // Always clean up: dist/ + .tgz are derived and the .tgz is NOT gitignored.
+    rmSync(tgzPath, { force: true });
+    rmSync(resolve(PKG_ROOT, "dist"), { recursive: true, force: true });
+  }
+}, 120_000);
+
+describe("D-160 RC-A ARTIFACT LAYER — freshly packed tarball is Node-20-clean", () => {
+  it("fresh build + pack succeeded (fail-closed on any pack error)", () => {
+    if (packError) throw packError;
+    expect(packed).not.toBeNull();
+  });
+
+  it("tarball enumerated a non-empty file set (fail-closed on empty tarball)", () => {
+    expect(packed).not.toBeNull();
+    expect(packed!.entries.length).toBeGreaterThan(0);
+  });
+
+  it("packed dist/config.js entry exists (fail-closed if missing)", () => {
+    expect(packed).not.toBeNull();
+    expect(packed!.entries).toContain(PACKED_CONFIG_ENTRY);
+    expect(packed!.contents.has(PACKED_CONFIG_ENTRY)).toBe(true);
+  });
+
+  it("actually scanned a non-empty set of surfaces (no vacuous pass)", () => {
+    // A scan of zero files MUST fail: require package.json + README + CHANGELOG
+    // + at least one shipped JS surface.
+    expect(packed).not.toBeNull();
+    expect(packed!.contents.size).toBeGreaterThan(0);
+    expect(packed!.contents.has("package/package.json")).toBe(true);
+    expect(packed!.contents.has("package/README.md")).toBe(true);
+    expect(packed!.contents.has("package/CHANGELOG.md")).toBe(true);
+    const jsScanned = [...packed!.contents.keys()].filter((e) =>
+      /^package\/dist\/.*\.js$/.test(e),
+    );
+    expect(jsScanned.length).toBeGreaterThan(0);
+  });
+
+  it("EVERY packed surface has ZERO Node-20 runtime wording", () => {
+    expect(packed).not.toBeNull();
+    const offenders: string[] = [];
+    for (const [entry, body] of packed!.contents) {
+      if (!noNode20RuntimeWording(body)) offenders.push(entry);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("packed dist/config.js specifically does not contain \"Node 20+\"", () => {
+    expect(packed).not.toBeNull();
+    const cfg = packed!.contents.get(PACKED_CONFIG_ENTRY);
+    expect(cfg).toBeDefined();
+    expect(noNode20RuntimeWording(cfg!)).toBe(true);
+  });
+
+  it("packed-fixture mutation: injecting \"Node 20+\" into packed dist/config.js flags RED", () => {
+    expect(packed).not.toBeNull();
+    const cfg = packed!.contents.get(PACKED_CONFIG_ENTRY)!;
+    expect(noNode20RuntimeWording(cfg)).toBe(true); // unmutated packed text GREEN
+    const mutated = cfg.replace(
+      "Node 22+, Workers, browsers",
+      "Node 20+, Workers, browsers",
+    );
+    expect(mutated).not.toBe(cfg); // non-vacuity: bytes actually changed
+    expect(noNode20RuntimeWording(mutated)).toBe(false);
   });
 });
