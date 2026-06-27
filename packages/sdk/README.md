@@ -120,7 +120,10 @@ The catalog is **append-only / ever-growing**, so all response types are
 
 ## Supported runtimes
 
-Tested with mocked + live fetch on **Node.js 20+**. The implementation uses only
+Tested with mocked + live fetch on **Node.js 22+** (older LTS lines that have
+reached end-of-life are no longer a supported runtime). Supported runtime floor:
+**Node 22**; the consumer matrix is exercised on **Node 22** and **Node 24**.
+The implementation uses only
 standard Web APIs, so it is expected to work on **Cloudflare Workers** and
 **modern browsers** (API is CORS `*`) — list those as supported only after you
 run the bundle tests in those targets. Deno/Bun: experimental until tested.
