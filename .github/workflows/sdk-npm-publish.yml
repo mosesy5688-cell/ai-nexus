@@ -1,0 +1,188 @@
+name: SDK npm Publish (Trusted Publishing / OIDC)
+
+# =============================================================================
+# Founder D-151 §9 Phase A — FUTURE npm Trusted Publishing for @free2aitools/sdk
+# =============================================================================
+# POSTURE (fail-closed, dry-run default):
+#   * This workflow PREPARES the supply chain for npm Trusted Publishing (OIDC).
+#   * It MUST NOT publish today. While packages/sdk/package.json carries
+#     `"private": true`, the FAIL-CLOSED private guard below ABORTS the run
+#     BEFORE any publish step is reachable.
+#   * No NPM_TOKEN / npm username / password / 2FA / recovery code is used or
+#     referenced anywhere. Trusted Publishing authenticates via OIDC
+#     (`id-token: write`), NOT a long-lived token.
+#   * Default dispatch is DRY-RUN / pack-only: the publish step only runs when a
+#     human explicitly sets `confirm_publish: true` AND the private guard passes.
+#
+# WHAT IS REQUIRED BEFORE A REAL PUBLICATION CAN HAPPEN (all out of scope here):
+#   1. `"private": true` removed from packages/sdk/package.json under separate
+#      explicit Founder authorization.
+#   2. A Trusted Publisher configured on npmjs.com for @free2aitools/sdk that
+#      names THIS repository + THIS workflow file.
+#   3. A protected GitHub Environment (`npm-publish`) with required reviewers, so
+#      the publish job waits for manual approval.
+#   4. An explicit Founder workflow_dispatch run with `confirm_publish: true`.
+# As written, with `"private": true` present, this workflow is INCAPABLE of
+# publishing — the guard exits non-zero before npm publish.
+# =============================================================================
+
+on:
+  # Manual, explicit, protected release entry only. NOT on push / pull_request /
+  # tag — there is no path to an accidental automatic publish.
+  workflow_dispatch:
+    inputs:
+      confirm_publish:
+        description: >-
+          Set to true ONLY for a real, Founder-authorized publication. Default
+          (false) runs a dry-run: build + test + pack + evidence, NO publish.
+        type: boolean
+        required: true
+        default: false
+
+# Least-privilege at the workflow level. `id-token: write` is required for OIDC
+# Trusted Publishing / provenance; `contents: read` to checkout. Nothing else —
+# no `packages: write`, no broad scopes.
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: sdk-npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build, verify, and (gated) publish @free2aitools/sdk
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Protected GitHub Environment gate: configure `npm-publish` with required
+    # reviewers so this job pauses for manual approval before running. (The
+    # private guard below is the hard fail-closed stop regardless of approval.)
+    environment: npm-publish
+    defaults:
+      run:
+        working-directory: packages/sdk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js (LTS, npm registry for OIDC publish)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      # Install at the repo root: this is an npm workspace (workspaces:
+      # packages/*) so the lockfile and node_modules live at the root.
+      - name: Install dependencies (npm ci, workspace root)
+        working-directory: .
+        run: npm ci
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Test (vitest)
+        run: npm test
+
+      - name: Pack tarball
+        id: pack
+        run: |
+          set -euo pipefail
+          TARBALL=$(npm pack --silent)
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "Packed: $TARBALL"
+
+      # Assert the packed identity matches package.json EXACTLY. A mismatch
+      # (wrong name or a version drift between pack manifest and source) fails
+      # the run before anything is published.
+      - name: Assert package name and version
+        run: |
+          set -euo pipefail
+          EXPECTED_NAME="@free2aitools/sdk"
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          PACK_JSON=$(npm pack --dry-run --json)
+          PACK_NAME=$(node -e "process.stdout.write(JSON.parse(process.argv[1])[0].name)" "$PACK_JSON")
+          PACK_VERSION=$(node -e "process.stdout.write(JSON.parse(process.argv[1])[0].version)" "$PACK_JSON")
+
+          echo "package.json: name=$PKG_NAME version=$PKG_VERSION"
+          echo "npm pack:     name=$PACK_NAME version=$PACK_VERSION"
+
+          if [ "$PKG_NAME" != "$EXPECTED_NAME" ]; then
+            echo "::error::Package name '$PKG_NAME' != expected '$EXPECTED_NAME'"
+            exit 1
+          fi
+          if [ "$PACK_NAME" != "$EXPECTED_NAME" ]; then
+            echo "::error::Packed name '$PACK_NAME' != expected '$EXPECTED_NAME'"
+            exit 1
+          fi
+          if [ "$PACK_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Packed version '$PACK_VERSION' != package.json version '$PKG_VERSION'"
+            exit 1
+          fi
+          echo "✅ Name/version assertion passed."
+
+      # Supply-chain evidence: print tarball SHA-256 + the file inventory that
+      # would be published. Recorded in the job summary for human review.
+      - name: Tarball evidence (SHA-256 + file inventory)
+        run: |
+          set -euo pipefail
+          TARBALL="${{ steps.pack.outputs.tarball }}"
+          SHA=$(sha256sum "$TARBALL" | awk '{print $1}')
+          echo "## SDK tarball evidence" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tarball: \`$TARBALL\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- SHA-256: \`$SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### File inventory (npm pack --dry-run)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm pack --dry-run 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "Tarball SHA-256: $SHA"
+
+      # ---------------------------------------------------------------------
+      # FAIL-CLOSED PRIVATE GUARD.
+      # If package.json `private` is true, ABORT here — before any publish step
+      # is reachable. This is the hard stop that makes the workflow incapable of
+      # publishing while the SDK remains private. Do NOT weaken or move this
+      # step below the publish step.
+      # ---------------------------------------------------------------------
+      - name: Fail-closed private guard
+        run: |
+          set -euo pipefail
+          PRIVATE=$(node -p "String(require('./package.json').private === true)")
+          if [ "$PRIVATE" = "true" ]; then
+            echo "::error::FAIL-CLOSED: package.json has \"private\": true — publication is BLOCKED."
+            echo "Removing private:true requires separate explicit Founder authorization (D-151 §9)."
+            exit 1
+          fi
+          echo "✅ Private guard passed: package is not marked private."
+
+      # ---------------------------------------------------------------------
+      # GATED PUBLISH (Trusted Publishing / OIDC).
+      # Only reachable when:
+      #   * the private guard above PASSED (package not private), AND
+      #   * the operator explicitly set confirm_publish == true.
+      # Default dispatch (confirm_publish=false) skips this entirely => dry-run.
+      # Uses OIDC provenance + public access. NO token is configured; npm derives
+      # the credential from the `id-token: write` OIDC exchange against the
+      # repo's configured Trusted Publisher.
+      # ---------------------------------------------------------------------
+      - name: Publish to npm (OIDC Trusted Publishing)
+        if: ${{ inputs.confirm_publish == true }}
+        run: |
+          set -euo pipefail
+          echo "Publishing @free2aitools/sdk via OIDC Trusted Publishing..."
+          npm publish --provenance --access public
+
+      - name: Dry-run notice
+        if: ${{ inputs.confirm_publish != true }}
+        run: |
+          echo "ℹ️ DRY-RUN: confirm_publish was not true — no publish was attempted."
+          echo "Build, typecheck, test, pack, and evidence completed."
