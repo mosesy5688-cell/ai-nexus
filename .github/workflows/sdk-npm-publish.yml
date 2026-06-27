@@ -1,0 +1,310 @@
+name: SDK npm Publish (Trusted Publishing / OIDC, staged)
+
+# =============================================================================
+# Founder D-151 §9 Phase A / D-152 amendment — FUTURE staged npm Trusted
+# Publishing for @free2aitools/sdk.
+# =============================================================================
+# POSTURE (fail-closed, two-job, verify-only default):
+#   * This workflow PREPARES the supply chain for npm STAGED Trusted Publishing
+#     (OIDC). It MUST NOT make a package publicly installable today.
+#   * Job 1 (verify-and-pack) builds/tests and produces ONE audited .tgz plus a
+#     machine-readable evidence file. It has NO OIDC permission and NO publish
+#     capability. The DEFAULT dispatch (confirm_stage=false) runs ONLY Job 1 and
+#     SUCCEEDS — a real verify-only run, not a fail-closed exit.
+#   * Job 2 (stage) runs only when confirm_stage==true. It does NO build/test/
+#     lifecycle: it downloads the EXACT audited .tgz from Job 1, re-verifies its
+#     SHA-256 / name / version, fail-closed-aborts if package.json private:true,
+#     asserts npm/Node minimums, then `npm stage publish` (staged — a human
+#     maintainer must still approve via 2FA before it becomes installable).
+#   * `npm stage publish` is used — NEVER direct `npm publish`. Staging uploads
+#     the EXACT prebuilt tarball; there is no repack and prepublishOnly does not
+#     re-run, so the audited bytes are exactly what is staged.
+#   * No NPM_TOKEN / username / password / 2FA / recovery code anywhere. OIDC
+#     (`id-token: write`) is the only credential, confined to Job 2.
+#
+# WHAT IS REQUIRED BEFORE A REAL STAGED PUBLICATION CAN HAPPEN (out of scope):
+#   1. `"private": true` removed from packages/sdk/package.json under separate
+#      explicit Founder authorization (until then the stage job aborts).
+#   2. A Trusted Publisher (stage-only recommended) configured on npmjs.com for
+#      @free2aitools/sdk naming THIS repo + THIS workflow.
+#   3. The protected GitHub Environment `npm-publish` given required reviewers
+#      (a Founder-side repo setting; the YAML only references it).
+#   4. An explicit Founder workflow_dispatch with confirm_stage=true, plus a
+#      maintainer 2FA approval of the staged package on npm.
+# =============================================================================
+
+on:
+  # Manual only. No push / pull_request / tag — no automatic publish path.
+  workflow_dispatch:
+    inputs:
+      confirm_stage:
+        description: >-
+          Set true ONLY for a Founder-authorized STAGED publish (Job 2).
+          Default (false) runs verify-and-pack only: build + test + audited
+          tarball + evidence. NOTHING is staged or published.
+        type: boolean
+        required: true
+        default: false
+
+concurrency:
+  group: sdk-npm-publish
+  cancel-in-progress: false
+
+jobs:
+  # ===========================================================================
+  # JOB 1 — verify-and-pack
+  # contents:read ONLY (NO id-token:write), no environment, no publish power.
+  # MUST SUCCEED on the default dispatch (confirm_stage=false).
+  # ===========================================================================
+  verify-and-pack:
+    name: Verify and pack (audited tarball + evidence)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: packages/sdk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Cache intentionally DISABLED on the release build for reproducibility:
+      # the audited bytes must derive from a clean, cache-free resolution.
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install dependencies (npm ci, workspace root)
+        working-directory: .
+        run: npm ci
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Test (vitest)
+        run: npm test
+
+      # Produce EXACTLY ONE tarball. Capture its filename for downstream steps.
+      - name: Pack audited tarball
+        id: pack
+        run: |
+          set -euo pipefail
+          rm -f ./*.tgz
+          TARBALL=$(npm pack --silent)
+          COUNT=$(ls -1 ./*.tgz | wc -l)
+          if [ "$COUNT" != "1" ]; then
+            echo "::error::Expected exactly 1 tarball, found $COUNT"
+            exit 1
+          fi
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "Packed: $TARBALL"
+
+      # Identity + integrity audit of the EXACT tarball that will be staged.
+      # Asserts name==@free2aitools/sdk and version==package.json version, and
+      # writes a machine-readable evidence file (sha256, name, version, files).
+      - name: Audit tarball identity and write evidence
+        id: evidence
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          EXPECTED_NAME="@free2aitools/sdk"
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "String(require('./package.json').version)")
+
+          if [ "$PKG_NAME" != "$EXPECTED_NAME" ]; then
+            echo "::error::package.json name '$PKG_NAME' != expected '$EXPECTED_NAME'"
+            exit 1
+          fi
+
+          SHA=$(sha256sum "$TARBALL" | awk '{print $1}')
+
+          # File inventory from the tarball itself (the exact bytes audited).
+          FILES=$(tar -tzf "$TARBALL" | sort)
+
+          # Confirm the packed manifest matches package.json name/version too.
+          PACK_JSON=$(npm pack --dry-run --json)
+          PACK_NAME=$(node -e "process.stdout.write(JSON.parse(process.argv[1])[0].name)" "$PACK_JSON")
+          PACK_VERSION=$(node -e "process.stdout.write(String(JSON.parse(process.argv[1])[0].version))" "$PACK_JSON")
+          if [ "$PACK_NAME" != "$EXPECTED_NAME" ]; then
+            echo "::error::packed name '$PACK_NAME' != expected '$EXPECTED_NAME'"
+            exit 1
+          fi
+          if [ "$PACK_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::packed version '$PACK_VERSION' != package.json '$PKG_VERSION'"
+            exit 1
+          fi
+
+          # Machine-readable evidence file (sha256, name, version, file list).
+          PKG_NAME="$PKG_NAME" PKG_VERSION="$PKG_VERSION" TARBALL="$TARBALL" \
+          SHA="$SHA" FILES="$FILES" node -e '
+            const fs = require("fs");
+            const ev = {
+              name: process.env.PKG_NAME,
+              version: process.env.PKG_VERSION,
+              tarball: process.env.TARBALL,
+              sha256: process.env.SHA,
+              files: (process.env.FILES || "").split("\n").filter(Boolean),
+            };
+            fs.writeFileSync("evidence.json", JSON.stringify(ev, null, 2));
+          '
+
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          {
+            echo "## SDK audited tarball"
+            echo ""
+            echo "- Tarball: \`$TARBALL\`"
+            echo "- Name: \`$PKG_NAME\`"
+            echo "- Version: \`$PKG_VERSION\`"
+            echo "- SHA-256: \`$SHA\`"
+            echo ""
+            echo "### File inventory"
+            echo '```'
+            echo "$FILES"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Audited $TARBALL sha256=$SHA"
+
+      - name: Upload audited tarball + evidence artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: sdk-audited-tarball
+          path: |
+            packages/sdk/*.tgz
+            packages/sdk/evidence.json
+          retention-days: 7
+          if-no-files-found: error
+
+  # ===========================================================================
+  # JOB 2 — stage
+  # Runs only when confirm_stage==true. NO build / test / install / lifecycle /
+  # tool acquisition (only setup-node provisions the pinned runtime). Downloads
+  # the EXACT Job-1 tarball, re-verifies it, asserts private===false
+  # (fail-closed) and EXACT Node 24.18.0 / npm 11.16.0 pins, then
+  # `npm stage publish` (staged). OIDC (id-token:write) is confined HERE.
+  # ===========================================================================
+  stage:
+    name: Stage publish (OIDC, exact audited tarball)
+    needs: verify-and-pack
+    if: ${{ inputs.confirm_stage == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      # NOTE: no actions/checkout, no npm ci, no build/test — by design. This
+      # job runs NO package lifecycle. It only consumes the audited bytes.
+      - name: Download audited tarball + evidence
+        uses: actions/download-artifact@v7
+        with:
+          name: sdk-audited-tarball
+          path: artifact
+
+      # Re-verify the EXACT tarball: SHA-256, name, version against Job-1
+      # evidence; fail-closed if package.json reports private:true.
+      - name: Re-verify tarball identity, integrity, and private flag
+        id: verify
+        run: |
+          set -euo pipefail
+          cd artifact
+          COUNT=$(ls -1 ./*.tgz | wc -l)
+          if [ "$COUNT" != "1" ]; then
+            echo "::error::Expected exactly 1 tarball from Job 1, found $COUNT"
+            exit 1
+          fi
+          TARBALL=$(ls -1 ./*.tgz)
+
+          EXPECTED_SHA=$(node -p "require('./evidence.json').sha256")
+          EXPECTED_NAME=$(node -p "require('./evidence.json').name")
+          EXPECTED_VERSION=$(node -p "String(require('./evidence.json').version)")
+
+          ACTUAL_SHA=$(sha256sum "$TARBALL" | awk '{print $1}')
+          if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
+            echo "::error::SHA-256 mismatch: Job1=$EXPECTED_SHA Job2=$ACTUAL_SHA"
+            exit 1
+          fi
+
+          if [ "$EXPECTED_NAME" != "@free2aitools/sdk" ]; then
+            echo "::error::name '$EXPECTED_NAME' != @free2aitools/sdk"
+            exit 1
+          fi
+
+          # Read name/version/private straight from the tarball's package.json
+          # (the exact bytes being staged) — not from a fresh checkout.
+          PKG=$(tar -xzO -f "$TARBALL" package/package.json)
+          T_NAME=$(printf '%s' "$PKG" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(0,'utf8')).name)")
+          T_VERSION=$(printf '%s' "$PKG" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync(0,'utf8')).version))")
+          T_PRIVATE=$(printf '%s' "$PKG" | node -e "process.stdout.write(String(JSON.parse(require('fs').readFileSync(0,'utf8')).private===true))")
+
+          if [ "$T_NAME" != "@free2aitools/sdk" ]; then
+            echo "::error::tarball name '$T_NAME' != @free2aitools/sdk"
+            exit 1
+          fi
+          if [ "$T_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "::error::tarball version '$T_VERSION' != evidence '$EXPECTED_VERSION'"
+            exit 1
+          fi
+
+          # FAIL-CLOSED private guard.
+          if [ "$T_PRIVATE" = "true" ]; then
+            echo "::error::FAIL-CLOSED: package.json \"private\": true — staging BLOCKED."
+            echo "Removing private:true requires separate explicit Founder authorization (D-151 §9)."
+            exit 1
+          fi
+
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "✅ Re-verify passed: sha256=$ACTUAL_SHA name=$T_NAME version=$T_VERSION private=false"
+
+      # Pin the stage-job runtime. setup-node is the ONLY tool provisioning
+      # permitted in this id-token:write job — no `npm install -g`, no npx,
+      # corepack, curl/wget installer, or any other tool acquisition may run in
+      # the OIDC credential domain (D-153). Node 24.18.0 ships npm 11.16.0
+      # (>= the 11.15.0 staged-publishing floor), so no global npm install is
+      # needed. Cache DISABLED for reproducibility.
+      - name: Setup Node.js (pinned runtime for staged publish)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24.18.0'
+
+      # EXACT (not floor) fail-closed toolchain pins, asserted BEFORE staging.
+      # While the runtime is pinned, the versions MUST EQUAL the expected pins;
+      # any drift aborts before `npm stage publish`. (Future upgrades are an
+      # ordinary reviewed workflow PR that bumps these constants.)
+      - name: Assert exact Node 24.18.0 and npm 11.16.0 (fail-closed)
+        run: |
+          set -euo pipefail
+          EXPECTED_NODE="24.18.0"
+          EXPECTED_NPM="11.16.0"
+          NODE_V=$(node --version | sed 's/^v//')
+          NPM_V=$(npm --version)
+          echo "node=$NODE_V npm=$NPM_V (expected node=$EXPECTED_NODE npm=$EXPECTED_NPM)"
+
+          if [ "$NODE_V" != "$EXPECTED_NODE" ]; then
+            echo "::error::Node $NODE_V != required exact $EXPECTED_NODE"
+            exit 1
+          fi
+          if [ "$NPM_V" != "$EXPECTED_NPM" ]; then
+            echo "::error::npm $NPM_V != required exact $EXPECTED_NPM"
+            exit 1
+          fi
+          echo "✅ Exact toolchain pins satisfied."
+
+      # STAGED publish of the EXACT audited tarball via OIDC. `npm stage publish`
+      # (NOT `npm publish`): the package is queued and a human maintainer must
+      # approve it with 2FA before it becomes installable.
+      - name: npm stage publish (exact tarball, OIDC provenance)
+        run: |
+          set -euo pipefail
+          cd artifact
+          TARBALL="${{ steps.verify.outputs.tarball }}"
+          echo "Staging $TARBALL via OIDC Trusted Publishing (staged)..."
+          npm stage publish "$TARBALL" --provenance --access public
