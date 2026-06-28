@@ -10,14 +10,30 @@
  * OpenAPI/MCP contract is unchanged (D-142 §5/§4 must not break it).
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { dirname, resolve, relative } from 'path';
 import { createRequire } from 'module';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
 const require = createRequire(import.meta.url);
+
+// Recursively collect every src/pages/**/*.astro file (relative to root).
+const listPageAstro = (): string[] => {
+    const out: string[] = [];
+    const walk = (abs: string) => {
+        for (const ent of readdirSync(abs, { withFileTypes: true })) {
+            const child = resolve(abs, ent.name);
+            if (ent.isDirectory()) walk(child);
+            else if (ent.isFile() && ent.name.endsWith('.astro')) {
+                out.push(relative(root, child).replace(/\\/g, '/'));
+            }
+        }
+    };
+    walk(resolve(root, 'src/pages'));
+    return out.sort();
+};
 
 const TERMS = read('src/pages/terms.astro');
 const PRIVACY = read('src/pages/privacy.astro');
@@ -57,6 +73,33 @@ describe('D-142 §2/§3: terms + privacy contain no stale account/payment claims
     it('privacy.astro makes no GTM / Do-Not-Track claim', () => {
         expect(PRIVACY).not.toMatch(/google tag manager.*do not track/i);
         expect(PRIVACY).not.toMatch(/respects do not track/i);
+    });
+});
+
+describe('D-174 §D: NO public page asserts a paid-subscription / refund / paid-tier claim', () => {
+    // Gap closure: the FORBIDDEN_POLICY scan previously covered ONLY terms.astro +
+    // privacy.astro, so the false refund.astro page slipped through. Scan EVERY
+    // src/pages/**/*.astro at test time so a re-introduced paid-claim page fails here.
+    const pageFiles = listPageAstro();
+
+    it('discovers more than just terms/privacy (scan actually walks the tree)', () => {
+        expect(pageFiles.length).toBeGreaterThan(2);
+    });
+
+    for (const rel of pageFiles) {
+        const body = read(rel);
+        for (const re of FORBIDDEN_POLICY) {
+            it(`${rel} has no ${re}`, () => expect(body).not.toMatch(re));
+        }
+    }
+
+    it('the false refund-policy page no longer exists', () => {
+        expect(existsSync(resolve(root, 'src/pages/refund.astro'))).toBe(false);
+        expect(pageFiles).not.toContain('src/pages/refund.astro');
+    });
+
+    it('Footer.astro contains no /refund link reference', () => {
+        expect(read('src/components/Footer.astro')).not.toMatch(/\/refund\b/);
     });
 });
 
