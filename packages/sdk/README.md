@@ -26,8 +26,8 @@ reason over them. It is built on standard Web APIs (`fetch`, `AbortController`,
   `free2aitools` is **created** and the `@free2aitools` scope is reserved.
 - **Not yet published.** The package is **not** on npm yet; publication is
   pending Founder authorization and gated separately (D-125), out of scope here.
-- The package is **`"private": true`** for now to prevent accidental publish.
-  That guard is removed only at the later, authorized publish step.
+- The package manifest is publish-prepared (`publishConfig.access: public`); the
+  actual npm publish is a separate, authorized step and has not been performed.
 
 ## Install (available once published)
 

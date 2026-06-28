@@ -2,7 +2,6 @@
   "name": "@free2aitools/sdk",
   "version": "0.1.0",
   "description": "Free, public TypeScript SDK for the Free2AITools AI discovery / evidence / identity REST API. Retrieves candidates, evidence, and FNI rankings; the caller makes the final decision.",
-  "private": true,
   "type": "module",
   "license": "MIT",
   "repository": {
