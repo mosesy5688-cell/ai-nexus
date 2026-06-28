@@ -488,6 +488,36 @@ proof in the PR body).
 | TEL-RL-NONVAC | NON-VACUITY: BOTH approved routes still import `route-telemetry` AND call `emitRoute(...)` (the test FAILS if route instrumentation is removed); NEITHER route names the AE binding token (no-read invariant preserved) (gate 15) | `tests/srs1/telemetry-route-local.test.ts` | SOURCE | **NEW** |
 | TEL-RL-BUNDLE | IMPORT/BUNDLE SAFETY (#2218 prevention): `src/middleware.ts` has NO direct telemetry import edge AND no telemetry module is reachable from the transitive middleware static-import (Worker-startup) chain; NON-VACUITY mutation — injecting a `middleware -> telemetry` static import MAKES the graph walk FAIL, removing it restores PASS (repo stays clean); a resolver self-check proves the walker resolves a real edge (gates 9, 10, 16) | `tests/srs1/telemetry-bundle-boundary.test.ts` | STRUCT | **NEW** |
 
+## Registry — B1 (D-180 data-mirror proxy prod-exposure removal, SECURITY)
+
+> Deterministic, hermetic STRUCT route-removal invariant for B1 (Founder D-180).
+> `src/pages/data-mirror/[...path].ts` was an Astro SSR catch-all ROUTE that, in
+> the production `output:'server'` + Cloudflare deployment, was publicly reachable
+> at `/data-mirror/<path>`; on GET it fetched
+> `https://cdn.free2aitools.com/cache/${path}` and returned the JSON body with
+> `Access-Control-Allow-Origin: *` — a GET-only proxy with NO size limit, NO
+> timeout, NO header forwarding, and ZERO tracked callers (absent from
+> API/MCP/SDK/OpenAPI/sitemap/middleware/redirects). CLASSIFICATION:
+> PREFIX_CONFINED_PROXY_WITH_UNJUSTIFIED_PROD_EXPOSURE — the target host+prefix is
+> a fixed literal so it is NOT an SSRF, but a "CORS bypass proxy for local
+> development" had no production justification while being prod-exposed. The
+> approved remediation DELETES the route file; with no route file under
+> `src/pages/`, Astro cannot route the path, so a public request to
+> `/data-mirror/*` returns HTTP 404 (structural). This guard reads repo
+> SOURCE/CONFIG only (no live fetch, no behavior re-implementation): the route
+> file is ABSENT, no replacement `data-mirror` route exists under `src/pages/`, no
+> `astro.config.mjs` redirect / `src/middleware.ts` rewrite recreates the path, no
+> tracked RUNTIME source (`src/**`, `scripts/**`) references it, the route scan is
+> NON-VACUOUS (discovers real route files), a missing routing root FAILS
+> fail-closed, and a synthetic reintroduction turns the detectors RED. The
+> runtime-reference scan is scoped to `src/**` + `scripts/**` so historical
+> governance/brain text and this test's own forbidden-string fixture never
+> false-trip. Single file: `tests/unit/data-mirror-route-removed.test.ts`.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| B1 | `data-mirror` proxy route file ABSENT (=> public 404); no replacement route, no redirect/middleware re-creation, no `src/**`/`scripts/**` runtime reference; non-vacuous + fail-closed + anti-vacuity-proven | `tests/unit/data-mirror-route-removed.test.ts` | STRUCT | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
