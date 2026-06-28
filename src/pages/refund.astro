@@ -1,0 +1,26 @@
+---
+// D-175 §E: this route returns 410 Gone — the retired legal page (shipped
+// PR #1917) is permanently removed because Free2AITools is free (no paid plans,
+// no payments). Mirrors the /reports 410 idiom (src/pages/reports/index.astro,
+// V27.42). All copy is token-clean: it must NOT contain any paid-claim
+// vocabulary that tests/unit/d142-policy-truth.test.ts forbids.
+Astro.response.status = 410;
+Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
+---
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>410 — Page Removed — Free2AITools</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+        a { color: #93c5fd; }
+    </style>
+</head>
+<body>
+    <h1>410 — This Page Is No Longer Available</h1>
+    <p>Free2AITools is free to use. There are no paid plans and no payments, so this policy page has been permanently removed.</p>
+    <p>For programmatic details, see <a href="/llms.txt">/llms.txt</a> and <a href="/openapi.json">/openapi.json</a>. Return to <a href="/">free2aitools.com</a>.</p>
+</body>
+</html>
