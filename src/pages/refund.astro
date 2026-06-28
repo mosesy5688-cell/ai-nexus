@@ -1,28 +1,26 @@
 ---
-import Layout from '@/layouts/Layout.astro';
-const pageTitle = "Refund Policy | Free2AITools";
-const pageDescription = "Refund Policy for Free2AITools API subscriptions.";
+// D-175 §E: this route returns 410 Gone — the retired legal page (shipped
+// PR #1917) is permanently removed because Free2AITools is free (no paid plans,
+// no payments). Mirrors the /reports 410 idiom (src/pages/reports/index.astro,
+// V27.42). All copy is token-clean: it must NOT contain any paid-claim
+// vocabulary that tests/unit/d142-policy-truth.test.ts forbids.
+Astro.response.status = 410;
+Astro.response.headers.set('Cache-Control', 'public, max-age=86400');
 ---
-
-<Layout title={pageTitle} description={pageDescription}>
-  <div class="max-w-3xl mx-auto px-4 py-16 prose prose-invert prose-sm">
-    <h1 class="text-2xl font-black text-[var(--text-strong)] uppercase tracking-tight">Refund Policy</h1>
-    <p class="text-xs text-zinc-500">Last updated: May 1, 2026</p>
-
-    <h2>Free Tier</h2>
-    <p>The Free tier (500 API calls/month) requires no payment and no refund applies.</p>
-
-    <h2>Paid Subscriptions</h2>
-    <ul>
-      <li><strong>14-day money-back guarantee</strong>: If you are not satisfied with your subscription, contact us within 14 days of your first payment for a full refund.</li>
-      <li><strong>After 14 days</strong>: No refunds for the current billing period. You may cancel at any time, and your access continues until the end of the paid period.</li>
-      <li><strong>Prorated refunds</strong>: If we discontinue a feature that was a primary reason for your subscription, we will offer a prorated refund for the remaining period.</li>
-    </ul>
-
-    <h2>How to Request a Refund</h2>
-    <p>Contact us via <a href="https://github.com/mosesy5688-cell/ai-nexus/issues">GitHub Issues</a> with your account email and reason for the refund. We will process refunds within 5-10 business days.</p>
-
-    <h2>Chargebacks</h2>
-    <p>Please contact us before initiating a chargeback with your bank. We are happy to resolve any issues directly. Chargebacks are handled by our payment processor (Merchant of Record).</p>
-  </div>
-</Layout>
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>410 — Page Removed — Free2AITools</title>
+    <meta name="robots" content="noindex">
+    <style>
+        body { font-family: system-ui, sans-serif; background: #181818; color: #e5e5e5; max-width: 640px; margin: 4rem auto; padding: 0 1.5rem; }
+        a { color: #93c5fd; }
+    </style>
+</head>
+<body>
+    <h1>410 — This Page Is No Longer Available</h1>
+    <p>Free2AITools is free to use. There are no paid plans and no payments, so this policy page has been permanently removed.</p>
+    <p>For programmatic details, see <a href="/llms.txt">/llms.txt</a> and <a href="/openapi.json">/openapi.json</a>. Return to <a href="/">free2aitools.com</a>.</p>
+</body>
+</html>
