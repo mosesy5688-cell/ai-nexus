@@ -446,6 +446,108 @@ jobs:
           esac
           echo "$CONTROL gate result OK ($VERDICT)"
 
+      # GR-02 (Founder D-184 §B): additive Tier-A security-header matrix over the
+      # CANDIDATE preview ONLY. The recovered/current/broken control builds predate
+      # the src/middleware.ts change and would (correctly) lack these headers, so
+      # asserting them there would red legs the A/B/C qualification expects to pass.
+      # This step reads the SAME deploy-info.json preview URL the smoke used and does
+      # NOT touch the smoke verdict, identity-chain, deploy or cleanup structure.
+      - name: GR-02 Tier-A security-header matrix (candidate only)
+        if: needs.gate-guard.outputs.trusted == 'true' && matrix.control == 'candidate'
+        env:
+          PP: 'geolocation=(), camera=(), microphone=(), usb=(), payment=(), magnetometer=(), gyroscope=(), accelerometer=(), midi=(), serial=(), hid=()'
+        run: |
+          set -euo pipefail
+          PREVIEW_URL=$(node -e "process.stdout.write(require('./deploy-info.json').preview_url)")
+          export PREVIEW_URL
+          node <<'NODE'
+          const base = process.env.PREVIEW_URL;
+          const PP = process.env.PP;
+          const fails = [];
+          const ok = (c, m) => { if (!c) fails.push(m); };
+          const T = 30000;
+          async function get(p, init = {}) {
+            const r = await fetch(new URL(p, base), { signal: AbortSignal.timeout(T), redirect: 'manual', ...init });
+            const body = await r.text();
+            return { status: r.status, h: r.headers, body };
+          }
+          function human(tag, h) {
+            ok(h.get('x-frame-options') === 'DENY', tag + ': X-Frame-Options != DENY');
+            ok(h.get('content-security-policy') === "frame-ancestors 'none'", tag + ': CSP != frame-ancestors none');
+            ok(h.get('referrer-policy') === 'strict-origin-when-cross-origin', tag + ': Referrer-Policy wrong');
+            ok(h.get('permissions-policy') === PP, tag + ': Permissions-Policy wrong (' + h.get('permissions-policy') + ')');
+            ok(h.get('x-content-type-options') === 'nosniff', tag + ': nosniff not exactly one (' + h.get('x-content-type-options') + ')');
+            const csp = h.get('content-security-policy') || '';
+            for (const d of ['script-src', 'style-src', 'connect-src', 'img-src', 'default-src']) ok(!csp.includes(d), tag + ': CSP carries Tier-B ' + d);
+            for (const f of ['cross-origin-opener-policy', 'cross-origin-embedder-policy', 'cross-origin-resource-policy']) ok(!h.get(f), tag + ': forbidden Tier-B ' + f);
+          }
+          function machine(tag, h, acao) {
+            ok(h.get('x-content-type-options') === 'nosniff', tag + ': nosniff not exactly one (' + h.get('x-content-type-options') + ')');
+            ok(!h.get('content-security-policy'), tag + ': machine must not carry CSP');
+            ok(!h.get('permissions-policy'), tag + ': machine must not carry Permissions-Policy');
+            for (const f of ['cross-origin-opener-policy', 'cross-origin-embedder-policy']) ok(!h.get(f), tag + ': forbidden ' + f);
+            if (acao !== false) ok(h.get('access-control-allow-origin') === '*', tag + ': ACAO:* not preserved (' + h.get('access-control-allow-origin') + ')');
+          }
+          (async () => {
+            const home = await get('/');
+            ok(home.status === 200, 'home status ' + home.status);
+            ok((home.h.get('content-type') || '').includes('text/html'), 'home not text/html');
+            ok(home.body.length > 0, 'home empty body (Worker cold-load unhealthy)');
+            human('home', home.h);
+            ok(/cdn\.jsdelivr\.net[^"']*alpine/i.test(home.body), 'home missing jsDelivr Alpine script (CDN interaction)');
+            const list = await get('/models');
+            ok(list.status === 200 && (list.h.get('content-type') || '').includes('text/html'), '/models not 200 html (' + list.status + ')');
+            human('/models', list.h);
+            const m = home.body.match(/\/(?:models|papers|datasets|tools|benchmarks)\/[A-Za-z0-9._~%/-]+/);
+            if (m) {
+              const d = await get(m[0]);
+              ok(d.status === 200 && (d.h.get('content-type') || '').includes('text/html'), 'detail ' + m[0] + ' not 200 html (' + d.status + ')');
+              human('detail ' + m[0], d.h);
+              ok((d.h.get('cache-control') || '').length > 0, 'detail ' + m[0] + ': Cache-Control missing');
+            } else { console.log('NOTE: no detail link found on homepage to probe'); }
+            const a = home.body.match(/\/_astro\/[A-Za-z0-9._-]+\.(?:js|css)/);
+            if (a) {
+              const as = await get(a[0]);
+              ok(as.status === 200, 'asset ' + a[0] + ' status ' + as.status);
+              ok((as.h.get('cache-control') || '').includes('immutable'), 'asset ' + a[0] + ': immutable Cache-Control changed (' + as.h.get('cache-control') + ')');
+              console.log('asset ' + a[0] + ' XFO=' + as.h.get('x-frame-options') + ' nosniff=' + as.h.get('x-content-type-options') + ' (middleware-on-asset coverage observed)');
+            } else { console.log('NOTE: no /_astro asset found on homepage'); }
+            const nf = await get('/this-path-does-not-exist-gr02-xyz');
+            ok(nf.status === 404, '404 probe status ' + nf.status);
+            const refund = await get('/refund');
+            ok(refund.status === 410, '/refund status ' + refund.status + ' (410 not preserved)');
+            ok((refund.h.get('cache-control') || '').length > 0, '/refund Cache-Control missing');
+            const rd = await get('/leaderboard');
+            ok([301, 302, 307, 308].includes(rd.status), '/leaderboard not a redirect (' + rd.status + ')');
+            ok((rd.h.get('location') || '').length > 0, '/leaderboard redirect Location missing');
+            const health = await get('/api/v1/health');
+            ok(health.status < 500 && health.body.length > 0, 'health ' + health.status + ' len=' + health.body.length);
+            machine('health', health.h);
+            ok((health.h.get('cache-control') || '').includes('no-store'), 'health Cache-Control not no-store (' + health.h.get('cache-control') + ')');
+            const search = await get('/api/v1/search?q=llama');
+            machine('search', search.h);
+            ok((search.h.get('cache-control') || '').length > 0, 'search Cache-Control missing');
+            machine('datasets', (await get('/api/v1/datasets')).h);
+            const mcp = await get('/api/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }) });
+            ok(mcp.status === 200, 'mcp POST status ' + mcp.status);
+            ok(/"jsonrpc"\s*:\s*"2\.0"/.test(mcp.body), 'mcp POST not JSON-RPC 2.0');
+            machine('mcp POST', mcp.h);
+            const pre = await get('/api/mcp', { method: 'OPTIONS', headers: { 'access-control-request-method': 'POST', origin: 'https://example.com' } });
+            ok([200, 204].includes(pre.status), 'mcp OPTIONS preflight status ' + pre.status);
+            ok(pre.h.get('access-control-allow-origin') === '*', 'mcp OPTIONS ACAO:* not preserved');
+            ok(!pre.h.get('content-security-policy'), 'mcp OPTIONS must not carry CSP');
+            const oas = await get('/openapi.json');
+            machine('openapi', oas.h);
+            ok((oas.h.get('cache-control') || '').includes('max-age'), 'openapi Cache-Control unchanged check (' + oas.h.get('cache-control') + ')');
+            const llms = await get('/llms.txt');
+            ok(llms.h.get('access-control-allow-origin') === '*', 'llms.txt ACAO:* not preserved');
+            ok(llms.h.get('x-content-type-options') === 'nosniff', 'llms.txt nosniff not single');
+            console.log('HSTS(preview)=' + home.h.get('strict-transport-security') + ' nosniff(home)=' + home.h.get('x-content-type-options'));
+            if (fails.length) { console.error('GR-02 HEADER FAILURES:\n - ' + fails.join('\n - ')); process.exit(1); }
+            console.log('GR-02 Tier-A header matrix: ALL PASS');
+          })().catch((e) => { console.error('GR-02 header probe error:', (e && e.stack) || e); process.exit(1); });
+          NODE
+
   # (D) CLEANUP — environment ta2-preview, if: always(). Delete by EXACT id
   # (--force for aliased previews) + VERIFY absence. Cleanup failure = RED.
   cleanup:
