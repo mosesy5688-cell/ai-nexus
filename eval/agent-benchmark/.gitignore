@@ -1,0 +1,25 @@
+# A1 benchmark harness — artifacts and local state are NEVER committed.
+# out/ holds run manifests, per-episode transcripts, tool-call evidence, scores.
+out/
+out/**
+/out/
+
+# Local model cache (Ollama models are operator-installed external binaries,
+# never an npm dep, never committed).
+.model-cache/
+*.gguf
+*.bin
+
+# Node
+node_modules/
+
+# Editor / OS noise
+.DS_Store
+*.log
+
+# Never commit secrets, credentials, participant data, or private transcripts.
+*.env
+.env*
+secrets.*
+participants.*
+roster.*

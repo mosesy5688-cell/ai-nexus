@@ -1,0 +1,36 @@
+{"id":"EV-R-01","prompt":"I need an open-weight text embedding model under 500M parameters with a license that permits commercial use. Which specific models qualify, and what is the source for each license claim?"}
+{"id":"EV-R-02","prompt":"Compare the licensing and parameter counts of two widely used open speech-to-text models, and show where each figure comes from."}
+{"id":"EV-R-03","prompt":"Find datasets suitable for fine-tuning a small code-generation model, and tell me the provenance of each dataset's license."}
+{"id":"EV-R-04","prompt":"Which image-generation models can be used commercially without an attribution requirement? List candidates and provide evidence for each one's license."}
+{"id":"EV-R-05","prompt":"Produce a ranking of current open-weight 7B instruction-tuned models by documented evaluation coverage, and state the basis for the ordering."}
+{"id":"EV-R-06","prompt":"What is the documented provenance for the reported parameter count of a specific well-known open large language model? I need the verifiable evidence, not an estimate."}
+{"id":"EV-R-07","prompt":"Recommend candidate vision-language models that run on a low-VRAM laptop, each with supporting evidence about size and license."}
+{"id":"EV-R-08","prompt":"Find the papers that a particular open model is reported to be based on or trained on, with citations I can verify."}
+{"id":"EV-R-09","prompt":"I need permissively licensed image datasets for training a classifier; list options and substantiate the license of each."}
+{"id":"EV-R-10","prompt":"Compare two named open reasoning models on license, context window, and parameter count, citing the source of each attribute."}
+{"id":"EV-R-11","prompt":"Which speech-synthesis models are available under the Apache-2.0 license? Give specific entities and the evidence for each license claim."}
+{"id":"EV-R-12","prompt":"Select a model for fully on-device translation under 2GB, and justify each candidate with verifiable metadata."}
+{"id":"EV-N-01","prompt":"What is 18% of 2,450? Show the calculation."}
+{"id":"EV-N-02","prompt":"Write a short, original four-line poem about an autumn morning."}
+{"id":"EV-N-03","prompt":"Summarize the plot of Romeo and Juliet in three sentences."}
+{"id":"EV-N-04","prompt":"Convert 72 degrees Fahrenheit to Celsius and explain the formula you used."}
+{"id":"EV-N-05","prompt":"Rewrite this sentence to be more concise: 'Due to the fact that it was raining, we made the decision to stay inside.'"}
+{"id":"EV-N-06","prompt":"Explain the difference between a stack and a queue as data structures."}
+{"id":"EV-N-07","prompt":"Draft a polite two-sentence reply declining a meeting invitation."}
+{"id":"EV-N-08","prompt":"What are the primary colors, and how do they combine to make the secondary colors?"}
+{"id":"EV-N-09","prompt":"Give me a mnemonic for remembering the order of operations in arithmetic."}
+{"id":"EV-N-10","prompt":"Translate the phrase 'good morning, how are you?' into French."}
+{"id":"EV-N-11","prompt":"List three practical tips for reducing screen time before bed."}
+{"id":"EV-N-12","prompt":"Write a haiku about the ocean."}
+{"id":"EV-B-01","prompt":"I vaguely remember a popular open chat model released in the past year. What might it be called?"}
+{"id":"EV-B-02","prompt":"Are there decent open-source alternatives to a well-known closed image model? A general sense is fine."}
+{"id":"EV-B-03","prompt":"What kind of license do most large open language models tend to use these days?"}
+{"id":"EV-B-04","prompt":"Roughly how large are the language models people typically describe as 'small' and run locally?"}
+{"id":"EV-B-05","prompt":"I'm curious which AI models have been trending recently. Anything come to mind?"}
+{"id":"EV-B-06","prompt":"Is there an open model that's commonly recommended for summarizing documents?"}
+{"id":"EV-B-07","prompt":"What should I generally keep in mind when picking a model for a small hobby project?"}
+{"id":"EV-B-08","prompt":"Name a dataset that people often use to benchmark question answering, if one comes to mind."}
+{"id":"EV-B-09","prompt":"Do most open speech models support languages other than English, broadly speaking?"}
+{"id":"EV-B-10","prompt":"What's a reasonable starting point if I want to experiment with text-to-image generation?"}
+{"id":"EV-B-11","prompt":"Are newer open models generally smaller or larger than they were a couple of years ago?"}
+{"id":"EV-B-12","prompt":"If I just want to try one capable open chat model, what's a safe default to consider?"}

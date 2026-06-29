@@ -1,0 +1,111 @@
+{
+  "matrix_version": "matrix-v1.3.0",
+  "provenance_lock_sha": "4288d569ec50f7aa995ed40759c2cb172a64f2fa",
+  "independence_basis": "OPTION_A_THREE_DISTINCT_AGENT_LOOPS",
+  "independence_note": "Material independence is established by THREE materially-distinct Agent host/loop implementations, each a distinct model FAMILY and a distinct single transport. Changing only the model with the same loop, or only the transport with the same model, would NOT by itself prove independence; see EVALUATOR_GUIDE.md.",
+  "required_cell_count": 3,
+  "default_monetary_cap_usd": 0.0,
+  "cells": [
+    {
+      "cell_id": "CELL-1-OLLAMA-DIRECT-QWEN",
+      "required": true,
+      "model_repo": "qwen2.5:7b-instruct",
+      "model_family": "Qwen2.5",
+      "model_provider": "Alibaba (Apache-2.0 open weights)",
+      "model_digest": "RECORDED_AT_QUALIFICATION",
+      "quantization": "Q4_K_M",
+      "agent_host_impl": "src/host_ollama_direct.ts",
+      "agent_loop_kind": "single-shot tool-call loop (one tool round then forced finalization)",
+      "host_runtime_version": "RECORDED_AT_QUALIFICATION",
+      "transport": "REST",
+      "model_server": "ollama (OpenAI-compatible /v1/chat/completions)",
+      "generation": {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "top_k": 40,
+        "repetition_penalty": 1.0,
+        "seed_policy": "PRE_REGISTERED_PER_EPISODE_SEED",
+        "context_window": 8192,
+        "max_output_tokens": 1024,
+        "tool_choice_mode": "auto",
+        "max_agent_turns": 2,
+        "max_tool_calls": 4,
+        "stop_conditions": ["final_answer_emitted", "max_agent_turns_reached", "per_episode_timeout"],
+        "prompt_serialization_format": "openai_chat_messages_v1"
+      },
+      "hardware_env_fingerprint": "RECORDED_AT_QUALIFICATION"
+    },
+    {
+      "cell_id": "CELL-2-MCP-AGENTLOOP-LLAMA",
+      "required": true,
+      "model_repo": "llama3.1:8b-instruct",
+      "model_family": "Llama-3.1",
+      "model_provider": "Meta (Llama-3.1 community license)",
+      "model_digest": "RECORDED_AT_QUALIFICATION",
+      "quantization": "Q4_K_M",
+      "agent_host_impl": "src/host_mcp_client.ts",
+      "agent_loop_kind": "streamable-http MCP agent loop (JSON-RPC tools/list + tools/call, multi-turn until finalize)",
+      "host_runtime_version": "RECORDED_AT_QUALIFICATION",
+      "transport": "MCP",
+      "model_server": "ollama backend behind an MCP streamable-http client to /api/mcp",
+      "generation": {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "top_k": 40,
+        "repetition_penalty": 1.0,
+        "seed_policy": "PRE_REGISTERED_PER_EPISODE_SEED",
+        "context_window": 8192,
+        "max_output_tokens": 1024,
+        "tool_choice_mode": "auto",
+        "max_agent_turns": 4,
+        "max_tool_calls": 6,
+        "stop_conditions": ["final_answer_emitted", "max_agent_turns_reached", "per_episode_timeout"],
+        "prompt_serialization_format": "mcp_jsonrpc_messages_v1"
+      },
+      "hardware_env_fingerprint": "RECORDED_AT_QUALIFICATION"
+    },
+    {
+      "cell_id": "CELL-3-REACT-LOOP-MISTRAL",
+      "required": true,
+      "model_repo": "mistral:7b-instruct",
+      "model_family": "Mistral",
+      "model_provider": "Mistral AI (Apache-2.0 open weights)",
+      "model_digest": "RECORDED_AT_QUALIFICATION",
+      "quantization": "Q4_K_M",
+      "agent_host_impl": "src/host_react_loop.ts",
+      "agent_loop_kind": "ReAct-style multi-turn reasoning loop (Thought/Action/Observation, text-protocol tool dispatch)",
+      "host_runtime_version": "RECORDED_AT_QUALIFICATION",
+      "transport": "SDK",
+      "model_server": "@free2aitools/sdk 0.1.0 against the public REST API (entity surface)",
+      "generation": {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "top_k": 40,
+        "repetition_penalty": 1.0,
+        "seed_policy": "PRE_REGISTERED_PER_EPISODE_SEED",
+        "context_window": 8192,
+        "max_output_tokens": 1024,
+        "tool_choice_mode": "react_text_protocol",
+        "max_agent_turns": 6,
+        "max_tool_calls": 8,
+        "stop_conditions": ["final_answer_emitted", "max_agent_turns_reached", "per_episode_timeout"],
+        "prompt_serialization_format": "react_text_protocol_v1"
+      },
+      "hardware_env_fingerprint": "RECORDED_AT_QUALIFICATION"
+    }
+  ],
+  "optional_hosted_cells": [
+    {
+      "cell_id": "RUNTIME-H1-HOSTED-CLAUDE-CLASS",
+      "required": false,
+      "status": "BLOCKED_PENDING_CREDENTIAL",
+      "note": "Off by default. Adds true provider diversity. Enabling requires a Founder ruling with provider+pricing; never counted as passing while blocked."
+    },
+    {
+      "cell_id": "RUNTIME-H2-HOSTED-GPT-CLASS",
+      "required": false,
+      "status": "BLOCKED_PENDING_CREDENTIAL",
+      "note": "Off by default; same gating as H1."
+    }
+  ]
+}
