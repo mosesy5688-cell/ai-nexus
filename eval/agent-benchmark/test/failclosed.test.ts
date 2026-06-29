@@ -14,11 +14,15 @@ import {
   resolveCells,
   loadCorpus,
   listSourceFiles,
+  seededOrder,
+  PRE_REGISTERED_ORDERING_SEED,
   PKG_ROOT,
 } from "../src/runner.js";
 import {
   ExecutionInvalid,
   assertManifestComplete,
+  assertOrderingRecorded,
+  assertReadyForRun,
   verifyArtifactHashes,
   assertNoModelSubstitution,
   assertNoDataBindingDrift,
@@ -152,5 +156,50 @@ describe("out/ ignored + no secrets committed (L24/L25)", () => {
       const content = readFileSync(f, "utf8");
       for (const p of secretPatterns) expect(p.test(content), `${f} :: ${p}`).toBe(false);
     }
+  });
+});
+
+describe("pre-registered ordering recorded in the manifest (D-189 §D)", () => {
+  it("records the seed + resolved arm/scenario order, reproducible from the seed", () => {
+    const m = buildRunManifest("4288d569ec50f7aa995ed40759c2cb172a64f2fa");
+    expect(m.ordering.ordering_seed).toBe(PRE_REGISTERED_ORDERING_SEED);
+    expect(m.ordering.arm_order.length).toBe(2);
+    expect(m.ordering.scenario_order.length).toBe(36);
+    expect(m.ordering.ordering_sha256).toMatch(/^[0-9a-f]{64}$/);
+
+    // Deterministic: same seed => same recorded order on a second build.
+    const m2 = buildRunManifest("abc");
+    expect(m2.ordering.scenario_order).toEqual(m.ordering.scenario_order);
+    expect(m2.ordering.arm_order).toEqual(m.ordering.arm_order);
+
+    // The recorded order is exactly the seeded shuffle of the evaluation ids.
+    const ids = loadCorpus("evaluation").map((i) => i.id);
+    expect(m.ordering.scenario_order).toEqual(seededOrder(PRE_REGISTERED_ORDERING_SEED, ids));
+    expect(() => assertManifestComplete(m)).not.toThrow();
+  });
+
+  it("an absent or empty ordering record fails closed", () => {
+    const m = buildRunManifest("abc");
+    m.ordering.scenario_order = [];
+    expect(() => assertManifestComplete(m)).toThrow(ExecutionInvalid);
+    expect(() => assertOrderingRecorded(undefined)).toThrow(ExecutionInvalid);
+    // A tampered order whose hash no longer matches also fails closed.
+    const m2 = buildRunManifest("abc");
+    m2.ordering.scenario_order = [...m2.ordering.scenario_order].reverse();
+    expect(() => assertManifestComplete(m2)).toThrow(ExecutionInvalid);
+  });
+});
+
+describe("run-start model-pin gate (D-189 §C — fail closed if digest absent)", () => {
+  it("a placeholder model digest voids the run via assertReadyForRun", () => {
+    const m = buildRunManifest("abc"); // matrix digests are still RECORDED_AT_QUALIFICATION
+    expect(m.models.every((x) => x.model_digest === "RECORDED_AT_QUALIFICATION")).toBe(true);
+    expect(() => assertReadyForRun(m)).toThrow(ExecutionInvalid);
+  });
+
+  it("a manifest with real pinned (fixture) digests passes the gate", () => {
+    const m = buildRunManifest("abc");
+    m.models = m.models.map((x, i) => ({ ...x, model_digest: sha256(`fixture-digest-${i}`) }));
+    expect(() => assertReadyForRun(m)).not.toThrow();
   });
 });

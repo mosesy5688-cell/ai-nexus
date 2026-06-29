@@ -56,6 +56,16 @@ export interface RunManifest {
   runtime_versions: Record<string, string>;
   started_at_utc: string;
   f2ai_data_binding: F2aiDataBinding;
+  ordering: OrderingRecord;
+}
+
+// D-189 §D: arm + scenario order is deterministically randomized from a
+// PRE-REGISTERED seed AND recorded in the manifest (not merely procedural).
+export interface OrderingRecord {
+  ordering_seed: number;
+  arm_order: string[];
+  scenario_order: string[];
+  ordering_sha256: string; // hash of {seed, arm_order, scenario_order} for tamper-evidence
 }
 
 const DIGEST_PLACEHOLDER = "RECORDED_AT_QUALIFICATION";
@@ -78,6 +88,21 @@ export function assertManifestComplete(m: RunManifest): void {
   }
   if (!m.harness_git_sha) throw new ExecutionInvalid("missing harness_git_sha");
   if (!m.models.length) throw new ExecutionInvalid("no model provenance recorded");
+  assertOrderingRecorded(m.ordering);
+}
+
+// FAIL CLOSED: the pre-registered ordering must be present, non-empty, and carry
+// a 64-hex integrity hash. An absent/empty ordering record voids the run.
+export function assertOrderingRecorded(o: OrderingRecord | undefined): void {
+  if (!o || typeof o.ordering_seed !== "number") throw new ExecutionInvalid("missing pre-registered ordering seed");
+  if (!Array.isArray(o.arm_order) || o.arm_order.length === 0) throw new ExecutionInvalid("missing recorded arm_order");
+  if (!Array.isArray(o.scenario_order) || o.scenario_order.length === 0) throw new ExecutionInvalid("missing recorded scenario_order");
+  if (typeof o.ordering_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(o.ordering_sha256)) {
+    throw new ExecutionInvalid("missing or malformed ordering_sha256");
+  }
+  if (o.ordering_sha256 !== hashJson({ seed: o.ordering_seed, arm_order: o.arm_order, scenario_order: o.scenario_order })) {
+    throw new ExecutionInvalid("recorded ordering does not match its integrity hash");
+  }
 }
 
 // FAIL CLOSED at run start: a model digest may NOT remain the qualification
@@ -134,4 +159,14 @@ export function assertLiveWindowStable(before: F2aiDataBinding, afterFingerprint
   if (before.relevant_object_etags_or_snapshot_fingerprint !== afterFingerprint) {
     throw new ExecutionInvalid("F2AI data baseline drifted within the bounded live window");
   }
+}
+
+// D-189 §C run-start gate: the single pre-run invariant the operator MUST pass
+// before any episode. Puts the otherwise-latent model-pin guard on the real
+// pre-run path. FAILS CLOSED on a placeholder digest (no floating identifier),
+// an incomplete manifest, or a data-baseline defect. Throws ExecutionInvalid.
+export function assertReadyForRun(m: RunManifest): void {
+  assertManifestComplete(m);
+  assertModelsPinnedForRun(m);
+  assertNoDataBindingDrift(m.f2ai_data_binding);
 }

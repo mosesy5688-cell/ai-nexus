@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import type { Arm, HostContext, ToolCall, ToolResult } from "./schema_evidence.js";
 import { COMPETING_DESCRIPTORS, type ToolDescriptor } from "./tools_competing.js";
 import { F2AI_DESCRIPTORS } from "./tools_f2a.js";
-import { ExecutionInvalid, hashJson, sha256, type ModelProvenance, type RunManifest, type F2aiDataBinding } from "./manifest.js";
+import { ExecutionInvalid, hashJson, sha256, type ModelProvenance, type RunManifest, type F2aiDataBinding, type OrderingRecord } from "./manifest.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PKG_ROOT = join(HERE, "..");
@@ -146,10 +146,31 @@ export function computeArtifactHashes(root = PKG_ROOT): Pick<RunManifest, "corpu
   };
 }
 
-export function buildRunManifest(harnessGitSha: string, root = PKG_ROOT, dataBinding?: F2aiDataBinding): RunManifest {
+// PRE-REGISTERED default ordering seed (frozen; recorded in the manifest).
+export const PRE_REGISTERED_ORDERING_SEED = 0xa1be11;
+
+// Derive the deterministic, hash-stamped arm + scenario ordering from a seed.
+export function buildOrderingRecord(seed: number, scenarioIds: string[]): OrderingRecord {
+  const arm_order = seededOrder(seed, ["CONTROL", "AVAILABLE"] as const) as string[];
+  const scenario_order = seededOrder(seed, scenarioIds);
+  return {
+    ordering_seed: seed,
+    arm_order,
+    scenario_order,
+    ordering_sha256: hashJson({ seed, arm_order, scenario_order }),
+  };
+}
+
+export function buildRunManifest(
+  harnessGitSha: string,
+  root = PKG_ROOT,
+  dataBinding?: F2aiDataBinding,
+  orderingSeed = PRE_REGISTERED_ORDERING_SEED,
+): RunManifest {
   const hashes = computeArtifactHashes(root);
   const matrix = loadJson<MatrixConfig>(join(root, "config", "matrix.json"));
   const cells = resolveCells(matrix);
+  const ordering = buildOrderingRecord(orderingSeed, loadCorpus("evaluation", root).map((i) => i.id));
   const models: ModelProvenance[] = cells.map((c) => ({
     cell_id: c.cell_id,
     model_repo: c.model_repo,
@@ -173,6 +194,7 @@ export function buildRunManifest(harnessGitSha: string, root = PKG_ROOT, dataBin
         captured_after_utc: "RECORDED_AT_QUALIFICATION",
         binding_mode: "BOUNDED_LIVE_WINDOW",
       },
+    ordering,
   };
 }
 
