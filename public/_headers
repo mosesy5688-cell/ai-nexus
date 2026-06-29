@@ -1,3 +1,11 @@
+# GR-02 NON-AUTHORITATIVE MARKER (Founder D-184 §B): the SECURITY directives below
+# are NOT applied to live SSR responses. In this output:'server' + @astrojs/cloudflare
+# deployment the SSR Worker serves responses and does NOT apply this static _headers
+# file (same dead-file class as the retired public/_redirects — see astro.config.mjs).
+# The AUTHORITATIVE live security-header mechanism is the SSR middleware response path
+# (src/middleware.ts, applyTierASecurityHeaders). This file is retained ONLY for its
+# (unverified) 103 Early-Hints Link preloads + per-path Cache-Control; do not rely on
+# its X-Frame-Options/Referrer-Policy/CSP/COOP/COEP/CORP/HSTS lines for live coverage.
 # V21.10.1: Definitive Security & Caching Enclave (Ratified)
 /*
   Cache-Control: public, max-age=0, must-revalidate

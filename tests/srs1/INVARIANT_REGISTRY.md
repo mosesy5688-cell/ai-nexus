@@ -58,6 +58,26 @@ proof in the PR body).
 | P-08 | `/api/v1/health` route + OpenAPI consistent (NO_GAP) | `tests/srs1/openapi-route-parity.test.ts` | STRUCT + CONFIG | **NEW** |
 | P-09 | redirect authority is astro.config/SSR not dead `_redirects` | `tests/srs1/redirect-authority.test.ts` | CONFIG + STRUCT | **NEW** |
 
+## Registry — GR-02 (Tier-A LIVE security headers)
+
+> Deterministic, hermetic invariants for GR-02 (Founder D-184 §B). The static
+> `public/_headers` is NOT applied by the SSR Worker, so the live authority is the
+> SSR middleware response path. The EXEC tier imports the REAL exported pure
+> applier from `src/middleware.ts` (astro:middleware stubbed to the identity
+> wrapper — no Worker runtime) and drives plain `Response`/`Headers` objects; the
+> SOURCE tier parses the middleware top-level imports. Tier-B (full CSP, COOP/
+> COEP/CORP, HSTS/preload) is FORBIDDEN here. Live-tier complement (NOT a hermetic
+> PR test): the candidate-only GR-02 header matrix in
+> `.github/workflows/ta2-preview-runtime-gate.yml`'s `preview-smoke` step.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| GR02-HUMAN | text/html (human) SSR responses carry the full Tier-A set: `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` (THIS directive only — no script/style/connect/img/default), `Referrer-Policy: strict-origin-when-cross-origin`, the conservative `Permissions-Policy` deny-list (no clipboard-write / no fullscreen), exactly one `X-Content-Type-Options: nosniff`; no COOP/COEP/CORP/HSTS | `tests/srs1/security-headers.test.ts` | EXEC + SOURCE | **NEW** |
+| GR02-MACHINE | machine/API responses (non-text/html: /api/*, openapi.json, llms.txt, assets) get `nosniff` + `X-Frame-Options` ONLY — never CSP/Referrer-Policy/Permissions-Policy/COOP/COEP/CORP — and preserve ACAO/ACAM/ACAH + Cache-Control + ETag + Content-Type unchanged | `tests/srs1/security-headers.test.ts` | EXEC | **NEW** |
+| GR02-IDEMPOTENT | `X-Content-Type-Options` is set only when absent (has()-guard) so an edge-injected value is never doubled — exactly one effective value; the text/html discriminator never misclassifies /api or assets | `tests/srs1/security-headers.test.ts` | EXEC | **NEW** |
+| GR02-IMMUTABLE | an immutable-header redirect Response does NOT throw on mutation (best-effort skip); status (301/410/404/200) + redirect Location preserved | `tests/srs1/security-headers.test.ts` | EXEC | **NEW** |
+| GR02-NOIMPORT | `src/middleware.ts` adds NO new top-level import (header values inline; the #2218 cold-load class); NON-VACUITY: injecting a forbidden lib import into the middleware source FAILS the lock | `tests/srs1/security-headers.test.ts` | SOURCE | **NEW** |
+
 ## Registry — MCP / OpenAPI / negative-contract / retired (cross-cutting)
 
 | ID | Protected behavior | Assertion file | Evidence | Status |
