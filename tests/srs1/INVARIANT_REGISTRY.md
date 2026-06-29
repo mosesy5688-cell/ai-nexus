@@ -621,6 +621,32 @@ proof in the PR body).
 |----|--------------------|----------------|----------|--------|
 | GR-01 | Unknown one-segment `/<slug>` returns a REAL 404 (status 404, noindex, no fabricated archive canonical/meta) validated against the authoritative `CATEGORY_METADATA` keys, with the 404 set BEFORE `fetchCatalogData` (no archive/VFS read); every CURRENT valid category still 200-eligible; compiled redirects + entity-detail 404/503 unchanged; non-vacuous + anti-vacuity-proven (removing the status-404 reds the detector) | `tests/unit/category-soft404.test.ts` | EXEC + SOURCE | **NEW** |
 
+## Registry — B3-OPENNESS-A1 (datasets commercial-residue honesty)
+
+> Deterministic, hermetic invariants for the B3 OPENNESS-A1 datasets honesty fix
+> (Founder D-187 §H). Free2AITools is all-free / open-access; the datasets surface
+> carried COMMERCIAL RESIDUE advertising a non-existent "paid" tier. This is a
+> COMPATIBILITY-SAFE correction: the legacy `tier:"free"` field is RETAINED in the
+> response (deleting a field a consumer reads is breaking — deferred to v2), but
+> the OpenAPI DatasetsResponse `tier` enum is capped to `["free"]` (no "paid"),
+> marked `deprecated`, and points callers at the new truthful `access` field;
+> `access:"public"` is added to every dataset item AND made a REQUIRED property of
+> the item schema; the open-data page badge reads "Open Access". The OpenAPI
+> assertions run against the SERVED `/openapi.json` PROJECTION (the
+> `openapi.json.ts` route GET transform OUTPUT), not the static schema source
+> (D-42 projection lesson); the response assertions invoke the REAL exported
+> datasets GET handler. EXCLUDED (not touched): `SearchResponse.tier`, search
+> defaults/limits, and the `FREE_TIER_MAX` constant (out of B3 scope). No live
+> network. Single file: `tests/srs1/datasets-openness.test.ts`.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| B3-RES-NOPAID | SERVED `/openapi.json` DatasetsResponse item `tier.enum` is EXACTLY `["free"]` and never advertises "paid"; no paid/premium/subscription/enterprise/billing/upgrade wording anywhere in the served item schema. Non-vacuous: re-adding "paid" to the served enum reds the lock | `tests/srs1/datasets-openness.test.ts` | EXEC + CONFIG | **NEW** |
+| B3-RES-DEPRECATED | SERVED DatasetsResponse `tier` is `deprecated: true` and its description names `access` as the replacement (deprecated legacy compatibility field). Non-vacuous: dropping the deprecated marker reds the lock | `tests/srs1/datasets-openness.test.ts` | EXEC + CONFIG | **NEW** |
+| B3-RES-ACCESS-REQUIRED | SERVED DatasetsResponse item declares `access` (enum `["public"]`) AND `access` is a REQUIRED property of the item schema (`items.required` ⊇ {access}). Non-vacuous: removing `access` from `required[]` reds the lock | `tests/srs1/datasets-openness.test.ts` | EXEC + CONFIG | **NEW** |
+| B3-EP-ACCESS | The REAL `/api/v1/datasets` GET handler emits `access:"public"` on EVERY listed dataset item. Non-vacuous: removing the field / changing the value reds the lock | `tests/srs1/datasets-openness.test.ts` | EXEC | **NEW** |
+| B3-EP-TIER-FREE | The `/api/v1/datasets` response RETAINS the legacy `tier` field and its only value is `"free"` (compat-safe; not deleted, never "paid"). Non-vacuous: deleting the field or changing the value reds the lock | `tests/srs1/datasets-openness.test.ts` | EXEC | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
