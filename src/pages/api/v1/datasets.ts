@@ -13,8 +13,12 @@ import { hostFromReferer, isBotUa } from '../../../lib/telemetry/route-classify'
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
 
+// access: 'public' is the truthful access class (all datasets are open/no-auth).
+// tier: 'free' is RETAINED as a legacy compatibility field (its only legal value
+// is "free"; see openapi-schema.json DatasetsResponse). It is NOT deleted here —
+// silently dropping a field a consumer reads is a breaking change (deferred to v2).
 const KNOWN_FILES = [
-    { id: 'fni_lite_latest', name: 'FNI Lite (Latest)', path: 'datasets/fni_lite_latest.parquet', tier: 'free', fields: ['id', 'title', 'abstract_300', 'fni_score', 'fni_version'] },
+    { id: 'fni_lite_latest', name: 'FNI Lite (Latest)', path: 'datasets/fni_lite_latest.parquet', tier: 'free', access: 'public', fields: ['id', 'title', 'abstract_300', 'fni_score', 'fni_version'] },
 ];
 
 // Route-local recorder. DEFAULT-OFF, fail-open, NON-BLOCKING: emits a closed
@@ -55,6 +59,7 @@ export async function GET({ request, locals }: { request: Request; locals: any }
             id: f.id,
             name: f.name,
             tier: f.tier,
+            access: f.access,
             fields: f.fields,
             download_url: `${CDN_BASE}/${f.path}`,
             api_url: `/api/v1/datasets?file=${f.id}`,

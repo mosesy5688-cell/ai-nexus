@@ -748,10 +748,12 @@
             "type": "array",
             "items": {
               "type": "object",
+              "required": ["access"],
               "properties": {
                 "id": { "type": "string", "example": "fni_lite_latest" },
                 "name": { "type": "string" },
-                "tier": { "type": "string", "enum": ["free", "paid"] },
+                "tier": { "type": "string", "enum": ["free"], "deprecated": true, "description": "DEPRECATED legacy compatibility field. All Free2AITools datasets are open/public access; the only legal value is \"free\". Use `access` instead. Retained for backward compatibility; may be removed in a future major API version." },
+                "access": { "type": "string", "enum": ["public"], "description": "Access class for the dataset. All current Free2AITools datasets are publicly downloadable with no auth; value is always \"public\"." },
                 "fields": { "type": "array", "items": { "type": "string" }, "description": "Schema field names available in the parquet file" },
                 "download_url": { "type": "string", "format": "uri", "description": "Direct CDN URL for parquet file" },
                 "api_url": { "type": "string", "description": "Relative API URL that returns 302 redirect to download_url" }
