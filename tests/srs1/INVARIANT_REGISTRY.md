@@ -518,6 +518,38 @@ proof in the PR body).
 |----|--------------------|----------------|----------|--------|
 | B1 | `data-mirror` proxy route file ABSENT (=> public 404); no replacement route, no redirect/middleware re-creation, no `src/**`/`scripts/**` runtime reference; non-vacuous + fail-closed + anti-vacuity-proven | `tests/unit/data-mirror-route-removed.test.ts` | STRUCT | **NEW** |
 
+## Registry — B2-MCP-SIZE-GUARD (MCP request/argument size guard)
+
+> Deterministic, hermetic invariants for the B2 MCP request/argument size guard
+> (Founder D-178 §D / D-182). ROOT CAUSE: the MCP JSON-RPC route
+> (`src/pages/api/mcp.ts`) had NO application-layer size/shape guard — an oversized
+> or pathological body was parsed in full (`request.json()`) and dispatched into
+> search/VFS/R2/DB work before any limit was consulted. FIX: a new pure
+> `src/lib/mcp-guard.ts` with two strictly-ordered gates wired at the POST entry —
+> G1 PRE-PARSE BYTE GATE (`readBoundedBody`: Content-Length is only a fast-reject
+> HINT; the authoritative bounded ReadableStream read counts RAW chunk byteLength,
+> cancels the stream the moment the running total exceeds MAX_REQUEST_BYTES=65536,
+> and decodes via TextDecoder ONLY after the byte ceiling passes — decoded JS char
+> length is NEVER used as a size measure) and G2 POST-PARSE STRUCTURAL GATE
+> (`validateRpcShape`: nesting depth<=8, query/task<=2048 chars, id + each ids
+> element<=256 chars, ids<=25, constraints<=16 keys / <=1024 UTF-8 bytes /
+> scalar-only). Unified JSON-RPC error code -32001, `data:{limit,max}`, NO input
+> echo, id=null pre-parse / echoed id post-parse; malformed JSON within the byte
+> limit stays -32700. EXEC tests drive the real guard module (no network); the
+> B2-ORDER row drives the real POST route with every internal handler mocked,
+> proving NO handler/DB call precedes a clean pass of both gates. SCOPE: the guard
+> module + the route wiring + this test only; the 5-tool set + in-spec behavior are
+> unchanged (mcp.ts stays <=250 lines, CES Art 5.1). Single file:
+> `tests/unit/mcp-request-size-guard.test.ts`.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| B2-BYTE-GATE | RAW-byte ceiling authoritative on every transfer encoding: EXACTLY 65536 accepted / 65537 rejected; Content-Length is a fast-reject HINT only (declared-oversize rejects WITHOUT reading the body); absent / false-small / malformed / negative Content-Length falls through to the bounded stream which still rejects; the stream is cancelled the moment the running total exceeds the cap; UTF-8 multibyte split across chunk boundaries decodes correctly (raw byteLength counted, never decoded char length) | `tests/unit/mcp-request-size-guard.test.ts` | EXEC | **NEW** |
+| B2-STRUCT-GATE | Post-parse structural caps each fire at boundary+1 with the correct `data.limit` token + numeric `max`: nesting depth (8 ok / 9 reject), query/task (2048), id + ids element (256), ids count (25 ok / 26 reject), ids non-string + over-long element, constraints keys (16) / UTF-8 bytes (1024, measured via TextEncoder not string.length) / scalar-only; a full valid scalar constraints object passes | `tests/unit/mcp-request-size-guard.test.ts` | EXEC | **NEW** |
+| B2-ORDER | CORE SECURITY PROPERTY: a guard violation (byte OR structural) on a `tools/call` is returned BEFORE any of searchHandler / selectHandler / compareHandler / entityHandler is invoked (all four spies asserted zero calls) — proven on the REAL POST route; the byte gate precedes JSON.parse, the structural gate precedes method/tool dispatch | `tests/unit/mcp-request-size-guard.test.ts` | EXEC | **NEW** |
+| B2-ERRSHAPE | Unified error contract: all guard violations -> code -32001 with `data:{limit,max}` and NO reflected attacker content; id=null for pre-parse (byte) rejects, echoed parsed id for post-parse (structural) rejects; malformed JSON within the byte limit stays -32700 (unchanged), not -32001 | `tests/unit/mcp-request-size-guard.test.ts` | EXEC | **NEW** |
+| B2-REGRESSION | NO in-spec behavior change: initialize + tools/list are guard no-ops (serverInfo / 5-tool set unchanged); an in-spec search and a MAX-25-id compare DO reach their (mocked) handlers (guard is pass-through); results deterministic across 3 runs | `tests/unit/mcp-request-size-guard.test.ts` | EXEC | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in

@@ -17,6 +17,9 @@ import { callSelectStatus, buildSelectResult } from '../../lib/mcp-select.js';
 import { emitRoute, extractTelemetryEnv } from '../../lib/telemetry/route-telemetry';
 import { mcpToolToOperation, hostFromReferer, isBotUa } from '../../lib/telemetry/route-classify';
 import type { McpTool } from '../../lib/telemetry/vocab';
+// B2 size guard (D-178 §D): G1 byte gate (pre-parse) + G2 structural gate
+// (post-parse, pre-dispatch). JSONRPC_HEADERS owned here to avoid route/guard drift.
+import { guardAndParse, JSONRPC_HEADERS } from '../../lib/mcp-guard.js';
 
 // D-135: MCP server version. F3 changed MCP evidence semantics (search/rank now
 // emit fni_s=null + note, not the unmeasured `50`), so bumped 2.0.0 -> 2.0.1.
@@ -31,13 +34,6 @@ const MCP_SEARCH_DEFAULT_LIMIT = '10';
 // evidence, and identity layer for AI agents. Surfaced in initialize.instructions
 // so callers know the limits of what this server does before reasoning over it.
 const SERVER_BOUNDARY = 'Discovery layer only: returns FNI-ranked catalog data and evidence for the calling agent to reason over. Does not perform compatibility analysis (hardware/framework fields are stored heuristics). Does not execute, plan, or recommend workflows. Does not select or decide on behalf of the caller. Does not currently provide live semantic/ANN ranking.';
-const JSONRPC_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-};
-
 const TOOLS = [
     {
         name: 'free2aitools_search',
@@ -202,12 +198,11 @@ function recordMcp(
 }
 
 export const POST: APIRoute = async (context) => {
-    let body: any;
-    try { body = await context.request.json(); } catch {
-        return jsonrpcError(null, -32700, 'Parse error');
-    }
-
-    const { id, method, params } = body;
+    // G1 byte gate (pre-parse) -> parse -> G2 structural gate (pre-dispatch).
+    // Any oversize/over-shape body is rejected here, before any handler runs.
+    const guarded = await guardAndParse(context.request);
+    if ('error' in guarded) return guarded.error;
+    const { id, method, params } = guarded.body;
 
     switch (method) {
         case 'initialize': {
