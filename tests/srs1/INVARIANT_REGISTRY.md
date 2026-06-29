@@ -550,6 +550,35 @@ proof in the PR body).
 | B2-ERRSHAPE | Unified error contract: all guard violations -> code -32001 with `data:{limit,max}` and NO reflected attacker content; id=null for pre-parse (byte) rejects, echoed parsed id for post-parse (structural) rejects; malformed JSON within the byte limit stays -32700 (unchanged), not -32001 | `tests/unit/mcp-request-size-guard.test.ts` | EXEC | **NEW** |
 | B2-REGRESSION | NO in-spec behavior change: initialize + tools/list are guard no-ops (serverInfo / 5-tool set unchanged); an in-spec search and a MAX-25-id compare DO reach their (mocked) handlers (guard is pass-through); results deterministic across 3 runs | `tests/unit/mcp-request-size-guard.test.ts` | EXEC | **NEW** |
 
+## Registry — GR-01 (D-183 §D one-segment category soft-404 fix)
+
+> Deterministic, hermetic invariants for GR-01 (Founder D-183 §D). ROOT CAUSE:
+> `src/pages/[category].astro` is a one-segment catch-all that served ANY unknown
+> slug as a 200 archive page — it FABRICATED category metadata
+> (`CATEGORY_METADATA[c] || {label,icon,description}`), then read archive data
+> (`fetchCatalogData`) and emitted an indexable canonical/meta for the bogus page
+> (a SOFT-404; confirmed live: any unknown `/<slug>` returned 200, `s-maxage=30`).
+> FIX: the resolved slug is validated against the AUTHORITATIVE category set — the
+> KEYS of `CATEGORY_METADATA` (`src/utils/category-mapping.js`), the same map the
+> page renders from (NO new hardcoded list). An unknown slug is a REAL 404:
+> `Astro.response.status = 404` is set BEFORE `fetchCatalogData` (no archive/VFS
+> read), the page is served `noindex` (Layout `noindex` prop + `X-Robots-Tag`),
+> and the fabricated `|| {meta}` soft-200 default is removed. Reserved-route
+> redirects + legacy alias 301s + adapter-compiled `redirects:` 301s
+> (`/compare`→`/ranking` etc.) all still resolve BEFORE the catch-all (unchanged).
+> SCOPE: the `[category]` catch-all + this test only — entity-detail 404/503, the
+> shared `404.astro` page, sitemap, redirects, API, VFS, metadata are UNCHANGED.
+> The test (a) EXECUTES the real `CATEGORY_METADATA` module to prove the validity
+> predicate classifies every current category as 200-eligible and unknown slugs as
+> 404, and (b) reads the page SOURCE to prove the page binds that predicate to a
+> real 404 emitted before any data read, served noindex, with the fabricated
+> default gone; anti-vacuity: deleting the status-404 line flips the detector RED.
+> Single file: `tests/unit/category-soft404.test.ts`.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| GR-01 | Unknown one-segment `/<slug>` returns a REAL 404 (status 404, noindex, no fabricated archive canonical/meta) validated against the authoritative `CATEGORY_METADATA` keys, with the 404 set BEFORE `fetchCatalogData` (no archive/VFS read); every CURRENT valid category still 200-eligible; compiled redirects + entity-detail 404/503 unchanged; non-vacuous + anti-vacuity-proven (removing the status-404 reds the detector) | `tests/unit/category-soft404.test.ts` | EXEC + SOURCE | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
