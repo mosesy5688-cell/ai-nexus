@@ -1,0 +1,78 @@
+{
+  "tools_version": "tools-v1.3.0",
+  "mcp_manifest_version": "2.0.1",
+  "openapi_spec_version": "2.0.0",
+  "api_rest_version": "fni_v2.0",
+  "sdk_version": "0.1.0",
+  "tool_descriptions_frozen_by_hash": true,
+  "neutrality_contract": "All tool descriptions are neutral and comparable. No description reveals the expected choice, names the benchmark, or hints at the correct answer. Competing tools are genuinely usable and not crippled. F2AI is never the only tool able to act on a relevant task.",
+  "competing_tools": [
+    {
+      "name": "answer_directly",
+      "transport": "none",
+      "always_available": true,
+      "cost_usd": 0.0,
+      "description": "Answer the user directly from your own knowledge without calling any tool.",
+      "args_schema": { "type": "object", "properties": { "answer": { "type": "string" } }, "required": ["answer"] }
+    },
+    {
+      "name": "web_search",
+      "transport": "fixture",
+      "always_available": true,
+      "cost_usd": 0.0,
+      "description": "General keyword web search; returns title + snippet + url for matching pages.",
+      "args_schema": { "type": "object", "properties": { "query": { "type": "string" } }, "required": ["query"] }
+    },
+    {
+      "name": "model_catalog_generic",
+      "transport": "fixture",
+      "always_available": true,
+      "cost_usd": 0.0,
+      "description": "Look up basic public model metadata (name, parameters, license, downloads) by keyword.",
+      "args_schema": { "type": "object", "properties": { "keyword": { "type": "string" } }, "required": ["keyword"] }
+    }
+  ],
+  "f2ai_tools": [
+    {
+      "name": "free2aitools_search",
+      "present_in_arm": "AVAILABLE",
+      "transport_binding": "REST|SDK|MCP per cell",
+      "description": "Search the Free2AITools catalog of AI tools, models, datasets and papers by query; returns ranked entities with metadata.",
+      "args_schema": { "type": "object", "properties": { "query": { "type": "string" }, "limit": { "type": "integer" } }, "required": ["query"] }
+    },
+    {
+      "name": "free2aitools_rank",
+      "present_in_arm": "AVAILABLE",
+      "transport_binding": "REST|SDK|MCP per cell",
+      "description": "Return a ranked ordering of catalog entities for a task or category, with the ranking signal.",
+      "args_schema": { "type": "object", "properties": { "task": { "type": "string" }, "limit": { "type": "integer" } }, "required": ["task"] }
+    },
+    {
+      "name": "free2aitools_explain",
+      "present_in_arm": "AVAILABLE",
+      "transport_binding": "REST|SDK|MCP per cell",
+      "description": "Explain an entity with its evidence chain (provenance and source_trail) by canonical id.",
+      "args_schema": { "type": "object", "properties": { "canonical_id": { "type": "string" } }, "required": ["canonical_id"] }
+    },
+    {
+      "name": "free2aitools_select_model",
+      "present_in_arm": "AVAILABLE",
+      "transport_binding": "REST|SDK|MCP per cell",
+      "description": "Recommend candidate models for stated requirements; returns candidates with supporting evidence.",
+      "args_schema": { "type": "object", "properties": { "requirements": { "type": "string" } }, "required": ["requirements"] }
+    },
+    {
+      "name": "free2aitools_compare",
+      "present_in_arm": "AVAILABLE",
+      "transport_binding": "REST|SDK|MCP per cell",
+      "description": "Compare two or more catalog entities across attributes, returning a per-attribute evidence-backed comparison.",
+      "args_schema": { "type": "object", "properties": { "canonical_ids": { "type": "array", "items": { "type": "string" } } }, "required": ["canonical_ids"] }
+    }
+  ],
+  "promptset": {
+    "promptset_version": "promptset-v1.3.0",
+    "system_prompt_template": "You are a helpful AI assistant. You have access to a set of tools. Decide for each task whether a tool is useful; if no tool is useful you may answer directly. Use tools only when they genuinely help solve the user's task. Cite any evidence a tool returns when you rely on it. Do not assert conclusions that your evidence does not support.",
+    "user_prompt_template": "{{task}}",
+    "serialization_note": "Per-cell serialization format is recorded in matrix.json (openai_chat_messages_v1 / mcp_jsonrpc_messages_v1 / react_text_protocol_v1). The agent NEVER receives the relevance class, expected tool, expected answer, scoring rubric, or any steering text."
+  }
+}

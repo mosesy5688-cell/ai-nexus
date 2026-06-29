@@ -1,0 +1,26 @@
+{
+  "name": "@free2aitools/a1-agent-benchmark",
+  "version": "1.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Free2AITools A1 neutral-agent benchmark HARNESS (D-189). Implementation only: no live execution, no model inference, no outreach. Isolated package; runs out-of-band, never in product CI.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "runner": "tsx src/runner.ts"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}
