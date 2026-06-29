@@ -31,6 +31,10 @@ export async function GET({ params }) {
             headers
         });
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        // GR-04 (D-184 §C / D-186 §F): log the real error server-side ONLY; never
+        // reflect the raw exception message, stack, object key, or R2 binding
+        // detail back to the client. Respond with a deterministic generic 500.
+        console.error('cache route error:', e);
+        return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
     }
 }

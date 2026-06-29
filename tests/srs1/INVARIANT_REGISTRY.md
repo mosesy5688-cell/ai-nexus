@@ -78,6 +78,28 @@ proof in the PR body).
 | GR02-IMMUTABLE | an immutable-header redirect Response does NOT throw on mutation (best-effort skip); status (301/410/404/200) + redirect Location preserved | `tests/srs1/security-headers.test.ts` | EXEC | **NEW** |
 | GR02-NOIMPORT | `src/middleware.ts` adds NO new top-level import (header values inline; the #2218 cold-load class); NON-VACUITY: injecting a forbidden lib import into the middleware source FAILS the lock | `tests/srs1/security-headers.test.ts` | SOURCE | **NEW** |
 
+## Registry — GR-04 (cache route error-contract)
+
+> Deterministic, hermetic invariant for GR-04 (Founder D-184 §C / D-186 §F).
+> `src/pages/cache/[...path].js` is a RETAIN_JUSTIFIED prod route (ranking
+> infinite-scroll p2-p5 + monitoring consume `cache/` keys the CDN 403s;
+> prefix-locked to the literal `cache/`, no SSRF). The ONE authorized hardening:
+> the 500 catch path must NOT reflect the raw exception message (or stack /
+> object key / R2 binding detail) to the client — it returns a DETERMINISTIC
+> GENERIC 500 (`{error:"Internal Server Error"}`); the real error is logged
+> server-side only. The EXEC tier drives the REAL exported `GET` with the
+> `cloudflare:workers` env binding mocked (a controllable R2 stub — no network,
+> no prod); the SOURCE tier reads the route + consumer source. ANTI-VACUITY:
+> re-introducing `{ error: e.message }` on the 500 path turns the leak assertion
+> RED. PRESERVED (unchanged, asserted): 200 streaming + HTTP metadata + ETag +
+> `Cache-Control: public, max-age=60`; 400 missing-path; 404 missing-object;
+> GET-only ownership; the literal `cache/` prefix (no traversal/escape); the
+> `ranking-client.js` p2-p5 consumer.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| GR04-NOLEAK | A thrown R2 error yields a DETERMINISTIC GENERIC 500 (`{error:"Internal Server Error"}`, status 500); the raw exception message / stack / internal object-key / R2 binding name are ABSENT from the client body; server-side logging retained. NON-VACUITY: restoring `{ error: e.message }` reflection FAILS the leak assertion. PRESERVED & asserted: 200 streams body + metadata + ETag + `Cache-Control`, 404 stays 404, missing-path stays 400, the R2 key is the literal `cache/`+path (no traversal), GET-only, and `ranking-client.js`'s `/cache/rankings/...p${nextPage}.json` consumer is unchanged | `tests/unit/cache-route-error-contract.test.ts` | EXEC + SOURCE | **NEW** |
+
 ## Registry — MCP / OpenAPI / negative-contract / retired (cross-cutting)
 
 | ID | Protected behavior | Assertion file | Evidence | Status |
