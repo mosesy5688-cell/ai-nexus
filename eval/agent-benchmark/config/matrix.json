@@ -1,14 +1,43 @@
 {
-  "matrix_version": "matrix-v1.3.0",
+  "matrix_version": "matrix-v2.0.0-real-agent",
   "provenance_lock_sha": "4288d569ec50f7aa995ed40759c2cb172a64f2fa",
-  "independence_basis": "OPTION_A_THREE_DISTINCT_AGENT_LOOPS",
-  "independence_note": "Material independence is established by THREE materially-distinct Agent host/loop implementations, each a distinct model FAMILY and a distinct single transport. Changing only the model with the same loop, or only the transport with the same model, would NOT by itself prove independence; see EVALUATOR_GUIDE.md.",
+  "amendment": "Founder D-194 real-Agent A1 harness amendment. The A1 PRIMARY cells are now the two REAL-Agent cells in real_agent_primary_cells (CELL-A Codex + CELL-B Claude_Code_Opus). The three legacy self-loop entries in `cells` are RETAINED but RECLASSIFIED as ENGINEERING_TEST_ADAPTER / NON_PRIMARY / NOT_COUNTED toward A1.",
+  "legacy_required_flag_note": "The `required: true` flag + `required_cell_count: 3` on the legacy `cells` array are the D-189 manifest-resolution machinery flags ONLY (they keep the existing fixture run-manifest resolving 3 provenance rows). They are NOT an A1-primary designation. A1 primacy is governed by real_agent_primary_cells + config/agents.json + src/subject_runner.ts acceptTwoCell().",
+  "independence_basis": "OPTION_A_THREE_DISTINCT_AGENT_LOOPS (legacy engineering adapters)",
+  "independence_note": "Legacy material independence (three distinct Agent host/loops) is retained for the engineering adapters only; see EVALUATOR_GUIDE.md. The real-Agent A1 gate is TRUE_PROVIDER_AND_AGENT_DIVERSITY = BOUNDED_TO_TWO (Codex CLI + Claude Code/Opus).",
   "required_cell_count": 3,
   "default_monetary_cap_usd": 0.0,
+  "real_agent_primary_cells": [
+    {
+      "cell_id": "CELL-A-CODEX-CLI",
+      "required": true,
+      "classification": "PRIMARY_REAL_AGENT",
+      "product": "codex_cli",
+      "adapter": "src/agent_codex_adapter.ts",
+      "transport": "MCP",
+      "model_id": "UNRESOLVED_AT_EXECUTION_FREEZE",
+      "ready_for_run": false,
+      "frozen_identifiers": "config/agents.json (cell CELL-A-CODEX-CLI)"
+    },
+    {
+      "cell_id": "CELL-B-CLAUDE-CODE-OPUS",
+      "required": true,
+      "classification": "PRIMARY_REAL_AGENT",
+      "product": "claude_code",
+      "adapter": "src/agent_claude_adapter.ts",
+      "transport": "MCP",
+      "model_id": "UNRESOLVED_AT_EXECUTION_FREEZE",
+      "ready_for_run": false,
+      "frozen_identifiers": "config/agents.json (cell CELL-B-CLAUDE-CODE-OPUS)"
+    }
+  ],
+  "real_agent_required_cell_count": 2,
   "cells": [
     {
       "cell_id": "CELL-1-OLLAMA-DIRECT-QWEN",
       "required": true,
+      "a1_primary": false,
+      "a1_classification": "ENGINEERING_TEST_ADAPTER_NON_PRIMARY_NOT_COUNTED",
       "model_repo": "qwen2.5:7b-instruct",
       "model_family": "Qwen2.5",
       "model_provider": "Alibaba (Apache-2.0 open weights)",
@@ -38,6 +67,8 @@
     {
       "cell_id": "CELL-2-MCP-AGENTLOOP-LLAMA",
       "required": true,
+      "a1_primary": false,
+      "a1_classification": "ENGINEERING_TEST_ADAPTER_NON_PRIMARY_NOT_COUNTED",
       "model_repo": "llama3.1:8b-instruct",
       "model_family": "Llama-3.1",
       "model_provider": "Meta (Llama-3.1 community license)",
@@ -67,6 +98,8 @@
     {
       "cell_id": "CELL-3-REACT-LOOP-MISTRAL",
       "required": true,
+      "a1_primary": false,
+      "a1_classification": "ENGINEERING_TEST_ADAPTER_NON_PRIMARY_NOT_COUNTED",
       "model_repo": "mistral:7b-instruct",
       "model_family": "Mistral",
       "model_provider": "Mistral AI (Apache-2.0 open weights)",
