@@ -242,9 +242,9 @@ export function acceptRequiredCells(required: string[], outcomes: CellOutcome[])
   reasons.push("all required real-Agent cells evaluated and passing");
   return { state: "A1_PASS", reasons };
 }
-// Deprecated NON-authoritative positional shim: identity STILL derives from cell_id (not position), delegating to acceptRequiredCells; positional labels alone never define the required set.
-export function acceptTwoCell(codex?: CellOutcome, claude?: CellOutcome): AcceptResult {
-  const present = [codex, claude].filter((c): c is CellOutcome => !!c && typeof c.cell_id === "string" && !!c.cell_id.trim());
-  if (present.length < 2) return { state: "A1_INSUFFICIENT", reasons: ["required real-Agent cell NOT_EVALUATED"] };
-  return acceptRequiredCells([...new Set(present.map((c) => c.cell_id.trim()))].sort(), present);
+// acceptTwoCell is a MATRIX-BOUND wrapper, NOT an authority: the required set is the matrix single
+// source (reconcileRequiredCells over the supplied configs), NEVER self-derived from the outcomes;
+// throwaway/positional ids that are not the matrix-derived required cells can never reach A1_PASS.
+export function acceptTwoCell(matrix: unknown, agents: unknown, codex?: CellOutcome, claude?: CellOutcome): AcceptResult {
+  return acceptRequiredCells(reconcileRequiredCells(matrix, agents), [codex, claude].filter((c): c is CellOutcome => !!c));
 }

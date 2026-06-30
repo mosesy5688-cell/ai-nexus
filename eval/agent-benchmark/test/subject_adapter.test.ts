@@ -177,13 +177,18 @@ describe("model id fail-closed + evidence seal + reconciliation + acceptance", (
     expect(reconcile(r({ availableDirectOutsideRelay: true })).verdict).toBe("EXECUTION_INVALID");
   });
 
-  it("two required-cell acceptance; one passing cannot hide one failing; legacy non-primary; corpus not opened", () => {
-    const ok = (id: string) => ({ cell_id: id, evaluated: true, passing: true });
-    expect(acceptTwoCell(ok("A"), ok("B")).state).toBe("A1_PASS");
-    expect(acceptTwoCell(undefined, ok("B")).state).toBe("A1_INSUFFICIENT"); // ANTI-VACUITY [required-cell-omission]
-    expect(acceptTwoCell(ok("A"), undefined).state).toBe("A1_INSUFFICIENT");
-    expect(acceptTwoCell(ok("A"), { cell_id: "B", evaluated: true, passing: false }).state).toBe("A1_FAIL");
+  it("two required-cell acceptance is MATRIX-BOUND; positional throwaway ids cannot pass; one passing cannot hide one failing; legacy non-primary; corpus not opened", () => {
     const matrix = JSON.parse(readFileSync(join(PKG, "config/matrix.json"), "utf8"));
+    const agents = JSON.parse(readFileSync(join(PKG, "config/agents.json"), "utf8"));
+    const ok = (id: string) => ({ cell_id: id, evaluated: true, passing: true });
+    const ca = matrix.real_agent_primary_cells.find((c: { product: string }) => c.product === "codex_cli").cell_id;
+    const cb = matrix.real_agent_primary_cells.find((c: { product: string }) => c.product === "claude_code").cell_id;
+    expect(acceptTwoCell(matrix, agents, ok(ca), ok(cb)).state).toBe("A1_PASS"); // matrix-derived ids pass
+    // ANTI-VACUITY [positional-loophole]: throwaway ids NOT in the matrix-derived set can NEVER reach A1_PASS via the wrapper.
+    expect(acceptTwoCell(matrix, agents, ok("A"), ok("B")).state).toBe("EXECUTION_INVALID");
+    expect(acceptTwoCell(matrix, agents, undefined, ok(cb)).state).toBe("A1_INSUFFICIENT"); // required Codex cell missing
+    expect(acceptTwoCell(matrix, agents, ok(ca), undefined).state).toBe("A1_INSUFFICIENT");
+    expect(acceptTwoCell(matrix, agents, ok(ca), { cell_id: cb, evaluated: true, passing: false }).state).toBe("A1_FAIL"); // one passing cannot hide one failing
     expect(matrix.real_agent_primary_cells.length).toBe(2);
     expect(matrix.cells.every((c: { a1_primary: boolean }) => c.a1_primary === false)).toBe(true);
     for (const f of ["subject_runner.ts", "agent_codex_adapter.ts", "agent_claude_adapter.ts", "mcp_trace_relay.ts"]) {
@@ -324,9 +329,12 @@ describe("§M anti-vacuity: each mutation of the REAL production binding path ->
     const leg = clone(MATRIX); leg.real_agent_primary_cells[1].cell_id = MATRIX.cells[1].cell_id;
     expect(() => requiredRealCellIds(leg)).toThrow();
   });
-  it("M7 restore positional acceptance with throwaway ids A/B -> RED", () => {
+  it("M7 restore positional/outcome-self-derived acceptance with throwaway ids A/B -> RED", () => {
     const d = requiredRealCellIds(MATRIX);
-    expect(acceptRequiredCells(d, [oc("A"), oc("B")]).state).toBe("EXECUTION_INVALID"); // positional labels can't satisfy real gate
+    expect(acceptRequiredCells(d, [oc("A"), oc("B")]).state).toBe("EXECUTION_INVALID"); // direct: positional labels can't satisfy real gate
+    // wrapper is matrix-bound: a revert to outcome-self-derivation would make this A1_PASS -> RED
+    expect(acceptTwoCell(MATRIX, AGENTS, oc("A"), oc("B")).state).toBe("EXECUTION_INVALID");
+    expect(acceptTwoCell(MATRIX, AGENTS, oc(codexId), oc(claudeId)).state).toBe("A1_PASS"); // green baseline via wrapper
   });
   it("M8 allow a forbidden floating alias -> RED; M9 observed != configured frozen model -> RED", () => {
     expect(() => assertModelResolved("claude-opus-latest", null, "claude")).toThrow();
