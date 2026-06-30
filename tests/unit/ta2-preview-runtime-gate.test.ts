@@ -13,6 +13,8 @@ import path from 'path';
 import { checkPreviewUrl, ctIsSane, assertStructure, probe, ENDPOINTS, checkBuildIdentity } from '../../scripts/ci/ta2-preview-smoke.mjs';
 // @ts-expect-error - pure Node .mjs harness, no types
 import { verifyIdentityChain, defaultIdentityTree, writeIdentityTree } from '../../scripts/ci/ta2-preview-cleanup.mjs';
+// @ts-expect-error - pure Node .mjs harness, no types
+import { computeArmVerdict, computeQualificationVerdict, ARM_VERDICT, CLASSIFICATION } from '../../scripts/ci/ta2-preview-readiness.mjs';
 const yml = fs.readFileSync(path.resolve(__dirname, '../../.github/workflows/ta2-preview-runtime-gate.yml'), 'utf8').replace(/\r\n/g, '\n');
 const smokeSrc = fs.readFileSync(path.resolve(__dirname, '../../scripts/ci/ta2-preview-smoke.mjs'), 'utf8');
 const cleanupSrc = fs.readFileSync(path.resolve(__dirname, '../../scripts/ci/ta2-preview-cleanup.mjs'), 'utf8');
@@ -34,13 +36,7 @@ describe('TA2 gate - trigger + trust domain', () => {
     expect(ymlCode).not.toContain('pull_request_target');
   });
   it('NEGATIVE: a pull_request_target trigger would fail this lock', () => expect(yml.replace('pull_request:', 'pull_request_target:').includes('pull_request_target')).toBe(true));
-  it('fork fail-closed (TRUSTED_BRANCH_REQUIRED + exit 1); same-repo enforcement; no green N/A skip wedge', () => {
-    has(jobBlock('gate-guard'), 'trusted=false', '"${HEAD_REPO}" != "${BASE_REPO}"', 'trusted=true');
-    has(jobBlock('preview-smoke'), 'TRUSTED_BRANCH_REQUIRED', 'if: always()');
-    expect(jobBlock('preview-smoke')).toMatch(/trusted != 'true'[\s\S]*?exit 1/);
-    expect(jobBlock('preview-smoke')).not.toMatch(/N\/A|skipped.*green|conclusion.*neutral/i);
-    expect(jobBlock('preview-smoke')).toMatch(/if: always\(\)[\s\S]*exit 1/);
-  });
+  it('fork fail-closed (TRUSTED_BRANCH_REQUIRED + exit 1); same-repo enforcement; no green N/A skip wedge', () => { has(jobBlock('gate-guard'), 'trusted=false', '"${HEAD_REPO}" != "${BASE_REPO}"', 'trusted=true'); has(jobBlock('preview-smoke'), 'TRUSTED_BRANCH_REQUIRED', 'if: always()'); const ps = jobBlock('preview-smoke'); expect(ps).toMatch(/trusted != 'true'[\s\S]*?exit 1/); expect(ps).not.toMatch(/N\/A|skipped.*green|conclusion.*neutral/i); expect(ps).toMatch(/if: always\(\)[\s\S]*exit 1/); });
 });
 describe('TA2 gate - secret/environment trust boundary', () => {
   it('deploy + cleanup hold CF_PREVIEW_API_TOKEN via Environment ta2-preview', () => {
@@ -50,39 +46,19 @@ describe('TA2 gate - secret/environment trust boundary', () => {
     for (const t of ['secrets.CF_PREVIEW_API_TOKEN', 'CLOUDFLARE_API_TOKEN', 'environment: ta2-preview']) expect(jobBlock('build')).not.toContain(t);
     for (const t of ['secrets.CF_PREVIEW_API_TOKEN', 'apiToken']) expect(jobBlock('preview-smoke')).not.toContain(t);
   });
-  it('NEVER references the production CLOUDFLARE_API_TOKEN; never echoes the token', () => {
-    expect(yml).not.toContain('CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}');
-    expect(yml).not.toContain('secrets.CLOUDFLARE_API_TOKEN');
-    expect(ymlCode).not.toMatch(/echo[^\n]*CF_PREVIEW_API_TOKEN/);
-    expect(smokeCode).not.toMatch(/console\.[a-z]+\([^)]*TOKEN/i);
-    expect(cleanupCode).not.toMatch(/console\.[a-z]+\([^)]*TOKEN/i);
-  });
+  it('NEVER references the production CLOUDFLARE_API_TOKEN; never echoes the token', () => { expect(yml).not.toContain('CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}'); expect(yml).not.toContain('secrets.CLOUDFLARE_API_TOKEN'); expect(ymlCode).not.toMatch(/echo[^\n]*CF_PREVIEW_API_TOKEN/); expect(smokeCode).not.toMatch(/console\.[a-z]+\([^)]*TOKEN/i); expect(cleanupCode).not.toMatch(/console\.[a-z]+\([^)]*TOKEN/i); });
   it('NEGATIVE: exposing the token to the smoke job would trip the build+smoke lock', () => expect((jobBlock('preview-smoke') + '\n          apiToken: ${{ secrets.CF_PREVIEW_API_TOKEN }}').includes('CF_PREVIEW_API_TOKEN')).toBe(true));
 });
 describe('TA2 gate - four trust-domain jobs', () => {
   it('build: checkout exact control SHA, mirror infra-deploy build+restructure, upload immutable dist', () => has(jobBlock('build'), 'ref: ${{ matrix.sha }}', 'npm ci', 'npm run build', "fs.writeFileSync('dist/_worker.js'", 'dist-manifest.sha256', 'actions/upload-artifact@'));
-  it('deploy: downloads dist, does NOT npm install / run build / execute candidate', () => {
-    expect(jobBlock('deploy')).toContain('actions/download-artifact@');
-    for (const t of ['npm ci', 'npm run build']) expect(jobBlock('deploy')).not.toContain(t);
-    expect(jobBlock('deploy')).toContain('pages deploy dist --project-name=ai-nexus --branch=');
-  });
-  it('deploy outputs exact deployment id + preview url (UUID resolved, not the url)', () => {
-    has(jobBlock('deploy'), 'deployment_id: ${{ steps.out.outputs.deployment_id }}', 'preview_url: ${{ steps.out.outputs.preview_url }}', 'wrangler@4 pages deployment list');
-    expect(jobBlock('deploy')).toMatch(/\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}/);
-  });
-  it('smoke runs the runner against the preview URL only (per-control handoff)', () => {
-    has(jobBlock('preview-smoke'), 'scripts/ci/ta2-preview-smoke.mjs', 'name: ta2-deploy-${{ matrix.control }}', "require('./deploy-info.json').preview_url");
-    expect(jobBlock('preview-smoke')).not.toContain('free2aitools.com');
-  });
+  it('deploy: downloads dist, does NOT npm install / run build / execute candidate', () => { expect(jobBlock('deploy')).toContain('actions/download-artifact@'); for (const t of ['npm ci', 'npm run build']) expect(jobBlock('deploy')).not.toContain(t); expect(jobBlock('deploy')).toContain('pages deploy dist --project-name=ai-nexus --branch='); });
+  it('deploy outputs exact deployment id + preview url (UUID resolved, not the url)', () => { has(jobBlock('deploy'), 'deployment_id: ${{ steps.out.outputs.deployment_id }}', 'preview_url: ${{ steps.out.outputs.preview_url }}', 'wrangler@4 pages deployment list'); expect(jobBlock('deploy')).toMatch(/\[0-9a-f\]\{8\}-\[0-9a-f\]\{4\}/); });
+  it('smoke runs the runner against the preview URL only (per-control handoff)', () => { has(jobBlock('preview-smoke'), 'scripts/ci/ta2-preview-smoke.mjs', 'name: ta2-deploy-${{ matrix.control }}', "require('./deploy-info.json').preview_url"); expect(jobBlock('preview-smoke')).not.toContain('free2aitools.com'); });
 });
 describe('TA2 gate - preview naming + production exclusion', () => {
   it('deterministic name ta2-pr-<PR>-run-<RUN_ID>-attempt-<RUN_ATTEMPT>-<CONTROL>', () => expect(jobBlock('deploy')).toContain('PB="ta2-pr-${{ github.event.pull_request.number }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}-${CONTROL}"'));
   it('HARD-ASSERT branch not main / prod / empty; controls a fixed set; URL must be *.pages.dev', () => has(jobBlock('deploy'), '[ "$PB" = "main" ]', '[ "$PB" = "$PROD_BRANCH" ]', '[ -z "$PB" ]', 'candidate|broken|recovered|current)', '*.pages.dev', 'free2aitools.com|*.free2aitools.com'));
-  it('no main-branch deployment (NEGATIVE: a branch=main mutation trips the no-main lock)', () => {
-    expect(yml).not.toContain('--branch=main');
-    expect(yml).toContain('--branch=${{ steps.name.outputs.preview_branch }}');
-    expect(yml.replace('--branch=${{ steps.name.outputs.preview_branch }}', '--branch=main')).toContain('--branch=main');
-  });
+  it('no main-branch deployment (NEGATIVE: a branch=main mutation trips the no-main lock)', () => { expect(yml).not.toContain('--branch=main'); expect(yml).toContain('--branch=${{ steps.name.outputs.preview_branch }}'); expect(yml.replace('--branch=${{ steps.name.outputs.preview_branch }}', '--branch=main')).toContain('--branch=main'); });
 });
 describe('TA2 gate - pinning + telemetry + R2', () => {
   it('ALL third-party actions pinned by 40-hex commit SHA', () => {
@@ -90,12 +66,7 @@ describe('TA2 gate - pinning + telemetry + R2', () => {
     expect(uses.length).toBeGreaterThan(0);
     for (const u of uses) expect(u, `unpinned action: ${u}`).toMatch(/@[0-9a-f]{40}$/);
   });
-  it('telemetry OFF (no TELEMETRY_ENABLED=true) + canary AE dataset retained under [env.preview]', () => {
-    expect(ymlCode).not.toMatch(/TELEMETRY_ENABLED\s*[:=]\s*['"]?true/i);
-    const toml = fs.readFileSync(path.resolve(__dirname, '../../wrangler.toml'), 'utf8');
-    expect(toml).toContain('free2aitools_adoption_canary_v1');
-    expect(toml).toMatch(/\[env\.preview\][\s\S]*free2aitools_adoption_canary_v1/);
-  });
+  it('telemetry OFF (no TELEMETRY_ENABLED=true) + canary AE dataset retained under [env.preview]', () => { expect(ymlCode).not.toMatch(/TELEMETRY_ENABLED\s*[:=]\s*['"]?true/i); const toml = fs.readFileSync(path.resolve(__dirname, '../../wrangler.toml'), 'utf8'); expect(toml).toContain('free2aitools_adoption_canary_v1'); expect(toml).toMatch(/\[env\.preview\][\s\S]*free2aitools_adoption_canary_v1/); });
   it('R2 write-surface change blocks preview (PREVIEW_R2_ISOLATION_REQUIRED)', () => {
     has(jobBlock('gate-guard'), 'PREVIEW_R2_ISOLATION_REQUIRED', 'R2_ASSETS[^;]*\\.(put|delete|createMultipartUpload|resumeMultipartUpload)');
     expect(jobBlock('gate-guard')).toMatch(/grep -E "\$WRITE_RE"[\s\S]*exit 1/);
@@ -106,13 +77,7 @@ describe('TA2 gate - cleanup + qualification', () => {
     expect(jobBlock('cleanup')).toContain('if: always()');
     has(cleanupSrc, "'pages', 'deployment', 'delete', DEPLOYMENT_ID", "'--force'");
   });
-  it('cleanup verifies absence; a cleanup/verify failure is RED (process.exit non-zero, no warning-only)', () => {
-    expect(cleanupSrc).toContain('STILL PRESENT after delete');
-    expect(cleanupCode).toMatch(/process\.exit\(1\)/);
-    expect(cleanupCode).not.toMatch(/continue-on-error/i);
-    expect(cleanupCode.replace(/process\.exit\(1\)/g, 'console.warn("warn")')).not.toContain('process.exit(1)');
-  });
-  it('qualification-verdict is INDEPENDENT and passes only on the exact control matrix', () => has(jobBlock('qualification-verdict'), 'candidate != PASS', 'broken != EXPECTED_RUNTIME_FAIL', 'recovered != PASS', 'current base != PASS', 'a cleanup job did not pass', 'QUALIFICATION_VERDICT=PASS'));
+  it('cleanup verifies absence; a cleanup/verify failure is RED (process.exit non-zero, no warning-only)', () => { expect(cleanupSrc).toContain('STILL PRESENT after delete'); expect(cleanupCode).toMatch(/process\.exit\(1\)/); expect(cleanupCode).not.toMatch(/continue-on-error/i); expect(cleanupCode.replace(/process\.exit\(1\)/g, 'console.warn("warn")')).not.toContain('process.exit(1)'); });
   // Regression lock (run 27872096688): EVERY job running `node scripts/...` MUST checkout (pinned) BEFORE it, else MODULE_NOT_FOUND fails the verdict closed.
   const CO = 'uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1';
   it('every job running node scripts/ checks out (pinned) BEFORE it; verdict checkout precedes downloads', () => {
@@ -122,10 +87,6 @@ describe('TA2 gate - cleanup + qualification', () => {
       expect(b.indexOf(CO), `${j}: checkout must precede node scripts/`).toBeLessThan(s);
     }
     expect(jobBlock('qualification-verdict').indexOf('uses: actions/checkout@')).toBeLessThan(jobBlock('qualification-verdict').indexOf('actions/download-artifact@'));
-  });
-  it('broken EXPECTED_RUNTIME_FAIL requires deploy success first; matrix fail-fast false', () => {
-    has(jobBlock('preview-smoke'), "needs.deploy.result != 'success'", 'fail-fast: false');
-    expect(jobBlock('preview-smoke')).toMatch(/CONTROL" = "broken" \] && \[ "\$VERDICT" = "FAIL" \][\s\S]*EXPECTED_RUNTIME_FAIL/);
   });
   it('the four controls map to candidate/broken(cd64c8b4)/recovered(b5107e4c)/current(base)', () => has(jobBlock('build'), 'sha: cd64c8b49ffda41ff92188642dd6a8e95a8022fc', 'sha: b5107e4c4cb274e1eb560128a28bc1682eb828ad', '${{ needs.gate-guard.outputs.candidate_sha }}', '${{ needs.gate-guard.outputs.base_sha }}'));
 });
@@ -246,5 +207,44 @@ describe('TA2 identity - verdict EXACT chain fail-closed (D-78 S6, EXEC, temp fi
   it('verdict stays FAIL-CLOSED: an expected SHA absent/non-40hex FAILS', () => {
     const fx = fixture(); (fx.expected as any).broken = 'cd64c8b4';
     expect(verifyIdentityChain(fx).ok).toBe(false);
+  });
+});
+// ===== D-207 §M/§N STRUCTURED RELIABILITY — driven by the REAL production functions
+// (computeArmVerdict / computeQualificationVerdict), NOT job color and NOT a regex over a
+// commented-out bash remap. The workflow consumes structured per-arm records via --qualify. =====
+const armRec = (arm: string, v: string, r: string = CLASSIFICATION.SERVED) => ({ arm, final_arm_verdict: v, final_readiness_classification: r });
+const NP = ['candidate', 'recovered', 'current'];
+const nominal = () => NP.map((a) => armRec(a, ARM_VERDICT.NOMINAL_PASS));
+const fullPass = () => [...nominal(), armRec('broken', ARM_VERDICT.BROKEN_EXPECTED_FAIL)];
+const brokenSig = { sourceShaMatches: true, hashesMatch: true, ssrFailureCount: 3, anyRouteCfNotServed: false, markerStill200: true, productionContacted: false, healthyApiContract: false };
+const armV = (o: any) => computeArmVerdict(o).final_arm_verdict;
+describe('TA2 gate - D-207 §M/§N structured verdict (real functions)', () => {
+  it('verdict driven by the REAL readiness helper --qualify over structured arm records; deploy success required first; legacy inline strings kept only while literally present', () => {
+    const q = jobBlock('qualification-verdict');
+    has(q, 'node scripts/ci/ta2-preview-readiness.mjs --qualify', 'pattern: ta2-smoke-*', 'QUALIFICATION_VERDICT=PASS', 'candidate != PASS', 'broken != EXPECTED_RUNTIME_FAIL', 'recovered != PASS', 'current base != PASS', 'a cleanup job did not pass');
+    has(jobBlock('preview-smoke'), "needs.deploy.result != 'success'", 'fail-fast: false');
+  });
+  it('§M broken=EXPECTED_RUNTIME_FAIL requires SERVED marker + same-attempt identity; a NOT_SERVED broken arm is INFRASTRUCTURE_FAILURE, never expected-fail', () => {
+    expect(armV({ arm: 'broken', readiness: { ready: true }, brokenSignals: brokenSig })).toBe(ARM_VERDICT.BROKEN_EXPECTED_FAIL);
+    const ns = armV({ arm: 'broken', readiness: { ready: false, classification: CLASSIFICATION.NOT_SERVED }, appAlsoNotServed: false });
+    expect(ns).toBe(ARM_VERDICT.INFRASTRUCTURE_FAILURE); expect(ns).not.toBe(ARM_VERDICT.BROKEN_EXPECTED_FAIL);
+  });
+  it('§L nominal arms need SERVED marker + app-smoke pass; served+fail=>APP_SMOKE_FAIL; not-served=>RED classification', () => {
+    for (const a of NP) {
+      expect(armV({ arm: a, readiness: { ready: true }, appSmoke: { pass: true } })).toBe(ARM_VERDICT.NOMINAL_PASS);
+      expect(armV({ arm: a, readiness: { ready: true }, appSmoke: { pass: false } })).toBe(ARM_VERDICT.APP_SMOKE_FAIL);
+      expect(armV({ arm: a, readiness: { ready: false, classification: CLASSIFICATION.NOT_SERVED } })).toBe(CLASSIFICATION.NOT_SERVED);
+    }
+  });
+  it('§N truth table: only the full served+pass matrix=>SUCCESS; any NOT_SERVED / stale run-attempt / missing-evidence=>FAIL', () => {
+    expect(computeQualificationVerdict(fullPass()).verdict).toBe('SUCCESS');
+    const one = fullPass(); one[0] = armRec('candidate', CLASSIFICATION.NOT_SERVED, CLASSIFICATION.NOT_SERVED);
+    expect(computeQualificationVerdict(one).verdict).toBe('FAIL');
+    expect(computeQualificationVerdict([...NP.map((a) => armRec(a, CLASSIFICATION.STALE, CLASSIFICATION.STALE)), armRec('broken', ARM_VERDICT.BROKEN_EXPECTED_FAIL)]).verdict).toBe('FAIL');
+    expect(computeQualificationVerdict(nominal()).reasons).toContain('INCOMPLETE_EVIDENCE:broken');
+  });
+  it('§N all nominal arms sharing NOT_SERVED=>GATE_NON_DISCRIMINATING; no production-fallback token satisfies the gate', () => {
+    const res = computeQualificationVerdict([...NP.map((a) => armRec(a, CLASSIFICATION.NOT_SERVED, CLASSIFICATION.NOT_SERVED)), armRec('broken', ARM_VERDICT.INFRASTRUCTURE_FAILURE, CLASSIFICATION.NOT_SERVED)]);
+    expect(res.verdict).toBe('FAIL'); expect(res.reasons).toContain('GATE_NON_DISCRIMINATING'); expect(smokeCode).toContain('no_production_fallback');
   });
 });
