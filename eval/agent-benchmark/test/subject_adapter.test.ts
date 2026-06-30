@@ -1,13 +1,9 @@
-// subject_adapter.test.ts — §O adapter + lifecycle requirements (fixtures/mocks ONLY; NO live
-// Codex/Claude exec, NO live F2AI, FAKE process controller). Proves: STDIN byte fidelity,
-// shell:false, args-as-array, CONTROL empty/baseline config, AVAILABLE exact-plus-one F2AI,
-// ambient MCP exclusion (ARM-DIFF = F2AI only), non-MCP parity (METHOD A), secret-env exclusion,
-// JSONL/stream-json parse, fail-closed classification, raw exclusive-create + atomic write + seal
-// tamper-detection, reconciliation, timeout classification, unresolved model id fails closed, two
-// required-cell acceptance, legacy non-primary, evaluation corpus not opened. Anti-vacuity (RED):
-// arm-isolation, evidence-tampering, required-cell-omission, model-placeholder-acceptance.
+// subject_adapter.test.ts — §O adapter/lifecycle (fixtures/mocks ONLY; NO live exec/F2AI; FAKE
+// controller) + D-197 §L required-cell BINDING coverage + §M anti-vacuity. Proves STDIN fidelity,
+// shell:false, arm-isolation, METHOD-A parity, secret-env exclusion, parse/classify fail-closed,
+// seal tamper-detect, reconciliation, model-guard, MATRIX-bound acceptance. Tables drive §L/§M.
 import { describe, it, expect } from "vitest";
-import { readFileSync, mkdtempSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -19,7 +15,8 @@ import {
 import {
   assertModelResolved, classifyExecution, createRunDir, writeRawArtifact, atomicNormalizedWrite,
   sealRun, assertSealedForScoring, reconcile, acceptTwoCell, NodeProcessController, TOOL_CALL_GATE_STATUS,
-  type CommandSpec, type ProcessController, type ProcessResult, type SealEntry, type ReconInput,
+  requiredRealCellIds, reconcileRequiredCells, acceptRequiredCells, assertCellModelIdentity, ConfigRequiredCellDrift,
+  type CommandSpec, type ProcessController, type ProcessResult, type SealEntry, type ReconInput, type CellOutcome, type A1Acceptance,
 } from "../src/subject_runner.js";
 
 const MODEL = "fixture-model-id-x"; // a RESOLVED fixture id (never a real model is selected here)
@@ -28,7 +25,6 @@ const codexC = (arm: "CONTROL" | "AVAILABLE") =>
   buildCodexCommand({ model: MODEL, codexHome: "/d/home", profile: "a1-bench", workspace: "/d/ws", arm, task: "TASK<bytes>", lastMsgFile: "/d/last.txt", ...(arm === "AVAILABLE" ? { relayUrl: "http://127.0.0.1:5/" } : {}) });
 const claudeC = (arm: "CONTROL" | "AVAILABLE") =>
   buildClaudeCommand({ model: MODEL, configDir: "/d/cfg", workspace: "/d/ws", arm, mcpConfigPath: arm === "CONTROL" ? "/d/empty.json" : "/d/relay.json", task: "TASK<bytes>", ...(arm === "AVAILABLE" ? { relayUrl: "http://127.0.0.1:5/" } : {}) });
-
 class FakeProcessController implements ProcessController {
   lastSpec?: CommandSpec;
   constructor(private r: Partial<ProcessResult>) {}
@@ -37,6 +33,13 @@ class FakeProcessController implements ProcessController {
     return { startFailed: false, exitCode: 0, signal: null, timedOut: false, forcedKill: false, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), elapsedMs: 1, ...this.r };
   }
 }
+// D-197 §L/§M shared fixtures: the ACTUAL configs + identity READ FROM them (never hardcoded literals).
+const MATRIX = JSON.parse(readFileSync(join(PKG, "config/matrix.json"), "utf8"));
+const AGENTS = JSON.parse(readFileSync(join(PKG, "config/agents.json"), "utf8"));
+const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
+const oc = (id: string, evaluated = true, passing = true): CellOutcome => ({ cell_id: id, evaluated, passing });
+const codexId = MATRIX.real_agent_primary_cells.find((c: { product: string }) => c.product === "codex_cli").cell_id;
+const claudeId = MATRIX.real_agent_primary_cells.find((c: { product: string }) => c.product === "claude_code").cell_id;
 
 describe("command construction: STDIN, args-as-array, shell:false, per-arm config", () => {
   it("codex: task via STDIN (not argv), AVAILABLE adds exactly the F2AI override, CONTROL none", () => {
@@ -48,10 +51,8 @@ describe("command construction: STDIN, args-as-array, shell:false, per-arm confi
     expect(ctl.args.join(" ")).toContain("--ignore-user-config");
     expect(av.args.join(" ")).toMatch(/mcp_servers\.free2aitools\.url=/);
     expect(ctl.args.join(" ")).not.toMatch(/free2aitools/);
-    // shell:false is enforced by the production controller (read the source as proof).
     expect(/shell:\s*false/.test(readFileSync(join(PKG, "src/subject_runner.ts"), "utf8"))).toBe(true);
   });
-
   it("claude: --bare + explicit --mcp-config BOTH arms; CONTROL empty baseline, AVAILABLE exactly-one F2AI", () => {
     const ctl = claudeC("CONTROL"), av = claudeC("AVAILABLE");
     expect(ctl.exe).toBe("claude");
@@ -62,7 +63,6 @@ describe("command construction: STDIN, args-as-array, shell:false, per-arm confi
     expect(Object.keys(buildClaudeMcpConfig("CONTROL").mcpServers)).toEqual([]);
     expect(Object.keys(buildClaudeMcpConfig("AVAILABLE", "http://127.0.0.1:5/").mcpServers)).toEqual(["free2aitools"]);
   });
-
   it("STDIN byte fidelity through a FAKE process controller (no live spawn)", async () => {
     const fake = new FakeProcessController({});
     const spec = codexC("AVAILABLE");
@@ -80,7 +80,6 @@ describe("ambient-config exclusion + non-MCP capability parity (METHOD A)", () =
     const cl = buildClaudeArmDiff(buildClaudeMcpConfig("CONTROL"), buildClaudeMcpConfig("AVAILABLE", "http://127.0.0.1:5/"));
     expect(cl.diff_is_f2ai_only).toBe(true);
   });
-
   it("ANTI-VACUITY [arm-isolation]: an inherited extra MCP server fails the F2AI-only diff", () => {
     const inheritedControl = { mcpServers: { inherited_global: { type: "http", url: "http://x/" } } };
     const inheritedAvail = { mcpServers: { inherited_global: { type: "http", url: "http://x/" }, free2aitools: { type: "http", url: "http://127.0.0.1:5/" } } };
@@ -88,7 +87,6 @@ describe("ambient-config exclusion + non-MCP capability parity (METHOD A)", () =
     const tamperedCtl: CommandSpec = { ...codexC("CONTROL"), args: [...codexC("CONTROL").args, "-c", "tools.web_search=true"] };
     expect(buildCodexArmDiff(tamperedCtl, codexC("AVAILABLE")).diff_is_f2ai_only).toBe(false);
   });
-
   it("METHOD A disables native web/network IDENTICALLY in both arms", () => {
     expect(CLAUDE_CAPABILITY_PARITY.method).toBe("A");
     expect(CLAUDE_CAPABILITY_PARITY.disallowed_tools).toContain("WebSearch");
@@ -112,7 +110,6 @@ describe("secret-env exclusion + native event parse + fail-closed classification
     expect(buildClaudeEnv("/d/cfg", dirtyBase).CLAUDE_CONFIG_DIR).toBe("/d/cfg");
     expect(buildClaudeEnv("/d/cfg", dirtyBase).GITHUB_TOKEN).toBeUndefined();
   });
-
   it("parses native F2AI tool calls; a blank or malformed stream fails closed (parsedOk=false)", () => {
     const cx = parseCodexEvents('{"type":"mcp_tool_call","name":"free2aitools_search","arguments":{"query":"x"}}\n{"type":"mcp_tool_result"}');
     expect(cx.parsedOk).toBe(true);
@@ -124,7 +121,6 @@ describe("secret-env exclusion + native event parse + fail-closed classification
     expect(cl.nativeF2aiCalls[0]!.tool).toBe("free2aitools_rank");
     expect(parseClaudeEvents("").parsedOk).toBe(false);
   });
-
   it("classifies start-failure / timeout / non-zero / empty / malformed as INVALID; clean as valid", () => {
     const base: ProcessResult = { startFailed: false, exitCode: 0, signal: null, timedOut: false, forcedKill: false, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), elapsedMs: 1 };
     expect(classifyExecution({ ...base, startFailed: true }, true, true).valid).toBe(false);
@@ -136,7 +132,7 @@ describe("secret-env exclusion + native event parse + fail-closed classification
   });
 });
 
-describe("model id fail-closed + evidence seal + reconciliation + acceptance", () => {
+describe("model id fail-closed + evidence seal + reconciliation + MATRIX-bound acceptance", () => {
   it("ANTI-VACUITY [model-placeholder-acceptance]: floating/placeholder/unconfirmed ids fail closed", () => {
     for (const bad of ["", "codex", "default", "latest", "opus", "claude", "UNRESOLVED_AT_EXECUTION_FREEZE"]) {
       expect(() => assertModelResolved(bad)).toThrow();
@@ -146,7 +142,6 @@ describe("model id fail-closed + evidence seal + reconciliation + acceptance", (
     expect(() => buildCodexCommand({ model: "UNRESOLVED_AT_EXECUTION_FREEZE", codexHome: "/h", profile: "p", workspace: "/w", arm: "CONTROL", task: "t", lastMsgFile: "/l" })).toThrow();
     expect(TOOL_CALL_GATE_STATUS).toMatch(/DESIGN_PATH_IDENTIFIED/); // C4: not "resolved"
   });
-
   it("raw exclusive-create + atomic normalized write + seal with tamper-detection", () => {
     const root = mkdtempSync(join(tmpdir(), "a1-seal-"));
     const dir = createRunDir(root, "run-1");
@@ -163,7 +158,6 @@ describe("model id fail-closed + evidence seal + reconciliation + acceptance", (
     const unsealed = createRunDir(root, "run-2");
     expect(() => assertSealedForScoring(unsealed, entries)).toThrow(); // RUN_SEALED absent
   });
-
   it("reconciliation: relay primary, native corroborating; CONTROL/AVAILABLE isolation enforced", () => {
     const r = (o: Partial<ReconInput>): ReconInput => ({ arm: "AVAILABLE", relayF2aiCall: false, relayMalformed: false, nativeF2aiCall: false, nativeContradictsIdentity: false, nativeFormatGuaranteesCompleteness: false, controlNativeF2ai: false, availableDirectOutsideRelay: false, ...o });
     expect(reconcile(r({ relayF2aiCall: true, nativeF2aiCall: true })).verdict).toBe("CONFIRMED");
@@ -175,18 +169,81 @@ describe("model id fail-closed + evidence seal + reconciliation + acceptance", (
     expect(reconcile(r({ arm: "CONTROL", controlNativeF2ai: true })).verdict).toBe("EXECUTION_INVALID");
     expect(reconcile(r({ availableDirectOutsideRelay: true })).verdict).toBe("EXECUTION_INVALID");
   });
-
-  it("two required-cell acceptance; one passing cannot hide one failing; legacy non-primary; corpus not opened", () => {
-    const ok = (id: string) => ({ cell_id: id, evaluated: true, passing: true });
-    expect(acceptTwoCell(ok("A"), ok("B")).state).toBe("A1_PASS");
-    expect(acceptTwoCell(undefined, ok("B")).state).toBe("A1_INSUFFICIENT"); // ANTI-VACUITY [required-cell-omission]
-    expect(acceptTwoCell(ok("A"), undefined).state).toBe("A1_INSUFFICIENT");
-    expect(acceptTwoCell(ok("A"), { cell_id: "B", evaluated: true, passing: false }).state).toBe("A1_FAIL");
-    const matrix = JSON.parse(readFileSync(join(PKG, "config/matrix.json"), "utf8"));
-    expect(matrix.real_agent_primary_cells.length).toBe(2);
-    expect(matrix.cells.every((c: { a1_primary: boolean }) => c.a1_primary === false)).toBe(true);
-    for (const f of ["subject_runner.ts", "agent_codex_adapter.ts", "agent_claude_adapter.ts", "mcp_trace_relay.ts"]) {
+  it("acceptTwoCell is MATRIX-BOUND; positional throwaway ids cannot pass; one passing cannot hide one failing; legacy non-primary; corpus not opened", () => {
+    expect(acceptTwoCell(MATRIX, AGENTS, oc(codexId), oc(claudeId)).state).toBe("A1_PASS"); // matrix-derived ids pass
+    expect(acceptTwoCell(MATRIX, AGENTS, oc("A"), oc("B")).state).toBe("EXECUTION_INVALID"); // ANTI-VACUITY [positional-loophole]
+    expect(acceptTwoCell(MATRIX, AGENTS, undefined, oc(claudeId)).state).toBe("A1_INSUFFICIENT"); // required Codex cell missing
+    expect(acceptTwoCell(MATRIX, AGENTS, oc(codexId), undefined).state).toBe("A1_INSUFFICIENT");
+    expect(acceptTwoCell(MATRIX, AGENTS, oc(codexId), oc(claudeId, true, false)).state).toBe("A1_FAIL"); // one passing cannot hide one failing
+    expect(MATRIX.real_agent_primary_cells.length).toBe(2);
+    expect(MATRIX.cells.every((c: { a1_primary: boolean }) => c.a1_primary === false)).toBe(true);
+    for (const f of ["subject_runner.ts", "agent_codex_adapter.ts", "agent_claude_adapter.ts", "mcp_trace_relay.ts"])
       expect(/evaluation\.jsonl|loadCorpus/.test(readFileSync(join(PKG, "src", f), "utf8"))).toBe(false); // eval corpus not opened
-    }
+  });
+});
+
+// D-197 §L required-cell BINDING + §M anti-vacuity (table-driven; REAL production binding/acceptance/
+// model guard vs the ACTUAL configs; identity read FROM the configs; mutate real config -> RED/throw).
+describe("§L/§M required-cell matrix binding", () => {
+  const d = requiredRealCellIds(MATRIX);
+  it("§L1-7 derive: reconcile==derived mirror, 2 unique ids, codex+claude present, legacy absent, count==card, order-insensitive; gate not resolved", () => {
+    expect(reconcileRequiredCells(MATRIX, AGENTS)).toEqual(d); // reconcile == derived matrix set
+    expect(new Set(d)).toEqual(new Set(AGENTS.acceptance.required_cells)); // mirror equals derived (read from agents)
+    expect(d.length).toBe(2); expect(new Set(d).size).toBe(2);
+    expect(d).toContain(codexId); expect(d).toContain(claudeId);
+    for (const c of MATRIX.cells) expect(d).not.toContain(c.cell_id); // legacy engineering adapters excluded
+    expect(MATRIX.real_agent_required_cell_count).toBe(d.length);
+    const rev = clone(MATRIX); rev.real_agent_primary_cells.reverse();
+    expect(requiredRealCellIds(rev)).toEqual(d); // sorted => order-insensitive set equality
+    expect(TOOL_CALL_GATE_STATUS).not.toMatch(/RESOLVED/i); // qualification gate is not "resolved"
+  });
+  it("§L15 wrong-two-ids: cardinality 2 but != the agents mirror still drifts", () => {
+    const w = clone(MATRIX); w.real_agent_primary_cells[0].cell_id = "CELL-X1"; w.real_agent_primary_cells[1].cell_id = "CELL-X2";
+    expect(requiredRealCellIds(w).length).toBe(2); // cardinality still 2...
+    expect(() => reconcileRequiredCells(w, AGENTS)).toThrow(ConfigRequiredCellDrift); // ...but != mirror
+  });
+  const DRIFT_FAIL: Array<[string, () => unknown, unknown]> = [
+    ["§L8/§M3 matrix removal", () => { const m = clone(MATRIX); m.real_agent_primary_cells.pop(); return requiredRealCellIds(m); }, Error],
+    ["§L9/§M4 matrix extra 3rd cell", () => { const m = clone(MATRIX); m.real_agent_primary_cells.push({ cell_id: "CELL-C-EXTRA", a1_primary: true }); return requiredRealCellIds(m); }, Error],
+    ["§L10/§M5 matrix duplicate id", () => { const m = clone(MATRIX); m.real_agent_primary_cells[1].cell_id = m.real_agent_primary_cells[0].cell_id; return requiredRealCellIds(m); }, Error],
+    ["§L11/§M6 legacy cell inserted at idx0", () => { const m = clone(MATRIX); m.real_agent_primary_cells[0].cell_id = MATRIX.cells[0].cell_id; return requiredRealCellIds(m); }, Error],
+    ["§M6b legacy cell inserted at idx1", () => { const m = clone(MATRIX); m.real_agent_primary_cells[1].cell_id = MATRIX.cells[1].cell_id; return requiredRealCellIds(m); }, Error],
+    ["§L12 agents missing cell", () => { const a = clone(AGENTS); a.acceptance.required_cells = [codexId]; return reconcileRequiredCells(MATRIX, a); }, ConfigRequiredCellDrift],
+    ["§L13 agents extra cell", () => { const a = clone(AGENTS); a.acceptance.required_cells = [codexId, claudeId, "CELL-C-EXTRA"]; return reconcileRequiredCells(MATRIX, a); }, ConfigRequiredCellDrift],
+    ["§L14 agents duplicate cell", () => { const a = clone(AGENTS); a.acceptance.required_cells = [codexId, codexId]; return reconcileRequiredCells(MATRIX, a); }, ConfigRequiredCellDrift],
+    ["§M1 matrix id changed, agents unchanged", () => { const m = clone(MATRIX); m.real_agent_primary_cells[0].cell_id = codexId + "-MUT"; return reconcileRequiredCells(m, AGENTS); }, ConfigRequiredCellDrift],
+    ["§M2 agents id changed, matrix unchanged", () => { const a = clone(AGENTS); a.acceptance.required_cells = [codexId + "-MUT", claudeId]; return reconcileRequiredCells(MATRIX, a); }, ConfigRequiredCellDrift],
+  ];
+  it.each(DRIFT_FAIL)("drift fails closed: %s", (_n, fn, err) => { expect(fn).toThrow(err as never); });
+  const ACC: Array<[string, string[], CellOutcome[], A1Acceptance]> = [
+    ["§L16 missing required -> INSUFFICIENT", d, [oc(d[0]!)], "A1_INSUFFICIENT"],
+    ["§L17 extra unknown -> INVALID", d, [oc(d[0]!), oc(d[1]!), oc("CELL-C-EXTRA")], "EXECUTION_INVALID"],
+    ["§L18 duplicate -> INVALID", d, [oc(d[0]!), oc(d[0]!)], "EXECUTION_INVALID"],
+    ["§L19 swapped order -> PASS (identity by cell_id)", d, [oc(d[1]!), oc(d[0]!)], "A1_PASS"],
+    ["§L20/§M7 positional A/B -> INVALID", d, [oc("A"), oc("B")], "EXECUTION_INVALID"],
+    ["§L21 legacy outcome -> INVALID", d, [oc(d[0]!), oc(MATRIX.cells[0].cell_id)], "EXECUTION_INVALID"],
+    ["§L22 one failing not hidden -> FAIL", d, [oc(d[0]!), oc(d[1]!, true, false)], "A1_FAIL"],
+    ["§L23 both valid -> PASS (aggregate)", d, [oc(d[0]!), oc(d[1]!)], "A1_PASS"],
+    ["§L24 qualification evaluated=false -> INSUFFICIENT", d, [oc(d[0]!, false), oc(d[1]!, false)], "A1_INSUFFICIENT"],
+  ];
+  it.each(ACC)("acceptRequiredCells (cell_id identity) %s", (_n, req, outs, exp) => { expect(acceptRequiredCells(req, outs).state).toBe(exp); });
+  const MODEL_FAIL_CODEX = ["", "default", "latest", "codex", "gpt-5.5", "gpt-5.3-codex", "unspecified configured default", "unconfirmed account-routed identity", "UNRESOLVED_AT_EXECUTION_FREEZE"];
+  const MODEL_FAIL_CLAUDE = ["", "default", "latest", "claude", "opus", "opusplan", "best", "claude-opus-latest", "sonnet fallback", "haiku fallback", "fable fallback", "unknown", "router-selected", "unconfirmed account-routed identity"];
+  const MODEL_PASS: Array<[string, "codex" | "claude"]> = [["claude-opus-4-8", "claude"], ["gpt-5.5-2026-04-23", "codex"], ["x-codex-pinned-2026", "codex"]];
+  it.each(MODEL_FAIL_CODEX)("§L25 forbidden codex alias '%s' fails (exact-token)", (id) => { expect(() => assertModelResolved(id, null, "codex")).toThrow(); });
+  it.each(MODEL_FAIL_CLAUDE)("§L26 forbidden claude alias '%s' fails (exact-token)", (id) => { expect(() => assertModelResolved(id, null, "claude")).toThrow(); });
+  it.each(MODEL_PASS)("§L27/§L28 pinned id '%s' passes (no broad-substring false positive)", (id, p) => { expect(() => assertModelResolved(id, null, p)).not.toThrow(); });
+  it("§L29 observed!=configured fails; §L30 mid-run model transition fails; green when frozen", () => {
+    const o = (conf: string, seen: string, p?: "codex" | "claude") => [{ cell_id: codexId, configured_exact_model_id: conf, observed_model_id: seen, product: p }];
+    expect(() => assertCellModelIdentity(o("gpt-5.5-2026-04-23", "gpt-5.5-2026-99-99", "codex"))).toThrow(); // L29 observed mismatch
+    expect(() => assertCellModelIdentity([...o("pinned-a", "pinned-a"), { cell_id: codexId, configured_exact_model_id: "pinned-b", observed_model_id: "pinned-b" }])).toThrow(); // L30 transition
+    expect(() => assertCellModelIdentity(o("pinned-a", "pinned-a"))).not.toThrow(); // green: one frozen model observed exactly
+  });
+  it("§M baseline GREEN; §M8 floating alias rejected; §M9 observed!=configured frozen model rejected", () => {
+    const dd = reconcileRequiredCells(MATRIX, AGENTS);
+    expect(acceptRequiredCells(dd, [oc(dd[0]!), oc(dd[1]!)]).state).toBe("A1_PASS"); // real configs reconcile + accept
+    expect(() => assertModelResolved("claude-opus-latest", null, "claude")).toThrow(); // M8
+    expect(() => assertModelResolved("gpt-5.5-latest", null, "codex")).toThrow(); // M8 generic floating alias
+    expect(() => assertCellModelIdentity([{ cell_id: claudeId, configured_exact_model_id: "claude-opus-4-8", observed_model_id: "claude-opus-4-7", product: "claude" }])).toThrow(); // M9
   });
 });
