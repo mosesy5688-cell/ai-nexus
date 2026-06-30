@@ -19,7 +19,8 @@ import {
 import {
   assertModelResolved, classifyExecution, createRunDir, writeRawArtifact, atomicNormalizedWrite,
   sealRun, assertSealedForScoring, reconcile, acceptTwoCell, NodeProcessController, TOOL_CALL_GATE_STATUS,
-  type CommandSpec, type ProcessController, type ProcessResult, type SealEntry, type ReconInput,
+  requiredRealCellIds, reconcileRequiredCells, acceptRequiredCells, assertCellModelIdentity, ConfigRequiredCellDrift,
+  type CommandSpec, type ProcessController, type ProcessResult, type SealEntry, type ReconInput, type CellOutcome,
 } from "../src/subject_runner.js";
 
 const MODEL = "fixture-model-id-x"; // a RESOLVED fixture id (never a real model is selected here)
@@ -188,5 +189,148 @@ describe("model id fail-closed + evidence seal + reconciliation + acceptance", (
     for (const f of ["subject_runner.ts", "agent_codex_adapter.ts", "agent_claude_adapter.ts", "mcp_trace_relay.ts"]) {
       expect(/evaluation\.jsonl|loadCorpus/.test(readFileSync(join(PKG, "src", f), "utf8"))).toBe(false); // eval corpus not opened
     }
+  });
+});
+
+// ===========================================================================================
+// D-197 §L required-cell BINDING coverage. Drives the REAL production binding/acceptance/model
+// guard against the ACTUAL config/matrix.json + config/agents.json (no 2nd duplicated expected
+// array; expected identity is READ FROM the configs themselves). §M anti-vacuity follows.
+// ===========================================================================================
+const MATRIX = JSON.parse(readFileSync(join(PKG, "config/matrix.json"), "utf8"));
+const AGENTS = JSON.parse(readFileSync(join(PKG, "config/agents.json"), "utf8"));
+const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
+const oc = (id: string, evaluated = true, passing = true): CellOutcome => ({ cell_id: id, evaluated, passing });
+// codex/claude required ids resolved FROM the matrix product fields (never hardcoded literals).
+const codexId = MATRIX.real_agent_primary_cells.find((c: { product: string }) => c.product === "codex_cli").cell_id;
+const claudeId = MATRIX.real_agent_primary_cells.find((c: { product: string }) => c.product === "claude_code").cell_id;
+
+describe("§L single-source matrix binding (requiredRealCellIds + reconcileRequiredCells)", () => {
+  it("L1 actual matrix+agents reconcile; L2 derived set is exactly 2 unique ids", () => {
+    const d = requiredRealCellIds(MATRIX);
+    expect(reconcileRequiredCells(MATRIX, AGENTS)).toEqual(d); // reconcile == derived matrix set
+    expect(new Set(d)).toEqual(new Set(AGENTS.acceptance.required_cells)); // mirror equals derived (read from agents)
+    expect(d.length).toBe(2);
+    expect(new Set(d).size).toBe(2);
+  });
+  it("L3 Codex cell present; L4 Claude cell present; L5 legacy cells absent", () => {
+    const d = requiredRealCellIds(MATRIX);
+    expect(d).toContain(codexId);
+    expect(d).toContain(claudeId);
+    for (const c of MATRIX.cells) expect(d).not.toContain(c.cell_id); // legacy engineering adapters excluded
+  });
+  it("L6 required-count == derived cardinality; L7 order change does not fail", () => {
+    const d = requiredRealCellIds(MATRIX);
+    expect(MATRIX.real_agent_required_cell_count).toBe(d.length);
+    const rev = clone(MATRIX); rev.real_agent_primary_cells.reverse();
+    expect(requiredRealCellIds(rev)).toEqual(d); // sorted => order-insensitive set equality
+  });
+  it("L8 matrix removal fails; L9 extra cell fails; L10 duplicate fails; L11 legacy-cell insertion fails", () => {
+    const rm = clone(MATRIX); rm.real_agent_primary_cells.pop();
+    expect(() => requiredRealCellIds(rm)).toThrow(); // count 2 != cardinality 1
+    const extra = clone(MATRIX); extra.real_agent_primary_cells.push({ cell_id: "CELL-C-EXTRA", a1_primary: true });
+    expect(() => requiredRealCellIds(extra)).toThrow(); // count 2 != cardinality 3
+    const dup = clone(MATRIX); dup.real_agent_primary_cells[1].cell_id = dup.real_agent_primary_cells[0].cell_id;
+    expect(() => requiredRealCellIds(dup)).toThrow();
+    const leg = clone(MATRIX); leg.real_agent_primary_cells[0].cell_id = MATRIX.cells[0].cell_id;
+    expect(() => requiredRealCellIds(leg)).toThrow(); // legacy local cell can never be a required cell
+  });
+  it("L12 agents missing fails; L13 agents extra fails; L14 agents duplicate fails (CONFIG_REQUIRED_CELL_DRIFT)", () => {
+    const miss = clone(AGENTS); miss.acceptance.required_cells = [codexId];
+    expect(() => reconcileRequiredCells(MATRIX, miss)).toThrow(ConfigRequiredCellDrift);
+    const extra = clone(AGENTS); extra.acceptance.required_cells = [codexId, claudeId, "CELL-C-EXTRA"];
+    expect(() => reconcileRequiredCells(MATRIX, extra)).toThrow(ConfigRequiredCellDrift);
+    const dup = clone(AGENTS); dup.acceptance.required_cells = [codexId, codexId];
+    expect(() => reconcileRequiredCells(MATRIX, dup)).toThrow(ConfigRequiredCellDrift);
+  });
+  it("L15 wrong-two-ids fail even with cardinality 2", () => {
+    const wrong = clone(MATRIX);
+    wrong.real_agent_primary_cells[0].cell_id = "CELL-X-WRONG-ONE";
+    wrong.real_agent_primary_cells[1].cell_id = "CELL-Y-WRONG-TWO";
+    expect(requiredRealCellIds(wrong).length).toBe(2); // cardinality still 2...
+    expect(() => reconcileRequiredCells(wrong, AGENTS)).toThrow(ConfigRequiredCellDrift); // ...but != the agents mirror
+  });
+});
+
+describe("§L cell_id-bound acceptance (acceptRequiredCells) + model identity guard", () => {
+  const d = requiredRealCellIds(MATRIX);
+  it("L16 missing required outcome -> A1_INSUFFICIENT; L17 extra -> EXECUTION_INVALID; L18 duplicate -> EXECUTION_INVALID", () => {
+    expect(acceptRequiredCells(d, [oc(d[0]!)]).state).toBe("A1_INSUFFICIENT");
+    expect(acceptRequiredCells(d, [oc(d[0]!), oc(d[1]!), oc("CELL-C-EXTRA")]).state).toBe("EXECUTION_INVALID");
+    expect(acceptRequiredCells(d, [oc(d[0]!), oc(d[0]!)]).state).toBe("EXECUTION_INVALID");
+  });
+  it("L19 swapped order does not alter identity; L20 positional labels cannot substitute for cell_id", () => {
+    expect(acceptRequiredCells(d, [oc(d[1]!), oc(d[0]!)]).state).toBe("A1_PASS"); // reversed outcome order, same result
+    expect(acceptRequiredCells(d, [oc(d[0]!), oc(d[1]!)]).state).toBe("A1_PASS");
+    expect(acceptRequiredCells(d, [oc("A"), oc("B")]).state).toBe("EXECUTION_INVALID"); // throwaway positional labels rejected
+  });
+  it("L21 legacy outcome cannot satisfy a required cell; L22 one passing cannot hide one failing", () => {
+    expect(acceptRequiredCells(d, [oc(d[0]!), oc(MATRIX.cells[0].cell_id)]).state).toBe("EXECUTION_INVALID");
+    expect(acceptRequiredCells(d, [oc(d[0]!, true, true), oc(d[1]!, true, false)]).state).toBe("A1_FAIL");
+  });
+  it("L23 both valid reach the existing aggregate; L24 qualification (evaluated=false) cannot emit A1_PASS", () => {
+    expect(acceptRequiredCells(d, [oc(d[0]!, true, true), oc(d[1]!, true, true)]).state).toBe("A1_PASS");
+    expect(acceptRequiredCells(d, [oc(d[0]!, false, true), oc(d[1]!, false, true)]).state).toBe("A1_INSUFFICIENT");
+    expect(TOOL_CALL_GATE_STATUS).not.toMatch(/RESOLVED/i); // qualification gate is not "resolved"
+  });
+  it("L25 forbidden Codex aliases fail; L26 forbidden Claude aliases fail", () => {
+    for (const bad of ["", "default", "latest", "codex", "gpt-5.5", "gpt-5.3-codex", "unspecified configured default", "unconfirmed account-routed identity", "UNRESOLVED_AT_EXECUTION_FREEZE"]) {
+      expect(() => assertModelResolved(bad, null, "codex")).toThrow();
+    }
+    for (const bad of ["", "default", "latest", "claude", "opus", "opusplan", "best", "claude-opus-latest", "sonnet fallback", "haiku fallback", "fable fallback", "unknown", "router-selected", "unconfirmed account-routed identity"]) {
+      expect(() => assertModelResolved(bad, null, "claude")).toThrow();
+    }
+  });
+  it("L27 legitimate exact pinned candidates pass; L28 broad-substring false positives do NOT occur", () => {
+    expect(() => assertModelResolved("claude-opus-4-8", null, "claude")).not.toThrow(); // contains 'opus'/'claude' but pinned
+    expect(() => assertModelResolved("gpt-5.5-2026-04-23", null, "codex")).not.toThrow(); // contains 'gpt-5.5' but pinned
+    expect(() => assertModelResolved("x-codex-pinned-2026", null, "codex")).not.toThrow(); // contains 'codex' but not the exact token
+    expect(() => assertModelResolved("opus", null, "claude")).toThrow(); // bare token still fails (exact match)
+    expect(() => assertModelResolved("gpt-5.5", null, "codex")).toThrow();
+  });
+  it("L29 observed-model mismatch fails; L30 model transition within one cell/run fails", () => {
+    expect(() => assertCellModelIdentity([{ cell_id: codexId, configured_exact_model_id: "gpt-5.5-2026-04-23", observed_model_id: "gpt-5.5-2026-99-99", product: "codex" }])).toThrow();
+    expect(() => assertCellModelIdentity([
+      { cell_id: codexId, configured_exact_model_id: "pinned-2026-a", observed_model_id: "pinned-2026-a" },
+      { cell_id: codexId, configured_exact_model_id: "pinned-2026-b", observed_model_id: "pinned-2026-b" },
+    ])).toThrow(); // same cell, model changed mid-run
+    // green baseline: one exact frozen model, observed == configured, no change
+    expect(() => assertCellModelIdentity([{ cell_id: codexId, configured_exact_model_id: "pinned-2026-a", observed_model_id: "pinned-2026-a" }])).not.toThrow();
+  });
+});
+
+describe("§M anti-vacuity: each mutation of the REAL production binding path -> RED; restore -> green", () => {
+  it("baseline GREEN: the real matrix+agents reconcile and accept", () => {
+    const d = reconcileRequiredCells(MATRIX, AGENTS);
+    expect(acceptRequiredCells(d, [oc(d[0]!), oc(d[1]!)]).state).toBe("A1_PASS");
+  });
+  it("M1 matrix cell id changed (agents unchanged) -> RED", () => {
+    const m = clone(MATRIX); m.real_agent_primary_cells[0].cell_id = codexId + "-MUTANT";
+    expect(() => reconcileRequiredCells(m, AGENTS)).toThrow();
+  });
+  it("M2 agents id changed (matrix unchanged) -> RED", () => {
+    const a = clone(AGENTS); a.acceptance.required_cells = [codexId + "-MUTANT", claudeId];
+    expect(() => reconcileRequiredCells(MATRIX, a)).toThrow();
+  });
+  it("M3 remove one required cell -> RED; M4 add a 3rd required cell -> RED", () => {
+    const rm = clone(MATRIX); rm.real_agent_primary_cells.pop();
+    expect(() => requiredRealCellIds(rm)).toThrow();
+    const add = clone(MATRIX); add.real_agent_primary_cells.push({ cell_id: "CELL-C-EXTRA", a1_primary: true });
+    expect(() => requiredRealCellIds(add)).toThrow();
+  });
+  it("M5 duplicate a required id -> RED; M6 insert a legacy local cell -> RED", () => {
+    const dup = clone(MATRIX); dup.real_agent_primary_cells[1].cell_id = dup.real_agent_primary_cells[0].cell_id;
+    expect(() => requiredRealCellIds(dup)).toThrow();
+    const leg = clone(MATRIX); leg.real_agent_primary_cells[1].cell_id = MATRIX.cells[1].cell_id;
+    expect(() => requiredRealCellIds(leg)).toThrow();
+  });
+  it("M7 restore positional acceptance with throwaway ids A/B -> RED", () => {
+    const d = requiredRealCellIds(MATRIX);
+    expect(acceptRequiredCells(d, [oc("A"), oc("B")]).state).toBe("EXECUTION_INVALID"); // positional labels can't satisfy real gate
+  });
+  it("M8 allow a forbidden floating alias -> RED; M9 observed != configured frozen model -> RED", () => {
+    expect(() => assertModelResolved("claude-opus-latest", null, "claude")).toThrow();
+    expect(() => assertModelResolved("gpt-5.5-latest", null, "codex")).toThrow(); // generic floating alias
+    expect(() => assertCellModelIdentity([{ cell_id: claudeId, configured_exact_model_id: "claude-opus-4-8", observed_model_id: "claude-opus-4-7", product: "claude" }])).toThrow();
   });
 });
