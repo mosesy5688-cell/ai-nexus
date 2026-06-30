@@ -1,9 +1,8 @@
 // subject_runner.ts — episode LIFECYCLE/ORCHESTRATION for the HARNESS_DRIVEN_NON_INTERACTIVE
 // real-Agent cells (D-193 P1/P3/P7). Owns: immutable input record, Windows-safe process spawn
-// (shell:false, STDIN, monotonic timeout, process-tree kill via an injectable controller),
-// RAW capture, fail-closed classification, evidence seal (exclusive-create + atomic +
-// RUN_SEALED), relay-vs-native reconciliation, two required-cell acceptance, and a fail-closed
-// model-id guard. NO live Agent/F2AI here; tests inject a fake process controller + mock data.
+// (shell:false/STDIN/monotonic timeout/process-tree kill), RAW capture, fail-closed classification,
+// evidence seal, relay-vs-native reconciliation, matrix-bound required-cell acceptance (D-197), and
+// a fail-closed model-id guard. NO live Agent/F2AI here; tests inject a fake controller + mock data.
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, renameSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -94,16 +93,32 @@ export function classifyExecution(p: ProcessResult, hasOutput: boolean, parsedOk
   return { valid: true, reason: "OK" };
 }
 
-// D-192 §I model-id FAIL-CLOSED guard. Rejects floating/placeholder ids and any id the client
-// does not echo/confirm. The PR defines this guard; it does NOT select the model.
-const BANNED_MODEL_IDS = new Set(["", "codex", "default", "latest", "opus", "claude", "unresolved_at_execution_freeze"]);
-export function assertModelResolved(modelId: string, confirmed?: string | null): void {
-  const id = (modelId ?? "").trim();
-  if (BANNED_MODEL_IDS.has(id.toLowerCase()) || /unresolved|placeholder/i.test(id)) {
-    throw new ExecutionInvalid(`unresolved/placeholder/floating model id: '${id}'`);
-  }
-  if (confirmed != null && confirmed !== id) {
-    throw new ExecutionInvalid(`model id not confirmed by client: '${id}' != '${confirmed}'`);
+// D-197 §H/§I/§J model-id FAIL-CLOSED guard. EXACT-token (not substring): pinned ids (claude-opus-4-8, gpt-5.5-2026-04-23) PASS; floating/placeholder/fallback FINAL ids fail.
+export type CellProduct = "codex" | "claude";
+const FORBIDDEN_COMMON = ["", "default", "latest", "unresolved_at_execution_freeze"];
+const FORBIDDEN_CODEX = ["codex", "gpt-5.5", "gpt-5.3-codex", "unspecified configured default", "unconfirmed account-routed identity"];
+const FORBIDDEN_CLAUDE = ["claude", "opus", "opusplan", "best", "claude-opus-latest", "sonnet fallback", "haiku fallback", "fable fallback", "unknown", "router-selected", "unconfirmed account-routed identity"];
+export function assertModelResolved(modelId: string, confirmed?: string | null, product?: CellProduct): void {
+  const id = (modelId ?? "").trim(), norm = id.toLowerCase(), banned = new Set(FORBIDDEN_COMMON);
+  if (product !== "claude") for (const x of FORBIDDEN_CODEX) banned.add(x);
+  if (product !== "codex") for (const x of FORBIDDEN_CLAUDE) banned.add(x);
+  if (banned.has(norm) || /unresolved|placeholder/i.test(id) || /(^|[-_\s])(latest|default|best)$/.test(norm)) throw new ExecutionInvalid(`unresolved/placeholder/floating/forbidden model id: '${id}'`);
+  if (confirmed != null && confirmed !== id) throw new ExecutionInvalid(`model id not confirmed by client: '${id}' != '${confirmed}'`);
+}
+// §I/§J generic per-cell identity guard: one EXACT frozen model per cell; every episode observes exactly it; no mid-run change; no fallback. NO second hardcoded candidate model registry.
+export interface ModelObservation { cell_id: string; configured_exact_model_id: string; observed_model_id: string; product?: CellProduct; }
+export function assertCellModelIdentity(obs: ModelObservation[]): void {
+  if (!obs.length) throw new ExecutionInvalid("no model observations: missing model identity");
+  const perCell = new Map<string, string>();
+  for (const o of obs) {
+    const cell = (o?.cell_id ?? "").trim();
+    if (!cell) throw new ExecutionInvalid("missing cell_id in model observation");
+    assertModelResolved(o.configured_exact_model_id, null, o.product);
+    assertModelResolved(o.observed_model_id, null, o.product);
+    const conf = o.configured_exact_model_id.trim(), seen = o.observed_model_id.trim(), prior = perCell.get(cell);
+    if (seen !== conf) throw new ExecutionInvalid(`observed model '${seen}' != configured frozen model '${conf}' for ${cell}`);
+    if (prior !== undefined && prior !== seen) throw new ExecutionInvalid(`model transition within run for ${cell}: '${prior}' -> '${seen}'`);
+    perCell.set(cell, seen);
   }
 }
 
@@ -170,16 +185,66 @@ export function reconcile(a: ReconInput): { verdict: ReconVerdict; reason: strin
   return { verdict: "NO_MACHINE_PROVEN_CALL", reason: "PROSE_ONLY_NO_RELAY_TRACE" };
 }
 
+// D-197 §C/§D SINGLE SOURCE OF TRUTH: matrix.real_agent_primary_cells[].cell_id is the ONLY authoritative required-membership source. Fail closed on any defect; return a SORTED set.
+export function requiredRealCellIds(matrix: unknown): string[] {
+  const m = (matrix ?? {}) as Record<string, unknown>, primary = m.real_agent_primary_cells, legacy = new Set<string>();
+  if (!Array.isArray(primary) || !primary.length) throw new ExecutionInvalid("real_agent_primary_cells missing/empty/not-an-array");
+  if (Array.isArray(m.cells)) for (const c of m.cells) { const id = (c as { cell_id?: unknown })?.cell_id; if (typeof id === "string") legacy.add(id.trim()); }
+  const seen = new Map<string, string>(), ids: string[] = [];
+  for (const e of primary as Array<Record<string, unknown>>) {
+    if (!e || typeof e !== "object") throw new ExecutionInvalid("malformed real_agent_primary_cells entry");
+    if (typeof e.cell_id !== "string" || !e.cell_id.trim()) throw new ExecutionInvalid("missing/empty cell_id in real_agent_primary_cells");
+    const raw = e.cell_id.trim();
+    if (e.a1_primary === false || ("a1_primary" in e && e.a1_primary !== true)) throw new ExecutionInvalid(`non-primary cell in required set: ${raw}`);
+    if (legacy.has(raw)) throw new ExecutionInvalid(`legacy local cell included as required: ${raw}`);
+    const norm = raw.toUpperCase(), prior = seen.get(norm);
+    if (prior !== undefined) throw new ExecutionInvalid(prior === raw ? `duplicate required cell_id: ${raw}` : `normalization collision: ${raw} vs ${prior}`);
+    seen.set(norm, raw); ids.push(raw);
+  }
+  const count = m.real_agent_required_cell_count;
+  if (typeof count !== "number" || count !== ids.length) throw new ExecutionInvalid(`real_agent_required_cell_count != derived cardinality (${String(count)} vs ${ids.length})`);
+  return ids.sort();
+}
+// D-197 §E: agents.required_cells is a validated CONFIGURATION MIRROR ONLY (never a 2nd acceptance source). Any drift vs the derived matrix set = CONFIG_REQUIRED_CELL_DRIFT = EXECUTION_INVALID -> ABORT.
+export class ConfigRequiredCellDrift extends ExecutionInvalid { constructor(reason: string) { super(`CONFIG_REQUIRED_CELL_DRIFT: ${reason}`); this.name = "ConfigRequiredCellDrift"; } }
+export function reconcileRequiredCells(matrix: unknown, agents: unknown): string[] {
+  const required = requiredRealCellIds(matrix), a = (agents ?? {}) as Record<string, unknown>;
+  const raw = (a.acceptance as { required_cells?: unknown } | undefined)?.required_cells ?? a.required_cells;
+  if (!Array.isArray(raw)) throw new ConfigRequiredCellDrift("agents required_cells missing or not an array");
+  const reqSet = new Set(required), seen = new Set<string>();
+  for (const v of raw) {
+    if (typeof v !== "string" || !v.trim()) throw new ConfigRequiredCellDrift("empty/malformed agents required cell");
+    const id = v.trim();
+    if (seen.has(id)) throw new ConfigRequiredCellDrift(`duplicate agents required cell: ${id}`);
+    if (!reqSet.has(id)) throw new ConfigRequiredCellDrift(`extra agents required cell not in matrix: ${id}`);
+    seen.add(id);
+  }
+  for (const id of required) if (!seen.has(id)) throw new ConfigRequiredCellDrift(`missing agents required cell: ${id}`);
+  return required;
+}
 export interface CellOutcome { cell_id: string; evaluated: boolean; passing: boolean; }
 export type A1Acceptance = "A1_PASS" | "A1_FAIL" | "A1_INSUFFICIENT" | "EXECUTION_INVALID";
-// Two REQUIRED real cells (Codex + Claude). One passing can never hide one failing; a missing
-// required cell forces A1_INSUFFICIENT. Legacy self-loops/optional 3rd can never satisfy this gate.
-export function acceptTwoCell(codex?: CellOutcome, claude?: CellOutcome): { state: A1Acceptance; reasons: string[] } {
-  const reasons: string[] = [];
-  if (!codex || !codex.evaluated) { reasons.push("required cell CELL-A Codex NOT_EVALUATED"); return { state: "A1_INSUFFICIENT", reasons }; }
-  if (!claude || !claude.evaluated) { reasons.push("required cell CELL-B Claude_Code_Opus NOT_EVALUATED"); return { state: "A1_INSUFFICIENT", reasons }; }
-  const failing = [codex, claude].filter((c) => !c.passing);
-  if (failing.length) { for (const f of failing) reasons.push(`required cell ${f.cell_id} failed`); return { state: "A1_FAIL", reasons }; }
-  reasons.push("both required real-Agent cells evaluated and passing");
+type AcceptResult = { state: A1Acceptance; reasons: string[] };
+// D-197 §F acceptance. Identity from cell_id, NEVER argument position. Consumes the ALREADY-VALIDATED required set + outcomes carrying explicit cell_id. One passing never hides one missing/failing.
+export function acceptRequiredCells(required: string[], outcomes: CellOutcome[]): AcceptResult {
+  const reasons: string[] = [], inv = (msg: string): AcceptResult => { reasons.push(msg); return { state: "EXECUTION_INVALID", reasons }; };
+  const reqSet = new Set(required), byId = new Map<string, CellOutcome>();
+  for (const o of outcomes) {
+    if (!o || typeof o.cell_id !== "string" || !o.cell_id.trim()) return inv("malformed outcome: missing cell_id");
+    const id = o.cell_id.trim();
+    if (byId.has(id)) return inv(`duplicate outcome for cell ${id}`);
+    if (!reqSet.has(id)) return inv(`unknown/legacy outcome not in required set: ${id}`);
+    byId.set(id, o);
+  }
+  for (const id of required) { const o = byId.get(id); if (!o || !o.evaluated) { reasons.push(`required cell ${id} NOT_EVALUATED`); return { state: "A1_INSUFFICIENT", reasons }; } }
+  const failing = required.filter((id) => !byId.get(id)!.passing);
+  if (failing.length) { for (const id of failing) reasons.push(`required cell ${id} failed`); return { state: "A1_FAIL", reasons }; }
+  reasons.push("all required real-Agent cells evaluated and passing");
   return { state: "A1_PASS", reasons };
+}
+// Deprecated NON-authoritative positional shim: identity STILL derives from cell_id (not position), delegating to acceptRequiredCells; positional labels alone never define the required set.
+export function acceptTwoCell(codex?: CellOutcome, claude?: CellOutcome): AcceptResult {
+  const present = [codex, claude].filter((c): c is CellOutcome => !!c && typeof c.cell_id === "string" && !!c.cell_id.trim());
+  if (present.length < 2) return { state: "A1_INSUFFICIENT", reasons: ["required real-Agent cell NOT_EVALUATED"] };
+  return acceptRequiredCells([...new Set(present.map((c) => c.cell_id.trim()))].sort(), present);
 }
