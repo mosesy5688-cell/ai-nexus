@@ -6,6 +6,7 @@
 import { ExecutionInvalid, sha256 } from "./manifest.js";
 import { join } from "node:path";
 import type { CellProduct, CommandSpec } from "./subject_runner.js";
+import { reconcileRequiredCells, acceptRequiredCells } from "./subject_runner.js";
 
 // §F/§G package-tree artifact classes. NEVER silently excludable vs the ONLY explicitly excludable.
 export type ArtifactClass =
@@ -123,3 +124,68 @@ export const CODEX_NETWORK_CONTROL = {
   accepted_f2ai_tool_use_must_appear_in_relay: true, native_f2ai_outside_relay_invalidates_episode: true,
   unobservable_native_external_access_blocks_qualification: true, runtime_proof: "G2R-3",
 } as const;
+
+// D-200 §M/§N acceptance-authority pointer binding. The TRACKED config pointer (agents.json +
+// matrix.json) holds STABLE repository metadata ONLY (source_path + exported_symbol_name +
+// authority_role) — NO commit SHA / machine path / hash (those belong to the future sealed manifest).
+// The RUNTIME descriptor is DERIVED from the actual exported functions (reconcileRequiredCells +
+// acceptRequiredCells, the matrix-bound runtime authority); acceptTwoCell is NO LONGER the authority.
+export const ACCEPTANCE_AUTHORITY_ROLE = "MATRIX_BOUND_RUNTIME_ACCEPTANCE_AUTHORITY";
+const FORBIDDEN_AUTHORITY_SYMBOL = "acceptTwoCell";
+export interface AcceptanceAuthorityPointer { source_path: string; exported_symbol_name: string[]; authority_role: string; }
+export interface AcceptanceAuthorityDescriptor { source_path: string; authority_role: string; exported: Record<string, unknown>; }
+export interface FrozenAuthorityManifest { main_sha: string; source_file_sha256: string; }
+// Runtime descriptor bound to the REAL functions (binding is proven by compilation: a rename/removal
+// breaks the import). Documentation text is NEVER the proof — this object is.
+export const ACCEPTANCE_AUTHORITY: AcceptanceAuthorityDescriptor = {
+  source_path: "src/subject_runner.ts", authority_role: ACCEPTANCE_AUTHORITY_ROLE,
+  exported: { reconcileRequiredCells, acceptRequiredCells },
+};
+export class AcceptanceAuthorityPointerDrift extends ExecutionInvalid {
+  constructor(reason: string) { super(`ACCEPTANCE_AUTHORITY_POINTER_DRIFT: ${reason}`); this.name = "AcceptanceAuthorityPointerDrift"; }
+}
+function readAuthorityPointer(cfg: unknown, where: string): AcceptanceAuthorityPointer {
+  const p = (cfg as { acceptance_authority_pointer?: unknown } | null)?.acceptance_authority_pointer as Record<string, unknown> | undefined;
+  if (!p || typeof p !== "object") throw new AcceptanceAuthorityPointerDrift(`${where} pointer missing/malformed`);
+  const { source_path, exported_symbol_name, authority_role } = p;
+  if (typeof source_path !== "string" || !source_path) throw new AcceptanceAuthorityPointerDrift(`${where} source_path missing`);
+  if (typeof authority_role !== "string" || !authority_role) throw new AcceptanceAuthorityPointerDrift(`${where} authority_role missing`);
+  if (!Array.isArray(exported_symbol_name) || !exported_symbol_name.length) throw new AcceptanceAuthorityPointerDrift(`${where} exported_symbol_name missing`);
+  const seen = new Set<string>();
+  for (const s of exported_symbol_name) {
+    if (typeof s !== "string" || !s) throw new AcceptanceAuthorityPointerDrift(`${where} malformed symbol entry`);
+    if (s === FORBIDDEN_AUTHORITY_SYMBOL) throw new AcceptanceAuthorityPointerDrift(`${where} names stale ${FORBIDDEN_AUTHORITY_SYMBOL}`);
+    if (seen.has(s)) throw new AcceptanceAuthorityPointerDrift(`${where} duplicate pointer symbol ${s}`);
+    seen.add(s);
+  }
+  return { source_path, exported_symbol_name: [...seen], authority_role };
+}
+function samePointer(a: AcceptanceAuthorityPointer, b: AcceptanceAuthorityPointer): boolean {
+  return a.source_path === b.source_path && a.authority_role === b.authority_role &&
+    [...a.exported_symbol_name].sort().join("|") === [...b.exported_symbol_name].sort().join("|");
+}
+// §N preflight reconcile: tracked agents pointer + tracked matrix pointer + the actual runtime
+// descriptor (+ optional sealed manifest). FAILS CLOSED on acceptTwoCell named / missing symbol /
+// wrong source path / one config stale / extra-or-missing symbol / duplicate / malformed pointer /
+// non-exported symbol / (manifest) different main SHA / source-file hash != current source bytes.
+export function reconcileAcceptanceAuthority(
+  agents: unknown, matrix: unknown, runtime: AcceptanceAuthorityDescriptor = ACCEPTANCE_AUTHORITY,
+  manifest?: FrozenAuthorityManifest, currentMainSha?: string, currentSourceHash?: string,
+): AcceptanceAuthorityPointer {
+  const ap = readAuthorityPointer(agents, "agents.json"), mp = readAuthorityPointer(matrix, "matrix.json");
+  if (!samePointer(ap, mp)) throw new AcceptanceAuthorityPointerDrift("agents/matrix pointer disagree (one config stale)");
+  if (ap.source_path !== runtime.source_path) throw new AcceptanceAuthorityPointerDrift("pointer source_path != runtime descriptor");
+  if (ap.authority_role !== runtime.authority_role) throw new AcceptanceAuthorityPointerDrift("pointer authority_role != runtime descriptor");
+  const runtimeSyms = Object.keys(runtime.exported);
+  for (const s of ap.exported_symbol_name) {
+    if (!(s in runtime.exported)) throw new AcceptanceAuthorityPointerDrift(`pointer names non-exported/unknown symbol ${s}`);
+    if (typeof runtime.exported[s] !== "function") throw new AcceptanceAuthorityPointerDrift(`pointer symbol ${s} is not a runtime function`);
+  }
+  if (runtimeSyms.length !== ap.exported_symbol_name.length || runtimeSyms.some((s) => !ap.exported_symbol_name.includes(s)))
+    throw new AcceptanceAuthorityPointerDrift("extra/missing acceptance-authority symbol vs runtime descriptor");
+  if (manifest) {
+    if (typeof currentMainSha === "string" && manifest.main_sha !== currentMainSha) throw new AcceptanceAuthorityPointerDrift("frozen manifest main SHA mismatch");
+    if (typeof currentSourceHash === "string" && manifest.source_file_sha256 !== currentSourceHash) throw new AcceptanceAuthorityPointerDrift("frozen authority-file hash != current source bytes");
+  }
+  return ap;
+}

@@ -2,7 +2,13 @@
   "matrix_version": "matrix-v2.0.0-real-agent",
   "provenance_lock_sha": "4288d569ec50f7aa995ed40759c2cb172a64f2fa",
   "amendment": "Founder D-194 real-Agent A1 harness amendment. The A1 PRIMARY cells are now the two REAL-Agent cells in real_agent_primary_cells (CELL-A Codex + CELL-B Claude_Code_Opus). The three legacy self-loop entries in `cells` are RETAINED but RECLASSIFIED as ENGINEERING_TEST_ADAPTER / NON_PRIMARY / NOT_COUNTED toward A1.",
-  "legacy_required_flag_note": "The `required: true` flag + `required_cell_count: 3` on the legacy `cells` array are the D-189 manifest-resolution machinery flags ONLY (they keep the existing fixture run-manifest resolving 3 provenance rows). They are NOT an A1-primary designation. A1 primacy is governed by real_agent_primary_cells + config/agents.json + src/subject_runner.ts acceptTwoCell().",
+  "legacy_required_flag_note": "The `required: true` flag + `required_cell_count: 3` on the legacy `cells` array are the D-189 manifest-resolution machinery flags ONLY (they keep the existing fixture run-manifest resolving 3 provenance rows). They are NOT an A1-primary designation. A1 primacy is governed by real_agent_primary_cells + config/agents.json + src/subject_runner.ts reconcileRequiredCells() + acceptRequiredCells() (matrix-bound runtime acceptance authority).",
+  "acceptance_authority_pointer": {
+    "note": "D-200 §M repoint (mirror of config/agents.json). STABLE repository metadata ONLY (source_path + exported_symbol_name + authority_role). NO commit SHA / machine path / binary hash here. Reconciled at preflight against config/agents.json + the actual runtime descriptor; a stale acceptTwoCell / cross-config drift fails closed = ACCEPTANCE_AUTHORITY_POINTER_DRIFT.",
+    "source_path": "src/subject_runner.ts",
+    "exported_symbol_name": ["reconcileRequiredCells", "acceptRequiredCells"],
+    "authority_role": "MATRIX_BOUND_RUNTIME_ACCEPTANCE_AUTHORITY"
+  },
   "independence_basis": "OPTION_A_THREE_DISTINCT_AGENT_LOOPS (legacy engineering adapters)",
   "independence_note": "Legacy material independence (three distinct Agent host/loops) is retained for the engineering adapters only; see EVALUATOR_GUIDE.md. The real-Agent A1 gate is TRUE_PROVIDER_AND_AGENT_DIVERSITY = BOUNDED_TO_TWO (Codex CLI + Claude Code/Opus).",
   "required_cell_count": 3,
