@@ -103,7 +103,7 @@ describe("ambient-config exclusion + non-MCP capability parity (METHOD A)", () =
 });
 
 describe("secret-env exclusion + native event parse + fail-closed classification", () => {
-  const dirtyBase = { PATH: "/usr/bin", GITHUB_TOKEN: "ghp_x", AWS_SECRET_ACCESS_KEY: "s", NPM_TOKEN: "n", CLOUDFLARE_API_TOKEN: "c" };
+  const dirtyBase = { PATH: "/usr/bin", GITHUB_TOKEN: "redacted-gh", AWS_SECRET_ACCESS_KEY: "s", NPM_TOKEN: "n", CLOUDFLARE_API_TOKEN: "c" };
   it("drops every write credential, keeps PATH, injects the isolated state root", () => {
     const ce = buildCodexEnv("/d/home", dirtyBase);
     for (const k of ["GITHUB_TOKEN", "AWS_SECRET_ACCESS_KEY", "NPM_TOKEN", "CLOUDFLARE_API_TOKEN"]) expect(ce[k]).toBeUndefined();
