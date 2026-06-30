@@ -8,6 +8,7 @@ import {
   assertDirectExe, resolveDirectLaunch, assertProductionCommandSpec, assertPackageTreeContract, packageTreeHash,
   verifyFrozenLaunch, buildClosedWorldEnv, ClientBinaryDrift, NEVER_EXCLUDE, EXPLICIT_EXCLUDE, DRIFT_TIMINGS,
   CODEX_DIRECT_PUBLIC_F2AI_CONTROL, CODEX_NETWORK_CONTROL,
+  reconcileAcceptanceAuthority, ACCEPTANCE_AUTHORITY, ACCEPTANCE_AUTHORITY_ROLE, AcceptanceAuthorityPointerDrift,
   type FrozenLaunchIdentity, type DriftProbe, type CredentialBoundary,
 } from "../src/frozen_launch_identity.js";
 import { NodeProcessController, assertModelResolved } from "../src/subject_runner.js";
@@ -117,5 +118,40 @@ describe("§K closed-world env + §L credential boundary + §O Codex control + q
   it("#40 qualification still cannot emit A1_PASS: frozen primary cells are UNRESOLVED + ready_for_run=false", () => {
     for (const c of MATRIX.real_agent_primary_cells) { expect(c.ready_for_run).toBe(false); expect(c.model_id).toBe("UNRESOLVED_AT_EXECUTION_FREEZE"); }
     for (const c of AGENTS.cells) { expect(c.ready_for_run).toBe(false); expect(() => assertModelResolved(c.model_id, null, c.product === "codex_cli" ? "codex" : "claude")).toThrow(); }
+  });
+});
+
+// D-200 §M/§N acceptance-authority pointer binding (Commit B): tracked agents.json + matrix.json
+// pointers reconciled against the ACTUAL runtime descriptor (reconcileRequiredCells/acceptRequiredCells).
+describe("§M/§N acceptance-authority pointer binding", () => {
+  const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o));
+  it("#24/#25/#32 agents + matrix pointers name the CURRENT authority and reconcile with the runtime descriptor", () => {
+    const p = reconcileAcceptanceAuthority(AGENTS, MATRIX); // real configs + real runtime descriptor (default)
+    expect([...p.exported_symbol_name].sort()).toEqual(["acceptRequiredCells", "reconcileRequiredCells"]);
+    expect(AGENTS.acceptance_authority_pointer.exported_symbol_name).toContain("reconcileRequiredCells"); // #24
+    expect(MATRIX.acceptance_authority_pointer.exported_symbol_name).toContain("acceptRequiredCells"); // #25
+    expect(Object.keys(ACCEPTANCE_AUTHORITY.exported).sort()).toEqual(["acceptRequiredCells", "reconcileRequiredCells"]); // #32 derived from the REAL functions
+    expect(p.authority_role).toBe(ACCEPTANCE_AUTHORITY_ROLE);
+  });
+  it("#26 agents/matrix mismatch; #27 stale acceptTwoCell; #28 nonexistent symbol; #29 source-path mismatch all fail closed", () => {
+    const m1 = clone(MATRIX); m1.acceptance_authority_pointer.exported_symbol_name = ["reconcileRequiredCells"];
+    expect(() => reconcileAcceptanceAuthority(AGENTS, m1)).toThrow(AcceptanceAuthorityPointerDrift); // #26 one config stale
+    const a2 = clone(AGENTS), m2 = clone(MATRIX); a2.acceptance_authority_pointer.exported_symbol_name = ["acceptTwoCell"]; m2.acceptance_authority_pointer.exported_symbol_name = ["acceptTwoCell"];
+    expect(() => reconcileAcceptanceAuthority(a2, m2)).toThrow(/acceptTwoCell/); // #27 stale legacy authority named
+    const a3 = clone(AGENTS), m3 = clone(MATRIX); a3.acceptance_authority_pointer.exported_symbol_name = ["reconcileRequiredCells", "acceptRequiredCells", "noSuchFn"]; m3.acceptance_authority_pointer.exported_symbol_name = ["reconcileRequiredCells", "acceptRequiredCells", "noSuchFn"];
+    expect(() => reconcileAcceptanceAuthority(a3, m3)).toThrow(AcceptanceAuthorityPointerDrift); // #28 non-exported symbol
+    const a4 = clone(AGENTS), m4 = clone(MATRIX); a4.acceptance_authority_pointer.source_path = "src/wrong.ts"; m4.acceptance_authority_pointer.source_path = "src/wrong.ts";
+    expect(() => reconcileAcceptanceAuthority(a4, m4)).toThrow(/source_path/); // #29
+  });
+  it("#30 frozen main-SHA mismatch; #31 frozen source-file hash mismatch; consistent manifest passes", () => {
+    const man = { main_sha: "abc123def456", source_file_sha256: "d".repeat(64) };
+    expect(() => reconcileAcceptanceAuthority(AGENTS, MATRIX, ACCEPTANCE_AUTHORITY, man, "a-different-main-sha")).toThrow(/main SHA/); // #30
+    expect(() => reconcileAcceptanceAuthority(AGENTS, MATRIX, ACCEPTANCE_AUTHORITY, man, "abc123def456", "e".repeat(64))).toThrow(/source bytes/); // #31
+    expect(() => reconcileAcceptanceAuthority(AGENTS, MATRIX, ACCEPTANCE_AUTHORITY, man, "abc123def456", "d".repeat(64))).not.toThrow(); // consistent
+  });
+  it("§N missing / malformed / duplicate pointer fails closed", () => {
+    expect(() => reconcileAcceptanceAuthority({}, MATRIX)).toThrow(AcceptanceAuthorityPointerDrift); // missing pointer
+    const a = clone(AGENTS), m = clone(MATRIX); a.acceptance_authority_pointer.exported_symbol_name = ["reconcileRequiredCells", "reconcileRequiredCells"]; m.acceptance_authority_pointer.exported_symbol_name = ["reconcileRequiredCells", "reconcileRequiredCells"];
+    expect(() => reconcileAcceptanceAuthority(a, m)).toThrow(/duplicate/); // duplicate pointer symbol
   });
 });
