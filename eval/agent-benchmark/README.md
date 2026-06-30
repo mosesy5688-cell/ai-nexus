@@ -26,14 +26,58 @@ operator-installed Ollama daemon — an external binary, **never** an npm dep.
 ## Layout
 
 ```
-config/   matrix.json  tools.json  limits.json        (hash-frozen; thresholds live in limits.json)
+config/   matrix.json  agents.json  tools.json  limits.json   (hash-frozen; thresholds in limits.json)
 corpus/   evaluation.jsonl  qualification.jsonl  labels.manifest.json
 src/      runner  manifest  schema_evidence
-          host_ollama_direct  host_mcp_client  host_react_loop   (3 distinct agent loops)
+          host_ollama_direct  host_mcp_client  host_react_loop   (legacy engineering adapters)
+          subject_runner  agent_codex_adapter  agent_claude_adapter  mcp_trace_relay  (D-194 real-Agent)
           tools_f2a  tools_competing  faults_mock
           score_machine  score_aggregate
-test/     neutrality  failclosed  scoring  antivacuity            (25 §L requirements)
+test/     neutrality  failclosed  scoring  antivacuity           (legacy 25 §L)
+          subject_adapter  mcp_trace_relay                       (D-194 40 §O + anti-vacuity)
 ```
+
+## Real-Agent A1 cells — Founder D-194 (FIXTURE_VALIDATED / NOT_EXECUTED)
+
+The A1 **primary** cells are now two **real Agents under neutral test**, driven
+HARNESS_DRIVEN_NON_INTERACTIVE (the operator never converses per episode):
+
+| cell | product | adapter | transport |
+|------|---------|---------|-----------|
+| CELL-A | Codex CLI | `src/agent_codex_adapter.ts` | MCP (via P6 relay) |
+| CELL-B | Claude Code / Opus | `src/agent_claude_adapter.ts` | MCP (via P6 relay) |
+
+The three legacy self-loop cells are **retained but reclassified** `ENGINEERING_TEST_ADAPTER` /
+`NON_PRIMARY` / `NOT_COUNTED` (matrix.json `a1_primary:false`). `TRUE_PROVIDER_AND_AGENT_DIVERSITY
+= BOUNDED_TO_TWO`.
+
+- **P6 MCP trace relay** (`src/mcp_trace_relay.ts`): a local-loopback transport that forwards
+  JSON-RPC to the **frozen** `https://free2aitools.com/api/mcp`. D-194 C1 =
+  **MCP_JSONRPC_SEMANTIC_TRANSPARENCY** (transport framing may change; method/id/params/result/
+  error/notification semantics may not). It **never** claims literal byte equality. AVAILABLE-arm
+  only; absent from CONTROL. No add/remove/rewrite/inject/cache/retry/filter; forwards **all**
+  methods + notifications; rejects any client-controlled upstream.
+- **C2 use vs handshake**: only a `tools/call` for one of the 5 frozen F2AI tools is autonomous
+  use. `initialize` / `notifications/initialized` / `ping` / `tools/list` are MCP_DISCOVERY and can
+  **never** satisfy RARR or violate CNU (`classifyAutonomousUse`).
+- **C3 ambient-config exclusion + METHOD A parity**: per-episode disposable state root
+  (Codex `CODEX_HOME` + `--ignore-user-config` + profile-in-root; Claude isolated config dir +
+  `--bare` + explicit empty CONTROL `--mcp-config`). An **ARM-DIFF record** proves CONTROL↔AVAILABLE
+  differ **only** by the one F2AI MCP entry. Non-F2AI capability parity = **METHOD A** (native
+  web/network disabled identically in both arms; a read-only FS sandbox alone does **not** disable
+  web), so the only F2AI path is the relay.
+- **C4**: the tool-call gate is labelled
+  `DESIGN_PATH_IDENTIFIED | IMPLEMENTATION_PENDING | QUALIFICATION_PENDING` — **not** "resolved".
+- **Acceptance** (`subject_runner.ts acceptTwoCell`): both required cells passing → `A1_PASS`
+  reachable; Codex missing → `A1_INSUFFICIENT`; Claude missing → `A1_INSUFFICIENT`; one passing
+  cannot hide one failing; legacy/optional cells cannot satisfy the required gate.
+- **Model id fail-closed**: each cell's `MODEL_ID = UNRESOLVED_AT_EXECUTION_FREEZE`,
+  `READY_FOR_RUN = false`; `assertModelResolved` rejects `codex`/`default`/`latest`/bare `opus`/
+  empty/placeholder/unconfirmed ids. The PR defines the guard; it does **not** select a model.
+- **Evidence**: unique gitignored `out/` run dir (FAIL if exists), exclusive-create raw artifacts,
+  atomic normalized writes, a sorted seal manifest + `RUN_SEALED` hash; scoring refuses an unsealed
+  or tampered bundle. **Fixtures/mocks only** — no live Codex/Claude, no live F2AI, no relay to a
+  live agent in any test.
 
 ## Runtime matrix (3 required cells — material independence, Option A)
 
@@ -60,7 +104,7 @@ separately; a pooled view is reported but never overrides a failing runtime.
 cd eval/agent-benchmark
 npm install
 npm run typecheck   # tsc --noEmit
-npm test            # vitest run — 37 tests, no live call / no inference
+npm test            # vitest run — 62 tests (legacy + D-194 real-Agent), no live call / no inference
 ```
 
 ## Gating

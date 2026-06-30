@@ -134,3 +134,62 @@ adjudication**:
 executable** (roster assigned, blinding procedure staffed, conflict-of-role cleared). PM may
 **administer** the process but may **NOT** unilaterally provide the final semantic score; the
 final scored dataset and the adjudication record are independently reviewed.
+
+## 8. Real-Agent subject protocol (Founder D-194) — what the benchmark-method reviewer checks
+
+Authority: `CODEX_BENCHMARK_SUBJECT_PROTOCOL_v1` (D-193 PART I), refined by the four D-194
+corrections. Status: **FIXTURE_VALIDATED / NOT_EXECUTED** — this PR authorizes harness CODE only
+(no merge, no Agent/relay/F2AI execution, no A1 promotion). The benchmark-method reviewer
+specifically adjudicates **relay transparency + arm equivalence + tool-call evidence**:
+
+**Primary cells.** CELL-A Codex CLI (`src/agent_codex_adapter.ts`) + CELL-B Claude Code/Opus
+(`src/agent_claude_adapter.ts`), both HARNESS_DRIVEN_NON_INTERACTIVE, task delivered via STDIN.
+Frozen identifiers + per-arm MCP templates live in `config/agents.json`. The three legacy
+self-loop cells are reclassified `ENGINEERING_TEST_ADAPTER / NON_PRIMARY / NOT_COUNTED`.
+
+**C1 — relay = MCP_JSONRPC_SEMANTIC_TRANSPARENCY, not byte equality** (`src/mcp_trace_relay.ts`).
+The relay MAY change TCP/TLS framing, Host, connection reuse, chunk boundaries,
+Content-Length-vs-chunked, compression, hop-by-hop headers. It MUST NOT change JSON-RPC
+method/id, notification-vs-request, tool names/descriptions/schemas/arguments, result, error,
+application status, request order, response association, MCP session semantics, or any
+agent-visible content. `assertSemanticTransparency` proves (after documented transport
+normalization) request/response body + id + method + notification + result + error + status +
+MCP-header equality with zero semantic insertion/deletion/rewrite. **Never** claim literal byte
+equality. Relay transport contract (20 rules): loopback-only bind, OS-assigned ephemeral port,
+one relay per AVAILABLE episode, frozen upstream `https://free2aitools.com/api/mcp`, reject
+client-controlled upstream, forward ALL methods + notifications (a 3-method-only relay FAILS),
+preserve order/ids/session headers/status, forward upstream errors without converting to
+success, no retry/cache/dedup/normalization/injection/tool-filtering/fallback, deterministic
+close + flush.
+
+**C2 — autonomous use vs MCP discovery.** Only a `tools/call` for one of the 5 frozen F2AI tools
+(`free2aitools_search/rank/explain/select_model/compare`) is autonomous use. `initialize`,
+`notifications/initialized`, `ping`, `tools/list`, protocol-management are MCP_DISCOVERY and can
+NEVER satisfy RARR or violate CNU (`classifyAutonomousUse`). Per `tools/call`, the harness
+records selection_occurred / selected_tool / arguments_valid / upstream_success /
+result_reached_agent / result_used separately.
+
+**C3 — ambient-config exclusion + non-MCP parity.** Each cell runs from a per-episode disposable
+state root (Codex: `CODEX_HOME` + `--ignore-user-config` + a profile inside that root, no global
+`codex mcp` state, no operator-config mutation; Claude: isolated config dir + `--bare` + an
+EXPLICIT empty CONTROL `--mcp-config` — omission alone and `--bare` alone are NOT proof). An
+**ARM-DIFF RECORD** (`buildCodexArmDiff` / `buildClaudeArmDiff`) proves the CONTROL-vs-AVAILABLE
+diff = the F2AI MCP entry ONLY; any inherited global MCP/hook/instruction/memory/hidden-config
+invalidates the cell. Non-F2AI capability parity = **METHOD A** for both products (native
+web/network tools disabled identically in both arms; a read-only FS sandbox alone does NOT
+disable web), so direct F2AI outside the relay is impossible by construction. Secret env is
+excluded (no GitHub/npm/Cloudflare/AWS write credentials reach the child).
+
+**C4.** The tool-call gate is labelled
+`DESIGN_PATH_IDENTIFIED | IMPLEMENTATION_PENDING | QUALIFICATION_PENDING` — not "resolved".
+
+**Reconciliation + acceptance.** Relay = primary AVAILABLE F2AI evidence, native streams (Codex
+`--json` / Claude stream-json) corroborate (`reconcile`): relay tools/call + matching native =
+CONFIRMED; relay + native-absent-format-not-guaranteed = CONFIRMED_WITH_TRACE_LIMITATION; native
+F2AI without relay / contradictory native identity / CONTROL native F2AI / AVAILABLE
+direct-outside-relay = EXECUTION_INVALID; prose-only = NO_MACHINE_PROVEN_CALL; malformed relay =
+MISSING_TRACE. Two required cells (`acceptTwoCell`): both passing → A1_PASS reachable; a missing
+required cell → A1_INSUFFICIENT; one passing cannot hide one failing; qualification cannot
+promote A1. Evidence bundles are sealed (exclusive-create raw, atomic normalized, sorted seal
+manifest + `RUN_SEALED` hash) and scoring refuses an unsealed or tampered bundle. All tests are
+**fixtures/mocks only**: no live Codex/Claude, no live F2AI request, no relay to a live agent.

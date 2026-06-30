@@ -1,0 +1,73 @@
+{
+  "schema_version": "agents-v1",
+  "authority": "Founder D-194 (real-Agent A1 harness amendment); subject protocol = CODEX_BENCHMARK_SUBJECT_PROTOCOL_v1 (D-193 PART I).",
+  "status": "FIXTURE_VALIDATED / NOT_EXECUTED. Authorizes harness CODE only — no merge, no Agent/relay/F2AI execution, no A1 promotion.",
+  "tool_call_gate_status": "DESIGN_PATH_IDENTIFIED | IMPLEMENTATION_PENDING | QUALIFICATION_PENDING",
+  "tool_call_gate_note": "D-194 C4: the tool-call evidence gate is a DESIGN PATH, NOT 'resolved'. Qualification + execution are separately gated.",
+  "frozen_upstream": "https://free2aitools.com/api/mcp",
+  "relay_note": "AVAILABLE-arm MCP transport = the per-episode local-loopback P6 relay (src/mcp_trace_relay.ts). The relay url is assigned at episode start (OS ephemeral port) and substituted into the AVAILABLE template's __RELAY_ENDPOINT__ placeholder. CONTROL never receives a relay.",
+  "non_f2ai_capability_parity": {
+    "method": "A",
+    "method_a_definition": "Disable native web/network tools IDENTICALLY in both arms; the only F2AI path is the AVAILABLE-arm relay. Direct F2AI outside the relay is PROHIBITED and invalidates the episode.",
+    "frozen_capability_set": ["WebSearch", "WebFetch", "browser", "shell", "network", "other-MCP", "repo-write", "fs-write", "provider-retrieval"],
+    "codex": "read-only FS sandbox + sandbox network_access=false (a read-only FS alone does NOT disable web)",
+    "claude": "--disallowedTools 'Edit Write Bash WebSearch WebFetch' in BOTH arms",
+    "honesty": "METHOD A reduces realism (no native web) in exchange for a machine-provable neutral test: capability sets are identical across arms and no direct-F2AI bypass exists."
+  },
+  "model_id_fail_closed": "Each cell's MODEL_ID is the placeholder UNRESOLVED_AT_EXECUTION_FREEZE and READY_FOR_RUN=false. src/subject_runner.ts assertModelResolved() rejects 'codex','default','latest', bare 'opus','claude', empty, any unresolved/placeholder id, or an id not confirmed by the client. This PR defines the schema + guard; it does NOT select a model.",
+  "cells": [
+    {
+      "cell_id": "CELL-A-CODEX-CLI",
+      "required": true,
+      "classification": "PRIMARY_REAL_AGENT",
+      "product": "codex_cli",
+      "adapter": "src/agent_codex_adapter.ts",
+      "exec_class": "HARNESS_DRIVEN_NON_INTERACTIVE",
+      "cli_version_floor": "0.139.0",
+      "model_id": "UNRESOLVED_AT_EXECUTION_FREEZE",
+      "ready_for_run": false,
+      "input_channel": "STDIN",
+      "isolation": {
+        "disposable_codex_home": true,
+        "ignore_user_config": true,
+        "ephemeral_session": true,
+        "named_profile_inside_codex_home": "a1-bench",
+        "no_global_codex_mcp_state": true,
+        "no_operator_config_mutation": true
+      },
+      "arms": {
+        "CONTROL": { "mcp": "NONE", "note": "no F2AI MCP server registered in the disposable CODEX_HOME" },
+        "AVAILABLE": { "mcp": { "free2aitools": { "transport": "streamable_http", "url": "__RELAY_ENDPOINT__" } }, "note": "exactly one F2AI relay entry" }
+      }
+    },
+    {
+      "cell_id": "CELL-B-CLAUDE-CODE-OPUS",
+      "required": true,
+      "classification": "PRIMARY_REAL_AGENT",
+      "product": "claude_code",
+      "adapter": "src/agent_claude_adapter.ts",
+      "exec_class": "HARNESS_DRIVEN_NON_INTERACTIVE",
+      "cli_version_floor": "2.1.195",
+      "model_id": "UNRESOLVED_AT_EXECUTION_FREEZE",
+      "ready_for_run": false,
+      "input_channel": "STDIN",
+      "isolation": {
+        "isolated_claude_config_dir": true,
+        "bare": true,
+        "fresh_session_no_continue_resume": true,
+        "control_explicit_empty_mcp_config": true,
+        "omission_of_mcp_config_alone_is_not_proof": true,
+        "bare_alone_is_not_proof": true
+      },
+      "arms": {
+        "CONTROL": { "mcp": { "mcpServers": {} }, "note": "EXPLICIT empty baseline mcp config (not mere omission)" },
+        "AVAILABLE": { "mcp": { "mcpServers": { "free2aitools": { "type": "http", "url": "__RELAY_ENDPOINT__" } } }, "note": "identical baseline + exactly one F2AI relay entry" }
+      }
+    }
+  ],
+  "acceptance": {
+    "required_cells": ["CELL-A-CODEX-CLI", "CELL-B-CLAUDE-CODE-OPUS"],
+    "logic": "Both required passing -> A1_PASS reachable. Codex missing -> A1_INSUFFICIENT. Claude missing -> A1_INSUFFICIENT. One passing cannot hide one failing. Pooled cannot override a cell failure. Legacy self-loop cells cannot satisfy a required gate. An optional 3rd cannot compensate. A1_PASS_WITH_LIMITATIONS cannot waive a missing/failing required cell. Qualification cannot promote A1. Handshake cannot satisfy RARR. tools/list cannot violate CNU. Only a tools/call enters autonomous classification.",
+    "implemented_in": "src/subject_runner.ts acceptTwoCell()"
+  }
+}
