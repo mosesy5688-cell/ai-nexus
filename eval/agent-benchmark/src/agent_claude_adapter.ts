@@ -8,6 +8,7 @@
 import type { Arm } from "./schema_evidence.js";
 import type { CommandSpec } from "./subject_runner.js";
 import { assertModelResolved } from "./subject_runner.js";
+import { resolveDirectLaunch, assertProductionCommandSpec, type FrozenLaunchIdentity } from "./frozen_launch_identity.js";
 import { hashJson } from "./manifest.js";
 import type { ArmDiffRecord, NativeToolCall } from "./agent_codex_adapter.js";
 
@@ -42,20 +43,25 @@ export function buildClaudeMcpConfig(arm: Arm, relayUrl?: string): ClaudeMcpConf
 }
 
 export interface ClaudeBuildArgs {
-  model: string; modelConfirmed?: string | null; configDir: string; workspace: string;
-  arm: Arm; mcpConfigPath: string; relayUrl?: string; task: string;
+  model: string; modelConfirmed?: string | null; identity: FrozenLaunchIdentity; env: Record<string, string>;
+  workspace: string; arm: Arm; mcpConfigPath: string; relayUrl?: string; task: string;
 }
-// Construct the exact frozen command. Fails closed on an unresolved model id (incl. bare "opus").
-// BOTH arms pass --mcp-config explicitly (CONTROL -> empty baseline file; AVAILABLE -> relay file).
+// Construct the exact frozen command. D-200 §H direct-launch: exe = the FROZEN ABSOLUTE NATIVE claude.exe
+// (NOT via node, NOT exe:"claude"/PATH-name/.ps1/.cmd) with no prefix args. Task via STDIN; closed-world
+// explicit env (§K). Fails closed on an unresolved model id (incl. bare "opus"). BOTH arms pass
+// --mcp-config explicitly (CONTROL -> empty baseline file; AVAILABLE -> relay file).
 export function buildClaudeCommand(a: ClaudeBuildArgs): CommandSpec {
   assertModelResolved(a.model, a.modelConfirmed);
   if (a.arm === "CONTROL" && a.relayUrl) throw new Error("CONTROL arm must NOT receive a relay endpoint");
-  const args = [
+  const launch = resolveDirectLaunch(a.identity);
+  const benchArgs = [
     "-p", "--model", a.model, "--bare", "--add-dir", a.workspace,
     "--disallowedTools", DISALLOWED_TOOLS, "--output-format", "stream-json",
     "--mcp-config", a.mcpConfigPath,
   ];
-  return { exe: "claude", args, env: buildClaudeEnv(a.configDir), stdin: a.task };
+  const spec: CommandSpec = { exe: launch.exe, args: [...launch.prefixArgs, ...benchArgs], env: a.env, stdin: a.task, shell: false };
+  assertProductionCommandSpec(spec);
+  return spec;
 }
 
 // ARM-DIFF: prove CONTROL vs AVAILABLE MCP config differs ONLY by the one F2AI relay entry.
