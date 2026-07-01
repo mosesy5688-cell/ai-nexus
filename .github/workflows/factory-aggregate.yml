@@ -295,19 +295,25 @@ jobs:
         run: |
           echo "✅ Core registry and fragments verified. Ready for handoff."
 
-      # V27.40: end of merge-core-compute. Save UNPRUNED full snapshot for downstream:
-      # - trending (uses -core for full registry access)
-      # - finalize (uses -core for final core registry restore)
-      # merge-core-persist restores this, prunes, and writes -satellite key separately.
-      - name: Save Intra-Cycle Core to Cache
+      # D-209/D-211: end of merge-core-compute. The best-effort GHA actions/cache
+      # `intra-cycle-<run>-core` save is REMOVED from this seam (it failed closed
+      # on a cache-service write-auth denial). Instead, ESTABLISH the authoritative
+      # attempt-scoped R2 handoff (deterministic tar.zst OUTSIDE payload roots ->
+      # multipart upload -> verify -> immutable manifest written LAST + re-verified).
+      # Failure is FATAL: Compute goes RED and neither consumer becomes eligible
+      # (no warning-only-green). Step-level R2 creds are mandatory — the composite
+      # factory-setup action cannot inject secrets (D-211 §K).
+      - name: Establish Authoritative R2 Handoff (Core)
         if: success()
-        uses: actions/cache/save@v5
-        with:
-          path: |
-            output/
-            cache/
-            artifacts/
-          key: intra-cycle-${{ github.run_id }}-core
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: |
+          node scripts/factory/r2-workflow-cli.js handoff-establish
 
   # V27.40: merge-core-persist isolates Save / R2-backup from heavy compute.
   # Failure here costs ~10-15m rerun, not 1h merge. Restores unpruned -core cache,
@@ -315,7 +321,7 @@ jobs:
   # then writes -satellite (pruned) + 4 monolith caches + R2 FNI backup.
   merge-core-persist:
     name: Merge Core Registry (Persist)
-    needs: merge-core-compute
+    needs: [merge-core-compute, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -325,24 +331,24 @@ jobs:
           aggressive-disk-cleanup: 'false'
           with-rust-ffi: 'false'
 
-      - name: Restore Intra-Cycle Core (UNPRUNED from compute)
-        id: cache-restore-core
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            output/
-            cache/
-            artifacts/
-          key: intra-cycle-${{ github.run_id }}-core
-
-      # V27.40.1: fail-fast if same-run cache miss. Avoids empty-workspace
-      # poisoning downstream caches with empty satellite/global-registry/etc.
-      # If this fires, "Re-run failed jobs" via GHA UI usually recovers (run_id stable).
-      - name: Verify Cache Hit (defensive)
-        if: steps.cache-restore-core.outputs.cache-hit != 'true'
+      # D-209/D-211: the GHA actions/cache `intra-cycle-<run>-core` restore + its
+      # cache-hit "defensive" guard (with the misleading "Re-run failed jobs" text)
+      # are REMOVED. Persist INDEPENDENTLY consumes the authoritative current-attempt
+      # R2 handoff: load manifest -> validate exact allowed_consumers + own role +
+      # cycle/run/attempt/producer-sha -> download archive -> recompute bytes+sha ->
+      # reject absolute/traversal/symlink -> extract to role-specific staging ->
+      # expose output/+cache/+artifacts/ at the workspace root. Any invalid state =
+      # ZERO writes (non-zero exit aborts persist). No cache fallback for this seam.
+      - name: Consume Authoritative R2 Handoff (Core)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
         run: |
-          echo "::error::Cache miss on intra-cycle-${{ github.run_id }}-core. merge-core-compute should have written this seconds ago. Aborting persist to avoid empty-cache poisoning. Recovery: 'Re-run failed jobs' in GHA UI."
-          exit 1
+          node scripts/factory/r2-workflow-cli.js handoff-consume --role=merge-core-persist
 
       # V27.43: Reordered — save monoliths/shards FIRST while disk state is intact,
       # THEN prune + save satellite cache. Pre-V27.43 order pruned cache/fni-history/
@@ -759,7 +765,7 @@ jobs:
 
   finalize:
     name: Finalize Aggregation
-    needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations]
+    needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -848,15 +854,22 @@ jobs:
 
       - name: Disk usage before Core Registry restore
         run: df -h /
-      # V17.1: Restore core-registry from Cache (Restores directly to output/)
-      - name: Restore Core Registry
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            output/
-            cache/
-            artifacts/
-          key: intra-cycle-${{ github.run_id }}-core
+      # D-209/D-211: the GHA actions/cache `intra-cycle-<run>-core` restore is
+      # REMOVED. Finalize INDEPENDENTLY consumes the authoritative current-attempt
+      # R2 handoff (full §J verify + extract) — it does NOT trust Persist's job
+      # conclusion / workspace / extracted files / output flag / any inherited
+      # boolean, and has no cache fallback for this seam. Exposes output/+cache/+
+      # artifacts/ at the workspace root only after full verification.
+      - name: Consume Authoritative R2 Handoff (Core)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: |
+          node scripts/factory/r2-workflow-cli.js handoff-consume --role=finalize
       - name: Disk usage after Core Registry restore
         run: df -h /
 
