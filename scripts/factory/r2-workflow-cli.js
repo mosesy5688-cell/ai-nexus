@@ -12,6 +12,14 @@
  *   node r2-workflow-cli.js restore-rust-ffi [crate1,crate2,...]
  *   node r2-workflow-cli.js list-prefix <r2Prefix> [--delimiter=/]
  *   node r2-workflow-cli.js delete-prefix <r2Prefix> [--dry-run]
+ *   node r2-workflow-cli.js handoff-establish
+ *   node r2-workflow-cli.js handoff-consume --role=<merge-core-persist|finalize>
+ *
+ * handoff-establish / handoff-consume (D-209/D-211 aggregate R2 authoritative
+ *   core handoff): producer (Compute) establishes an attempt-scoped immutable
+ *   archive + manifest under internal-handoff/aggregate/...; the two consumers
+ *   (merge-core-persist, finalize) each INDEPENDENTLY verify + extract it. All
+ *   contract logic is in the injectable aggregate-handoff.mjs library.
  *
  * list-prefix / delete-prefix (S1-BR EXACT-PRODUCER R2 HANDOFF, narrow add):
  *   list-prefix    — enumerate object keys under a prefix (paginated). With
@@ -129,6 +137,21 @@ async function main() {
             console.log('[R2-CLI] Rust FFI binaries backed up to R2 vault');
             break;
         }
+        case 'handoff-establish': {
+            // Producer (merge-core-compute): establish the attempt-scoped
+            // authoritative R2 core handoff. All logic lives in the injectable
+            // aggregate-handoff.mjs library; this is the workflow-facing wiring.
+            const { runHandoffEstablishCli } = await import('./aggregate-handoff.mjs');
+            await runHandoffEstablishCli(process.env);
+            break;
+        }
+        case 'handoff-consume': {
+            // Consumer (merge-core-persist OR finalize, --role=...): independently
+            // load + verify + extract the current-attempt manifest/archive.
+            const { runHandoffConsumeCli } = await import('./aggregate-handoff.mjs');
+            await runHandoffConsumeCli(process.env, rest);
+            break;
+        }
         case 'list-prefix': {
             const positional = rest.filter(a => !a.startsWith('--'));
             const [r2Prefix] = positional;
@@ -157,7 +180,7 @@ async function main() {
         }
         default:
             console.error(`Unknown action: ${action}`);
-            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi, list-prefix, delete-prefix');
+            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi, list-prefix, delete-prefix, handoff-establish, handoff-consume');
             process.exit(1);
     }
 }
