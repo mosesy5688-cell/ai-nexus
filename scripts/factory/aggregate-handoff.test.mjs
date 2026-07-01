@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import path from 'node:path';
+import os from 'node:os';
 
 import {
   SCHEMA_VERSION, HANDOFF_PREFIX_ROOT, ARCHIVE_BASENAME, MANIFEST_BASENAME,
@@ -21,7 +22,7 @@ import {
   inventorySha256, buildManifest, validateManifest,
   assertArchiveOutsidePayloadRoots, validateArchiveEntries, assertRequiredRootsPresent,
   establishHandoff, consumeHandoff, producerGraphRecoveryGuidance,
-  identityFromEnv,
+  identityFromEnv, productionProducerDeps, assertArchiveParentConfined,
 } from './aggregate-handoff.mjs';
 
 // --------------------------------------------------------------------------
@@ -100,6 +101,11 @@ function makeWorld(opts = {}) {
   const clock = { now: () => opts.now ?? 1_700_000_000_000 };
   const producerDeps = {
     scanPayload: opts.scanPayload || (() => ({ logicalBytes: opts.logicalBytes ?? 150, inventory: opts.inventory || goodInventory() })),
+    // In-memory fakes: ensureDir is a no-op and realpathDir is identity, so the
+    // hermetic suite drives the (reordered) production preflight without touching
+    // a real filesystem. The real-fs ordering is exercised by the §G tests below.
+    ensureDir: opts.ensureDir || (() => { state.ensureDirCalled = true; }),
+    realpathDir: opts.realpathDir || ((d) => d),
     freeBytes: opts.freeBytes || (() => opts.free ?? 500 * 2 ** 30),
     buildArchive: opts.buildArchive || ((ap) => { state.buildCalled = true; vfs.set(path.resolve(ap), archiveBuf); }),
     hashFile: (p) => hashBuf(vfs.get(path.resolve(p))),
@@ -119,6 +125,9 @@ async function seedValidHandoff(world, identity, over = {}) {
   const res = await establishHandoff({
     r2: world.r2, identity, workflowIdentity: 'Factory 3/4 - Aggregate',
     workspaceDir: '/ws', archivePath: '/tmp/handoff/handoff.tar.zst',
+    // The fake archive parent (/tmp/handoff) is confined under this temp root so
+    // the reordered producer preflight passes in the hermetic suite (D-217 §F.2).
+    handoffTempRoot: '/tmp',
     deps: world.producerDeps, clock: world.clock, ...over,
   });
   return res;
@@ -602,4 +611,169 @@ test('WF-7 no mutable "latest" handoff pointer + old defensive core cache-hit gu
   const t = wf();
   assert.ok(!t.includes('Cache miss on intra-cycle-${{ github.run_id }}-core'));
   assert.ok(!t.includes('Restore Intra-Cycle Core (UNPRUNED from compute)'));
+});
+
+// ==========================================================================
+// H. REAL-FS PREFLIGHT ORDERING (D-217 §G) — the mkdir-before-statfs regression.
+//    These tests drive the PRODUCTION establishHandoff with REAL Node fs deps
+//    (real ensureDir/realpathDir/freeBytes/scanPayload/hashFile) against a
+//    process-local temp dir. R2 is a local in-memory stub that reads the REAL
+//    archive file — NO network, NO real tar/zstd (buildArchive writes a plain
+//    file). Each world is torn down in finally (§G.9 cleanup).
+// ==========================================================================
+
+// A local R2 stub that persists REAL on-disk archive bytes (no network).
+function realFsR2() {
+  const objects = new Map(); const opLog = [];
+  return {
+    objects, opLog,
+    async uploadFile(key, filePath) { opLog.push(['uploadFile', key]); objects.set(key, fs.readFileSync(filePath)); },
+    async putObject(key, body) { opLog.push(['putObject', key]); objects.set(key, Buffer.from(body)); },
+    async headObject(key) { opLog.push(['headObject', key]); const b = objects.get(key); if (!b) throw new HandoffError('R2_OBJECT_NOT_FOUND', 'nf'); return { size: b.length }; },
+    async getObjectBuffer(key) { opLog.push(['getObjectBuffer', key]); const b = objects.get(key); if (!b) throw new HandoffError('R2_OBJECT_NOT_FOUND', 'nf'); return Buffer.from(b); },
+  };
+}
+
+// Build a real, isolated temp world. archiveParent does NOT pre-exist.
+function realFsWorld() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'aggh-preflight-'));
+  const workspaceDir = path.join(root, 'ws');
+  for (const r of PAYLOAD_ROOTS) {
+    fs.mkdirSync(path.join(workspaceDir, r), { recursive: true });
+    fs.writeFileSync(path.join(workspaceDir, r, 'f.bin'), Buffer.from('x'.repeat(16)));
+  }
+  const handoffTempRoot = path.join(root, 'rt');
+  fs.mkdirSync(handoffTempRoot, { recursive: true });
+  // Mirrors the production handoffTempBase layout under RUNNER_TEMP.
+  const archiveParent = path.join(handoffTempRoot, 'free2aitools-aggregate-handoff', 'run-200', '1');
+  const archivePath = path.join(archiveParent, ARCHIVE_BASENAME);
+  const r2 = realFsR2();
+  // Real fs deps for the disk-critical operations; buildArchive writes a real
+  // file (no tar/zstd) so real hashFile + the R2 stub can read it.
+  const baseDeps = {
+    ...productionProducerDeps(),
+    buildArchive: (ap) => { fs.mkdirSync(path.dirname(ap), { recursive: true }); fs.writeFileSync(ap, Buffer.from('REAL-FS-ARCHIVE-BODY')); },
+  };
+  return {
+    root, workspaceDir, handoffTempRoot, archiveParent, archivePath, r2, baseDeps,
+    run: (over = {}) => establishHandoff({
+      r2, identity: ident(), workflowIdentity: 'wf', workspaceDir,
+      archivePath, handoffTempRoot, deps: baseDeps, ...over,
+    }),
+    cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
+  };
+}
+
+test('(83) REAL_FS_NONEXISTENT_PARENT: producer creates the nested parent before statfs (no ENOENT)', async () => {
+  const w = realFsWorld();
+  try {
+    assert.equal(fs.existsSync(w.archiveParent), false, 'precondition: parent must not pre-exist');
+    const res = await w.run();
+    assert.equal(res.ok, true);
+    assert.equal(fs.existsSync(w.archiveParent), true, 'parent was created (real mkdir before real statfs)');
+  } finally { w.cleanup(); }
+});
+
+test('(84) ORDER_ASSERTION: freeBytes is only ever probed on an existing directory', async () => {
+  const w = realFsWorld();
+  try {
+    const deps = {
+      ...w.baseDeps,
+      freeBytes: (d) => {
+        assert.ok(fs.existsSync(d) && fs.statSync(d).isDirectory(), `freeBytes probed a non-existent/non-dir path: ${d}`);
+        return w.baseDeps.freeBytes(d);
+      },
+    };
+    const res = await w.run({ deps });
+    assert.equal(res.ok, true);
+  } finally { w.cleanup(); }
+});
+
+test('(85) ENOENT_REGRESSION: pre-fix ordering (no mkdir) reproduces statfs ENOENT; fixed ordering succeeds', async () => {
+  const w = realFsWorld();
+  try {
+    // Reproduce the exact pre-fix condition: the mkdir step is a no-op, so the
+    // REAL statfsSync runs against the non-existent parent -> raw ENOENT.
+    const broken = { ...w.baseDeps, ensureDir: () => {}, realpathDir: (d) => d };
+    await assert.rejects(() => w.run({ deps: broken }), (e) => { assert.equal(e.code, 'ENOENT', `expected ENOENT got ${e.code}`); return true; });
+    assert.equal(fs.existsSync(w.archiveParent), false, 'broken run never created the parent');
+    // Fixed ordering (production deps create the parent first) -> success.
+    const res = await w.run();
+    assert.equal(res.ok, true);
+  } finally { w.cleanup(); }
+});
+
+test('(86) DISK_GATE_PRESERVED: after mkdir, insufficient free bytes still fails closed', async () => {
+  const w = realFsWorld();
+  try {
+    const deps = { ...w.baseDeps, freeBytes: () => 10 }; // real ensureDir, tiny free
+    await rejects(() => w.run({ deps }), 'INSUFFICIENT_RUNNER_DISK_FOR_HANDOFF_ARCHIVE');
+    assert.equal(fs.existsSync(w.archiveParent), true, 'parent is created before the disk gate');
+    assert.equal(w.r2.opLog.length, 0, 'no R2 op on a disk-preflight failure');
+  } finally { w.cleanup(); }
+});
+
+test('(87) NO_ARCHIVE_ON_DISK_FAILURE: a disk-preflight failure builds no archive and calls no R2', async () => {
+  const w = realFsWorld();
+  try {
+    let built = false;
+    const deps = { ...w.baseDeps, freeBytes: () => 10, buildArchive: (ap) => { built = true; fs.writeFileSync(ap, Buffer.from('x')); } };
+    await rejects(() => w.run({ deps }), 'INSUFFICIENT_RUNNER_DISK_FOR_HANDOFF_ARCHIVE');
+    assert.equal(built, false, 'buildArchive must not run');
+    assert.equal(fs.existsSync(w.archivePath), false, 'no archive file on disk');
+    assert.equal(w.r2.opLog.length, 0, 'no R2 client invocation');
+  } finally { w.cleanup(); }
+});
+
+test('(88) NO_MANIFEST_ON_DISK_FAILURE: a disk-preflight failure writes no manifest', async () => {
+  const w = realFsWorld();
+  try {
+    const deps = { ...w.baseDeps, freeBytes: () => 10 };
+    await rejects(() => w.run({ deps }), 'INSUFFICIENT_RUNNER_DISK_FOR_HANDOFF_ARCHIVE');
+    assert.ok(!w.r2.opLog.some(([o]) => o === 'putObject'), 'no manifest putObject');
+    assert.equal(w.r2.objects.has(manifestKeyFor(ident())), false, 'no manifest object');
+  } finally { w.cleanup(); }
+});
+
+test('(89) PATH_CONFINEMENT: an archive parent escaping the RUNNER_TEMP handoff root is rejected before mkdir', async () => {
+  const w = realFsWorld();
+  try {
+    const escapeParent = path.join(w.root, 'outside-root');
+    const escapeArchive = path.join(escapeParent, ARCHIVE_BASENAME);
+    let created = false;
+    const deps = { ...w.baseDeps, ensureDir: (d) => { created = true; fs.mkdirSync(d, { recursive: true }); } };
+    await rejects(() => w.run({ deps, archivePath: escapeArchive }), 'HANDOFF_ARCHIVE_PARENT_ESCAPE');
+    assert.equal(created, false, 'ensureDir must not run for an escaping parent');
+    assert.equal(fs.existsSync(escapeParent), false, 'no directory created outside the handoff root');
+    // The pure confinement helper agrees on the classification.
+    assert.throws(() => assertArchiveParentConfined(escapeParent, w.handoffTempRoot), (e) => e.code === 'HANDOFF_ARCHIVE_PARENT_ESCAPE');
+  } finally { w.cleanup(); }
+  // §F.4 defense: the post-mkdir realpath guard must reject a parent that resolves
+  // to a NON-directory (this is the real-fs stand-in for the symlink-escape guard,
+  // which cannot be created on this host). A stub ensureDir preserves the planted
+  // file so the PRODUCTION realpathDir directory-assertion is the code under test.
+  const w2 = realFsWorld();
+  try {
+    fs.mkdirSync(path.dirname(w2.archiveParent), { recursive: true });
+    fs.writeFileSync(w2.archiveParent, Buffer.from('not-a-dir'));
+    await rejects(() => w2.run({ deps: { ...w2.baseDeps, ensureDir: () => {} } }), 'HANDOFF_ARCHIVE_PARENT_NOT_DIR');
+  } finally { w2.cleanup(); }
+});
+
+test('(90) EXISTING_PARENT: a pre-existing archive parent is handled idempotently', async () => {
+  const w = realFsWorld();
+  try {
+    fs.mkdirSync(w.archiveParent, { recursive: true }); // pre-exists
+    const res = await w.run();
+    assert.equal(res.ok, true);
+    assert.ok(w.r2.objects.has(manifestKeyFor(ident())));
+  } finally { w.cleanup(); }
+});
+
+test('(91) CLEANUP: real temp fs state is removed after the test', () => {
+  const w = realFsWorld();
+  const root = w.root;
+  assert.ok(fs.existsSync(root));
+  w.cleanup();
+  assert.equal(fs.existsSync(root), false, 'temp world is torn down');
 });
