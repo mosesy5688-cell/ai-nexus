@@ -219,6 +219,19 @@ export function assertArchiveOutsidePayloadRoots(archivePath, workspaceDir) {
   }
 }
 
+// The archive parent must stay INSIDE the RUNNER_TEMP handoff root before it is
+// created/probed (D-217 §F step 2/5). Same confinement style as staging
+// (realPrepareCleanStaging): `..` traversal and absolute-outside paths are
+// rejected; passing the realpath here also rejects a symlinked escape.
+export function assertArchiveParentConfined(archiveParent, handoffTempRoot) {
+  const rootAbs = path.resolve(handoffTempRoot);
+  const abs = path.resolve(archiveParent);
+  if (abs !== rootAbs && !(abs + path.sep).startsWith(rootAbs + path.sep)) {
+    fail('HANDOFF_ARCHIVE_PARENT_ESCAPE', `archive parent ${abs} escapes handoff temp root ${rootAbs}`);
+  }
+  return abs;
+}
+
 // Reject absolute members, ".." traversal, and symlink/hardlink escapes BEFORE
 // extraction (§J steps 10-12 / D-211 §J). `entries` = [{ name, type, linkTarget }].
 export function validateArchiveEntries(entries) {
@@ -263,24 +276,40 @@ export function assertRequiredRootsPresent(entries) {
 export async function establishHandoff({
   r2, identity, workflowIdentity, workspaceDir, archivePath,
   deps = productionProducerDeps(), clock = Date, logger = console,
+  handoffTempRoot = process.env.RUNNER_TEMP || os.tmpdir(),
 }) {
   assertIdentity(identity);
   const log = (m) => logger.log?.(`[HANDOFF:establish] ${m}`);
 
-  // 1-2. logical source bytes + confirm all three roots exist (missing = fatal).
-  const scan = deps.scanPayload(workspaceDir, PAYLOAD_ROOTS); // throws MISSING_PAYLOAD_ROOT
-  // 3. record free disk + destination fs + temp fs.
-  const destFree = deps.freeBytes(path.dirname(archivePath));
+  // 1. resolve the archive parent directory (D-217 §F step 1).
+  const archiveParent = path.dirname(archivePath);
+  // 2. the archive (hence its parent) MUST live OUTSIDE every payload root, else
+  //    we would create/probe a directory inside tar's own growing output (§K).
+  assertArchiveOutsidePayloadRoots(archivePath, workspaceDir);
+  // 3. path confinement: the parent MUST stay inside the RUNNER_TEMP handoff root
+  //    (reject `..` traversal / absolute-outside) BEFORE creating anything (§F.2).
+  assertArchiveParentConfined(archiveParent, handoffTempRoot);
+  // 4. create the parent (idempotent, recursive) — this MUST happen BEFORE any
+  //    disk-free (statfs) probe, or real fs throws ENOENT on a non-existent path
+  //    (D-217 root cause: statfs of the not-yet-created parent). (§F.3)
+  deps.ensureDir(archiveParent);
+  // 5. confirm the created path is a real directory and re-confine after symlink
+  //    resolution: a symlinked parent escaping the temp root is rejected (§F.4).
+  const realParent = deps.realpathDir(archiveParent);
+  assertArchiveParentConfined(realParent, handoffTempRoot);
+  // 6. record free disk on the now-existing parent + temp fs (§F.5).
+  const destFree = deps.freeBytes(realParent);
   const tempFree = deps.freeBytes(workspaceDir);
+  // 7. logical source bytes + confirm all three roots exist (missing = fatal) (§F.6).
+  const scan = deps.scanPayload(workspaceDir, PAYLOAD_ROOTS); // throws MISSING_PAYLOAD_ROOT
   log(`logical=${scan.logicalBytes}B destFree=${destFree}B tempFree=${tempFree}B`);
-  // 4-5. enforce FREE_BYTES >= LOGICAL_SOURCE_BYTES + 8 GiB, else Compute RED.
+  // 8. enforce FREE_BYTES >= LOGICAL_SOURCE_BYTES + 8 GiB, else Compute RED (§F.7).
   const required = scan.logicalBytes + DISK_HEADROOM_BYTES;
   if (destFree < required) {
     fail('INSUFFICIENT_RUNNER_DISK_FOR_HANDOFF_ARCHIVE', `need ${required}B free, have ${destFree}B`);
   }
-  // 6. archive OUTSIDE all payload roots.
-  assertArchiveOutsidePayloadRoots(archivePath, workspaceDir);
-  // 7-8. build deterministic tar+zstd, close before hashing.
+  // 9. build deterministic tar+zstd (parent already exists; its own recursive
+  //    mkdir is now idempotent), close before hashing (§F.8).
   deps.buildArchive(archivePath, workspaceDir, PAYLOAD_ROOTS); // throws ARCHIVE_BUILD_FAILED
   // 9. compute exact compressed bytes + sha256 locally from the closed archive.
   const { bytes: archiveBytes, sha256: archiveSha256 } = deps.hashFile(archivePath);
@@ -410,6 +439,8 @@ export function producerGraphRecoveryGuidance({ producerConclusion, missingProdu
 export function productionProducerDeps() {
   return {
     scanPayload: realScanPayload,
+    ensureDir: realEnsureDir,
+    realpathDir: realRealpathDir,
     freeBytes: realFreeBytes,
     buildArchive: realBuildArchive,
     hashFile: realHashFile,
@@ -441,6 +472,23 @@ function realScanPayload(workspaceDir, roots) {
     }
   }
   return { logicalBytes, inventory };
+}
+
+// Create the archive parent recursively BEFORE the disk-free probe (D-217 §F.3).
+// Idempotent: a pre-existing directory is left untouched.
+function realEnsureDir(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+// Resolve symlinks and confirm the created path is really a directory (D-217
+// §F.4). Callers re-confine the returned realpath so a symlinked escape above the
+// handoff temp root is rejected. Throws ENOENT if the path does not exist.
+function realRealpathDir(dir) {
+  const real = fs.realpathSync(dir);
+  if (!fs.statSync(real).isDirectory()) {
+    fail('HANDOFF_ARCHIVE_PARENT_NOT_DIR', `archive parent ${real} is not a directory`);
+  }
+  return real;
 }
 
 function realFreeBytes(dir) {
@@ -580,8 +628,9 @@ export async function runHandoffEstablishCli(env = process.env) {
   const r2 = await createProductionR2Adapter(env);
   const workspaceDir = env.GITHUB_WORKSPACE || process.cwd();
   const archivePath = path.join(handoffTempBase(env, identity), ARCHIVE_BASENAME);
+  const handoffTempRoot = env.RUNNER_TEMP || os.tmpdir();
   try {
-    const res = await establishHandoff({ r2, identity, workflowIdentity: env.GITHUB_WORKFLOW || 'Factory 3/4 - Aggregate', workspaceDir, archivePath });
+    const res = await establishHandoff({ r2, identity, workflowIdentity: env.GITHUB_WORKFLOW || 'Factory 3/4 - Aggregate', workspaceDir, archivePath, handoffTempRoot });
     console.log(`[HANDOFF] authoritative handoff established: ${res.archiveKey}`);
   } catch (e) {
     console.error(`::error::${PRODUCER_TERMINAL} — ${e.message}`);
