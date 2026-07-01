@@ -267,6 +267,52 @@ jobs:
           echo "preview_branch=$PB" >> "$GITHUB_OUTPUT"
           echo "Preview branch: $PB"
 
+      - name: Inject deployment-identity marker + compute deploy-tree/marker hashes (D-207 §G)
+        id: marker
+        env:
+          CONTROL: ${{ matrix.control }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          # The marker is a PREVIEW-ONLY static JSON file written INTO the downloaded
+          # dist tree at a UNIQUE per-run-attempt path BEFORE the deploy command (NOT
+          # a product route). It carries NO credential / user / production hostname.
+          if [ ! -f build-identity.json ]; then echo "::error::build-identity.json missing (identity not propagated)"; exit 1; fi
+          RESOLVED_COMMIT_SHA=$(node -e "process.stdout.write(require('./build-identity.json').resolved_commit_sha)")
+          BUILD_ARTIFACT_SHA256=$(node -e "process.stdout.write(require('./build-identity.json').build_artifact_sha256)")
+          if ! printf '%s' "${RESOLVED_COMMIT_SHA}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::resolved_commit_sha '${RESOLVED_COMMIT_SHA}' is not a full 40-hex SHA"; exit 1
+          fi
+          MARKER_REL=".well-known/ta2-preview/${RUN_ID}-${RUN_ATTEMPT}-${CONTROL}.json"
+          MARKER_CREATED_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          mkdir -p "dist/.well-known/ta2-preview"
+          export RESOLVED_COMMIT_SHA BUILD_ARTIFACT_SHA256 MARKER_REL MARKER_CREATED_AT_UTC RUN_ID RUN_ATTEMPT CONTROL
+          # Canonical marker bytes (stable key order) — MUST match
+          # scripts/ci/ta2-preview-readiness.mjs buildMarkerObject so MARKER_SHA256
+          # equals the sha256 of the EXACT bytes the edge serves. Compute & preserve
+          # MARKER_SHA256 from those exact bytes (pre-deploy-tree-hash; no circular hash).
+          MARKER_SHA256=$(node -e '
+            const fs=require("fs"), crypto=require("crypto");
+            const o={schema_version:"ta2-preview-marker/v1",github_run_id:String(process.env.RUN_ID),github_run_attempt:String(process.env.RUN_ATTEMPT),arm:String(process.env.CONTROL),source_sha:String(process.env.RESOLVED_COMMIT_SHA),build_artifact_sha256:String(process.env.BUILD_ARTIFACT_SHA256),marker_created_at_utc:String(process.env.MARKER_CREATED_AT_UTC)};
+            const bytes=Buffer.from(JSON.stringify(o),"utf8");
+            fs.writeFileSync("dist/"+process.env.MARKER_REL, bytes);
+            process.stdout.write(crypto.createHash("sha256").update(bytes).digest("hex"));
+          ')
+          # DEPLOY_TREE_MANIFEST_SHA256 = deterministic manifest hash of the ACTUAL
+          # tree sent to Cloudflare INCLUDING the marker (manifest file kept OUTSIDE dist).
+          find dist -type f -print0 | sort -z | xargs -0 sha256sum > deploy-tree-manifest.sha256
+          DEPLOY_TREE_MANIFEST_SHA256=$(sha256sum deploy-tree-manifest.sha256 | awk '{print $1}')
+          {
+            echo "marker_rel=${MARKER_REL}"
+            echo "marker_sha256=${MARKER_SHA256}"
+            echo "deploy_tree_manifest_sha256=${DEPLOY_TREE_MANIFEST_SHA256}"
+            echo "build_artifact_sha256=${BUILD_ARTIFACT_SHA256}"
+            echo "resolved_commit_sha=${RESOLVED_COMMIT_SHA}"
+            echo "marker_created_at_utc=${MARKER_CREATED_AT_UTC}"
+          } >> "$GITHUB_OUTPUT"
+          echo "marker injected: ${MARKER_REL} marker_sha256=${MARKER_SHA256} tree_sha256=${DEPLOY_TREE_MANIFEST_SHA256}"
+
       - name: Deploy ephemeral preview (NEVER production)
         id: cf
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
@@ -342,6 +388,39 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+      - name: Emit deployment record (ONLY after deploy success) (D-207 §H)
+        id: record
+        env:
+          CONTROL: ${{ matrix.control }}
+          PREVIEW_URL: ${{ steps.out.outputs.preview_url }}
+          DEPLOYMENT_ID: ${{ steps.out.outputs.deployment_id }}
+        run: |
+          set -euo pipefail
+          # Structured deployment record written ONLY after the deploy command
+          # succeeded (this step does not run if the prior deploy step failed). It
+          # binds run-id + run-attempt + arm + source_sha + the build/deploy-tree/
+          # marker hashes + the EXACT CF deployment id + the deploy-emitted preview
+          # URL. The smoke job consumes THIS record by its run-attempt-bound name.
+          DEPLOYMENT_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          printf '{"schema_version":"ta2-deploy-record/v1","github_run_id":"%s","github_run_attempt":"%s","arm":"%s","source_sha":"%s","build_artifact_sha256":"%s","deploy_tree_manifest_sha256":"%s","marker_path":"%s","marker_sha256":"%s","cloudflare_deployment_id":"%s","preview_url":"%s","deployment_timestamp_utc":"%s","deploy_exit_status":0}\n' \
+            "${{ github.run_id }}" "${{ github.run_attempt }}" "${CONTROL}" \
+            "${{ steps.marker.outputs.resolved_commit_sha }}" "${{ steps.marker.outputs.build_artifact_sha256 }}" \
+            "${{ steps.marker.outputs.deploy_tree_manifest_sha256 }}" "${{ steps.marker.outputs.marker_rel }}" \
+            "${{ steps.marker.outputs.marker_sha256 }}" "${DEPLOYMENT_ID}" "${PREVIEW_URL}" "${DEPLOYMENT_TS}" \
+            > deployment-record.json
+          echo "deployment record: $(cat deployment-record.json)"
+
+      - name: Upload run-attempt-bound deployment record (D-207 §H)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          # Run-attempt-bound NAME: the smoke job MUST consume the record for the
+          # CURRENT run attempt by this EXACT name — never an unversioned name, a
+          # prior-attempt artifact, a branch alias, or needs.*.outputs alone.
+          name: ta2-deploy-record-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.control }}
+          path: deployment-record.json
+          retention-days: 14
+          if-no-files-found: error
+
   # (C) SMOKE — NO CF secret. Run the 6-endpoint cold-start smoke against the
   # preview URL ONLY. This is the job whose check name is the required gate.
   preview-smoke:
@@ -388,11 +467,20 @@ jobs:
           name: ta2-deploy-${{ matrix.control }}
           path: .
 
-      - name: 6-endpoint COLD-START smoke (preview URL only)
+      - name: Download THIS run-attempt's deployment record (run-attempt-bound, D-207 §H)
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          # EXACT run-attempt-bound name for the CURRENT attempt — NOT a prior
+          # attempt, NOT an unversioned name, NOT needs.*.outputs, NOT a branch alias.
+          name: ta2-deploy-record-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.control }}
+          path: .
+
+      - name: Served-readiness gate + COLD-START app smoke (preview URL only) (D-207 §I-§M)
         id: smoke
         env:
           CONTROL: ${{ matrix.control }}
           SMOKE_RESULT_PATH: smoke-${{ matrix.control }}.json
+          DEPLOYMENT_RECORD_PATH: deployment-record.json
         run: |
           set +e
           # CORE FIX (TA2-GATE-PROVENANCE-1): the smoke identity is the PROPAGATED
@@ -404,20 +492,28 @@ jobs:
           BUILD_ARTIFACT_SHA256=$(node -e "process.stdout.write(require('./deploy-info.json').build_artifact_sha256)")
           PREVIEW_URL=$(node -e "process.stdout.write(require('./deploy-info.json').preview_url)")
           DEPLOYMENT_ID=$(node -e "process.stdout.write(require('./deploy-info.json').deployment_id)")
+          # D-207 §I same-attempt anchors: frozen expected source SHA per arm + the
+          # build identity from the CURRENT workflow graph. The smoke runner runs the
+          # served-readiness gate (validate the run-attempt-bound deployment record,
+          # prove the EXACT marker is SERVED) BEFORE any app smoke.
+          case "$CONTROL" in
+            candidate) EXPECTED_SOURCE_SHA="${{ needs.gate-guard.outputs.candidate_sha }}" ;;
+            broken)    EXPECTED_SOURCE_SHA="cd64c8b49ffda41ff92188642dd6a8e95a8022fc" ;;
+            recovered) EXPECTED_SOURCE_SHA="b5107e4c4cb274e1eb560128a28bc1682eb828ad" ;;
+            current)   EXPECTED_SOURCE_SHA="${{ needs.gate-guard.outputs.base_sha }}" ;;
+            *) echo "::error::unknown control '$CONTROL'"; exit 1 ;;
+          esac
+          EXPECTED_BUILD_ARTIFACT_SHA256="${BUILD_ARTIFACT_SHA256}"
           export RESOLVED_COMMIT_SHA REQUESTED_REF BUILD_ARTIFACT_SHA256 PREVIEW_URL DEPLOYMENT_ID CONTROL
+          export EXPECTED_SOURCE_SHA EXPECTED_BUILD_ARTIFACT_SHA256 DEPLOYMENT_RECORD_PATH
+          # GITHUB_RUN_ID / GITHUB_RUN_ATTEMPT are provided by the Actions runtime.
           node scripts/ci/ta2-preview-smoke.mjs "${PREVIEW_URL}"
           RC=$?
-          if [ "$RC" -eq 0 ]; then VERDICT=PASS; else VERDICT=FAIL; fi
-          # The `broken` control is the positive control: a 5xx/empty/unparseable
-          # COLD smoke on a build+deploy that SUCCEEDED is EXPECTED_RUNTIME_FAIL,
-          # NOT an ordinary failure. (build/deploy creation failures do NOT count;
-          # those short-circuit before this job via the deploy-result gate above.)
-          if [ "$CONTROL" = "broken" ] && [ "$VERDICT" = "FAIL" ]; then
-            VERDICT=EXPECTED_RUNTIME_FAIL
-          fi
-          echo "control=${CONTROL} verdict=${VERDICT}"
+          # The runner writes control-verdict.txt itself (per-arm token under D-207
+          # §M); read that token here. No post-hoc verdict remap is performed.
+          VERDICT=$(awk '{print $2}' control-verdict.txt 2>/dev/null)
+          echo "control=${CONTROL} verdict=${VERDICT} rc=${RC}"
           echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"
-          echo "${CONTROL} ${VERDICT}" > control-verdict.txt
 
       - name: Upload structured per-control verdict (status/ct/len/sha only)
         if: always()
@@ -691,6 +787,17 @@ jobs:
           if ! node scripts/ci/ta2-preview-cleanup.mjs --verify-identity-chain \
               builds deploys verdicts cleanups; then
             echo "::error::identity-chain validation FAILED"; FAILED=1
+          fi
+          # (3) STRUCTURED §N QUALIFICATION TRUTH TABLE (D-207) — consumes the
+          # per-arm structured evidence records (served-readiness classification +
+          # app-smoke classification + final arm verdict), NEVER job color. SUCCESS
+          # only when every nominal arm = same-attempt identity served + app smoke
+          # pass AND broken = same-attempt identity served + expected-runtime-fail
+          # signature, with no identity mismatch / stale / infra-not-served /
+          # production fallback / missing-or-duplicate arm / incomplete evidence;
+          # the non-discrimination guard is supplemental (never FAIL -> PASS).
+          if ! node scripts/ci/ta2-preview-readiness.mjs --qualify verdicts; then
+            echo "::error::structured §N qualification (readiness --qualify) FAILED"; FAILED=1
           fi
           [ "$FAILED" -eq 0 ] || { echo "QUALIFICATION_VERDICT=FAIL"; exit 1; }
           echo "QUALIFICATION_VERDICT=PASS"

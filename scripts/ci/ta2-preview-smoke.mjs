@@ -25,6 +25,12 @@
 // / the PR merge-context SHA. The smoke FAILS CLOSED if resolved_commit_sha is
 // absent or not a full 40-hex SHA — an identity defect can never pass silently.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import {
+  validateDeploymentRecord, pollReadiness, computeArmVerdict, operatorGuidance,
+  detectCloudflareNotServed, markerRelPath, CLASSIFICATION, ARM_VERDICT,
+  REQUEST_TIMEOUT_MS as READINESS_REQUEST_TIMEOUT_MS,
+} from './ta2-preview-readiness.mjs';
 
 const PREVIEW_URL = (process.argv[2] || process.env.PREVIEW_URL || '').trim();
 const CONTROL = (process.env.CONTROL || '').trim();
@@ -130,6 +136,9 @@ export async function probe(base, ep) {
   try { text = await res.text(); } catch (e) { return { rec, error: `body read failed: ${e.message}` }; }
   rec.bodyLength = Buffer.byteLength(text, 'utf8');
   rec.bodySha256 = crypto.createHash('sha256').update(text).digest('hex');
+  // §M(5): a route returning Cloudflare's no-deployment body is a SERVING-layer
+  // failure (NOT a clean SSR runtime failure) — flag it for the broken-arm signature.
+  rec.cfNotServed = detectCloudflareNotServed(text);
   // FAIL-CLOSED assertions (any violation = ordinary gate FAIL).
   if (res.status >= 500) return { rec, error: `5xx status ${res.status}` };
   if (rec.bodyLength === 0) return { rec, error: 'empty body' };
@@ -153,6 +162,39 @@ export function checkBuildIdentity({ resolvedCommitSha }) {
   return sha;
 }
 
+// Real (non-injected) readiness dependencies: bounded per-request fetch + wall
+// clock. The marker fetch uses AbortSignal.timeout(REQUEST_TIMEOUT_MS) so no
+// single request exceeds the §J ceiling. NO credential is attached.
+const realReadinessDeps = {
+  fetchMarker: (url) => fetch(url, { method: 'GET', redirect: 'manual', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(READINESS_REQUEST_TIMEOUT_MS) })
+    .then(async (r) => ({ status: r.status, contentType: r.headers.get('content-type') || '', body: Buffer.from(await r.arrayBuffer()) }))
+    .catch((e) => ({ error: e && e.name === 'TimeoutError' ? 'timeout' : 'network', message: String((e && e.message) || e) })),
+  now: () => Date.now(),
+  sleep: (ms) => new Promise((res) => setTimeout(res, ms)),
+};
+
+function readJsonFile(p) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
+}
+
+// Map an arm's final verdict to the legacy control-verdict token the existing
+// qualification-verdict + identity-chain consume (PASS / EXPECTED_RUNTIME_FAIL).
+function verdictToken(arm, finalArmVerdict) {
+  if (arm === 'broken') return finalArmVerdict === ARM_VERDICT.BROKEN_EXPECTED_FAIL ? 'EXPECTED_RUNTIME_FAIL' : 'FAIL';
+  return finalArmVerdict === ARM_VERDICT.NOMINAL_PASS ? 'PASS' : 'FAIL';
+}
+
+async function writeArmEvidence(summary) {
+  const out = (process.env.SMOKE_RESULT_PATH || '').trim();
+  if (out) { fs.writeFileSync(out, JSON.stringify(summary, null, 2)); console.log(`wrote arm evidence -> ${out}`); }
+  // Legacy per-control verdict file (consumed by qualification-verdict's read_v +
+  // identity-chain). The structured arm evidence above is the authoritative input
+  // to the §N truth table; this token preserves the existing behavioural check.
+  const token = verdictToken(summary.arm, summary.final_arm_verdict);
+  fs.writeFileSync('control-verdict.txt', `${summary.arm} ${token}\n`);
+  return token;
+}
+
 async function main() {
   const base = assertPreviewUrl(PREVIEW_URL);
   // FAIL CLOSED before any probe if the EXACT built-commit identity is defective.
@@ -163,10 +205,67 @@ async function main() {
   console.log(`TA2 cold-start smoke -> ${base.origin}`);
   console.log(`control=${CONTROL || '(unset)'} requested_ref=${REQUESTED_REF || '(unset)'}`);
   console.log(`resolved_commit_sha=${resolvedCommitSha} build_artifact_sha256=${BUILD_ARTIFACT_SHA256 || '(unset)'} deployment_id=${DEPLOYMENT_ID || '(unset)'}`);
+
+  // ----- §I SAME-ATTEMPT HARD GATE: consume the CURRENT run attempt's deployment
+  // record (downloaded by the run-attempt-bound artifact name) BEFORE any HTTP
+  // readiness request. A missing / prior-attempt / mismatched record fails closed.
+  const recordPath = (process.env.DEPLOYMENT_RECORD_PATH || '').trim();
+  const record = recordPath ? readJsonFile(recordPath) : null;
+  const expected = {
+    githubRunId: (process.env.GITHUB_RUN_ID || '').trim(),
+    githubRunAttempt: (process.env.GITHUB_RUN_ATTEMPT || '').trim(),
+    arm: CONTROL,
+    sourceSha: (process.env.EXPECTED_SOURCE_SHA || RESOLVED_COMMIT_SHA || '').trim(),
+    buildArtifactSha256: (process.env.EXPECTED_BUILD_ARTIFACT_SHA256 || BUILD_ARTIFACT_SHA256 || '').trim(),
+    project: 'ai-nexus',
+  };
+  const baseEvidence = {
+    schema: 'ta2-preview-arm-evidence/v1',
+    arm: CONTROL || null,
+    control: CONTROL || null,
+    requested_ref: REQUESTED_REF || null,
+    run_id: expected.githubRunId || null,
+    run_attempt: expected.githubRunAttempt || null,
+    source_sha: record ? (record.source_sha || null) : null,
+    resolved_commit_sha: resolvedCommitSha, // identity-chain field (kept)
+    build_hash: record ? (record.build_artifact_sha256 || null) : null,
+    build_artifact_sha256: BUILD_ARTIFACT_SHA256 || null, // identity-chain field (kept)
+    deploy_tree_hash: record ? (record.deploy_tree_manifest_sha256 || null) : null,
+    deployment_id: record ? (record.cloudflare_deployment_id || DEPLOYMENT_ID || null) : (DEPLOYMENT_ID || null),
+    deployment_url: base.origin,
+    marker_path: record ? (record.marker_path || null) : null,
+    marker_sha256: record ? (record.marker_sha256 || null) : null,
+    no_production_fallback: true,
+  };
+
+  const gate = validateDeploymentRecord(record, expected);
+  if (!gate.ok) {
+    const armResult = computeArmVerdict({ arm: CONTROL, readiness: { ready: false, classification: gate.classification }, appAlsoNotServed: false });
+    const summary = { ...baseEvidence, readiness_attempts: [], final_readiness_classification: gate.classification, app_smoke_classification: 'NOT_RUN', final_arm_verdict: armResult.final_arm_verdict, records: [], verdict: 'FAIL' };
+    await writeArmEvidence(summary);
+    console.error(`::error::SAME-ATTEMPT GATE FAILED (${gate.classification}): ${gate.errors.join('; ')}`);
+    console.error(gate.guidance);
+    process.exit(1);
+  }
+
+  // ----- §J SERVED-READINESS: prove the EXACT same-attempt marker is SERVED.
+  const markerUrl = new URL(record.marker_path || markerRelPath({ runId: record.github_run_id, runAttempt: record.github_run_attempt, arm: record.arm }), record.preview_url || base.origin).toString();
+  console.log(`served-readiness marker -> ${markerUrl}`);
+  const readiness = await pollReadiness({ url: markerUrl, expected, recordMarkerSha: record.marker_sha256, deps: realReadinessDeps });
+  console.log(`READINESS_CLASSIFICATION=${readiness.classification} attempts=${readiness.attempt_count}`);
+  if (!readiness.ready) {
+    const armResult = computeArmVerdict({ arm: CONTROL, readiness, appAlsoNotServed: false });
+    const summary = { ...baseEvidence, readiness_attempts: readiness.attempts, final_readiness_classification: readiness.classification, app_smoke_classification: 'NOT_RUN', final_arm_verdict: armResult.final_arm_verdict, records: [], verdict: 'FAIL' };
+    await writeArmEvidence(summary);
+    console.error(`::error::preview not served (${readiness.classification})`);
+    console.error(operatorGuidance(readiness.classification === CLASSIFICATION.STALE ? CLASSIFICATION.STALE : CLASSIFICATION.NOT_SERVED));
+    process.exit(1);
+  }
+  console.log('READINESS=SERVED — app smoke may now run (deployment-identity proven).');
+
+  // ----- §L APP SMOKE (only after readiness). STRICTLY SEQUENTIAL, health FIRST.
   const records = [];
   let failed = 0;
-  // STRICTLY SEQUENTIAL, /api/v1/health FIRST and IMMEDIATELY (no warm-up):
-  // the cold Worker-entry evaluation must be exercised on the very first request.
   for (const ep of ENDPOINTS) {
     const { rec, error } = await probe(base, ep);
     if (error) {
@@ -180,30 +279,40 @@ async function main() {
     }
     records.push(rec);
   }
+
+  // ----- final per-arm verdict (§M for broken / §L for nominal).
+  let armResult;
+  if (CONTROL === 'broken') {
+    // §M: re-confirm the marker stays HTTP 200 while SSR routes fail.
+    const m2 = await realReadinessDeps.fetchMarker(markerUrl);
+    const markerStill200 = !!(m2 && !m2.error && m2.status === 200 && !detectCloudflareNotServed(Buffer.isBuffer(m2.body) ? m2.body.toString('utf8') : String(m2.body || '')));
+    const brokenSignals = {
+      sourceShaMatches: true, hashesMatch: true,
+      ssrFailureCount: records.filter((r) => r.result === 'FAIL').length,
+      anyRouteCfNotServed: records.some((r) => r.cfNotServed === true),
+      markerStill200, productionContacted: false,
+      healthyApiContract: failed === 0,
+      appClassification: failed === 0 ? 'ALL_ROUTES_HEALTHY' : 'SSR_RUNTIME_FAILURE',
+    };
+    armResult = computeArmVerdict({ arm: CONTROL, readiness, brokenSignals });
+  } else {
+    armResult = computeArmVerdict({ arm: CONTROL, readiness, appSmoke: { pass: failed === 0, classification: failed === 0 ? 'APP_SMOKE_PASS' : 'APP_SMOKE_FAIL' } });
+  }
+
   const summary = {
-    schema: 'ta2-preview-smoke/v2',
-    control: CONTROL || null,
-    requested_ref: REQUESTED_REF || null,
-    // The EXACT built-commit identity, PROPAGATED from the build artifact (NOT
-    // github.sha). This is the field that binds the runtime result to the commit
-    // each matrix control actually built.
-    resolved_commit_sha: resolvedCommitSha,
-    build_artifact_sha256: BUILD_ARTIFACT_SHA256 || null,
-    deployment_id: DEPLOYMENT_ID || null,
-    preview_url: base.origin,
+    ...baseEvidence,
     endpoint_count: ENDPOINTS.length,
     failed,
-    verdict: failed === 0 ? 'PASS' : 'FAIL',
-    records, // status/content-type/length/sha256/parse ONLY — never raw bodies/headers/secrets
+    readiness_attempts: readiness.attempts,
+    final_readiness_classification: readiness.classification,
+    app_smoke_classification: armResult.app_smoke_classification,
+    final_arm_verdict: armResult.final_arm_verdict,
+    records, // status/content-type/length/sha256/parse/cfNotServed ONLY — never raw bodies/headers/secrets
   };
-  const out = (process.env.SMOKE_RESULT_PATH || '').trim();
-  if (out) {
-    const fs = await import('node:fs');
-    fs.writeFileSync(out, JSON.stringify(summary, null, 2));
-    console.log(`wrote smoke result -> ${out}`);
-  }
-  console.log(`SMOKE_VERDICT=${summary.verdict}`);
-  if (failed > 0) process.exit(1);
+  const verdictRef = await writeArmEvidence(summary);
+  console.log(`ARM_FINAL_VERDICT=${summary.final_arm_verdict} (verdict=${verdictRef})`);
+  const acceptable = verdictRef === 'PASS' || verdictRef === 'EXPECTED_RUNTIME_FAIL';
+  if (!acceptable) process.exit(1);
 }
 
 // Auto-run ONLY when executed directly (not when imported by the hermetic tests).
