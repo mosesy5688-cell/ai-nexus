@@ -435,27 +435,63 @@ jobs:
             cache/task-checksums.json.zst
           key: checksums-${{ github.run_id }}
 
-      # V27.43: Prune AFTER all individual monolith/shard saves are done — earlier
-      # this ran before Save FNI History which silently lost the shard dir backup.
-      - name: Prune for Satellite Cache (drop deltas/artifacts/fni/meta)
+      # D-228/D-230 (Option 1): the warning-only GHA satellite-registry cache is
+      # REMOVED from the correctness path (the removed satellite prune + satellite
+      # cache save). The cache-service write-auth DENIAL of that save (left green,
+      # warning-only) was the incident root cause and
+      # the four satellites had no R2 fallback for the registry INPUT. Persist now
+      # ESTABLISHES the authoritative attempt-scoped R2 SATELLITE-REGISTRY handoff over
+      # cache/registry/: exact source snapshot -> deterministic registry.tar.zst OUTSIDE
+      # the payload root -> multipart upload -> HeadObject byte verify -> immutable
+      # manifest (LAST) -> GetObject re-verify. FATAL on any failure (Persist RED, no
+      # preflight/satellite eligible; never warning-only-green). Step-level R2 creds are
+      # mandatory (composite factory-setup cannot inject secrets). "Save Global Registry
+      # to Cache" (above) is UNTOUCHED — it is the cross-cycle Harvest carrier, not a
+      # satellite input.
+      - name: Establish Authoritative R2 Satellite Registry Handoff
         if: success()
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
         run: |
-          rm -rf artifacts/ cache/deltas/ cache/fni-history/ output/meta/ 2>/dev/null
-          echo "Satellite cache pruned: $(du -sh cache/ output/ 2>/dev/null | paste -s)"
+          node scripts/factory/r2-workflow-cli.js satellite-registry-establish
 
-      - name: Save Satellite Cache (pruned)
-        if: success()
-        uses: actions/cache/save@v5
+  # D-228/D-230: ONE verify-only gate between Persist and the four satellites.
+  # Independent FULL remote verification (C5) in its OWN $RUNNER_TEMP: download the
+  # complete registry.tar.zst, recompute bytes+sha256, validate members + inventory
+  # hash + exact shard count/identities + allowed-consumer set + tuple, then delete
+  # the temp copy (exposes NOTHING). RED here => no satellite starts (needs).
+  satellite-authority-preflight:
+    name: Satellite Authority Preflight
+    needs: [merge-core-persist, check-upstream]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/factory-setup
         with:
-          path: |
-            output/
-            cache/
-          key: intra-cycle-${{ github.run_id }}-satellite
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'false'
+      - name: Preflight Satellite Registry Authority (R2)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: |
+          node scripts/factory/r2-workflow-cli.js satellite-registry-preflight
 
-  # Parallel Satellite Jobs (SPEC V2.0) — all `needs: merge-core-persist` per V27.40
+  # Parallel Satellite Jobs (SPEC V2.0) — all `needs: satellite-authority-preflight`
+  # (D-228/D-230); each independently consumes + verifies the R2 satellite handoff.
   aggregate-search:
     name: "Agg: Search Index"
-    needs: merge-core-persist
+    needs: [satellite-authority-preflight, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -474,13 +510,16 @@ jobs:
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
-      - name: Restore Satellite Cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            output/
-            cache/
-          key: intra-cycle-${{ github.run_id }}-satellite
+      - name: Consume Satellite Registry Handoff (R2)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: |
+          node scripts/factory/r2-workflow-cli.js satellite-registry-consume --role=search-index
       - name: Generate Search Indices
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -511,7 +550,7 @@ jobs:
 
   aggregate-rankings:
     name: "Agg: Rankings"
-    needs: merge-core-persist
+    needs: [satellite-authority-preflight, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -530,13 +569,16 @@ jobs:
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
-      - name: Restore Satellite Cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            output/
-            cache/
-          key: intra-cycle-${{ github.run_id }}-satellite
+      - name: Consume Satellite Registry Handoff (R2)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: |
+          node scripts/factory/r2-workflow-cli.js satellite-registry-consume --role=rankings
       - name: Download Hosted-On Data from R2
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -585,7 +627,7 @@ jobs:
 
   aggregate-trending:
     name: "Agg: Trending"
-    needs: merge-core-persist
+    needs: [satellite-authority-preflight, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -604,45 +646,24 @@ jobs:
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
-      # D-2026-0624-113: RESTORE-FOOTPRINT hotfix. Trending only READS
-      # cache/registry/ (rankings + shardReader; see scripts/factory/aggregator.js
-      # runSatelliteTask + lib/registry-loader.js loadRegistryShardsSequentially)
-      # and cache/fni-history/ (--task=trend; lib/registry-history.js loadFniHistory).
-      # artifacts/, cache/deltas/, output/meta/ are OUTPUT-only/Rust-rebuilt dirs
-      # (rust/stream-aggregator StatsTask Phase 3 tolerates a missing artifacts/ via
-      # `if let Ok(read_dir)` and recreates cache/deltas/ itself). Restoring the full
-      # intra-cycle-${run_id}-core archive (output/+cache/+artifacts/, append-only)
-      # overran the runner disk ("No space left on device", 2026-06-24). Restore the
-      # SMALL same-run registry-only cache merge-core-persist already produced instead.
-      - name: Disk usage before registry restore
-        run: df -h .
-      - name: Restore Global Registry from Cache (registry-only footprint)
-        id: cache-restore-registry
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            cache/global-registry.json.zst
-            cache/registry/
-          key: global-registry-${{ github.run_id }}
-      # Fail-closed: same-run registry cache MUST hit (merge-core-persist wrote it
-      # before this job's `needs` was satisfied). Mirror the persist-job guard at
-      # ~line 344 — never proceed on an empty cache (would silently emit empty
-      # trending.json poisoning the satellite-trending cache + R2).
-      - name: Verify Registry Cache Hit (fail closed)
-        if: steps.cache-restore-registry.outputs.cache-hit != 'true'
+      # D-228/D-230 (Option 1): the GHA "Restore Global Registry from Cache" step +
+      # its two fail-closed guards are REMOVED from Trending. Trending now consumes the
+      # authoritative R2 SATELLITE-REGISTRY handoff (full independent verify + extract
+      # of cache/registry/), identical to the other three satellites. Registry
+      # completeness/presence is enforced by the handoff inventory verification (exact
+      # shard set + inventory_sha256), not a post-restore `find` count. Trending READS
+      # cache/registry/ + cache/fni-history/; the FNI-history restore (below) is a
+      # DIFFERENT carrier and is unchanged.
+      - name: Consume Satellite Registry Handoff (R2)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
         run: |
-          echo "::error::Cache miss on global-registry-${{ github.run_id }}. merge-core-persist must have written it before this job ran. Aborting Trending to avoid emitting empty results. Recovery: 'Re-run failed jobs' in GHA UI."
-          exit 1
-      - name: Verify Registry Shards Present (fail closed on zero)
-        run: |
-          SHARD_COUNT=$(find cache/registry -name 'part-*.bin' -o -name 'part-*.json.zst' -o -name 'part-*.json' 2>/dev/null | wc -l)
-          if [ "$SHARD_COUNT" -eq 0 ]; then
-            echo "::error::Registry restore yielded 0 shards in cache/registry/. Refusing to generate trending from an empty registry."
-            exit 1
-          fi
-          echo "✅ Registry restored: $SHARD_COUNT shards"
-      - name: Disk usage after registry restore
-        run: df -h .
+          node scripts/factory/r2-workflow-cli.js satellite-registry-consume --role=trending
       # Output dirs the Rust StatsTask + generators write into (no longer restored
       # via the full-core archive; create explicitly so writes don't fail).
       - name: Prepare Output Directories
@@ -691,7 +712,7 @@ jobs:
 
   aggregate-relations:
     name: "Agg: Knowledge Mesh"
-    needs: merge-core-persist
+    needs: [satellite-authority-preflight, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -710,13 +731,16 @@ jobs:
         run: |
           FOUND=$(find rust -name '*.node' 2>/dev/null | wc -l)
           [ "$FOUND" -lt 9 ] && node scripts/factory/r2-workflow-cli.js restore-rust-ffi || true
-      - name: Restore Satellite Cache
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            output/
-            cache/
-          key: intra-cycle-${{ github.run_id }}-satellite
+      - name: Consume Satellite Registry Handoff (R2)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          CYCLE_ID: ${{ needs.check-upstream.outputs.process-id }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: |
+          node scripts/factory/r2-workflow-cli.js satellite-registry-consume --role=knowledge-mesh
       - name: Generate Relations & Knowledge Mesh
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

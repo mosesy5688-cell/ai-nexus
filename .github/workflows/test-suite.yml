@@ -53,6 +53,15 @@ jobs:
       - name: Install Dependencies (Root)
         run: npm ci
 
+      # C2-LOCK (D-2026-0702-228/230): the .mjs node:test suites are NOT collected
+      # by vitest (which globs only **/*.{test,spec}.ts). Run them EXPLICITLY as a
+      # required gate with the EXACT file list — the satellite-registry contract
+      # test AND the D-219 core handoff test (the anti-vacuity matrix depends on the
+      # CORE test catching a satellite role added to the core closed set). No
+      # wildcard, no unrelated tests, no continue-on-error: any red fails this job.
+      - name: Run node --test factory handoff suites (satellite + core, blocking)
+        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs
+
       - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
         run: npx vitest run --coverage
 

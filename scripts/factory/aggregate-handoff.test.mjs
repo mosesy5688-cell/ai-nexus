@@ -575,10 +575,31 @@ function occurrences(hay, needle) { return hay.split(needle).length - 1; }
 test('WF-1 the intra-cycle -core GHA cache key is fully REMOVED (no save/restore)', () => {
   assert.equal(occurrences(wf(), 'intra-cycle-${{ github.run_id }}-core'), 0);
 });
-test('WF-2 unrelated intra-cycle caches are UNCHANGED (satellite/search/rankings/trending/relations)', () => {
-  const t = wf();
-  for (const k of ['-satellite', '-search', '-rankings', '-trending', '-relations']) {
-    assert.ok(t.includes('intra-cycle-${{ github.run_id }}' + k), `missing unrelated cache ${k}`);
+test('WF-2 the removed satellite INPUT carrier is absent from EXECUTABLE cache steps; the 4 satellite OUTPUT carriers remain (a comment can never satisfy this)', () => {
+  // Corrected under Founder D-2026-0702-231: the prior whole-file `.includes` could
+  // be satisfied by a mere COMMENT mentioning the key (SEMANTIC_FALSE_POSITIVE /
+  // compatibility laundering). This inspects the EXECUTABLE `key:` values of the
+  // actions/cache save|restore steps with YAML comments stripped, so a comment can
+  // NEVER satisfy — or defeat — the assertion.
+  const executableCacheKeys = wf().split('\n')
+    .map((l) => l.replace(/\s#.*$/, ''))          // strip inline comments
+    .filter((l) => !l.trim().startsWith('#'))      // drop full-line comments
+    .map((l) => l.match(/^\s*key:\s*(\S.*?)\s*$/)) // executable `with.key:` lines only
+    .filter(Boolean)
+    .map((m) => m[1]);
+  // The legacy satellite-registry INPUT carrier (the write-auth-DENIED cache whose
+  // silent loss was the incident) must NOT appear on ANY executable save/restore
+  // step — reintroducing it as a real cache step reds this; a comment cannot.
+  assert.ok(
+    !executableCacheKeys.includes('intra-cycle-${{ github.run_id }}-satellite'),
+    'legacy -satellite INPUT carrier must be absent from every executable cache step',
+  );
+  // The four satellite OUTPUT carriers stay present as executable cache keys (unchanged).
+  for (const k of ['-search', '-rankings', '-trending', '-relations']) {
+    assert.ok(
+      executableCacheKeys.includes('intra-cycle-${{ github.run_id }}' + k),
+      `missing executable OUTPUT cache intra-cycle-<run>${k}`,
+    );
   }
 });
 test('WF-3 unrelated caches (global-registry/fni-history/daily-accum/checksums/cycle-output/shards/harvest) UNCHANGED', () => {
