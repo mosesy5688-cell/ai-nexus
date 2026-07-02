@@ -115,7 +115,8 @@ curl -sS "$BASE/api/v1/compare?ids=\${IDS[0]},\${IDS[1]}" | jq '.'
 # 5) The caller/agent makes the final selection from this evidence.
 echo "Review the factors above and choose. Free2AI does not decide for you."`;
 
-const jsSnippet = `// Node 18+ (built-in fetch). No SDK, no dependencies.
+const jsSnippet = `// Node 18+ (built-in fetch) — the direct REST path, no additional dependency.
+// You can also use the official TypeScript SDK: npm install @free2aitools/sdk (see the SDK section above).
 // Canonical workflow: search -> ids from results -> entity (evidence) ->
 // compare -> the caller decides. Retries ONLY 429/503, max 2, honors Retry-After.
 const BASE = process.env.F2AI_BASE || "${SITE}";
@@ -204,6 +205,22 @@ def pick_candidates(query="code generation"):
     comparison = call(f"/api/v1/compare?ids={ids[0]},{ids[1]}")
     # The caller/agent reasons over this evidence and makes the final choice.
     return {"ids": ids, "factors": factors, "comparison": comparison}`;
+
+// Official TypeScript SDK quickstart. Uses only REAL published exports:
+// Free2AIClient + its search() method returning a typed SearchResponse whose
+// `results` is SearchResult[] (real fields: id / name / fni_score). No API key.
+const sdkSnippet = `import { Free2AIClient } from "@free2aitools/sdk";
+
+// No authentication is currently required for the public API.
+const client = new Free2AIClient();
+
+// search() returns a typed SearchResponse; \`results\` is SearchResult[].
+const res = await client.search({ q: "code generation", limit: 5 });
+for (const r of res.results) {
+  console.log(r.name, r.fni_score); // real, typed fields
+}
+// Free2AITools provides structured discovery and evidence;
+// the caller or Agent makes the final decision.`;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -216,7 +233,7 @@ def pick_candidates(query="code generation"):
         Developer Docs
       </h1>
       <p class="text-xl text-gray-600 dark:text-gray-400">
-        REST API &middot; Model Selection &middot; MCP Server &middot; FNI Badge
+        TypeScript SDK &middot; REST API &middot; Model Selection &middot; MCP Server &middot; FNI Badge
       </p>
       <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">
         All endpoints are free, no authentication required
@@ -260,20 +277,41 @@ def pick_candidates(query="code generation"):
         Note for REST users: there is no separate REST <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">/explain</code> endpoint. Evidence inspection is the entity response itself — its returned FNI factors and associated notes. (MCP clients have a <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_explain</code> tool; see below.)
       </p>
 
-      <!-- REST vs MCP chooser -->
-      <div class="grid md:grid-cols-2 gap-4 mb-8">
+      <!-- SDK / REST / MCP chooser — three equally-valid surfaces over the same catalog -->
+      <div class="grid md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-5 border border-indigo-200 dark:border-indigo-800">
+          <h3 class="font-bold text-indigo-800 dark:text-indigo-300 mb-1">Use the TypeScript SDK</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Typed TypeScript client (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">@free2aitools/sdk</code>) that wraps the same REST API — TypeScript types, retries, and typed errors out of the box. See the SDK quickstart below.</p>
+        </div>
         <div class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800">
           <h3 class="font-bold text-blue-800 dark:text-blue-300 mb-1">Use the REST API</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">For scripts, apps, and direct HTTP integrations. Plain JSON over HTTPS — curl, Node, Python, anything.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">For scripts, apps, and direct HTTP integrations. Plain JSON over HTTPS — curl, Node, Python, anything, with no additional dependency.</p>
         </div>
         <div class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800">
           <h3 class="font-bold text-purple-800 dark:text-purple-300 mb-1">Use the MCP server</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">For MCP-compatible agents and clients (Claude, Cursor, Windsurf, etc.). Same data, exposed as MCP tools.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">For MCP-compatible agents and clients (Claude, Cursor, Windsurf, etc.). Same data, exposed as an Agent/tool protocol.</p>
         </div>
       </div>
       <p class="text-xs text-gray-500 dark:text-gray-500 mb-8">
-        Both surfaces serve the same catalog and the same evidence; pick whichever fits how you integrate. Neither one routes, ranks-by-preference, or decides which model you should use. Note: the two surfaces use different default result limits — MCP search/rank default to 10 results, REST search defaults to 5; both clamp to a max of 20. Pass an explicit <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">limit</code> if you need a specific count.
+        Use the SDK, REST, or MCP according to your integration environment; all three serve the same catalog and the same evidence. None of them route, rank-by-preference, or decide which model you should use. The SDK is a typed REST client, so it follows the REST defaults. Note: the surfaces use different default result limits — MCP search/rank default to 10 results, REST (and therefore the SDK) defaults to 5; all clamp to a max of 20. Pass an explicit <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">limit</code> if you need a specific count.
       </p>
+
+      <!-- Official TypeScript SDK -->
+      <div id="sdk" class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Official TypeScript SDK</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Initial public release &mdash; version <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">0.1.0</code>, available on npm. A typed client for the existing Free2AI public API (same catalog, same evidence); the REST API and MCP server remain fully supported alternatives.
+        </p>
+        <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto mb-3">
+          <code>npm install @free2aitools/sdk</code>
+        </div>
+        <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+          <pre>{sdkSnippet}</pre>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
+          No authentication is currently required for the public API. The SDK is a typed REST client, so it follows the REST defaults (search returns 5 results unless you pass <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">limit</code>). Package: <a href="https://www.npmjs.com/package/@free2aitools/sdk" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">@free2aitools/sdk</a>.
+        </p>
+      </div>
 
       <!-- curl -->
       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6">
