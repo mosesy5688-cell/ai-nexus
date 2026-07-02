@@ -32,6 +32,19 @@ abuse controls may change.
 - `GET /llms.txt` — this file
 - `GET /sitemap.xml` — full URL index
 
+### TypeScript SDK
+
+- Official TypeScript SDK: `@free2aitools/sdk` — initial public release, version
+  `0.1.0`, available on npm: `npm install @free2aitools/sdk`
+  - A typed client for the existing public Free2AI REST API (same catalog, same
+    evidence). It adds TypeScript types, retries, and typed errors; it is NOT a
+    new API surface and not required to use Free2AItools
+  - Documentation + runnable quickstart: `GET /developers` (SDK section)
+  - REST (`/api/v1/*`) and MCP (`POST /api/mcp`) remain fully supported
+    alternatives; use the SDK, REST, or MCP according to your integration
+    environment
+  - No authentication is currently required for the public API
+
 ### MCP server (JSON-RPC 2.0)
 
 - `POST /api/mcp` — JSON-RPC dispatch

@@ -647,6 +647,39 @@ proof in the PR body).
 | B3-EP-ACCESS | The REAL `/api/v1/datasets` GET handler emits `access:"public"` on EVERY listed dataset item. Non-vacuous: removing the field / changing the value reds the lock | `tests/srs1/datasets-openness.test.ts` | EXEC | **NEW** |
 | B3-EP-TIER-FREE | The `/api/v1/datasets` response RETAINS the legacy `tier` field and its only value is `"free"` (compat-safe; not deleted, never "paid"). Non-vacuous: deleting the field or changing the value reds the lock | `tests/srs1/datasets-openness.test.ts` | EXEC | **NEW** |
 
+## Registry — SDK-SURFACE (D-221 SDK public-surface sync)
+
+> Deterministic, hermetic DOCUMENTATION locks for the SDK PUBLIC-SURFACE SYNC
+> (Founder D-221). FACT SYNCED: `@free2aitools/sdk@0.1.0` is published +
+> registry-verified on npm; the public surfaces (`/developers`, homepage
+> integration nav, `llms.txt`) were stale ("No SDK, no dependencies", no SDK
+> discovery). This is a NARROW, factual correction — an INITIAL PUBLIC RELEASE,
+> NOT GA, NOT an adoption/positioning claim. The locks read repo SOURCE/CONFIG
+> only (`src/pages/developers.astro`, `src/components/home/HomeTechnicalHeader.astro`,
+> `src/pages/index.astro`, `src/data/llms-template.txt`) and cross-check the REAL
+> published SDK source (`packages/sdk/src/index.ts` + `client.ts`) so the
+> example-uses-real-exports lock is non-vacuous. NO live network, NO module
+> execution, NO behavior assertion. The TypeScript example uses ONLY real exports
+> (`Free2AIClient` + its REST `search()` returning a typed `SearchResponse` whose
+> `results` is `SearchResult[]`); the MCP-only `rank()`/`explain()` are asserted
+> absent from the SDK/REST example. The homepage entry is pinned OUTSIDE the frozen
+> hero `<h1>` / mission paragraph / meta+OG description. A whole-surface forbidden-
+> claim scan (GA / production-ready / production-proven / stable-API-guarantee /
+> 1.0-compatibility / widely-adopted / used-by-Agents / recommended-default /
+> replaces-REST/MCP / provenance-verified-by-npm + paid tokens) is anti-vacuity
+> proven against a synthetic over-claim. SCOPE: documentation surfaces only — NO
+> SDK source / API / MCP / package.json / runtime change (the true scope guarantee
+> is the PR diff; these locks pin the served wording). Single file:
+> `tests/unit/sdk-public-surface.test.ts` (auto-collected by the Tier-1 `unit-test`
+> job — no separate runner).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| SDK-SURFACE-DEV | /developers: the exact stale phrase `No SDK, no dependencies` is ABSENT (§I#1); the direct-fetch path stays honest ("no additional dependency"); `@free2aitools/sdk` + `npm install @free2aitools/sdk` present (§I#2/#3); version `0.1.0` framed as an INITIAL PUBLIC RELEASE adjacent to the version and NOT as GA (§I#4); the TypeScript example imports only the REAL `Free2AIClient` export and calls `client.search({q,limit})`/reads `res.results`, never the MCP-only `client.rank(`/`client.explain(` (§I#5, cross-checked against `packages/sdk/src`); the neutral chooser presents SDK + REST + MCP as equally-valid ("remain fully supported alternatives", "according to your integration environment") (§I#6); the documented REST endpoints + EXACTLY the 5 MCP tools are unchanged and no `/api/v1/sdk` endpoint was invented (§I#10) | `tests/unit/sdk-public-surface.test.ts` | SOURCE | **NEW** |
+| SDK-SURFACE-HOME | Homepage: the integration nav (`HomeTechnicalHeader.astro`) carries ONE SDK entry (link `/developers#sdk`, "TypeScript SDK", `@free2aitools/sdk` in the pill title); the frozen hero `<h1>` ("The Open-Source AI Registry") and the mission/value paragraph ("Scored by the Free2AITools Nexus Index (FNI)") are unchanged and carry NO SDK copy; the frozen homepage meta/OG description in `index.astro` is byte-unchanged and mentions no SDK (§I#7) | `tests/unit/sdk-public-surface.test.ts` | SOURCE | **NEW** |
+| SDK-SURFACE-LLMS | `llms.txt` template carries the machine-readable SDK discovery: package `@free2aitools/sdk`, `npm install @free2aitools/sdk`, version `0.1.0`, purpose = typed client for the existing public API (NOT a new API surface), a `/developers` docs pointer, and REST + MCP retained as supported alternatives (§I#8) | `tests/unit/sdk-public-surface.test.ts` | CONFIG | **NEW** |
+| SDK-SURFACE-NOCLAIM | NO forbidden over-claim on any edited public surface (developers.astro / HomeTechnicalHeader.astro / llms-template.txt): GA/General-Availability, production-ready/-proven, stable-API-guarantee, 1.0-compatibility, widely-adopted, used-by-Agents, recommended-default, replaces-REST/MCP, provenance-verified-by-npm, and paid tokens (subscription/billing/refund/paid-tier/credit-card/money-back/payment-processor) are ALL absent (§I#9). Anti-vacuity: a synthetic over-claim string trips the matcher | `tests/unit/sdk-public-surface.test.ts` | SOURCE + CONFIG | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
