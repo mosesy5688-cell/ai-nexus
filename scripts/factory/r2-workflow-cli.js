@@ -14,22 +14,20 @@
  *   node r2-workflow-cli.js delete-prefix <r2Prefix> [--dry-run]
  *   node r2-workflow-cli.js handoff-establish
  *   node r2-workflow-cli.js handoff-consume --role=<merge-core-persist|finalize>
+ *   node r2-workflow-cli.js satellite-registry-establish
+ *   node r2-workflow-cli.js satellite-registry-preflight
+ *   node r2-workflow-cli.js satellite-registry-consume --role=<search-index|rankings|knowledge-mesh|trending>
  *
- * handoff-establish / handoff-consume (D-209/D-211 aggregate R2 authoritative
- *   core handoff): producer (Compute) establishes an attempt-scoped immutable
- *   archive + manifest under internal-handoff/aggregate/...; the two consumers
- *   (merge-core-persist, finalize) each INDEPENDENTLY verify + extract it. All
- *   contract logic is in the injectable aggregate-handoff.mjs library.
+ * handoff-establish / handoff-consume (D-209/D-211): attempt-scoped core R2 handoff
+ *   (internal-handoff/aggregate/...); the two consumers (merge-core-persist,
+ *   finalize) each INDEPENDENTLY verify + extract. Logic in aggregate-handoff.mjs.
  *
- * list-prefix / delete-prefix (S1-BR EXACT-PRODUCER R2 HANDOFF, narrow add):
- *   list-prefix    — enumerate object keys under a prefix (paginated). With
- *                    --delimiter=/ it instead emits the immediate "subdirectory"
- *                    CommonPrefixes (used by the bounded staging GC to discover
- *                    old run prefixes). Keys/prefixes printed one per line.
- *   delete-prefix  — delete every object under a prefix (batched 1000). A bare
- *                    or `state/`/`state/fused-entities/`-style production prefix
- *                    is REFUSED — only `state/_handoff/` staging prefixes are
- *                    deletable, so the GC can never touch a carrier/publication.
+ * satellite-registry-* (D-228/D-230): attempt-scoped SATELLITE-REGISTRY R2 handoff
+ *   under aggregate-satellite/...; logic in satellite-registry-handoff.mjs.
+ *
+ * list-prefix / delete-prefix (S1-BR staging GC): enumerate keys (or, with
+ *   --delimiter=/, immediate CommonPrefixes) under a prefix; delete-prefix
+ *   REFUSES anything outside `state/_handoff/` so the GC can't touch a carrier.
  */
 import fs from 'fs';
 import {
@@ -152,6 +150,14 @@ async function main() {
             await runHandoffConsumeCli(process.env, rest);
             break;
         }
+        case 'satellite-registry-establish':
+        case 'satellite-registry-preflight':
+        case 'satellite-registry-consume': {
+            const m = await import('./satellite-registry-handoff.mjs');
+            const run = { 'satellite-registry-establish': m.runSatelliteEstablishCli, 'satellite-registry-preflight': m.runSatellitePreflightCli, 'satellite-registry-consume': m.runSatelliteConsumeCli }[action];
+            await run(process.env, rest);
+            break;
+        }
         case 'list-prefix': {
             const positional = rest.filter(a => !a.startsWith('--'));
             const [r2Prefix] = positional;
@@ -180,7 +186,7 @@ async function main() {
         }
         default:
             console.error(`Unknown action: ${action}`);
-            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi, list-prefix, delete-prefix, handoff-establish, handoff-consume');
+            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi, list-prefix, delete-prefix, handoff-establish, handoff-consume, satellite-registry-establish, satellite-registry-preflight, satellite-registry-consume');
             process.exit(1);
     }
 }
