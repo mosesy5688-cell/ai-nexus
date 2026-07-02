@@ -680,6 +680,37 @@ proof in the PR body).
 | SDK-SURFACE-LLMS | `llms.txt` template carries the machine-readable SDK discovery: package `@free2aitools/sdk`, `npm install @free2aitools/sdk`, version `0.1.0`, purpose = typed client for the existing public API (NOT a new API surface), a `/developers` docs pointer, and REST + MCP retained as supported alternatives (§I#8) | `tests/unit/sdk-public-surface.test.ts` | CONFIG | **NEW** |
 | SDK-SURFACE-NOCLAIM | NO forbidden over-claim on any edited public surface (developers.astro / HomeTechnicalHeader.astro / llms-template.txt): GA/General-Availability, production-ready/-proven, stable-API-guarantee, 1.0-compatibility, widely-adopted, used-by-Agents, recommended-default, replaces-REST/MCP, provenance-verified-by-npm, and paid tokens (subscription/billing/refund/paid-tier/credit-card/money-back/payment-processor) are ALL absent (§I#9). Anti-vacuity: a synthetic over-claim string trips the matcher | `tests/unit/sdk-public-surface.test.ts` | SOURCE + CONFIG | **NEW** |
 
+## Registry — SAT-HANDOFF (D-228/D-230 satellite-registry R2 handoff DAG)
+
+> Deterministic, hermetic invariants for the SATELLITE-REGISTRY R2 handoff repair
+> (Founder D-2026-0702-228, D-230 scope correction). ROOT CAUSE
+> (SATELLITE_REGISTRY_HANDOFF_CONTINUITY_INCIDENT, P0/SEV_2, fail-safe held): the
+> warning-only GHA "Save Satellite Cache" was cache-service write-auth DENIED,
+> leaving Persist green with no carrier while the four satellites had no R2
+> fallback for the registry INPUT. FIX = a distinct, attempt-scoped, manifest-last
+> R2 satellite-registry handoff over `cache/registry/` (namespace
+> aggregate-satellite/...), a dedicated self-contained module
+> `scripts/factory/satellite-registry-handoff.mjs` (C1 DUPLICATION — never imports
+> the D-219 core `aggregate-handoff.mjs`), one verify-only preflight gate, and four
+> independently-verifying consumers. GHA satellite carrier REMOVED from the
+> correctness path (Option 1). TWO tiers: (1) the STATIC workflow-invariant lock
+> below reads `.github/workflows/factory-aggregate.yml` as TEXT (CRLF-normalized;
+> no execution/network/YAML dep) + the core module source; (2) the hermetic
+> `node --test` contract suite `scripts/factory/satellite-registry-handoff.test.mjs`
+> (12 D-230 transport-contract tests + C5 full-verify + C6 immutability collision +
+> D-219 non-contamination isolation proof) runs in the SAME required `unit-test`
+> job via the C2-LOCK `node --test aggregate-handoff.test.mjs
+> satellite-registry-handoff.test.mjs` step (exact list; the core test also runs
+> UNCHANGED, so adding a satellite role to the core closed set reds it).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| SAT-DAG | `satellite-authority-preflight` EXISTS and `needs: merge-core-persist`; each of the four `aggregate-*` jobs `needs: satellite-authority-preflight` and NOT `merge-core-persist`; `finalize` still needs all four satellites + check-upstream (edge set unchanged); ONLY the preflight job depends on merge-core-persist | `tests/srs1/factory-aggregate-satellite-invariant.test.ts` | CONFIG | **NEW** |
+| SAT-ESTABLISH-FAILRED | Persist runs `satellite-registry-establish` (`if: success()`, NO `continue-on-error`) with step-level R2 creds + CYCLE_ID + PRODUCER_MAIN_SHA; the preflight step is likewise fail-red; each satellite runs its exact `satellite-registry-consume --role=<search-index\|rankings\|knowledge-mesh\|trending>` binding the SAME attempt identity. NON-VACUITY: downgrading establish to warning-only / dropping a satellite's preflight edge reds SAT-DAG/this lock | `tests/srs1/factory-aggregate-satellite-invariant.test.ts` | CONFIG | **NEW** |
+| SAT-GHA-REMOVED | GHA satellite carrier OFF the correctness path (Option 1): no consumer job restores `intra-cycle-<run>-satellite` or `global-registry-<run>`; no consumer/preflight job uses a `restore-keys:` prefix (no latest/prefix fallback); the removed Restore/Save Satellite Cache steps + Trending's global-registry guards (incl. the forbidden "Re-run failed jobs" phrase) are gone; the `-satellite` key survives ONLY as an inert Persist comment (never a cache save/restore line) | `tests/srs1/factory-aggregate-satellite-invariant.test.ts` | CONFIG | **NEW** |
+| SAT-CORE-UNTOUCHED | D-211/D-219 CORE handoff byte-unchanged: exactly ONE `handoff-establish`, the two `handoff-consume --role=merge-core-persist`/`--role=finalize`, all three core handoff step names present; the R2 prefix is never hardcoded in YAML (no `internal-handoff`); the core `aggregate-handoff.mjs` frozen `ALLOWED_CONSUMERS = Object.freeze(['merge-core-persist','finalize'])` array carries NONE of the four satellite roles (contamination guard — adding one reds both this lock and the core exact-array test) | `tests/srs1/factory-aggregate-satellite-invariant.test.ts` + `scripts/factory/satellite-registry-handoff.test.mjs` | SOURCE + CONFIG | **NEW** |
+| SAT-CONTRACT | Hermetic contract suite (node:test, injected fakes, no network/tar/@aws-sdk): the 12 D-230 transport-contract tests (source snapshot == archive == manifest inventory == extracted set; missing/extra/renamed member, mid-gap, duplicate index, unexpected filename, source-changed-during-establishment, below-floor, empty all REJECTED), C5 fatal remote read-after-write verify, C6 fail-closed immutability collision (no exact-tuple overwrite), and the D-219 non-contamination isolation proof | `scripts/factory/satellite-registry-handoff.test.mjs` | EXEC | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
