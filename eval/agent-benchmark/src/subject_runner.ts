@@ -35,7 +35,7 @@ export function buildInputRecord(
   };
 }
 
-export interface CommandSpec { exe: string; args: string[]; env: Record<string, string>; stdin: string; }
+export interface CommandSpec { exe: string; args: string[]; env: Record<string, string>; stdin: string; shell: false; verifyBeforeSpawn?: () => void; }
 export interface ProcessResult {
   startFailed: boolean; exitCode: number | null; signal: string | null;
   timedOut: boolean; forcedKill: boolean; stdout: Buffer; stderr: Buffer; elapsedMs: number;
@@ -55,7 +55,7 @@ function killTree(pid: number | undefined): void {
 // partial stdout preserved. NEVER invoked by the test suite (which injects a fake controller).
 export class NodeProcessController implements ProcessController {
   run(spec: CommandSpec, timeoutMs: number): Promise<ProcessResult> {
-    const out: Buffer[] = [], err: Buffer[] = [];
+    spec.verifyBeforeSpawn?.(); const out: Buffer[] = [], err: Buffer[] = []; // §J TOCTOU: hash-pin re-verify the frozen tuple immediately before spawn; drift throws -> WHOLE_RUN_ABORT
     const startedAt = performance.now();
     const base = { exitCode: null, signal: null, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) };
     return new Promise<ProcessResult>((resolve) => {

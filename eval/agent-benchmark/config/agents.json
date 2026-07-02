@@ -68,6 +68,12 @@
   "acceptance": {
     "required_cells": ["CELL-A-CODEX-CLI", "CELL-B-CLAUDE-CODE-OPUS"],
     "logic": "Both required passing -> A1_PASS reachable. Codex missing -> A1_INSUFFICIENT. Claude missing -> A1_INSUFFICIENT. One passing cannot hide one failing. Pooled cannot override a cell failure. Legacy self-loop cells cannot satisfy a required gate. An optional 3rd cannot compensate. A1_PASS_WITH_LIMITATIONS cannot waive a missing/failing required cell. Qualification cannot promote A1. Handshake cannot satisfy RARR. tools/list cannot violate CNU. Only a tools/call enters autonomous classification.",
-    "implemented_in": "src/subject_runner.ts acceptTwoCell()"
+    "implemented_in": "src/subject_runner.ts reconcileRequiredCells() + acceptRequiredCells() (matrix-bound runtime acceptance authority)"
+  },
+  "acceptance_authority_pointer": {
+    "note": "D-200 §M repoint: STABLE repository metadata ONLY (source_path + exported_symbol_name + authority_role). NO commit SHA / machine path / binary hash here — those belong to the future sealed manifest. Reconciled at preflight against config/matrix.json + the actual runtime descriptor (frozen_launch_identity.ts reconcileAcceptanceAuthority); a stale acceptTwoCell / missing symbol / cross-config drift fails closed.",
+    "source_path": "src/subject_runner.ts",
+    "exported_symbol_name": ["reconcileRequiredCells", "acceptRequiredCells"],
+    "authority_role": "MATRIX_BOUND_RUNTIME_ACCEPTANCE_AUTHORITY"
   }
 }
