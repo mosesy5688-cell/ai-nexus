@@ -93,6 +93,22 @@ jobs:
             node scripts/factory/r2-workflow-cli.js upload-buffer data/huggingface_master.ndjson ingestion/raw/huggingface_master.ndjson || { echo "::error::R2 batch upload FAILED — R2 is primary data layer"; exit 1; }
           fi
 
+      # D-236/D-237: establish the attempt-scoped R2 harvest source authority for
+      # this role (deterministic tar+zstd, manifest-last, byte+sha256 verified,
+      # read-back). FAIL-RED — a failed establish must NOT be a warning; the Merge
+      # R2 resolver relies on it to recover a merge-only "Re-run failed jobs" attempt.
+      - name: Establish Authoritative R2 Harvest Source Authority
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: node scripts/factory/r2-workflow-cli.js harvest-handoff-establish --role=huggingface
+
 
 
   # ============================================================
@@ -149,6 +165,20 @@ jobs:
           if [ -f "data/github_master.ndjson" ]; then
             node scripts/factory/r2-workflow-cli.js upload-buffer data/github_master.ndjson ingestion/raw/github_master.ndjson || { echo "::error::R2 batch upload FAILED — R2 is primary data layer"; exit 1; }
           fi
+
+      # D-236/D-237: establish the attempt-scoped R2 harvest source authority for
+      # this role (manifest-last, byte+sha256 verified, read-back). FAIL-RED.
+      - name: Establish Authoritative R2 Harvest Source Authority
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: node scripts/factory/r2-workflow-cli.js harvest-handoff-establish --role=github
 
 
 
@@ -231,6 +261,21 @@ jobs:
             BASENAME=$(basename "$f")
             node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || { echo "::error::R2 stream for $BASENAME FAILED — R2 is primary"; exit 1; }
           done
+
+      # D-236/D-237: establish the attempt-scoped R2 harvest source authority for
+      # this role (archives ALL academic masters + sidecars; manifest-last,
+      # byte+sha256 verified, read-back). FAIL-RED.
+      - name: Establish Authoritative R2 Harvest Source Authority
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: node scripts/factory/r2-workflow-cli.js harvest-handoff-establish --role=academic
 
 
 
@@ -387,6 +432,22 @@ jobs:
             node scripts/factory/r2-workflow-cli.js upload-buffer "$f" "ingestion/raw/$BASENAME" || { echo "::error::R2 stream for $BASENAME FAILED — R2 is primary"; exit 1; }
           done
 
+      # D-236/D-237: establish the attempt-scoped R2 harvest source authority for
+      # this role (required semanticscholar + present optional masters + sidecars;
+      # EXCLUDES benchmark_NNN.json bridge shards; manifest-last, byte+sha256
+      # verified, read-back). FAIL-RED.
+      - name: Establish Authoritative R2 Harvest Source Authority
+        if: github.event.inputs.skip_harvest != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+        run: node scripts/factory/r2-workflow-cli.js harvest-handoff-establish --role=ecosystem
+
 
 
   # ============================================================
@@ -489,29 +550,15 @@ jobs:
           # WO-3-B1 PR-B1A: EXACT source-attempt key only; NO restore-keys prefix.
           key: harvest-raw-ecosystem-${{ github.event.inputs.source_run_id }}-attempt-${{ github.event.inputs.source_run_attempt }}
 
-      # WO-3-B1 PR-B1A: skip_harvest source-attempt COMPLETE-SET GATE (fail-closed).
-      # Mirrors the current-run gate: require 4/4 EXACT source-attempt cache hits
-      # before any R2 fallback / NDJSON bridge / merge. Any exact miss -> fail-loud,
-      # so a partial source attempt can never be merged via a prefix/latest-match.
-      - name: Source Attempt Provenance Gate (4/4 exact hits required)
-        if: github.event.inputs.skip_harvest == 'true'
-        env:
-          HIT_HF: ${{ steps.recover_hf.outputs.cache-hit }}
-          HIT_GITHUB: ${{ steps.recover_github.outputs.cache-hit }}
-          HIT_ACADEMIC: ${{ steps.recover_academic.outputs.cache-hit }}
-          HIT_ECOSYSTEM: ${{ steps.recover_ecosystem.outputs.cache-hit }}
-        run: |
-          MISSED=""
-          [ "$HIT_HF" = "true" ]        || MISSED="$MISSED huggingface"
-          [ "$HIT_GITHUB" = "true" ]    || MISSED="$MISSED github"
-          [ "$HIT_ACADEMIC" = "true" ]  || MISSED="$MISSED academic"
-          [ "$HIT_ECOSYSTEM" = "true" ] || MISSED="$MISSED ecosystem"
-          if [ -n "$MISSED" ]; then
-            echo "::error::SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE — missing exact source-attempt cache(s):$MISSED"
-            echo "SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE: source_run_id=${{ github.event.inputs.source_run_id }} source_run_attempt=${{ github.event.inputs.source_run_attempt }} missed=$MISSED"
-            exit 1
-          fi
-          echo "✅ SOURCE_ATTEMPT_PROVENANCE_COMPLETE — 4/4 exact source-attempt caches hit."
+      # D-236/D-237 (review FIX 1, §J): the skip_harvest 4/4-GHA "Source Attempt
+      # Provenance Gate" is REMOVED. It exit-1'd on a GHA miss BEFORE consulting R2,
+      # making a GHA miss fatal despite a valid R2 authority (breaking skip_harvest
+      # recovery of an older source run whose GHA caches were evicted but whose R2
+      # authorities remain). The recover_* GHA restores above stay as R2-verified
+      # acceleration (the resolver's ghaProbe verifies them against the selected R2
+      # manifest); resolveExactTuple is the SOLE authority on the skip path. The
+      # input Pre-Check above (BOTH source_run_id + source_run_attempt required) is
+      # retained as the legitimate fail-closed on missing provenance inputs.
 
       # V22.8: Restore current batch data from cache (replaces download-artifact for privacy)
       - name: Restore HuggingFace Batch (Current Run)
@@ -558,50 +605,39 @@ jobs:
           key: harvest-raw-ecosystem-${{ github.run_id }}-attempt-${{ github.run_attempt }}
 
       # ========================================================
-      # WO-3-B1 PR-B1A: ATTEMPT-SCOPED CACHE PROVENANCE GATE (fail-closed)
+      # D-236/D-237: R2 SOURCE-AUTHORITY RESOLVE + CONSUME (fail-closed)
       # ========================================================
-      # ROOT CAUSE (run 27604921700): the 4 group caches used a run-id-only
-      # IMMUTABLE key. On a rerun-failed-jobs attempt, a PARTIAL attempt-1 cache
-      # could not be overwritten by the complete attempt-2 ("another job may be
-      # creating this cache"); Merge restored the stale attempt-1 -> partial arxiv
-      # + missing HF papers/datasets -> HARVEST_HEALTH=red. The keys above are now
-      # attempt-scoped (run_id + run_attempt). This gate ENFORCES that ALL FOUR of
-      # this attempt's EXACT caches were hit before any R2 fallback / NDJSON bridge /
-      # merge / health publication runs. ANY miss -> fail-loud (exit 1), which
-      # short-circuits the job so the downstream R2/bridge/merge steps never run on a
-      # provenance-incomplete set. The fixed-key R2 ingestion/raw fallback below may
-      # NOT silently fill a missing current-attempt group (attempt-scoped R2 is
-      # PR-B1B, out of scope). NOTE: skipped only on the skip_harvest recovery path,
-      # which has its own source-attempt provenance gate.
-      - name: Attempt Cache Provenance Gate (4/4 exact hits required)
-        id: cache_provenance_gate
-        if: github.event.inputs.skip_harvest != 'true'
+      # Replaces the removed run/attempt GHA "Attempt Cache Provenance Gate". R2 is
+      # the SOLE authority for the four harvest source roles. The attempt-scoped GHA
+      # restores above stay as OPTIONAL acceleration: a restored payload is USED only
+      # if it matches the selected R2 manifest identity+bytes+inventory
+      # (GHA_EXACT_MATCH); a GHA miss/mismatch DOWNLOADS the EXACT R2 archive (never
+      # MERGE_RED per se unless the R2 authority is also missing/invalid). Normal
+      # path: current-attempt-complete, else the highest prior COMPLETE attempt of the
+      # SAME run (recovers a merge-only "Re-run failed jobs"); a current-partial /
+      # mixed / missing-role set fails closed. skip_harvest: EXACT (source_run_id,
+      # source_run_attempt) tuple only. The resolver verifies + safe-extracts + unions
+      # each role into data/ and withholds FOUR_R2_SOURCE_AUTHORITIES_VERIFIED
+      # (exit 1) until all four immutable R2 authorities from one exact attempt are
+      # verified, BEFORE any NDJSON bridge / merge / health publication.
+      - name: Resolve and Consume R2 Harvest Source Authorities
         env:
-          HIT_HF: ${{ steps.restore_hf.outputs.cache-hit }}
-          HIT_GITHUB: ${{ steps.restore_github.outputs.cache-hit }}
-          HIT_ACADEMIC: ${{ steps.restore_academic.outputs.cache-hit }}
-          HIT_ECOSYSTEM: ${{ steps.restore_ecosystem.outputs.cache-hit }}
-        run: |
-          MISSED=""
-          [ "$HIT_HF" = "true" ]        || MISSED="$MISSED huggingface"
-          [ "$HIT_GITHUB" = "true" ]    || MISSED="$MISSED github"
-          [ "$HIT_ACADEMIC" = "true" ]  || MISSED="$MISSED academic"
-          [ "$HIT_ECOSYSTEM" = "true" ] || MISSED="$MISSED ecosystem"
-          if [ -n "$MISSED" ]; then
-            echo "::error::ATTEMPT_CACHE_SET_INCOMPLETE — missing exact attempt-scoped cache(s):$MISSED"
-            echo "ATTEMPT_CACHE_SET_INCOMPLETE: run_id=${{ github.run_id }} run_attempt=${{ github.run_attempt }} missed=$MISSED"
-            echo "A partial/stale prior-attempt cache must NOT be merged. Re-run ALL jobs"
-            echo "(rerun-all, not rerun-failed-jobs) so a complete attempt-scoped set is produced."
-            exit 1
-          fi
-          echo "✅ ATTEMPT_CACHE_SET_COMPLETE — 4/4 exact attempt-scoped caches hit (hf,github,academic,ecosystem)."
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          PRODUCER_MAIN_SHA: ${{ github.sha }}
+          SKIP_HARVEST: ${{ github.event.inputs.skip_harvest }}
+          SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.inputs.source_run_attempt }}
+        run: node scripts/factory/r2-workflow-cli.js harvest-handoff-consume
 
-      # V25.8 §2.2: R2 Fallback for harvest batches (if cache missed)
-      # WO-3-B1 PR-B1A: gated behind the complete-set provenance gate above. On the
-      # normal current-run path the gate exit(1) short-circuits the job before this
-      # runs, so a fixed-key R2 object can NEVER substitute for a missing
-      # current-attempt cache group. This step still serves the skip_harvest recovery
-      # path (gate is skipped there; that path has its own source-attempt gate).
+      # V25.8 §2.2: legacy fixed-key R2 Fallback for harvest batches. D-236/D-237:
+      # INERT on both paths — the R2 source-authority resolver above populates data/
+      # (or fails closed) before this runs, so this fixed-key ingestion/raw fallback
+      # only fires if data/ is somehow empty (it is not on a verified authority set).
       - name: R2 Batch Recovery (Fallback)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

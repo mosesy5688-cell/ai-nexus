@@ -323,6 +323,11 @@ proof in the PR body).
 > gate; SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE + exit 1). SCOPE: keys + gate only —
 > entity floor / health threshold / adapters / job timeouts / R2 object hierarchy
 > UNCHANGED (that is PR-B1B). Single file: `tests/unit/harvest-cache-provenance.test.ts`.
+> **RECONCILED (D-2026-0703-236/237):** the run/attempt 4/4-GHA-hit CORRECTNESS gate
+> (`ATTEMPT_CACHE_SET_INCOMPLETE`) is SUPERSEDED by the R2 source-authority resolver
+> (GHA demoted to R2-verified acceleration). The attempt-scoped GHA key + skip_harvest
+> provenance invariants above are PRESERVED (accel carrier); the replaced #5/#6/#9/#14
+> rows re-point to the R2 gate — see **HARVEST-R2-AUTHORITY** below.
 
 | ID | Protected behavior | Assertion file | Evidence | Status |
 |----|--------------------|----------------|----------|--------|
@@ -332,10 +337,40 @@ proof in the PR body).
 | B1A-RESTORE-IDENTICAL (#3) | the 4 Merge current-run restore keys are byte-identical to the 4 save keys (same attempt-scoped string appears >=2x per group) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
 | B1A-NEG-PREFIX (#4/#12) | NEGATIVE: no harvest-raw restore uses a `restore-keys:` prefix (exact-only; converting any current restore to a prefix restore -> regex match -> FAIL) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
 | B1A-ATTEMPT-ENCODED (#7/#8) | every harvest-raw key encodes run_attempt (current) or source_run_attempt (skip) — the property that makes rerun-failed-jobs unable to consume an attempt-1 cache while rerun-all (new run_id) gets a clean set | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
-| B1A-GATE-FAILCLOSED (#5/#6) | a 4/4 complete-set gate exists: references all 4 restore cache-hit outputs, each checked == 'true', any miss -> ATTEMPT_CACHE_SET_INCOMPLETE + exit 1; placed AFTER all 4 current restores | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
-| B1A-GATE-BEFORE-MERGE (#9) | the gate PRECEDES R2 Batch Recovery (Fallback) + the NDJSON bridge (List Batches) + Merge Batches — R2 fallback may not fill a missing current-attempt group (gate exit 1 short-circuits the job) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
-| B1A-SKIP-SOURCE-ATTEMPT (#10) | skip_harvest declares a `source_run_attempt` input, recovers via the EXACT source-attempt key (no prefix), hard-requires BOTH source_run_id + source_run_attempt (pre-check exit 1) and has a 4/4 source-attempt gate (SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE + exit 1) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
-| B1A-SCOPE (#14) | SCOPE guard: merge floor `-lt 85000`, Harvest Health Summary, per-job timeouts (330/300/120), and the R2 fixed-key object hierarchy (`ingestion/raw/`, `state/harvest-health/latest.json`) are UNCHANGED; the test touches no floor/health/adapter module (no product logic re-implemented) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-GHA-DEMOTED (#5/#6 RECONCILED) | **D-236/D-237 supersession**: the run/attempt 4/4-GHA-hit CORRECTNESS gate (`ATTEMPT_CACHE_SET_INCOMPLETE`, `cache_provenance_gate`) is REMOVED workflow-wide (executable AND comment — no restore cache-hit output is consumed by a fail-close gate). GHA is DEMOTED to R2-verified acceleration; the R2 authority resolver is the replacement (see HARVEST-R2-AUTHORITY). The revised block asserts the 12 D-237 §C R2-authority properties on EXECUTABLE source | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG + SOURCE | **RECONCILED** |
+| B1A-R2-BEFORE-MERGE (#9 RECONCILED) | the R2 source-authority resolver (`harvest-handoff-consume`, fail-closed, no continue-on-error) PRECEDES the NDJSON bridge (List Batches) + Merge Batches; GHA restores are accel-only, never a correctness gate — publication cannot begin until four R2 authorities are verified | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **RECONCILED** |
+| B1A-SKIP-SOURCE-ATTEMPT (#10) | skip_harvest declares a `source_run_attempt` input, recovers via the EXACT source-attempt key (no prefix), hard-requires BOTH source_run_id + source_run_attempt (pre-check exit 1) and has a 4/4 source-attempt gate (SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE + exit 1) — PRESERVED (the R2 resolver additionally verifies the exact tuple) | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **NEW** |
+| B1A-SCOPE (#14 RECONCILED) | merge floor `-lt 85000`, Harvest Health Summary, per-job timeouts (330/300/120), and the legacy `ingestion/raw/` + `state/harvest-health/latest.json` object keys are UNCHANGED; the attempt-scoped R2 source-authority hierarchy (`internal-handoff/harvest/...`) is the ADDITIVE change of D-236/D-237 | `tests/unit/harvest-cache-provenance.test.ts` | CONFIG | **RECONCILED** |
+
+## Registry — HARVEST-R2-AUTHORITY (D-236/D-237)
+
+> Deterministic, hermetic invariants for the Factory 1/4 HARVEST producer->Merge R2
+> source-authority handoff repair (Founder D-2026-0703-236 + D-237). **Invariant:**
+> the Factory 1/4 Merge path may consume Harvest producer data only after four
+> immutable R2 source authorities from one exact run/attempt have been verified. A
+> merge-only failed-jobs rerun may consume the highest prior COMPLETE attempt of the
+> SAME run only when the current attempt has zero producer authorities. Any partial
+> current attempt, mixed attempt, missing role or invalid authority fails closed
+> before publication. ROOT CAUSE: the producer->Merge handoff was a purely ephemeral
+> GHA cache carrier, so a GitHub "Re-run failed jobs" (reruns ONLY Merge as a new
+> attempt, leaving the four successful producers at the prior attempt) could not
+> recover the producers' data. FIX = a distinct, attempt-scoped, manifest-last R2
+> handoff (`internal-handoff/harvest/<run>/<attempt>/<role>/`), a self-contained
+> module `scripts/factory/harvest-authoritative-handoff.mjs` (C1 DUPLICATION — never
+> imports the D-219 core or D-228 satellite carriers), 4 producer establishes + a
+> Merge resolver with bounded prior-attempt recovery; GHA demoted to R2-verified
+> acceleration. TWO tiers: (1) the STATIC workflow-invariant lock reads
+> `.github/workflows/factory-harvest.yml` + the module source as TEXT; (2) the
+> hermetic `node --test` contract suite `scripts/factory/harvest-authoritative-handoff.test.mjs`
+> runs in the SAME required `unit-test` job via the C2-LOCK `node --test` list.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| HARVEST-ESTABLISH-FAILRED | each of the 4 producer jobs (huggingface/github/academic/ecosystem) establishes its OWN role authority via `harvest-handoff-establish --role=<role>` — FAIL-RED (no `continue-on-error`), gated `skip_harvest != 'true'`, step-level R2 creds + GITHUB_RUN_ID + GITHUB_RUN_ATTEMPT + PRODUCER_MAIN_SHA; EXACTLY 4 establishes workflow-wide, NONE in Merge | `tests/srs1/factory-harvest-handoff-invariant.test.ts` | CONFIG | **NEW** |
+| HARVEST-MEMBERSHIP-FROZEN | the frozen `ROLE_MEMBERSHIP` owned-source set per role EQUALS both the workflow's actual `harvest-single.js <source>` invocations AND the module's declared contract (bidirectional drift guard); membership is EXPLICIT config, not dir-scan-derived. NON-VACUITY: adding/removing a source in either the workflow or the contract reds this lock | `tests/srs1/factory-harvest-handoff-invariant.test.ts` | SOURCE + CONFIG | **NEW** |
+| HARVEST-R2-GATE | Merge runs the R2 resolver `harvest-handoff-consume` (fail-red) with both-mode identity env (GITHUB_* + PRODUCER_MAIN_SHA + SKIP_HARVEST + SOURCE_RUN_ID/ATTEMPT), PRECEDING the NDJSON bridge + Merge Batches; the old run/attempt 4/4-GHA correctness gate (`ATTEMPT_CACHE_SET_INCOMPLETE`) is ABSENT executable AND comment; attempt-scoped GHA keys survive as accel; the `internal-handoff` R2 prefix is never hardcoded in YAML | `tests/srs1/factory-harvest-handoff-invariant.test.ts` + `tests/unit/harvest-cache-provenance.test.ts` | CONFIG + SOURCE | **NEW** |
+| HARVEST-ISOLATION | the D-219 core + D-228 satellite frozen `allowed_consumers` arrays are byte-present + DISJOINT from the harvest `['merge']` set (adding a harvest role to either reds their exact-array test); distinct `internal-handoff/harvest` R2 root (zero namespace collision with aggregate / aggregate-satellite); identity binds `github_run_id` with NO independent `cycle_id` authority | `tests/srs1/factory-harvest-handoff-invariant.test.ts` | SOURCE | **NEW** |
+| HARVEST-CONTRACT | hermetic contract suite (node:test, injected fakes, no network/tar/@aws-sdk): manifest-LAST + producer read-back; deterministic tar + source-snapshot rescan; C6 fail-closed immutability collision; §4 membership acceptance + incidental `benchmark_NNN.json` exclusion + absence-as-record optional synthesis; bounded prior-attempt recovery (current-complete / current-empty->highest prior-complete same-run / current-partial fail-closed / none->MERGE_RED); skip_harvest EXACT tuple; GHA optional acceleration verified byte+sha against the selected R2 manifest; per-file post-extract re-verify; the D-236 §L + D-237 §K anti-vacuity mutations (each reverts a guard to red a required test) | `scripts/factory/harvest-authoritative-handoff.test.mjs` | EXEC | **NEW** |
 
 ## Registry — MFH PR-A (master-fusion EXACT-PRODUCER R2 HANDOFF, S1-BR)
 
