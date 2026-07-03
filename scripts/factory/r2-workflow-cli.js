@@ -17,17 +17,10 @@
  *   node r2-workflow-cli.js satellite-registry-establish
  *   node r2-workflow-cli.js satellite-registry-preflight
  *   node r2-workflow-cli.js satellite-registry-consume --role=<search-index|rankings|knowledge-mesh|trending>
+ *   node r2-workflow-cli.js harvest-handoff-establish --role=<huggingface|github|academic|ecosystem> | harvest-handoff-consume
  *
- * handoff-establish / handoff-consume (D-209/D-211): attempt-scoped core R2 handoff
- *   (internal-handoff/aggregate/...); the two consumers (merge-core-persist,
- *   finalize) each INDEPENDENTLY verify + extract. Logic in aggregate-handoff.mjs.
- *
- * satellite-registry-* (D-228/D-230): attempt-scoped SATELLITE-REGISTRY R2 handoff
- *   under aggregate-satellite/...; logic in satellite-registry-handoff.mjs.
- *
- * list-prefix / delete-prefix (S1-BR staging GC): enumerate keys (or, with
- *   --delimiter=/, immediate CommonPrefixes) under a prefix; delete-prefix
- *   REFUSES anything outside `state/_handoff/` so the GC can't touch a carrier.
+ * handoff-* / satellite-registry-* / harvest-handoff-* : attempt-scoped R2 authority carriers in
+ *   aggregate-handoff.mjs / satellite-registry-handoff.mjs / harvest-authoritative-handoff.mjs.
  */
 import fs from 'fs';
 import {
@@ -158,6 +151,14 @@ async function main() {
             await run(process.env, rest);
             break;
         }
+        case 'harvest-handoff-establish':
+        case 'harvest-handoff-consume': {
+            // D-236/D-237: per-source Factory 1/4 harvest R2 authority (establish per role; consume = Merge resolver). Logic in harvest-authoritative-handoff.mjs.
+            const m = await import('./harvest-authoritative-handoff.mjs');
+            if (action === 'harvest-handoff-establish') await m.runHarvestEstablishCli(process.env, rest);
+            else await m.runHarvestConsumeCli(process.env);
+            break;
+        }
         case 'list-prefix': {
             const positional = rest.filter(a => !a.startsWith('--'));
             const [r2Prefix] = positional;
@@ -186,7 +187,7 @@ async function main() {
         }
         default:
             console.error(`Unknown action: ${action}`);
-            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi, list-prefix, delete-prefix, handoff-establish, handoff-consume, satellite-registry-establish, satellite-registry-preflight, satellite-registry-consume');
+            console.error('Actions: upload-file, upload-buffer, backup-file, restore-file, restore-dir, backup-dir, restore-rust-ffi, backup-rust-ffi, list-prefix, delete-prefix, handoff-establish, handoff-consume, satellite-registry-establish, satellite-registry-preflight, satellite-registry-consume, harvest-handoff-establish, harvest-handoff-consume');
             process.exit(1);
     }
 }
