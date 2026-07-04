@@ -433,6 +433,40 @@ proof in the PR body).
 | VFS-PACK-DAG | Workflow DAG: vfs-pack-db produces attempt-scoped staging (meta data FIRST -> present RSS inputs -> manifest LAST -> descriptor LAST-of-all, set -e) + read-back verify + exports verified_vfs_pack_{staging_prefix,set_sha,producer_attempt}; VFS Derived consumes ONLY that identity, GHA exact-key fast path (restore-keys prefix authority REMOVED), verify-or-recover from EXACT staging BEFORE the PRESERVED META>=1 fail-closed guard, never a fixed state/vfs-data/ recovery input; D-246 recovers every declared-present RSS input from the EXACT staging + fail-closed verify BEFORE rss-generator (declared-absent skipped); manifest/descriptor NEVER written into the public output/data/ tree; SCOPE: pack-db.js / sitemap-gen / rss-generator, workflow permissions (single top-level actions:write), timeouts UNCHANGED | `tests/unit/vfs-pack-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
 | VFS-PACK-SECONDARY | Secondary sitemap/RSS seam: VFS Derived establishes a run+attempt-scoped `state/_handoff/vfs-derived/` authority (manifest LAST, descriptor LAST-of-all) bound to the vfs-pack parent set-sha (empty sitemap fails closed; empty rss tolerated per V27.39) + exports verified_vfs_derived_*; Final Upload verifies the restored sitemaps/RSS EQUAL that current-cycle identity + recovers the EXACT staging on miss/mismatch BEFORE `r2-upload-s3.js`; success-only cleanup deletes BOTH current-run staging prefixes + bounded 7-day GC refuses the current run / walks ONLY the two handoff roots; delete-prefix CLI-locked to state/_handoff/ | `tests/unit/vfs-pack-handoff-workflow.test.ts` + `scripts/factory/vfs-derived-handoff-manifest.test.mjs` | CONFIG + SOURCE + EXEC | **NEW** |
 
+## Registry — META-DB-PUBLISH-BINDING (D-2026-0704-252, FIX-4 / GAP-4 / C11)
+
+> Deterministic, hermetic STATIC workflow-invariant lock for the Factory 4/4 Final
+> Upload meta-NN.db PUBLICATION binding (Founder D-2026-0704-252 §D/§E + supplements
+> D-254 §C DAG-proof / D-255 §E Class-A budget). **Invariant:** the PUBLISHED
+> `output/data/*.db` set (the SQLite backing every entity/search API) MUST equal the
+> CURRENT-CYCLE VFS Pack R2 authority set-SHA (H17/PR#2265 producer) before "Upload to
+> R2 via S3 API" — no stale/foreign-cycle DB can publish unless its set-SHA matches the
+> current-cycle authority. ROOT CAUSE (GAP-4 asymmetry): sitemap/RSS reach Final Upload
+> under a D-245 set-SHA verify-or-recover gate, but the meta-NN.db they DESCRIBE arrived
+> via the fixed-prefix `state/vfs-data/` restore (META-count floor ONLY) OR a STAGE-B
+> fresh re-pack — NEVER set-SHA verified — so a stale/foreign-cycle DB could publish
+> beneath a verified sitemap (the site would describe entities the served DB does not
+> hold). FIX-4 (a CODE-ONLY fail-closed CONSUMER guard of the H17 producer authority;
+> H17 runtime acceptance PENDING but its producer authority exists in code) adds
+> `vfs-pack-db` to `upload.needs` and, BEFORE publish (and BEFORE the dedup restore, so
+> `output/data/` carries the same meta+rankings `.db` shape as the producer manifest),
+> verifies `output/data/*.db` EQUALS `verified_vfs_pack_set_sha` via the SAME H17
+> verifier of record (`vfs-derived-handoff-manifest.mjs verify … --ext=.db`, EXACT set +
+> per-file sha); on GHA/fixed-prefix miss OR mismatch it wipes `output/data/` + recovers
+> from the EXACT vfs-pack staging + re-verifies, and fails CLOSED (`exit 1`) if the
+> current-cycle DB identity cannot be established. meta-NN.db + sitemap/RSS now publish
+> under the SAME current-cycle identity and cannot diverge. The V23.1/L2 SQL canaries are
+> PRESERVED as QUALITY checks (structural `verify-db`), NOT identity authority. DAG: the
+> added need is acyclic (`vfs-pack-db -> vfs-derived -> upload` stays a DAG; the edge only
+> exposes already-verified outputs to a downstream sink; no duplicate producer, no
+> 1/4-2/4-3/4 change). Class-A: 0 new routine R2 PUT on the success path (a small manifest
+> GET only); recovery GETs the EXISTING staging ONLY on miss/mismatch; NO delete, NO new
+> authority backup, NO LIST-scan identity proof. NO new module (reuses the H17 verifier).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| META-DB-PUBLISH-BINDING | Static workflow DAG: `upload.needs` includes `vfs-pack-db`; a FIX-4 gate consumes ONLY `needs.vfs-pack-db.outputs.verified_vfs_pack_{staging_prefix,set_sha}` (never a re-derived/list-latest/attempt-glob prefix) + EXACT-set verifies the to-be-published `output/data/*.db` against the producer manifest (`--carrier=vfs-pack-authority --ext=.db`) requiring published set-SHA == authority set-SHA; the gate runs AFTER the fixed-prefix `state/vfs-data/` restore + BEFORE the dedup restore + BEFORE `r2-upload-s3.js`, so any DB arrival path (fixed-prefix / fresh re-pack) is re-bound to set-SHA equality; a stale fixed-prefix mismatch is NOT published (wipe + recover from the EXACT vfs-pack staging, never re-trust `state/vfs-data/`) then RE-VERIFIED; missing authority identity / recovery-verify failure / residual mismatch all fail CLOSED (`exit 1`); meta-NN.db + sitemap/RSS both verify current-cycle identity before publish (cannot diverge); the V23.1 SQL Health Check stays a QUALITY canary (no set-SHA authority); SCOPE — 0 new R2 write/delete/list (LOW-Class-A), reuses the H17 verifier (no new module), producer/pack-db/sitemap-gen/rss-generator/master-fusion + top-level `actions:write` permissions UNCHANGED. Anti-vacuity: removing `vfs-pack-db` from `needs`, removing the set-SHA gate, or removing a fail-closed branch each reds a required test | `tests/unit/meta-db-publish-binding-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
+
 ## Registry — REGISTRY-R2-FRESHNESS (D-2026-0704-250)
 
 > Deterministic, hermetic STATIC workflow-invariant lock for the Factory 4/4
