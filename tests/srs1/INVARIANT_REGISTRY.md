@@ -1037,6 +1037,31 @@ proof in the PR body).
 | ALT-PARITY-PERF | Perf guard (D-254 §H): a 12000-entity single-category fallback completes with bounded (slim-tuple, Rust-equivalent) memory — no obvious local OOM / unbounded structure — so option A (cap removal) is memory-safe rather than requiring fail-loud | `tests/unit/alt-linker-fallback-parity.test.ts` | EXEC | **NEW** |
 | ALT-PARITY-SRCLOCK | `alt-linker.js` no longer contains the `const MAX_PER_CATEGORY =` declaration or the `length < MAX_PER_CATEGORY`/`length < <n>) byCategory[...].push` truncation gate; the full-population slim-projection push IS present. Reintroducing the silent-truncation cap reds this SOURCE lock | `tests/unit/alt-linker-fallback-parity.test.ts` | SOURCE | **NEW** |
 
+## Registry — B1-CATALOG (ai-catalog provider manifest, protocol-compat only)
+
+> Deterministic, hermetic invariants for the B1-MINIMAL self-hosted ARD /
+> ai-catalog provider manifest served at `/.well-known/ai-catalog.json`
+> (`src/pages/.well-known/ai-catalog.json.ts`). Free2AItools is a PROVIDER /
+> service node only: it self-hosts a static-body manifest (SSR so the worker sets
+> the `application/ai-catalog+json` media type). It is NOT an ARD registry, NOT a
+> registry-side `/search`, NOT a router / runtime / marketplace / recommendation
+> service. Target tier is **L2 Discoverable ONLY** (specVersion + entries + host);
+> no `trustManifest`, no attestation, no L3-Trusted / registry-listing / adoption
+> claim. The test imports the pure builder + `GET` (EXEC) and reads the sibling
+> public surfaces (CONFIG). **Acceptance oracle for schema conformance: a
+> spec-DERIVED JSON-Schema-2020-12 compiled by `ajv/dist/2020`** — the official
+> published `ai-catalog.schema.json` URL returned 404 at implementation time (ARD
+> is a ~6-week draft) and the ARD conformance CLI was NOT run; the schema is
+> hand-encoded from the ai-catalog.io / agenticresourcediscovery.org required-field
+> structure, so it is a spec-derived oracle, not the official schema or a CLI run.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| B1-CAT-SHAPE | Manifest is valid JSON with the required root fields (`specVersion` Major.Minor + non-empty `entries[]`), `host.displayName`, and every entry carrying `identifier` (canonical `urn:air:`, never `urn:ai:`) + `type` (IANA media-type; MCP entry == `application/mcp-server-card+json`) + EXACTLY ONE of `url`/`data`; `representativeQueries` carry 2-5 NL examples where present; validates against the spec-derived JSON-Schema-2020-12 via ajv | `tests/srs1/ai-catalog-conformance.test.ts` | EXEC | **NEW** |
+| B1-CAT-NOCLAIM | FORBIDDEN-CLAIM absence over the exact served bytes: no `model router` / `recommendation engine` / `best-model` / `optimal` / `objective verdict|truth` / `execute` / `runtime execution` / `dynamic runtime discovery` / `Agent Capability Infrastructure` / `Definitive` / `neural-discovery` / `actionable toolchains` / `Comprehensive Impact Index` / `S&P 500` / `source_trail` / `SOC2` / `HIPAA` / `attestation` / `trustManifest` / `Trusted` / paid-sponsor-pricing token; NO runtime/execution capability declared; **L2 Discoverable ONLY** (no `trustManifest`, no `L3`). The manifest's disavowals are phrased without the affirmative token so a strict absence scan is correct | `tests/srs1/ai-catalog-conformance.test.ts` | EXEC | **NEW** |
+| B1-CAT-PARITY | Vocabulary parity (no drift): the shared identity phrase "structured discovery, evidence, and identity layer for AI agents", the `FNI (Free2AITools Nexus Index)` phrase, the "calling agent to reason over" clause, and the `FNI-ranked` token all appear in the manifest AND their source surfaces (`public/.well-known/mcp.json`, `src/data/llms-template.txt`, `src/pages/api/mcp.ts` SERVER_BOUNDARY); explicit negative boundary present (discovery-only / no final choice / caller decides / no live semantic-ANN) | `tests/srs1/ai-catalog-conformance.test.ts` | EXEC + CONFIG | **NEW** |
+| B1-CAT-CTYPE | `GET` emits `Content-Type: application/ai-catalog+json` exactly (SSR worker sets it; a prerendered `.json` asset would be served `application/json` by the static host) | `tests/srs1/ai-catalog-conformance.test.ts` | EXEC | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
