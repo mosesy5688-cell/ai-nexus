@@ -395,6 +395,44 @@ proof in the PR body).
 | MFH-DESCRIPTOR | Run-scoped descriptor provenance: current upstream + current factory run; producer_attempt a positive int <= current run_attempt; exact_staging_prefix == derived run+attempt path (no list-latest / no prefix guess / no previous-run fallback); missing/malformed => fail-loud | `tests/unit/fused-handoff-manifest.test.ts` | EXEC | **NEW** |
 | MFH-DAG | Workflow DAG: Compute produces staging (data -> manifest LAST -> descriptor LAST-of-all, set -e); Persist reads+verifies descriptor, GHA exact-key fast path (NO restore-keys), verify-or-recover from EXACT staging, fixed copy written ONLY after VERIFIED + exposes verified job outputs; VFS + Upload accept only set hash == Persist output + recover EXACT staging + never read fixed state/fused-entities/; cleanup deletes current staging on Final Upload success, retains on failure, bounded 7-day GC refuses current run / non-_handoff carriers; delete-prefix locked to state/_handoff/; SCOPE: master-fusion algorithm, .complete/>=400 gates, timeouts, production uploader UNCHANGED | `tests/unit/fused-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
 
+## Registry — VFS-PACK-R2-AUTHORITY (D-2026-0704-245)
+
+> Deterministic, hermetic invariants for the Factory 4/4 VFS Pack -> VFS Derived
+> (PRIMARY) and VFS Derived -> Upload sitemap/RSS (SECONDARY) EXACT-PRODUCER R2 handoff
+> repair (Founder D-2026-0704-245). ROOT CAUSE
+> (VFS_PACK_TO_DERIVED_GHA_HANDOFF_1): a workflow_run GHA cache write-auth denial left
+> the vfs-pack GHA cache unsaved, so VFS Derived's restore returned empty, the
+> "Verify VFS Pack Files Present (defensive)" META>=1 guard fail-closed, and the whole
+> publish chain was skipped — even though the 98 meta-NN.db were durably on R2 the entire
+> run. FIX (Option A, the fused S1-BR sibling): vfs-pack-db establishes a DURABLE, run +
+> PRODUCER-attempt scoped, content-verified authority
+> (`state/_handoff/vfs-pack/<upstream>/<run>/attempt-<n>/` + a run-scoped `handoff.json`
+> descriptor written LAST) and exports the verified identity; VFS Derived uses the GHA
+> cache only as an OPTIONAL exact-key fast path (restore-keys prefix authority REMOVED)
+> and recovers from the EXACT staging on miss/mismatch BEFORE the PRESERVED guard, then
+> establishes its OWN sitemap/RSS authority (`state/_handoff/vfs-derived/...`, sitemap
+> floor >=1, rss floor 0, bound to the vfs-pack parent set-sha); Final Upload verifies +
+> recovers that current-cycle identity before publication. D-246: the RSS-generator
+> INPUTS (`output/cache/{reports,knowledge}/index.json.zst`) are a CAPTURED_IF_PRESENT /
+> floor-zero member class carried by the SAME vfs-pack authority — recorded per-input
+> (present + sha256) in the manifest AND descriptor, staged under `rss-inputs/…` when
+> present, and recovered FAIL-CLOSED before rss-generator (declared-absent = skipped +
+> recorded, preserving the paused/static-historical RSS behavior) — so a present RSS
+> input can never be silently lost to a cache-write denial (no longer "tolerated-empty").
+> GHA demoted to verified
+> acceleration; R2 is the correctness authority. TWO tiers: (1) the STATIC
+> workflow-invariant lock reads `.github/workflows/factory-upload.yml` as TEXT; (2) the
+> hermetic `node --test` contract suite `scripts/factory/vfs-derived-handoff-manifest.test.mjs`
+> runs in the SAME required `unit-test` job via the C2-LOCK `node --test` list.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| VFS-PACK-MANIFEST | Manifest schema + verify (pure module, no R2): full §G field set (two carrier types, distinct prefix roots, no manifest self-hash); per-file {relative_path,size_bytes,sha256}; set_sha256 over STABLE-SORTED (path,sha256) tuples; EXACT set equality (missing/extra => fail) + per-file size+sha256 + meta_db_count + required-file-class floors (meta_db>=1; sitemap>=1; rss>=0), NEVER count-only; symlink/traversal members REJECTED | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` | EXEC | **NEW** |
+| VFS-PACK-DESCRIPTOR | Run-scoped descriptor provenance: current upstream-3/4 + current 4/4 run; producer_attempt a positive int <= current run_attempt; head-SHA + VFS_PACK_CODE_VERSION binding; secondary parent-set-sha binding; exact_staging_prefix == derived run+attempt path (no list-latest / prefix-guess / fixed / prior-run); missing field / carrier mismatch / bad sha => fail-loud | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` | EXEC | **NEW** |
+| VFS-PACK-RSS-INPUT | D-246 §C 6-state RSS-input durability (pure module): `probeRssInputs` records each RSS-generator input CAPTURED_IF_PRESENT (present+sha256) / FLOOR_ZERO (absent => present:false, not an error); `rssRecoveryPlan` emits ONLY declared-present inputs; `verifyRssInputs` is FAIL-CLOSED for a declared-present-but-missing (states 3/6/7) or sha-mismatched/stale-predecessor (states 4/8/9) input and SKIPs+records a declared-absent (states 1/5) — the per-input sha256 binds current-cycle content; rss inputs are NEVER folded into the meta set_sha256; symlink/traversal rss paths REJECTED; anti-vacuity: an honest present:true against an unrecovered payload reds verify | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` | EXEC | **NEW** |
+| VFS-PACK-DAG | Workflow DAG: vfs-pack-db produces attempt-scoped staging (meta data FIRST -> present RSS inputs -> manifest LAST -> descriptor LAST-of-all, set -e) + read-back verify + exports verified_vfs_pack_{staging_prefix,set_sha,producer_attempt}; VFS Derived consumes ONLY that identity, GHA exact-key fast path (restore-keys prefix authority REMOVED), verify-or-recover from EXACT staging BEFORE the PRESERVED META>=1 fail-closed guard, never a fixed state/vfs-data/ recovery input; D-246 recovers every declared-present RSS input from the EXACT staging + fail-closed verify BEFORE rss-generator (declared-absent skipped); manifest/descriptor NEVER written into the public output/data/ tree; SCOPE: pack-db.js / sitemap-gen / rss-generator, workflow permissions (single top-level actions:write), timeouts UNCHANGED | `tests/unit/vfs-pack-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
+| VFS-PACK-SECONDARY | Secondary sitemap/RSS seam: VFS Derived establishes a run+attempt-scoped `state/_handoff/vfs-derived/` authority (manifest LAST, descriptor LAST-of-all) bound to the vfs-pack parent set-sha (empty sitemap fails closed; empty rss tolerated per V27.39) + exports verified_vfs_derived_*; Final Upload verifies the restored sitemaps/RSS EQUAL that current-cycle identity + recovers the EXACT staging on miss/mismatch BEFORE `r2-upload-s3.js`; success-only cleanup deletes BOTH current-run staging prefixes + bounded 7-day GC refuses the current run / walks ONLY the two handoff roots; delete-prefix CLI-locked to state/_handoff/ | `tests/unit/vfs-pack-handoff-workflow.test.ts` + `scripts/factory/vfs-derived-handoff-manifest.test.mjs` | CONFIG + SOURCE + EXEC | **NEW** |
+
 ## Registry — TA2-GATE PR-G1 (preview-grade cold-load runtime gate)
 
 > Deterministic, hermetic invariants for the TA2 PREVIEW-GRADE RUNTIME GATE
