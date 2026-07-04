@@ -187,8 +187,11 @@ jobs:
             data/
             cache/
           key: prepared-entity-data-${{ github.run_id }}
-      # P0-R5: R2 backup for prepared entity data (cache-only was single point of failure)
-      - name: Backup Prepared Data to R2
+      # P0-R5 / GAP-5 (D-262) DEMOTED: the fixed-prefix state/prepared-entity-data/
+      # backup is now a NON-AUTHORITATIVE compat/legacy copy ONLY (no current-cycle
+      # authority). The attempt-scoped, content-verified R2 authority is established
+      # in the next step and is the sole truth consumed by matrix-shards.
+      - name: Backup Prepared Data to R2 (compat copy, non-authoritative)
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -197,7 +200,53 @@ jobs:
         run: |
           node scripts/factory/r2-workflow-cli.js backup-dir data/ state/prepared-entity-data/data/ --extensions=.json,.json.zst
           node scripts/factory/r2-workflow-cli.js backup-dir cache/ state/prepared-entity-data/cache/
-          echo "✅ Prepared entity data backed up to R2"
+          echo "✅ Prepared entity data backed up to R2 (compat copy)"
+
+      # GAP-5 (D-262): establish the attempt-scoped, content-verified R2 AUTHORITY for
+      # the prepared-entity-data set (the intra-2/4 predecessor of the matrix shards).
+      # Bound to process-run (github.run_id) + producer attempt + head_sha; set_sha256
+      # over the EXACT data/ (.json/.json.zst) + cache/ member set. Order: data FIRST ->
+      # manifest LAST -> descriptor LAST-of-all -> read-back verify. R2 + /tmp only.
+      - name: Establish Prepared-Entity-Data R2 Authority (GAP-5, D-262)
+        env:
+          HANDOFF_PROCESS_RUN_ID: ${{ github.run_id }}
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          PID="${HANDOFF_PROCESS_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/prepared-entity-data/${PID}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (1) manifest over data/ (.json/.json.zst) + cache/ (unfiltered), in place -> /tmp only.
+          node scripts/factory/shards-handoff-manifest.mjs generate . /tmp/prep-manifest.json --carrier=prepared-entity-data-authority
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/prep-manifest.json').set_sha256)")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/prep-manifest.json')).digest('hex'))")
+          # (2) data FIRST to the attempt-scoped staging (data/ + cache/ subprefixes).
+          node scripts/factory/r2-workflow-cli.js backup-dir data/ "${STAGING}data/" --extensions=.json,.json.zst
+          node scripts/factory/r2-workflow-cli.js backup-dir cache/ "${STAGING}cache/"
+          # (3) manifest.json LAST (after every data object is durable).
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/prep-manifest.json "${STAGING}manifest.json"
+          # (4) run-scoped descriptor handoff.json LAST OF ALL.
+          node -e "const f=require('fs');f.writeFileSync('/tmp/prep-handoff.json',JSON.stringify({schema_version:1,carrier_type:'prepared-entity-data-authority',process_run_id:String(process.env.HANDOFF_PROCESS_RUN_ID),producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,head_sha:String(process.env.HANDOFF_HEAD_SHA),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/prep-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (5) read-back verify the descriptor provenance (same-run attempt bound).
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/prep-handoff-rb.json --strict
+          HANDOFF_RUN_ATTEMPT="${ATT}" node scripts/factory/shards-handoff-manifest.mjs verify-descriptor /tmp/prep-handoff-rb.json --carrier=prepared-entity-data-authority
+          # (6) F2 (D-262): producer FULL-SET read-back (READ-ONLY; Class-A +1 LIST-like op,
+          # ZERO new PUT/COPY/DELETE): restore the just-written staging (data/ + cache/) to a
+          # temp dir + verify set_sha256 + exact-set membership, so a PARTIAL upload cannot
+          # establish a FALSE authority. Fail-closed BEFORE emitting "authority established".
+          RB_DIR="$(mktemp -d)"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" "${RB_DIR}" --strict || { echo "::error::GAP-5: producer read-back restore failed (${STAGING}). Fail-closed."; exit 1; }
+          rm -f "${RB_DIR}/manifest.json" "${RB_DIR}/handoff.json" "${RB_DIR}/_manifest.json" 2>/dev/null || true
+          RB_SET=$(node scripts/factory/shards-handoff-manifest.mjs verify "${RB_DIR}" /tmp/prep-manifest.json --carrier=prepared-entity-data-authority) || { echo "::error::GAP-5: producer read-back verify failed (partial/corrupt upload). Fail-closed."; exit 1; }
+          [ "$(printf '%s' "$RB_SET" | tail -n1)" = "${SET_SHA}" ] || { echo "::error::GAP-5: producer read-back set hash != ${SET_SHA} (partial upload). Fail-closed."; exit 1; }
+          echo "[PREP-HANDOFF] authority established (read-back verified): ${STAGING} set_sha256=${SET_SHA}"
 
   # Matrix shards for parallel processing
   matrix-shards:
@@ -260,16 +309,43 @@ jobs:
             data/
             cache/
           key: prepared-entity-data-${{ github.run_id }}
-      - name: R2 Fallback for Prepared Entity Data
-        if: steps.cache-prepared.outputs.cache-hit != 'true'
+      # GAP-5 (D-262) CONSUMER: verify-or-recover the prepared-entity-data set against the
+      # attempt-scoped R2 AUTHORITY. The GHA cache (restored above) is USED only if it
+      # EXACTLY matches the producer manifest (exact set + per-file sha + set_sha); on GHA
+      # miss OR mismatch wipe data/+cache/ + recover from the EXACT staging + re-verify.
+      # Missing current-cycle authority OR residual mismatch => FAIL CLOSED (no shard proc).
+      # The fixed-prefix state/prepared-entity-data/ is NO LONGER a current-cycle authority.
+      - name: Verify or Recover Prepared-Entity-Data from Exact R2 Staging (GAP-5, D-262)
         env:
+          HANDOFF_PROCESS_RUN_ID: ${{ github.run_id }}
+          HANDOFF_RUN_ATTEMPT: ${{ github.run_attempt }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/prepared-entity-data/data/ data/ --strict
-          node scripts/factory/r2-workflow-cli.js restore-dir state/prepared-entity-data/cache/ cache/ || true
+          set -uo pipefail
+          PID="${HANDOFF_PROCESS_RUN_ID}"
+          DESC="state/_handoff/prepared-entity-data/${PID}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/prep-handoff-rb.json --strict || { echo "::error::GAP-5: no current-cycle prepared-entity-data authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/shards-handoff-manifest.mjs verify-descriptor /tmp/prep-handoff-rb.json --carrier=prepared-entity-data-authority) || { echo "::error::GAP-5: prepared-entity-data descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/prep-manifest.json --strict || { echo "::error::GAP-5: prepared-entity-data manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_prep() { node scripts/factory/shards-handoff-manifest.mjs verify . /tmp/prep-manifest.json --carrier=prepared-entity-data-authority; }
+          NEED_RECOVER=0
+          if OUT2=$(verify_prep) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[PREP-HANDOFF] GHA fast-path prepared-entity-data matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[PREP-HANDOFF] GHA miss/mismatch — recover from exact staging"; NEED_RECOVER=1
+          fi
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf data/ cache/; mkdir -p data cache
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}data/" data/ --strict || { echo "::error::GAP-5: recover restore failed (${STAGING_PREFIX}data/). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}cache/" cache/ || true
+            OUT2=$(verify_prep) || { echo "::error::GAP-5: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::GAP-5: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[PREP-HANDOFF] recovered + verified prepared-entity-data from exact staging"
+          fi
 
       # Move downloaded files to correct locations
       # V14.5 Fix: download-artifact preserves directory structure
@@ -355,8 +431,12 @@ jobs:
           path: artifacts/shard-${{ matrix.shard }}.json.zst
           key: shard-${{ matrix.shard }}-${{ github.run_id }}
 
-      # V25.8 §2.2: Stream shard result to R2 (parallel with cache)
-      - name: Stream Shard to R2
+      # V25.8 §2.2 / FIX-3 (D-262) DEMOTED: streaming each shard to the fixed prefix
+      # state/shards/ is now a NON-AUTHORITATIVE compat transport used ONLY to convey
+      # the 20 matrix outputs to the save-shards-cache aggregation job. It is NOT a
+      # current-cycle authority; the attempt-scoped, set_sha-verified R2 authority over
+      # the EXACT 20-shard set is established once in save-shards-cache.
+      - name: Stream Shard to R2 (compat transport, non-authoritative)
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -406,6 +486,53 @@ jobs:
             echo "❌ ERROR: Missing shards! Expected 20, found $SHARD_COUNT."
             exit 1
           fi
+
+      # FIX-3/C10 (D-262): establish the attempt-scoped, content-verified R2 AUTHORITY over
+      # the EXACT 20-shard set consumed by Factory 3/4 Aggregate. Bound to process-run
+      # (github.run_id) + producer attempt + head_sha; set_sha256 over shard-0..19.json.zst.
+      # The fixed-prefix state/shards/ copy is DEMOTED to a compat transport (not authority).
+      # Order: data FIRST -> manifest LAST -> descriptor LAST-of-all -> read-back verify.
+      - name: Establish Shards R2 Authority (FIX-3/C10, D-262)
+        env:
+          HANDOFF_PROCESS_RUN_ID: ${{ github.run_id }}
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          PID="${HANDOFF_PROCESS_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/shards/${PID}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (1) manifest over the EXACT 20-shard set in output/shards -> /tmp only.
+          node scripts/factory/shards-handoff-manifest.mjs generate output/shards /tmp/shards-manifest.json --carrier=shards-authority
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/shards-manifest.json').set_sha256)")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/shards-manifest.json')).digest('hex'))")
+          # (2) all 20 shards FIRST to the attempt-scoped staging.
+          node scripts/factory/r2-workflow-cli.js backup-dir output/shards "${STAGING}" --extensions=.json.zst
+          # (3) manifest.json LAST (after every shard is durable).
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/shards-manifest.json "${STAGING}manifest.json"
+          # (4) run-scoped descriptor handoff.json LAST OF ALL.
+          node -e "const f=require('fs');f.writeFileSync('/tmp/shards-handoff.json',JSON.stringify({schema_version:1,carrier_type:'shards-authority',process_run_id:String(process.env.HANDOFF_PROCESS_RUN_ID),producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,head_sha:String(process.env.HANDOFF_HEAD_SHA),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/shards-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (5) read-back verify the descriptor provenance before the cross-workflow handoff.
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/shards-handoff-rb.json --strict
+          HANDOFF_RUN_ATTEMPT="${ATT}" node scripts/factory/shards-handoff-manifest.mjs verify-descriptor /tmp/shards-handoff-rb.json --carrier=shards-authority
+          # (6) F2 (D-262): producer FULL-SET read-back (READ-ONLY; Class-A +1 LIST-like op,
+          # ZERO new PUT/COPY/DELETE): restore the just-written attempt-scoped staging to a temp
+          # dir + verify set_sha256 + exact-20 membership over the read-back. backup-dir returns
+          # success on uploaded>0, so a PARTIAL upload would otherwise establish a FALSE authority.
+          # Fail-closed BEFORE emitting "authority established" (the producer never asserts a
+          # partial/corrupt authority the 3/4 consumer would then fail-close on).
+          RB_DIR="$(mktemp -d)"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" "${RB_DIR}" --strict || { echo "::error::FIX-3: producer read-back restore failed (${STAGING}). Fail-closed."; exit 1; }
+          rm -f "${RB_DIR}/manifest.json" "${RB_DIR}/handoff.json" "${RB_DIR}/_manifest.json" 2>/dev/null || true
+          RB_SET=$(node scripts/factory/shards-handoff-manifest.mjs verify "${RB_DIR}" /tmp/shards-manifest.json --carrier=shards-authority) || { echo "::error::FIX-3: producer read-back verify failed (partial/corrupt upload). Fail-closed."; exit 1; }
+          [ "$(printf '%s' "$RB_SET" | tail -n1)" = "${SET_SHA}" ] || { echo "::error::FIX-3: producer read-back set hash != ${SET_SHA} (partial upload). Fail-closed."; exit 1; }
+          echo "[SHARDS-HANDOFF] authority established (read-back verified): ${STAGING} set_sha256=${SET_SHA}"
 
       - name: Save Shards to Cache
         uses: actions/cache/save@v5
