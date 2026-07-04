@@ -13,7 +13,7 @@ import { env } from 'cloudflare:workers';
 import { getTotalEntities, formatTotalEntities } from '../utils/site-stats.js';
 
 const pageTitle = "FNI Methodology | Free2AITools Nexus Index";
-const pageDescription = "Learn about the Free2AITools Nexus Index (FNI) methodology. A transparent ranking signal that helps humans and agents compare open-source AI using visible evidence; it does not declare objective truth or the best model.";
+const pageDescription = "Learn about the Free2AITools Nexus Index (FNI) methodology - a transparent, traceable ranking signal for structured discovery of open-source AI. Callers review the evidence and decide for themselves.";
 
 // V27.26: live catalog size from manifest. Renders nothing when not yet published.
 const totalPhrase = formatTotalEntities(await getTotalEntities(env?.R2_ASSETS, !!import.meta.env?.DEV));
