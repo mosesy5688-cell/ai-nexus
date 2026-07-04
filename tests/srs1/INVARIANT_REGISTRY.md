@@ -857,6 +857,36 @@ proof in the PR body).
 | SAT-CORE-UNTOUCHED | D-211/D-219 CORE handoff byte-unchanged: exactly ONE `handoff-establish`, the two `handoff-consume --role=merge-core-persist`/`--role=finalize`, all three core handoff step names present; the R2 prefix is never hardcoded in YAML (no `internal-handoff`); the core `aggregate-handoff.mjs` frozen `ALLOWED_CONSUMERS = Object.freeze(['merge-core-persist','finalize'])` array carries NONE of the four satellite roles (contamination guard — adding one reds both this lock and the core exact-array test) | `tests/srs1/factory-aggregate-satellite-invariant.test.ts` + `scripts/factory/satellite-registry-handoff.test.mjs` | SOURCE + CONFIG | **NEW** |
 | SAT-CONTRACT | Hermetic contract suite (node:test, injected fakes, no network/tar/@aws-sdk): the 12 D-230 transport-contract tests (source snapshot == archive == manifest inventory == extracted set; missing/extra/renamed member, mid-gap, duplicate index, unexpected filename, source-changed-during-establishment, below-floor, empty all REJECTED), C5 fatal remote read-after-write verify, C6 fail-closed immutability collision (no exact-tuple overwrite), and the D-219 non-contamination isolation proof | `scripts/factory/satellite-registry-handoff.test.mjs` | EXEC | **NEW** |
 
+## Registry — ALT-LINKER-FALLBACK-PARITY (D-253/D-254/D-255 JS-fallback ⇄ Rust parity)
+
+> Deterministic, hermetic invariants for the alt-relation JS-fallback parity fix
+> (Founder D-2026-0704-253 + D-254/D-255). ROOT CAUSE (the sole parity-faithfulness
+> gap in the Rust/JS alt-linker): `scripts/factory/lib/alt-linker.js`
+> `computeAltRelations` JS fallback carried a hard `const MAX_PER_CATEGORY = 5000`
+> ingestion gate (`if (byCategory[category].length < 5000) push`), while the Rust
+> path (`rust/satellite-tasks/src/alt_linker.rs compute_alt_relations_from_dir`) has
+> NO ingestion cap — it accumulates the FULL per-category population as slim tuples
+> (id, fni_score, tags) THEN sorts by fni_score and truncates to the top
+> `MAX_PER_CATEGORY = 500`. So whenever the satellite-tasks crate is ABSENT (or the
+> FFI throws → `computeAltRelationsFromDirFFI` returns null) the JS fallback SILENTLY
+> DROPPED every entity streamed after the 5000th from the top-500-by-fni selection —
+> a truncation divergence, not parity. FIX = **option A (full-population parity)**:
+> remove the JS ingestion cap so the fallback considers the full population exactly
+> like Rust, bounded only by the SAME top-500-by-fni guard Rust uses (in
+> `computeCategoryAlts`, `maxEntities = 500`), while keeping only the slim fields
+> Rust keeps (id/slug/fni_score/tags/type) so memory stays bounded like Rust's slim
+> tuples. Silent truncation is forbidden; success now always emits the full
+> Rust-equivalent set. Rust crate + relation semantics UNCHANGED; ZERO R2 / cache /
+> workflow / Factory-execution mutation (D-255 §J). Exposure: normal Factory uses the
+> Rust path; the JS fallback is TEST_PROVEN_ARMED (only exercised in these tests).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| ALT-PARITY-DISPATCH | The REAL exported `computeAltRelations` dispatch is exercised via the mocked Rust-FFI seam: (a) Rust-AVAILABLE ⇒ Rust result propagated, the JS `shardReader` fallback is NOT invoked; (b) Rust-UNAVAILABLE (FFI returns null) WITH `shardDir` set ⇒ the JS fallback IS selected (shardReader streamed) and emits a full non-empty set | `tests/unit/alt-linker-fallback-parity.test.ts` | EXEC | **NEW** |
+| ALT-PARITY-NOTRUNC | A >5000-entity category whose TRUE top-500-by-fni cohort is streamed AFTER the 5000th (first-5000 = low-fni, unique tags ⇒ zero relations) is NOT silently truncated: the fixed fallback emits relations sourced ONLY from the high-fni beyond-5000 cohort. NON-VACUITY: restoring the old `MAX_PER_CATEGORY = 5000` ingestion cap yields exactly 0 relations ⇒ reds this test (verified) | `tests/unit/alt-linker-fallback-parity.test.ts` | EXEC | **NEW** |
+| ALT-PARITY-PERF | Perf guard (D-254 §H): a 12000-entity single-category fallback completes with bounded (slim-tuple, Rust-equivalent) memory — no obvious local OOM / unbounded structure — so option A (cap removal) is memory-safe rather than requiring fail-loud | `tests/unit/alt-linker-fallback-parity.test.ts` | EXEC | **NEW** |
+| ALT-PARITY-SRCLOCK | `alt-linker.js` no longer contains the `const MAX_PER_CATEGORY =` declaration or the `length < MAX_PER_CATEGORY`/`length < <n>) byCategory[...].push` truncation gate; the full-population slim-projection push IS present. Reintroducing the silent-truncation cap reds this SOURCE lock | `tests/unit/alt-linker-fallback-parity.test.ts` | SOURCE | **NEW** |
+
 ## How SRS-1 is wired as the blocking gate
 
 The Tier-1 suite runs through the **existing required `unit-test` job** in
