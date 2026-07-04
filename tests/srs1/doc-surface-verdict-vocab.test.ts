@@ -30,6 +30,15 @@ const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
 const README = read('README.md');
 const LLMS = read('src/data/llms-template.txt');
 
+// D-266 (C1/C2 public-copy positioning freeze): the ratified PUBLIC identity is a
+// "structured discovery, evidence, and identity layer" / "daily-updated, FNI-ranked
+// open-source AI registry". The default site meta (Layout.astro) and the FNI
+// methodology hero (methodology.astro) are public copy surfaces, so the same
+// off-vocabulary / verdict-adjacent drift ban applies. These strings must never
+// reappear, and the INTERNAL-only positioning must never leak onto public copy.
+const LAYOUT_ASTRO = read('src/layouts/Layout.astro');
+const METHODOLOGY_ASTRO = read('src/pages/methodology.astro');
+
 // Forbidden AFFIRMATIVE verdict vocabulary (Page Messaging Contract Sec 5).
 const RANKED_RECS = /ranked\s+recommendations?/i; // "ranked recommendations" (stale README copy)
 const BEST_AI_MODEL = /\bbest\s+ai\s+model\b/i;
@@ -97,5 +106,42 @@ describe('SRS-1 A-1 (D-122): README Smithery = plain directory link only, no bad
         // No uptime / health percentage claim near the listing or elsewhere.
         expect(README).not.toMatch(/\d+(?:\.\d+)?\s*%\s*(uptime|health)/i);
         expect(README).not.toMatch(/\b(uptime|health)\b[^.\n]{0,20}\d+(?:\.\d+)?\s*%/i);
+    });
+});
+
+describe('SRS-1 G-3 (D-266): public page copy carries NO off-vocabulary / verdict-adjacent drift', () => {
+    // The exact positioning-drift strings retired by C1 (Layout.astro default meta +
+    // Organization schema) and C2 (methodology.astro FNI hero). These are affirmative
+    // over-claims, not disclaimers, so no negated-context carve-out is needed.
+    const DRIFT = [
+        [/\bdefinitive\b/i, '"definitive" verdict tagline'],
+        [/neural\s+discovery/i, '"neural discovery" claim'],
+        [/actionable\s+toolchains?/i, '"actionable toolchains" claim'],
+        [/comprehensive\s+impact\s+index/i, '"Comprehensive Impact Index" tagline'],
+        [/s\s*&\s*p\s*500/i, '"S&P 500" analogy'],
+    ] as const;
+
+    for (const [name, src] of [
+        ['Layout.astro (default meta + Organization schema)', LAYOUT_ASTRO],
+        ['methodology.astro (FNI hero + meta)', METHODOLOGY_ASTRO],
+    ] as const) {
+        for (const [re, label] of DRIFT) {
+            it(`${name}: no ${label}`, () => {
+                expect(src).not.toMatch(re);
+            });
+        }
+        it(`${name}: does NOT leak INTERNAL-only positioning onto public copy`, () => {
+            // "Agent Capability Infrastructure" is the INTERNAL identity; "dynamic
+            // runtime discovery" is a banned public tagline. Neither belongs on a
+            // public surface.
+            expect(src).not.toMatch(/agent\s+capability\s+infrastructure/i);
+            expect(src).not.toMatch(/dynamic\s+runtime\s+discovery/i);
+        });
+    }
+
+    it('anti-vacuity: the drift matchers actually fire on a control string', () => {
+        const control =
+            'The Definitive Open-Source AI Index — the Comprehensive Impact Index, the S&P 500, neural discovery, actionable toolchains.';
+        for (const [re] of DRIFT) expect(control).toMatch(re);
     });
 });
