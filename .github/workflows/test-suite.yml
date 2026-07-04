@@ -59,11 +59,12 @@ jobs:
       # file list — the satellite-registry contract test, the D-219 core handoff test
       # (the anti-vacuity matrix depends on the CORE test catching a satellite role
       # added to the core closed set), the D-236/D-237 harvest R2 source-authority
-      # contract test AND the D-245 vfs-pack -> vfs-derived + vfs-derived -> upload R2
-      # handoff verifier contract test. No wildcard, no unrelated tests, no
-      # continue-on-error: any red fails this job.
-      - name: Run node --test factory handoff suites (satellite + core + harvest + vfs-derived, blocking)
-        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs
+      # contract test, the D-245 vfs-pack -> vfs-derived + vfs-derived -> upload R2
+      # handoff verifier contract test AND the D-262 shards (2/4 -> 3/4) + GAP-5
+      # prepared-entity-data R2 handoff verifier contract test. No wildcard, no
+      # unrelated tests, no continue-on-error: any red fails this job.
+      - name: Run node --test factory handoff suites (satellite + core + harvest + vfs-derived + shards, blocking)
+        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs scripts/factory/shards-handoff-manifest.test.mjs
 
       - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
         run: npx vitest run --coverage
