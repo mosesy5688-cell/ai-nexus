@@ -108,17 +108,56 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
-          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
-          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
-          # intended same-cycle -output fallback while rejecting foreign cycles. True
-          # misses fall to the R2 state/cycle-output/ fallback below.
-          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      # V25.8.3: R2 fallback if cache miss
-      - name: R2 Fallback for Cycle Output
-        if: steps.cache-output-mesh.outputs.cache-hit != 'true'
+          # FIX-2 / C12 (D-264): the GHA cache is EXACT-KEY acceleration ONLY. The
+          # `cycle-<upstream-run-id>-` restore-keys PREFIX authority is REMOVED (a prefix
+          # hit is identity-ambiguous -- could pull a wrong-shape -shards/-harvest entry --
+          # and was consumed UNVERIFIED). The verify-or-recover step below is the
+          # correctness truth vs the attempt-scoped R2 authority.
+      # FIX-2 / C12 (D-264) CONSUMER: verify-or-recover the EXACT cycle-output set
+      # (output/cache/**) against the current-cycle attempt-scoped R2 AUTHORITY established
+      # by 3/4 finalize. Cross-workflow cycle key = the 3/4 Aggregate run id = upstream-run-id.
+      # The GHA cache (restored above) is USED only if output/cache/** EXACTLY matches the
+      # producer manifest (EXACT-set + per-file sha + set_sha == descriptor set_sha); on GHA
+      # miss OR mismatch wipe ONLY output/cache/** (NEVER output/data/, owned by FIX-4
+      # meta-NN.db) + recover from the EXACT staging + re-verify. A missing authority /
+      # invalid descriptor / residual mismatch FAILS CLOSED. The fixed prefix
+      # state/cycle-output/ is NO LONGER a recovery input.
+      - name: Verify or Recover Cycle Output from R2 Authority (FIX-2 / D-264)
+        env:
+          HANDOFF_FINALIZE_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/ --strict
+          set -uo pipefail
+          mkdir -p output/cache
+          PID="${HANDOFF_FINALIZE_RUN_ID}"
+          if [ -z "$PID" ]; then echo "::error::FIX-2: no upstream-run-id resolved -- cannot consume cycle-output safely."; exit 1; fi
+          # (1) resolve the current-cycle attempt-scoped R2 authority descriptor (fail-closed).
+          DESC="state/_handoff/cycle-output/${PID}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/cycle-output-handoff-rb.json --strict || { echo "::error::FIX-2: no current-cycle cycle-output authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/cycle-output-handoff-manifest.mjs verify-descriptor /tmp/cycle-output-handoff-rb.json --carrier=cycle-output-authority) || { echo "::error::FIX-2: cycle-output descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/cycle-output-manifest.json --strict || { echo "::error::FIX-2: cycle-output manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_cycle_output() { node scripts/factory/cycle-output-handoff-manifest.mjs verify output /tmp/cycle-output-manifest.json --carrier=cycle-output-authority; }
+          # (2) GHA fast path: verify the GHA-restored output/cache/** against the R2 manifest.
+          NEED_RECOVER=0
+          if OUT2=$(verify_cycle_output) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA fast-path cycle-output matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA miss/mismatch -- recover from exact staging"; NEED_RECOVER=1
+          fi
+          # (3) GHA miss/mismatch => wipe ONLY output/cache/** (NEVER output/data/) + recover
+          # from the EXACT attempt-scoped staging + re-verify set_sha256.
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache; mkdir -p output/cache
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
+            OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[CYCLE-OUTPUT-HANDOFF] recovered + verified cycle-output from exact staging"
+          fi
       # V27.52: restore cycle-scoped baked cache (per-dispatch key + cycle-prefix restore-keys).
       # Skipped on force_fresh so compute is forced.
       - name: Restore Baked Profile Shards from Cache (V27.52)
@@ -196,16 +235,56 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
-          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
-          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
-          # intended same-cycle -output fallback while rejecting foreign cycles. True
-          # misses fall to the R2 state/cycle-output/ fallback below.
-          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      - name: R2 Fallback for Base Output
-        if: steps.cache-output-fusion.outputs.cache-hit != 'true'
+          # FIX-2 / C12 (D-264): the GHA cache is EXACT-KEY acceleration ONLY. The
+          # `cycle-<upstream-run-id>-` restore-keys PREFIX authority is REMOVED (a prefix
+          # hit is identity-ambiguous -- could pull a wrong-shape -shards/-harvest entry --
+          # and was consumed UNVERIFIED). The verify-or-recover step below is the
+          # correctness truth vs the attempt-scoped R2 authority.
+      # FIX-2 / C12 (D-264) CONSUMER: verify-or-recover the EXACT cycle-output set
+      # (output/cache/**) against the current-cycle attempt-scoped R2 AUTHORITY established
+      # by 3/4 finalize. Cross-workflow cycle key = the 3/4 Aggregate run id = upstream-run-id.
+      # The GHA cache (restored above) is USED only if output/cache/** EXACTLY matches the
+      # producer manifest (EXACT-set + per-file sha + set_sha == descriptor set_sha); on GHA
+      # miss OR mismatch wipe ONLY output/cache/** (NEVER output/data/, owned by FIX-4
+      # meta-NN.db) + recover from the EXACT staging + re-verify. A missing authority /
+      # invalid descriptor / residual mismatch FAILS CLOSED. The fixed prefix
+      # state/cycle-output/ is NO LONGER a recovery input.
+      - name: Verify or Recover Cycle Output from R2 Authority (FIX-2 / D-264)
+        env:
+          HANDOFF_FINALIZE_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
+          set -uo pipefail
+          mkdir -p output/cache
+          PID="${HANDOFF_FINALIZE_RUN_ID}"
+          if [ -z "$PID" ]; then echo "::error::FIX-2: no upstream-run-id resolved -- cannot consume cycle-output safely."; exit 1; fi
+          # (1) resolve the current-cycle attempt-scoped R2 authority descriptor (fail-closed).
+          DESC="state/_handoff/cycle-output/${PID}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/cycle-output-handoff-rb.json --strict || { echo "::error::FIX-2: no current-cycle cycle-output authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/cycle-output-handoff-manifest.mjs verify-descriptor /tmp/cycle-output-handoff-rb.json --carrier=cycle-output-authority) || { echo "::error::FIX-2: cycle-output descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/cycle-output-manifest.json --strict || { echo "::error::FIX-2: cycle-output manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_cycle_output() { node scripts/factory/cycle-output-handoff-manifest.mjs verify output /tmp/cycle-output-manifest.json --carrier=cycle-output-authority; }
+          # (2) GHA fast path: verify the GHA-restored output/cache/** against the R2 manifest.
+          NEED_RECOVER=0
+          if OUT2=$(verify_cycle_output) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA fast-path cycle-output matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA miss/mismatch -- recover from exact staging"; NEED_RECOVER=1
+          fi
+          # (3) GHA miss/mismatch => wipe ONLY output/cache/** (NEVER output/data/) + recover
+          # from the EXACT attempt-scoped staging + re-verify set_sha256.
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache; mkdir -p output/cache
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
+            OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[CYCLE-OUTPUT-HANDOFF] recovered + verified cycle-output from exact staging"
+          fi
       # V25.13: R2 fallback completeness gate (P3 fail-fast).
       # Mirrors 3/4 G1 — checks 3/4-actual outputs (satellite results in
       # output/cache/). Registry shards live in cache/ (separate cache key),
@@ -662,30 +741,59 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
-          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
-          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
-          # intended same-cycle -output fallback while rejecting foreign cycles. True
-          # misses fall to the R2 state/cycle-output/ fallback below.
-          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      # 2026-05-16: GHA cache for cycle-<run_id>-output gets LRU-evicted within
-      # ~24h when other large caches (vfs-assets 8.6GB, fused, embeddings) push
-      # past the 10GB per-repo limit. mesh-baking + master-fusion + final-upload
-      # all already have this R2 fallback (lines 102, 157, 534); VFS Packing was
-      # the only consumer of cycle-output that lacked it. Run 25949879955 caught
-      # this gap when the cycle-25912771844-output cache evicted between yesterday
-      # and today and pack-db.js needs `cache/mesh/graph.json` + `search-core.json`
-      # + `category_stats.json` which only live in cycle-output, not in any of the
-      # per-file R2 fallbacks below.
-      - name: R2 Fallback for Base Output
-        if: steps.cache-output-vfs.outputs.cache-hit != 'true'
+          # FIX-2 / C12 (D-264): the GHA cache is EXACT-KEY acceleration ONLY. The
+          # `cycle-<upstream-run-id>-` restore-keys PREFIX authority is REMOVED (a prefix
+          # hit is identity-ambiguous -- could pull a wrong-shape -shards/-harvest entry --
+          # and was consumed UNVERIFIED). The verify-or-recover step below is the
+          # correctness truth vs the attempt-scoped R2 authority.
+      # FIX-2 / C12 (D-264) CONSUMER: verify-or-recover the EXACT cycle-output set
+      # (output/cache/**) against the current-cycle attempt-scoped R2 AUTHORITY established
+      # by 3/4 finalize. Cross-workflow cycle key = the 3/4 Aggregate run id = upstream-run-id.
+      # The GHA cache for cycle-<run_id>-output gets LRU-evicted within ~24h (vfs-assets,
+      # fused, embeddings push past the 10GB per-repo limit); pack-db.js needs cache/mesh/
+      # graph.json + search-core.json + category_stats.json which only live in cycle-output.
+      # The GHA cache (restored above) is USED only if output/cache/** EXACTLY matches the
+      # producer manifest (EXACT-set + per-file sha + set_sha == descriptor set_sha); on GHA
+      # miss OR mismatch wipe ONLY output/cache/** (NEVER output/data/, owned by FIX-4
+      # meta-NN.db) + recover from the EXACT staging + re-verify. A missing authority /
+      # invalid descriptor / residual mismatch FAILS CLOSED. The fixed prefix
+      # state/cycle-output/ is NO LONGER a recovery input.
+      - name: Verify or Recover Cycle Output from R2 Authority (FIX-2 / D-264)
         env:
+          HANDOFF_FINALIZE_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
+          set -uo pipefail
+          mkdir -p output/cache
+          PID="${HANDOFF_FINALIZE_RUN_ID}"
+          if [ -z "$PID" ]; then echo "::error::FIX-2: no upstream-run-id resolved -- cannot consume cycle-output safely."; exit 1; fi
+          # (1) resolve the current-cycle attempt-scoped R2 authority descriptor (fail-closed).
+          DESC="state/_handoff/cycle-output/${PID}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/cycle-output-handoff-rb.json --strict || { echo "::error::FIX-2: no current-cycle cycle-output authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/cycle-output-handoff-manifest.mjs verify-descriptor /tmp/cycle-output-handoff-rb.json --carrier=cycle-output-authority) || { echo "::error::FIX-2: cycle-output descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/cycle-output-manifest.json --strict || { echo "::error::FIX-2: cycle-output manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_cycle_output() { node scripts/factory/cycle-output-handoff-manifest.mjs verify output /tmp/cycle-output-manifest.json --carrier=cycle-output-authority; }
+          # (2) GHA fast path: verify the GHA-restored output/cache/** against the R2 manifest.
+          NEED_RECOVER=0
+          if OUT2=$(verify_cycle_output) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA fast-path cycle-output matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA miss/mismatch -- recover from exact staging"; NEED_RECOVER=1
+          fi
+          # (3) GHA miss/mismatch => wipe ONLY output/cache/** (NEVER output/data/) + recover
+          # from the EXACT attempt-scoped staging + re-verify set_sha256.
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache; mkdir -p output/cache
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
+            OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[CYCLE-OUTPUT-HANDOFF] recovered + verified cycle-output from exact staging"
+          fi
       - name: R2 Fallback for Trending Data
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -1333,16 +1441,56 @@ jobs:
         with:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
-          # Cycle-SCOPED restore-key: a bare `cycle-` prefix could restore a
-          # DIFFERENT cycle's output (or a wrong-shape -shards/-harvest cache) into
-          # output/ on an exact-key miss. Scoping to this aggregate run-id keeps the
-          # intended same-cycle -output fallback while rejecting foreign cycles. True
-          # misses fall to the R2 state/cycle-output/ fallback below.
-          restore-keys: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      - name: R2 Fallback for Base Output
-        if: steps.cache-output-upload.outputs.cache-hit != 'true'
+          # FIX-2 / C12 (D-264): the GHA cache is EXACT-KEY acceleration ONLY. The
+          # `cycle-<upstream-run-id>-` restore-keys PREFIX authority is REMOVED (a prefix
+          # hit is identity-ambiguous -- could pull a wrong-shape -shards/-harvest entry --
+          # and was consumed UNVERIFIED). The verify-or-recover step below is the
+          # correctness truth vs the attempt-scoped R2 authority.
+      # FIX-2 / C12 (D-264) CONSUMER: verify-or-recover the EXACT cycle-output set
+      # (output/cache/**) against the current-cycle attempt-scoped R2 AUTHORITY established
+      # by 3/4 finalize. Cross-workflow cycle key = the 3/4 Aggregate run id = upstream-run-id.
+      # The GHA cache (restored above) is USED only if output/cache/** EXACTLY matches the
+      # producer manifest (EXACT-set + per-file sha + set_sha == descriptor set_sha); on GHA
+      # miss OR mismatch wipe ONLY output/cache/** (NEVER output/data/, owned by FIX-4
+      # meta-NN.db) + recover from the EXACT staging + re-verify. A missing authority /
+      # invalid descriptor / residual mismatch FAILS CLOSED. The fixed prefix
+      # state/cycle-output/ is NO LONGER a recovery input.
+      - name: Verify or Recover Cycle Output from R2 Authority (FIX-2 / D-264)
+        env:
+          HANDOFF_FINALIZE_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-output/ output/
+          set -uo pipefail
+          mkdir -p output/cache
+          PID="${HANDOFF_FINALIZE_RUN_ID}"
+          if [ -z "$PID" ]; then echo "::error::FIX-2: no upstream-run-id resolved -- cannot consume cycle-output safely."; exit 1; fi
+          # (1) resolve the current-cycle attempt-scoped R2 authority descriptor (fail-closed).
+          DESC="state/_handoff/cycle-output/${PID}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/cycle-output-handoff-rb.json --strict || { echo "::error::FIX-2: no current-cycle cycle-output authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/cycle-output-handoff-manifest.mjs verify-descriptor /tmp/cycle-output-handoff-rb.json --carrier=cycle-output-authority) || { echo "::error::FIX-2: cycle-output descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/cycle-output-manifest.json --strict || { echo "::error::FIX-2: cycle-output manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_cycle_output() { node scripts/factory/cycle-output-handoff-manifest.mjs verify output /tmp/cycle-output-manifest.json --carrier=cycle-output-authority; }
+          # (2) GHA fast path: verify the GHA-restored output/cache/** against the R2 manifest.
+          NEED_RECOVER=0
+          if OUT2=$(verify_cycle_output) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA fast-path cycle-output matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[CYCLE-OUTPUT-HANDOFF] GHA miss/mismatch -- recover from exact staging"; NEED_RECOVER=1
+          fi
+          # (3) GHA miss/mismatch => wipe ONLY output/cache/** (NEVER output/data/) + recover
+          # from the EXACT attempt-scoped staging + re-verify set_sha256.
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache; mkdir -p output/cache
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
+            OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[CYCLE-OUTPUT-HANDOFF] recovered + verified cycle-output from exact staging"
+          fi
       - name: Restore Upload Manifest from Cache
         uses: actions/cache/restore@v5
         with:
