@@ -53,16 +53,17 @@ jobs:
       - name: Install Dependencies (Root)
         run: npm ci
 
-      # C2-LOCK (D-2026-0702-228/230 + D-2026-0703-236/237): the .mjs node:test
-      # suites are NOT collected by vitest (which globs only **/*.{test,spec}.ts).
-      # Run them EXPLICITLY as a required gate with the EXACT file list — the
-      # satellite-registry contract test, the D-219 core handoff test (the
-      # anti-vacuity matrix depends on the CORE test catching a satellite role added
-      # to the core closed set) AND the D-236/D-237 harvest R2 source-authority
-      # contract test. No wildcard, no unrelated tests, no continue-on-error: any
-      # red fails this job.
-      - name: Run node --test factory handoff suites (satellite + core + harvest, blocking)
-        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs
+      # C2-LOCK (D-2026-0702-228/230 + D-2026-0703-236/237 + D-2026-0704-245): the
+      # .mjs node:test suites are NOT collected by vitest (which globs only
+      # **/*.{test,spec}.ts). Run them EXPLICITLY as a required gate with the EXACT
+      # file list — the satellite-registry contract test, the D-219 core handoff test
+      # (the anti-vacuity matrix depends on the CORE test catching a satellite role
+      # added to the core closed set), the D-236/D-237 harvest R2 source-authority
+      # contract test AND the D-245 vfs-pack -> vfs-derived + vfs-derived -> upload R2
+      # handoff verifier contract test. No wildcard, no unrelated tests, no
+      # continue-on-error: any red fails this job.
+      - name: Run node --test factory handoff suites (satellite + core + harvest + vfs-derived, blocking)
+        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs
 
       - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
         run: npx vitest run --coverage

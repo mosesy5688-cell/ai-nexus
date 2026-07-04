@@ -605,6 +605,14 @@ jobs:
     needs: [master-fusion-persist, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    # D-245 PRIMARY: expose the VERIFIED vfs-pack R2 authority identity so VFS Derived
+    # verifies its restored meta-NN.db set EQUALS this exact one and recovers from the
+    # SAME exact producer staging prefix on any GHA miss/mismatch (durable R2 authority;
+    # GHA demoted to verified acceleration).
+    outputs:
+      verified_vfs_pack_staging_prefix: ${{ steps.vfs-pack-handoff.outputs.staging_prefix }}
+      verified_vfs_pack_set_sha: ${{ steps.vfs-pack-handoff.outputs.set_sha }}
+      verified_vfs_pack_producer_attempt: ${{ steps.vfs-pack-handoff.outputs.producer_attempt }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
@@ -972,6 +980,69 @@ jobs:
           fi
           META_COUNT=$(find output/data -name 'meta-*.db' 2>/dev/null | wc -l)
           echo "[R2] VFS data backed up: ${META_COUNT} meta-NN.db files to state/vfs-data/"
+      # D-245 PRIMARY EXACT-PRODUCER R2 HANDOFF — establish a DURABLE, run +
+      # PRODUCER-attempt scoped, content-verified vfs-pack authority so VFS Derived
+      # never depends on the LRU-evicted / write-denied GHA vfs-pack cache (the root
+      # cause: the cache carrying output/data/ meta-NN.db was unretrievable, so the
+      # empty-state guard fail-closed and the whole publish chain was skipped). Runs
+      # AFTER the pack + sentinel + shard-meta gates, so output/data/ is verified.
+      # PRODUCER attempt = github.run_attempt OF THIS job. Order: (1) local manifest over
+      # the meta-NN.db set -> (2) data (.db) to the attempt-scoped staging prefix (manifest
+      # LAST) -> (3) handoff.json descriptor LAST OF ALL -> (4) read-back verify ->
+      # (5) export the verified identity. Fail-loud on any step. Gated on success() (NOT
+      # skip_compute) so a re-dispatch cache-hit STILL establishes a current-run authority.
+      # The manifest/descriptor go to R2 + /tmp only, NEVER into output/data/ (the tree
+      # r2-upload-s3.js publishes to the public CDN).
+      - name: Produce Exact-Producer R2 Handoff (VFS-PACK, D-245)
+        id: vfs-pack-handoff
+        if: success()
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          HANDOFF_VFS_PACK_CODE_VERSION: ${{ env.VFS_PACK_CODE_VERSION }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/vfs-pack/${UP}/${RUN}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (1) local manifest over output/data/ meta-NN.db set (.db only) + the D-246 RSS
+          # input presence/sha probe (--rss-base=. => output/cache/{reports,knowledge}/…).
+          # Written to /tmp so it never pollutes the publicly-uploaded output/data/ tree.
+          node scripts/factory/vfs-derived-handoff-manifest.mjs generate output/data/ /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority --ext=.db --rss-base=.
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/vfs-pack-manifest.json').set_sha256)")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/vfs-pack-manifest.json')).digest('hex'))")
+          # (2) upload ALL .db data FIRST to the attempt-scoped staging prefix.
+          node scripts/factory/r2-workflow-cli.js backup-dir output/data/ "${STAGING}" --extensions=.db
+          # (2b) D-246: stage the DECLARED-PRESENT RSS-generator inputs (CAPTURED_IF_PRESENT)
+          # under rss-inputs/… so VFS Derived recovers them BEFORE rss-generator. Absent
+          # (paused/floor-zero) inputs are recorded present:false and NOT in the plan.
+          node scripts/factory/vfs-derived-handoff-manifest.mjs rss-recovery-plan /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority > /tmp/vfs-pack-rss-plan.tsv
+          while IFS=$'\t' read -r RSS_STAGED RSS_LOCAL RSS_SHA; do
+            [ -z "$RSS_STAGED" ] && continue
+            node scripts/factory/r2-workflow-cli.js upload-file "$RSS_LOCAL" "${STAGING}${RSS_STAGED}"
+          done < /tmp/vfs-pack-rss-plan.tsv
+          # (2c) manifest.json LAST (after every data object incl. present RSS inputs is durable).
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-pack-manifest.json "${STAGING}manifest.json"
+          # (3) run-scoped descriptor handoff.json LAST OF ALL. Binds ONLY current upstream
+          # + current factory run + this producer attempt + head-SHA + VFS_PACK_CODE_VERSION,
+          # and RECORDS per-RSS-input presence (D-246 §2) so paused/absent is distinguishable.
+          node -e "const f=require('fs');const m=require('/tmp/vfs-pack-manifest.json');f.writeFileSync('/tmp/vfs-pack-handoff.json',JSON.stringify({schema_version:1,carrier_type:'vfs-pack-authority',producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),head_sha:String(process.env.HANDOFF_HEAD_SHA),vfs_pack_code_version:String(process.env.HANDOFF_VFS_PACK_CODE_VERSION),parent_set_sha256:null,rss_inputs:(m.rss_inputs||[]).map(e=>({name:e.name,present:e.present})),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-pack-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (4) read-back verify the descriptor provenance (missing/malformed => fail-loud).
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/vfs-pack-handoff-rb.json --strict
+          OUT=$(HANDOFF_RUN_ATTEMPT="${ATT}" node scripts/factory/vfs-derived-handoff-manifest.mjs verify-descriptor /tmp/vfs-pack-handoff-rb.json --carrier=vfs-pack-authority)
+          V_PREFIX=$(printf '%s' "$OUT" | cut -f1); V_SET=$(printf '%s' "$OUT" | cut -f2)
+          # (5) export the verified identity for the VFS Derived consumer.
+          echo "staging_prefix=${V_PREFIX}" >> "$GITHUB_OUTPUT"
+          echo "set_sha=${V_SET}" >> "$GITHUB_OUTPUT"
+          echo "producer_attempt=${ATT}" >> "$GITHUB_OUTPUT"
+          echo "[VFS-PACK-HANDOFF] staging=${V_PREFIX} set_sha256=${V_SET} descriptor=${RUN_PREFIX}/handoff.json"
       # V27.40: end of vfs-pack-db. Save VFS pack output (data/meta/reports/knowledge/mesh)
       # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
       # P3-EVIDENCE-1 STAGE-B: the save key carries VFS_PACK_CODE_VERSION so a fresh
@@ -1000,6 +1071,14 @@ jobs:
     needs: [vfs-pack-db, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # D-245 SECONDARY: expose the VERIFIED vfs-derived (sitemaps + RSS) R2 authority so
+    # Final Upload publishes ONLY the current-cycle sitemap/RSS identity (the sitemap/RSS
+    # GHA caches have no R2 fallback, so the same token denial could otherwise ship a
+    # stale/empty sitemap — an SEO wipe of the append-only corpus).
+    outputs:
+      verified_vfs_derived_staging_prefix: ${{ steps.vfs-derived-handoff.outputs.staging_prefix }}
+      verified_vfs_derived_set_sha: ${{ steps.vfs-derived-handoff.outputs.set_sha }}
+      verified_vfs_derived_producer_attempt: ${{ steps.vfs-derived-handoff.outputs.producer_attempt }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
@@ -1022,8 +1101,50 @@ jobs:
             output/cache/mesh/
             output/cache/assertions/
           key: intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
-          restore-keys: |
-            intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-
+          # D-245: restore-keys PREFIX authority REMOVED. The GHA cache is an OPTIONAL
+          # exact-key fast path only; a restore-keys prefix hit is identity-ambiguous and
+          # was previously consumed UNVERIFIED. The vfs-pack-db VERIFIED R2 authority (set
+          # hash + manifest) in the next step is the correctness source of truth.
+      # D-245 PRIMARY CONSUMER — verify-or-recover BEFORE the defensive guard. The GHA
+      # vfs-pack cache (exact key, NO restore-keys) is an OPTIONAL fast path; the
+      # vfs-pack-db VERIFIED R2 authority is the truth. Verify the restored meta-NN.db
+      # set's manifest/set hash EQUALS vfs-pack-db's exported identity; on GHA miss OR
+      # mismatch wipe output/data/ + recover from the EXACT producer staging prefix +
+      # re-verify (fail-loud). ONLY THEN the META>=1 guard runs — now backstopped by
+      # durable R2, so it means "genuine content void", not "cache unretrievable".
+      - name: Verify or Recover VFS Pack from Exact Staging (D-245)
+        env:
+          STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
+          EXPECT_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_set_sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SET_SHA}" ]; then
+            echo "::error::vfs-pack-db did not export a verified vfs-pack identity — cannot consume meta-NN.db safely."; exit 1
+          fi
+          # Fetch the producer manifest from R2 (small) to verify the GHA-restored set.
+          verify() {
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/vfs-pack-manifest.json --strict >/dev/null 2>&1 || return 1
+            node scripts/factory/vfs-derived-handoff-manifest.mjs verify output/data/ /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority --ext=.db
+          }
+          NEED_RECOVER=0
+          if OUT=$(verify) && [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[VFS-PACK-HANDOFF] GHA fast-path meta-NN.db matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[VFS-PACK-HANDOFF] GHA meta miss/mismatch — recover from exact staging"; NEED_RECOVER=1
+          fi
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/data/; mkdir -p output/data/
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/data/ --strict
+            # Defensive: never let a handoff sidecar leak into the public data/ tree.
+            rm -f output/data/manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true
+            OUT=$(verify) || { echo "::error::VFS-pack exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Recovered meta set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[VFS-PACK-HANDOFF] recovered + verified meta-NN.db from exact staging"
+          fi
       # V27.40.1 + V27.52: fail-fast on missing meta-NN.db. File-existence detection
       # (cache-hit output false-fires on restore-keys partial match).
       - name: Verify VFS Pack Files Present (defensive)
@@ -1036,6 +1157,37 @@ jobs:
           echo "✅ VFS pack present: $META_COUNT meta-NN.db files"
       - name: Generate VFS-Parity Sitemaps
         run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
+      # D-246 RSS INPUT RECOVERY. The RSS-generator inputs (output/cache/{reports,knowledge}/
+      # index.json.zst) are now carried durably by the vfs-pack R2 authority. Recover every
+      # DECLARED-PRESENT input from the EXACT current-cycle staging BEFORE rss-generator +
+      # fail-closed verify (states 3/4/6/7/8 => exit 1); SKIP declared-absent (paused/
+      # floor-zero) inputs (states 1/5) — a present input can never be silently lost, while
+      # the paused/static-historical RSS behavior is preserved (RSS is NOT forced non-empty).
+      - name: Recover VFS-Pack RSS Inputs from Exact Staging (D-246)
+        env:
+          STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          if [ -z "${STAGING_PREFIX}" ]; then echo "::error::no verified vfs-pack staging prefix for RSS inputs."; exit 1; fi
+          # The verified producer manifest (with rss_inputs) is at /tmp/vfs-pack-manifest.json
+          # from the meta verify-or-recover step; re-fetch defensively if absent.
+          if [ ! -s /tmp/vfs-pack-manifest.json ]; then
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/vfs-pack-manifest.json --strict
+          fi
+          node scripts/factory/vfs-derived-handoff-manifest.mjs rss-recovery-plan /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority > /tmp/vfs-pack-rss-plan.tsv
+          while IFS=$'\t' read -r RSS_STAGED RSS_LOCAL RSS_SHA; do
+            [ -z "$RSS_STAGED" ] && continue
+            mkdir -p "$(dirname "$RSS_LOCAL")"
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}${RSS_STAGED}" "$RSS_LOCAL" --strict || { echo "::error::RSS input recovery failed for ${RSS_STAGED} (declared present). Fail-closed."; exit 1; }
+          done < /tmp/vfs-pack-rss-plan.tsv
+          # Fail-closed verify: every declared-present input recovered + sha matches (states
+          # 3/4/6/7/8 => exit 1); declared-absent skipped + recorded (states 1/5 non-fatal).
+          node scripts/factory/vfs-derived-handoff-manifest.mjs verify-rss-inputs /tmp/vfs-pack-manifest.json . --carrier=vfs-pack-authority
+          echo "[VFS-PACK-HANDOFF] RSS inputs: declared-present recovered+verified from exact staging; declared-absent skipped (paused/floor-zero)"
       # V25.13: RSS gen requires output/cache/reports/index.json.zst (from pack-db meta-anchors)
       # — guaranteed present via vfs-pack cache restore above.
       # V27.39: soft-warn when both feeds empty (V27.36 paused daily reports + knowledge-ai).
@@ -1048,6 +1200,59 @@ jobs:
             echo "🔍 Verifying $db..."
             node scripts/factory/verify-db.js "$db"
           done
+      # D-245 SECONDARY EXACT-PRODUCER R2 HANDOFF (sitemaps + RSS). The vfs-assets +
+      # rss-feeds GHA caches are the ONLY carriers of output/sitemaps/ + sitemap.xml +
+      # output/rss/ to Final Upload, with NO R2 fallback — the SAME token denial can ship
+      # a stale/empty sitemap (an SEO wipe of the append-only corpus). Establish a DURABLE,
+      # run + attempt scoped, content-verified authority bound to the vfs-pack set-sha
+      # (parent). sitemap class floor >=1 (empty fails); rss floor 0 (the V27.39 empty-feed
+      # generator contract). Order: assemble -> manifest -> data FIRST -> manifest LAST ->
+      # descriptor LAST OF ALL -> read-back verify -> export. Staging goes to R2 + /tmp only.
+      - name: Produce Exact-Producer R2 Handoff (VFS-DERIVED sitemaps/RSS, D-245)
+        id: vfs-derived-handoff
+        if: success()
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          HANDOFF_VFS_PACK_CODE_VERSION: ${{ env.VFS_PACK_CODE_VERSION }}
+          HANDOFF_PARENT_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_set_sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/vfs-derived/${UP}/${RUN}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # Assemble the sitemap/RSS carrier set into one staging tree (never uploaded to
+          # the public CDN prefix). sitemaps/ + sitemap.xml + rss/ mirror the Final Upload
+          # layout; empty rss/ tolerated, empty sitemap fails closed at generate.
+          STAGE_LOCAL=/tmp/vfs-derived-stage
+          rm -rf "$STAGE_LOCAL"; mkdir -p "$STAGE_LOCAL"
+          [ -d output/sitemaps ] && cp -r output/sitemaps "$STAGE_LOCAL/sitemaps" || true
+          [ -f output/sitemap.xml ] && cp output/sitemap.xml "$STAGE_LOCAL/sitemap.xml" || true
+          [ -d output/rss ] && cp -r output/rss "$STAGE_LOCAL/rss" || true
+          # (1) manifest over ALL assembled files (sitemap floor >=1 fails an empty sitemap).
+          node scripts/factory/vfs-derived-handoff-manifest.mjs generate "$STAGE_LOCAL" /tmp/vfs-derived-manifest.json --carrier=vfs-derived-authority
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/vfs-derived-manifest.json').set_sha256)")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/vfs-derived-manifest.json')).digest('hex'))")
+          # (2) data FIRST, then manifest.json LAST.
+          node scripts/factory/r2-workflow-cli.js backup-dir "$STAGE_LOCAL" "${STAGING}"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-derived-manifest.json "${STAGING}manifest.json"
+          # (3) descriptor LAST OF ALL — binds the parent vfs-pack set-sha + head-SHA + version.
+          node -e "const f=require('fs');f.writeFileSync('/tmp/vfs-derived-handoff.json',JSON.stringify({schema_version:1,carrier_type:'vfs-derived-authority',producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),head_sha:String(process.env.HANDOFF_HEAD_SHA),vfs_pack_code_version:String(process.env.HANDOFF_VFS_PACK_CODE_VERSION),parent_set_sha256:(process.env.HANDOFF_PARENT_SET_SHA||null),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-derived-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (4) read-back verify + (5) export the verified identity for Final Upload.
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/vfs-derived-handoff-rb.json --strict
+          OUT=$(HANDOFF_RUN_ATTEMPT="${ATT}" node scripts/factory/vfs-derived-handoff-manifest.mjs verify-descriptor /tmp/vfs-derived-handoff-rb.json --carrier=vfs-derived-authority)
+          V_PREFIX=$(printf '%s' "$OUT" | cut -f1); V_SET=$(printf '%s' "$OUT" | cut -f2)
+          echo "staging_prefix=${V_PREFIX}" >> "$GITHUB_OUTPUT"
+          echo "set_sha=${V_SET}" >> "$GITHUB_OUTPUT"
+          echo "producer_attempt=${ATT}" >> "$GITHUB_OUTPUT"
+          echo "[VFS-DERIVED-HANDOFF] staging=${V_PREFIX} set_sha256=${V_SET} descriptor=${RUN_PREFIX}/handoff.json"
       - name: Save VFS Assets to Cache
         if: success()
         uses: actions/cache/save@v5
@@ -1276,6 +1481,57 @@ jobs:
           key: intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # D-245 SECONDARY CONSUMER: the sitemap/RSS GHA caches above are an OPTIONAL fast
+      # path — the vfs-derived VERIFIED R2 authority is the truth. Verify the restored
+      # output/sitemaps/ + sitemap.xml + output/rss/ set EQUALS vfs-derived's exported
+      # identity; on GHA miss OR mismatch recover the EXACT current-cycle staging +
+      # re-verify (fail-loud), then reassemble into output/ — so Final Upload can NEVER
+      # publish a stale/empty sitemap under a token denial. sitemap floor >=1 (empty
+      # fails); rss floor 0 (V27.39). This runs BEFORE "Upload to R2 via S3 API".
+      - name: Verify or Recover VFS-Derived Sitemaps/RSS from Exact Staging (D-245)
+        env:
+          STAGING_PREFIX: ${{ needs.vfs-derived.outputs.verified_vfs_derived_staging_prefix }}
+          EXPECT_SET_SHA: ${{ needs.vfs-derived.outputs.verified_vfs_derived_set_sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SET_SHA}" ]; then
+            echo "::error::vfs-derived did not export a verified sitemap/RSS identity — cannot publish safely."; exit 1
+          fi
+          assemble() {
+            rm -rf /tmp/vfs-derived-verify; mkdir -p /tmp/vfs-derived-verify
+            [ -d output/sitemaps ] && cp -r output/sitemaps /tmp/vfs-derived-verify/sitemaps || true
+            [ -f output/sitemap.xml ] && cp output/sitemap.xml /tmp/vfs-derived-verify/sitemap.xml || true
+            [ -d output/rss ] && cp -r output/rss /tmp/vfs-derived-verify/rss || true
+          }
+          verify() {
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/vfs-derived-manifest.json --strict >/dev/null 2>&1 || return 1
+            node scripts/factory/vfs-derived-handoff-manifest.mjs verify /tmp/vfs-derived-verify /tmp/vfs-derived-manifest.json --carrier=vfs-derived-authority
+          }
+          NEED_RECOVER=0
+          assemble
+          if OUT=$(verify) && [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[VFS-DERIVED-HANDOFF] GHA fast-path sitemaps/RSS match producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[VFS-DERIVED-HANDOFF] sitemap/RSS miss/mismatch — recover from exact staging"; NEED_RECOVER=1
+          fi
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf /tmp/vfs-derived-recover; mkdir -p /tmp/vfs-derived-recover
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" /tmp/vfs-derived-recover --strict
+            rm -f /tmp/vfs-derived-recover/manifest.json /tmp/vfs-derived-recover/handoff.json /tmp/vfs-derived-recover/_manifest.json 2>/dev/null || true
+            # Reassemble into the output/ layout Final Upload publishes.
+            rm -rf output/sitemaps output/rss output/sitemap.xml
+            [ -d /tmp/vfs-derived-recover/sitemaps ] && cp -r /tmp/vfs-derived-recover/sitemaps output/sitemaps || true
+            [ -f /tmp/vfs-derived-recover/sitemap.xml ] && cp /tmp/vfs-derived-recover/sitemap.xml output/sitemap.xml || true
+            [ -d /tmp/vfs-derived-recover/rss ] && cp -r /tmp/vfs-derived-recover/rss output/rss || true
+            assemble
+            OUT=$(verify) || { echo "::error::VFS-derived exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Recovered sitemap/RSS set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[VFS-DERIVED-HANDOFF] recovered + verified sitemaps/RSS from exact staging"
+          fi
       - name: Consolidate Enrichment Artifacts
         run: |
           # V22.8: RSS feeds restored directly to output/rss/ via cache
@@ -1423,6 +1679,50 @@ jobs:
               done
             done
           ' || echo "⚠️ handoff GC best-effort skip"
+      # D-245 STAGING LIFECYCLE (mirror the S1-BR fused cleanup). Reached ONLY after the
+      # Final Upload above succeeded (same job, success()-gated). Delete THIS run's exact
+      # vfs-pack + vfs-derived staging prefixes; bounded 7-day age-GC over OTHER run
+      # prefixes under state/_handoff/vfs-pack/ + state/_handoff/vfs-derived/ ONLY — never
+      # the current run, never a non-_handoff carrier (delete-prefix is CLI-locked to
+      # state/_handoff/). On a downstream FAILURE this step does not run -> the exact
+      # staging is RETAINED for evidence-based failed-job recovery.
+      - name: Cleanup + GC VFS Handoff Staging (D-245)
+        if: success()
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          RETENTION_DAYS: '7'
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"
+          for CARRIER in vfs-pack vfs-derived; do
+            CUR_RUN_PREFIX="state/_handoff/${CARRIER}/${UP}/${RUN}/"
+            node scripts/factory/r2-workflow-cli.js delete-prefix "${CUR_RUN_PREFIX}" || echo "⚠️ ${CARRIER} current-run staging cleanup partial (will be GC'd later)"
+          done
+          # Bounded age-GC of OLD run prefixes only, under the two handoff roots ONLY.
+          GC_CUR_RUN="${RUN}" GC_RETENTION_DAYS="${RETENTION_DAYS}" bash -c '
+            set -uo pipefail
+            now=$(date -u +%s)
+            keep_after=$(( now - GC_RETENTION_DAYS*86400 ))
+            for root in state/_handoff/vfs-pack/ state/_handoff/vfs-derived/; do
+              for up in $(node scripts/factory/r2-workflow-cli.js list-prefix "$root" --delimiter=/ 2>/dev/null); do
+                for runp in $(node scripts/factory/r2-workflow-cli.js list-prefix "$up" --delimiter=/ 2>/dev/null); do
+                  rid=$(basename "$runp")
+                  [ "$rid" = "$GC_CUR_RUN" ] && continue
+                  node scripts/factory/r2-workflow-cli.js restore-file "${runp}handoff.json" /tmp/gc-vfs-desc.json >/dev/null 2>&1 || continue
+                  created=$(node -e "try{process.stdout.write(String(Math.floor(Date.parse(require(\"/tmp/gc-vfs-desc.json\").created_at)/1000)))}catch{process.stdout.write(\"0\")}")
+                  if [ -n "$created" ] && [ "$created" -gt 0 ] && [ "$created" -lt "$keep_after" ]; then
+                    echo "[GC] deleting aged run prefix $runp (created epoch=$created)"
+                    node scripts/factory/r2-workflow-cli.js delete-prefix "$runp" || true
+                  fi
+                done
+              done
+            done
+          ' || echo "⚠️ VFS handoff GC best-effort skip"
       # V27.3 three-tier verification order:
       #   Upload -> L2 R2 origin probe -> Purge -> Drain -> L3 CDN probe
       # L2 confirms R2-side integrity (orthogonal to CDN), so a later CDN failure
