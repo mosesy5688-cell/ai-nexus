@@ -1307,7 +1307,13 @@ jobs:
 
   upload:
     name: Final Upload to R2
-    needs: [mesh-baking, master-fusion-persist, vfs-derived, check-upstream]
+    # FIX-4 / D-252 §E: vfs-pack-db ADDED so the published meta-NN.db set can be bound
+    # to the CURRENT-CYCLE VFS Pack R2 authority (H17/PR#2265 producer) before Final
+    # Upload — the DB the site describes must be the DB it serves. No DAG cycle:
+    # vfs-pack-db -> vfs-derived -> upload stays acyclic; the added edge only exposes
+    # vfs-pack-db's already-verified outputs (verified_vfs_pack_{staging_prefix,set_sha})
+    # to a downstream sink; no duplicate producer, no 1/4-2/4-3/4 semantics change.
+    needs: [mesh-baking, master-fusion-persist, vfs-derived, vfs-pack-db, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:
@@ -1563,6 +1569,59 @@ jobs:
             OUT=$(verify) || { echo "::error::VFS-derived exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Recovered sitemap/RSS set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
             echo "[VFS-DERIVED-HANDOFF] recovered + verified sitemaps/RSS from exact staging"
+          fi
+      # FIX-4 / D-252 §D/§E (GAP-4 / C11): bind the PUBLISHED meta-NN.db set (the SQLite
+      # backing every entity/search API) to the CURRENT-CYCLE VFS Pack R2 authority
+      # (H17/PR#2265). Until now the DB reached Final Upload via the fixed-prefix
+      # state/vfs-data/ restore (META-count floor ONLY) OR a STAGE-B fresh re-pack — never
+      # set-SHA verified — so a stale/foreign-cycle meta-NN.db could be published while the
+      # sitemap/RSS above ARE identity-verified: an asymmetry where the site describes
+      # entities a stale DB does not serve. Verify the output/data/*.db set EQUALS
+      # vfs-pack-db's exported authority set-SHA (EXACT set + per-file sha via the H17
+      # verifier of record, --ext=.db); on GHA/fixed-prefix miss OR mismatch wipe
+      # output/data/ + recover from the EXACT vfs-pack producer staging + re-verify
+      # (fail-loud). Runs BEFORE the dedup restore (so output/data/ carries the same
+      # meta+rankings .db shape as the producer manifest — dedup .db land later) and BEFORE
+      # "Upload to R2 via S3 API", so meta-NN.db + sitemap/RSS publish under the SAME
+      # current-cycle identity and CANNOT diverge. The V23.1 SQL Health Check below stays a
+      # QUALITY canary (structural verify-db), NOT the identity authority. LOW-Class-A: the
+      # success path adds 0 R2 PUT (a small manifest GET only); recovery GETs the EXISTING
+      # vfs-pack staging ONLY on miss/mismatch; NO delete, NO new authority backup, NO LIST.
+      - name: Verify or Recover Published meta-NN.db from VFS Pack Authority (FIX-4 / D-252)
+        env:
+          STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
+          EXPECT_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_set_sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SET_SHA}" ]; then
+            echo "::error::vfs-pack-db did not export a verified vfs-pack identity — cannot publish meta-NN.db safely. Fail-closed."; exit 1
+          fi
+          # Fetch the producer manifest from R2 (small) + EXACT-set verify the to-be-published
+          # output/data/*.db against it (the H17 verifier of record).
+          verify() {
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/vfs-pack-publish-manifest.json --strict >/dev/null 2>&1 || return 1
+            node scripts/factory/vfs-derived-handoff-manifest.mjs verify output/data/ /tmp/vfs-pack-publish-manifest.json --carrier=vfs-pack-authority --ext=.db
+          }
+          NEED_RECOVER=0
+          if OUT=$(verify) && [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[FIX-4] Publish meta-NN.db set matches vfs-pack authority set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[FIX-4] meta-NN.db miss/mismatch vs vfs-pack authority — recover from exact staging"; NEED_RECOVER=1
+          fi
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/data/; mkdir -p output/data/
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/data/ --strict
+            # Defensive: never let a handoff sidecar OR a staged rss-input leak into the
+            # public data/ tree the uploader publishes (verify ignores non-.db anyway).
+            rm -f output/data/manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true
+            rm -rf output/data/rss-inputs 2>/dev/null || true
+            OUT=$(verify) || { echo "::error::FIX-4 exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Recovered meta set hash != vfs-pack authority $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[FIX-4] recovered + verified meta-NN.db from exact vfs-pack staging"
           fi
       - name: Consolidate Enrichment Artifacts
         run: |
