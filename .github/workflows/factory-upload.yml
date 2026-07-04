@@ -724,6 +724,9 @@ jobs:
       verified_vfs_pack_staging_prefix: ${{ steps.vfs-pack-handoff.outputs.staging_prefix }}
       verified_vfs_pack_set_sha: ${{ steps.vfs-pack-handoff.outputs.set_sha }}
       verified_vfs_pack_producer_attempt: ${{ steps.vfs-pack-handoff.outputs.producer_attempt }}
+      # AUTHORITY-W (4/4): the VERIFIED warm-read (bins + term_index) sibling set-sha so
+      # vfs-derived + upload verify the served warm-tier artifacts are THIS exact cycle's.
+      verified_vfs_pack_warm_read_set_sha: ${{ steps.vfs-pack-handoff.outputs.warm_read_set_sha }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
@@ -1167,22 +1170,47 @@ jobs:
             [ -z "$RSS_STAGED" ] && continue
             node scripts/factory/r2-workflow-cli.js upload-file "$RSS_LOCAL" "${STAGING}${RSS_STAGED}"
           done < /tmp/vfs-pack-rss-plan.tsv
+          # (2w) AUTHORITY-W: SIBLING warm-read authority. The meta_db manifest.json + its
+          # set_sha256 (2c below) stay BYTE-IDENTICAL — warm_read is a SEPARATE manifest over
+          # the shared warm-tier producer artifacts (vector-core.bin/hot-shard.bin/id-index.bin
+          # + term_index/**), staged into the SAME attempt prefix. Order: generate warm sibling
+          # manifest -> stage the warm data (bins + term_index) into STAGING -> upload the
+          # warm-read-manifest.json (manifest-last for warm too) BEFORE the meta manifest/desc.
+          # This makes wiping+restoring STAGING recover the FULL output/data/ (meta .db + warm),
+          # killing the self-strip. NEVER writes the warm manifest into the public output/data/.
+          node scripts/factory/vfs-derived-handoff-manifest.mjs generate-warm-read output/data/ /tmp/vfs-warm-read-manifest.json --carrier=vfs-pack-authority
+          export WARM_SET_SHA=$(node -e "process.stdout.write(require('/tmp/vfs-warm-read-manifest.json').set_sha256)")
+          export WARM_MEMBER_COUNT=$(node -e "process.stdout.write(String(require('/tmp/vfs-warm-read-manifest.json').member_count))")
+          # bins (the 3 named + any stray .bin, harmless — the warm INCLUDE verify ignores non-members)
+          node scripts/factory/r2-workflow-cli.js backup-dir output/data/ "${STAGING}" --extensions=.bin
+          # term_index/** subtree (the _manifest.json.zst + per-prefix buckets + high-freq chunks)
+          [ -d output/data/term_index ] && node scripts/factory/r2-workflow-cli.js backup-dir output/data/term_index/ "${STAGING}term_index/"
+          # warm-read-manifest.json (SIBLING of manifest.json) — after all warm data is durable.
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-warm-read-manifest.json "${STAGING}warm-read-manifest.json"
           # (2c) manifest.json LAST (after every data object incl. present RSS inputs is durable).
           node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-pack-manifest.json "${STAGING}manifest.json"
           # (3) run-scoped descriptor handoff.json LAST OF ALL. Binds ONLY current upstream
           # + current factory run + this producer attempt + head-SHA + VFS_PACK_CODE_VERSION,
           # and RECORDS per-RSS-input presence (D-246 §2) so paused/absent is distinguishable.
-          node -e "const f=require('fs');const m=require('/tmp/vfs-pack-manifest.json');f.writeFileSync('/tmp/vfs-pack-handoff.json',JSON.stringify({schema_version:1,carrier_type:'vfs-pack-authority',producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),head_sha:String(process.env.HANDOFF_HEAD_SHA),vfs_pack_code_version:String(process.env.HANDOFF_VFS_PACK_CODE_VERSION),parent_set_sha256:null,rss_inputs:(m.rss_inputs||[]).map(e=>({name:e.name,present:e.present})),created_at:new Date().toISOString()}))"
+          # AUTHORITY-W: the descriptor gains ONLY additive warm_read_set_sha256 +
+          # warm_read_member_count — the meta set_sha256/manifest_sha256 are UNCHANGED.
+          node -e "const f=require('fs');const m=require('/tmp/vfs-pack-manifest.json');f.writeFileSync('/tmp/vfs-pack-handoff.json',JSON.stringify({schema_version:1,carrier_type:'vfs-pack-authority',producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,warm_read_set_sha256:String(process.env.WARM_SET_SHA),warm_read_member_count:Number(process.env.WARM_MEMBER_COUNT),upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),head_sha:String(process.env.HANDOFF_HEAD_SHA),vfs_pack_code_version:String(process.env.HANDOFF_VFS_PACK_CODE_VERSION),parent_set_sha256:null,rss_inputs:(m.rss_inputs||[]).map(e=>({name:e.name,present:e.present})),created_at:new Date().toISOString()}))"
           node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-pack-handoff.json "${RUN_PREFIX}/handoff.json"
           # (4) read-back verify the descriptor provenance (missing/malformed => fail-loud).
           node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/vfs-pack-handoff-rb.json --strict
           OUT=$(HANDOFF_RUN_ATTEMPT="${ATT}" node scripts/factory/vfs-derived-handoff-manifest.mjs verify-descriptor /tmp/vfs-pack-handoff-rb.json --carrier=vfs-pack-authority)
           V_PREFIX=$(printf '%s' "$OUT" | cut -f1); V_SET=$(printf '%s' "$OUT" | cut -f2)
-          # (5) export the verified identity for the VFS Derived consumer.
+          # (4w) AUTHORITY-W read-back: restore the durable warm-read-manifest.json + assert its
+          # set_sha equals the locally-generated warm authority (a partial/corrupt warm upload reds).
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING}warm-read-manifest.json" /tmp/vfs-warm-read-manifest-rb.json --strict
+          RB_WARM_SET=$(node -e "process.stdout.write(require('/tmp/vfs-warm-read-manifest-rb.json').set_sha256)")
+          [ "$RB_WARM_SET" = "$WARM_SET_SHA" ] || { echo "::error::AUTH-W: warm-read-manifest read-back set_sha mismatch. Fail-closed."; exit 1; }
+          # (5) export the verified identity for the VFS Derived + Upload consumers.
           echo "staging_prefix=${V_PREFIX}" >> "$GITHUB_OUTPUT"
           echo "set_sha=${V_SET}" >> "$GITHUB_OUTPUT"
           echo "producer_attempt=${ATT}" >> "$GITHUB_OUTPUT"
-          echo "[VFS-PACK-HANDOFF] staging=${V_PREFIX} set_sha256=${V_SET} descriptor=${RUN_PREFIX}/handoff.json"
+          echo "warm_read_set_sha=${WARM_SET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "[VFS-PACK-HANDOFF] staging=${V_PREFIX} set_sha256=${V_SET} warm_read_set_sha256=${WARM_SET_SHA} descriptor=${RUN_PREFIX}/handoff.json"
       # V27.40: end of vfs-pack-db. Save VFS pack output (data/meta/reports/knowledge/mesh)
       # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
       # P3-EVIDENCE-1 STAGE-B: the save key carries VFS_PACK_CODE_VERSION so a fresh
@@ -1252,10 +1280,16 @@ jobs:
       # mismatch wipe output/data/ + recover from the EXACT producer staging prefix +
       # re-verify (fail-loud). ONLY THEN the META>=1 guard runs — now backstopped by
       # durable R2, so it means "genuine content void", not "cache unretrievable".
+      # AUTHORITY-W (4/4): verify-or-recover BOTH the meta-NN.db set AND the warm-read
+      # sibling (bins + term_index) against the vfs-pack authority. SELF-STRIP KILL: the
+      # recover restore-dir brings back the FULL output/data/ (meta .db + warm) from the
+      # SAME attempt prefix, and warm is then VERIFIED (not ignored via --ext=.db) so a
+      # missing/stale warm-tier artifact fails BEFORE the SQL health check + sitemap gen.
       - name: Verify or Recover VFS Pack from Exact Staging (D-245)
         env:
           STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
           EXPECT_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_set_sha }}
+          EXPECT_WARM_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_warm_read_set_sha }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -1265,10 +1299,17 @@ jobs:
           if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SET_SHA}" ]; then
             echo "::error::vfs-pack-db did not export a verified vfs-pack identity — cannot consume meta-NN.db safely."; exit 1
           fi
+          if [ -z "${EXPECT_WARM_SET_SHA}" ]; then
+            echo "::error::AUTH-W: vfs-pack-db did not export a verified warm_read set-sha — cannot consume warm-tier safely. Fail-closed."; exit 1
+          fi
           # Fetch the producer manifest from R2 (small) to verify the GHA-restored set.
           verify() {
             node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/vfs-pack-manifest.json --strict >/dev/null 2>&1 || return 1
             node scripts/factory/vfs-derived-handoff-manifest.mjs verify output/data/ /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority --ext=.db
+          }
+          verify_warm() {
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}warm-read-manifest.json" /tmp/vfs-warm-read-manifest.json --strict >/dev/null 2>&1 || return 1
+            node scripts/factory/vfs-derived-handoff-manifest.mjs verify-warm-read output/data/ /tmp/vfs-warm-read-manifest.json --carrier=vfs-pack-authority
           }
           NEED_RECOVER=0
           if OUT=$(verify) && [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
@@ -1276,14 +1317,21 @@ jobs:
           else
             echo "[VFS-PACK-HANDOFF] GHA meta miss/mismatch — recover from exact staging"; NEED_RECOVER=1
           fi
+          if OUTW=$(verify_warm) && [ "$(printf '%s' "$OUTW" | tail -n1)" = "$EXPECT_WARM_SET_SHA" ]; then
+            echo "[VFS-PACK-HANDOFF] GHA fast-path warm_read matches producer set_sha=$EXPECT_WARM_SET_SHA"
+          else
+            echo "[VFS-PACK-HANDOFF] GHA warm_read miss/mismatch — recover from exact staging"; NEED_RECOVER=1
+          fi
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/data/; mkdir -p output/data/
             node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/data/ --strict
             # Defensive: never let a handoff sidecar leak into the public data/ tree.
-            rm -f output/data/manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true
+            rm -f output/data/manifest.json output/data/warm-read-manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true
             OUT=$(verify) || { echo "::error::VFS-pack exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Recovered meta set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
-            echo "[VFS-PACK-HANDOFF] recovered + verified meta-NN.db from exact staging"
+            OUTW=$(verify_warm) || { echo "::error::AUTH-W: warm_read exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUTW" | tail -n1)" = "$EXPECT_WARM_SET_SHA" ] || { echo "::error::AUTH-W: recovered warm_read set hash != producer $EXPECT_WARM_SET_SHA. Fail-closed."; exit 1; }
+            echo "[VFS-PACK-HANDOFF] recovered + verified meta-NN.db + warm_read from exact staging"
           fi
       # V27.40.1 + V27.52: fail-fast on missing meta-NN.db. File-existence detection
       # (cache-hit output false-fires on restore-keys partial match).
@@ -1735,10 +1783,16 @@ jobs:
       # QUALITY canary (structural verify-db), NOT the identity authority. LOW-Class-A: the
       # success path adds 0 R2 PUT (a small manifest GET only); recovery GETs the EXISTING
       # vfs-pack staging ONLY on miss/mismatch; NO delete, NO new authority backup, NO LIST.
+      # AUTHORITY-W (4/4) rides FIX-4: also bind the PUBLISHED warm-tier artifacts (bins +
+      # term_index, served under data/) to the vfs-pack warm_read authority. SELF-STRIP KILL:
+      # the recover restore-dir brings back the FULL output/data/ (meta .db + warm) from the
+      # SAME attempt prefix and warm is VERIFIED before publish — a stale/missing served
+      # vector-core / hot-shard / id-index / term_index can never ship. Runs BEFORE Upload to R2.
       - name: Verify or Recover Published meta-NN.db from VFS Pack Authority (FIX-4 / D-252)
         env:
           STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
           EXPECT_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_set_sha }}
+          EXPECT_WARM_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_warm_read_set_sha }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -1748,11 +1802,18 @@ jobs:
           if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SET_SHA}" ]; then
             echo "::error::vfs-pack-db did not export a verified vfs-pack identity — cannot publish meta-NN.db safely. Fail-closed."; exit 1
           fi
+          if [ -z "${EXPECT_WARM_SET_SHA}" ]; then
+            echo "::error::AUTH-W: vfs-pack-db did not export a verified warm_read set-sha — cannot publish warm-tier safely. Fail-closed."; exit 1
+          fi
           # Fetch the producer manifest from R2 (small) + EXACT-set verify the to-be-published
           # output/data/*.db against it (the H17 verifier of record).
           verify() {
             node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/vfs-pack-publish-manifest.json --strict >/dev/null 2>&1 || return 1
             node scripts/factory/vfs-derived-handoff-manifest.mjs verify output/data/ /tmp/vfs-pack-publish-manifest.json --carrier=vfs-pack-authority --ext=.db
+          }
+          verify_warm() {
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}warm-read-manifest.json" /tmp/vfs-warm-read-publish-manifest.json --strict >/dev/null 2>&1 || return 1
+            node scripts/factory/vfs-derived-handoff-manifest.mjs verify-warm-read output/data/ /tmp/vfs-warm-read-publish-manifest.json --carrier=vfs-pack-authority
           }
           NEED_RECOVER=0
           if OUT=$(verify) && [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
@@ -1760,16 +1821,23 @@ jobs:
           else
             echo "[FIX-4] meta-NN.db miss/mismatch vs vfs-pack authority — recover from exact staging"; NEED_RECOVER=1
           fi
+          if OUTW=$(verify_warm) && [ "$(printf '%s' "$OUTW" | tail -n1)" = "$EXPECT_WARM_SET_SHA" ]; then
+            echo "[FIX-4/AUTH-W] Publish warm_read set matches vfs-pack authority set_sha=$EXPECT_WARM_SET_SHA"
+          else
+            echo "[FIX-4/AUTH-W] warm_read miss/mismatch vs vfs-pack authority — recover from exact staging"; NEED_RECOVER=1
+          fi
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/data/; mkdir -p output/data/
             node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/data/ --strict
             # Defensive: never let a handoff sidecar OR a staged rss-input leak into the
             # public data/ tree the uploader publishes (verify ignores non-.db anyway).
-            rm -f output/data/manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true
+            rm -f output/data/manifest.json output/data/warm-read-manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true
             rm -rf output/data/rss-inputs 2>/dev/null || true
             OUT=$(verify) || { echo "::error::FIX-4 exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::Recovered meta set hash != vfs-pack authority $EXPECT_SET_SHA. Fail-closed."; exit 1; }
-            echo "[FIX-4] recovered + verified meta-NN.db from exact vfs-pack staging"
+            OUTW=$(verify_warm) || { echo "::error::AUTH-W: warm_read publish recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUTW" | tail -n1)" = "$EXPECT_WARM_SET_SHA" ] || { echo "::error::AUTH-W: recovered warm_read set hash != vfs-pack authority $EXPECT_WARM_SET_SHA. Fail-closed."; exit 1; }
+            echo "[FIX-4/AUTH-W] recovered + verified meta-NN.db + warm_read from exact vfs-pack staging"
           fi
       - name: Consolidate Enrichment Artifacts
         run: |
