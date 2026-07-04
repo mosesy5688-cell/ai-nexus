@@ -433,6 +433,48 @@ proof in the PR body).
 | VFS-PACK-DAG | Workflow DAG: vfs-pack-db produces attempt-scoped staging (meta data FIRST -> present RSS inputs -> manifest LAST -> descriptor LAST-of-all, set -e) + read-back verify + exports verified_vfs_pack_{staging_prefix,set_sha,producer_attempt}; VFS Derived consumes ONLY that identity, GHA exact-key fast path (restore-keys prefix authority REMOVED), verify-or-recover from EXACT staging BEFORE the PRESERVED META>=1 fail-closed guard, never a fixed state/vfs-data/ recovery input; D-246 recovers every declared-present RSS input from the EXACT staging + fail-closed verify BEFORE rss-generator (declared-absent skipped); manifest/descriptor NEVER written into the public output/data/ tree; SCOPE: pack-db.js / sitemap-gen / rss-generator, workflow permissions (single top-level actions:write), timeouts UNCHANGED | `tests/unit/vfs-pack-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
 | VFS-PACK-SECONDARY | Secondary sitemap/RSS seam: VFS Derived establishes a run+attempt-scoped `state/_handoff/vfs-derived/` authority (manifest LAST, descriptor LAST-of-all) bound to the vfs-pack parent set-sha (empty sitemap fails closed; empty rss tolerated per V27.39) + exports verified_vfs_derived_*; Final Upload verifies the restored sitemaps/RSS EQUAL that current-cycle identity + recovers the EXACT staging on miss/mismatch BEFORE `r2-upload-s3.js`; success-only cleanup deletes BOTH current-run staging prefixes + bounded 7-day GC refuses the current run / walks ONLY the two handoff roots; delete-prefix CLI-locked to state/_handoff/ | `tests/unit/vfs-pack-handoff-workflow.test.ts` + `scripts/factory/vfs-derived-handoff-manifest.test.mjs` | CONFIG + SOURCE + EXEC | **NEW** |
 
+## Registry — SHARDS-R2-AUTHORITY (D-2026-0704-262, FIX-3 / C10 + GAP-5)
+
+> Deterministic, hermetic invariants for the Factory 2/4 -> 3/4 SHARDS handoff
+> authority repair + the intra-2/4 prepared-entity-data predecessor (Founder
+> D-2026-0704-262). **Invariant:** Factory 3/4 Aggregate may consume the shard set
+> only after the EXACT-20 shard identity of the CURRENT cycle has been verified
+> against the attempt-scoped R2 authority established by Factory 2/4 save-shards-cache;
+> a stale / foreign / prefix / branch-alias / mutable-latest / predecessor-cycle /
+> count-only state may NOT suppress it, and a missing current-cycle authority or a
+> residual mismatch fails CLOSED (no aggregate). ROOT CAUSE: the 2/4->3/4 shards
+> handoff authority was a fixed-prefix per-file R2 copy (`state/shards/shard-<N>`) +
+> a prefix GHA restore-key (`cycle-<process-id>-`) + count/magic-only guards, so a
+> stale/foreign/predecessor-cycle set could be consumed unverified. FIX-3 (mirrors the
+> D-245 vfs-derived pattern): save-shards-cache establishes a DURABLE, process-run +
+> PRODUCER-attempt scoped, content-verified authority
+> (`state/_handoff/shards/<process-run>/attempt-<n>/` + a run-scoped `handoff.json`
+> descriptor written LAST) with a set_sha256 over the EXACT 20 shards (shard-0..19);
+> merge-core-compute resolves ONLY that authority via the process-id descriptor, uses
+> the GHA cache as an OPTIONAL exact-key fast path (restore-keys prefix authority
+> REMOVED) verified against the manifest, recovers the 20 shards from the EXACT staging
+> on miss/mismatch, and fails CLOSED (exit 1) on a missing authority / residual mismatch
+> / non-20 set. The fixed prefix `state/shards/` is DEMOTED to a non-authoritative compat
+> transport. GAP-5 applies the SAME shape to the intra-2/4 prepared-entity-data set
+> (`state/_handoff/prepared-entity-data/<process-run>/attempt-<n>/`, multi-root data/+cache/,
+> EXACT-set + data_manifest>=1 + merged_shard>=1 floors; the fixed prefix
+> `state/prepared-entity-data/` DEMOTED to compat). Cross-workflow note: the shards seam
+> spans two DIFFERENT workflow runs, so the single both-side-derivable cycle key is the
+> Process (2/4) run id (github.run_id producer / process-id consumer); the harvest upstream
+> id is recorded as provenance but NEVER in the path (it is not reliably shared across the
+> two runs). GHA demoted to verified acceleration; R2 is the correctness authority. TWO
+> tiers: (1) the STATIC workflow-invariant lock reads factory-process.yml (producer) +
+> factory-aggregate.yml (consumer) as TEXT; (2) the hermetic `node --test` contract suite
+> `scripts/factory/shards-handoff-manifest.test.mjs` runs in the SAME required `unit-test`
+> job via the C2-LOCK `node --test` list. R2 I/O reuses the GENERIC r2-workflow-cli ops
+> (no new subcommand).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| SHARDS-MANIFEST | Manifest schema + verify (pure module, no R2): two carrier types (shards-authority / prepared-entity-data-authority) with DISTINCT prefix roots + no manifest self-hash; per-file {relative_path,size_bytes,sha256}; set_sha256 over STABLE-SORTED (path,sha256) tuples; EXACT set equality (missing/extra => fail) + per-file size+sha256; shards = EXACT-20 member identity (shard-0..19; a 19-set is below-floor + a 21-set is MEMBER_SET_NOT_EXACT, NEVER a >=20 floor) + member_count agreement; prepared-entity-data = multi-root data/(.json,.json.zst)+cache/(unfiltered) EXACT-set + data_manifest>=1 + merged_shard>=1 floors; NEVER count-only; symlink/traversal members REJECTED; the r2-handoff internal `_manifest.json` sidecar is excluded at any depth while a real `data/manifest.json` member is preserved | `scripts/factory/shards-handoff-manifest.test.mjs` | EXEC | **NEW** |
+| SHARDS-DESCRIPTOR | Run-scoped descriptor provenance: current Process (2/4) run id; producer_attempt a positive int (same-run bound `<=` current run_attempt ONLY when the consumer supplies its own attempt -- prepared-entity-data / rerun-failed-jobs; OMITTED for the cross-workflow shards seam); head_sha a well-formed 40-hex git sha (equality enforced only when the consumer supplies an expected value); exact_staging_prefix == derived process-run+attempt path (no list-latest / prefix-guess / fixed `state/shards/` / mutable-latest / two-level / foreign cycle); missing field / carrier mismatch / bad set-or-manifest sha => fail-loud | `scripts/factory/shards-handoff-manifest.test.mjs` | EXEC | **NEW** |
+| SHARDS-DAG | Workflow DAG: save-shards-cache produces attempt-scoped staging (20 shards FIRST -> manifest LAST -> descriptor LAST-of-all, set -e) + read-back verify; merge-core-compute consumes ONLY the process-id descriptor authority, GHA exact-key fast path (restore-keys prefix authority REMOVED) verified against the manifest, verify-or-recover the EXACT 20-shard set from the EXACT staging, never a fixed `state/shards/` recovery input, EXACTLY-20 final gate, fail-closed (exit 1) on missing authority / recovery-verify failure / residual mismatch (no warning-only mismatch path); the matrix stream to `state/shards/` is DEMOTED to a compat transport; GAP-5 prepare-data establishes + matrix-shards verify-or-recovers the prepared-entity-data authority symmetrically (fixed `state/prepared-entity-data/` DEMOTED to compat); SCOPE: split-registry / shard-processor / aggregator invoked-never-re-pathed, process-id resolution + finalize cycle-output NOT referenced, R2 via GENERIC r2-workflow-cli ops (no new subcommand), top-level `actions:write` + `contents:read` permissions UNCHANGED | `tests/unit/shards-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
+
 ## Registry — META-DB-PUBLISH-BINDING (D-2026-0704-252, FIX-4 / GAP-4 / C11)
 
 > Deterministic, hermetic STATIC workflow-invariant lock for the Factory 4/4 Final
