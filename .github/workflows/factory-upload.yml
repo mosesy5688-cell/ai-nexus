@@ -60,6 +60,10 @@ env:
   # entities + warm embedding caches are intentionally NOT busted (their keys are
   # untouched), so only the packed rows rebuild while fusion/embeddings stay warm.
   VFS_PACK_CODE_VERSION: 'citation-authority-v2'
+  # AUTHORITY-M: mesh-profile-CODE version token. BUMP whenever the mesh-profile bake
+  # logic (mesh-profile-baker.js) changes so the AUTH-M descriptor cross-SHA gate rejects
+  # a foreign-code cycle's dict/profile-shards. Scope is the AUTH-M provenance bind ONLY.
+  MESH_PROFILE_CODE_VERSION: 'mesh-profile-v1'
 
 jobs:
   check-upstream:
@@ -209,7 +213,56 @@ jobs:
           node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profile-shards/ state/mesh-profile-shards/
           # PR-D0b: back up the baked evidence-dict sidecar alongside the shards so the
           # R2-fallback restore (canary jobs) recovers it when the GHA cache misses.
+          # NOTE (AUTHORITY-M): these fixed prefixes state/mesh-profile-{shards,dict}/ are now
+          # COMPAT/DIAGNOSTIC ONLY — the attempt-scoped AUTH-M authority below is the truth.
           node scripts/factory/r2-workflow-cli.js backup-file output/cache/mesh/profile-evidence-dict.json.zst state/mesh-profile-dict/profile-evidence-dict.json.zst
+      # AUTHORITY-M PRODUCER — establish a DURABLE, run + PRODUCER-attempt scoped, content-
+      # verified mesh-profile authority so vfs-pack-db / vfs-derived / upload never depend on
+      # the LRU-evicted / write-denied GHA cache OR the MUTABLE fixed-prefix R2 copies for the
+      # dict + profile-shards. Runs whenever dict + profile-shards exist (success(), incl. the
+      # cache-hit skip path) so the current cycle ALWAYS has an AUTH-M descriptor. Order:
+      # (1) manifest over output/cache/mesh dict+shards (INCLUDE-filtered) -> (2) data (shards
+      # dir + dict) to the attempt prefix -> (3) manifest.json LAST -> (4) handoff.json LAST OF
+      # ALL -> (5) read-back verify. Staging goes to R2 + /tmp only.
+      - name: Produce Exact-Producer R2 Handoff (MESH-PROFILE, AUTH-M)
+        id: mesh-profile-handoff
+        if: success()
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          HANDOFF_MESH_CODE_VERSION: ${{ env.MESH_PROFILE_CODE_VERSION }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/mesh-profile/${UP}/${RUN}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (1) manifest over output/cache/mesh (INCLUDE picks ONLY dict + profile-shards;
+          # graph.json/stats.json siblings ignored). Freezes expected_shard_count + dict_sha256.
+          node scripts/factory/mesh-profile-handoff-manifest.mjs generate output/cache/mesh /tmp/mesh-profile-manifest.json --carrier=mesh-profile-authority
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/mesh-profile-manifest.json').set_sha256)")
+          export DICT_SHA=$(node -e "process.stdout.write(require('/tmp/mesh-profile-manifest.json').dict_sha256)")
+          export SHARD_COUNT=$(node -e "process.stdout.write(String(require('/tmp/mesh-profile-manifest.json').expected_shard_count))")
+          export MEMBER_COUNT=$(node -e "process.stdout.write(String(require('/tmp/mesh-profile-manifest.json').member_count))")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/mesh-profile-manifest.json')).digest('hex'))")
+          # (2) data FIRST: profile-shards subtree + the evidence dict.
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/mesh/profile-shards/ "${STAGING}profile-shards/"
+          node scripts/factory/r2-workflow-cli.js upload-file output/cache/mesh/profile-evidence-dict.json.zst "${STAGING}profile-evidence-dict.json.zst"
+          # (3) manifest.json LAST.
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/mesh-profile-manifest.json "${STAGING}manifest.json"
+          # (4) descriptor LAST OF ALL — binds upstream + 4/4 run + attempt + head-SHA + code
+          # version + dict_sha256 + expected_shard_count.
+          node -e "const f=require('fs');f.writeFileSync('/tmp/mesh-profile-handoff.json',JSON.stringify({schema_version:1,carrier_type:'mesh-profile-authority',exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,dict_sha256:process.env.DICT_SHA,expected_shard_count:Number(process.env.SHARD_COUNT),member_count:Number(process.env.MEMBER_COUNT),upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),head_sha:String(process.env.HANDOFF_HEAD_SHA),code_version:String(process.env.HANDOFF_MESH_CODE_VERSION),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/mesh-profile-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (5) read-back verify the descriptor provenance (missing/malformed => fail-loud).
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/mesh-profile-handoff-rb.json --strict
+          OUT=$(HANDOFF_RUN_ATTEMPT="${ATT}" node scripts/factory/mesh-profile-handoff-manifest.mjs verify-descriptor /tmp/mesh-profile-handoff-rb.json --carrier=mesh-profile-authority)
+          echo "[MESH-PROFILE-HANDOFF] staging=${STAGING} set_sha256=${SET_SHA} shards=${SHARD_COUNT} descriptor=${RUN_PREFIX}/handoff.json"
 
   # V27.40: master-fusion was a 1h20m monolithic job — split into compute + persist.
   # R2 backup failure no longer redoes 1h20m fusion.
@@ -908,31 +961,48 @@ jobs:
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      - name: R2 Fallback for Profile Shards (V27.67)
+      # AUTHORITY-M CONSUMER (V27.67 REPLACED): verify-or-recover the dict + profile-shards
+      # against the current-cycle attempt-scoped mesh-profile authority established by
+      # mesh-baking. The GHA cache (restored above) is USED only if output/cache/mesh's
+      # dict+shards EXACTLY match the producer manifest (EXACT-set + per-file sha + set_sha ==
+      # descriptor set_sha + expected_shard_count + dict_sha256); on miss/mismatch recover from
+      # the EXACT staging + re-verify. A missing/invalid descriptor / residual mismatch FAILS
+      # CLOSED (pack-db mesh-attach would silent-skip -> empty ui_related_mesh). The fixed
+      # prefixes state/mesh-profile-{shards,dict}/ are NO LONGER a recovery input (compat only).
+      - name: Verify or Recover Mesh Profiles from Exact Staging (AUTH-M)
         env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_RUN_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          HANDOFF_MESH_CODE_VERSION: ${{ env.MESH_PROFILE_CODE_VERSION }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          if find output/cache/mesh/profile-shards -type f 2>/dev/null | head -1 | grep -q .; then
-            COUNT=$(find output/cache/mesh/profile-shards -type f | wc -l)
-            echo "✅ Profile shards present from cache: ${COUNT} files"
+          set -uo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"
+          if [ -z "$UP" ] || [ -z "$RUN" ]; then echo "::error::AUTH-M: missing run identity — cannot consume mesh-profiles safely."; exit 1; fi
+          DESC="state/_handoff/mesh-profile/${UP}/${RUN}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/mesh-profile-handoff-rb.json --strict || { echo "::error::AUTH-M: no current-cycle mesh-profile authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/mesh-profile-handoff-manifest.mjs verify-descriptor /tmp/mesh-profile-handoff-rb.json --carrier=mesh-profile-authority) || { echo "::error::AUTH-M: descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/mesh-profile-manifest.json --strict || { echo "::error::AUTH-M: manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_mesh() { node scripts/factory/mesh-profile-handoff-manifest.mjs verify output/cache/mesh /tmp/mesh-profile-manifest.json --carrier=mesh-profile-authority; }
+          NEED_RECOVER=0
+          if OUT2=$(verify_mesh) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[MESH-PROFILE-HANDOFF] fast-path mesh-profile matches producer set_sha=$EXPECT_SET_SHA"
           else
-            echo "⚠️ Profile shards missing from cache — falling back to R2"
-            mkdir -p output/cache/mesh/profile-shards
-            node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
-            COUNT=$(find output/cache/mesh/profile-shards -type f 2>/dev/null | wc -l)
-            echo "[V27.67] R2 restore: ${COUNT} profile shards"
-            if [ "${COUNT}" -eq 0 ]; then
-              echo "::error::Profile shards still missing after R2 fallback — pack-db mesh-attach will silent-skip and ui_related_mesh will be empty. Aborting to avoid releasing degraded data."
-              exit 1
-            fi
+            echo "[MESH-PROFILE-HANDOFF] miss/mismatch — recover from exact staging"; NEED_RECOVER=1
           fi
-          # PR-D0b: ensure the evidence-dict sidecar is present (cache miss or R2-only path)
-          # so the canary's loadBakedDict resolves ui_related_mesh refs (incl. reverse edges).
-          if [ ! -f output/cache/mesh/profile-evidence-dict.json.zst ]; then
-            node scripts/factory/r2-workflow-cli.js restore-file state/mesh-profile-dict/profile-evidence-dict.json.zst output/cache/mesh/profile-evidence-dict.json.zst || echo "⚠️ evidence-dict sidecar not on R2 (canary falls back to graph dict)"
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache/mesh/profile-shards output/cache/mesh/profile-evidence-dict.json.zst; mkdir -p output/cache/mesh
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/mesh/ --strict
+            rm -f output/cache/mesh/manifest.json output/cache/mesh/handoff.json output/cache/mesh/_manifest.json 2>/dev/null || true
+            OUT2=$(verify_mesh) || { echo "::error::AUTH-M: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::AUTH-M: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[MESH-PROFILE-HANDOFF] recovered + verified mesh-profile from exact staging"
           fi
       - name: Migrate Legacy Embedding Cache (one-time)
         env:
@@ -1381,6 +1451,47 @@ jobs:
       # V27.39: soft-warn when both feeds empty (V27.36 paused daily reports + knowledge-ai).
       - name: Generate RSS feeds
         run: node scripts/factory/lib/rss-generator.js ./output
+      # AUTHORITY-M CONSUMER (vfs-derived; the missing output/cache/mesh recovery seam):
+      # verify-or-recover the dict + profile-shards against the current-cycle mesh-profile
+      # authority BEFORE the V23.1 SQL Health Check, whose verify-db canary (loadBakedDict)
+      # resolves ui_related_mesh refs from the dict. Without this, a GHA-cache miss left the
+      # dict/shards unrecovered and the canary under-reported coverage. Fail-closed on a
+      # missing descriptor / residual mismatch.
+      - name: Verify or Recover Mesh Profiles from Exact Staging (AUTH-M)
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_RUN_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          HANDOFF_MESH_CODE_VERSION: ${{ env.MESH_PROFILE_CODE_VERSION }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"
+          if [ -z "$UP" ] || [ -z "$RUN" ]; then echo "::error::AUTH-M: missing run identity — cannot consume mesh-profiles safely."; exit 1; fi
+          DESC="state/_handoff/mesh-profile/${UP}/${RUN}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/mesh-profile-handoff-rb.json --strict || { echo "::error::AUTH-M: no current-cycle mesh-profile authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/mesh-profile-handoff-manifest.mjs verify-descriptor /tmp/mesh-profile-handoff-rb.json --carrier=mesh-profile-authority) || { echo "::error::AUTH-M: descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/mesh-profile-manifest.json --strict || { echo "::error::AUTH-M: manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_mesh() { node scripts/factory/mesh-profile-handoff-manifest.mjs verify output/cache/mesh /tmp/mesh-profile-manifest.json --carrier=mesh-profile-authority; }
+          NEED_RECOVER=0
+          if OUT2=$(verify_mesh) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[MESH-PROFILE-HANDOFF] fast-path mesh-profile matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[MESH-PROFILE-HANDOFF] miss/mismatch — recover from exact staging"; NEED_RECOVER=1
+          fi
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache/mesh/profile-shards output/cache/mesh/profile-evidence-dict.json.zst; mkdir -p output/cache/mesh
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/mesh/ --strict
+            rm -f output/cache/mesh/manifest.json output/cache/mesh/handoff.json output/cache/mesh/_manifest.json 2>/dev/null || true
+            OUT2=$(verify_mesh) || { echo "::error::AUTH-M: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::AUTH-M: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[MESH-PROFILE-HANDOFF] recovered + verified mesh-profile from exact staging"
+          fi
       - name: V23.1 SQL Health Check
         run: |
           for db in output/data/*.db; do
@@ -1654,18 +1765,45 @@ jobs:
           key: intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-baked-${{ needs.check-upstream.outputs.upstream-run-id }}-
-      # V27.52: file-existence check
-      - name: R2 Fallback for Profile Shards (Upload Job)
+      # AUTHORITY-M CONSUMER (Upload; fixed-prefix restore REPLACED): verify-or-recover the
+      # dict + profile-shards against the current-cycle mesh-profile authority BEFORE the
+      # V23.1 SQL health canary + R2 publish, so the served mesh evidence is provably THIS
+      # cycle's. The fixed prefixes state/mesh-profile-{shards,dict}/ are NO LONGER a recovery
+      # input (compat/diagnostic only). Fail-closed on missing descriptor / residual mismatch.
+      - name: Verify or Recover Mesh Profiles from Exact Staging (AUTH-M, Upload Job)
+        env:
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          HANDOFF_FACTORY_RUN_ID: ${{ github.run_id }}
+          HANDOFF_RUN_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          HANDOFF_MESH_CODE_VERSION: ${{ env.MESH_PROFILE_CODE_VERSION }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          if find output/cache/mesh/profile-shards -type f 2>/dev/null | head -1 | grep -q .; then
-            echo "✅ Baked profile shards present from cache"
+          set -uo pipefail
+          UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"
+          if [ -z "$UP" ] || [ -z "$RUN" ]; then echo "::error::AUTH-M: missing run identity — cannot consume mesh-profiles safely."; exit 1; fi
+          DESC="state/_handoff/mesh-profile/${UP}/${RUN}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/mesh-profile-handoff-rb.json --strict || { echo "::error::AUTH-M: no current-cycle mesh-profile authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node scripts/factory/mesh-profile-handoff-manifest.mjs verify-descriptor /tmp/mesh-profile-handoff-rb.json --carrier=mesh-profile-authority) || { echo "::error::AUTH-M: descriptor provenance invalid. Fail-closed."; exit 1; }
+          STAGING_PREFIX=$(printf '%s' "$OUT" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$OUT" | cut -f2)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/mesh-profile-manifest.json --strict || { echo "::error::AUTH-M: manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          verify_mesh() { node scripts/factory/mesh-profile-handoff-manifest.mjs verify output/cache/mesh /tmp/mesh-profile-manifest.json --carrier=mesh-profile-authority; }
+          NEED_RECOVER=0
+          if OUT2=$(verify_mesh) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[MESH-PROFILE-HANDOFF] fast-path mesh-profile matches producer set_sha=$EXPECT_SET_SHA"
           else
-            node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
+            echo "[MESH-PROFILE-HANDOFF] miss/mismatch — recover from exact staging"; NEED_RECOVER=1
           fi
-          # PR-D0b: ensure the evidence-dict sidecar is present so verify-db's canary
-          # (loadBakedDict) resolves ui_related_mesh refs incl. reverse edges.
-          if [ ! -f output/cache/mesh/profile-evidence-dict.json.zst ]; then
-            node scripts/factory/r2-workflow-cli.js restore-file state/mesh-profile-dict/profile-evidence-dict.json.zst output/cache/mesh/profile-evidence-dict.json.zst || echo "⚠️ evidence-dict sidecar not on R2 (canary falls back to graph dict)"
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf output/cache/mesh/profile-shards output/cache/mesh/profile-evidence-dict.json.zst; mkdir -p output/cache/mesh
+            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/mesh/ --strict
+            rm -f output/cache/mesh/manifest.json output/cache/mesh/handoff.json output/cache/mesh/_manifest.json 2>/dev/null || true
+            OUT2=$(verify_mesh) || { echo "::error::AUTH-M: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::AUTH-M: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[MESH-PROFILE-HANDOFF] recovered + verified mesh-profile from exact staging"
           fi
       - name: Restore VFS Assets from Cache
         id: cache-vfs-assets
