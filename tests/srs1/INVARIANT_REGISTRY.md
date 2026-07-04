@@ -433,6 +433,45 @@ proof in the PR body).
 | VFS-PACK-DAG | Workflow DAG: vfs-pack-db produces attempt-scoped staging (meta data FIRST -> present RSS inputs -> manifest LAST -> descriptor LAST-of-all, set -e) + read-back verify + exports verified_vfs_pack_{staging_prefix,set_sha,producer_attempt}; VFS Derived consumes ONLY that identity, GHA exact-key fast path (restore-keys prefix authority REMOVED), verify-or-recover from EXACT staging BEFORE the PRESERVED META>=1 fail-closed guard, never a fixed state/vfs-data/ recovery input; D-246 recovers every declared-present RSS input from the EXACT staging + fail-closed verify BEFORE rss-generator (declared-absent skipped); manifest/descriptor NEVER written into the public output/data/ tree; SCOPE: pack-db.js / sitemap-gen / rss-generator, workflow permissions (single top-level actions:write), timeouts UNCHANGED | `tests/unit/vfs-pack-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
 | VFS-PACK-SECONDARY | Secondary sitemap/RSS seam: VFS Derived establishes a run+attempt-scoped `state/_handoff/vfs-derived/` authority (manifest LAST, descriptor LAST-of-all) bound to the vfs-pack parent set-sha (empty sitemap fails closed; empty rss tolerated per V27.39) + exports verified_vfs_derived_*; Final Upload verifies the restored sitemaps/RSS EQUAL that current-cycle identity + recovers the EXACT staging on miss/mismatch BEFORE `r2-upload-s3.js`; success-only cleanup deletes BOTH current-run staging prefixes + bounded 7-day GC refuses the current run / walks ONLY the two handoff roots; delete-prefix CLI-locked to state/_handoff/ | `tests/unit/vfs-pack-handoff-workflow.test.ts` + `scripts/factory/vfs-derived-handoff-manifest.test.mjs` | CONFIG + SOURCE + EXEC | **NEW** |
 
+## Registry — REGISTRY-R2-FRESHNESS (D-2026-0704-250)
+
+> Deterministic, hermetic STATIC workflow-invariant lock for the Factory 4/4
+> `master-fusion-compute` GLOBAL-REGISTRY R2-freshness stop-gap (Founder
+> D-2026-0704-250, GAP-1, P0). **Invariant:** the FRESH current-cycle R2
+> `state/registry/` restore (which Factory 3/4 wrote for THIS exact upstream cycle)
+> WINS; a stale or `restore-keys`-prefix-restored GitHub Actions cache must NEVER
+> prevent/suppress it, and no stale/foreign-cycle registry may proceed into Master
+> Fusion as the valid-id set + FNI-percentile authority. ROOT CAUSE
+> (REGISTRY_R2_STALE_CACHE_SUPPRESSION_1): under the normal cron cascade 3/4 is a
+> `workflow_run` whose exact `global-registry-<upstream>` cache SAVE is write-denied
+> (GitHub 2026-06-26 read-only-cache policy), so the exact current-cycle key always
+> misses; the bare `restore-keys: global-registry-` then pulled the newest SURVIVING
+> registry from a prior/FOREIGN cycle and a `BIN_COUNT >= 100` gate SUPPRESSED the
+> fresh current-cycle R2 restore — a silent stale/mixed-cycle publication. FIX
+> (stop-gap, the `state/registry/` fixed prefix is the FRESH-vs-STALE comparison —
+> NOT the separately-gated FIX-1 full attempt-scoped carrier): the GHA cache is
+> demoted to EXACT-KEY verified acceleration only (trusted iff
+> `steps.cache-global-registry.outputs.cache-hit == 'true'`, an exact current-cycle
+> key hit); the bare `restore-keys` prefix authority is REMOVED; every non-exact case
+> WIPES the possibly-prefix-restored cache and performs the MANDATORY fresh R2
+> `state/registry/` restore, preserving the legit fallback chain (state/registry/ →
+> monolith `state/global-registry.json.zst` → `r2-registry-restore.js` bootstrap) and
+> failing CLOSED (exit 1) when neither an exact current-cycle GHA hit NOR a fresh R2
+> restore reaches the ≥100 `.bin` shard floor. The STATIC lock reads
+> `.github/workflows/factory-upload.yml` as TEXT (CRLF-normalized; no execution, no
+> network, no YAML dep) and is auto-collected by the Tier-1 `unit-test` job (vitest
+> globs `tests/unit/*.test.ts`). SCOPE: the registry-restore ordering + cache
+> classification + fail-closed guard in `master-fusion-compute` ONLY — the Master
+> Fusion algorithm, FNI formula, fused-cache exact-key seam, and workflow permissions
+> are UNCHANGED.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| REG-R2-EXACTONLY | The `global-registry-` GHA cache is EXACT-KEY verified acceleration ONLY: the Restore step keeps the exact `global-registry-<upstream>` key + `id: cache-global-registry` but carries NO `restore-keys:` line; the Ensure step wires `CACHE_EXACT_HIT: steps.cache-global-registry.outputs.cache-hit` and trusts the cache ONLY under `[ "$CACHE_EXACT_HIT" = "true" ]`. NON-VACUITY: re-adding a `restore-keys: global-registry-` prefix anywhere in the job reds the lock | `tests/unit/registry-r2-suppression-stopgap.test.ts` | CONFIG | **NEW** |
+| REG-R2-NOSUPPRESS | The old `BIN_COUNT >= 100 → skip R2` suppression is GONE/inverted: the single `-ge 100` shard-floor check is NESTED UNDER the exact-hit trust gate (gate index < floor index) and precedes the exact-hit `exit 0`, so no top-level shard count can suppress the mandatory R2 restore that follows the wipe. NON-VACUITY: reintroducing a top-level ungated `-ge 100 → exit` suppression reds the lock | `tests/unit/registry-r2-suppression-stopgap.test.ts` | CONFIG | **NEW** |
+| REG-R2-FRESHWINS | Fresh current-cycle R2 WINS: on any non-exact (untrusted) cache the Ensure step WIPES `cache/registry` + `cache/global-registry.json.zst` (so a prefix-restored/foreign registry is never consumed as authority) BEFORE the MANDATORY `restore-dir state/registry/ cache/registry/`; the legit fallback chain (monolith → `r2-registry-restore.js` bootstrap) is preserved and last-resort. NON-VACUITY: removing the `state/registry/` restore call reds the lock | `tests/unit/registry-r2-suppression-stopgap.test.ts` | CONFIG | **NEW** |
+| REG-R2-FAILCLOSED | Fail CLOSED: after all recovery paths a `-lt 100` shard floor → `::error::` + `exit 1` is the TERMINAL gate (after the R2 restore + bootstrap); the current-cycle registry is established BEFORE `Align Registry Cache for Fusion` copies it into `output/cache/registry` and `Execute Master Fusion` (`master-fusion.js`, `ARTIFACT_DIR: ./output/cache/registry`) consumes it; SCOPE guard: fused-cache exact-key + top-level `actions: write` permissions unchanged | `tests/unit/registry-r2-suppression-stopgap.test.ts` | CONFIG | **NEW** |
+
 ## Registry — TA2-GATE PR-G1 (preview-grade cold-load runtime gate)
 
 > Deterministic, hermetic invariants for the TA2 PREVIEW-GRADE RUNTIME GATE
