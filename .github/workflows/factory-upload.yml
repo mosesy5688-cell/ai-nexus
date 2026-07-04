@@ -244,6 +244,18 @@ jobs:
             echo "⚠️ Baked profile shards missing — falling back to R2"
             node scripts/factory/r2-workflow-cli.js restore-dir state/mesh-profile-shards/ output/cache/mesh/profile-shards/
           fi
+      # D-2026-0704-250 (GAP-1 stop-gap): the GHA cache is EXACT-KEY verified
+      # acceleration ONLY. The bare restore-keys prefix authority (the old
+      # `global-registry-` fallback line) is REMOVED — under the normal cron
+      # cascade 3/4 is a workflow_run whose exact
+      # `global-registry-<upstream>` SAVE is write-denied (GitHub 2026-06-26
+      # read-only-cache policy), so the exact current-cycle key always misses and a
+      # bare prefix would pull the newest SURVIVING registry from a prior/FOREIGN
+      # cycle. That stale registry (if it had ≥100 .bin shards) then suppressed the
+      # fresh current-cycle R2 restore -> silent stale/mixed-cycle Master Fusion
+      # publication. A restore is trusted ONLY when cache-hit == 'true' (an exact
+      # current-cycle key hit, i.e. this upstream cycle's own registry); every other
+      # case falls through to the MANDATORY R2 state/registry/ authority below.
       - name: Restore Global Registry Cache
         id: cache-global-registry
         uses: actions/cache/restore@v5
@@ -252,12 +264,13 @@ jobs:
             cache/global-registry.json.zst
             cache/registry/
           key: global-registry-${{ needs.check-upstream.outputs.upstream-run-id }}
-          restore-keys: global-registry-
       # V27.53: Purge legacy .json.gz ghost files (mirror 3/4's V25.8.3 protection).
-      # cache restore-keys partial match may pull pre-V25.8.3 era caches that contain
-      # legacy gzip shards. registry-loader.js rejects .json.gz (line 34), so leaving
-      # them in place is harmless — but explicit purge makes diag log cleaner and
-      # prevents future confusion.
+      # An exact-key GHA hit (or a legacy R2 restore below) may carry pre-V25.8.3
+      # era legacy gzip shards. registry-loader.js rejects .json.gz (line 34), so
+      # leaving them in place is harmless — but explicit purge makes diag log cleaner
+      # and prevents future confusion. (D-250: the bare restore-keys prefix that used
+      # to be the ghost source is removed; the ensure step below wipes+R2-restores any
+      # non-exact-hit cache, so ghosts now only survive a genuine exact-cycle hit.)
       - name: Purge Legacy Registry Ghosts (V27.53)
         run: |
           if [ -d "cache/registry" ]; then
@@ -270,39 +283,58 @@ jobs:
             BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
             echo "[V27.53] cache/registry: ${BIN_COUNT} .bin shards, 0 legacy ghosts"
           fi
-      # V27.53: Ensure registry .bin shards present — if GHA cache miss AND restore-keys
-      # didn't catch a usable cache, restore from R2 state/registry/ (populated by 3/4's
-      # new Backup Registry Shards to R2 step). Mirror 3/4's V26.9 fallback pattern.
-      # Prevents master-fusion 0-entities scenario when GHA cache evicts mid-cycle.
-      - name: Ensure Registry Shards Present (V27.53)
+      # D-2026-0704-250 (GAP-1 stop-gap): establish a CURRENT-CYCLE registry, fresh
+      # R2 WINS. INVARIANT: a stale or restore-keys-prefix-restored GitHub cache must
+      # NEVER prevent/suppress the current-cycle R2 state/registry/ restore that 3/4
+      # wrote for this exact cycle. The old `BIN_COUNT>=100 -> skip R2` gate is GONE:
+      # it trusted a bare-restore-keys FOREIGN-cycle registry and suppressed the fresh
+      # restore. Now the GHA cache is trusted ONLY on an EXACT current-cycle key hit
+      # (steps.cache-global-registry.outputs.cache-hit == 'true'); any non-exact case
+      # WIPES the (possibly prefix-restored/stale) cache and does the MANDATORY fresh
+      # R2 restore, preserving the legit fallback chain (state/registry/ -> monolith
+      # state/global-registry.json.zst -> r2-registry-restore.js bootstrap). Fails
+      # CLOSED (exit 1) if neither an exact current-cycle GHA hit NOR a fresh R2
+      # restore reaches the ≥100 .bin shard floor — no stale/foreign registry may
+      # proceed into Master Fusion as valid-id / FNI-percentile authority.
+      - name: Ensure Current-Cycle Registry (D-250, fail-closed)
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
+          CACHE_EXACT_HIT: ${{ steps.cache-global-registry.outputs.cache-hit }}
         run: |
-          BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
-          if [ "$BIN_COUNT" -ge 100 ]; then
-            echo "✅ Registry: ${BIN_COUNT} .bin shards present (no R2 restore needed)"
+          # (1) EXACT current-cycle GHA cache hit is the ONLY trusted fast path.
+          if [ "$CACHE_EXACT_HIT" = "true" ]; then
+            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+            if [ "$BIN_COUNT" -ge 100 ]; then
+              echo "✅ [D-250] Exact current-cycle GHA registry cache hit: ${BIN_COUNT} .bin shards (trusted acceleration; no R2 restore needed)"
+              exit 0
+            fi
+            echo "⚠️ [D-250] Exact cache hit but only ${BIN_COUNT} .bin shards (<100) — falling through to the mandatory R2 authority"
           else
-            echo "⚠️ Only ${BIN_COUNT} .bin shards (need ≥100). Restoring from R2 state/registry/..."
-            mkdir -p cache/registry
-            # Try V27.53 fresh path (state/registry/) first
-            node scripts/factory/r2-workflow-cli.js restore-dir state/registry/ cache/registry/ || echo "⚠️ state/registry/ unavailable (3/4 V27.53 may not have run yet)"
-            # Also try monolith download
-            node scripts/factory/r2-workflow-cli.js restore-file state/global-registry.json.zst cache/global-registry.json.zst 2>/dev/null || true
-            # Last-resort: V25.8 bootstrap script (handles legacy meta/backup/registry/ + format mismatch)
-            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
-            if [ "$BIN_COUNT" -lt 100 ]; then
-              echo "⚠️ Still ${BIN_COUNT} after state/ restore — invoking r2-registry-restore.js for legacy/bootstrap paths"
-              node scripts/factory/lib/r2-registry-restore.js || echo "⚠️ Bootstrap restore failed"
-            fi
-            BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
-            echo "[V27.53] Final: ${BIN_COUNT} .bin shards in cache/registry/"
-            if [ "$BIN_COUNT" -lt 100 ]; then
-              echo "::error::Registry restore failed all paths (cache + state/registry/ + bootstrap). master-fusion will fail with 0 entities."
-              exit 1
-            fi
+            echo "ℹ️ [D-250] No exact current-cycle GHA registry cache (cache-hit='${CACHE_EXACT_HIT}') — a restore-keys/prefix match is NEVER authority. Wiping any stale/foreign cache and restoring fresh from R2 state/registry/."
+          fi
+          # (2) Non-exact => WIPE any prefix-restored/stale registry so a foreign-cycle
+          #     cache can never be consumed as authority, then MANDATORY fresh R2
+          #     current-cycle restore (state/registry/ populated by 3/4 for THIS cycle).
+          rm -rf cache/registry cache/global-registry.json.zst
+          mkdir -p cache/registry
+          # Fresh path (state/registry/) first — the current-cycle authority 3/4 wrote.
+          node scripts/factory/r2-workflow-cli.js restore-dir state/registry/ cache/registry/ || echo "⚠️ state/registry/ unavailable (3/4 V27.53 may not have run yet)"
+          # Monolith download (legit fallback #2).
+          node scripts/factory/r2-workflow-cli.js restore-file state/global-registry.json.zst cache/global-registry.json.zst 2>/dev/null || true
+          # Last-resort bootstrap (legit fallback #3): V25.8 handles legacy meta/backup/registry/ + format mismatch.
+          BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+          if [ "$BIN_COUNT" -lt 100 ]; then
+            echo "⚠️ Still ${BIN_COUNT} after state/registry/ restore — invoking r2-registry-restore.js for legacy/bootstrap paths"
+            node scripts/factory/lib/r2-registry-restore.js || echo "⚠️ Bootstrap restore failed"
+          fi
+          BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
+          echo "[D-250] Final: ${BIN_COUNT} .bin shards in cache/registry/ (fresh current-cycle R2 authority)"
+          if [ "$BIN_COUNT" -lt 100 ]; then
+            echo "::error::[D-250] No current-cycle registry established: neither an exact current-cycle GHA cache hit nor a fresh R2 state/registry/ restore reached the ≥100 .bin shard floor. Failing CLOSED to prevent stale/mixed-cycle Master Fusion publication."
+            exit 1
           fi
       - name: Align Registry Cache for Fusion
         run: |
