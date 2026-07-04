@@ -798,6 +798,12 @@ jobs:
     needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations, check-upstream]
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    # FIX-2 / C12 (D-264): expose the read-back-VERIFIED cycle-output authority identity
+    # (attempt-scoped staging prefix + set_sha) as provenance. The 4/4 consumers derive the
+    # SAME prefix from the R2 descriptor (cross-workflow), so these outputs are telemetry.
+    outputs:
+      cycle_output_staging_prefix: ${{ steps.establish-cycle-output.outputs.staging_prefix }}
+      cycle_output_set_sha: ${{ steps.establish-cycle-output.outputs.set_sha }}
     steps:
       # V27.40: composite setup replaces V27.37 inline free-disk + V25 setup blocks
       - uses: actions/checkout@v5
@@ -1017,16 +1023,60 @@ jobs:
           path: output/
           key: cycle-${{ github.run_id }}-output
 
-      # V25.8.3: Backup cycle output to R2 (Factory 4/4 fallback)
-      - name: Backup Cycle Output to R2
+      # FIX-2 / C12 (D-264): establish the attempt-scoped, content-verified R2 AUTHORITY
+      # over the EXACT cycle-output member set (output/cache/**) consumed by the four 4/4
+      # Finalize jobs. Bound to the producing 3/4 run id (github.run_id) + producer attempt
+      # + head_sha; set_sha256 over cache/** (output/data/ is 4/4-owned and NOT a member).
+      # This REPLACES the mutable fixed-prefix state/cycle-output/ backup: the data upload is
+      # RELOCATED (net-zero PUT delta -- fewer files, no output/data/) to the attempt-scoped
+      # staging, and manifest+descriptor are the only +2 NET-NEW PUTs. No compat state/cycle-
+      # output/ write (Class-A: do not add PUT beyond manifest+descriptor).
+      # Order: data FIRST -> manifest LAST -> descriptor LAST-of-all -> read-back verify.
+      - name: Establish Cycle-Output Authority (FIX-2/C12, D-264)
+        id: establish-cycle-output
         env:
+          HANDOFF_FINALIZE_RUN_ID: ${{ github.run_id }}
+          # provenance only (recorded in the descriptor, NEVER in the staging path): the
+          # 2/4 process run id = the cycle's upstream identity at 3/4.
+          HANDOFF_UPSTREAM_RUN_ID: ${{ needs.check-upstream.outputs.process-id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js backup-dir output/ state/cycle-output/
-          echo "✅ Cycle output backed up to R2 state/cycle-output/"
+          set -euo pipefail
+          PID="${HANDOFF_FINALIZE_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/cycle-output/${PID}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (1) manifest over the EXACT cycle-output set in output/cache/** -> /tmp only.
+          node scripts/factory/cycle-output-handoff-manifest.mjs generate output /tmp/cycle-output-manifest.json --carrier=cycle-output-authority
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/cycle-output-manifest.json').set_sha256)")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/cycle-output-manifest.json')).digest('hex'))")
+          # (2) cache data FIRST to the attempt-scoped staging (RELOCATED from state/cycle-output/).
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/ "${STAGING}cache/"
+          # (3) manifest.json LAST (after every cache object is durable).
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/cycle-output-manifest.json "${STAGING}manifest.json"
+          # (4) run-scoped descriptor handoff.json LAST OF ALL.
+          node -e "const f=require('fs');f.writeFileSync('/tmp/cycle-output-handoff.json',JSON.stringify({schema_version:1,carrier_type:'cycle-output-authority',finalize_run_id:String(process.env.HANDOFF_FINALIZE_RUN_ID),producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,head_sha:String(process.env.HANDOFF_HEAD_SHA),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/cycle-output-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (5) read-back verify the descriptor provenance before the cross-workflow handoff.
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/cycle-output-handoff-rb.json --strict
+          HANDOFF_RUN_ATTEMPT="${ATT}" node scripts/factory/cycle-output-handoff-manifest.mjs verify-descriptor /tmp/cycle-output-handoff-rb.json --carrier=cycle-output-authority
+          # (6) F2: producer FULL-SET read-back (READ-ONLY; Class-A +1 LIST-like op, ZERO new
+          # PUT/COPY/DELETE): restore the just-written attempt-scoped staging to a temp dir +
+          # verify set_sha256 + EXACT-set membership over the read-back. backup-dir returns
+          # success on uploaded>0, so a PARTIAL upload would otherwise establish a FALSE authority.
+          # Fail-closed BEFORE emitting "authority established".
+          RB_DIR="$(mktemp -d)"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" "${RB_DIR}" --strict || { echo "::error::FIX-2: producer read-back restore failed (${STAGING}). Fail-closed."; exit 1; }
+          rm -f "${RB_DIR}/manifest.json" "${RB_DIR}/handoff.json" "${RB_DIR}/_manifest.json" 2>/dev/null || true
+          RB_SET=$(node scripts/factory/cycle-output-handoff-manifest.mjs verify "${RB_DIR}" /tmp/cycle-output-manifest.json --carrier=cycle-output-authority) || { echo "::error::FIX-2: producer read-back verify failed (partial/corrupt upload). Fail-closed."; exit 1; }
+          [ "$(printf '%s' "$RB_SET" | tail -n1)" = "${SET_SHA}" ] || { echo "::error::FIX-2: producer read-back set hash != ${SET_SHA} (partial upload). Fail-closed."; exit 1; }
+          echo "staging_prefix=${STAGING}" >> "$GITHUB_OUTPUT"
+          echo "set_sha=${SET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "[CYCLE-OUTPUT-HANDOFF] authority established (read-back verified): ${STAGING} set_sha256=${SET_SHA}"
 
       - name: Summary
         run: |

@@ -475,6 +475,52 @@ proof in the PR body).
 | SHARDS-DESCRIPTOR | Run-scoped descriptor provenance: current Process (2/4) run id; producer_attempt a positive int (same-run bound `<=` current run_attempt ONLY when the consumer supplies its own attempt -- prepared-entity-data / rerun-failed-jobs; OMITTED for the cross-workflow shards seam); head_sha a well-formed 40-hex git sha (equality enforced only when the consumer supplies an expected value); exact_staging_prefix == derived process-run+attempt path (no list-latest / prefix-guess / fixed `state/shards/` / mutable-latest / two-level / foreign cycle); missing field / carrier mismatch / bad set-or-manifest sha => fail-loud | `scripts/factory/shards-handoff-manifest.test.mjs` | EXEC | **NEW** |
 | SHARDS-DAG | Workflow DAG: save-shards-cache produces attempt-scoped staging (20 shards FIRST -> manifest LAST -> descriptor LAST-of-all, set -e) + read-back verify; merge-core-compute consumes ONLY the process-id descriptor authority, GHA exact-key fast path (restore-keys prefix authority REMOVED) verified against the manifest, verify-or-recover the EXACT 20-shard set from the EXACT staging, never a fixed `state/shards/` recovery input, EXACTLY-20 final gate, fail-closed (exit 1) on missing authority / recovery-verify failure / residual mismatch (no warning-only mismatch path); the matrix stream to `state/shards/` is DEMOTED to a compat transport; GAP-5 prepare-data establishes + matrix-shards verify-or-recovers the prepared-entity-data authority symmetrically (fixed `state/prepared-entity-data/` DEMOTED to compat); SCOPE: split-registry / shard-processor / aggregator invoked-never-re-pathed, process-id resolution + finalize cycle-output NOT referenced, R2 via GENERIC r2-workflow-cli ops (no new subcommand), top-level `actions:write` + `contents:read` permissions UNCHANGED | `tests/unit/shards-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
 
+## Registry — CYCLE-OUTPUT-R2-AUTHORITY (D-2026-0704-264, FIX-2 / GAP-2 / C12)
+
+> Deterministic, hermetic invariants for the Factory 3/4 finalize -> 4/4 consumers
+> CYCLE-OUTPUT handoff authority repair (Founder D-2026-0704-264; GAP-6/H11
+> satellite-authority DEFERRED, not folded). **Invariant:** each of the four Factory
+> 4/4 Finalize jobs (mesh-baking, master-fusion-compute, vfs-pack-db, upload) may
+> consume the cycle-output only after the EXACT cycle-output member set
+> (`output/cache/**`) of the CURRENT cycle has been verified against the attempt-scoped
+> R2 authority established by 3/4 finalize; a stale / foreign / prefix / branch-alias /
+> mutable-latest / predecessor-cycle / loose-restore-key / content-presence-only state
+> may NOT suppress it, and a missing current-cycle authority or a residual mismatch fails
+> CLOSED. ROOT CAUSE: the 3/4->4/4 cycle-output handoff was a mutable fixed-prefix R2
+> copy (`state/cycle-output/`, overwritten every cycle) + a `cycle-<upstream-run-id>-`
+> prefix GHA restore-key consumed UNVERIFIED, so a stale/concurrent/predecessor-cycle
+> overwrite could be consumed as current. FIX-2 (mirrors FIX-3): finalize establishes a
+> DURABLE, finalize-run + PRODUCER-attempt scoped, content-verified authority
+> (`state/_handoff/cycle-output/<finalize-run>/attempt-<n>/` + a run-scoped `handoff.json`
+> descriptor written LAST) with a set_sha256 over the EXACT `output/cache/**` set; the
+> cache data upload is RELOCATED from the fixed prefix into the attempt-scoped staging
+> (net-zero PUT delta; `state/cycle-output/` is NO LONGER written), and manifest+descriptor
+> are the only +2 net-new PUTs. Each consumer resolves ONLY that authority via the
+> upstream-run-id descriptor, uses the GHA cache as an exact-key fast path (restore-keys
+> prefix authority REMOVED) verified against the manifest, recovers `output/cache/**` from
+> the EXACT staging on miss/mismatch, and fails CLOSED (exit 1) on a missing authority /
+> invalid descriptor / residual mismatch. WIPE DISCIPLINE: a consumer wipes ONLY the
+> cycle-output subset (`output/cache/**`) -- NEVER `output/data/` (owned by FIX-4
+> meta-NN.db + pack-db + `state/vfs-data/`). PAYLOAD SCOPE: `output/data/` is DELIBERATELY
+> NOT a cycle-output member; NO-REGISTRY-DOUBLE-BIND -- any `registry/` segment or
+> `global-registry*` file is EXCLUDED at generate + REGISTRY_DOUBLE_BIND-rejected at verify
+> so the set can never re-bind the FIX-1/1A registry carrier. Cross-workflow note: the seam
+> spans two DIFFERENT workflow runs, so the single both-side-derivable cycle key is the 3/4
+> Aggregate run id (github.run_id producer / upstream-run-id consumer); the harvest/cycle
+> upstream id is recorded as provenance but NEVER in the (single-level) path. GHA demoted to
+> verified acceleration; R2 is the correctness authority. TWO tiers: (1) the STATIC
+> workflow-invariant lock reads factory-aggregate.yml (producer) + factory-upload.yml (the
+> four consumers) as TEXT; (2) the hermetic `node --test` contract suite
+> `scripts/factory/cycle-output-handoff-manifest.test.mjs` runs in the SAME required
+> `unit-test` job via the C2-LOCK `node --test` list. R2 I/O reuses the GENERIC
+> r2-workflow-cli ops (no new subcommand).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| CYCLE-OUTPUT-MANIFEST | Manifest schema + verify (pure module, no R2): single carrier `cycle-output-authority` (prefix root `state/_handoff/cycle-output`, producer job `finalize`) with no manifest self-hash; per-file {relative_path,size_bytes,sha256}; set_sha256 over STABLE-SORTED (path,sha256) tuples; member root `cache` => EXACT `output/cache/**` set (EXACT set equality: missing/extra => fail) + per-file size+sha256 + member_count agreement; required-class floors mesh_graph>=1 + search_core>=1 + category_stats>=1 (any of .json/.json.zst/.json.gz) + knowledge_index>=1 + trending>=1 + rankings>=1; NEVER count-only; `output/data/` is NEVER a member (4/4-owned); NO-REGISTRY-DOUBLE-BIND: a `registry/` segment or `global-registry*` file is EXCLUDED at generate (shared enumerator => same at verify) AND a manifest smuggling a registry member is REGISTRY_DOUBLE_BIND-rejected; symlink/traversal members REJECTED; the r2-handoff internal `_manifest.json` sidecar excluded at any depth | `scripts/factory/cycle-output-handoff-manifest.test.mjs` | EXEC | **NEW** |
+| CYCLE-OUTPUT-DESCRIPTOR | Run-scoped descriptor provenance: current 3/4 finalize run id (finalize_run_id); producer_attempt a positive int (same-run bound `<=` a supplied current run_attempt ONLY when supplied; OMITTED for the cross-workflow cycle-output seam); head_sha a well-formed 40-hex git sha (equality enforced only when the consumer supplies an expected value -- the 4/4 consumer cannot know the 3/4 sha, so it supplies none); exact_staging_prefix == derived finalize-run+attempt path (single-level: no list-latest / prefix-guess / fixed `state/cycle-output/` / mutable-latest / two-level upstream / foreign cycle); missing field / carrier mismatch / bad set-or-manifest sha => fail-loud | `scripts/factory/cycle-output-handoff-manifest.test.mjs` | EXEC | **NEW** |
+| CYCLE-OUTPUT-DAG | Workflow DAG: finalize produces attempt-scoped staging (cache data FIRST -> manifest LAST -> descriptor LAST-of-all, set -euo pipefail) + descriptor read-back + FULL-SET read-back (restore-dir ONLY, ZERO new PUT/COPY/DELETE) that FAIL-CLOSED before emitting "authority established" + {staging_prefix,set_sha} job outputs; the mutable fixed-prefix `state/cycle-output/` backup is REMOVED (data RELOCATED; +2 PUT = manifest+descriptor only). ALL FOUR consumers (mesh-baking / master-fusion-compute / vfs-pack-db / upload) resolve ONLY the upstream-run-id descriptor authority (the SAME set_sha), GHA exact-key fast path (restore-keys prefix authority REMOVED) verified against the manifest, verify-or-recover `output/cache/**` from the EXACT staging, wipe ONLY `output/cache/**` (NEVER `output/data/`), never a fixed `state/cycle-output/` recovery input, fail-closed (exit 1) on missing authority / recovery-verify failure / residual mismatch (no warning-only mismatch path); SCOPE: FIX-4 meta-NN.db publish binding + FIX-3 shards carrier + FIX-1 registry carrier + check-upstream upstream-run-id resolution invoked-never-re-pathed, R2 via GENERIC r2-workflow-cli ops (no new subcommand), no GAP-6 satellite-authority work, top-level `actions:write` + `contents:read` permissions UNCHANGED | `tests/unit/cycle-output-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
+
 ## Registry — META-DB-PUBLISH-BINDING (D-2026-0704-252, FIX-4 / GAP-4 / C11)
 
 > Deterministic, hermetic STATIC workflow-invariant lock for the Factory 4/4 Final
