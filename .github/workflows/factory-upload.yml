@@ -2057,6 +2057,32 @@ jobs:
           SHARD_DIR: ./output/data
           DEDUP_DIR: ./output/data/dedup
         run: node scripts/factory/sync-ledger.js
+      # PUBLICATION-FAMILY CLOSURE GATE (AUTH-W + AUTH-M + vfs-derived secondary + FIX-4
+      # meta). BEFORE Upload to R2, resolve the three run-scoped descriptors (vfs-pack
+      # meta+warm_read, mesh-profile, vfs-derived sitemap/RSS) and assert they belong to ONE
+      # 4/4 cycle-family on ONE code head: same upstream_run_id + factory_run_id + head_sha;
+      # vfs-derived parent_set_sha == vfs-pack meta set_sha; warm_read + mesh set + mesh dict
+      # authorities present. Any divergence => exit 1: a mixed-cycle / fixed-prefix-only /
+      # warning-only publish is REFUSED. Final Upload stays LOCKED until this passes.
+      - name: Publication-Family Closure Gate (BEFORE R2 publish)
+        env:
+          UP: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          RUN: ${{ github.run_id }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          if [ -z "$UP" ] || [ -z "$RUN" ]; then echo "::error::FAMILY: missing run identity — cannot gate publication."; exit 1; fi
+          VP="state/_handoff/vfs-pack/${UP}/${RUN}/handoff.json"
+          MP="state/_handoff/mesh-profile/${UP}/${RUN}/handoff.json"
+          VD="state/_handoff/vfs-derived/${UP}/${RUN}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$VP" /tmp/fam-vfs-pack.json --strict || { echo "::error::FAMILY: vfs-pack descriptor missing ($VP). Fail-closed."; exit 1; }
+          node scripts/factory/r2-workflow-cli.js restore-file "$MP" /tmp/fam-mesh-profile.json --strict || { echo "::error::FAMILY: mesh-profile descriptor missing ($MP). Fail-closed."; exit 1; }
+          node scripts/factory/r2-workflow-cli.js restore-file "$VD" /tmp/fam-vfs-derived.json --strict || { echo "::error::FAMILY: vfs-derived descriptor missing ($VD). Fail-closed."; exit 1; }
+          node scripts/factory/vfs-derived-handoff-manifest.mjs family-gate /tmp/fam-vfs-pack.json /tmp/fam-mesh-profile.json /tmp/fam-vfs-derived.json || { echo "::error::FAMILY: cross-descriptor closure gate FAILED — refusing a mixed-cycle publish. Fail-closed."; exit 1; }
+          echo "[PUBLICATION-FAMILY] one coherent 4/4 cycle-family verified — Final Upload unlocked."
       - name: Upload to R2 via S3 API
         env:
           # V22.9.6: Removed cache/fused/ (~290K PUTs) and cache/mesh/profiles/ (~10K PUTs)
