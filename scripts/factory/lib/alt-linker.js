@@ -169,14 +169,14 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
         return { totalRelations: rustResult.totalRelations };
     }
 
-    // V25.9: Streaming JS fallback — group by category via shardReader (bounded per category)
+    // V25.9 + D-253 parity: NO per-category ingestion cap (old MAX_PER_CATEGORY=5000 silently
+    // dropped entities past the 5000th vs Rust full-population top-500; keep slim fields only).
     const byCategory = {};
-    const MAX_PER_CATEGORY = 5000;
     await shardReader(async (entities) => {
         for (const entity of entities) {
             const category = entity.primary_category || entity.pipeline_tag || 'other';
             if (!byCategory[category]) byCategory[category] = [];
-            if (byCategory[category].length < MAX_PER_CATEGORY) byCategory[category].push(entity);
+            byCategory[category].push({ id: entity.id, slug: entity.slug, fni_score: entity.fni_score, tags: entity.tags, type: entity.type });
         }
     }, { slim: true });
     const categories = Object.keys(byCategory);
