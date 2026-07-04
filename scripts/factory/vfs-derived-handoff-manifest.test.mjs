@@ -19,6 +19,8 @@ import {
     isSha256Hex, computeSetSha256, listCarrierFiles, carrierConfig, buildStagingPrefix,
     generateManifest, verifyDirAgainstManifest, verifyDescriptor,
     probeRssInputs, rssRecoveryPlan, verifyRssInputs,
+    WARM_READ_MEMBER_CLASS, WARM_READ_CLASSES, listWarmReadFiles,
+    generateWarmReadManifest, verifyWarmReadDir, publicationFamilyGate,
 } from './vfs-derived-handoff-manifest.mjs';
 
 const SHA = 'a'.repeat(40);
@@ -408,4 +410,149 @@ test('(F11 safety) probe rejects a symlinked rss input; verify rejects a travers
     if (made) assert.throws(() => probeRssInputs('vfs-pack-authority', ws), (e) => e instanceof HandoffManifestError && e.code === 'UNSAFE_MEMBER');
     const evil = { rss_inputs: [{ name: 'x', present: true, sha256: 'a'.repeat(64), staged_path: '../escape', local_path: 'output/cache/reports/index.json.zst' }] };
     assert.throws(() => verifyRssInputs(evil, dataDir), (e) => e instanceof HandoffManifestError && e.code === 'UNSAFE_MEMBER');
+});
+
+// ==========================================================================
+// G. AUTHORITY-W warm_read sibling — Founder VFS_PRODUCER_ARTIFACT_..._4_OF_4
+// A directory laying out the warm-read producer artifacts INTERLEAVED with the
+// meta_db members (both live in output/data/) proves warm_read excludes .db.
+// ==========================================================================
+const WARM_CTX = { carrierType: 'vfs-pack-authority', upstreamRunId: 'UP1', factoryRunId: 'RUN1', producerAttempt: '2', headSha: SHA, vfsPackCodeVersion: 'v-test', createdAt: '1970-01-01T00:00:00.000Z' };
+function warmDir(extra = {}) {
+    return writeFiles(mkTmp(), {
+        'vector-core.bin': 'VC', 'hot-shard.bin': 'HS', 'id-index.bin': 'II',
+        'meta-00.db': 'META0', 'rankings-a.db': 'RANK', // meta_db members — must be EXCLUDED
+        'term_index/_manifest.json.zst': 'TMAN',
+        'term_index/aa/_bucket.json.zst': 'B1', 'term_index/bb/_bucket.json.zst': 'B2',
+        'term_index/mo/model_0.json.zst': 'HF0', // high-freq chunk (also a bucket-class member)
+        ...extra,
+    });
+}
+function genWarm(dir, over = {}) { return generateWarmReadManifest(dir, { ...WARM_CTX, ...over }); }
+
+test('(G1) warm_read manifest: sibling of meta_db, carrier vfs-pack-authority + member_class warm_read; NEVER a .db member', () => {
+    const m = genWarm(warmDir());
+    assert.equal(m.carrier_type, 'vfs-pack-authority');
+    assert.equal(m.member_class, WARM_READ_MEMBER_CLASS);
+    assert.equal(m.producer_job_identity, 'vfs-pack-db');
+    assert.equal(m.exact_staging_prefix, 'state/_handoff/vfs-pack/UP1/RUN1/attempt-2/');
+    assert.ok(isSha256Hex(m.set_sha256));
+    assert.ok(!('manifest_sha256' in m));
+    assert.ok(!m.files.some((f) => f.relative_path.endsWith('.db'))); // meta_db excluded
+    assert.deepEqual(m.files.map((f) => f.relative_path).filter((p) => p.endsWith('.bin')).sort(), ['hot-shard.bin', 'id-index.bin', 'vector-core.bin']);
+    const byName = Object.fromEntries(m.required_file_classes.map((c) => [c.name, c]));
+    assert.equal(byName.vector_core.count, 1);
+    assert.equal(byName.term_index_manifest.count, 1);
+    assert.ok(byName.term_index_bucket.count >= 2); // aa/_bucket + bb/_bucket + mo/model_0
+});
+test('(G2 T12: sibling does NOT change meta_db set_sha) same output/data => meta manifest set_sha is warm-independent', () => {
+    // The meta_db manifest (ext=.db) over a dir WITH warm-read bins present yields the
+    // SAME set_sha as over a dir with ONLY the .db files — warm_read is a separate manifest.
+    const withWarm = warmDir();
+    const metaWithWarm = generateManifest(withWarm, WARM_CTX, { extensions: ['.db'], rssBaseDir: RSS_EMPTY_BASE });
+    const onlyDb = writeFiles(mkTmp(), { 'meta-00.db': 'META0', 'rankings-a.db': 'RANK' });
+    const metaOnly = generateManifest(onlyDb, WARM_CTX, { extensions: ['.db'], rssBaseDir: RSS_EMPTY_BASE });
+    assert.equal(metaWithWarm.set_sha256, metaOnly.set_sha256); // meta set_sha unchanged by warm presence
+    // and the warm manifest set_sha is a DIFFERENT hash space (over the bins/term_index).
+    assert.notEqual(genWarm(withWarm).set_sha256, metaWithWarm.set_sha256);
+});
+test('(G3 positive verify) warm_read manifest verifies against its own dir', () => {
+    const dir = warmDir();
+    const m = genWarm(dir);
+    const res = verifyWarmReadDir(dir, m);
+    assert.equal(res.ok, true);
+    assert.equal(res.set_sha256, m.set_sha256);
+});
+test('(G4 T2: any warm member missing => fail BEFORE gate) each bin/manifest removed reds verify', () => {
+    for (const victim of ['vector-core.bin', 'hot-shard.bin', 'id-index.bin', 'term_index/_manifest.json.zst']) {
+        const dir = warmDir();
+        const m = genWarm(dir);
+        fs.rmSync(path.join(dir, victim));
+        assert.equal(verifyWarmReadDir(dir, m).code, 'FILE_MISSING', `removing ${victim}`);
+    }
+});
+test('(G5 T4: partial term_index) dropping to <2 buckets => REQUIRED_CLASS_BELOW_FLOOR at generate', () => {
+    // Only one bucket present => term_index_bucket floor (min 2) violated at generate.
+    const dir = writeFiles(mkTmp(), { 'vector-core.bin': 'VC', 'hot-shard.bin': 'HS', 'id-index.bin': 'II', 'term_index/_manifest.json.zst': 'M', 'term_index/aa/_bucket.json.zst': 'B1' });
+    assert.throws(() => genWarm(dir), (e) => e instanceof HandoffManifestError && e.code === 'REQUIRED_CLASS_BELOW_FLOOR');
+});
+test('(G6 T7: truncated-but-magic bin) same-length tamper => HASH_MISMATCH; size tamper => SIZE_MISMATCH', () => {
+    const dir = warmDir();
+    const m = genWarm(dir);
+    fs.writeFileSync(path.join(dir, 'vector-core.bin'), 'XX'); // same length (2) diff content
+    assert.equal(verifyWarmReadDir(dir, m).code, 'HASH_MISMATCH');
+    const dir2 = warmDir();
+    const m2 = genWarm(dir2);
+    fs.writeFileSync(path.join(dir2, 'hot-shard.bin'), 'HS-LONGER');
+    assert.equal(verifyWarmReadDir(dir2, m2).code, 'SIZE_MISMATCH');
+});
+test('(G7 no-double-bind) a .db member smuggled into the warm_read manifest => WARM_READ_DB_DOUBLE_BIND', () => {
+    const dir = warmDir();
+    const m = genWarm(dir);
+    const smuggled = { ...m, files: [...m.files, { relative_path: 'meta-00.db', size_bytes: 5, sha256: 'e'.repeat(64) }] };
+    smuggled.set_sha256 = computeSetSha256(smuggled.files);
+    assert.equal(verifyWarmReadDir(dir, smuggled).code, 'WARM_READ_DB_DOUBLE_BIND');
+});
+test('(G8) FILE_EXTRA when a new warm member appears on disk not in the manifest', () => {
+    const dir = warmDir();
+    const m = genWarm(dir);
+    fs.mkdirSync(path.join(dir, 'term_index/cc'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'term_index/cc/_bucket.json.zst'), 'B3');
+    assert.equal(verifyWarmReadDir(dir, m).code, 'FILE_EXTRA');
+});
+test('(G9 set-hash + self-hash + member_count guards) tamper reds verify', () => {
+    const dir = warmDir();
+    const m = genWarm(dir);
+    assert.equal(verifyWarmReadDir(dir, { ...m, set_sha256: 'f'.repeat(64) }).code, 'SET_HASH_MISMATCH');
+    assert.equal(verifyWarmReadDir(dir, { ...m, manifest_sha256: 'd'.repeat(64) }).code, 'MANIFEST_SELF_HASH');
+    assert.equal(verifyWarmReadDir(dir, { ...m, member_count: 99 }).code, 'MEMBER_COUNT_MISMATCH');
+});
+test('(G10) warm_read with zero bins fails closed at generate (vector_core floor 1)', () => {
+    const dir = writeFiles(mkTmp(), { 'term_index/_manifest.json.zst': 'M', 'term_index/aa/_bucket.json.zst': 'B1', 'term_index/bb/_bucket.json.zst': 'B2' });
+    assert.throws(() => genWarm(dir), (e) => e instanceof HandoffManifestError && e.code === 'REQUIRED_CLASS_BELOW_FLOOR');
+});
+
+// ==========================================================================
+// H. PUBLICATION-FAMILY closure gate — one 4/4 cycle-family on one code head.
+// ==========================================================================
+const S = (c) => c.repeat(64);
+function family(over = {}) {
+    return {
+        vfsPack: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: S('1'), warm_read_set_sha256: S('2') },
+        meshProfile: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: S('3'), dict_sha256: S('4') },
+        vfsDerived: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: S('5'), parent_set_sha256: S('1') },
+        ...over,
+    };
+}
+test('(H1 positive) coherent family passes + emits the shared identity', () => {
+    const res = publicationFamilyGate(family());
+    assert.equal(res.ok, true);
+    assert.equal(res.upstream_run_id, 'UP1');
+    assert.equal(res.factory_run_id, 'RUN1');
+});
+test('(H2 T14: mixed-cycle) any of upstream/run/head divergent => fail-closed', () => {
+    assert.equal(publicationFamilyGate(family({ meshProfile: { upstream_run_id: 'UPX', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: S('3'), dict_sha256: S('4') } })).code, 'FAMILY_UPSTREAM_DIVERGENT');
+    assert.equal(publicationFamilyGate(family({ vfsDerived: { upstream_run_id: 'UP1', factory_run_id: 'RUNX', head_sha: SHA, set_sha256: S('5'), parent_set_sha256: S('1') } })).code, 'FAMILY_RUN_DIVERGENT');
+    assert.equal(publicationFamilyGate(family({ meshProfile: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: 'c'.repeat(40), set_sha256: S('3'), dict_sha256: S('4') } })).code, 'FAMILY_HEAD_DIVERGENT');
+});
+test('(H3 chain) vfs-derived parent_set_sha must equal vfs-pack meta set_sha', () => {
+    assert.equal(publicationFamilyGate(family({ vfsDerived: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: S('5'), parent_set_sha256: S('9') } })).code, 'FAMILY_PARENT_CHAIN_BROKEN');
+});
+test('(H4 required authorities present) warm_read + mesh set + mesh dict must all be present sha256', () => {
+    assert.equal(publicationFamilyGate(family({ vfsPack: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: S('1'), warm_read_set_sha256: '' } })).code, 'FAMILY_WARM_READ_ABSENT');
+    assert.equal(publicationFamilyGate(family({ meshProfile: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: '', dict_sha256: S('4') } })).code, 'FAMILY_MESH_SET_ABSENT');
+    assert.equal(publicationFamilyGate(family({ meshProfile: { upstream_run_id: 'UP1', factory_run_id: 'RUN1', head_sha: SHA, set_sha256: S('3'), dict_sha256: '' } })).code, 'FAMILY_MESH_DICT_ABSENT');
+});
+test('(H5) missing a whole descriptor => FAMILY_DESC_MISSING', () => {
+    const f = family(); delete f.meshProfile;
+    assert.equal(publicationFamilyGate(f).code, 'FAMILY_DESC_MISSING');
+});
+test('(G/list safety) listWarmReadFiles excludes reserved sidecars + .db', () => {
+    const dir = warmDir({ 'manifest.json': '{}', 'handoff.json': '{}' });
+    const names = listWarmReadFiles(dir);
+    assert.ok(!names.includes('manifest.json'));
+    assert.ok(!names.includes('handoff.json'));
+    assert.ok(!names.some((n) => n.endsWith('.db')));
+    assert.ok(names.includes('vector-core.bin'));
+    assert.ok(WARM_READ_CLASSES.some((c) => c.name === 'term_index_bucket'));
 });

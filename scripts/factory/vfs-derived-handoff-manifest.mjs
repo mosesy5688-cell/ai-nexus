@@ -288,6 +288,152 @@ export function verifyDescriptor(descriptor, cur) {
 }
 
 // ============================================================================
+// AUTHORITY-W (warm_read) — Founder VFS_PRODUCER_ARTIFACT_EXACT_CYCLE_AUTHORITY_4_OF_4.
+// A STRICTLY ADDITIVE sibling of the meta_db authority: a SEPARATE warm-read-manifest.json
+// (own set_sha256) over the shared warm-read producer artifacts (vector-core.bin,
+// hot-shard.bin, id-index.bin, term_index/**) staged into the SAME vfs-pack attempt
+// prefix. The meta_db manifest.json + its set_sha256 stay BYTE-IDENTICAL (D-245/FIX-4
+// unregressed); the descriptor gains ONLY additive warm_read_set_sha256 + member count.
+// warm_read NEVER carries a .db member (that is the meta_db authority — no double-bind).
+// ============================================================================
+export const WARM_READ_MEMBER_CLASS = 'warm_read';
+// Exact membership of the warm_read set, output/data-relative. A file is a warm_read
+// member IFF it matches this (the 3 named bins OR anything under term_index/). meta-*.db /
+// rankings-*.db + any stray bin (e.g. cluster-ann-index.bin) are NOT matched => ignored.
+const WARM_READ_INCLUDE_RE = /^(vector-core\.bin|hot-shard\.bin|id-index\.bin|term_index\/.+)$/;
+const DB_MEMBER_RE = /\.db$/;
+// Required-class floors. term_index_bucket matches BOTH the per-prefix _bucket.json.zst
+// AND high-freq <term>_<i>.json.zst chunks (any file inside a term_index prefix subdir);
+// the top-level term_index/_manifest.json.zst is the manifest class (no prefix subdir).
+export const WARM_READ_CLASSES = Object.freeze([
+    { name: 'vector_core', re: /^vector-core\.bin$/, min: 1 },
+    { name: 'hot_shard', re: /^hot-shard\.bin$/, min: 1 },
+    { name: 'id_index', re: /^id-index\.bin$/, min: 1 },
+    { name: 'term_index_manifest', re: /^term_index\/_manifest\.json\.zst$/, min: 1 },
+    { name: 'term_index_bucket', re: /^term_index\/[^/]+\/.+\.json\.zst$/, min: 2 },
+]);
+
+/** List warm_read members under `dir` (posix relative paths). INCLUDE-filtered (never
+ *  .db), reserved sidecars excluded, symlink/traversal rejected. */
+export function listWarmReadFiles(dir) {
+    const out = [];
+    const walk = (absDir, relPrefix) => {
+        let entries;
+        try { entries = fs.readdirSync(absDir, { withFileTypes: true }); } catch { return; }
+        for (const e of entries) {
+            const rel = relPrefix ? `${relPrefix}/${e.name}` : e.name;
+            const abs = path.join(absDir, e.name);
+            if (e.isSymbolicLink()) throw new HandoffManifestError('UNSAFE_MEMBER', `symlink member: ${rel}`);
+            if (e.isDirectory()) { walk(abs, rel); continue; }
+            if (!e.isFile()) continue;
+            if (RESERVED.has(e.name)) continue;
+            if (rel.split('/').some((s) => s === '..')) throw new HandoffManifestError('UNSAFE_MEMBER', `traversal member: ${rel}`);
+            if (!WARM_READ_INCLUDE_RE.test(rel)) continue;
+            out.push(rel);
+        }
+    };
+    walk(dir, '');
+    return out.sort();
+}
+
+/** Build the warm_read sibling manifest over `dir` (output/data/). Enforces the
+ *  warm_read class floors at generate. Provenance from `ctx` (NOT disk-derived). */
+export function generateWarmReadManifest(dir, ctx = {}) {
+    if (ctx.carrierType && ctx.carrierType !== 'vfs-pack-authority') throw new HandoffManifestError('CARRIER_UNKNOWN', `warm_read requires carrier vfs-pack-authority, got ${ctx.carrierType}`);
+    const names = listWarmReadFiles(dir);
+    const files = [];
+    let totalBytes = 0;
+    for (const rel of names) {
+        const abs = path.join(dir, rel);
+        const size = fs.statSync(abs).size;
+        files.push({ relative_path: rel, size_bytes: size, sha256: sha256File(abs) });
+        totalBytes += size;
+    }
+    const requiredClasses = countClasses(files, WARM_READ_CLASSES);
+    for (const rc of requiredClasses) {
+        if (rc.count < rc.min) throw new HandoffManifestError('REQUIRED_CLASS_BELOW_FLOOR', `warm_read class ${rc.name}: ${rc.count} < min ${rc.min}`);
+    }
+    return {
+        schema_version: SCHEMA_VERSION,
+        carrier_type: 'vfs-pack-authority',
+        member_class: WARM_READ_MEMBER_CLASS,
+        upstream_3_4_run_id: String(ctx.upstreamRunId ?? ''),
+        factory_4_4_run_id: String(ctx.factoryRunId ?? ''),
+        factory_4_4_run_attempt: Number(ctx.producerAttempt ?? 0),
+        producer_job_identity: 'vfs-pack-db',
+        producer_attempt: Number(ctx.producerAttempt ?? 0),
+        head_sha: String(ctx.headSha ?? ''),
+        vfs_pack_code_version: String(ctx.vfsPackCodeVersion ?? ''),
+        exact_staging_prefix: buildStagingPrefix('vfs-pack-authority', ctx.upstreamRunId, ctx.factoryRunId, ctx.producerAttempt),
+        created_at_utc: ctx.createdAt || new Date().toISOString(),
+        completion_state: COMPLETION_STATE,
+        required_file_classes: requiredClasses,
+        member_count: files.length,
+        total_bytes: totalBytes,
+        files,
+        set_sha256: computeSetSha256(files),
+    };
+}
+
+/** Verify a directory against a warm_read manifest. EXACT set equality (via the
+ *  warm_read INCLUDE filter — never .db), per-file size + sha256, set_sha256, class
+ *  floors + count agreement, member_count. No-double-bind: a .db member is rejected. */
+export function verifyWarmReadDir(dir, manifest) {
+    if (!manifest || typeof manifest !== 'object') return fail('MANIFEST_MALFORMED', 'manifest missing/not an object');
+    if (manifest.carrier_type !== 'vfs-pack-authority' || manifest.member_class !== WARM_READ_MEMBER_CLASS) return fail('WARM_READ_CARRIER_MISMATCH', `not a warm_read manifest (${manifest.carrier_type}/${manifest.member_class})`);
+    if (!Array.isArray(manifest.files)) return fail('MANIFEST_MALFORMED', 'manifest.files not an array');
+    if (Object.prototype.hasOwnProperty.call(manifest, 'manifest_sha256')) return fail('MANIFEST_SELF_HASH', 'manifest must NOT carry its own hash');
+    let actualNames;
+    try { actualNames = new Set(listWarmReadFiles(dir)); }
+    catch (e) { return fail(e.code || 'UNSAFE_MEMBER', e.message); }
+    const manifestNames = new Set(manifest.files.map((f) => f.relative_path));
+    for (const n of manifestNames) if (DB_MEMBER_RE.test(n)) return fail('WARM_READ_DB_DOUBLE_BIND', `db member forbidden in warm_read set: ${n}`);
+    for (const n of manifestNames) if (!WARM_READ_INCLUDE_RE.test(n)) return fail('WARM_READ_FOREIGN_MEMBER', `non-warm_read member in manifest: ${n}`);
+    for (const n of manifestNames) if (!actualNames.has(n)) return fail('FILE_MISSING', `manifest file absent on disk: ${n}`);
+    for (const n of actualNames) if (!manifestNames.has(n)) return fail('FILE_EXTRA', `disk warm_read file not in manifest: ${n}`);
+    for (const f of manifest.files) {
+        if (String(f.relative_path).split('/').some((s) => s === '..')) return fail('UNSAFE_MEMBER', `traversal member: ${f.relative_path}`);
+        const abs = path.join(dir, f.relative_path);
+        const size = fs.statSync(abs).size;
+        if (size !== Number(f.size_bytes)) return fail('SIZE_MISMATCH', `size mismatch ${f.relative_path}: disk ${size} != manifest ${f.size_bytes}`);
+        if (!isSha256Hex(f.sha256) || sha256File(abs) !== f.sha256) return fail('HASH_MISMATCH', `sha256 mismatch ${f.relative_path}`);
+    }
+    const recomputed = countClasses(manifest.files, WARM_READ_CLASSES);
+    const declared = Array.isArray(manifest.required_file_classes) ? manifest.required_file_classes : [];
+    for (const rc of recomputed) {
+        if (rc.count < rc.min) return fail('REQUIRED_CLASS_BELOW_FLOOR', `warm_read class ${rc.name}: ${rc.count} < min ${rc.min}`);
+        const d = declared.find((x) => x && x.name === rc.name);
+        if (!d || Number(d.count) !== rc.count) return fail('REQUIRED_CLASS_COUNT_MISMATCH', `warm_read class ${rc.name}: manifest ${d && d.count} != disk ${rc.count}`);
+    }
+    if (Number(manifest.member_count) !== manifest.files.length) return fail('MEMBER_COUNT_MISMATCH', `member_count ${manifest.member_count} != files ${manifest.files.length}`);
+    if (computeSetSha256(manifest.files) !== manifest.set_sha256) return fail('SET_HASH_MISMATCH', 'manifest.set_sha256 != recomputed set hash');
+    return { ok: true, code: 'OK', reason: 'warm-read-verified', set_sha256: manifest.set_sha256, member_count: manifest.files.length };
+}
+
+// ============================================================================
+// PUBLICATION-FAMILY CLOSURE GATE (Final Upload, BEFORE R2 publish). Asserts the
+// three resolved descriptors (vfs-pack meta+warm_read, mesh-profile, vfs-derived
+// secondary) belong to ONE 4/4 cycle-family on ONE code head. Fail-closed: any
+// divergence => the caller must NOT run Final Upload. Pure data check (no R2/fs).
+// ============================================================================
+export function publicationFamilyGate(d) {
+    for (const k of ['vfsPack', 'meshProfile', 'vfsDerived']) {
+        if (!d || !d[k] || typeof d[k] !== 'object') return fail('FAMILY_DESC_MISSING', `${k} descriptor missing`);
+    }
+    const vp = d.vfsPack, mp = d.meshProfile, vd = d.vfsDerived;
+    const same = (a, b, c) => String(a) === String(b) && String(a) === String(c);
+    if (!same(vp.upstream_run_id, mp.upstream_run_id, vd.upstream_run_id)) return fail('FAMILY_UPSTREAM_DIVERGENT', `upstream_run_id divergent: vfsPack=${vp.upstream_run_id} mesh=${mp.upstream_run_id} derived=${vd.upstream_run_id}`);
+    if (!same(vp.factory_run_id, mp.factory_run_id, vd.factory_run_id)) return fail('FAMILY_RUN_DIVERGENT', `factory_run_id divergent: vfsPack=${vp.factory_run_id} mesh=${mp.factory_run_id} derived=${vd.factory_run_id}`);
+    if (!same(vp.head_sha, mp.head_sha, vd.head_sha)) return fail('FAMILY_HEAD_DIVERGENT', `head_sha divergent: vfsPack=${vp.head_sha} mesh=${mp.head_sha} derived=${vd.head_sha}`);
+    if (!isSha256Hex(vp.set_sha256)) return fail('FAMILY_META_SET_ABSENT', 'vfsPack meta set_sha256 absent/invalid');
+    if (String(vd.parent_set_sha256) !== String(vp.set_sha256)) return fail('FAMILY_PARENT_CHAIN_BROKEN', `vfs-derived parent_set_sha256 ${vd.parent_set_sha256} != vfs-pack meta set_sha256 ${vp.set_sha256}`);
+    if (!isSha256Hex(vp.warm_read_set_sha256)) return fail('FAMILY_WARM_READ_ABSENT', 'warm_read_set_sha256 absent/invalid on the vfs-pack descriptor');
+    if (!isSha256Hex(mp.set_sha256)) return fail('FAMILY_MESH_SET_ABSENT', 'mesh-profile set_sha256 absent/invalid');
+    if (!isSha256Hex(mp.dict_sha256)) return fail('FAMILY_MESH_DICT_ABSENT', 'mesh-profile dict_sha256 absent/invalid');
+    return { ok: true, code: 'OK', reason: 'family-coherent', upstream_run_id: String(vp.upstream_run_id), factory_run_id: String(vp.factory_run_id), head_sha: String(vp.head_sha) };
+}
+
+// ============================================================================
 // CLI: generate | verify | verify-descriptor. Provenance via env; carrier + ext
 // via --carrier=/--ext=. Consumer jobs use all three.
 // ============================================================================
@@ -332,6 +478,34 @@ function runCli(argv) {
         console.error(`[VFS-HANDOFF-RSS] OK recovered=[${res.recovered.join(',')}] skipped=[${res.skipped.join(',')}]`);
         return 0;
     }
+    if (cmd === 'generate-warm-read') {
+        const [dir, out] = positional;
+        const manifest = generateWarmReadManifest(dir, envCtx(carrierType || 'vfs-pack-authority'));
+        fs.writeFileSync(out, JSON.stringify(manifest));
+        process.stdout.write(`${manifest.set_sha256}\n`);
+        return 0;
+    }
+    if (cmd === 'verify-warm-read') {
+        const [dir, manifestPath] = positional;
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        const res = verifyWarmReadDir(dir, manifest);
+        if (!res.ok) { console.error(`[WARM-READ-VERIFY] FAIL ${res.code}: ${res.reason}`); return 1; }
+        console.error(`[WARM-READ-VERIFY] OK set_sha256=${res.set_sha256} members=${res.member_count}`);
+        process.stdout.write(`${res.set_sha256}\n`);
+        return 0;
+    }
+    if (cmd === 'family-gate') {
+        // family-gate <vfsPackDesc> <meshProfileDesc> <vfsDerivedDesc>. Emits the
+        // coherent family identity on pass; exits 1 fail-closed on any divergence.
+        const [vpP, mpP, vdP] = positional;
+        let vp; let mp; let vd;
+        try { vp = JSON.parse(fs.readFileSync(vpP, 'utf8')); mp = JSON.parse(fs.readFileSync(mpP, 'utf8')); vd = JSON.parse(fs.readFileSync(vdP, 'utf8')); }
+        catch (e) { console.error(`[PUBLICATION-FAMILY] FAIL DESC_UNREADABLE: ${e.message}`); return 1; }
+        const res = publicationFamilyGate({ vfsPack: vp, meshProfile: mp, vfsDerived: vd });
+        if (!res.ok) { console.error(`[PUBLICATION-FAMILY] FAIL ${res.code}: ${res.reason}`); return 1; }
+        console.error(`[PUBLICATION-FAMILY] OK upstream=${res.upstream_run_id} factory=${res.factory_run_id} head=${res.head_sha}`);
+        return 0;
+    }
     if (cmd === 'verify') {
         const [dir, manifestPath] = positional;
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
@@ -360,7 +534,7 @@ function runCli(argv) {
         console.error(`[VFS-HANDOFF-DESC] OK staging=${res.staging_prefix} producer_attempt=${res.producer_attempt}`);
         return 0;
     }
-    console.error('Usage: vfs-derived-handoff-manifest.mjs generate|verify|verify-descriptor|rss-recovery-plan|verify-rss-inputs <args> --carrier=<vfs-pack-authority|vfs-derived-authority> [--ext=.db] [--rss-base=.]');
+    console.error('Usage: vfs-derived-handoff-manifest.mjs generate|verify|verify-descriptor|rss-recovery-plan|verify-rss-inputs|generate-warm-read|verify-warm-read|family-gate <args> --carrier=<vfs-pack-authority|vfs-derived-authority> [--ext=.db] [--rss-base=.]');
     return 1;
 }
 
