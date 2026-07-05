@@ -2,6 +2,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createR2Client, fetchR2Etags } from './r2-helpers.js';
+import { isUploadEligible } from './upload-eligibility.js';
 import { PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
@@ -21,14 +22,14 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
     }
     try {
         const data = await fs.readFile(localPath);
-        // V27.63: zstd magic check replaces 256B floor for .zst (false-positived
-        // legit small payloads: manifest 216B, tail chunks 80-200B, health 121B).
-        const minBytes = opts.minSize ?? 256;
-        const isZst = localPath.endsWith('.zst');
-        const hasZstdMagic = isZst && data.length >= 4 && data.readUInt32LE(0) === 0xFD2FB528;
-        const passes = isZst ? (hasZstdMagic && data.length >= 16) : (data.length >= minBytes);
-        if (!passes) {
-            const reason = isZst ? `invalid zstd (${data.length}B)` : `${data.length}B < min ${minBytes}B`;
+        // V27.63 zstd magic + 16B floor (replaced the old 256B .zst floor that
+        // false-positived legit small payloads: manifest 216B, tail chunks 80-200B,
+        // health 121B). D-262 A3: extracted VERBATIM to the shared PURE isUploadEligible
+        // so shards-handoff-manifest.mjs enumerates ONLY members this guard will accept
+        // (consistent by construction) -- same magic check, same 16B floor, same
+        // non-.zst min floor, same BLOCKED reason string. minSize maps to minBytes.
+        const { eligible, reason } = isUploadEligible(localPath, data, { minBytes: opts.minSize });
+        if (!eligible) {
             console.error(`[R2-HANDOFF] BLOCKED: ${localPath} ${reason}. Refusing upload to prevent state wipe.`);
             return { success: false, reason: 'integrity_check_failed' };
         }
