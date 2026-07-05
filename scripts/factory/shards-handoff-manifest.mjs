@@ -33,6 +33,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { isUploadEligible } from './lib/upload-eligibility.js';
 
 export const SCHEMA_VERSION = 1;
 export const COMPLETION_STATE = 'complete';
@@ -54,13 +55,32 @@ export const CARRIERS = Object.freeze({
     'prepared-entity-data-authority': Object.freeze({
         prefixRoot: 'state/_handoff/prepared-entity-data',
         producerJob: 'prepare-data',
-        // Two member roots with different filters (mirrors the existing 2/4 backup:
-        // data/ is .json/.json.zst; cache/ is unfiltered). EXACT-set equality (no
-        // fixed count) + class floors -- the shape-appropriate GAP-5 set identity.
+        // D-262 A3 HYBRID EXPLICIT MEMBERSHIP: data/ carries the AUTHORITATIVE prepared
+        // set (manifest + merged shards, .json/.json.zst). cache/ is NO LONGER an
+        // unfiltered walk -- it is CLASSIFIED: each cache file is either a PROVEN
+        // optional-accelerator EXCLUDE (entity-checksums / daily-accum / fni-history --
+        // independently hydrated by the matrix-shards consumer + safe-absent defaults,
+        // proposal S4) or, if it matches NO explicit class, an UNCLASSIFIED_MEMBER
+        // fail-loud (never a silent include, never a silent drop). Net current members =
+        // the data/ set ONLY. EXACT-set equality (no fixed count) + class floors.
         memberRoots: Object.freeze([
             Object.freeze({ dir: 'data', extensions: Object.freeze(['.json', '.json.zst']) }),
-            Object.freeze({ dir: 'cache', extensions: null }),
+            Object.freeze({
+                dir: 'cache',
+                classification: Object.freeze({
+                    includes: Object.freeze([]),
+                    optionalAcceleratorExcludes: Object.freeze([
+                        /^cache\/entity-checksums\.json\.zst$/,
+                        /^cache\/daily-accum(\.json\.zst|\/.*)$/,
+                        /^cache\/fni-history(\.json\.zst|\/.*)$/,
+                    ]),
+                }),
+            }),
         ]),
+        // Every INCLUDED member must be upload-eligible under the SAME predicate the
+        // uploader applies (isUploadEligible) -- a REQUIRED member the guard would refuse
+        // fails LOUD (MEMBER_UPLOAD_INELIGIBLE) at generate, never a late FILE_MISSING.
+        assertMemberEligibility: true,
         classes: Object.freeze([
             { name: 'data_manifest', re: /^data\/manifest\.json$/, min: 1 },
             { name: 'merged_shard', re: /^data\/merged_shard_.*\.json\.zst$/, min: 1 },
@@ -126,12 +146,35 @@ function walkInto(absDir, relBase, extensions, out) {
     }
 }
 
+// Explicit membership classification for a CLASSIFIED member root (e.g. cache/): the
+// dir is walked UNFILTERED (reserved sidecars/symlinks/traversal handled by walkInto),
+// then EACH file is resolved to exactly one class -- an INCLUDED authoritative member
+// (appended), a PROVEN optional-accelerator EXCLUDE (skipped), or, matching NO class,
+// an UNCLASSIFIED_MEMBER fail-loud. Never a silent include, never a silent drop. The
+// current cache/ classification has zero `includes`, so a clean cache/ yields 0 members.
+function classifyRoot(absDir, relBase, classification, out) {
+    const raw = [];
+    walkInto(absDir, relBase, null, raw);
+    const includes = classification.includes || [];
+    const excludes = classification.optionalAcceleratorExcludes || [];
+    for (const rel of raw) {
+        if (includes.some((re) => re.test(rel))) { out.push(rel); continue; }
+        if (excludes.some((re) => re.test(rel))) continue; // proven optional accelerator (proposal S4)
+        throw new HandoffManifestError('UNCLASSIFIED_MEMBER', `cache member in no explicit class: ${rel}`);
+    }
+}
+
 /** List carrier files under baseDir per the carrier's membership shape (single-root
- *  ext-filtered OR multi-root). Returns sorted posix relative paths. */
+ *  ext-filtered OR multi-root; a classified root applies explicit membership). Returns
+ *  sorted posix relative paths. This is the SINGLE membership function used by BOTH
+ *  generate and verify -- so the exclusion/classification is consistent by construction. */
 export function listCarrierFiles(baseDir, carrier) {
     const out = [];
     if (Array.isArray(carrier.memberRoots)) {
-        for (const r of carrier.memberRoots) walkInto(path.join(baseDir, r.dir), r.dir, r.extensions, out);
+        for (const r of carrier.memberRoots) {
+            if (r.classification) classifyRoot(path.join(baseDir, r.dir), r.dir, r.classification, out);
+            else walkInto(path.join(baseDir, r.dir), r.dir, r.extensions, out);
+        }
     } else {
         walkInto(baseDir, '', carrier.extensions, out);
     }
@@ -158,8 +201,16 @@ export function generateManifest(baseDir, ctx = {}, opts = {}) {
         // rel already carries the member-root dir (multi-root) or is root-relative
         // (single-root), so the member abs path is uniformly baseDir + rel.
         const abs = path.join(baseDir, rel);
-        const size = fs.statSync(abs).size;
-        files.push({ relative_path: rel, size_bytes: size, sha256: sha256File(abs) });
+        const buf = fs.readFileSync(abs);
+        // A3 (D-262): every INCLUDED member must be upload-eligible under the SAME
+        // predicate the uploader applies -- a REQUIRED member the guard would refuse
+        // fails LOUD here (never a silently-unsatisfiable manifest -> late FILE_MISSING).
+        if (carrier.assertMemberEligibility) {
+            const { eligible, reason } = isUploadEligible(rel, buf);
+            if (!eligible) throw new HandoffManifestError('MEMBER_UPLOAD_INELIGIBLE', `included member ${rel} upload-ineligible: ${reason}`);
+        }
+        const size = buf.length;
+        files.push({ relative_path: rel, size_bytes: size, sha256: crypto.createHash('sha256').update(buf).digest('hex') });
         totalBytes += size;
     }
     const requiredClasses = countClasses(files, carrier.classes);
