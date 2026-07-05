@@ -64,8 +64,11 @@ jobs:
       # prepared-entity-data R2 handoff verifier contract test AND the D-264
       # cycle-output (3/4 -> 4/4) R2 handoff verifier contract test. No wildcard, no
       # unrelated tests, no continue-on-error: any red fails this job.
-      - name: Run node --test factory handoff suites (satellite + core + harvest + vfs-derived + shards + cycle-output, blocking)
-        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs scripts/factory/shards-handoff-manifest.test.mjs scripts/factory/cycle-output-handoff-manifest.test.mjs
+      # The vfs-derived suite ALSO covers the AUTHORITY-W warm_read sibling + the
+      # publication-family closure gate (VFS_PRODUCER_ARTIFACT_EXACT_CYCLE_AUTHORITY_4_OF_4);
+      # the mesh-profile suite covers AUTHORITY-M (mesh-baking -> consumers).
+      - name: Run node --test factory handoff suites (satellite + core + harvest + vfs-derived + shards + cycle-output + mesh-profile, blocking)
+        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs scripts/factory/shards-handoff-manifest.test.mjs scripts/factory/cycle-output-handoff-manifest.test.mjs scripts/factory/mesh-profile-handoff-manifest.test.mjs
 
       - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
         run: npx vitest run --coverage

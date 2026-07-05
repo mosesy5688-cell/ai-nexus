@@ -998,3 +998,30 @@ both `tests/unit/*` (reused) and the new `tests/srs1/*` files are collected
 automatically — no separate runner. A red SRS-1 assertion fails `unit-test`,
 which blocks the merge. SRS-2A (Tier-2) is a separate, non-blocking,
 post-deploy workflow and is never a PR check.
+
+## VFS_PRODUCER_ARTIFACT_EXACT_CYCLE_AUTHORITY_4_OF_4 (AUTH-W + AUTH-M + publication-family)
+
+> Founder work package. Establishes ONE exact-cycle, attempt-scoped authority for the
+> shared VFS producer artifacts (the 6): GROUP W warm_read = vector-core.bin /
+> hot-shard.bin / id-index.bin / term_index/** (extend the D-245 vfs-pack authority with
+> a STRICTLY ADDITIVE sibling `warm-read-manifest.json` — the meta_db manifest.json + its
+> set_sha256 stay BYTE-IDENTICAL); GROUP M mesh-profile = profile-evidence-dict.json.zst /
+> profile-shards/** (new `mesh-profile-authority` carrier). Consumers vfs-pack-db /
+> vfs-derived / upload verify-or-recover BEFORE their V23.1 SQL health / R2 publish; a
+> publication-family gate binds AUTH-W + AUTH-M + vfs-derived secondary + FIX-4 meta into
+> ONE 4/4 cycle-family on ONE head before Final Upload. GHA cache is verified-acceleration
+> only; R2 exact staging is the correctness authority. No D-245/D-246/FIX-2/FIX-4
+> regression: the meta_db set_sha is untouched (sibling variant); AUTH-M/W never bind a
+> registry / cycle-output / .db / meta member (no double-bind). Runtime acceptance still
+> requires the automatic workflow_run with log proof — hermetic tests are necessary, not
+> sufficient.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| AUTHW-SIBLING-META-IMMUTABLE | The warm_read authority is a SEPARATE manifest with its own set_sha256; the meta_db manifest over the SAME output/data/ (--ext=.db) yields an IDENTICAL set_sha WITH vs WITHOUT the warm-read bins present, and the warm set_sha differs from the meta set_sha. Reverting to a unified manifest that folds warm into the meta set reds the meta-independence assertion | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` (G2) | EXEC | **NEW** |
+| AUTHW-NO-DB-DOUBLE-BIND | The warm_read INCLUDE filter NEVER matches a .db member (meta-*.db / rankings-*.db excluded); a .db member smuggled into a warm_read manifest is rejected WARM_READ_DB_DOUBLE_BIND. Dropping the exclude re-binds the meta_db set into the warm authority | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` (G1/G7) | EXEC | **NEW** |
+| AUTHW-COMPLETENESS-FLOORS | warm_read fails closed when any of vector_core/hot_shard/id_index (>=1) or term_index_manifest (>=1) or term_index_bucket (>=2) is below floor, and on FILE_MISSING/FILE_EXTRA/SIZE/HASH/SET_HASH/MEMBER_COUNT. A truncated-but-magic bin reds by per-file sha; a partial term_index reds by the bucket floor | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` (G3-G10) | EXEC | **NEW** |
+| AUTHW-SELF-STRIP-KILL | The vfs-derived + upload(FIX-4) consumers verify warm_read (verify-warm-read) and, on miss/mismatch, `rm -rf output/data/` then `restore-dir "$STAGING_PREFIX" output/data/ --strict` (WHOLE attempt prefix = meta .db + warm) — never a --ext=.db-scoped restore that would leave the bins/term_index stripped; warm recovery is fail-closed (exit 1). Keeping a .db-only self-strip reds the workflow-shape ties | `tests/unit/vfs-producer-authority-workflow.test.ts` | SOURCE | **NEW** |
+| AUTHM-EXACT-CYCLE | The mesh-profile authority freezes expected_shard_count + dict_sha256 + set_sha256 over the dict + profile-shards (INCLUDE-filtered; graph.json/stats.json siblings ignored) and rejects a shard-count drift (SHARD_COUNT_MISMATCH), a stale-but-parseable dict (DICT_SHA_MISMATCH), a foreign upstream/factory/head/code_version, and a fixed/latest/flipped-two-level prefix. Dropping expected_shard_count or dict_sha256 lets a stale/partial set pass | `scripts/factory/mesh-profile-handoff-manifest.test.mjs` (M6/M7/M12/M13) | EXEC | **NEW** |
+| AUTHM-FIXED-PREFIX-DEMOTED | The vfs-pack-db + vfs-derived + upload consumers resolve the AUTH-M descriptor by (upstream, run_id), verify-or-recover from the EXACT attempt staging fail-closed, and NO LONGER use the fixed prefixes state/mesh-profile-{shards,dict}/ as a recovery INPUT (compat/diagnostic only). Restoring a fixed-prefix recovery input reds the demotion ties | `tests/unit/vfs-producer-authority-workflow.test.ts` | SOURCE | **NEW** |
+| FAMILY-CLOSURE-GATE | Before Upload to R2, the publication-family gate asserts vfs-pack (meta+warm) + mesh-profile + vfs-derived descriptors share one upstream_run_id + factory_run_id + head_sha, the vfs-derived parent_set_sha chains to the vfs-pack meta set_sha, and warm_read + mesh set + mesh dict authorities are present; any divergence exits 1 (Final Upload LOCKED). Skipping the gate or accepting a mixed-cycle family reds the gate | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` (H1-H5) + `tests/unit/vfs-producer-authority-workflow.test.ts` | EXEC + SOURCE | **NEW** |
