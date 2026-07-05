@@ -475,6 +475,46 @@ proof in the PR body).
 | SHARDS-DESCRIPTOR | Run-scoped descriptor provenance: current Process (2/4) run id; producer_attempt a positive int (same-run bound `<=` current run_attempt ONLY when the consumer supplies its own attempt -- prepared-entity-data / rerun-failed-jobs; OMITTED for the cross-workflow shards seam); head_sha a well-formed 40-hex git sha (equality enforced only when the consumer supplies an expected value); exact_staging_prefix == derived process-run+attempt path (no list-latest / prefix-guess / fixed `state/shards/` / mutable-latest / two-level / foreign cycle); missing field / carrier mismatch / bad set-or-manifest sha => fail-loud | `scripts/factory/shards-handoff-manifest.test.mjs` | EXEC | **NEW** |
 | SHARDS-DAG | Workflow DAG: save-shards-cache produces attempt-scoped staging (20 shards FIRST -> manifest LAST -> descriptor LAST-of-all, set -e) + read-back verify; merge-core-compute consumes ONLY the process-id descriptor authority, GHA exact-key fast path (restore-keys prefix authority REMOVED) verified against the manifest, verify-or-recover the EXACT 20-shard set from the EXACT staging, never a fixed `state/shards/` recovery input, EXACTLY-20 final gate, fail-closed (exit 1) on missing authority / recovery-verify failure / residual mismatch (no warning-only mismatch path); the matrix stream to `state/shards/` is DEMOTED to a compat transport; GAP-5 prepare-data establishes + matrix-shards verify-or-recovers the prepared-entity-data authority symmetrically (fixed `state/prepared-entity-data/` DEMOTED to compat); SCOPE: split-registry / shard-processor / aggregator invoked-never-re-pathed, process-id resolution + finalize cycle-output NOT referenced, R2 via GENERIC r2-workflow-cli ops (no new subcommand), top-level `actions:write` + `contents:read` permissions UNCHANGED | `tests/unit/shards-handoff-workflow.test.ts` | CONFIG + SOURCE | **NEW** |
 
+## Registry — GAP-5b MANIFEST/GUARD MEMBERSHIP CONSISTENCY (D-2026-0704-262, A3)
+
+> Deterministic, hermetic invariants for the Factory 2/4 prepared-entity-data
+> manifest/guard membership-consistency repair (Founder D-2026-0704-262, option A3
+> HYBRID EXPLICIT MEMBERSHIP REGISTRY). **Invariant:** the prepared-entity-data
+> AUTHORITY member set is CONSISTENT with the R2 upload-eligibility guard by
+> construction — a manifest can NEVER enumerate a member the uploader would refuse,
+> and no cache file silently enters or silently leaves the authority. ROOT CAUSE
+> (run 28736418447, main eb72804f): the GAP-5 authority manifest walked the `cache/`
+> member root UNFILTERED (`extensions: null`), so it self-certified a STALE 11-byte
+> header-only-zstd `cache/entity-checksums.json.zst` as a required set member while
+> the r2-handoff uploader (`.zst` eligible iff zstd-magic `0xFD2FB528` AND
+> `length>=16`) categorically refuses any sub-16B `.zst` — making the exact-set
+> read-back UNSATISFIABLE → correct fail-closed exposing a membership-predicate
+> INCONSISTENCY. FIX (A3, three parts, NO guard relaxation): (1) the guard predicate
+> is extracted VERBATIM into a PURE single source `scripts/factory/lib/upload-eligibility.js`
+> `isUploadEligible()` imported by BOTH `r2-handoff.js` (uploader) AND
+> `shards-handoff-manifest.mjs` (manifest) so they cannot drift; (2) the `cache/` root
+> is CLASSIFIED — proven optional-accelerator EXCLUDES (`entity-checksums` /
+> `daily-accum` / `fni-history`, each independently hydrated by the matrix-shards
+> consumer + safe-absent defaults) are excluded, any UNKNOWN cache file fails LOUD
+> `UNCLASSIFIED_MEMBER` (never a silent include/drop); (3) every INCLUDED member is
+> asserted upload-eligible at generate — a REQUIRED corrupt/sub-floor member fails
+> LOUD `MEMBER_UPLOAD_INELIGIBLE` (never a late `FILE_MISSING`). The SAME
+> `listCarrierFiles` membership function governs BOTH generate and verify. The zstd
+> guard, the 16B floor, the read-back verify, and `FILE_MISSING`/`FILE_EXTRA`
+> fail-closed are all PRESERVED (strengthened, never weakened). NO workflow edit; the
+> shards-authority carrier is UNCHANGED (eligibility flag scoped to prepared-entity-data).
+> Hermetic tier: the `node --test` contract suite `scripts/factory/shards-handoff-manifest.test.mjs`
+> (Section F, 10 mandatory tests) runs in the SAME required `unit-test` job via the
+> C2-LOCK `node --test` list.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| GAP-5b-SINGLE-SOURCE | The upload-eligibility predicate is ONE pure source (`upload-eligibility.js` `isUploadEligible`): `.zst` eligible iff zstd-magic `0xFD2FB528` AND `len>=16`; non-`.zst` iff `len>=256`. `r2-handoff.js` imports it (no duplicated inline predicate; `0xFD2FB528` + `data.length>=16` literals GONE from the guard body) and `shards-handoff-manifest.mjs` imports the SAME symbol; behavior-identical to the original inline guard over a `{11/15/16B zstd, 255/256B json, magicless 20B .zst}` battery (verdict + reason string). NON-VACUITY: forking/relaxing either predicate reds F-T4 | `scripts/factory/shards-handoff-manifest.test.mjs` (F-T4) | EXEC + SOURCE | **NEW** |
+| GAP-5b-EXPLICIT-MEMBERSHIP | The prepared-entity-data `cache/` root is CLASSIFIED not unfiltered. The EXCLUDE set is the FULL accelerator family reachable in `cache/` at 2/4 generate (whole-cache/ `cycle-<run>-harvest` carrier MINUS the Free Disk step): `entity-checksums` (+ legacy `.gz` + `.json`), `task-checksums` (4/4 incremental-rebuild, + legacy `.json`), `daily-accum` (monolith + shard dir), `fni-history` (dir) -- each name-class, invariant to bytes/etag. An UNKNOWN cache file fails LOUD `UNCLASSIFIED_MEMBER` at BOTH generate and verify (consistent by construction; NOT weakened to a blanket cache/ skip), and NO `cache/` file enters the authority (net members = the `data/` set only); the stale 11B `entity-checksums` no longer affects `set_sha256`. NON-VACUITY: restoring the unfiltered walk reds F-T1/F-T5; dropping `task-checksums`/`.gz`/legacy from the class reds F-T5b (2/4 fail-closed on every steady-state cycle); an etag/content-based skip reds F-T10 | `scripts/factory/shards-handoff-manifest.test.mjs` (F-T1/F-T5/F-T5b/F-T6/F-T10) | EXEC + SOURCE | **NEW** |
+| GAP-5b-INCLUDED-ELIGIBILITY | Every INCLUDED member is upload-eligible at generate: a REQUIRED sub-floor `data/merged_shard_*.json.zst` (11B) fails LOUD `MEMBER_UPLOAD_INELIGIBLE` (never a silently-unsatisfiable manifest); a MISSING required member still reds `FILE_MISSING`; an extra authoritative `data/` member reds `FILE_EXTRA`. Exclusion is CLASS-scoped (the same 11B corruption in a `data/` member is NOT skipped), never a generic skip-bad-file. NON-VACUITY: dropping the eligibility assertion reds F-T2/F-T6 | `scripts/factory/shards-handoff-manifest.test.mjs` (F-T2/F-T3/F-T6 + C12) | EXEC | **NEW** |
+| GAP-5b-ACCEL-INDEPENDENT | entity-checksums is a 2/4-internal change-detection ACCELERATOR, not authoritative prepared data: matrix-shards hydrates it via its OWN dedicated `Restore Entity Checksums` cache (`entity-checksums-${run_id}`) + `R2 Fallback` (`meta/backup/entity-checksums.json.zst`); `loadEntityChecksums` defaults to `{}` (safe absence) + `saveEntityChecksums` skips empty (no 11B regen); the ONLY consumer use is `entityChecksums[id] !== entityHash` feeding `_updated` (NOT identity/FNI/ranking/shard-composition). Excluding it loses no input | `scripts/factory/shards-handoff-manifest.test.mjs` (F-T7, SOURCE lock: factory-process.yml + cache-manager.js + processor-core.js) | SOURCE | **NEW** |
+| GAP-5b-NO-FALLBACK | The fix introduces NO laundering fallback: the authority prefix stays attempt-scoped (`state/_handoff/prepared-entity-data/<run>/attempt-<n>/`) with any latest/mutable/predecessor-guess/two-level prefix REJECTED `DESC_PREFIX_MISMATCH` (no restore-keys/list-latest path); NO fixed `state/prepared-entity-data/` compat substitution; membership is manifest + exact-set read-back, never an etag/`If-None-Match`/md5 skip. NON-VACUITY: a prefix/latest/fixed/etag fallback reds F-T8/F-T9/F-T10 | `scripts/factory/shards-handoff-manifest.test.mjs` (F-T8/F-T9/F-T10) | EXEC + SOURCE | **NEW** |
+
 ## Registry — CYCLE-OUTPUT-R2-AUTHORITY (D-2026-0704-264, FIX-2 / GAP-2 / C12)
 
 > Deterministic, hermetic invariants for the Factory 3/4 finalize -> 4/4 consumers
