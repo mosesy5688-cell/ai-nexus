@@ -144,14 +144,17 @@ test('(M6 T5: profile-shards count mismatch) declared expected_shard_count != di
     // Tamper expected_shard_count only (disk still 3) — count guard reds even if set_sha untouched.
     assert.equal(verifyDirAgainstManifest(dir, { ...m, expected_shard_count: 99 }).code, 'SHARD_COUNT_MISMATCH');
 });
-test('(M7 T8: stale-but-parseable dict) dict content differs from frozen dict_sha256 => DICT_SHA_MISMATCH', () => {
+test('(M7 T8: stale-but-parseable dict) dict_sha256 is the SOLE discriminator (clean anti-vacuity)', () => {
+    // CLEAN discriminator for the dict_sha256 guard: tamper ONLY the frozen manifest.dict_sha256
+    // to a valid-but-wrong sha while disk + files[] dict entry stay consistent. per-file sha and
+    // set_sha both PASS; only the dict_sha256 == recomputed check reds. Dropping that check => green.
     const dir = meshDir();
     const m = genMesh(dir);
-    // Overwrite the dict with a DIFFERENT same-length body: EXACT set + shard count still
-    // hold, but the frozen dict_sha256 no longer matches -> a stale dict cannot masquerade.
+    assert.equal(verifyDirAgainstManifest(dir, { ...m, dict_sha256: 'e'.repeat(64) }).code, 'DICT_SHA_MISMATCH');
+    // And an END-TO-END stale dict (a different same-length body) also reds (via per-file sha
+    // first): a stale-but-parseable dict can never masquerade as the current cycle's.
     fs.writeFileSync(path.join(dir, 'profile-evidence-dict.json.zst'), 'DICT-v2'); // same length as 'DICT-v1'
-    const res = verifyDirAgainstManifest(dir, m);
-    assert.ok(['DICT_SHA_MISMATCH', 'HASH_MISMATCH'].includes(res.code));
+    assert.ok(['DICT_SHA_MISMATCH', 'HASH_MISMATCH'].includes(verifyDirAgainstManifest(dir, m).code));
 });
 test('(M8 set-hash) mutating set_sha256 reds verify', () => {
     const dir = meshDir();
