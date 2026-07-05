@@ -60,10 +60,10 @@ export const CARRIERS = Object.freeze({
         // unfiltered walk -- it is CLASSIFIED: each cache file is either a PROVEN
         // optional-accelerator EXCLUDE or, matching NO explicit class, an
         // UNCLASSIFIED_MEMBER fail-loud (never a silent include, never a silent drop).
-        // The EXCLUDE families are the FULL set of accelerators reachable in cache/ at the
-        // 2/4 "Establish Prepared-Entity-Data R2 Authority" generate step (factory-process
-        // .yml) = the whole-cache/ cycle-<run>-harvest carrier MINUS the "Free Disk" step
-        // (which removes cache/registry/, cache/fni-history/, cache/global-registry.json.zst):
+        // The EXCLUDE families are the FULL set of STEADY-STATE accelerators reachable in
+        // cache/ at the 2/4 "Establish Prepared-Entity-Data R2 Authority" generate step
+        // (factory-process.yml) = the whole-cache/ cycle-<run>-harvest carrier MINUS the
+        // "Free Disk" step (removes cache/registry/, cache/fni-history/, cache/global-registry.json.zst):
         //   - entity-checksums (2/4 change-detection accel; cache-manager.js) -- also its
         //     legacy .gz fallback (r2-registry-restore.js) + legacy uncompressed .json.
         //   - task-checksums   (4/4 aggregate incremental-rebuild accel; aggregator-
@@ -74,7 +74,12 @@ export const CARRIERS = Object.freeze({
         // Each is independently hydrated by the consumer + has a safe-absent default, so it
         // is NOT authoritative prepared DATA (the data/ set is). Net current members = the
         // data/ set ONLY. EXACT-set equality (no fixed count) + class floors. A genuinely
-        // UNKNOWN cache file (any other name) still fails loud.
+        // UNKNOWN cache file (any other name) still fails loud -- INTENTIONALLY. NOTE: on a
+        // total-registry-loss disaster-recovery path (both meta/backup/registry AND
+        // vault/legacy/registry return 0 shards) a LEGACY monolith cache/global-registry.json.gz
+        // could reach generate; it is DELIBERATELY NOT excluded -- a 100MB+ registry monolith in
+        // the prepared-entity-data context is an anomaly that MUST surface (UNCLASSIFIED_MEMBER),
+        // never be silently tolerated. It is never prepared-entity-data.
         memberRoots: Object.freeze([
             Object.freeze({ dir: 'data', extensions: Object.freeze(['.json', '.json.zst']) }),
             Object.freeze({
