@@ -71,7 +71,10 @@ function prepDir(over = {}) {
         'data/manifest.json': bigJson(),
         'data/merged_shard_000.json.zst': zst(20, 'a'),
         'data/merged_shard_001.json.zst': zst(20, 'b'),
+        // steady-state cache/ accelerators (all EXCLUDED): entity-checksums (stale 11B),
+        // task-checksums (4/4 incremental-rebuild, carried by the harvest cache), daily-accum.
         'cache/entity-checksums.json.zst': zstStub(11), // stale 11B accelerator (EXCLUDED)
+        'cache/task-checksums.json.zst': zst(30, 't'),   // 4/4 accelerator (EXCLUDED; MF-1)
         'cache/daily-accum.json.zst': zst(18, 'd'),      // accelerator (EXCLUDED)
         ...over,
     });
@@ -449,6 +452,29 @@ test('(F-T5) an UNKNOWN cache/ file fails LOUD UNCLASSIFIED_MEMBER (never silent
     const m = genPrep(clean);
     fs.writeFileSync(path.join(clean, 'cache/mystery.bin'), 'WHO-DIS');
     assert.equal(verifyDirAgainstManifest(clean, m).code, 'UNCLASSIFIED_MEMBER');
+});
+
+test('(F-T5b MF-1) the FULL reachable cache/ accelerator set (task-checksums + .gz/legacy variants + accel dirs) => clean generate; net members = data/ only; unknown STILL fails loud', () => {
+    // Every accelerator FAMILY reachable in cache/ at 2/4 generate (the whole-cache/ harvest
+    // carrier MINUS Free Disk): entity-checksums (+ legacy .gz + legacy .json), task-checksums
+    // (4/4 incremental-rebuild, + legacy .json), daily-accum (monolith + shard dir), fni-history
+    // (dir). NONE authoritative => NONE a member; the run must NOT fail closed on any of them.
+    const dir = prepDir({
+        'cache/task-checksums.json.zst': zst(30, 't'),         // MF-1: 4/4 incremental-rebuild accel
+        'cache/task-checksums.json': '{"legacy":1}',            // legacy uncompressed variant
+        'cache/entity-checksums.json.gz': Buffer.from('GZLEGACY'), // r2-registry-restore .gz fallback
+        'cache/daily-accum.json.zst': zst(20, 'd'),             // monolith
+        'cache/daily-accum/part-000.json.zst': zst(20, 'p'),    // sharded daily-accum dir
+        'cache/fni-history/part-000.json.zst': zst(20, 'h'),    // fni-history dir (pre-free window)
+    });
+    const m = genPrep(dir);
+    assert.ok(m.files.every((f) => f.relative_path.startsWith('data/'))); // NO cache/ file enters authority
+    assert.equal(m.file_count, 3); // data/manifest.json + 2 merged shards ONLY
+    assert.equal(verifyDirAgainstManifest(dir, m).ok, true);
+    // unknown-fails-loud PRESERVED (not weakened to a blanket cache/ skip): a NEW cache file
+    // matching no accelerator family still throws UNCLASSIFIED_MEMBER.
+    assert.throws(() => genPrep(prepDir({ 'cache/some-new-authority.json.zst': zst(20, 'u') })),
+        (e) => e instanceof HandoffManifestError && e.code === 'UNCLASSIFIED_MEMBER');
 });
 
 test('(F-T6) exclusion is CLASS-scoped (proven accelerator), NOT generic skip-any-bad-file', () => {

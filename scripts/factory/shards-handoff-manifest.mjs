@@ -58,11 +58,23 @@ export const CARRIERS = Object.freeze({
         // D-262 A3 HYBRID EXPLICIT MEMBERSHIP: data/ carries the AUTHORITATIVE prepared
         // set (manifest + merged shards, .json/.json.zst). cache/ is NO LONGER an
         // unfiltered walk -- it is CLASSIFIED: each cache file is either a PROVEN
-        // optional-accelerator EXCLUDE (entity-checksums / daily-accum / fni-history --
-        // independently hydrated by the matrix-shards consumer + safe-absent defaults,
-        // proposal S4) or, if it matches NO explicit class, an UNCLASSIFIED_MEMBER
-        // fail-loud (never a silent include, never a silent drop). Net current members =
-        // the data/ set ONLY. EXACT-set equality (no fixed count) + class floors.
+        // optional-accelerator EXCLUDE or, matching NO explicit class, an
+        // UNCLASSIFIED_MEMBER fail-loud (never a silent include, never a silent drop).
+        // The EXCLUDE families are the FULL set of accelerators reachable in cache/ at the
+        // 2/4 "Establish Prepared-Entity-Data R2 Authority" generate step (factory-process
+        // .yml) = the whole-cache/ cycle-<run>-harvest carrier MINUS the "Free Disk" step
+        // (which removes cache/registry/, cache/fni-history/, cache/global-registry.json.zst):
+        //   - entity-checksums (2/4 change-detection accel; cache-manager.js) -- also its
+        //     legacy .gz fallback (r2-registry-restore.js) + legacy uncompressed .json.
+        //   - task-checksums   (4/4 aggregate incremental-rebuild accel; aggregator-
+        //     incremental.js, carried into the harvest cache) -- also its legacy .json.
+        //   - daily-accum      (global-stats accel; registry-accum.js; monolith + shard dir).
+        //   - fni-history      (7-day trend accel; registry-history.js; FREED here, kept
+        //     defensively for the pre-free window / monolith form).
+        // Each is independently hydrated by the consumer + has a safe-absent default, so it
+        // is NOT authoritative prepared DATA (the data/ set is). Net current members = the
+        // data/ set ONLY. EXACT-set equality (no fixed count) + class floors. A genuinely
+        // UNKNOWN cache file (any other name) still fails loud.
         memberRoots: Object.freeze([
             Object.freeze({ dir: 'data', extensions: Object.freeze(['.json', '.json.zst']) }),
             Object.freeze({
@@ -70,9 +82,10 @@ export const CARRIERS = Object.freeze({
                 classification: Object.freeze({
                     includes: Object.freeze([]),
                     optionalAcceleratorExcludes: Object.freeze([
-                        /^cache\/entity-checksums\.json\.zst$/,
-                        /^cache\/daily-accum(\.json\.zst|\/.*)$/,
-                        /^cache\/fni-history(\.json\.zst|\/.*)$/,
+                        /^cache\/entity-checksums\.json(\.zst|\.gz)?$/,
+                        /^cache\/task-checksums\.json(\.zst|\.gz)?$/,
+                        /^cache\/daily-accum(\.json(\.zst|\.gz)?|\/.*)$/,
+                        /^cache\/fni-history(\.json(\.zst|\.gz)?|\/.*)$/,
                     ]),
                 }),
             }),
