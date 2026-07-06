@@ -77,6 +77,23 @@ function cat4Evidence(src: string) {
 }
 const byCat = (c: Cat) => REGISTRY.filter((g) => g.category === c);
 
+// STRUCTURAL discovery cross-check (filename-INDEPENDENT): the /handoff/ filename
+// key above could be dodged by a future in-class generator NOT named *-handoff-*
+// (review-proven escape). This idiom scan enumerates EVERY scripts/factory/*.{js,mjs}
+// (non-recursive => lib/ excluded; no tests) and flags the GENERATOR IDIOM. Verified
+// to match EXACTLY the 8 registered generators with ZERO false positives: manifest
+// generators carry the `carrier_type` schema field and/or an exported generateManifest();
+// archive generators carry buildArchive()+archive_sha256. Non-generators
+// (r2-workflow-cli.js [await-imports gens + a generic backup-dir CLI verb],
+// migrate-fni-history-vault.js [backup-dir only in a comment], master-fusion.js,
+// verify-db.js, aggregator.js, pack-db.js, ...) carry NONE of these markers.
+const ALL_FACTORY = fs.readdirSync(FACTORY).filter((f) => /\.m?js$/.test(f) && !/\.test\./.test(f));
+const GEN_IDIOM = (src: string) =>
+  /carrier_type/.test(src) ||
+  /export\s+(?:async\s+)?function\s+generateManifest\s*\(/.test(src) ||
+  (BUILD_RE.test(src) && /archive_sha256/.test(src));
+const IDIOM_MATCHED = ALL_FACTORY.filter((f) => GEN_IDIOM(read(f))).sort();
+
 describe('handoff-generator DISCOVERY <-> registry bijection (anti-one-seam completeness)', () => {
   it('sanity: the sweep carriers are all discovered (>= the 8 known generators)', () => {
     expect(DISCOVERED.length).toBeGreaterThanOrEqual(8);
@@ -97,6 +114,23 @@ describe('handoff-generator DISCOVERY <-> registry bijection (anti-one-seam comp
   it('every registry generator has exactly one primary category in the closed 1..6 set', () => {
     for (const g of REGISTRY) expect([1, 2, 3, 4, 5, 6]).toContain(g.category);
     expect(new Set(REGISTRY.map((g) => g.file)).size).toBe(REGISTRY.length); // no dup key
+  });
+});
+
+describe('STRUCTURAL idiom discovery cross-check (filename-independent; closes the naming escape)', () => {
+  it('the generator IDIOM matches EXACTLY the 8 registered generators (zero false positives)', () => {
+    const registeredFiles = REGISTRY.map((g) => g.file).sort();
+    // If a non-generator (r2-workflow-cli.js etc) were flagged, this set would differ.
+    expect(IDIOM_MATCHED).toEqual(registeredFiles);
+  });
+
+  it('EVERY idiom-matched generator is filename-discovered AND registered (a non-*handoff*-named generator FAILS)', () => {
+    const discovered = new Set(DISCOVERED);
+    const registered = new Set(REGISTRY.map((g) => g.file));
+    for (const f of IDIOM_MATCHED) {
+      expect(discovered.has(f), `${f} carries the generator idiom but is NOT filename-discovered (rename to *-handoff-* OR extend discovery)`).toBe(true);
+      expect(registered.has(f), `${f} carries the generator idiom but is NOT in the REGISTRY - classify it`).toBe(true);
+    }
   });
 });
 
