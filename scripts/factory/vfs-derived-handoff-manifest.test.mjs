@@ -22,6 +22,30 @@ import {
     WARM_READ_MEMBER_CLASS, WARM_READ_CLASSES, listWarmReadFiles,
     generateWarmReadManifest, verifyWarmReadDir, publicationFamilyGate,
 } from './vfs-derived-handoff-manifest.mjs';
+import { isUploadEligible, ZSTD_MIN_BYTES, DEFAULT_MIN_BYTES } from './lib/upload-eligibility.js';
+
+// Read a repo SOURCE file relative to THIS test (hermetic; no network).
+function readSrc(relToTest) { return fs.readFileSync(new URL(relToTest, import.meta.url), 'utf8'); }
+// Guard-ELIGIBLE .zst fixture: valid zstd magic (28 B5 2F FD) + padding to `nBytes` (>=16 => eligible).
+const ZSTD_MAGIC = Buffer.from([0x28, 0xB5, 0x2F, 0xFD]);
+function zst(nBytes = 20, seed = 'x') {
+    const pad = Buffer.alloc(Math.max(0, nBytes - 4));
+    for (let i = 0; i < pad.length; i += 1) pad[i] = (seed.charCodeAt(i % seed.length) + i) & 0xff;
+    return Buffer.concat([ZSTD_MAGIC, pad]);
+}
+// Guard-INELIGIBLE .zst fixture: valid magic but < 16B (the stale 11B empty-frame signature).
+function zstStub(nBytes = 11) { return zst(nBytes, 's'); }
+// Guard-ELIGIBLE non-.zst fixture (.bin/.xml/.gz): a >=256B buffer clears the non-.zst floor.
+function big(nBytes = 300, seed = 0x41) { return Buffer.alloc(Math.max(0, nBytes), seed); }
+// A SINGLE-child sitemap index -- the smallest reachable sitemap.xml / sitemap-index.xml (246B,
+// BELOW the 256B floor). PROVES the degenerate single-child case is guard-refused (see I5).
+const SINGLE_CHILD_SITEMAP = Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://free2aitools.com/sitemaps/sitemap-1.xml.gz</loc>
+    <lastmod>2026-07-05</lastmod>
+  </sitemap>
+</sitemapindex>`, 'utf8');
 
 const SHA = 'a'.repeat(40);
 let TMP_SEQ = 0;
@@ -34,9 +58,12 @@ function writeFiles(dir, files) {
     }
     return dir;
 }
-// Deterministic content set for each carrier.
+// Deterministic content set for each carrier. PR-B (D-2026-0706-285): the vfs-derived + warm-read
+// carriers now assert upload-eligibility at generate, so every generate-reaching fixture uses
+// guard-ELIGIBLE content (big() >=256B for .bin/.xml/.gz; zst() valid >=16B frames for .zst).
+// The meta_db `.db` members stay tiny -- the vfs-pack meta_db carrier has NO eligibility flag.
 function packDir(extra = {}) { return writeFiles(mkTmp(), { 'meta-00.db': 'META0', 'meta-01.db': 'META1', 'rankings-a.db': 'RANK', ...extra }); }
-function derivedDir(extra = {}) { return writeFiles(mkTmp(), { 'sitemap.xml': '<index/>', 'sitemaps/sitemap-index.xml': '<idx/>', 'sitemaps/sitemap-0.xml.gz': 'GZBYTES', 'rss/reports.xml': '<rss/>', ...extra }); }
+function derivedDir(extra = {}) { return writeFiles(mkTmp(), { 'sitemap.xml': big(300, 0x53), 'sitemaps/sitemap-index.xml': big(300, 0x49), 'sitemaps/sitemap-0.xml.gz': big(300, 0x47), 'rss/reports.xml': big(300, 0x52), ...extra }); }
 
 const PACK_CTX = { carrierType: 'vfs-pack-authority', upstreamRunId: 'UP1', factoryRunId: 'RUN1', producerAttempt: '2', headSha: SHA, vfsPackCodeVersion: 'v-test', createdAt: '1970-01-01T00:00:00.000Z' };
 const DERIVED_CTX = { carrierType: 'vfs-derived-authority', upstreamRunId: 'UP1', factoryRunId: 'RUN1', producerAttempt: '2', headSha: SHA, vfsPackCodeVersion: 'v-test', parentSetSha: 'b'.repeat(64), createdAt: '1970-01-01T00:00:00.000Z' };
@@ -144,12 +171,13 @@ test('(B4) vfs-derived manifest: sitemap class satisfied, rss present, meta_db_c
     assert.equal(byName.rss.count, 1);
 });
 test('(B5) vfs-derived permits EMPTY rss (min 0) but REJECTS empty sitemap class (min 1)', () => {
-    // rss absent -> still generates (rss floor is 0).
-    const noRss = writeFiles(mkTmp(), { 'sitemap.xml': '<i/>', 'sitemaps/sitemap-index.xml': '<x/>' });
+    // rss absent -> still generates (rss floor is 0). Members guard-eligible (>=256B).
+    const noRss = writeFiles(mkTmp(), { 'sitemap.xml': big(300, 0x69), 'sitemaps/sitemap-index.xml': big(300, 0x78) });
     const m = genDerived(noRss);
     assert.equal(m.required_file_classes.find((c) => c.name === 'rss').count, 0);
-    // sitemap absent -> below floor -> generate FAILS closed.
-    const noSitemap = writeFiles(mkTmp(), { 'rss/reports.xml': '<rss/>' });
+    // sitemap absent -> below floor -> generate FAILS closed. The present rss member is ELIGIBLE
+    // (>=256B) so generate reaches the class-floor check (proves the floor, not eligibility, fires).
+    const noSitemap = writeFiles(mkTmp(), { 'rss/reports.xml': big(300, 0x72) });
     assert.throws(() => genDerived(noSitemap), (e) => e instanceof HandoffManifestError && e.code === 'REQUIRED_CLASS_BELOW_FLOOR');
 });
 test('(B6) vfs-pack with ZERO meta-*.db fails closed at generate (meta_db floor 1)', () => {
@@ -420,11 +448,12 @@ test('(F11 safety) probe rejects a symlinked rss input; verify rejects a travers
 const WARM_CTX = { carrierType: 'vfs-pack-authority', upstreamRunId: 'UP1', factoryRunId: 'RUN1', producerAttempt: '2', headSha: SHA, vfsPackCodeVersion: 'v-test', createdAt: '1970-01-01T00:00:00.000Z' };
 function warmDir(extra = {}) {
     return writeFiles(mkTmp(), {
-        'vector-core.bin': 'VC', 'hot-shard.bin': 'HS', 'id-index.bin': 'II',
-        'meta-00.db': 'META0', 'rankings-a.db': 'RANK', // meta_db members — must be EXCLUDED
-        'term_index/_manifest.json.zst': 'TMAN',
-        'term_index/aa/_bucket.json.zst': 'B1', 'term_index/bb/_bucket.json.zst': 'B2',
-        'term_index/mo/model_0.json.zst': 'HF0', // high-freq chunk (also a bucket-class member)
+        // bins guard-ELIGIBLE (>=256B non-.zst floor); term_index members valid >=16B zstd frames.
+        'vector-core.bin': big(300, 0x56), 'hot-shard.bin': big(300, 0x48), 'id-index.bin': big(300, 0x49),
+        'meta-00.db': 'META0', 'rankings-a.db': 'RANK', // meta_db members — EXCLUDED by INCLUDE filter (never eligibility-checked)
+        'term_index/_manifest.json.zst': zst(20, 'm'),
+        'term_index/aa/_bucket.json.zst': zst(20, 'a'), 'term_index/bb/_bucket.json.zst': zst(20, 'b'),
+        'term_index/mo/model_0.json.zst': zst(20, 'h'), // high-freq chunk (also a bucket-class member)
         ...extra,
     });
 }
@@ -472,18 +501,19 @@ test('(G4 T2: any warm member missing => fail BEFORE gate) each bin/manifest rem
     }
 });
 test('(G5 T4: partial term_index) dropping to <2 buckets => REQUIRED_CLASS_BELOW_FLOOR at generate', () => {
-    // Only one bucket present => term_index_bucket floor (min 2) violated at generate.
-    const dir = writeFiles(mkTmp(), { 'vector-core.bin': 'VC', 'hot-shard.bin': 'HS', 'id-index.bin': 'II', 'term_index/_manifest.json.zst': 'M', 'term_index/aa/_bucket.json.zst': 'B1' });
+    // Only one bucket present => term_index_bucket floor (min 2) violated at generate. Every
+    // present member is guard-ELIGIBLE so generate reaches the floor check (not eligibility).
+    const dir = writeFiles(mkTmp(), { 'vector-core.bin': big(300, 0x56), 'hot-shard.bin': big(300, 0x48), 'id-index.bin': big(300, 0x49), 'term_index/_manifest.json.zst': zst(20, 'm'), 'term_index/aa/_bucket.json.zst': zst(20, 'a') });
     assert.throws(() => genWarm(dir), (e) => e instanceof HandoffManifestError && e.code === 'REQUIRED_CLASS_BELOW_FLOOR');
 });
 test('(G6 T7: truncated-but-magic bin) same-length tamper => HASH_MISMATCH; size tamper => SIZE_MISMATCH', () => {
     const dir = warmDir();
     const m = genWarm(dir);
-    fs.writeFileSync(path.join(dir, 'vector-core.bin'), 'XX'); // same length (2) diff content
+    fs.writeFileSync(path.join(dir, 'vector-core.bin'), big(300, 0x5a)); // same length (300) diff content
     assert.equal(verifyWarmReadDir(dir, m).code, 'HASH_MISMATCH');
     const dir2 = warmDir();
     const m2 = genWarm(dir2);
-    fs.writeFileSync(path.join(dir2, 'hot-shard.bin'), 'HS-LONGER');
+    fs.writeFileSync(path.join(dir2, 'hot-shard.bin'), big(400, 0x48)); // different length
     assert.equal(verifyWarmReadDir(dir2, m2).code, 'SIZE_MISMATCH');
 });
 test('(G7 no-double-bind) a .db member smuggled into the warm_read manifest => WARM_READ_DB_DOUBLE_BIND', () => {
@@ -508,7 +538,7 @@ test('(G9 set-hash + self-hash + member_count guards) tamper reds verify', () =>
     assert.equal(verifyWarmReadDir(dir, { ...m, member_count: 99 }).code, 'MEMBER_COUNT_MISMATCH');
 });
 test('(G10) warm_read with zero bins fails closed at generate (vector_core floor 1)', () => {
-    const dir = writeFiles(mkTmp(), { 'term_index/_manifest.json.zst': 'M', 'term_index/aa/_bucket.json.zst': 'B1', 'term_index/bb/_bucket.json.zst': 'B2' });
+    const dir = writeFiles(mkTmp(), { 'term_index/_manifest.json.zst': zst(20, 'm'), 'term_index/aa/_bucket.json.zst': zst(20, 'a'), 'term_index/bb/_bucket.json.zst': zst(20, 'b') });
     assert.throws(() => genWarm(dir), (e) => e instanceof HandoffManifestError && e.code === 'REQUIRED_CLASS_BELOW_FLOOR');
 });
 
@@ -555,4 +585,123 @@ test('(G/list safety) listWarmReadFiles excludes reserved sidecars + .db', () =>
     assert.ok(!names.some((n) => n.endsWith('.db')));
     assert.ok(names.includes('vector-core.bin'));
     assert.ok(WARM_READ_CLASSES.some((c) => c.name === 'term_index_bucket'));
+});
+
+// ==========================================================================
+// I. PR-B (D-2026-0706-285): AUTH-W warm-read + vfs-derived sitemap/RSS manifest/
+//    guard consistency. generate == guard by construction (isUploadEligible, DEFAULT
+//    opts -- the producer backup-dir steps pass NO --required-json) for BOTH carriers.
+//
+// ANTI-VACUITY MAP (removing the generate-time eligibility assert reds >=1 test):
+//   * warm-read assert   -> (I2)/(I3)/(I4): a sub-256B bin / sub-16B term_index frame no longer
+//                           throws MEMBER_UPLOAD_INELIGIBLE at generate => the assert.throws reds.
+//   * vfs-derived assert  -> (I1)/(I5): a sub-256B .xml/.gz no longer throws => the assert.throws reds.
+//   * default-eligibility -> (I8-SRC): the producers must pass NO --required-json (else generate,
+//                           which uses DEFAULT opts, would DIVERGE from the uploader).
+// ==========================================================================
+
+// The ORIGINAL inline r2-handoff predicate replicated as an ORACLE (proves generate agrees with the
+// guard, not merely with itself).
+function r2Oracle(name, data, minBytes = 256) {
+    const isZst = name.endsWith('.zst');
+    const hasMagic = isZst && data.length >= 4 && data.readUInt32LE(0) === 0xFD2FB528;
+    const passes = isZst ? (hasMagic && data.length >= 16) : (data.length >= minBytes);
+    return { passes, reason: passes ? null : (isZst ? `invalid zstd (${data.length}B)` : `${data.length}B < min ${minBytes}B`) };
+}
+
+test('(I1 vfs-derived generate==guard) an INCLUDED sitemap child the uploader would refuse fails LOUD at generate', () => {
+    const dir = derivedDir({ 'sitemaps/sitemap-9.xml.gz': big(200, 0x47) }); // present sub-256B .gz child
+    assert.throws(() => genDerived(dir), (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    // consistent-by-construction: the SAME predicate (DEFAULT opts) refuses the SAME bytes.
+    assert.equal(isUploadEligible('sitemaps/sitemap-9.xml.gz', big(200, 0x47)).eligible, false);
+    assert.equal(r2Oracle('sitemaps/sitemap-9.xml.gz', big(200, 0x47)).passes, false);
+});
+
+test('(I2 warm-read generate==guard) an INCLUDED bin the uploader would refuse fails LOUD at generate', () => {
+    const dir = warmDir({ 'hot-shard.bin': big(100, 0x48) }); // sub-256B bin (a degenerate/corrupt state)
+    assert.throws(() => genWarm(dir), (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    assert.equal(isUploadEligible('hot-shard.bin', big(100, 0x48)).eligible, false);
+});
+
+test('(I3 warm-read sub-floor .bin required member) EXACT 256B floor: 255B fails loud, 256B eligible + INCLUDED', () => {
+    assert.throws(() => genWarm(warmDir({ 'vector-core.bin': big(255, 0x56) })), (e) => e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    const ok = genWarm(warmDir({ 'vector-core.bin': big(256, 0x56) }));
+    assert.ok(ok.files.some((f) => f.relative_path === 'vector-core.bin' && f.size_bytes === 256));
+    assert.equal(DEFAULT_MIN_BYTES, 256); // the floor is the EXACT guard constant (no relaxation)
+});
+
+test('(I4 term_index empty-bucket determination = FAIL-LOUD, NOT excluded) an 11B sub-16B frame fails loud; a real >=16B bucket is INCLUDED', () => {
+    // The producer NEVER emits an empty-{} term_index frame (inverted-index-builder: every bucket
+    // carries >=1 term, every high-freq chunk carries real postings; the manifest always has
+    // content). So a sub-16B term_index frame is CORRUPTION and there is NO empty-placeholder
+    // EXCLUDE class (unlike PR-A's alt-by-category frames) -- it fails LOUD, never silently dropped.
+    assert.throws(() => genWarm(warmDir({ 'term_index/aa/_bucket.json.zst': zstStub(11) })), (e) => e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    const ok = genWarm(warmDir({ 'term_index/aa/_bucket.json.zst': zst(16, 'a') })); // real >=16B bucket INCLUDED
+    assert.ok(ok.files.some((f) => f.relative_path === 'term_index/aa/_bucket.json.zst'));
+    assert.equal(ZSTD_MIN_BYTES, 16);
+    assert.equal(isUploadEligible('term_index/aa/_bucket.json.zst', zstStub(11)).eligible, false); // guard refuses same bytes
+});
+
+test('(I5 vfs-derived single-child sitemap = present sub-256B .xml) fails LOUD, CONSISTENT with the guard (never late FILE_MISSING)', () => {
+    // The single-child sitemap index is 246B (< 256B). Only reachable at a tiny corpus (< 45000
+    // qualifying URLs), NEVER at the 550K 4/4 recovery path (multi-child > 256B). A present sub-256B
+    // sitemap.xml fails LOUD at generate -- CONSISTENT with the DEFAULT guard already refusing it
+    // (backup-dir passes no --required-json), surfacing the pre-existing refusal EARLY/LOUD instead
+    // of a late read-back FILE_MISSING. NO guard relaxation, NO producer change.
+    assert.ok(SINGLE_CHILD_SITEMAP.length < DEFAULT_MIN_BYTES);
+    assert.throws(() => genDerived(derivedDir({ 'sitemap.xml': SINGLE_CHILD_SITEMAP })), (e) => e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    assert.equal(isUploadEligible('sitemap.xml', SINGLE_CHILD_SITEMAP).eligible, false); // guard refuses the SAME bytes
+    // a MULTI-child index (>256B) is ELIGIBLE + INCLUDED (the 4/4 steady-state case).
+    const multi = Buffer.concat([SINGLE_CHILD_SITEMAP, Buffer.alloc(64, 0x20)]);
+    assert.ok(multi.length >= DEFAULT_MIN_BYTES);
+    assert.ok(genDerived(derivedDir({ 'sitemap.xml': multi })).files.some((f) => f.relative_path === 'sitemap.xml'));
+});
+
+test('(I6 exact-set read-back RETAINED) vfs-derived: missing-required reds FILE_MISSING, extra reds FILE_EXTRA', () => {
+    const dir = derivedDir();
+    assert.equal(verifyDirAgainstManifest(dir, genDerived(dir), {}).ok, true); // the eligible set verifies
+    const dirMiss = derivedDir();
+    const mMiss = genDerived(dirMiss);
+    fs.rmSync(path.join(dirMiss, 'sitemaps/sitemap-0.xml.gz'));
+    assert.equal(verifyDirAgainstManifest(dirMiss, mMiss, {}).code, 'FILE_MISSING');
+    const dirExtra = derivedDir();
+    const mExtra = genDerived(dirExtra);
+    fs.writeFileSync(path.join(dirExtra, 'sitemaps/sitemap-1.xml.gz'), big(300, 0x45));
+    assert.equal(verifyDirAgainstManifest(dirExtra, mExtra, {}).code, 'FILE_EXTRA');
+});
+
+test('(I7 rss skip-empty => present rss .xml always >256B) producer early-returns before writeFile; absent rss floor-0 tolerated', () => {
+    const rss = readSrc('./lib/rss-generator.js');
+    assert.match(rss, /No reports found, skipping RSS/);          // early return BEFORE writeFile (reports)
+    assert.match(rss, /No knowledge articles found, skipping RSS/); // early return BEFORE writeFile (knowledge)
+    assert.equal(genDerived(derivedDir()).required_file_classes.find((c) => c.name === 'rss').count, 1);
+});
+
+test('(I8-SRC source lock) module imports isUploadEligible + asserts vfs-derived eligibility; producers pass NO --required-json (default-eligibility match)', () => {
+    const mf = readSrc('./vfs-derived-handoff-manifest.mjs');
+    assert.match(mf, /import\s*\{\s*isUploadEligible\s*\}\s*from\s*'\.\/lib\/upload-eligibility\.js'/);
+    assert.match(mf, /assertMemberEligibility:\s*true/);                 // vfs-derived carrier flag
+    assert.match(mf, /MEMBER_UPLOAD_INELIGIBLE/);                        // the loud failure exists (warm + derived)
+    assert.equal(carrierConfig('vfs-derived-authority').assertMemberEligibility, true);
+    // the vfs-pack meta_db carrier deliberately has NO eligibility flag (byte-identical D-245 path).
+    assert.equal(carrierConfig('vfs-pack-authority').assertMemberEligibility, undefined);
+    // generate uses DEFAULT opts because the producer backup-dir steps pass no --required-json -- a
+    // source lock so a future --required-json addition (which would DIVERGE generate from the uploader
+    // by rescuing a sub-256B JSON the guard-default refuses) reds here.
+    const wf = readSrc('../../.github/workflows/factory-upload.yml');
+    assert.match(wf, /backup-dir output\/data\/ "\$\{STAGING\}" --extensions=\.bin\s*$/m);         // warm bins
+    assert.match(wf, /backup-dir output\/data\/term_index\/ "\$\{STAGING\}term_index\/"\s*$/m);     // term_index subtree
+    assert.match(wf, /backup-dir "\$STAGE_LOCAL" "\$\{STAGING\}"\s*$/m);                            // vfs-derived sitemaps/RSS
+    assert.ok(!mf.includes('requiredJson'), 'these carriers must NOT opt into requiredJson (uploader passes none)');
+});
+
+test('(I9 no unknown-member classify) warm INCLUDE filter IGNORES a foreign .bin; vfs-derived asserts every staged member', () => {
+    // warm-read membership is INCLUDE-regex scoped (only the 3 named bins + term_index/**), so a
+    // foreign .bin (e.g. cluster-ann-index.bin) is NOT a member -- ignored, never a fail-loud
+    // UNCLASSIFIED (there is no classify step for these carriers; foreign files never enter the set).
+    const m = genWarm(warmDir({ 'cluster-ann-index.bin': big(300, 0x43) }));
+    assert.ok(!m.files.some((f) => f.relative_path === 'cluster-ann-index.bin'));
+    // vfs-derived membership is the WHOLE staged tree, so an unexpected sub-floor staged file IS a
+    // member => the eligibility assert catches it (fails loud) rather than silently transporting it.
+    assert.throws(() => genDerived(derivedDir({ 'sitemaps/stray.xml': big(10, 0x3c) })), (e) => e.code === 'MEMBER_UPLOAD_INELIGIBLE');
 });

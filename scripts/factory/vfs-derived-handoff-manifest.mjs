@@ -24,6 +24,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { isUploadEligible } from './lib/upload-eligibility.js';
 
 export const SCHEMA_VERSION = 1;
 export const COMPLETION_STATE = 'complete';
@@ -50,6 +51,15 @@ export const CARRIERS = Object.freeze({
     'vfs-derived-authority': Object.freeze({
         prefixRoot: 'state/_handoff/vfs-derived',
         producerJob: 'vfs-derived',
+        // PR-B (D-2026-0706-285): every INCLUDED sitemap/RSS member must be upload-eligible under
+        // the SAME predicate the uploader applies (isUploadEligible, DEFAULT opts -- the Final-
+        // Upload backup-dir step passes NO --required-json) so the manifest can NEVER enumerate a
+        // member the guard refuses (the exact-set read-back FILE_MISSING blocker). Every member is
+        // AUTHORITATIVE (sitemap-index/child .xml/.gz + present rss .xml) -> default eligibility;
+        // there is NO empty-placeholder/optional class (rss-generator SKIPS-EMPTY, the sitemap
+        // index/children are corpus-large), so a sub-floor present member is CORRUPTION -> fail loud.
+        // The vfs-pack meta_db carrier deliberately has NO such flag => its generate path is UNCHANGED.
+        assertMemberEligibility: true,
         classes: Object.freeze([
             { name: 'sitemap', re: /(^|\/)(sitemap\.xml|sitemaps\/.+)$/, min: 1 },
             { name: 'rss', re: /(^|\/)rss\/.+$/, min: 0 },
@@ -182,6 +192,16 @@ export function generateManifest(dir, ctx = {}, opts = {}) {
     let totalBytes = 0;
     for (const rel of names) {
         const abs = path.join(dir, rel);
+        // PR-B (D-2026-0706-285): assert the SECONDARY (sitemap/RSS) carrier's members are upload-
+        // eligible under the uploader's DEFAULT predicate (no --required-json) so generate == guard
+        // by construction. A member the guard would refuse (a sub-256B .xml/.gz -- e.g. a degenerate
+        // single-child sitemap index -- or a sub-16B/no-magic .zst) fails LOUD MEMBER_UPLOAD_INELIGIBLE
+        // here, never a late read-back FILE_MISSING. Gated on the carrier flag => the vfs-pack meta_db
+        // carrier (no flag) keeps its exact byte-identical statSync+sha256File path (D-245 unregressed).
+        if (carrier.assertMemberEligibility) {
+            const { eligible, reason } = isUploadEligible(rel, fs.readFileSync(abs));
+            if (!eligible) throw new HandoffManifestError('MEMBER_UPLOAD_INELIGIBLE', `included member ${rel} upload-ineligible: ${reason}`);
+        }
         const size = fs.statSync(abs).size;
         files.push({ relative_path: rel, size_bytes: size, sha256: sha256File(abs) });
         totalBytes += size;
@@ -345,8 +365,22 @@ export function generateWarmReadManifest(dir, ctx = {}) {
     let totalBytes = 0;
     for (const rel of names) {
         const abs = path.join(dir, rel);
-        const size = fs.statSync(abs).size;
-        files.push({ relative_path: rel, size_bytes: size, sha256: sha256File(abs) });
+        // PR-B (D-2026-0706-285): AUTH-W warm-read. Every INCLUDED member must be upload-eligible
+        // under the SAME predicate the uploader applies (isUploadEligible, DEFAULT opts -- the two
+        // producer backup-dir steps pass NO --required-json) so generate == guard by construction.
+        // The 3 bins face the 256B non-.zst floor (vector/hot/id producers early-return with NO file
+        // on an empty corpus -> the class floor, not eligibility, catches emptiness; a present bin is
+        // corpus-large at 550K steady state); term_index/** .json.zst face the 16B+zstd-magic floor
+        // (the builder NEVER emits an empty-{} frame -- every bucket carries >=1 term, every high-freq
+        // chunk carries real postings, the manifest always has content -- so there is NO empty-
+        // placeholder class). A member the guard would refuse (a degenerate sub-256B bin OR a sub-16B/
+        // no-magic term_index frame -- both CORRUPTION, never producer-legit) fails LOUD
+        // MEMBER_UPLOAD_INELIGIBLE here, never a late read-back FILE_MISSING.
+        const buf = fs.readFileSync(abs);
+        const { eligible, reason } = isUploadEligible(rel, buf);
+        if (!eligible) throw new HandoffManifestError('MEMBER_UPLOAD_INELIGIBLE', `warm_read member ${rel} upload-ineligible: ${reason}`);
+        const size = buf.length;
+        files.push({ relative_path: rel, size_bytes: size, sha256: crypto.createHash('sha256').update(buf).digest('hex') });
         totalBytes += size;
     }
     const requiredClasses = countClasses(files, WARM_READ_CLASSES);
