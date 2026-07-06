@@ -1075,3 +1075,37 @@ post-deploy workflow and is never a PR check.
 | AUTHM-GUARD-CONSISTENCY | PR-C (D-2026-0706-285): the mesh-profile-authority `generateManifest` == the r2-handoff upload guard BY CONSTRUCTION for its GUARDED members. Per-member upload-path classification (carrier `bypassRe`): a GUARDED member reaches R2 via `backup-dir` (the guard CAN refuse it) so generate asserts it upload-eligible under the SAME `isUploadEligible` predicate (DEFAULT opts -- members are `.zst`, the zstd-magic + 16B floor); a BYPASS member reaches R2 via `upload-file` (never guard-refused, always uploaded regardless of size) so it is EXEMPT. `profile-shards/**` are GUARDED (`factory-upload.yml:254` `backup-dir output/cache/mesh/profile-shards/`) -> a sub-16B/no-magic shard fails LOUD `MEMBER_UPLOAD_INELIGIBLE` at generate, never a late read-back `FILE_MISSING`; `profile-evidence-dict.json.zst` is the SOLE BYPASS member (`factory-upload.yml:255` `upload-file … profile-evidence-dict.json.zst`) -> EXEMPT (a sub-floor dict still generates; asserting it would false-fail a member that uploads fine). Default is GUARDED (assert unless proven bypass). The producer baker's SKIP-EMPTY-SHARD invariant (every shard >>16B JSONL.zst) is UNCHANGED; EXACT-set read-back (FILE_MISSING/FILE_EXTRA/sha/set_sha256) + expected_shard_count + dict_sha256 + class floors PRESERVED; no guard relaxation, no producer change. NON-VACUITY: dropping the guarded-assert reds M15 (generate SUCCEEDS on a sub-floor shard); wrongly asserting the bypass dict reds M16 + every green genMesh | `scripts/factory/mesh-profile-handoff-manifest.test.mjs` (M15/M16) | EXEC | **NEW** |
 | AUTHM-FIXED-PREFIX-DEMOTED | The vfs-pack-db + vfs-derived + upload consumers resolve the AUTH-M descriptor by (upstream, run_id), verify-or-recover from the EXACT attempt staging fail-closed, and NO LONGER use the fixed prefixes state/mesh-profile-{shards,dict}/ as a recovery INPUT (compat/diagnostic only). Restoring a fixed-prefix recovery input reds the demotion ties | `tests/unit/vfs-producer-authority-workflow.test.ts` | SOURCE | **NEW** |
 | FAMILY-CLOSURE-GATE | Before Upload to R2, the publication-family gate asserts vfs-pack (meta+warm) + mesh-profile + vfs-derived descriptors share one upstream_run_id + factory_run_id + head_sha, the vfs-derived parent_set_sha chains to the vfs-pack meta set_sha, and warm_read + mesh set + mesh dict authorities are present; any divergence exits 1 (Final Upload LOCKED). Skipping the gate or accepting a mixed-cycle family reds the gate | `scripts/factory/vfs-derived-handoff-manifest.test.mjs` (H1-H5) + `tests/unit/vfs-producer-authority-workflow.test.ts` | EXEC + SOURCE | **NEW** |
+
+## Registry — HANDOFF-GUARD-CLASSIFICATION (D-2026-0706-285 PR-D, FINAL repair-train gate)
+
+> Deterministic, hermetic ANTI-ONE-SEAM meta-gate closing the backend handoff
+> manifest/upload-guard divergence CLASS (Founder D-2026-0706-285). PR-A/B/C
+> reconciled the individual carriers (see AUTHW/AUTHM-GUARD-CONSISTENCY + CYCLE-OUTPUT
+> + SHARDS/GAP-5b rows above); this gate stops the class recurring a THIRD time by
+> forcing EVERY per-file backend handoff descriptor generator to be classified as
+> EXACTLY ONE of six categories, and by DISCOVERING generators from disk (`readdirSync`
+> over `scripts/factory/*handoff*.{js,mjs}` minus `*.test.*`; non-recursive, so the
+> shared `lib/r2-handoff.js` uploader/consumer is correctly NOT a per-file generator)
+> rather than a hardcoded list. A NEW unregistered generator, a registry entry with no
+> file on disk, or a registered generator that LOSES its category evidence FAILS CI.
+> **The 6 categories:** (1) SHARED_PREDICATE_PLUS_ASSERT — imports shared
+> `isUploadEligible` + a generate-time member-eligibility assert (`MEMBER_UPLOAD_INELIGIBLE`);
+> (2) EXPLICIT_CLASS_MEMBERSHIP_REGISTRY — classifies members + drops excluded classes;
+> (3) UPLOAD_FILE_OR_UPLOAD_BUFFER_BYPASS — members reach R2 via a documented guard-bypass
+> verb; (4) SINGLE_ARCHIVE_IMMUNE — ONE archive uploaded whole via `putObject`, verified by
+> `archive_sha256`; (5) DOCUMENTED_DIFFERENT_RISK_CLASS — not this divergence class;
+> (6) DOCUMENTED_INSUFFICIENT_EVIDENCE_NEEDS_FOUNDER. **Registered set:** 5 cat-1
+> generators (shards / cycle-output [also cat-2] / mesh-profile [bypassRe] / fused
+> [inline idiom] / vfs-derived) + 3 cat-4 archive generators (aggregate-handoff /
+> harvest-authoritative-handoff / satellite-registry-handoff) + 2 cat-5 different-risk
+> carriers with NO generator to scan (registry/D-250 count-floor silent-subset;
+> output/data/cluster-ann-index.bin warm-tier coverage gap). TEST + doc ONLY — reads
+> repo SOURCE as TEXT (CRLF-normalized; NO network, NO workflow run, NO prod, NO runtime
+> change). Runs in the EXISTING `unit-test` vitest job (no CI wiring added).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| HG-COMPLETENESS | Every discovered `scripts/factory/*handoff*.{js,mjs}` generator (8: 5 manifest + 3 archive) appears in the canonical CLASSIFICATION REGISTRY, and every registry file exists on disk (exact bijection: `REGISTRY.length == DISCOVERED.length`). A NEW unregistered generator on disk FAILS ("classify in REGISTRY"); a registry entry with no file FAILS (phantom). This is the anti-one-seam guard — a future dev adding a per-file handoff generator MUST classify it. NON-VACUITY: an injected `zzz-future-handoff-manifest.mjs` is reported unregistered | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE (STRUCT discovery) | **NEW** |
+| HG-CAT1-EVIDENCE | Each category-1 generator's SOURCE imports the shared `isUploadEligible` (from `lib/upload-eligibility`) AND has a generate-time member-eligibility assert = a real `isUploadEligible(` CALL feeding a real `throw new …('MEMBER_UPLOAD_INELIGIBLE'` (THROW regex, never a comment). BOTH assert idioms accepted: the `assertMemberEligibility`/`bypassRe` carrier-flag path (shards/cycle-output/mesh/vfs-derived) AND the inline `isUploadEligible()`+throw path (fused). cycle-output additionally carries its cat-2 `classifyCycleMember`/`EXCLUDED_CLASSES` registry. A cat-1 generator that LOSES its import, its call, or its throw FAILS (regression guard). NON-VACUITY (in-test): stripping the assert lines from a real cat-1 source flips `hasCall`+`hasThrow` to false | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE | **NEW** |
+| HG-CAT4-EVIDENCE | Each category-4 (SINGLE_ARCHIVE_IMMUNE) generator's SOURCE contains `buildArchive(` + `.putObject(` + `archive_sha256` (one archive uploaded whole, sha-verified) AND is structurally NOT per-file-guard-exposed: it does NOT import the per-file `upload-eligibility` predicate nor use a per-file `backup-dir` member upload verb. NON-VACUITY (in-test): a faux source that imports the per-file guard flips `noPerFileGuard` to false | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE | **NEW** |
+| HG-DIFFERENT-RISK | The two sweep carriers with NO per-file handoff manifest generator (registry/D-250 count-floor silent-subset; output/data/cluster-ann-index.bin warm-tier coverage gap) are registered as cat-5 with a non-empty documentation string, and are confirmed to correctly have NO `*handoff*manifest*` generator on disk (they are documented so the gate never silently forgets them) | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE (STRUCT) | **NEW** |
