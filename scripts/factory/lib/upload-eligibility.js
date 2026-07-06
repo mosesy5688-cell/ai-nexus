@@ -27,17 +27,57 @@ export const DEFAULT_MIN_BYTES = 256;
  *   other -> eligible iff (data.length >= minBytes)
  * The `reason` string is the SAME template the guard prints on a block.
  *
- * @param {string} nameOrRelPath - file name or relative path; only its `.zst` suffix matters.
+ * OPT-IN class-scoped required-JSON mode (opts.requiredJson) is ADDITIVE / RESCUE-ONLY (MF-1):
+ * it is reached ONLY AFTER the base floor has already REFUSED a member, so it can NEVER block a
+ * member the base predicate accepts. A member >= its floor (of ANY shape: .zst/.gz/.jsonl/
+ * .ndjson/.json) stays eligible EXACTLY as the base guard; a sub-floor valid+non-empty non-.zst
+ * non-.meta JSON (a consumer-required small transport) is RESCUED; a sub-floor .zst / .meta.json
+ * sidecar / non-JSON stays blocked. This keeps generate == uploader eligibility for every shape
+ * (a .gz/.jsonl authoritative member is never JSON-parsed) and is OFF by default: the default
+ * path AND the 2/4 shards path stay BYTE-IDENTICAL; the .zst 16B / non-.zst 256B floors are intact.
+ *
+ * @param {string} nameOrRelPath - file name or relative path; its `.zst`/`.meta.json` suffix matters.
  * @param {Buffer} data - the file bytes already read by the caller.
- * @param {{ minBytes?: number }} [opts] - non-.zst floor (default 256, == old opts.minSize).
+ * @param {{ minBytes?: number, requiredJson?: boolean }} [opts] - non-.zst floor (default 256,
+ *   == old opts.minSize); requiredJson opts into the ADDITIVE rescue-only required-JSON mode.
  * @returns {{ eligible: boolean, isZst: boolean, reason: (string|null) }}
  */
 export function isUploadEligible(nameOrRelPath, data, opts = {}) {
     const minBytes = opts.minBytes ?? DEFAULT_MIN_BYTES;
     const len = data ? data.length : 0;
-    const isZst = String(nameOrRelPath).endsWith('.zst');
+    const name = String(nameOrRelPath);
+    const isZst = name.endsWith('.zst');
     const hasZstdMagic = isZst && len >= 4 && data.readUInt32LE(0) === ZSTD_MAGIC_LE;
-    const eligible = isZst ? (hasZstdMagic && len >= ZSTD_MIN_BYTES) : (len >= minBytes);
-    const reason = eligible ? null : (isZst ? `invalid zstd (${len}B)` : `${len}B < min ${minBytes}B`);
-    return { eligible, isZst, reason };
+    // BASE (default) eligibility -- the V27.63 guard, UNCHANGED. When requiredJson is OFF this is
+    // the ONLY branch reached => the default path + the 2/4 shards path stay BYTE-IDENTICAL. A
+    // member of ANY shape that clears its floor is eligible here (never JSON-parsed).
+    const baseEligible = isZst ? (hasZstdMagic && len >= ZSTD_MIN_BYTES) : (len >= minBytes);
+    if (baseEligible) return { eligible: true, isZst, reason: null };
+    // ADDITIVE (rescue-ONLY) opt-in required-JSON transport: reached ONLY when the base floor has
+    // already REFUSED the member, so it can NEVER block a member the base accepts (guard == manifest
+    // by construction). Scoped to a non-.zst, non-`.meta.json` payload that is valid+non-empty JSON
+    // (the consumer-required transports); a sub-floor .zst / .meta.json / non-JSON stays blocked.
+    if (opts.requiredJson && !isZst && !name.endsWith('.meta.json') && isNonEmptyJson(data)) {
+        return { eligible: true, isZst: false, reason: null };
+    }
+    const reason = isZst ? `invalid zstd (${len}B)` : `${len}B < min ${minBytes}B`;
+    return { eligible: false, isZst, reason };
+}
+
+/**
+ * Whole-family class-scoped required-JSON eligibility: eligible iff the bytes parse as JSON AND
+ * carry content (a non-empty object/array, or a JSON primitive). An empty `{}` / `[]` / `null`,
+ * or an unparseable/truncated buffer, FAILS -- a producer that emitted an empty REQUIRED JSON
+ * fails LOUD rather than transporting a useless file. Pure (JSON.parse only; no fs/network).
+ * @param {Buffer} data
+ * @returns {boolean}
+ */
+export function isNonEmptyJson(data) {
+    if (!data || data.length === 0) return false;
+    let v;
+    try { v = JSON.parse(data.toString('utf8')); } catch { return false; }
+    if (v === null || v === undefined) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'object') return Object.keys(v).length > 0;
+    return true; // a JSON primitive (string/number/boolean) carries content
 }

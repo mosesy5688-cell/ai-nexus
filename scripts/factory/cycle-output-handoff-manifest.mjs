@@ -11,6 +11,18 @@
  * descriptor (set_sha256 over the EXACT cycle-output member set, bound to the
  * producing 3/4 run id + producer attempt + head_sha) is the sole authority.
  *
+ * A5 HYBRID (D-2026-0706-285, PR-A): the cache/** walk is CLASSIFIED (see classifyCycleMember)
+ * so the manifest can never enumerate a member the uploader would refuse -- the confirmed 3/4
+ * producer read-back + 4/4 consumer verify blocker. Regenerable `.meta.json` checksum sidecars
+ * and empty-`{}` (sub-16B) alt-by-category placeholder frames are EXCLUDED by explicit class;
+ * the consumer-required small JSONs (search-manifest / fni-thresholds / assertions/_summary) are
+ * INCLUDED via the ADDITIVE/rescue-only required-JSON eligibility (MF-1: it can never block a
+ * member the base floor accepts, so a >=floor member of ANY shape -- .gz/.jsonl/.ndjson -- stays
+ * eligible exactly as base). Generate applies the SAME uploader opt (backup-dir --required-json)
+ * to EVERY included member so generate == guard by construction; an UNKNOWN member fails loud
+ * (UNCLASSIFIED_MEMBER) and an INCLUDED-but-refused member fails loud (MEMBER_UPLOAD_INELIGIBLE)
+ * at generate. EXACT-set read-back is RETAINED.
+ *
  * PAYLOAD SCOPE: the cycle-output payload is the finalize output/cache/** subtree
  * ONLY (the satellite results validated by the 3/4 "Verify Cycle Output
  * Completeness" gate and consumed by all four 4/4 jobs). output/data/ is 4/4-owned
@@ -38,6 +50,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { isUploadEligible, ZSTD_MIN_BYTES } from './lib/upload-eligibility.js';
 
 export const SCHEMA_VERSION = 1;
 export const COMPLETION_STATE = 'complete';
@@ -48,6 +61,52 @@ export const COMPLETION_STATE = 'complete';
 // carrier); this defends against a hypothetical output/cache/registry/ leaking in.
 const REGISTRY_EXCLUDE_RE = /(^|\/)(registry(\/|$)|global-registry[^/]*$)/;
 
+// A5 HYBRID EXPLICIT MEMBERSHIP (D-2026-0706-285, PR-A). The cache/** walk is no longer a raw
+// EXACT-set: each member is resolved to exactly ONE class so the manifest can NEVER enumerate a
+// member the uploader (r2-handoff isUploadEligible) would refuse (the confirmed 3/4 read-back /
+// 4/4 verify blocker), and a genuinely UNKNOWN member fails LOUD instead of silently included:
+//   * OPTIONAL_ACCELERATOR (EXCLUDE): the `<payload>.meta.json` MD5 checksum sidecars
+//     (smart-writer.js). ONLY consumer = smart-writer getRemoteHash() at PRODUCE time; zero
+//     serve/4-4 readers; regenerable; NOT authoritative cycle-output -> never a member.
+//   * EMPTY_PLACEHOLDER (EXCLUDE): a sub-16B (empty-`{}`) alt-by-category frame for a sparse
+//     category. The Rust alt-linker path emits a bare 11B `{}` (< the .zst 16B floor). Consumer
+//     knowledge-cache-reader.fetchCategoryAlts treats absent == present-empty (both -> []), so
+//     excluding it is DATA-SAFE (proven-safe fallback per the PR-A decision rule; alt-linker.js
+//     is at the CES 250-line ceiling so a net-zero producer normalize is infeasible). A >=16B
+//     (real-data) alt frame is INCLUDED authoritative.
+//   * TRANSPORT (INCLUDE, class-scoped required-JSON eligibility): the small consumer-required
+//     JSONs cache/search-manifest.json (search-worker-loader full search) + cache/fni-thresholds
+//     .json (master-fusion 4/4) + cache/assertions/_summary.json (verify-assertions). Below the
+//     256B floor but consumer-required -> eligible on JSON validity (isUploadEligible requiredJson).
+//   * AUTHORITATIVE (INCLUDE, default eligibility): any other JSON-family payload.
+//   * anything else (a non-JSON-family member, e.g. a stray .bin) -> UNCLASSIFIED_MEMBER fail loud.
+const META_SIDECAR_RE = /\.meta\.json$/;
+const ALT_FRAME_RE = /^cache\/relations\/alt-by-category\/[^/]+\.json\.zst$/;
+const AUTHORITATIVE_SHAPE_RE = /\.(zst|gz|json|jsonl|ndjson)$/;
+const TRANSPORT_JSON = Object.freeze(new Set([
+    'cache/search-manifest.json',
+    'cache/fni-thresholds.json',
+    'cache/assertions/_summary.json',
+]));
+const EXCLUDED_CLASSES = new Set(['optional', 'placeholder']);
+
+/** Resolve a walked cache/** member (relative posix path) to exactly one class:
+ *  'optional' | 'placeholder' (EXCLUDED) | 'transport' | 'authoritative' (INCLUDED), or throw
+ *  UNCLASSIFIED_MEMBER. The empty-placeholder test needs the on-disk size (< 16B == empty frame),
+ *  so `absPath` is stat'd only for an alt-by-category .json.zst. Used by BOTH generate and verify
+ *  enumeration => membership is consistent by construction. */
+function classifyCycleMember(rel, absPath) {
+    if (META_SIDECAR_RE.test(rel)) return 'optional';           // regenerable checksum sidecar
+    if (ALT_FRAME_RE.test(rel)) {
+        let size = Infinity;
+        try { size = fs.statSync(absPath).size; } catch { size = Infinity; }
+        return size < ZSTD_MIN_BYTES ? 'placeholder' : 'authoritative'; // empty-{} sparse cat vs real
+    }
+    if (TRANSPORT_JSON.has(rel)) return 'transport';            // consumer-required small JSON
+    if (AUTHORITATIVE_SHAPE_RE.test(rel)) return 'authoritative';
+    throw new HandoffManifestError('UNCLASSIFIED_MEMBER', `cache member in no explicit class: ${rel}`);
+}
+
 // Carrier registry: distinct R2 prefix root + producer job + membership contract.
 // A class {name, re, min}: `re` matched on the relative path; `min` is the floor.
 // `memberRoots` walks each root subdir (single root `cache` => output/cache/**).
@@ -55,12 +114,22 @@ export const CARRIERS = Object.freeze({
     'cycle-output-authority': Object.freeze({
         prefixRoot: 'state/_handoff/cycle-output',
         producerJob: 'finalize',
-        // Single member root: output/cache/** (unfiltered). output/data/ is NOT a
-        // member (4/4-owned). EXACT-set equality (no fixed count) + class floors.
+        // Single member root: output/cache/** (walked then CLASSIFIED, A5). output/data/ is NOT a
+        // member (4/4-owned). EXACT-set equality (no fixed count) over the classified set + floors.
         memberRoots: Object.freeze([
             Object.freeze({ dir: 'cache', extensions: null }),
         ]),
         excludeRe: REGISTRY_EXCLUDE_RE,
+        classify: true,
+        // Every INCLUDED member must be upload-eligible under the SAME predicate the uploader
+        // applies (isUploadEligible) -- a member the guard would refuse fails LOUD
+        // (MEMBER_UPLOAD_INELIGIBLE) at generate, never a late read-back FILE_MISSING.
+        assertMemberEligibility: true,
+        // The finalize producer uploads this set with `backup-dir --required-json`, so the generate
+        // assert MUST pass the SAME opt to EVERY included member (the ADDITIVE/rescue-only predicate
+        // is behavior-identical to the default for a >=floor member of ANY shape, and rescues ONLY a
+        // sub-floor valid JSON) -> generate == uploader eligibility by construction (MF-1).
+        uploaderRequiredJson: true,
         // Required-class floors mirror the 3/4 completeness gate's hard requirements
         // (the metadata files 4/4 pack-db depends on + non-empty knowledge/rankings).
         classes: Object.freeze([
@@ -134,11 +203,19 @@ function walkInto(absDir, relBase, extensions, excludeRe, out) {
     }
 }
 
-/** List carrier files under baseDir per the carrier's membership shape (one member
- *  root per subdir). Returns sorted posix relative paths. */
+/** List carrier files under baseDir per the carrier's membership shape (one member root per
+ *  subdir), then (A5) resolve each to its class and DROP the EXCLUDED classes (optional
+ *  accelerator sidecar + empty-placeholder alt frame); a genuinely UNKNOWN member throws
+ *  UNCLASSIFIED_MEMBER. This is the SINGLE membership function used by BOTH generate and verify,
+ *  so the classification is consistent by construction. Returns sorted posix relative paths. */
 export function listCarrierFiles(baseDir, carrier) {
+    const raw = [];
+    for (const r of carrier.memberRoots) walkInto(path.join(baseDir, r.dir), r.dir, r.extensions, carrier.excludeRe, raw);
+    if (!carrier.classify) return raw.sort();
     const out = [];
-    for (const r of carrier.memberRoots) walkInto(path.join(baseDir, r.dir), r.dir, r.extensions, carrier.excludeRe, out);
+    for (const rel of raw) {
+        if (!EXCLUDED_CLASSES.has(classifyCycleMember(rel, path.join(baseDir, rel)))) out.push(rel);
+    }
     return out.sort();
 }
 
@@ -160,8 +237,20 @@ export function generateManifest(baseDir, ctx = {}) {
     let totalBytes = 0;
     for (const rel of names) {
         const abs = path.join(baseDir, rel);
-        const size = fs.statSync(abs).size;
-        files.push({ relative_path: rel, size_bytes: size, sha256: sha256File(abs) });
+        const buf = fs.readFileSync(abs);
+        // A5 (MF-1): every INCLUDED member must be upload-eligible under the SAME predicate the
+        // uploader applies. Pass the uploader's opt (backup-dir --required-json) to EVERY member,
+        // NOT only the transport class -- with the ADDITIVE/rescue-only predicate this is
+        // behavior-identical to the default for a >=floor member of ANY shape (.gz/.jsonl/.ndjson
+        // never JSON-parsed) and rescues ONLY a sub-floor valid JSON, so generate == guard exactly.
+        // A member the guard would refuse fails LOUD here (never a silently-unsatisfiable manifest
+        // -> late read-back FILE_MISSING); this also fails a corrupt required member loud.
+        if (carrier.assertMemberEligibility) {
+            const { eligible, reason } = isUploadEligible(rel, buf, carrier.uploaderRequiredJson ? { requiredJson: true } : {});
+            if (!eligible) throw new HandoffManifestError('MEMBER_UPLOAD_INELIGIBLE', `included member ${rel} upload-ineligible: ${reason}`);
+        }
+        const size = buf.length;
+        files.push({ relative_path: rel, size_bytes: size, sha256: crypto.createHash('sha256').update(buf).digest('hex') });
         totalBytes += size;
     }
     const requiredClasses = countClasses(files, carrier.classes);
