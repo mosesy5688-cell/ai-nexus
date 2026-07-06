@@ -27,17 +27,19 @@ export const DEFAULT_MIN_BYTES = 256;
  *   other -> eligible iff (data.length >= minBytes)
  * The `reason` string is the SAME template the guard prints on a block.
  *
- * OPT-IN class-scoped required-JSON mode (opts.requiredJson): for a member a carrier has
- * EXPLICITLY classified as a REQUIRED small JSON transport, eligibility is decided on JSON
- * VALIDITY (non-empty parseable JSON) instead of the 256B floor -- so a consumer-required 78B
- * JSON transports while a truncated/garbage/empty .json still FAILS. This is OFF by default:
- * the default path AND the 2/4 shards path stay BYTE-IDENTICAL; the mode never lowers the floor
- * for an unclassified caller. See isUploadEligibleRequiredJson for the whole-family details.
+ * OPT-IN class-scoped required-JSON mode (opts.requiredJson) is ADDITIVE / RESCUE-ONLY (MF-1):
+ * it is reached ONLY AFTER the base floor has already REFUSED a member, so it can NEVER block a
+ * member the base predicate accepts. A member >= its floor (of ANY shape: .zst/.gz/.jsonl/
+ * .ndjson/.json) stays eligible EXACTLY as the base guard; a sub-floor valid+non-empty non-.zst
+ * non-.meta JSON (a consumer-required small transport) is RESCUED; a sub-floor .zst / .meta.json
+ * sidecar / non-JSON stays blocked. This keeps generate == uploader eligibility for every shape
+ * (a .gz/.jsonl authoritative member is never JSON-parsed) and is OFF by default: the default
+ * path AND the 2/4 shards path stay BYTE-IDENTICAL; the .zst 16B / non-.zst 256B floors are intact.
  *
  * @param {string} nameOrRelPath - file name or relative path; its `.zst`/`.meta.json` suffix matters.
  * @param {Buffer} data - the file bytes already read by the caller.
  * @param {{ minBytes?: number, requiredJson?: boolean }} [opts] - non-.zst floor (default 256,
- *   == old opts.minSize); requiredJson opts into the class-scoped required-JSON mode.
+ *   == old opts.minSize); requiredJson opts into the ADDITIVE rescue-only required-JSON mode.
  * @returns {{ eligible: boolean, isZst: boolean, reason: (string|null) }}
  */
 export function isUploadEligible(nameOrRelPath, data, opts = {}) {
@@ -45,17 +47,21 @@ export function isUploadEligible(nameOrRelPath, data, opts = {}) {
     const len = data ? data.length : 0;
     const name = String(nameOrRelPath);
     const isZst = name.endsWith('.zst');
-    // Class-scoped required-JSON transport (OPT-IN). Scoped to a non-.zst payload that is NOT a
-    // regenerable `.meta.json` checksum sidecar (never a required transport). A .zst member is
-    // unaffected (still the zstd-magic + 16B floor); an unclassified caller keeps the 256B floor.
-    if (opts.requiredJson && !isZst && !name.endsWith('.meta.json')) {
-        const ok = isNonEmptyJson(data);
-        return { eligible: ok, isZst: false, reason: ok ? null : `invalid/empty required JSON (${len}B)` };
-    }
     const hasZstdMagic = isZst && len >= 4 && data.readUInt32LE(0) === ZSTD_MAGIC_LE;
-    const eligible = isZst ? (hasZstdMagic && len >= ZSTD_MIN_BYTES) : (len >= minBytes);
-    const reason = eligible ? null : (isZst ? `invalid zstd (${len}B)` : `${len}B < min ${minBytes}B`);
-    return { eligible, isZst, reason };
+    // BASE (default) eligibility -- the V27.63 guard, UNCHANGED. When requiredJson is OFF this is
+    // the ONLY branch reached => the default path + the 2/4 shards path stay BYTE-IDENTICAL. A
+    // member of ANY shape that clears its floor is eligible here (never JSON-parsed).
+    const baseEligible = isZst ? (hasZstdMagic && len >= ZSTD_MIN_BYTES) : (len >= minBytes);
+    if (baseEligible) return { eligible: true, isZst, reason: null };
+    // ADDITIVE (rescue-ONLY) opt-in required-JSON transport: reached ONLY when the base floor has
+    // already REFUSED the member, so it can NEVER block a member the base accepts (guard == manifest
+    // by construction). Scoped to a non-.zst, non-`.meta.json` payload that is valid+non-empty JSON
+    // (the consumer-required transports); a sub-floor .zst / .meta.json / non-JSON stays blocked.
+    if (opts.requiredJson && !isZst && !name.endsWith('.meta.json') && isNonEmptyJson(data)) {
+        return { eligible: true, isZst: false, reason: null };
+    }
+    const reason = isZst ? `invalid zstd (${len}B)` : `${len}B < min ${minBytes}B`;
+    return { eligible: false, isZst, reason };
 }
 
 /**

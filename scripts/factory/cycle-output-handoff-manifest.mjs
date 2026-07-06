@@ -16,7 +16,10 @@
  * producer read-back + 4/4 consumer verify blocker. Regenerable `.meta.json` checksum sidecars
  * and empty-`{}` (sub-16B) alt-by-category placeholder frames are EXCLUDED by explicit class;
  * the consumer-required small JSONs (search-manifest / fni-thresholds / assertions/_summary) are
- * INCLUDED via class-scoped required-JSON eligibility; an UNKNOWN member fails loud
+ * INCLUDED via the ADDITIVE/rescue-only required-JSON eligibility (MF-1: it can never block a
+ * member the base floor accepts, so a >=floor member of ANY shape -- .gz/.jsonl/.ndjson -- stays
+ * eligible exactly as base). Generate applies the SAME uploader opt (backup-dir --required-json)
+ * to EVERY included member so generate == guard by construction; an UNKNOWN member fails loud
  * (UNCLASSIFIED_MEMBER) and an INCLUDED-but-refused member fails loud (MEMBER_UPLOAD_INELIGIBLE)
  * at generate. EXACT-set read-back is RETAINED.
  *
@@ -122,6 +125,11 @@ export const CARRIERS = Object.freeze({
         // applies (isUploadEligible) -- a member the guard would refuse fails LOUD
         // (MEMBER_UPLOAD_INELIGIBLE) at generate, never a late read-back FILE_MISSING.
         assertMemberEligibility: true,
+        // The finalize producer uploads this set with `backup-dir --required-json`, so the generate
+        // assert MUST pass the SAME opt to EVERY included member (the ADDITIVE/rescue-only predicate
+        // is behavior-identical to the default for a >=floor member of ANY shape, and rescues ONLY a
+        // sub-floor valid JSON) -> generate == uploader eligibility by construction (MF-1).
+        uploaderRequiredJson: true,
         // Required-class floors mirror the 3/4 completeness gate's hard requirements
         // (the metadata files 4/4 pack-db depends on + non-empty knowledge/rankings).
         classes: Object.freeze([
@@ -230,14 +238,15 @@ export function generateManifest(baseDir, ctx = {}) {
     for (const rel of names) {
         const abs = path.join(baseDir, rel);
         const buf = fs.readFileSync(abs);
-        // A5: every INCLUDED member must be upload-eligible under the SAME predicate the uploader
-        // applies. A TRANSPORT member (consumer-required small JSON) uses the class-scoped
-        // required-JSON mode; every other authoritative member uses the default guard. A member
-        // the guard would refuse fails LOUD here (never a silently-unsatisfiable manifest ->
-        // late read-back FILE_MISSING); this also fails a corrupt required member loud.
+        // A5 (MF-1): every INCLUDED member must be upload-eligible under the SAME predicate the
+        // uploader applies. Pass the uploader's opt (backup-dir --required-json) to EVERY member,
+        // NOT only the transport class -- with the ADDITIVE/rescue-only predicate this is
+        // behavior-identical to the default for a >=floor member of ANY shape (.gz/.jsonl/.ndjson
+        // never JSON-parsed) and rescues ONLY a sub-floor valid JSON, so generate == guard exactly.
+        // A member the guard would refuse fails LOUD here (never a silently-unsatisfiable manifest
+        // -> late read-back FILE_MISSING); this also fails a corrupt required member loud.
         if (carrier.assertMemberEligibility) {
-            const isTransport = carrier.classify && classifyCycleMember(rel, abs) === 'transport';
-            const { eligible, reason } = isUploadEligible(rel, buf, isTransport ? { requiredJson: true } : {});
+            const { eligible, reason } = isUploadEligible(rel, buf, carrier.uploaderRequiredJson ? { requiredJson: true } : {});
             if (!eligible) throw new HandoffManifestError('MEMBER_UPLOAD_INELIGIBLE', `included member ${rel} upload-ineligible: ${reason}`);
         }
         const size = buf.length;

@@ -32,6 +32,11 @@
 //                                       fails loud (silently-unsatisfiable manifest -> late FILE_MISSING).
 //   * A5 whole-seam consistency      -> (F-SRC) r2-handoff threads requiredJson + the CLI parses --required-json + the
 //                                       producer step passes it (so generate == upload eligibility by construction).
+//   * MF-1 ADDITIVE (rescue-only)     -> (MF1-A) a >=256B .gz/.jsonl authoritative member is eligible under the guard
+//                                       requiredJson predicate (never JSON-parsed); the OLD REPLACING predicate reds it.
+//                                       (MF1-B) a sub-floor non-JSON authoritative member fails loud + guard-blocked.
+//   * SF-2 opts passthrough source    -> (SF-2) CLI -> r2-bridge (whole opts) -> r2-handoff (destructure requiredJson);
+//                                       a refactor dropping opts anywhere in the chain reds the source-lock.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -424,16 +429,50 @@ test('(F-A5 case 5) an UNKNOWN (non-JSON-family) cache member fails LOUD UNCLASS
     assert.equal(verifyDirAgainstManifest(clean, m).code, 'UNCLASSIFIED_MEMBER');
 });
 
-test('(F-A6 case 6) generate == upload-eligibility consistent-by-construction: an included member the guard would refuse => MEMBER_UPLOAD_INELIGIBLE', () => {
-    // an authoritative (non-transport) small .json is included by shape but the DEFAULT guard
-    // refuses it => generate fails loud (never a silently-unsatisfiable manifest -> FILE_MISSING).
-    const smallAuth = cycleDir({ 'cache/knowledge/tiny.json': smallJson({ a: 1 }) }); // 7B, not a transport name
-    assert.throws(() => genCycle(smallAuth), (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
-    // a truncated/garbage TRANSPORT JSON also fails loud (corrupt required member; case 11).
-    const badTransport = cycleDir({ 'cache/search-manifest.json': Buffer.from('{not json') });
-    assert.throws(() => genCycle(badTransport), (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
-    const emptyTransport = cycleDir({ 'cache/fni-thresholds.json': '{}' }); // empty object => not non-empty
-    assert.throws(() => genCycle(emptyTransport), (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+test('(F-A6 case 6) generate == upload-eligibility consistent-by-construction (ADDITIVE): a member the guard refuses fails LOUD; a member it rescues is INCLUDED', () => {
+    // (a) an included member the guard-with-requiredJson would REFUSE (a sub-floor NON-parseable
+    // authoritative .json) fails LOUD at generate (never a silently-unsatisfiable manifest).
+    const badAuth = cycleDir({ 'cache/knowledge/tiny.json': Buffer.from('not-json') });
+    assert.throws(() => genCycle(badAuth), (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    assert.equal(isUploadEligible('cache/knowledge/tiny.json', Buffer.from('not-json'), { requiredJson: true }).eligible, false);
+    // (b) a truncated / empty TRANSPORT JSON fails loud (corrupt required member; case 11).
+    assert.throws(() => genCycle(cycleDir({ 'cache/search-manifest.json': Buffer.from('{not json') })), (e) => e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    assert.throws(() => genCycle(cycleDir({ 'cache/fni-thresholds.json': '{}' })), (e) => e.code === 'MEMBER_UPLOAD_INELIGIBLE'); // empty {} => not non-empty
+    // (c) SF-1 fix (MF-1): a sub-floor VALID non-transport JSON is RESCUED (included), matching the
+    // guard -- generate no longer FALSE-throws where the uploader (--required-json) would accept.
+    const rescued = cycleDir({ 'cache/knowledge/extra.json': smallJson({ hello: 'world' }) });
+    const m = genCycle(rescued);
+    assert.ok(m.files.some((f) => f.relative_path === 'cache/knowledge/extra.json'));
+    assert.equal(isUploadEligible('cache/knowledge/extra.json', Buffer.from(smallJson({ hello: 'world' })), { requiredJson: true }).eligible, true);
+    assert.equal(verifyDirAgainstManifest(rescued, m).ok, true);
+});
+
+test('(MF1-A) ADDITIVE (not replacing): a >=256B .gz / .jsonl AUTHORITATIVE member is eligible under BOTH the guard-requiredJson predicate AND generate (never JSON-parsed)', () => {
+    const gz = Buffer.alloc(300, 0x1f);   // >=256B gzip-shaped binary (NOT valid JSON)
+    const jsonl = Buffer.from(Array.from({ length: 40 }, (_, i) => JSON.stringify({ i, v: 'row' })).join('\n')); // multi-line JSONL >=256B, JSON.parse throws
+    assert.ok(gz.length >= DEFAULT_MIN_BYTES && jsonl.length >= DEFAULT_MIN_BYTES);
+    // the ADDITIVE predicate clears them on the BASE floor -- it must NOT JSON-parse a >=floor
+    // member (the OLD replacing predicate did => refused a legit .gz/.jsonl => read-back FILE_MISSING).
+    assert.equal(isUploadEligible('cache/big-data.json.gz', gz, { requiredJson: true }).eligible, true);
+    assert.equal(isUploadEligible('cache/big-lines.jsonl', jsonl, { requiredJson: true }).eligible, true);
+    assert.equal(isNonEmptyJson(gz), false);    // proves they are NOT valid JSON (so the OLD predicate reds)
+    assert.equal(isNonEmptyJson(jsonl), false);
+    // generate INCLUDES them + does NOT throw; read-back passes (generate == guard for these shapes).
+    const dir = cycleDir({ 'cache/big-data.json.gz': gz, 'cache/big-lines.jsonl': jsonl });
+    const m = genCycle(dir);
+    assert.ok(m.files.some((f) => f.relative_path === 'cache/big-data.json.gz'));
+    assert.ok(m.files.some((f) => f.relative_path === 'cache/big-lines.jsonl'));
+    assert.equal(verifyDirAgainstManifest(dir, m).ok, true);
+});
+
+test('(MF1-B) a sub-floor non-parseable / .gz authoritative member fails LOUD at generate AND is blocked by the guard -- consistent (no rescue of a non-JSON)', () => {
+    assert.throws(() => genCycle(cycleDir({ 'cache/knowledge/tiny.json.gz': Buffer.alloc(20, 0x1f) })),
+        (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    assert.equal(isUploadEligible('cache/knowledge/tiny.json.gz', Buffer.alloc(20, 0x1f), { requiredJson: true }).eligible, false);
+    // a sub-floor .jsonl (multi-line, not a single JSON value) is likewise NOT rescued.
+    const smallJsonl = Buffer.from('{"a":1}\n{"b":2}');
+    assert.ok(smallJsonl.length < DEFAULT_MIN_BYTES);
+    assert.equal(isUploadEligible('cache/x.jsonl', smallJsonl, { requiredJson: true }).eligible, false);
 });
 
 test('(F-A7 case 7) read-back exact-set PASSES for the accepted (classified) set', () => {
@@ -544,4 +583,25 @@ test('(F-SRC2) consumer absent == present-empty proves the alt-frame EXCLUDE is 
     const kr = readSrc('../../src/utils/knowledge-cache-reader.js');
     assert.match(kr, /return\s+data\?\.relations\s*\|\|\s*\[\]/);
     assert.match(kr, /return\s+\[\]/); // catch/guard path also returns []
+});
+
+test('(SF-2) --required-json opts passthrough is source-locked end-to-end: CLI -> r2-bridge -> r2-handoff (a refactor dropping opts must RED)', () => {
+    // (1) r2-handoff DESTRUCTURES requiredJson from opts + threads it to backupFileToR2 + the guard.
+    const r2 = readSrc('./lib/r2-handoff.js');
+    assert.match(r2, /const\s*\{[^}]*\brequiredJson\b[^}]*\}\s*=\s*opts/); // backupDirectoryToR2 destructure
+    assert.match(r2, /backupFileToR2\(localPath,\s*r2Key,\s*\{\s*requiredJson\s*\}\)/);
+    assert.match(r2, /isUploadEligible\(localPath,\s*data,\s*\{[^}]*requiredJson:\s*opts\.requiredJson/);
+    // (2) r2-bridge backupDirectoryToR2FFI forwards the WHOLE opts object to r2-handoff (no filter).
+    const bridge = readSrc('./lib/r2-bridge.js');
+    assert.match(bridge, /export async function backupDirectoryToR2FFI\(client,\s*localDir,\s*r2Prefix,\s*opts\s*=\s*\{\}\)/);
+    assert.match(bridge, /return\s+backupDirectoryToR2\(absDir,\s*r2Prefix,\s*opts\)/);
+    // (3) the CLI parses --required-json into that opts object for backup-dir.
+    const cli = readSrc('./r2-workflow-cli.js');
+    assert.match(cli, /backupDirectoryToR2FFI\(client,\s*localDir,\s*r2Prefix,\s*\{\s*extensions,\s*requiredJson:\s*rest\.includes\('--required-json'\)\s*\}\)/);
+    // (4) the finalize producer step opts in, AND generate mirrors it (uploaderRequiredJson).
+    const wf = readSrc('../../.github/workflows/factory-aggregate.yml');
+    assert.match(wf, /backup-dir output\/cache\/ "\$\{STAGING\}cache\/" --required-json/);
+    const mf = readSrc('./cycle-output-handoff-manifest.mjs');
+    assert.match(mf, /uploaderRequiredJson:\s*true/);
+    assert.match(mf, /carrier\.uploaderRequiredJson\s*\?\s*\{\s*requiredJson:\s*true\s*\}\s*:\s*\{\}/);
 });
