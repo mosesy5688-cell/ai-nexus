@@ -8,7 +8,7 @@
  *   node r2-workflow-cli.js upload-buffer <localPath> <r2Key> [--content-type=...]
  *   node r2-workflow-cli.js restore-file <r2Key> <localPath>
  *   node r2-workflow-cli.js restore-dir <r2Prefix> <localDir> [--strict]
- *   node r2-workflow-cli.js backup-dir <localDir> <r2Prefix> [--extensions=.json,.zst]
+ *   node r2-workflow-cli.js backup-dir <localDir> <r2Prefix> [--extensions=.json,.zst] [--required-json]
  *   node r2-workflow-cli.js restore-rust-ffi [crate1,crate2,...]
  *   node r2-workflow-cli.js list-prefix <r2Prefix> [--delimiter=/]
  *   node r2-workflow-cli.js delete-prefix <r2Prefix> [--dry-run]
@@ -103,7 +103,7 @@ async function main() {
             if (!localDir || !r2Prefix) { console.error('Usage: backup-dir <localDir> <r2Prefix>'); process.exit(1); }
             const extStr = parseOpt(rest, 'extensions', null);
             const extensions = extStr ? extStr.split(',') : null;
-            const result = await backupDirectoryToR2FFI(client, localDir, r2Prefix, { extensions });
+            const result = await backupDirectoryToR2FFI(client, localDir, r2Prefix, { extensions, requiredJson: rest.includes('--required-json') });
             console.log(`[R2-CLI] backup-dir: ${result?.count || 0} files backed up to ${r2Prefix}`);
             break;
         }

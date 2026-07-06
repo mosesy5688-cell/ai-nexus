@@ -27,17 +27,51 @@ export const DEFAULT_MIN_BYTES = 256;
  *   other -> eligible iff (data.length >= minBytes)
  * The `reason` string is the SAME template the guard prints on a block.
  *
- * @param {string} nameOrRelPath - file name or relative path; only its `.zst` suffix matters.
+ * OPT-IN class-scoped required-JSON mode (opts.requiredJson): for a member a carrier has
+ * EXPLICITLY classified as a REQUIRED small JSON transport, eligibility is decided on JSON
+ * VALIDITY (non-empty parseable JSON) instead of the 256B floor -- so a consumer-required 78B
+ * JSON transports while a truncated/garbage/empty .json still FAILS. This is OFF by default:
+ * the default path AND the 2/4 shards path stay BYTE-IDENTICAL; the mode never lowers the floor
+ * for an unclassified caller. See isUploadEligibleRequiredJson for the whole-family details.
+ *
+ * @param {string} nameOrRelPath - file name or relative path; its `.zst`/`.meta.json` suffix matters.
  * @param {Buffer} data - the file bytes already read by the caller.
- * @param {{ minBytes?: number }} [opts] - non-.zst floor (default 256, == old opts.minSize).
+ * @param {{ minBytes?: number, requiredJson?: boolean }} [opts] - non-.zst floor (default 256,
+ *   == old opts.minSize); requiredJson opts into the class-scoped required-JSON mode.
  * @returns {{ eligible: boolean, isZst: boolean, reason: (string|null) }}
  */
 export function isUploadEligible(nameOrRelPath, data, opts = {}) {
     const minBytes = opts.minBytes ?? DEFAULT_MIN_BYTES;
     const len = data ? data.length : 0;
-    const isZst = String(nameOrRelPath).endsWith('.zst');
+    const name = String(nameOrRelPath);
+    const isZst = name.endsWith('.zst');
+    // Class-scoped required-JSON transport (OPT-IN). Scoped to a non-.zst payload that is NOT a
+    // regenerable `.meta.json` checksum sidecar (never a required transport). A .zst member is
+    // unaffected (still the zstd-magic + 16B floor); an unclassified caller keeps the 256B floor.
+    if (opts.requiredJson && !isZst && !name.endsWith('.meta.json')) {
+        const ok = isNonEmptyJson(data);
+        return { eligible: ok, isZst: false, reason: ok ? null : `invalid/empty required JSON (${len}B)` };
+    }
     const hasZstdMagic = isZst && len >= 4 && data.readUInt32LE(0) === ZSTD_MAGIC_LE;
     const eligible = isZst ? (hasZstdMagic && len >= ZSTD_MIN_BYTES) : (len >= minBytes);
     const reason = eligible ? null : (isZst ? `invalid zstd (${len}B)` : `${len}B < min ${minBytes}B`);
     return { eligible, isZst, reason };
+}
+
+/**
+ * Whole-family class-scoped required-JSON eligibility: eligible iff the bytes parse as JSON AND
+ * carry content (a non-empty object/array, or a JSON primitive). An empty `{}` / `[]` / `null`,
+ * or an unparseable/truncated buffer, FAILS -- a producer that emitted an empty REQUIRED JSON
+ * fails LOUD rather than transporting a useless file. Pure (JSON.parse only; no fs/network).
+ * @param {Buffer} data
+ * @returns {boolean}
+ */
+export function isNonEmptyJson(data) {
+    if (!data || data.length === 0) return false;
+    let v;
+    try { v = JSON.parse(data.toString('utf8')); } catch { return false; }
+    if (v === null || v === undefined) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'object') return Object.keys(v).length > 0;
+    return true; // a JSON primitive (string/number/boolean) carries content
 }

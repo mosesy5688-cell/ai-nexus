@@ -1055,7 +1055,10 @@ jobs:
           export SET_SHA=$(node -e "process.stdout.write(require('/tmp/cycle-output-manifest.json').set_sha256)")
           export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/cycle-output-manifest.json')).digest('hex'))")
           # (2) cache data FIRST to the attempt-scoped staging (RELOCATED from state/cycle-output/).
-          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/ "${STAGING}cache/"
+          # --required-json: A5 class-scoped eligibility so the consumer-required small JSONs
+          # (search-manifest / fni-thresholds / assertions/_summary, < the 256B floor) transport
+          # (else the manifest enumerates a member the guard refuses -> read-back FILE_MISSING).
+          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/ "${STAGING}cache/" --required-json
           # (3) manifest.json LAST (after every cache object is durable).
           node scripts/factory/r2-workflow-cli.js upload-file /tmp/cycle-output-manifest.json "${STAGING}manifest.json"
           # (4) run-scoped descriptor handoff.json LAST OF ALL.

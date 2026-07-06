@@ -11,7 +11,7 @@ const BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
  * Backup a single local file to R2.
  * @param {string} localPath - Local file path
  * @param {string} r2Key - R2 object key
- * @param {object} opts - { fatal: false }
+ * @param {object} opts - { fatal: false, minSize?, requiredJson? (class-scoped required-JSON) }
  * @returns {{ success: boolean, size?: number }}
  */
 export async function backupFileToR2(localPath, r2Key, opts = {}) {
@@ -28,7 +28,7 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
         // so shards-handoff-manifest.mjs enumerates ONLY members this guard will accept
         // (consistent by construction) -- same magic check, same 16B floor, same
         // non-.zst min floor, same BLOCKED reason string. minSize maps to minBytes.
-        const { eligible, reason } = isUploadEligible(localPath, data, { minBytes: opts.minSize });
+        const { eligible, reason } = isUploadEligible(localPath, data, { minBytes: opts.minSize, requiredJson: opts.requiredJson });
         if (!eligible) {
             console.error(`[R2-HANDOFF] BLOCKED: ${localPath} ${reason}. Refusing upload to prevent state wipe.`);
             return { success: false, reason: 'integrity_check_failed' };
@@ -85,7 +85,7 @@ export async function restoreFileFromR2(r2Key, localPath, opts = {}) {
  * Writes a _manifest.json for efficient restore.
  * @param {string} localDir - Local directory path
  * @param {string} r2Prefix - R2 key prefix (e.g. 'state/cycle-output/')
- * @param {object} opts - { concurrency: 5, fatal: false, extensions: null }
+ * @param {object} opts - { concurrency: 5, extensions: null, requiredJson: false (opt-in) }
  * @returns {{ success: boolean, count: number, totalSize: number }}
  */
 export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
@@ -94,7 +94,7 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
         console.warn('[R2-HANDOFF] No R2 credentials. Skipping directory backup.');
         return { success: false, count: 0, totalSize: 0 };
     }
-    const { concurrency = 5, extensions = null } = opts;
+    const { concurrency = 5, extensions = null, requiredJson = false } = opts;
     const files = await walkDir(localDir, extensions);
     if (files.length === 0) {
         console.warn(`[R2-HANDOFF] No files found in ${localDir}`);
@@ -114,7 +114,7 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
             manifest.push(relPath.replace(/\\/g, '/'));
             const data = await fs.readFile(localPath);
             if (r2Etags.get(r2Key) === crypto.createHash('md5').update(data).digest('hex')) { skipped++; return { success: true, skipped: true }; }
-            const result = await backupFileToR2(localPath, r2Key);
+            const result = await backupFileToR2(localPath, r2Key, { requiredJson });
             if (result.success) totalSize += result.size || 0;
             return result;
         }));
