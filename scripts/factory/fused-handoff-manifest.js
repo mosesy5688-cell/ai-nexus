@@ -16,6 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { isUploadEligible } from './lib/upload-eligibility.js';
 
 export const SCHEMA_VERSION = 1;
 export const CARRIER_TYPE = 'fused-entities';
@@ -75,10 +76,11 @@ export function generateManifest(dir, ctx = {}) {
     let totalBytes = 0;
     let partCount = 0;
     for (const name of names) {
-        const abs = path.join(dir, name);
-        const size = fs.statSync(abs).size;
-        files.push({ relative_path: name, size_bytes: size, sha256: sha256File(abs) });
-        totalBytes += size;
+        const buf = fs.readFileSync(path.join(dir, name));
+        // GUARDED .json.zst parts (uploaded via `backup-dir`, factory-upload.yml:617) clear the SAME upload guard (isUploadEligible, .zst magic+16B); `.complete` is BYPASS (upload-file:621 + restore-file:744/902, always reaches R2) -> EXEMPT (its non-.zst 256B floor would false-fail). A refusable part fails LOUD at generate, never a late read-back FILE_MISSING.
+        if (name.endsWith('.json.zst')) { const r = isUploadEligible(name, buf); if (!r.eligible) throw new Error(`MEMBER_UPLOAD_INELIGIBLE: fused part ${name}: ${r.reason}`); }
+        files.push({ relative_path: name, size_bytes: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') });
+        totalBytes += buf.length;
         if (PART_RE.test(name)) partCount++;
     }
     const complete = parseComplete(dir);

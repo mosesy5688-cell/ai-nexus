@@ -34,6 +34,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { isUploadEligible } from './lib/upload-eligibility.js';
 
 export const SCHEMA_VERSION = 1;
 export const COMPLETION_STATE = 'complete';
@@ -47,6 +48,19 @@ export const CARRIERS = Object.freeze({
     'mesh-profile-authority': Object.freeze({
         prefixRoot: 'state/_handoff/mesh-profile',
         producerJob: 'mesh-baking',
+        // Upload-path classification for the generate-time upload-eligibility assert
+        // (Founder D-2026-0706-285, PR-C family-completeness hardening). A GUARDED member
+        // reaches R2 via `backup-dir` (the r2-handoff guard CAN refuse it) so generate MUST
+        // assert isUploadEligible on it -> a guard-refusable member fails LOUD
+        // (MEMBER_UPLOAD_INELIGIBLE) at generate, never a late read-back FILE_MISSING. A
+        // BYPASS member reaches R2 via `upload-file` (never guard-refused; always uploaded
+        // regardless of size) so it is EXEMPT from the assert -- asserting it would be a
+        // FALSE fail-loud on a member that uploads fine. profile-shards/** are GUARDED
+        // (factory-upload.yml:254 `backup-dir output/cache/mesh/profile-shards/`);
+        // profile-evidence-dict.json.zst is the SOLE BYPASS member (factory-upload.yml:255
+        // `upload-file … profile-evidence-dict.json.zst`). Default is GUARDED (assert): only a
+        // path matching bypassRe is exempt -> a future member is asserted unless proven bypass.
+        bypassRe: /^profile-evidence-dict\.json\.zst$/,
         classes: Object.freeze([
             { name: 'evidence_dict', re: /^profile-evidence-dict\.json\.zst$/, min: 1 },
             { name: 'profile_shard', re: /^profile-shards\/.+/, min: 1 },
@@ -128,14 +142,25 @@ function shardCountOf(files) { return files.filter((f) => /^profile-shards\/.+/.
  *  provenance (not disk-derived). Enforces class floors + freezes expected_shard_count
  *  + dict_sha256 from the producer's own readdir at generate. */
 export function generateManifest(baseDir, ctx = {}) {
-    carrierConfig(ctx.carrierType);
+    const carrier = carrierConfig(ctx.carrierType);
     const names = listCarrierFiles(baseDir);
     const files = [];
     let totalBytes = 0;
     for (const rel of names) {
         const abs = path.join(baseDir, rel);
-        const size = fs.statSync(abs).size;
-        files.push({ relative_path: rel, size_bytes: size, sha256: sha256File(abs) });
+        const buf = fs.readFileSync(abs);
+        // GUARDED member (profile-shards/**, uploaded via `backup-dir`) MUST clear the SAME upload
+        // guard the uploader applies (isUploadEligible, DEFAULT opts -- members are .zst; the .zst
+        // magic + 16B floor) -> a guard-refusable shard fails LOUD MEMBER_UPLOAD_INELIGIBLE at
+        // generate, never a silently-unsatisfiable manifest -> late read-back FILE_MISSING. The
+        // BYPASS member (bypassRe: profile-evidence-dict.json.zst, uploaded via `upload-file`) is
+        // EXEMPT -- it always reaches R2 and asserting it could false-fail a member that uploads fine.
+        if (!carrier.bypassRe.test(rel)) {
+            const { eligible, reason } = isUploadEligible(rel, buf);
+            if (!eligible) throw new HandoffManifestError('MEMBER_UPLOAD_INELIGIBLE', `guarded member ${rel} upload-ineligible: ${reason}`);
+        }
+        const size = buf.length;
+        files.push({ relative_path: rel, size_bytes: size, sha256: crypto.createHash('sha256').update(buf).digest('hex') });
         totalBytes += size;
     }
     const requiredClasses = countClasses(files, carrierConfig(ctx.carrierType).classes);
