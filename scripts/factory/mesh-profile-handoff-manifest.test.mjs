@@ -14,6 +14,10 @@
 //   * EXACT membership (FILE_MISSING/EXTRA)      -> (M3/M4) a member absent / a foreign shard reds.
 //   * set_sha256 verify                          -> (M8) mutate set_sha256 => SET_HASH_MISMATCH.
 //   * descriptor provenance                      -> (M11-M14) foreign upstream/run/head/version/prefix rejected.
+//   * generate==guard for GUARDED profile-shards -> (M15) a sub-16B/no-magic .zst shard => MEMBER_UPLOAD_INELIGIBLE
+//                                                   at generate; drop the guarded-assert => generate SUCCEEDS (reds M15).
+//   * BYPASS dict EXEMPT from the assert         -> (M16) a guard-refusable dict still generates (upload-file bypass);
+//                                                   wrongly asserting it => false fail-loud (reds M16 + every green genMesh).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -38,11 +42,21 @@ function writeFiles(dir, files) {
     }
     return dir;
 }
+// A minimally upload-guard-VALID zstd frame for a GUARDED member: magic 28 B5 2F FD + a 12-byte
+// body (total = 16B == the ZSTD_MIN_BYTES floor). Fixed-length + deterministic so tamper tests can
+// match length (HASH vs SIZE mismatch). Real profile-shards ARE >>16B JSONL.zst; this is the floor.
+function zst(tag) {
+    const body = Buffer.from(String(tag).padEnd(12, '.').slice(0, 12));
+    return Buffer.concat([Buffer.from([0x28, 0xb5, 0x2f, 0xfd]), body]);
+}
 // A minimal mesh-profile dir: the evidence dict + N profile-shards, PLUS graph.json /
 // stats.json siblings that the INCLUDE filter MUST ignore (they co-live in output/cache/mesh/).
+// GUARDED profile-shards are written as upload-eligible zst frames (generate now asserts them). The
+// BYPASS evidence dict stays a small non-magic body ('DICT-v1') -- it is EXEMPT from the assert, so
+// its presence in EVERY green genMesh() proves the dict-bypass exemption holds (would red if asserted).
 function meshDir(over = {}, shards = 3) {
     const files = { 'profile-evidence-dict.json.zst': 'DICT-v1', 'graph.json': 'GRAPH', 'stats.json': 'STATS', ...over };
-    for (let i = 0; i < shards; i++) files[`profile-shards/shard-${String(i).padStart(4, '0')}.jsonl.zst`] = `SHARD-${i}`;
+    for (let i = 0; i < shards; i++) files[`profile-shards/shard-${String(i).padStart(4, '0')}.jsonl.zst`] = zst(`SHARD-${i}`);
     return writeFiles(mkTmp(), files);
 }
 const CTX = { carrierType: 'mesh-profile-authority', upstreamRunId: 'UP1', factoryRunId: 'RUN1', producerAttempt: '2', headSha: SHA, codeVersion: 'v-test', createdAt: '1970-01-01T00:00:00.000Z' };
@@ -135,7 +149,7 @@ test('(M5 per-file sha) truncated/tampered shard => SIZE/HASH mismatch', () => {
     assert.equal(verifyDirAgainstManifest(dir, m).code, 'SIZE_MISMATCH');
     const dir2 = meshDir();
     const m2 = genMesh(dir2);
-    fs.writeFileSync(path.join(dir2, 'profile-shards/shard-0000.jsonl.zst'), 'XXXXXXX'); // same length as 'SHARD-0'
+    fs.writeFileSync(path.join(dir2, 'profile-shards/shard-0000.jsonl.zst'), zst('SHARD-9')); // same length (16B) as zst('SHARD-0'), different content
     assert.equal(verifyDirAgainstManifest(dir2, m2).code, 'HASH_MISMATCH');
 });
 test('(M6 T5: profile-shards count mismatch) declared expected_shard_count != disk => SHARD_COUNT_MISMATCH', () => {
@@ -174,6 +188,30 @@ test('(M10 below-floor) zero profile-shards fails closed at generate (profile_sh
     const noDict = meshDir();
     fs.rmSync(path.join(noDict, 'profile-evidence-dict.json.zst'));
     assert.throws(() => genMesh(noDict), (e) => e instanceof HandoffManifestError && e.code === 'REQUIRED_CLASS_BELOW_FLOOR');
+});
+test('(M15 generate==guard) a guard-refusable GUARDED profile-shard (sub-16B/no-magic .zst) fails LOUD MEMBER_UPLOAD_INELIGIBLE at generate', () => {
+    // PR-C family-completeness: profile-shards/** are uploaded via `backup-dir` (the r2-handoff guard
+    // CAN refuse them). Corrupt ONE guarded shard to a sub-floor .zst (no zstd magic, < 16B) -- exactly
+    // what the uploader refuses -- and generate MUST fail loud HERE, never emit a manifest whose exact-set
+    // read-back the uploader cannot satisfy (late FILE_MISSING). ANTI-VACUITY: remove the guarded-assert
+    // and generate SUCCEEDS on this dir -> this test reds. The BYPASS dict is untouched (stays eligible-exempt).
+    const dir = meshDir();
+    fs.writeFileSync(path.join(dir, 'profile-shards/shard-0000.jsonl.zst'), Buffer.from('bad')); // 3B, no magic
+    assert.throws(() => genMesh(dir), (e) => e instanceof HandoffManifestError && e.code === 'MEMBER_UPLOAD_INELIGIBLE');
+    // A large real shard (>>16B, valid frame) is INCLUDED (no false fail-loud on a legitimate part).
+    const ok = meshDir({ 'profile-shards/shard-0000.jsonl.zst': Buffer.concat([Buffer.from([0x28, 0xb5, 0x2f, 0xfd]), Buffer.alloc(4096, 0x41)]) });
+    assert.equal(genMesh(ok).expected_shard_count, 3);
+});
+test('(M16 bypass exempt) the BYPASS evidence dict is NEVER upload-asserted -- a guard-refusable dict still generates (upload-file bypass)', () => {
+    // The dict reaches R2 via `upload-file` (factory-upload.yml:255), never the `backup-dir` guard, so it
+    // ALWAYS uploads regardless of size. Even a guard-refusable dict (1B, no zstd magic) MUST NOT fail
+    // generate. Guards the OPPOSITE error: wrongly asserting the bypass member would false-fail a member
+    // that uploads fine (and would red every green genMesh, whose default dict 'DICT-v1' is also sub-floor).
+    const dir = meshDir({ 'profile-evidence-dict.json.zst': Buffer.from('x') });
+    const m = genMesh(dir); // must NOT throw
+    assert.ok(m.files.some((f) => f.relative_path === 'profile-evidence-dict.json.zst'));
+    assert.equal(m.expected_shard_count, 3);
+    assert.equal(verifyDirAgainstManifest(dir, m).ok, true); // exact-set read-back still verifies clean
 });
 test('(M11 positive descriptor) verifies; emits staging + set/dict sha + shard count', () => {
     const m = genMesh(meshDir());

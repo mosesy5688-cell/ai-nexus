@@ -18,10 +18,20 @@ import {
 let dir: string;
 const CTX = { upstreamRunId: 'U1', factoryRunId: 'F1', producerRunAttempt: 1, headSha: 'deadbeef' };
 
+// A minimally upload-guard-VALID zstd frame for a GUARDED part: magic 28 B5 2F FD + a body (total
+// >= 16B == the ZSTD_MIN_BYTES floor). Real fused parts ARE large bulk .json.zst; this is the floor.
+// PR-C: part-*.json.zst are uploaded via `backup-dir` so generate now asserts isUploadEligible on them.
+function zst(tag: string): Buffer {
+    const body = Buffer.from(String(tag).padEnd(12, '.'));
+    return Buffer.concat([Buffer.from([0x28, 0xb5, 0x2f, 0xfd]), body]);
+}
+
 function writeFused(n: number, processedShards = n) {
     for (let i = 0; i < n; i++) {
-        fs.writeFileSync(path.join(dir, `part-${String(i).padStart(3, '0')}.json.zst`), `shard-payload-${i}`);
+        fs.writeFileSync(path.join(dir, `part-${String(i).padStart(3, '0')}.json.zst`), zst(`shard-payload-${i}`));
     }
+    // `.complete` is a small non-.zst JSON sentinel (< 256B). It is a BYPASS member (upload-file +
+    // restore-file), EXEMPT from the generate-assert -> written as-is (would be guard-refused if asserted).
     fs.writeFileSync(path.join(dir, '.complete'), JSON.stringify({ processedShards, expectedShards: n }));
 }
 
@@ -91,7 +101,8 @@ describe('manifest verification (consume) — exact set + content gates', () => 
 
     it('#7b .complete present but COMPLETE_MISSING reported when truly absent from both', () => {
         // build a manifest WITHOUT .complete, dir WITHOUT .complete -> COMPLETE_MISSING gate.
-        for (let i = 0; i < 400; i++) fs.writeFileSync(path.join(dir, `part-${String(i).padStart(3, '0')}.json.zst`), `x${i}`);
+        // Parts are upload-eligible zst frames (generate asserts GUARDED parts before the verify path).
+        for (let i = 0; i < 400; i++) fs.writeFileSync(path.join(dir, `part-${String(i).padStart(3, '0')}.json.zst`), zst(`x${i}`));
         const m = generateManifest(dir, CTX);
         expect(verifyDirAgainstManifest(dir, m).code).toBe('COMPLETE_MISSING');
     });
@@ -154,6 +165,39 @@ describe('manifest verification (consume) — exact set + content gates', () => 
         const m = generateManifest(dir, CTX) as Record<string, unknown>;
         m.manifest_sha256 = 'abc';
         expect(verifyDirAgainstManifest(dir, m as never).code).toBe('MANIFEST_SELF_HASH');
+    });
+});
+
+describe('generate==guard for GUARDED parts + .complete BYPASS exemption (PR-C family-completeness)', () => {
+    it('#G1 a guard-refusable part (sub-16B / no zstd magic .zst) fails LOUD MEMBER_UPLOAD_INELIGIBLE at generate', () => {
+        writeFused(400);
+        // part-*.json.zst upload via `backup-dir` (factory-upload.yml:617) -> the r2-handoff guard CAN
+        // refuse them. Corrupt ONE to a sub-floor .zst (no zstd magic, < 16B) -- exactly what the uploader
+        // refuses. generate MUST fail loud HERE, never emit a manifest whose exact-set read-back the
+        // uploader cannot satisfy (a late FILE_MISSING). ANTI-VACUITY: remove the guarded-assert and
+        // generate SUCCEEDS on this dir -> this test reds.
+        fs.writeFileSync(path.join(dir, 'part-000.json.zst'), Buffer.from('bad')); // 3B, no magic
+        expect(() => generateManifest(dir, CTX)).toThrow(/MEMBER_UPLOAD_INELIGIBLE/);
+    });
+
+    it('#G2 the BYPASS .complete sentinel is NEVER upload-asserted -- a tiny (<256B, non-.zst) .complete still generates', () => {
+        // `.complete` reaches R2 via upload-file:621 + restore-file:744/902 belt-and-suspenders, so it
+        // ALWAYS reaches R2. It is a small non-.zst JSON far below the 256B floor -> asserting it would be a
+        // FALSE fail-loud that breaks the pipeline. Guards the OPPOSITE error (wrongly asserting a bypass member).
+        writeFused(400);
+        const complete = fs.readFileSync(path.join(dir, '.complete'));
+        expect(complete.length).toBeLessThan(256); // would be guard-refused if it were asserted
+        const m = generateManifest(dir, CTX); // must NOT throw
+        expect(m.files.some((f) => f.relative_path === '.complete')).toBe(true);
+        expect(verifyDirAgainstManifest(dir, m).ok).toBe(true); // exact-set read-back still verifies clean
+    });
+
+    it('#G3 a large real part (>>16B valid frame) is INCLUDED (no false fail-loud on a legit part)', () => {
+        writeFused(400);
+        fs.writeFileSync(path.join(dir, 'part-000.json.zst'), Buffer.concat([Buffer.from([0x28, 0xb5, 0x2f, 0xfd]), Buffer.alloc(65536, 0x41)]));
+        const m = generateManifest(dir, CTX);
+        expect(m.part_file_count).toBe(400);
+        expect(verifyDirAgainstManifest(dir, m).ok).toBe(true);
     });
 });
 
