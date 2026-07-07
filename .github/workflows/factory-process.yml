@@ -169,6 +169,15 @@ jobs:
 
       - name: Free Disk (registry/fni-history not needed in 2/4)
         run: rm -rf cache/registry/ cache/fni-history/ cache/global-registry.json.zst 2>/dev/null; echo "Freed $(df -h . | tail -1 | awk '{print $4}') available"
+      # D-297 (PR-B): FAIL-CLOSED capacity preflight BEFORE Consolidate. split-registry.js
+      # re-partitions the 418×1000 natural shard set → 20 processing shards, duplicating the
+      # shard set (+ zstd temp). Runs AFTER the Free Disk above so free is measured post-cleanup.
+      # MEASURES df free + du of data/, fails closed INSUFFICIENT_RUNNER_DISK_PROCESS_CONSOLIDATE
+      # (+ coarse memory guard) BEFORE the consolidate. No warning-only, no `|| true`.
+      - name: Capacity Preflight — Consolidate (fail-closed)
+        env:
+          CAPACITY_OLD_SPACE_MB: '8192'  # mirror the Consolidate step's --max-old-space-size for the coarse memory guard
+        run: node scripts/factory/lib/runner-capacity-preflight.mjs PROCESS_CONSOLIDATE
       # V55.9: Consolidate natural shards (418×1000) → 20 hash-routed processing shards
       - name: Consolidate Shards for Matrix
         env:
@@ -406,6 +415,17 @@ jobs:
           mkdir -p cache
           node scripts/factory/r2-workflow-cli.js restore-file meta/backup/entity-checksums.json.zst cache/entity-checksums.json.zst || echo "⚠️ No entity checksums on R2 — full recompute expected"
 
+      # D-297 (PR-B): FAIL-CLOSED capacity preflight BEFORE per-shard processing.
+      # shard-processor.js reads the single merged_shard_N (⊆ data/) and writes
+      # artifacts/shard-N; the prepared set is already resident, so each matrix shard
+      # materializes only its ~1/20 output + scratch (phaseFactor 0.5 of the full
+      # resident set = ~10× conservative bound). MEASURES df free + du of data/, fails
+      # closed INSUFFICIENT_RUNNER_DISK_PROCESS_SHARD (+ coarse memory guard) BEFORE
+      # the heavy step. No warning-only, no `|| true`.
+      - name: Capacity Preflight — Process Shard (fail-closed)
+        env:
+          CAPACITY_OLD_SPACE_MB: '6144'  # mirror the Process Shard step's --max-old-space-size for the coarse memory guard
+        run: node scripts/factory/lib/runner-capacity-preflight.mjs PROCESS_SHARD
       # Process shard
       - name: Process Shard ${{ matrix.shard }}
         env:

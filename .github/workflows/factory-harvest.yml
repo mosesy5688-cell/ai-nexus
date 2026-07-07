@@ -737,6 +737,18 @@ jobs:
           mkdir -p output/data
           node scripts/factory/r2-workflow-cli.js restore-file state/params-cache.json.zst output/data/params-cache.json.zst || echo "⚠️ No params cache on R2 — first run"
           node scripts/factory/r2-workflow-cli.js restore-file state/benchmark-cache.json.zst output/data/benchmark-cache.json.zst || echo "⚠️ No benchmark cache on R2 — first run"
+      # D-297 (PR-B): FAIL-CLOSED runner capacity preflight BEFORE the J5 merge.
+      # merge-batches.js hydrates the daily accumulator + global registry and
+      # merges all raw batches, transiently duplicating the working set (the
+      # historical run-26559091640 "database or disk is full" ENOSPC). The gate
+      # MEASURES real free bytes (df) + the real on-disk base of data/ +
+      # cache/registry + cache/daily-accum + cache/fni-history (du), then fails
+      # closed with terminal INSUFFICIENT_RUNNER_DISK_HARVEST_J5_MERGE (+ a coarse
+      # memory guard) BEFORE the merge. WARNING-ONLY IS FORBIDDEN — exit 1 on shortfall.
+      - name: Capacity Preflight — J5 Merge (fail-closed)
+        env:
+          CAPACITY_OLD_SPACE_MB: '10240'  # mirror the merge job's --max-old-space-size for the coarse memory guard
+        run: node scripts/factory/lib/runner-capacity-preflight.mjs HARVEST_J5_MERGE
       - name: Merge Batches
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

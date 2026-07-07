@@ -497,6 +497,17 @@ jobs:
             echo "skip_compute=false" >> "$GITHUB_OUTPUT"
             echo "[V27.52] ${FUSED_COUNT} fused shards present (need ≥400 + .complete sentinel) → fresh Fusion"
           fi
+      # D-297 (PR-B): FAIL-CLOSED capacity preflight BEFORE Master Fusion. Mirrors the
+      # SAME skip guard so it runs only when Fusion will actually compute. master-fusion.js
+      # loads the aligned registry .bin shards + enrichment-local into memory and re-writes
+      # fused part-NNN.json.zst. MEASURES df free + du of output/cache/registry +
+      # output/cache/enrichment-local, fails closed INSUFFICIENT_RUNNER_DISK_UPLOAD_MASTER_FUSION
+      # (+ coarse memory guard) BEFORE the compute. No warning-only, no `|| true`.
+      - name: Capacity Preflight — Master Fusion (fail-closed)
+        if: steps.detect-fused.outputs.skip_compute != 'true'
+        env:
+          CAPACITY_OLD_SPACE_MB: '8192'  # mirror the Master Fusion step's --max-old-space-size for the coarse memory guard
+        run: node scripts/factory/lib/runner-capacity-preflight.mjs UPLOAD_MASTER_FUSION
       - name: Execute Master Fusion
         if: steps.detect-fused.outputs.skip_compute != 'true'
         env:
@@ -1102,6 +1113,18 @@ jobs:
             echo "skip_compute=false" >> "$GITHUB_OUTPUT"
             echo "[STAGE-B] fresh pack-db: meta=${META_COUNT}(need>=20) mesh=${MESH_OK} sentinel='${SENTINEL_VAL}'(need '${VFS_PACK_CODE_VERSION}')"
           fi
+      # D-297 (PR-B): FAIL-CLOSED capacity preflight BEFORE the Packer. Mirrors the SAME
+      # skip guard so it runs only when pack-db will actually compute. pack-db.js opens
+      # META_SHARD_COUNT=96 meta-NN.db simultaneously (per-DB SQLite page-cache + WAL/journal
+      # transient ×96 + denormalized meta rows) while the fused set stays resident. MEASURES
+      # df free + du of output/cache/{fused,embeddings,reports,knowledge,mesh}, fails closed
+      # INSUFFICIENT_RUNNER_DISK_UPLOAD_PACKER (+ coarse memory guard) BEFORE the compute.
+      # No warning-only, no `|| true`.
+      - name: Capacity Preflight — Packer (fail-closed)
+        if: steps.detect-vfs-pack.outputs.skip_compute != 'true'
+        env:
+          CAPACITY_OLD_SPACE_MB: '6144'  # mirror the Packer step's --max-old-space-size for the coarse memory guard
+        run: node scripts/factory/lib/runner-capacity-preflight.mjs UPLOAD_PACKER
       - name: Execute Stable 1.0 Packer
         if: steps.detect-vfs-pack.outputs.skip_compute != 'true'
         env:
@@ -2083,6 +2106,15 @@ jobs:
           node scripts/factory/r2-workflow-cli.js restore-file "$VD" /tmp/fam-vfs-derived.json --strict || { echo "::error::FAMILY: vfs-derived descriptor missing ($VD). Fail-closed."; exit 1; }
           node scripts/factory/vfs-derived-handoff-manifest.mjs family-gate /tmp/fam-vfs-pack.json /tmp/fam-mesh-profile.json /tmp/fam-vfs-derived.json || { echo "::error::FAMILY: cross-descriptor closure gate FAILED — refusing a mixed-cycle publish. Fail-closed."; exit 1; }
           echo "[PUBLICATION-FAMILY] one coherent 4/4 cycle-family verified — Final Upload unlocked."
+      # D-297 (PR-B): FAIL-CLOSED capacity preflight — LAST barrier BEFORE the sole public
+      # CDN write (r2-upload-s3.js). Positioned so a shortfall short-circuits the job BEFORE
+      # ANY public write (state/ backups earlier in this job are producer-internal, not the
+      # public CDN). r2-upload-s3.js reads + streams the output/ publish payload to R2 (only
+      # multipart scratch is transient, phaseFactor 1.25). MEASURES df free + du of
+      # output/data + output/meta + output/cache, fails closed
+      # INSUFFICIENT_RUNNER_DISK_FINAL_UPLOAD BEFORE publish. No warning-only, no `|| true`.
+      - name: Capacity Preflight — Final Upload (fail-closed, BEFORE any public write)
+        run: node scripts/factory/lib/runner-capacity-preflight.mjs FINAL_UPLOAD
       - name: Upload to R2 via S3 API
         env:
           # V22.9.6: Removed cache/fused/ (~290K PUTs) and cache/mesh/profiles/ (~10K PUTs)
