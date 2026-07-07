@@ -9,6 +9,46 @@ import { loadDailyAccum } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
 import { zstdCompress } from './zstd-helper.js';
 
+// D-295 Component 1: pre-finalization disk gate constants. The gate estimates the
+// finalization PEAK footprint from MEASURED on-disk sizes (never a constant) and
+// fails closed when the runner cannot cover it.
+export const FINALIZATION_SAFETY_FACTOR = 2.5;                 // in-memory JSON expansion + zstd temp + shard re-write duplication
+export const FINALIZATION_MARGIN_BYTES = 2 * 1024 * 1024 * 1024; // 2 GiB floor for logs/tmp/OS/headroom
+export const DISK_GATE_TERMINAL_CODE = 'INSUFFICIENT_RUNNER_DISK_FINALIZATION';
+
+/**
+ * D-295 Component 1: estimate the finalization peak on-disk footprint (bytes).
+ * Formula (real measured gate, NOT a constant):
+ *   peak = (fni-history + registry + trend-working) * SAFETY_FACTOR
+ * The measured base is the live restored working set right before finalization;
+ * the factor covers the transient in-memory expansion + zstd scratch + shard
+ * re-write duplication during the merge/persist/trend passes.
+ */
+export function estimateFinalizationPeakBytes(sizes = {}, factor = FINALIZATION_SAFETY_FACTOR) {
+    const base = (Number(sizes.fniBytes) || 0) + (Number(sizes.regBytes) || 0) + (Number(sizes.trendBytes) || 0);
+    return Math.ceil(base * factor);
+}
+
+/**
+ * D-295 Component 1: fail-closed comparator. Returns the gate verdict + the four
+ * telemetry fields the workflow prints on BOTH pass and fail. ok=false => exit 1.
+ */
+export function evaluateDiskGate({ freeBytes, sizes = {}, factor = FINALIZATION_SAFETY_FACTOR, marginBytes = FINALIZATION_MARGIN_BYTES } = {}) {
+    const measuredFreeBytes = Number(freeBytes) || 0;
+    const estimatedPeakBytes = estimateFinalizationPeakBytes(sizes, factor);
+    const requiredMarginBytes = Number(marginBytes) || 0;
+    const requiredTotalBytes = estimatedPeakBytes + requiredMarginBytes;
+    return {
+        ok: measuredFreeBytes >= requiredTotalBytes,
+        measuredFreeBytes,
+        estimatedPeakBytes,
+        requiredMarginBytes,
+        requiredTotalBytes,
+        safetyFactor: factor,
+        terminalCode: DISK_GATE_TERMINAL_CODE,
+    };
+}
+
 /**
  * V25.8.3: Validate AES_CRYPTO_KEY when encrypted .bin shards exist.
  * Prevents silent data drought that starves all satellite tasks.
