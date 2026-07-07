@@ -317,18 +317,18 @@ jobs:
         if: success()
         run: |
           mkdir -p output/cache output/meta/backup cache
-          
+
           # 1. Mirror production artifacts for R2 distribution (Stage 4/4)
           # V22.8: Aggregator persistence handled meta/backup/ mirrors.
           # We just need to ensure directory structure is consistent.
           [ -d "meta" ] && cp -r meta/* output/meta/ 2>/dev/null || true
-          
-          # 2. Mirror BACK to root cache/ for persistent memory (Stage 1/4)
-          # Ensure local flow has the latest state for GHA cache save
-          if [ -d "output/meta/backup" ] && [ "$(ls -A output/meta/backup)" ]; then
-            cp -r output/meta/backup/* cache/ 2>/dev/null || true
-          fi
-          
+
+          # 2. D-295 Component 2: the `cp -r output/meta/backup/* cache/` read-back
+          # was REMOVED together with the aggregator-persistence.js output/meta/backup
+          # mirror-write it consumed. It was a same-job round-trip (cache/ -> mirror ->
+          # cache/) with no net effect on cache/: cache/ is already authoritative and
+          # is what the R2 `backup-dir cache/...` uploads read directly.
+
           echo "📦 Final output structure for R2 staging:"
           ls -R output/ | head -20
           echo "📦 Final cache structure for GitHub flow:"
