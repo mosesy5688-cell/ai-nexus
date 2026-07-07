@@ -2,12 +2,11 @@ import 'dotenv/config';
 import fs from 'fs/promises';
 import path from 'path';
 import { generateDailyReport, updateDailyAccumulatorFromTopN, shouldGenerateReport } from './lib/daily-report.js';
-import { loadFniHistory } from './lib/cache-manager.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
 import { buildTaskList } from './lib/aggregator-tasks.js';
 import { updateFniHistoryFromBatch } from './lib/aggregator-metrics.js';
 import {
-    getWeekNumber, generateHealthReport, backupStateFiles, validateCryptoEnv
+    getWeekNumber, generateHealthReport, backupStateFiles, validateCryptoEnv, streamFniHistoryEntities
 } from './lib/aggregator-maintenance.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { generateUMID, generateCanonicalUrl, generateCitation } from './lib/umid-generator.js';
@@ -205,7 +204,9 @@ async function runStreamingCore(loadShards, saveShard,
         await fs.mkdir('./cache', { recursive: true });
         // Persist: mirroring only — shards already saved in streaming pass
         await persistRegistry(null, CONFIG.OUTPUT_DIR, './cache', null, null);
-        await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
+        // D-295 Component 5: stream FNI history into trend generation instead of
+        // materializing the whole ~1.9GB loadFniHistory() object just for trend.
+        await backupStateFiles(CONFIG.OUTPUT_DIR, { stream: (cb) => streamFniHistoryEntities(cb) }, getWeekNumber());
     } catch (e) {
         console.error(`[AGGREGATOR] ❌ Finalization failed: ${e.message}`);
         process.exit(1);
