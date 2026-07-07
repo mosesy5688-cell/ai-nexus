@@ -259,6 +259,44 @@ jobs:
           mkdir -p cache/fni-history
           node scripts/factory/r2-workflow-cli.js restore-dir meta/backup/fni-history/ cache/fni-history/ || echo '⚠️ R2 FNI history fallback unavailable'
 
+      # D-295 Component 1: HARD pre-finalization disk gate — FAIL CLOSED (exit 1).
+      # The Merge Core Registry (Compute) finalization (merge shard re-write +
+      # persist + streamed trend) transiently duplicates the working set. Measure
+      # real free bytes on the workspace fs (df) and the real on-disk size (du -sb)
+      # of cache/fni-history/ + cache/registry/ + the output/cache trend working
+      # set, then require measured_free >= estimated_peak + margin. Estimator +
+      # comparator live in aggregator-maintenance.js (unit-tested); this step only
+      # measures + reports. WARNING-ONLY IS FORBIDDEN — an insufficient runner disk
+      # aborts BEFORE the merge with terminal code INSUFFICIENT_RUNNER_DISK_FINALIZATION.
+      - name: Pre-Finalization Disk Gate (fail-closed)
+        run: |
+          set -euo pipefail
+          # Free bytes on the workspace filesystem (POSIX 1-byte blocks -> col 4 = avail).
+          FREE_BYTES=$(df -PB1 . | awk 'NR==2{print $4}')
+          # Measured on-disk sizes of the finalization working set (bytes; 0 if absent).
+          FNI_BYTES=$(du -sb cache/fni-history 2>/dev/null | cut -f1 || echo 0); FNI_BYTES=${FNI_BYTES:-0}
+          REG_BYTES=$(du -sb cache/registry 2>/dev/null | cut -f1 || echo 0); REG_BYTES=${REG_BYTES:-0}
+          TREND_BYTES=$(du -sb output/cache 2>/dev/null | cut -f1 || echo 0); TREND_BYTES=${TREND_BYTES:-0}
+          FREE_BYTES="$FREE_BYTES" FNI_BYTES="$FNI_BYTES" REG_BYTES="$REG_BYTES" TREND_BYTES="$TREND_BYTES" \
+          node --input-type=module -e '
+            import { evaluateDiskGate } from "./scripts/factory/lib/aggregator-maintenance.js";
+            const r = evaluateDiskGate({
+              freeBytes: Number(process.env.FREE_BYTES),
+              sizes: { fniBytes: Number(process.env.FNI_BYTES), regBytes: Number(process.env.REG_BYTES), trendBytes: Number(process.env.TREND_BYTES) },
+            });
+            const gb = (n) => (Number(n) / (1024 ** 3)).toFixed(2) + " GiB";
+            console.log("[DISK-GATE] terminal-code   :", r.terminalCode);
+            console.log("[DISK-GATE] measured-free    :", gb(r.measuredFreeBytes), "(" + r.measuredFreeBytes + " B)");
+            console.log("[DISK-GATE] estimated-peak   :", gb(r.estimatedPeakBytes), "(factor " + r.safetyFactor + " x measured base)");
+            console.log("[DISK-GATE] required-margin  :", gb(r.requiredMarginBytes));
+            console.log("[DISK-GATE] required-total    :", gb(r.requiredTotalBytes));
+            if (!r.ok) {
+              console.error("::error::" + r.terminalCode + " — measured free " + gb(r.measuredFreeBytes) + " < required " + gb(r.requiredTotalBytes) + " (peak+margin). Aborting before finalization.");
+              process.exit(1);
+            }
+            console.log("[DISK-GATE] PASS — free space covers estimated finalization peak + margin.");
+          '
+
       - name: Run Core Merge & Health
         env:
           GEMINI_MODEL: gemini-3.1-pro-preview
@@ -279,18 +317,18 @@ jobs:
         if: success()
         run: |
           mkdir -p output/cache output/meta/backup cache
-          
+
           # 1. Mirror production artifacts for R2 distribution (Stage 4/4)
           # V22.8: Aggregator persistence handled meta/backup/ mirrors.
           # We just need to ensure directory structure is consistent.
           [ -d "meta" ] && cp -r meta/* output/meta/ 2>/dev/null || true
-          
-          # 2. Mirror BACK to root cache/ for persistent memory (Stage 1/4)
-          # Ensure local flow has the latest state for GHA cache save
-          if [ -d "output/meta/backup" ] && [ "$(ls -A output/meta/backup)" ]; then
-            cp -r output/meta/backup/* cache/ 2>/dev/null || true
-          fi
-          
+
+          # 2. D-295 Component 2: the `cp -r output/meta/backup/* cache/` read-back
+          # was REMOVED together with the aggregator-persistence.js output/meta/backup
+          # mirror-write it consumed. It was a same-job round-trip (cache/ -> mirror ->
+          # cache/) with no net effect on cache/: cache/ is already authoritative and
+          # is what the R2 `backup-dir cache/...` uploads read directly.
+
           echo "📦 Final output structure for R2 staging:"
           ls -R output/ | head -20
           echo "📦 Final cache structure for GitHub flow:"

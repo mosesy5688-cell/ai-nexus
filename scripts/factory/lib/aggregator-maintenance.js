@@ -7,7 +7,47 @@ import fs from 'fs/promises';
 import path from 'path';
 import { loadDailyAccum } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
-import { zstdCompress } from './zstd-helper.js';
+import { zstdCompress, autoDecompress } from './zstd-helper.js';
+
+// D-295 Component 1: pre-finalization disk gate constants. The gate estimates the
+// finalization PEAK footprint from MEASURED on-disk sizes (never a constant) and
+// fails closed when the runner cannot cover it.
+export const FINALIZATION_SAFETY_FACTOR = 2.5;                 // in-memory JSON expansion + zstd temp + shard re-write duplication
+export const FINALIZATION_MARGIN_BYTES = 2 * 1024 * 1024 * 1024; // 2 GiB floor for logs/tmp/OS/headroom
+export const DISK_GATE_TERMINAL_CODE = 'INSUFFICIENT_RUNNER_DISK_FINALIZATION';
+
+/**
+ * D-295 Component 1: estimate the finalization peak on-disk footprint (bytes).
+ * Formula (real measured gate, NOT a constant):
+ *   peak = (fni-history + registry + trend-working) * SAFETY_FACTOR
+ * The measured base is the live restored working set right before finalization;
+ * the factor covers the transient in-memory expansion + zstd scratch + shard
+ * re-write duplication during the merge/persist/trend passes.
+ */
+export function estimateFinalizationPeakBytes(sizes = {}, factor = FINALIZATION_SAFETY_FACTOR) {
+    const base = (Number(sizes.fniBytes) || 0) + (Number(sizes.regBytes) || 0) + (Number(sizes.trendBytes) || 0);
+    return Math.ceil(base * factor);
+}
+
+/**
+ * D-295 Component 1: fail-closed comparator. Returns the gate verdict + the four
+ * telemetry fields the workflow prints on BOTH pass and fail. ok=false => exit 1.
+ */
+export function evaluateDiskGate({ freeBytes, sizes = {}, factor = FINALIZATION_SAFETY_FACTOR, marginBytes = FINALIZATION_MARGIN_BYTES } = {}) {
+    const measuredFreeBytes = Number(freeBytes) || 0;
+    const estimatedPeakBytes = estimateFinalizationPeakBytes(sizes, factor);
+    const requiredMarginBytes = Number(marginBytes) || 0;
+    const requiredTotalBytes = estimatedPeakBytes + requiredMarginBytes;
+    return {
+        ok: measuredFreeBytes >= requiredTotalBytes,
+        measuredFreeBytes,
+        estimatedPeakBytes,
+        requiredMarginBytes,
+        requiredTotalBytes,
+        safetyFactor: factor,
+        terminalCode: DISK_GATE_TERMINAL_CODE,
+    };
+}
 
 /**
  * V25.8.3: Validate AES_CRYPTO_KEY when encrypted .bin shards exist.
@@ -60,6 +100,30 @@ export async function generateHealthReport(successfulCount, entities, totalShard
 }
 
 /**
+ * D-295 Component 5: stream FNI-history shard entities WITHOUT materializing the
+ * whole ~1.9GB history object (the finalization memory driver). Reproduces
+ * loadFniHistory()'s iteration order EXACTLY (registry-history.js:23 filter/sort +
+ * Object.assign order): shards read in filename-sorted order, entities yielded in
+ * each shard's stored key order — the byte-equivalence contract the bounded trend
+ * top-K depends on. Peak memory = one shard + the top-K heap. A corrupt PRESENT
+ * shard REJECTS (fail-loud, no swallow); a MISSING dir is the only cold-start no-op.
+ */
+export async function streamFniHistoryEntities(onEntity, cacheDir = process.env.CACHE_DIR || './cache') {
+    const historyDir = path.join(cacheDir, 'fni-history');
+    let files = [];
+    try { files = await fs.readdir(historyDir); } catch { return; }
+    const shards = files
+        .filter(f => (f.startsWith('part-') || f.startsWith('shard-')) && (f.endsWith('.json.zst') || f.endsWith('.json.gz') || f.endsWith('.json')))
+        .sort();
+    for (const shard of shards) {
+        const raw = await autoDecompress(await fs.readFile(path.join(historyDir, shard)));
+        const parsed = JSON.parse(raw.toString('utf-8'));
+        const entities = parsed.entities || {};
+        for (const id of Object.keys(entities)) onEntity(id, entities[id]);
+    }
+}
+
+/**
  * Backup state files and generate trend data
  *
  * V25.13 (P1 + P6 fix): Eliminated the FNI weekly monolith snapshot write.
@@ -84,14 +148,18 @@ export async function generateHealthReport(successfulCount, entities, totalShard
  * Per P6: thorough fix = remove the dead code, not patch the symptom.
  * Per P1: no fullSet stringify in hot paths.
  */
-export async function backupStateFiles(outputDir, historyData, weekNumber) {
+export async function backupStateFiles(outputDir, fniSource, weekNumber) {
     const backupBase = path.join(outputDir, 'meta', 'backup');
 
     // V25.13: FNI snapshot REMOVED. The sharded files at cache/fni-history/
     // are authoritative state and are R2-backed via the workflow's
     // `backup-dir cache/fni-history/` step. Nothing reads the monolith.
 
-    await generateTrendData(historyData, path.join(outputDir, 'cache'));
+    // D-295 Component 5: fniSource is a streaming reader ({ stream(cb) }) so trend
+    // generation never holds the whole FNI history object in memory (legacy passed
+    // a fully-materialized loadFniHistory() object). A legacy { entities } object is
+    // still accepted (satellite `--task=trend`).
+    await generateTrendData(fniSource, path.join(outputDir, 'cache'));
 
     // Daily Accumulator Snapshot (small, ~50 entries — no V8 risk)
     const accumBackupPath = path.join(backupBase, 'accum', `accum-${weekNumber}.json.zst`);
