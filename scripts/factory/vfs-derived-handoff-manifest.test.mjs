@@ -689,7 +689,7 @@ test('(I8-SRC source lock) module imports isUploadEligible + asserts vfs-derived
     // source lock so a future --required-json addition (which would DIVERGE generate from the uploader
     // by rescuing a sub-256B JSON the guard-default refuses) reds here.
     const wf = readSrc('../../.github/workflows/factory-upload.yml');
-    assert.match(wf, /backup-dir output\/data\/ "\$\{STAGING\}" --extensions=\.bin\s*$/m);         // warm bins
+    assert.match(wf, /backup-dir output\/data\/ "\$\{STAGING\}warm\/" --extensions=\.bin\s*$/m);   // warm bins -> warm/ role sub-prefix (D-302/D-303)
     assert.match(wf, /backup-dir output\/data\/term_index\/ "\$\{STAGING\}term_index\/"\s*$/m);     // term_index subtree
     assert.match(wf, /backup-dir "\$STAGE_LOCAL" "\$\{STAGING\}"\s*$/m);                            // vfs-derived sitemaps/RSS
     assert.ok(!mf.includes('requiredJson'), 'these carriers must NOT opt into requiredJson (uploader passes none)');
