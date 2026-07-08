@@ -48,12 +48,26 @@ describe('D-245 PRIMARY producer (vfs-pack-db) — durable manifest-last R2 auth
     it('#3 data uploaded FIRST, manifest.json LAST, descriptor handoff.json LAST-of-all (set -e)', () => {
         expect(packJob).toContain('set -euo pipefail');
         expect(packJob).toContain(`${MOD} generate output/data/ /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority --ext=.db`);
-        const dataIdx = packJob.indexOf('backup-dir output/data/ "${STAGING}" --extensions=.db');
+        // D-302: the .db meta data goes to the meta ROLE sub-prefix (not the bare ${STAGING}).
+        const dataIdx = packJob.indexOf('backup-dir output/data/ "${STAGING}meta/" --extensions=.db');
         const manIdx = packJob.indexOf('upload-file /tmp/vfs-pack-manifest.json "${STAGING}manifest.json"');
         const descIdx = packJob.indexOf('upload-file /tmp/vfs-pack-handoff.json "${RUN_PREFIX}/handoff.json"');
         expect(dataIdx).toBeGreaterThan(0);
         expect(manIdx).toBeGreaterThan(dataIdx);
         expect(descIdx).toBeGreaterThan(manIdx);
+    });
+    it('#D-302 producer: each backup-dir role has a DISTINCT manifest-bearing sub-prefix (meta/warm/term_index); NO two share the bare ${STAGING}', () => {
+        // Each role backs up to its OWN sub-prefix, so each writes its OWN _manifest.json
+        // restore sidecar — the meta restore index can never be overwritten by warm.
+        expect(packJob).toContain('backup-dir output/data/ "${STAGING}meta/" --extensions=.db');
+        expect(packJob).toContain('backup-dir output/data/ "${STAGING}warm/" --extensions=.bin');
+        expect(packJob).toContain('backup-dir output/data/term_index/ "${STAGING}term_index/"');
+        // The bare-${STAGING} backup-dir (the last-writer-wins collision) is GONE from vfs-pack.
+        expect(packJob).not.toMatch(/backup-dir output\/data\/ "\$\{STAGING\}" --extensions/);
+        // No two vfs-pack backup-dir target the SAME manifest-bearing prefix.
+        const targets = [...packJob.matchAll(/backup-dir [^\n]*?"(\$\{STAGING\}[^"]*)"/g)].map((m) => m[1]);
+        expect(targets.length).toBeGreaterThanOrEqual(3);
+        expect(new Set(targets).size).toBe(targets.length);
     });
     it('read-back verifies the descriptor provenance before exporting the identity', () => {
         expect(packJob).toContain(`${MOD} verify-descriptor /tmp/vfs-pack-handoff-rb.json --carrier=vfs-pack-authority`);
@@ -77,9 +91,22 @@ describe('D-245 PRIMARY consumer (vfs-derived) — GHA acceleration-only, R2 aut
     });
     it('#7 verify-or-recover: GHA miss/mismatch => wipe + restore EXACT staging + re-verify fail-closed', () => {
         expect(derivedJob).toContain('rm -rf output/data/');
-        expect(derivedJob).toContain('restore-dir "$STAGING_PREFIX" output/data/ --strict');
+        // D-302: the single bare-${STAGING} restore-dir is REPLACED by explicit per-role restores.
+        expect(derivedJob).not.toMatch(/restore-dir "\$STAGING_PREFIX" output\/data\/ --strict/);
         expect(derivedJob).toContain(`${MOD} verify output/data/ /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority --ext=.db`);
         expect(derivedJob).toMatch(/!= producer \$EXPECT_SET_SHA[\s\S]*exit 1/);
+    });
+    it('#D-302 consumer: restores meta + warm + term_index EXPLICITLY, each from its OWN role sub-prefix, --strict fail-closed', () => {
+        // Every produced role has a corresponding explicit restore pointing at the matching sub-prefix.
+        expect(derivedJob).toContain('restore-dir "${STAGING_PREFIX}meta/" output/data/ --strict');
+        expect(derivedJob).toContain('restore-dir "${STAGING_PREFIX}warm/" output/data/ --strict');
+        expect(derivedJob).toContain('restore-dir "${STAGING_PREFIX}term_index/" output/data/term_index/ --strict');
+        // The meta role is restored into output/data/ (the .db, incl. meta-00.db) and the warm role
+        // into output/data/ (the .bin) — meta is NEVER routed to warm/ and warm NEVER to meta/.
+        expect(derivedJob).not.toMatch(/restore-dir "\$\{STAGING_PREFIX\}warm\/" output\/data\/[^\n]*# *meta/);
+        // The recover block still ends in the PRESERVED meta + warm verifies (set_sha fail-closed).
+        expect(derivedJob).toMatch(/Recovered meta set hash != producer \$EXPECT_SET_SHA[\s\S]*exit 1/);
+        expect(derivedJob).toMatch(/recovered warm_read set hash != producer \$EXPECT_WARM_SET_SHA[\s\S]*exit 1/);
     });
     it('#12 no fixed-prefix (state/vfs-data/) is ever a vfs-pack recovery INPUT into output/data/', () => {
         expect(derivedJob).not.toContain('restore-dir state/vfs-data/ output/data/');

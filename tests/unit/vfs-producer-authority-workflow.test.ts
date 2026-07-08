@@ -36,9 +36,12 @@ describe('AUTHORITY-W producer (vfs-pack-db) — sibling warm-read manifest, met
         // meta manifest generate (ext=.db) is UNCHANGED — proves the sibling variant.
         expect(packJob).toContain(`${VMOD} generate output/data/ /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority --ext=.db`);
     });
-    it('stages the warm data (bins + term_index) into the SAME attempt prefix', () => {
-        expect(packJob).toContain('backup-dir output/data/ "${STAGING}" --extensions=.bin');
+    it('stages the warm bins into the warm/ role sub-prefix + term_index into its own sub-prefix (D-302/D-303)', () => {
+        // D-302/D-303: warm bins -> ${STAGING}warm/ (its OWN _manifest.json); term_index ->
+        // ${STAGING}term_index/ — never the bare ${STAGING} the .db meta uses (manifest-overwrite bug).
+        expect(packJob).toContain('backup-dir output/data/ "${STAGING}warm/" --extensions=.bin');
         expect(packJob).toContain('backup-dir output/data/term_index/ "${STAGING}term_index/"');
+        expect(packJob).not.toContain('backup-dir output/data/ "${STAGING}" --extensions=.bin');
     });
     it('warm manifest + meta manifest LAST, then handoff.json LAST-OF-ALL (ordering preserved)', () => {
         const warmMan = packJob.indexOf('upload-file /tmp/vfs-warm-read-manifest.json "${STAGING}warm-read-manifest.json"');
@@ -72,17 +75,26 @@ describe('AUTHORITY-W consumers (vfs-derived + upload) — verify warm + self-st
             expect(job).toContain('EXPECT_WARM_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_warm_read_set_sha }}');
             expect(job).toContain(`${VMOD} verify-warm-read output/data/ ${man} --carrier=vfs-pack-authority`);
         });
-        it(`${label}: self-strip KILL — rm -rf output/data + restore-dir STAGING recovers meta+warm, warm fail-closed`, () => {
+        it(`${label}: self-strip KILL — rm -rf output/data + per-role restore (meta/warm/term_index) recovers meta+warm, warm fail-closed`, () => {
             const rm = job.indexOf('rm -rf output/data/');
-            const restore = job.indexOf('restore-dir "$STAGING_PREFIX" output/data/ --strict');
+            // D-302/D-303: recover EACH role from its OWN R2 sub-prefix — never the single bare-prefix
+            // restore whose last-writer-wins _manifest.json dropped meta-00.db from the restore set.
+            const meta = job.indexOf('restore-dir "${STAGING_PREFIX}meta/" output/data/ --strict');
+            const warm = job.indexOf('restore-dir "${STAGING_PREFIX}warm/" output/data/ --strict');
+            const term = job.indexOf('restore-dir "${STAGING_PREFIX}term_index/" output/data/term_index/ --strict');
             expect(rm).toBeGreaterThan(0);
-            expect(restore).toBeGreaterThan(rm); // wipe then restore the FULL data set (not .db-only)
+            expect(meta).toBeGreaterThan(rm); // wipe then restore each role from its own sub-prefix
+            expect(warm).toBeGreaterThan(rm);
+            expect(term).toBeGreaterThan(rm);
+            expect(job).not.toContain('restore-dir "$STAGING_PREFIX" output/data/ --strict');
             expect(job).toMatch(/warm_read set hash != [\s\S]*exit 1/);
         });
     }
-    it('#NEG a .db-only self-strip that cannot restore warm reds (T13 tie): recover restores whole prefix', () => {
-        // Both consumers restore the WHOLE attempt prefix (meta .db + warm) — never a
-        // --ext=.db-scoped restore that would leave the bins/term_index stripped.
+    it('#NEG a self-strip that cannot restore warm reds (T13 tie): each consumer restores the warm role sub-prefix', () => {
+        // D-302/D-303: each consumer restores the warm role from ${STAGING_PREFIX}warm/ (bins) +
+        // term_index/ — never a bare/.db-only restore that would leave the bins/term_index stripped.
+        expect(derivedJob).toContain('restore-dir "${STAGING_PREFIX}warm/" output/data/ --strict');
+        expect(uploadJob).toContain('restore-dir "${STAGING_PREFIX}warm/" output/data/ --strict');
         expect(derivedJob).not.toMatch(/restore-dir "\$STAGING_PREFIX" output\/data\/ --strict --extensions=\.db/);
         expect(uploadJob).not.toMatch(/restore-dir "\$STAGING_PREFIX" output\/data\/ --strict --extensions=\.db/);
     });

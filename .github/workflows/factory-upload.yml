@@ -1253,8 +1253,14 @@ jobs:
           node scripts/factory/vfs-derived-handoff-manifest.mjs generate output/data/ /tmp/vfs-pack-manifest.json --carrier=vfs-pack-authority --ext=.db --rss-base=.
           export SET_SHA=$(node -e "process.stdout.write(require('/tmp/vfs-pack-manifest.json').set_sha256)")
           export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/vfs-pack-manifest.json')).digest('hex'))")
-          # (2) upload ALL .db data FIRST to the attempt-scoped staging prefix.
-          node scripts/factory/r2-workflow-cli.js backup-dir output/data/ "${STAGING}" --extensions=.db
+          # (2) upload ALL .db meta data FIRST, to the meta ROLE sub-prefix ${STAGING}meta/.
+          # D-302: each backup-dir role gets its OWN sub-prefix so it writes its OWN
+          # _manifest.json restore sidecar — the .bin warm backup (2w) can NEVER overwrite
+          # the meta restore index (the D-245 last-writer-wins bug that dropped every meta-NN.db
+          # incl. meta-00.db from the surviving restore index and fail-closed VFS Derived). The
+          # meta CONTENT manifest.json + its set_sha256 (2c) are UNCHANGED — sub-prefixing changes
+          # only WHERE the .db live in R2, not their output/data-relative names, content, or hash.
+          node scripts/factory/r2-workflow-cli.js backup-dir output/data/ "${STAGING}meta/" --extensions=.db
           # (2b) D-246: stage the DECLARED-PRESENT RSS-generator inputs (CAPTURED_IF_PRESENT)
           # under rss-inputs/… so VFS Derived recovers them BEFORE rss-generator. Absent
           # (paused/floor-zero) inputs are recorded present:false and NOT in the plan.
@@ -1274,8 +1280,11 @@ jobs:
           node scripts/factory/vfs-derived-handoff-manifest.mjs generate-warm-read output/data/ /tmp/vfs-warm-read-manifest.json --carrier=vfs-pack-authority
           export WARM_SET_SHA=$(node -e "process.stdout.write(require('/tmp/vfs-warm-read-manifest.json').set_sha256)")
           export WARM_MEMBER_COUNT=$(node -e "process.stdout.write(String(require('/tmp/vfs-warm-read-manifest.json').member_count))")
-          # bins (the 3 named + any stray .bin, harmless — the warm INCLUDE verify ignores non-members)
-          node scripts/factory/r2-workflow-cli.js backup-dir output/data/ "${STAGING}" --extensions=.bin
+          # bins (the 3 named + any stray .bin, harmless — the warm INCLUDE verify ignores non-members).
+          # D-302: warm ROLE sub-prefix ${STAGING}warm/ — its OWN _manifest.json restore sidecar,
+          # never colliding with the meta (2) or term_index (below) restore indices. term_index
+          # already had a distinct sub-prefix (below) — the meta vs warm collision was the only bug.
+          node scripts/factory/r2-workflow-cli.js backup-dir output/data/ "${STAGING}warm/" --extensions=.bin
           # term_index/** subtree (the _manifest.json.zst + per-prefix buckets + high-freq chunks)
           [ -d output/data/term_index ] && node scripts/factory/r2-workflow-cli.js backup-dir output/data/term_index/ "${STAGING}term_index/"
           # warm-read-manifest.json (SIBLING of manifest.json) — after all warm data is durable.
@@ -1417,7 +1426,16 @@ jobs:
           fi
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/data/; mkdir -p output/data/
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/data/ --strict
+            # D-302: restore EACH producer role EXPLICITLY from its OWN sub-prefix into the
+            # correct output/data/ layout. Role sub-prefixing gives each backup-dir its OWN
+            # _manifest.json restore index, so the meta (.db incl. meta-00.db) restore set can
+            # NEVER be overwritten by the warm (.bin) set (the D-245 last-writer-wins bug). Each
+            # restore-dir --strict fails CLOSED on a missing/empty R2 role (no partial recovery).
+            # This is a PURE R2 recovery — NO GHA-cache data is consulted on this path; a GHA miss
+            # OR save-denial forces this exact R2 restore, never a failure.
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}meta/" output/data/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}warm/" output/data/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}term_index/" output/data/term_index/ --strict
             # Defensive: never let a handoff sidecar leak into the public data/ tree.
             rm -f output/data/manifest.json output/data/warm-read-manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true
             OUT=$(verify) || { echo "::error::VFS-pack exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
@@ -1989,7 +2007,15 @@ jobs:
           fi
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/data/; mkdir -p output/data/
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/data/ --strict
+            # D-302: restore EACH producer role EXPLICITLY from its OWN sub-prefix (identical to
+            # the VFS Derived consumer). Role sub-prefixing gives each role-scoped backup its OWN
+            # _manifest.json restore index, so the meta (.db incl. meta-00.db) publish set can
+            # NEVER be overwritten by the warm (.bin) set (the D-245 last-writer-wins bug). Each
+            # restore-dir --strict fails CLOSED on a missing/empty R2 role. PURE R2 recovery — a
+            # GHA/fixed-prefix miss OR save-denial forces this exact R2 restore, never a failure.
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}meta/" output/data/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}warm/" output/data/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}term_index/" output/data/term_index/ --strict
             # Defensive: never let a handoff sidecar OR a staged rss-input leak into the
             # public data/ tree the uploader publishes (verify ignores non-.db anyway).
             rm -f output/data/manifest.json output/data/warm-read-manifest.json output/data/handoff.json output/data/_manifest.json 2>/dev/null || true

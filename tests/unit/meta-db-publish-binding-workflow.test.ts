@@ -72,15 +72,20 @@ describe('FIX-4 / D-252 — meta-NN.db publication bound to the VFS Pack authori
         expect(publishIdx).toBeGreaterThan(gateIdx);
     });
 
-    it('#5 a stale state/vfs-data/ (fixed-prefix, META-count-only) mismatch is NOT published — wipe + recover from the EXACT vfs-pack staging, never re-trust the fixed prefix', () => {
+    it('#5 a stale state/vfs-data/ (fixed-prefix, META-count-only) mismatch is NOT published — wipe + recover EACH role from its OWN vfs-pack sub-prefix, never re-trust the fixed prefix', () => {
         expect(gateStep).toContain('rm -rf output/data/');
-        expect(gateStep).toContain('restore-dir "$STAGING_PREFIX" output/data/ --strict');
+        // D-302/D-303: recover EACH producer role from its OWN R2 sub-prefix (meta/ warm/ term_index/)
+        // — never the single bare-prefix restore whose overwritten _manifest.json dropped meta-00.db.
+        expect(gateStep).toContain('restore-dir "${STAGING_PREFIX}meta/" output/data/ --strict');
+        expect(gateStep).toContain('restore-dir "${STAGING_PREFIX}warm/" output/data/ --strict');
+        expect(gateStep).toContain('restore-dir "${STAGING_PREFIX}term_index/" output/data/term_index/ --strict');
+        expect(gateStep).not.toContain('restore-dir "$STAGING_PREFIX" output/data/ --strict');
         // state/vfs-data/ is a DATA path, never the recovery INPUT of this gate
         expect(gateStep).not.toContain('restore-dir state/vfs-data/ output/data/');
     });
 
-    it('#6 miss/mismatch recovers from the EXACT vfs-pack staging then RE-VERIFIES set-SHA equality, fail-closed', () => {
-        expect(gateStep).toContain('restore-dir "$STAGING_PREFIX" output/data/ --strict');
+    it('#6 miss/mismatch recovers each role from the EXACT vfs-pack sub-prefixes then RE-VERIFIES set-SHA equality, fail-closed', () => {
+        expect(gateStep).toContain('restore-dir "${STAGING_PREFIX}meta/" output/data/ --strict');
         expect(gateStep).toMatch(/recovery failed verification[\s\S]*exit 1/);
         expect(gateStep).toMatch(/!= vfs-pack authority \$EXPECT_SET_SHA[\s\S]*exit 1/);
     });
