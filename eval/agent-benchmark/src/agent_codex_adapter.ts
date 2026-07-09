@@ -8,7 +8,10 @@
 import type { Arm } from "./schema_evidence.js";
 import type { CommandSpec } from "./subject_runner.js";
 import { assertModelResolved } from "./subject_runner.js";
+import { resolveDirectLaunch, assertProductionCommandSpec, type FrozenLaunchIdentity } from "./frozen_launch_identity.js";
 import { hashJson } from "./manifest.js";
+// §O Codex direct public-F2AI control surfaced in the Codex network context (machine-detectable, not "BLOCKED=YES").
+export { CODEX_DIRECT_PUBLIC_F2AI_CONTROL, CODEX_NETWORK_CONTROL } from "./frozen_launch_identity.js";
 
 // Only these env keys reach the child. Everything else (GITHUB_TOKEN, NPM_TOKEN, CLOUDFLARE_*,
 // AWS_*, secrets) is dropped so the subject has NO write credential. CODEX_HOME is injected fresh.
@@ -40,23 +43,28 @@ function f2aiMcpOverrides(relayUrl: string): string[] {
 }
 
 export interface CodexBuildArgs {
-  model: string; modelConfirmed?: string | null; codexHome: string; profile: string;
-  workspace: string; arm: Arm; relayUrl?: string; task: string; lastMsgFile: string;
+  model: string; modelConfirmed?: string | null; identity: FrozenLaunchIdentity; env: Record<string, string>;
+  profile: string; workspace: string; arm: Arm; relayUrl?: string; task: string; lastMsgFile: string;
 }
 
-// Construct the exact frozen command. Fails closed on an unresolved model id, on AVAILABLE without
-// a relay, or on CONTROL carrying a relay (CONTROL must expose NO F2AI). Profile lives in CODEX_HOME.
+// Construct the exact frozen command. D-200 §H direct-launch: exe = the FROZEN ABSOLUTE node.exe,
+// args = [frozen abs codex.js (identity.prefix_args), ...benchmark args] — NEVER exe:"codex"/PATH-name/
+// .ps1/.cmd. Task via STDIN. Closed-world explicit env (§K). Fails closed on an unresolved model id,
+// on AVAILABLE without a relay, or on CONTROL carrying a relay (CONTROL must expose NO F2AI).
 export function buildCodexCommand(a: CodexBuildArgs): CommandSpec {
   assertModelResolved(a.model, a.modelConfirmed);
   if (a.arm === "AVAILABLE" && !a.relayUrl) throw new Error("AVAILABLE arm requires a relay endpoint");
   if (a.arm === "CONTROL" && a.relayUrl) throw new Error("CONTROL arm must NOT receive a relay endpoint");
-  const args = [
+  const launch = resolveDirectLaunch(a.identity);
+  const benchArgs = [
     "exec", "-", "-m", a.model, "-s", "read-only", "--ephemeral", "--ignore-user-config",
     "-C", a.workspace, "--json", "-o", a.lastMsgFile, "-p", a.profile,
     "-c", "sandbox_workspace_write.network_access=false",
   ];
-  if (a.arm === "AVAILABLE") args.push(...f2aiMcpOverrides(a.relayUrl!));
-  return { exe: "codex", args, env: buildCodexEnv(a.codexHome), stdin: a.task };
+  if (a.arm === "AVAILABLE") benchArgs.push(...f2aiMcpOverrides(a.relayUrl!));
+  const spec: CommandSpec = { exe: launch.exe, args: [...launch.prefixArgs, ...benchArgs], env: a.env, stdin: a.task, shell: false };
+  assertProductionCommandSpec(spec);
+  return spec;
 }
 
 export interface ArmDiffRecord {

@@ -1,7 +1,4 @@
-// subject_adapter.test.ts — §O adapter/lifecycle (fixtures/mocks ONLY; NO live exec/F2AI; FAKE
-// controller) + D-197 §L required-cell BINDING coverage + §M anti-vacuity. Proves STDIN fidelity,
-// shell:false, arm-isolation, METHOD-A parity, secret-env exclusion, parse/classify fail-closed,
-// seal tamper-detect, reconciliation, model-guard, MATRIX-bound acceptance. Tables drive §L/§M.
+// subject_adapter.test.ts — adapter/lifecycle (fixtures/mocks ONLY; NO live exec/F2AI/model/network; FAKE controller) + D-197 §L/§M required-cell binding/anti-vacuity + D-200 §H direct-launch (frozen abs exe, NEVER PATH-name)/shell:false/STDIN/§K closed-world env. Tables drive §L/§M.
 import { describe, it, expect } from "vitest";
 import { readFileSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
@@ -18,13 +15,17 @@ import {
   requiredRealCellIds, reconcileRequiredCells, acceptRequiredCells, assertCellModelIdentity, ConfigRequiredCellDrift,
   type CommandSpec, type ProcessController, type ProcessResult, type SealEntry, type ReconInput, type CellOutcome, type A1Acceptance,
 } from "../src/subject_runner.js";
+import { buildClosedWorldEnv, type FrozenLaunchIdentity } from "../src/frozen_launch_identity.js";
 
 const MODEL = "fixture-model-id-x"; // a RESOLVED fixture id (never a real model is selected here)
 const PKG = join(__dirname, "..");
+const NODE_EXE = "C:\\frozen\\node\\node.exe", CODEX_JS = "C:\\frozen\\codex\\bin\\codex.js", CLAUDE_EXE = "C:\\frozen\\claude\\claude.exe", HX = "f".repeat(64); // SYNTHETIC test-only fixtures (NOT real machine paths/hashes)
+const mkId = (exe: string, prefix: string[], entry?: string): FrozenLaunchIdentity => ({ cell_id: "C", platform: "win32", product: prefix.length ? "codex" : "claude", package_name: "p", package_version: "1.0.0", executable_path: exe, executable_sha256: HX, prefix_args: prefix, entrypoint_path: entry, entrypoint_sha256: entry ? HX : undefined, package_root: "C:\\frozen", package_tree_manifest: [{ relative_path: "a", byte_length: 1, sha256: HX, artifact_class: "js_bundle" }], package_tree_manifest_sha256: HX, resolved_at_utc: "2026-06-30T00:00:00Z", client_version_output: "v", client_version_output_sha256: HX, shell: false });
+const CODEX_ID = mkId(NODE_EXE, [CODEX_JS], CODEX_JS), CLAUDE_ID = mkId(CLAUDE_EXE, []), ENV = buildClosedWorldEnv({ home: "C:\\d\\home", tempDir: "C:\\d\\tmp", minimalPath: "C:\\frozen\\node", clientConfigVar: "CODEX_HOME", clientConfigDir: "C:\\d\\ch" });
 const codexC = (arm: "CONTROL" | "AVAILABLE") =>
-  buildCodexCommand({ model: MODEL, codexHome: "/d/home", profile: "a1-bench", workspace: "/d/ws", arm, task: "TASK<bytes>", lastMsgFile: "/d/last.txt", ...(arm === "AVAILABLE" ? { relayUrl: "http://127.0.0.1:5/" } : {}) });
+  buildCodexCommand({ model: MODEL, identity: CODEX_ID, env: ENV, profile: "a1-bench", workspace: "/d/ws", arm, task: "TASK<bytes>", lastMsgFile: "/d/last.txt", ...(arm === "AVAILABLE" ? { relayUrl: "http://127.0.0.1:5/" } : {}) });
 const claudeC = (arm: "CONTROL" | "AVAILABLE") =>
-  buildClaudeCommand({ model: MODEL, configDir: "/d/cfg", workspace: "/d/ws", arm, mcpConfigPath: arm === "CONTROL" ? "/d/empty.json" : "/d/relay.json", task: "TASK<bytes>", ...(arm === "AVAILABLE" ? { relayUrl: "http://127.0.0.1:5/" } : {}) });
+  buildClaudeCommand({ model: MODEL, identity: CLAUDE_ID, env: ENV, workspace: "/d/ws", arm, mcpConfigPath: arm === "CONTROL" ? "/d/empty.json" : "/d/relay.json", task: "TASK<bytes>", ...(arm === "AVAILABLE" ? { relayUrl: "http://127.0.0.1:5/" } : {}) });
 class FakeProcessController implements ProcessController {
   lastSpec?: CommandSpec;
   constructor(private r: Partial<ProcessResult>) {}
@@ -44,7 +45,7 @@ const claudeId = MATRIX.real_agent_primary_cells.find((c: { product: string }) =
 describe("command construction: STDIN, args-as-array, shell:false, per-arm config", () => {
   it("codex: task via STDIN (not argv), AVAILABLE adds exactly the F2AI override, CONTROL none", () => {
     const ctl = codexC("CONTROL"), av = codexC("AVAILABLE");
-    expect(ctl.exe).toBe("codex");
+    expect(ctl.exe).toBe(NODE_EXE); expect(ctl.args[0]).toBe(CODEX_JS); expect(ctl.args.slice(1, 3)).toEqual(["exec", "-"]); expect(ctl.shell).toBe(false); // #6/#8/#11 frozen node+codex.js tuple, shell:false, benchmark args preserved after the prefix
     expect(Array.isArray(ctl.args)).toBe(true);
     expect(ctl.stdin).toBe("TASK<bytes>");
     expect(ctl.args.some((a) => a.includes("TASK<bytes>"))).toBe(false); // no task on argv
@@ -55,7 +56,7 @@ describe("command construction: STDIN, args-as-array, shell:false, per-arm confi
   });
   it("claude: --bare + explicit --mcp-config BOTH arms; CONTROL empty baseline, AVAILABLE exactly-one F2AI", () => {
     const ctl = claudeC("CONTROL"), av = claudeC("AVAILABLE");
-    expect(ctl.exe).toBe("claude");
+    expect(ctl.exe).toBe(CLAUDE_EXE); expect(ctl.args[0]).toBe("-p"); expect(ctl.shell).toBe(false); // #7/#8 frozen native claude exe (no node prefix), shell:false; existing claude benchmark args preserved (--bare/--mcp-config below)
     expect(ctl.stdin).toBe("TASK<bytes>");
     expect(ctl.args).toContain("--bare");
     expect(ctl.args).toContain("--mcp-config");
@@ -67,7 +68,7 @@ describe("command construction: STDIN, args-as-array, shell:false, per-arm confi
     const fake = new FakeProcessController({});
     const spec = codexC("AVAILABLE");
     await fake.run(spec, 1000);
-    expect(Buffer.from(fake.lastSpec!.stdin).equals(Buffer.from("TASK<bytes>"))).toBe(true);
+    expect(Buffer.from(fake.lastSpec!.stdin).equals(Buffer.from("TASK<bytes>"))).toBe(true); expect(fake.lastSpec!.exe).toBe(NODE_EXE); // #12 the EXACT frozen abs exe reaches the controller
     expect(NodeProcessController).toBeTypeOf("function"); // production controller exists but is never spawned here
   });
 });
@@ -139,7 +140,7 @@ describe("model id fail-closed + evidence seal + reconciliation + MATRIX-bound a
     }
     expect(() => assertModelResolved("real-id", "different-id")).toThrow(); // not echoed by client
     expect(() => assertModelResolved("real-id", "real-id")).not.toThrow();
-    expect(() => buildCodexCommand({ model: "UNRESOLVED_AT_EXECUTION_FREEZE", codexHome: "/h", profile: "p", workspace: "/w", arm: "CONTROL", task: "t", lastMsgFile: "/l" })).toThrow();
+    expect(() => buildCodexCommand({ model: "UNRESOLVED_AT_EXECUTION_FREEZE", identity: CODEX_ID, env: ENV, profile: "p", workspace: "/w", arm: "CONTROL", task: "t", lastMsgFile: "/l" })).toThrow();
     expect(TOOL_CALL_GATE_STATUS).toMatch(/DESIGN_PATH_IDENTIFIED/); // C4: not "resolved"
   });
   it("raw exclusive-create + atomic normalized write + seal with tamper-detection", () => {
