@@ -44,11 +44,27 @@ const selectExample = JSON.stringify({
   }]
 }, null, 2);
 
-const mcpConfig = JSON.stringify({
+// Claude Code (.mcp.json / ~/.claude.json) remote MCP entry. Per Claude Code's
+// documented syntax a remote entry MUST carry an explicit transport type
+// ("http"); an entry with a `url` but no `type` is read as a stdio server and
+// skipped. (Claude Desktop adds remote HTTP servers via Custom Connectors, not
+// this file.)
+const mcpConfigClaudeCode = JSON.stringify({
   mcpServers: {
     free2aitools: {
-      url: `${SITE}/api/mcp`,
-      transport: "streamable-http"
+      type: "http",
+      url: `${SITE}/api/mcp`
+    }
+  }
+}, null, 2);
+
+// Cursor (~/.cursor/mcp.json or .cursor/mcp.json) remote MCP entry. Cursor
+// infers Streamable HTTP from the URL, so a remote entry is the bare `url`
+// (no type/transport field).
+const mcpConfigCursor = JSON.stringify({
+  mcpServers: {
+    free2aitools: {
+      url: `${SITE}/api/mcp`
     }
   }
 }, null, 2);
@@ -593,25 +609,28 @@ for (const r of res.results) {
       <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Setup</h3>
 
       <div class="space-y-6">
-        <!-- Claude Desktop -->
+        <!-- Claude Code / Claude Desktop -->
         <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Claude Desktop / Claude Code</h4>
+          <h4 class="font-bold text-gray-900 dark:text-white mb-3">Claude Code / Claude Desktop</h4>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Add to your MCP settings (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">claude_desktop_config.json</code> or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">.mcp.json</code>):
+            <strong class="text-gray-900 dark:text-white">Claude Code:</strong> add the remote server to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">.mcp.json</code> (project) or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">~/.claude.json</code> (user). A remote entry needs an explicit <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">type</code>:
           </p>
-          <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-            <pre>{mcpConfig}</pre>
+          <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-sm overflow-x-auto mb-3">
+            <pre>{mcpConfigClaudeCode}</pre>
           </div>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            <strong class="text-gray-900 dark:text-white">Claude Desktop:</strong> add it as a Custom Connector &mdash; <strong>Settings &gt; Connectors &gt; Add custom connector</strong> &mdash; with the URL <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">{SITE}/api/mcp</code>. (The <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">claude_desktop_config.json</code> file is for local stdio servers; remote HTTP servers use Connectors.)
+          </p>
         </div>
 
         <!-- Cursor -->
         <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
           <h4 class="font-bold text-gray-900 dark:text-white mb-3">Cursor</h4>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Go to <strong>Settings &gt; MCP Servers &gt; Add Server</strong>, enter:
+            Add the server to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">~/.cursor/mcp.json</code> (global) or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">.cursor/mcp.json</code> (project). Cursor infers Streamable HTTP from the URL:
           </p>
-          <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-            <code>URL: {SITE}/api/mcp<br/>Transport: Streamable HTTP</code>
+          <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+            <pre>{mcpConfigCursor}</pre>
           </div>
         </div>
 
@@ -639,6 +658,31 @@ for (const r of res.results) {
             Machine-readable server manifest: <a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">{SITE}/.well-known/mcp.json</a>
           </p>
         </div>
+      </div>
+    </section>
+
+    <!-- Section: Add Free2AITools to your Agent -->
+    <section id="agent" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Add Free2AITools to your Agent</h2>
+
+      <p class="text-gray-600 dark:text-gray-400 mb-6">
+        Wire Free2AITools into an AI agent in one place. Your agent calls the tools; Free2AITools returns FNI-ranked candidates and their evidence, and the agent (or the person using it) makes the final decision. Free2AITools does not route, rank-by-preference, select, or decide on the caller's behalf.
+      </p>
+
+      <ol class="text-gray-700 dark:text-gray-300 mb-6 list-decimal list-inside space-y-3">
+        <li>
+          <strong>Connect over MCP.</strong> Point your MCP client at <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">POST {SITE}/api/mcp</code> using the setup snippets above (Claude Code, Claude Desktop, Cursor, or any MCP client). The tool catalog is described at <a href="/.well-known/mcp.json" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">{SITE}/.well-known/mcp.json</a>. No API key is required.
+        </li>
+        <li>
+          <strong>Or call REST / the SDK directly.</strong> Agents that are not MCP-based can use the <a href="#api" class="text-blue-600 dark:text-blue-400 hover:underline">REST API</a> or the <a href="#sdk" class="text-blue-600 dark:text-blue-400 hover:underline">TypeScript SDK</a> (<code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">@free2aitools/sdk</code>) &mdash; same catalog, same evidence.
+        </li>
+        <li>
+          <strong>Follow the search-first flow.</strong> Call <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_search</code> (or <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">GET /api/v1/search</code>), take the ids from the results, pass them to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_explain</code> / <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">free2aitools_compare</code>, then let the agent reason over the evidence and choose. Do not pass invented ids; use the ones search returned.
+        </li>
+      </ol>
+
+      <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-5 border border-amber-200 dark:border-amber-800/50 text-sm text-gray-700 dark:text-gray-300">
+        <strong class="text-gray-900 dark:text-white">What the agent gets.</strong> Structured discovery, FNI-ranked candidates, and factual FNI factor breakdowns &mdash; evidence for the agent to reason over. Free2AITools is a discovery and evidence layer, not a decision-maker: it returns candidates and does not perform compatibility analysis, execute workflows, or select on your behalf.
       </div>
     </section>
 

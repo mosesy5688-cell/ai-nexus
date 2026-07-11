@@ -1143,3 +1143,26 @@ post-deploy workflow and is never a PR check.
 | HG-CAT1-EVIDENCE | Each category-1 generator's SOURCE imports the shared `isUploadEligible` (from `lib/upload-eligibility`) AND has a generate-time member-eligibility assert = a real `isUploadEligible(` CALL feeding a real `throw new …('MEMBER_UPLOAD_INELIGIBLE'` (THROW regex, never a comment). BOTH assert idioms accepted: the `assertMemberEligibility`/`bypassRe` carrier-flag path (shards/cycle-output/mesh/vfs-derived) AND the inline `isUploadEligible()`+throw path (fused). cycle-output additionally carries its cat-2 `classifyCycleMember`/`EXCLUDED_CLASSES` registry. A cat-1 generator that LOSES its import, its call, or its throw FAILS (regression guard). NON-VACUITY (in-test): stripping the assert lines from a real cat-1 source flips `hasCall`+`hasThrow` to false | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE | **NEW** |
 | HG-CAT4-EVIDENCE | Each category-4 (SINGLE_ARCHIVE_IMMUNE) generator's SOURCE contains `buildArchive(` + `.putObject(` + `archive_sha256` (one archive uploaded whole, sha-verified) AND is structurally NOT per-file-guard-exposed: it does NOT import the per-file `upload-eligibility` predicate nor use a per-file `backup-dir` member upload verb. NON-VACUITY (in-test): a faux source that imports the per-file guard flips `noPerFileGuard` to false | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE | **NEW** |
 | HG-DIFFERENT-RISK | The two sweep carriers with NO per-file handoff manifest generator (registry/D-250 count-floor silent-subset; output/data/cluster-ann-index.bin warm-tier coverage gap) are registered as cat-5 with a non-empty documentation string, and are confirmed to correctly have NO `*handoff*manifest*` generator on disk (they are documented so the gate never silently forgets them) | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE (STRUCT) | **NEW** |
+
+## Registry — DOC-PUB-HONESTY-S1 (D-2026-0711-317 Stage-3 S1 doc-honesty)
+
+> Deterministic, hermetic DOCUMENTATION-CONTRACT lock for the Stage-3 S1
+> publication-drift fix (Founder D-2026-0711-317). FACT: `@free2aitools/sdk@0.1.0`
+> is genuinely published on npm, so the SDK README's retired pre-publication
+> wording ("not yet published" / "not on npm" / "npm publish has not been
+> performed" / "available once published") was stale and is removed; the README
+> now states "available on npm" + the `npm install @free2aitools/sdk` command. The
+> lock reads repo SOURCE only (`packages/sdk/README.md`, `src/pages/developers.astro`)
+> -- NO live network, NO module execution, NO behavior assertion. Word-boundary
+> matching only (the GA acronym is CASE-SENSITIVE so "package"/"engage" never
+> false-positive); honest NEGATIVE contracts ("does not route/select/decide") are
+> intentionally NOT matched -- only positive marketing slugs. Anti-vacuity: a
+> synthetic over-claim trips the forbidden matcher while honest present-tense
+> wording trips nothing. SCOPE: documentation surfaces only -- NO SDK source / API
+> / MCP / package.json / runtime change. Single file:
+> `tests/srs1/sdk-doc-publication-honesty.test.ts` (auto-collected by the Tier-1
+> `unit-test` job -- no separate runner).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| DOC-PUB-HONESTY-S1 | The SDK/developer docs MUST NOT claim not-published / GA / provenance / production-adoption, and the SDK README MUST state available-on-npm. `packages/sdk/README.md`: the four retired pre-publication phrases are ABSENT and "available on npm" + `npm install @free2aitools/sdk` are PRESENT. `src/pages/developers.astro`: the truthful "available on npm" claim is PRESERVED. NEITHER surface carries a PUBLIC over-claim (GA / generally-available / production-proven / provenance-attested / CI-provenance / used-by-Agents / trusted-by-Agents / widely-adopted / default-integration / Route-Real / routes-selects-decides slug / any external-integration or adoption COUNT). NON-VACUITY: a synthetic over-claim trips the matcher, honest present-tense wording trips nothing, and the GA guard ignores the "ga" substring in "package"/"engage" | `tests/srs1/sdk-doc-publication-honesty.test.ts` | SOURCE | **NEW** |
