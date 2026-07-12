@@ -237,6 +237,30 @@ for (const r of res.results) {
 }
 // Free2AITools provides structured discovery and evidence;
 // the caller or Agent makes the final decision.`;
+
+// Open-model metadata normalization — transparency documentation (D-328).
+// Illustrative source -> normalized transformation excerpt. The full, bounded
+// observed example (openai/whisper-large-v3) was re-probed at authoring time
+// and is published as a static asset at
+// /data/model-metadata-normalization-example.json.
+const metadataNormalizationExample = JSON.stringify({
+  model: "openai/whisper-large-v3",
+  source_excerpt: { safetensors_total_parameter_count: 1543490560, cardData_license: "apache-2.0", likes: 5935, downloads: 5963543 },
+  normalized_excerpt: { id: "hf-model--openai--whisper-large-v3", license: "Apache-2.0", specs: { params_billions: 1.54 }, fni: { score: 39.6 } }
+}, null, 2);
+
+// Currently-open audit references (status OPEN_AT_OBSERVATION_TIME). These are
+// current audit references, not a stable public API contract; summaries are the
+// same ones self-documented in the JSON asset's known_limitations objects.
+const metadataKnownLimitations = [
+  { ref: "G1", summary: "A single canonical ID may currently resolve to inconsistent duplicate records across the entity and compare surfaces." },
+  { ref: "G3", summary: "The served last_modified currently reflects Free2AITools projection/harvest timing rather than reliably preserving the upstream source last-modified value." },
+  { ref: "G4", summary: "Hugging Face likes are not exposed as a served field, and stars/forks may be served as 0 where null would be more honest." },
+  { ref: "G5", summary: "The published SDK has known nullability and percentile-type drift." },
+  { ref: "G6", summary: "Some search fields currently use 0 where entity surfaces use null." },
+  { ref: "G7", summary: "Some context, VRAM, local-run, category or architecture values may be derived or estimated rather than directly reported." },
+  { ref: "G14", summary: "Parameter-count source selection and confidence are not yet represented publicly." }
+];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -272,6 +296,11 @@ for (const r of res.results) {
         <div class="text-2xl mb-2">[ ]</div>
         <h3 class="font-bold text-green-800 dark:text-green-300">FNI Badge</h3>
         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Embed live FNI score in your README</p>
+      </a>
+      <a href="#model-metadata-normalization" class="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-5 border border-teal-200 dark:border-teal-800 hover:border-teal-400 transition-colors">
+        <div class="text-2xl mb-2">&#8644;</div>
+        <h3 class="font-bold text-teal-800 dark:text-teal-300">Metadata Normalization</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">How open-model source fields become a record</p>
       </a>
     </nav>
 
@@ -728,6 +757,42 @@ for (const r of res.results) {
       <a href="/open-data" class="inline-block bg-gray-900 dark:bg-gray-700 text-white font-semibold px-6 py-3 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors">
         View Open Data Downloads
       </a>
+    </section>
+
+    <!-- Section: Open-model metadata normalization (transparency documentation, D-328) -->
+    <section id="model-metadata-normalization" class="mb-16">
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Open-model metadata normalization</h2>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700 mb-6 space-y-4 text-gray-600 dark:text-gray-400">
+        <p>Free2AITools indexes open-model metadata from public sources. The example below documents the currently audited Hugging Face model path and shows how selected source fields become a Free2AITools record.</p>
+        <p>One Free2AITools record represents one source-qualified source record. Canonical identity includes the source namespace. The UMID is derived from that canonical identity. Cross-source entity fusion is not implemented, and records from different source namespaces are not silently declared identical.</p>
+        <p>Records retain source-level attribution and source-qualified identity. The current public output does not expose complete per-field provenance or confidence for every normalized, derived, estimated or projected value.</p>
+        <p>Ingestion and normalization are automated. Schema and normalization rules are manually governed, and systemic defects may be repaired through uniform rule changes rather than per-model edits. No manual per-model field editing was found in the audited path.</p>
+        <p>Under the project governance contract, sponsor support cannot alter producer-side metadata, normalization, evidence values or FNI ranking. No sponsor-controlled input or multiplier was found in the audited producer path.</p>
+        <p>Free2AITools provides source-attributed and source-qualified normalization, with known projection losses in the current implementation. Some fields are retained, some are normalized, some are derived or estimated, and some are currently lost during projection. This should not be read as complete retention or independent verification.</p>
+        <p>FNI is a structured evidence signal, not truth and not a final choice. The caller decides. On public search responses, fni_s is currently null and carries the shared evidence note because genuine query-time semantic/ANN ranking is not currently provided. Numeric FNI values are not model-quality certification.</p>
+        <p>Hugging Face safetensors.total is a source-reported parameter count, not file bytes. When that source is used, params_billions is the source-reported value divided by 1e9. It is not independently verified. A name-based fallback, where used, is estimated. The selected parameter-count source and its confidence are not yet represented publicly.</p>
+        <p>REST, MCP and @free2aitools/sdk are alternative consumption surfaces. MCP is optional and is not the product identity. Current surfaces may differ in field names, nullability and types; this documentation does not promise byte-identical parity.</p>
+        <p>Free2AITools does not claim cross-source fusion, independent verification, per-field certification, external adoption, endorsement or partnership.</p>
+      </div>
+
+      <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-5 border border-amber-200 dark:border-amber-800/50 mb-6">
+        <h3 class="font-bold text-gray-900 dark:text-white mb-2">Known limitations (open at observation time)</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">These are current audit references, not a stable public API contract, and none are resolved. Each is self-documented in the JSON asset below.</p>
+        <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-2 list-disc list-inside">
+          {metadataKnownLimitations.map((l) => (
+            <li><strong class="font-mono text-gray-900 dark:text-white">{l.ref}</strong> — {l.summary}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Observed transformation example</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Illustrative excerpt (openai/whisper-large-v3), re-probed at authoring time. Values may vary slightly between observations. The full bounded example, with a per-field classification table, is published as a static asset: <a href="/data/model-metadata-normalization-example.json" class="text-blue-600 dark:text-blue-400 hover:underline font-mono">/data/model-metadata-normalization-example.json</a>.</p>
+        <div class="bg-gray-900 text-gray-300 rounded-lg p-4 font-mono text-xs overflow-x-auto">
+          <pre>{metadataNormalizationExample}</pre>
+        </div>
+      </div>
     </section>
 
     <!-- Section 5: FNI Score -->

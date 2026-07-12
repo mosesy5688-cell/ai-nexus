@@ -1195,3 +1195,29 @@ post-deploy workflow and is never a PR check.
 | ID | Protected behavior | Assertion file | Evidence | Status |
 |----|--------------------|----------------|----------|--------|
 | DOC-PUB-HONESTY-S1 | The SDK/developer docs MUST NOT claim not-published / GA / provenance / production-adoption, and the SDK README MUST state available-on-npm. `packages/sdk/README.md`: the four retired pre-publication phrases are ABSENT and "available on npm" + `npm install @free2aitools/sdk` are PRESENT. `src/pages/developers.astro`: the truthful "available on npm" claim is PRESERVED. NEITHER surface carries a PUBLIC over-claim (GA / generally-available / production-proven / provenance-attested / CI-provenance / used-by-Agents / trusted-by-Agents / widely-adopted / default-integration / Route-Real / routes-selects-decides slug / any external-integration or adoption COUNT). NON-VACUITY: a synthetic over-claim trips the matcher, honest present-tense wording trips nothing, and the GA guard ignores the "ga" substring in "package"/"engage" | `tests/srs1/sdk-doc-publication-honesty.test.ts` | SOURCE | **NEW** |
+
+## Registry — OPTION-A-METADATA-TRANSPARENCY (D-2026-0712-328)
+
+> Deterministic, hermetic DOCUMENTATION / CONTRACT-PROJECTION lock for the
+> Option-A open-model metadata-normalization transparency doc (Founder ruling
+> D-2026-0712-328, Layout A). SCOPE: documentation surfaces ONLY — the bounded
+> `#model-metadata-normalization` section in `src/pages/developers.astro` + the
+> published static asset `public/data/model-metadata-normalization-example.json`
+> (a re-probed openai/whisper-large-v3 observed-transformation example). It reads
+> the developers.astro SOURCE + JSON.parse's the asset — NO live network, NO
+> module execution, NO behavior assertion, and NO API/MCP/SDK/OpenAPI/Factory/FNI
+> code dependency. The T8/T9 (safetensors bytes) and T12/T13 (cross-source
+> fusion) pairs use exact substrings / precisely-anchored patterns so the correct
+> negated sentences ("not file bytes", "fusion is not implemented") always PASS
+> and only affirmative-false claims are rejected. ANTI-VACUITY (implementer-run,
+> RED shown then restored): M1 remove the qualified source-boundary sentence ->
+> T10 RED; M2 flip fusion negation to a positive claim -> T12/T13 RED; M3 insert
+> a bytes-based safetensors claim -> T8/T9 RED. Single file:
+> `tests/srs1/model-metadata-normalization-honesty.test.ts` (auto-collected by the
+> Tier-1 `unit-test` vitest job — no separate runner). NOT unit-tested here (PM
+> git-diff/scope audit items): exactly-4-files, no-new-API-endpoint, no-SDK-
+> version-change, no-API/MCP/Factory/FNI-code-touched.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| OPTA-META-NORM | The metadata-normalization transparency doc stays honest. ASSET (JSON.parse): parses + <= 12288 bytes; no large source/model-card primitive array (> 12) or > 600-char prose; `example_type=OBSERVED_TRANSFORMATION_EXAMPLE` + `not_a_normative_schema=true` + `not_adoption_evidence=true`; `classification_vocabulary` deep-equals the exact 7 approved classes; `classifications_used_in_this_example` == the exact unique set of `field_mappings[*].classification` (the 6 actually used — ESTIMATED defined-but-unused, no field forced to fill it); every mapping class ∈ vocabulary; split `source_observed_at_utc`/`free2aitools_observed_at_utc`/`example_generated_at_utc` present + ISO-8601-parseable; G1/G3/G4/G5/G6/G7/G14 present with `status=OPEN_AT_OBSERVATION_TIME` and their summaries surfaced on the page. PAGE (developers.astro SOURCE): exact substrings "safetensors.total is a source-reported parameter count, not file bytes", "source-attributed and source-qualified normalization, with known projection losses in the current implementation", "Cross-source entity fusion is not implemented", "The caller decides" / "not truth" / "fni_s is currently null" present; anchored affirmative-false patterns (byte-conversion T9, fusion-enabled T13) absent while the correct negations pass; forbidden affirmations ("fully curated"/"objective truth"/"verified truth"/"complete source retention"/"We attribute every field to its source"/"no monolith risk at any length"/"zero monolith risk") absent from page AND asset; section anchored + quick-linked + references the JSON asset. NON-VACUITY (implementer-run RED-then-restore): M1->T10 RED, M2->T12/T13 RED, M3->T8/T9 RED | `tests/srs1/model-metadata-normalization-honesty.test.ts` | SOURCE + CONFIG | **NEW** |
