@@ -9,6 +9,8 @@ import {
     TERM_FETCH_TIMEOUT_MS, FALLBACK_TIMEOUT_MS,
 } from '../../lib/search-budget.js';
 import { queryShardBatchBudgeted, hydrateCandidatesBudgeted } from '../../lib/search-shard-ops.js';
+// C1 (D-326): shared public-evidence contract owner (same normalizer v1 + MCP apply).
+import { normalizeSearchEvidence } from '../../constants/evidence-contract.js';
 import { env } from 'cloudflare:workers';
 
 const CACHE_HEADERS_HIT = {
@@ -28,6 +30,10 @@ const CACHE_HEADERS_MISS = {
 const DISPLAY_COLS = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.fni_s, e.fni_a, e.fni_p, e.fni_r, e.fni_q, e.stars, e.downloads, e.last_modified, e.license, e.pipeline_tag, e.params_billions, e.context_length`;
 
 function respond(results: any[], tier: string, startMs: number, totalCount?: number) {
+    // C1 (D-326): normalize every row at this single 200-tier choke point BEFORE serialize —
+    // null the constant fni_s placeholder (+ shared note) + drop internal keys (mirrors
+    // v1/search.ts:57 + mcp-search.ts:80). Order/totals/status/headers/pagination/fni_score untouched.
+    for (const r of results) { delete r._dbSort; delete r._score; delete r._source; normalizeSearchEvidence(r); }
     const headers = results.length > 0 ? CACHE_HEADERS_HIT : CACHE_HEADERS_MISS;
     return new Response(
         JSON.stringify({ results, total_count: totalCount ?? results.length, tier, elapsed_ms: Date.now() - startMs }),

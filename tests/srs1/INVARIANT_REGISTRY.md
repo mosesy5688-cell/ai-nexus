@@ -178,6 +178,35 @@ proof in the PR body).
 | DJ-W05 | `EntityResponse.entity` declares `id` + `canonical_id` (same-value, projected `canonical_id: e.id`, both required/non-null) and NO top-level `umid`; no "id IS umid" equivalence in the machine contract | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
 | P3C-NONEXP | No capability expansion under the contract-parity PR: MCP still exactly 5 tools (static+dynamic); OpenAPI path set unchanged (10 endpoints) | `tests/srs1/machine-contract-parity.test.ts` | SOURCE + CONFIG | **NEW** |
 
+## Registry — C1-RAW-SEARCH-EVIDENCE (D-2026-0712-326)
+
+> Deterministic, hermetic invariant for the C1 public-route evidence-normalization
+> repair (Founder D-2026-0712-326, Option A). The public zero-auth `/api/search`
+> route previously leaked the FNI Semantic PLACEHOLDER (constant `fni_s: 50`, no
+> caveat) plus internal sort keys (`_dbSort`/`_source`/`_score`) that the v1
+> wrapper (`src/pages/api/v1/search.ts:57`) + MCP (`src/lib/mcp-search.ts:80`)
+> already strip/normalize. The fix applies the SAME shared `normalizeSearchEvidence`
+> owner (`src/constants/evidence-contract.js`) at the raw route's single
+> `respond()` choke point (per row, before serialization) — nulling `fni_s`,
+> attaching the shared `FNI_S_NOTE`, and deleting the internal keys — WITHOUT
+> changing the top-level envelope, status, headers, pagination, limit or
+> ordering — the result-object evidence fields ARE intentionally corrected
+> (`fni_s`->null + shared note; `_dbSort`/`_score`/`_source` removed);
+> `fni_score`, the non-semantic pillars, and the transient 503 path (which
+> bypasses `respond()`) also stay untouched. WORDING (D-326): under the
+> CURRENT evidence
+> contract, while genuine query-time semantic/ANN scoring is NOT provided, the
+> public `/api/search` route MUST NOT emit a packed/default NUMERIC `fni_s` or
+> internal keys — the required output is `fni_s = null` + `fni_s_note ===
+> FNI_S_NOTE`. This is NOT a permanent "fni_s can never be numeric" rule: if
+> genuine live semantic scoring is later provided, the contract is revised then.
+> The EXEC tier DRIVES the real `GET` handler across all three 200 tiers; the
+> SOURCE tier locks the symmetric respond()-boundary application in `search.ts`.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| C1-RAW-EVIDENCE | Public `/api/search` NEVER emits a numeric/default `fni_s` (the packed `50` placeholder) or any internal key (`_dbSort`/`_source`/`_score`) on any 200 tier (browse / inverted_index / cluster_fallback); every row carries `fni_s === null` + `fni_s_note === FNI_S_NOTE` (the shared `evidence-contract.js` owner, identical to v1/MCP). PRESERVED & asserted: result ID ordering unchanged pre/post normalization (≥2-row fixtures per tier), the top-level envelope keys (`results`/`total_count`/`tier`/`elapsed_ms`) unchanged with NO `version` key and NO raw-route `ETag`, `limit=50` still accepted (21 rows returned, not the v1 20-cap), `fni_score` + the non-semantic pillars `fni_a/p/r/q` untouched, normalization idempotent + scoped to `fni_s`, and the transient 503 (Retry-After + `Cache-Control: no-store`) stays OUTSIDE `respond()` while a 500 is never converted to a normalized 200. NON-VACUITY: removing the C1 `respond()` normalization re-leaks the numeric `fni_s: 50` + `_dbSort` (inverted_index/cluster_fallback) + `_source` (cluster_fallback), turning the EXEC assertions RED; reverting the source lines turns the SOURCE assertions RED. | `tests/unit/search-endpoint-503.test.ts` (EXEC, real GET handler) + `tests/srs1/machine-contract-parity.test.ts` (SOURCE symmetric-apply lock) | EXEC + SOURCE | **NEW** |
+
 ## Registry — P3-CONTRACT-1 PR-B (public honesty & discovery)
 
 > Deterministic, hermetic DOCUMENTATION / CONTRACT-PROJECTION locks on the
