@@ -1221,3 +1221,59 @@ post-deploy workflow and is never a PR check.
 | ID | Protected behavior | Assertion file | Evidence | Status |
 |----|--------------------|----------------|----------|--------|
 | OPTA-META-NORM | The metadata-normalization transparency doc stays honest. ASSET (JSON.parse): parses + <= 12288 bytes; no large source/model-card primitive array (> 12) or > 600-char prose; `example_type=OBSERVED_TRANSFORMATION_EXAMPLE` + `not_a_normative_schema=true` + `not_adoption_evidence=true`; `classification_vocabulary` deep-equals the exact 7 approved classes; `classifications_used_in_this_example` == the exact unique set of `field_mappings[*].classification` (the 6 actually used — ESTIMATED defined-but-unused, no field forced to fill it); every mapping class ∈ vocabulary; split `source_observed_at_utc`/`free2aitools_observed_at_utc`/`example_generated_at_utc` present + ISO-8601-parseable; G1/G3/G4/G5/G6/G7/G14 present with `status=OPEN_AT_OBSERVATION_TIME` and their summaries surfaced on the page. PAGE (developers.astro SOURCE): exact substrings "safetensors.total is a source-reported parameter count, not file bytes", "source-attributed and source-qualified normalization, with known projection losses in the current implementation", "Cross-source entity fusion is not implemented", "The caller decides" / "not truth" / "fni_s is currently null" present; anchored affirmative-false patterns (byte-conversion T9, fusion-enabled T13) absent while the correct negations pass; forbidden affirmations ("fully curated"/"objective truth"/"verified truth"/"complete source retention"/"We attribute every field to its source"/"no monolith risk at any length"/"zero monolith risk") absent from page AND asset; section anchored + quick-linked + references the JSON asset. NON-VACUITY (implementer-run RED-then-restore): M1->T10 RED, M2->T12/T13 RED, M3->T8/T9 RED | `tests/srs1/model-metadata-normalization-honesty.test.ts` | SOURCE + CONFIG | **NEW** |
+
+## Registry — C4-IDENTITY-PARITY (D-2026-0713-330, Stage 1)
+
+> Deterministic, hermetic serving-layer IDENTITY-RESOLUTION parity lock (Founder
+> ruling D-2026-0713-330, C4 Stage 1 = Option A + Option E ambiguity branch). The
+> producer can store TWO typed records sharing ONE slug (e.g. hf-model-- AND
+> hf-dataset--google-bert--bert-base-uncased), co-resident on the xxhash64(slug)
+> meta shard; the old `... LIMIT 1` selection (no type filter / no ORDER BY) let
+> the entity API, human /model|/dataset routes, and compare each pick a different
+> rowid winner for the SAME identity (G1 surface disagreement). Stage 1 is
+> CODE-ONLY (NO re-bake): one shared PURE resolver (`src/lib/entity-match-resolver.ts`)
+> gives entity + compare + human ONE deterministic, order-independent, type-aware
+> selection — exact typed canonical id preferred; typed miss unifies to 404 (never
+> the other twin); a bare/untyped collision, or an exact id whose stored type
+> conflicts with its prefix, is surfaced as an EXPLICIT 409 / additive compare
+> ambiguity — both twins preserved, nothing silently collapsed, no cross-source
+> fusion, no UMID/canonical-id change. The suite drives the REAL resolver + REAL
+> entity/compare/vfs handlers over a shard-FAITHFUL mocked DB (a row is only
+> returned from its own xxhash64(slug) shard) + the REAL MCP explain formatter +
+> the published OpenAPI + the SDK error mapper. Determinism proven by repeated +
+> reversed-order assertions. ANTI-VACUITY (implementer-run, RED-then-restore): M1
+> disable the exact-id preference -> a conflict-parity test RED; M2 make the
+> resolver order-dependent -> a reversed-order determinism test RED; M3 remove the
+> VFS route-type enforcement -> a human wrong-type test RED; M4 route the entity
+> 409 through the OLD MCP "No entity found" branch -> the MCP ambiguity test RED;
+> M5 restore compare slug last-write-wins -> the compare ambiguity test RED.
+> SCOPE: serving layer only — NO producer/adapter/inferType/packer/DB-schema/
+> Factory/re-bake/FNI/ranking/URL/SDK change (Stage 2 producer-uniqueness repair
+> is a SEPARATE later gate; producer misclassification remains OPEN). Targets G1-S
+> (surface consistency); does NOT close G1-P (producer duplication).
+>
+> STAGE-1 CORRECTIONS (D-2026-0713-331, same 10 files, code-only, no re-bake):
+> (1) CANDIDATE-SET COMPLETENESS — entity + VFS queries fetch CANDIDATE_FETCH_LIMIT
+> (26 = MAX_PUBLIC_CANDIDATES+1) rows with `ORDER BY (id=?) DESC,(umid=?) DESC,type
+> ASC,id ASC` (binding the requested id + umid) so an EXACT-id/UMID row is ALWAYS in
+> the window regardless of twin count. The resolver adds an additive optional
+> `candidate_overflow?:true`, computed from the DEDUPED unique count > 25: an exact
+> id/UMID stays authoritative FOUND; a P3/P4 fallback single-match under overflow is
+> DOWNGRADED to AMBIGUOUS(candidate_overflow) — never a false unique from truncation.
+> Entity -> 409 AMBIGUOUS_ENTITY_ID + candidate_overflow (never a false FOUND / clean
+> 404 from an incomplete set); VFS -> transient 503-class (never wrong-type/notFound);
+> compare -> additive candidate_overflow in the HTTP 200 item. (2) COMPARE never
+> represents IDENTITY_TYPE_CONFLICT as found:true — it emits {found:false, code:
+> IDENTITY_TYPE_CONFLICT, candidates:[{stored id,type}]} (NOT ambiguous, excluded from
+> the 503 `pending` set). (3) MCP distinguishes the TWO 409 codes: AMBIGUOUS_ENTITY_ID
+> -> "multiple typed entities, retry ONE exact typed id"; IDENTITY_TYPE_CONFLICT ->
+> "typed prefix conflicts with the stored record's type" (never "multiple"). OpenAPI:
+> EntityAmbiguityError + compare variants gain optional candidate_overflow, a compare
+> identity-conflict oneOf variant, and candidate arrays maxItems:25 (path set still 10).
+> ANTI-VACUITY (implementer-run RED-then-restore): M6 restore entity LIMIT 25 (no
+> overflow detect) -> T2 RED; M7 map compare IDENTITY_TYPE_CONFLICT -> found:true ->
+> T6 RED; M8 route both MCP 409 codes through the one ambiguity message -> T9 RED.
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| C4-IDENTITY-PARITY | ONE source-qualified canonical identity resolves CONSISTENTLY + DETERMINISTICALLY across entity API, human /model\|/dataset routes, and compare. RESOLVER (EXEC): exact typed id preferred over slug fallback; type-conflict -> IDENTITY_TYPE_CONFLICT; umid P2; route/prefix type-constrained selection (typed miss -> NOT_FOUND, never another type); bare collision -> AMBIGUOUS; order-independent (reversed rows == identical result); candidates deduped, sorted type-ASC,id-ASC, bounded to 25 (fail-explicit, never a false unique), exposing ONLY {id,type}. ENTITY API (EXEC): exact typed -> 200 correct type; bare collision -> 409 AMBIGUOUS_ENTITY_ID; prefix/type conflict -> 409 IDENTITY_TYPE_CONFLICT (both bodies error/code/requested_id/candidates, no-store, no internal keys); typed miss -> 404; transient -> 503 (unchanged). COMPARE (EXEC): exact-id twin pair each returns its own type; bare collision -> additive {found:false,ambiguous:true,code,candidates} within the HTTP 200 batch (order/misses/503 preserved); IDENTITY_TYPE_CONFLICT -> {found:false,code:IDENTITY_TYPE_CONFLICT,candidates:[{stored id,type}]} (NOT found:true, NOT ambiguous, excluded from 503 pending). OVERFLOW (EXEC, D-331): 26-row fetch + ORDER BY prioritizes exact id/umid -> present exact = 200; bare 26-unique = 409 AMBIGUOUS_ENTITY_ID + candidate_overflow:true (never false FOUND / clean 404); compare 26-unique = HTTP 200 item + candidate_overflow:true; VFS 26 same-type = transient (never notFound/wrong-type). HUMAN/VFS (EXEC): /model returns only type=model, /dataset only type=dataset; wrong-type-only slug -> notFound (never the other twin). MCP explain (EXEC): 409 AMBIGUOUS_ENTITY_ID -> isError + "multiple typed entities" + retry-one-typed-id + candidates; 409 IDENTITY_TYPE_CONFLICT -> isError + "typed prefix conflicts with stored type" (NEVER "multiple"); both NOT "No entity found". OpenAPI (CONFIG): entity 409 EntityAmbiguityError (+ optional candidate_overflow, candidates maxItems:25) + compare ambiguity oneOf variant (+ candidate_overflow) + compare identity-conflict oneOf variant + AmbiguityCandidate{id,type} documented; path set still 10; MCP tools still 5. SDK (EXEC): a 409 maps to the generic Free2AIError preserving status+body. fni_s stays null + note; _dbSort/_score/_source never leak. NON-VACUITY (implementer-run RED-then-restore): M1->conflict-parity RED, M2->determinism RED, M3->human wrong-type RED, M4->MCP ambiguity RED, M5->compare ambiguity RED, M6->entity LIMIT-25 overflow test (T2) RED, M7->compare type-conflict->found:true parity test (T6) RED, M8->one-message MCP 409 type-conflict test (T9) RED | `tests/srs1/c4-identity-resolution-parity.test.ts` (+ `tests/srs1/machine-contract-parity.test.ts` re-locks the OpenAPI 409/ambiguity contract) | SOURCE + CONFIG + EXEC | **NEW** |

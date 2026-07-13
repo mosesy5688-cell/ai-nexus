@@ -280,6 +280,14 @@
               }
             }
           },
+          "409": {
+            "description": "Identity ambiguity or type conflict (C4 identity-resolution parity). code=AMBIGUOUS_ENTITY_ID when a bare/untyped id maps to >1 co-resident typed record; code=IDENTITY_TYPE_CONFLICT when an exact typed canonical id's stored row type conflicts with its id prefix. Both twins remain retrievable by their exact typed id; the body lists the public {id,type} candidates (max 25) so the caller retries with ONE exact typed id. An optional candidate_overflow:true marks that the co-resident set exceeded the cap and the candidate list is a bounded window — the resolver refuses a false unique from a truncated set rather than emitting a wrong FOUND or a clean 404. No record is silently collapsed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EntityAmbiguityError" }
+              }
+            }
+          },
           "503": {
             "description": "All probed shards errored — transient infrastructure issue, caller may retry. Interim: entity lookup may return transient 503 under cold-path probe budget; 404/503 contract under runtime diagnosis.",
             "content": {
@@ -685,6 +693,30 @@
                     "found": { "type": "boolean", "enum": [false] }
                   },
                   "required": ["id", "found"]
+                },
+                {
+                  "type": "object",
+                  "description": "Ambiguous bare/untyped ID (C4 identity-resolution parity) — maps to >1 co-resident typed record. ADDITIVE to the unresolved shape (still found:false, and the overall response stays HTTP 200): the caller retries with ONE exact typed canonical id from `candidates`. Exact typed ids still each resolve to their own twin. `candidate_overflow` (optional, only when true) means the co-resident set exceeded the cap so `candidates` is a bounded window (max 25).",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "found": { "type": "boolean", "enum": [false] },
+                    "ambiguous": { "type": "boolean", "enum": [true] },
+                    "code": { "type": "string", "enum": ["AMBIGUOUS_ENTITY_ID"] },
+                    "candidates": { "type": "array", "maxItems": 25, "items": { "$ref": "#/components/schemas/AmbiguityCandidate" } },
+                    "candidate_overflow": { "type": "boolean", "enum": [true], "description": "Optional; true ONLY when the co-resident candidate set exceeded the public cap of 25 (bounded, possibly non-exhaustive window)." }
+                  },
+                  "required": ["id", "found", "ambiguous", "code", "candidates"]
+                },
+                {
+                  "type": "object",
+                  "description": "Identity type-conflict for one compare ID (C4 identity-resolution parity) — the requested id's typed prefix conflicts with the stored record's type. NOT a clean miss and NOT a success: found:false with code=IDENTITY_TYPE_CONFLICT and the single stored canonical {id,type} in `candidates` (NO `ambiguous` flag — only one record is proven). The overall response stays HTTP 200; the caller corrects the typed identifier or retries with the listed candidate.",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "found": { "type": "boolean", "enum": [false] },
+                    "code": { "type": "string", "enum": ["IDENTITY_TYPE_CONFLICT"] },
+                    "candidates": { "type": "array", "maxItems": 25, "items": { "$ref": "#/components/schemas/AmbiguityCandidate" } }
+                  },
+                  "required": ["id", "found", "code", "candidates"]
                 }
               ]
             }
@@ -978,6 +1010,27 @@
         "properties": {
           "error": { "type": "string" }
         }
+      },
+      "AmbiguityCandidate": {
+        "type": "object",
+        "description": "Public candidate identity for an ambiguous/conflicting lookup — ONLY the canonical id and its type (no shard/rowid/internal fields).",
+        "properties": {
+          "id": { "type": "string", "description": "Exact typed canonical id to retry with" },
+          "type": { "type": "string", "description": "The record's entity type (model / dataset / paper / tool / benchmark / ...)" }
+        },
+        "required": ["id", "type"]
+      },
+      "EntityAmbiguityError": {
+        "type": "object",
+        "description": "GET /api/v1/entity 409 body (C4 identity-resolution parity). Returned when a bare/untyped id maps to >1 co-resident typed record (code=AMBIGUOUS_ENTITY_ID) or an exact typed canonical id's stored row type conflicts with its id prefix (code=IDENTITY_TYPE_CONFLICT). Both twins remain retrievable by their exact typed id; nothing is silently collapsed. `candidate_overflow` (optional, only present when true) means the co-resident set exceeded the candidate cap, so `candidates` is a bounded window (max 25) — retry with ONE exact typed id.",
+        "properties": {
+          "error": { "type": "string", "description": "Human-readable summary (e.g. \"Ambiguous entity identifier\" / \"Entity identifier type conflict\")" },
+          "code": { "type": "string", "enum": ["AMBIGUOUS_ENTITY_ID", "IDENTITY_TYPE_CONFLICT"] },
+          "requested_id": { "type": "string", "description": "The id exactly as requested" },
+          "candidates": { "type": "array", "maxItems": 25, "items": { "$ref": "#/components/schemas/AmbiguityCandidate" } },
+          "candidate_overflow": { "type": "boolean", "enum": [true], "description": "Optional; present and true ONLY when the co-resident candidate set exceeded the public cap of 25, so `candidates` is a bounded (possibly non-exhaustive) window. The resolver refuses a false unique from a truncated set; retry with ONE exact typed canonical id." }
+        },
+        "required": ["error", "code", "requested_id", "candidates"]
       }
     }
   }

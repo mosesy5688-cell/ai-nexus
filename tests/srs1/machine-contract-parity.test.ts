@@ -55,13 +55,10 @@ function displayColFields(): string[] {
 const RESPOND_TOP = ['results', 'total_count', 'tier', 'elapsed_ms']; // respond() top-level envelope keys
 describe('SRS-1 DJ-R05 (T1): search result-limit prose <-> schema <-> runtime == 20', () => {
     it('runtime FREE_TIER_MAX == 20 (v1/search.ts)', () => {
-        const m = V1_SEARCH_SRC.match(/const FREE_TIER_MAX = (\d+)/);
-        expect(m).toBeTruthy();
-        expect(Number(m![1])).toBe(20);
+        expect(Number(V1_SEARCH_SRC.match(/const FREE_TIER_MAX = (\d+)/)![1])).toBe(20);
     });
     it('OpenAPI schema limit.maximum == 20', () => {
-        const limit = SEARCH_PATH.parameters.find((p: any) => p.name === 'limit');
-        expect(limit.schema.maximum).toBe(20);
+        expect(SEARCH_PATH.parameters.find((p: any) => p.name === 'limit').schema.maximum).toBe(20);
     });
     it('dynamic openapi.json.ts per-request cap "up to 20 results per request" in BOTH branches; no 5; no tier', () => {
         // D-123: per-request wording replaced tier framing in both no-count + count branches.
@@ -92,13 +89,11 @@ describe('SRS-1 DJ-R06 (T2): SearchResponse schema == actual public-v1 response 
         return [...set].sort();
     })();
     it('declared item fields EXACTLY equal the runtime-derived set (no missing, no extra)', () => {
-        const declared = Object.keys(SEARCH_ITEM).sort();
-        expect(declared).toEqual(expectedItemFields);
+        expect(Object.keys(SEARCH_ITEM).sort()).toEqual(expectedItemFields);
     });
     it('top-level fields == respond() envelope + v1 `version` (always-present on 200)', () => {
         expect(V1_SEARCH_SRC).toMatch(/version: API_VERSION, \.\.\.body/); // v1 wraps { version, ...body }
-        const expectedTop = [...RESPOND_TOP, 'version'].sort();
-        expect(Object.keys(SEARCH_RESP).sort()).toEqual(expectedTop);
+        expect(Object.keys(SEARCH_RESP).sort()).toEqual([...RESPOND_TOP, 'version'].sort());
     });
     it('NO internal/underscore-prefixed field is declared in the public schema', () => {
         expect(V1_SEARCH_SRC).toMatch(/delete r\._dbSort; delete r\._score; delete r\._source/); // stripped pre-serialize
@@ -120,9 +115,8 @@ describe('SRS-1 DJ-R06 (T2): SearchResponse schema == actual public-v1 response 
     });
 });
 describe('SRS-1 DJ-R10 (T3): pagination contract -- documented params <-> handler', () => {
-    const declaredParams = SEARCH_PATH.parameters.map((p: any) => p.name).sort();
     it('OpenAPI declares q,type,limit,page (the handler-accepted search params)', () => {
-        expect(declaredParams).toEqual(['limit', 'page', 'q', 'type']);
+        expect(SEARCH_PATH.parameters.map((p: any) => p.name).sort()).toEqual(['limit', 'page', 'q', 'type']);
     });
     it('search.ts reads each declared param from searchParams', () => {
         for (const p of ['q', 'type', 'limit', 'page']) {
@@ -178,10 +172,8 @@ describe('SRS-1 DJ-R11 (A2): SERVED /api/v1/search description projection (opena
         expect(ENTITY.properties.id).toBeDefined();
         expect(ENTITY.properties.canonical_id).toBeDefined();
         expect(mcpJson.tools.length).toBe(5);
-        const paths = Object.keys(schema.paths);
-        expect(paths.length).toBe(10);
-        expect(paths).toContain('/api/v1/search');
-        expect(paths).toContain('/api/mcp');
+        expect(Object.keys(schema.paths).length).toBe(10);
+        expect(Object.keys(schema.paths)).toContain('/api/v1/search');
     });
 });
 describe('SRS-1 DJ-M02 (T4): MCP static enum <-> dynamic handler enum parity', () => {
@@ -192,8 +184,8 @@ describe('SRS-1 DJ-M02 (T4): MCP static enum <-> dynamic handler enum parity', (
         return m![1].split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
     }
     function staticSearchTypeEnum(): string[] {
-        const tool = mcpJson.tools.find((t: any) => t.name === 'free2aitools_search');
-        return tool.inputSchema.properties.type.enum; // D-135 (F5): MCP-standard inputSchema (was input_schema)
+        // D-135 (F5): MCP-standard inputSchema (was input_schema)
+        return mcpJson.tools.find((t: any) => t.name === 'free2aitools_search').inputSchema.properties.type.enum;
     }
     it('static mcp.json search type enum == dynamic mcp.ts enum (set parity)', () => {
         expect(staticSearchTypeEnum().slice().sort()).toEqual(handlerSearchTypeEnum().slice().sort());
@@ -204,8 +196,7 @@ describe('SRS-1 DJ-M02 (T4): MCP static enum <-> dynamic handler enum parity', (
     });
     it('benchmark is a served entity type per OpenAPI (type list + search type param enum)', () => {
         expect(ENTITY.properties.type.description).toMatch(/benchmark/);
-        const typeParam = SEARCH_PATH.parameters.find((p: any) => p.name === 'type');
-        expect(typeParam.schema.enum).toContain('benchmark');
+        expect(SEARCH_PATH.parameters.find((p: any) => p.name === 'type').schema.enum).toContain('benchmark');
     });
 });
 describe('SRS-1 DJ-W05 (T5): EntityResponse identity contract', () => {
@@ -226,11 +217,9 @@ describe('SRS-1 DJ-W05 (T5): EntityResponse identity contract', () => {
     });
     it('contract states canonical_id == id (same value), NOT "id is umid"', () => {
         expect(ENTITY.properties.canonical_id.description).toMatch(/same canonical identifier value as `id`|canonical_id == id/);
-        const idDesc = (ENTITY.properties.id.description || '').toLowerCase();
-        const cidDesc = (ENTITY.properties.canonical_id.description || '').toLowerCase();
         // No machine-contract equivalence asserting id IS the umid.
-        expect(idDesc).not.toMatch(/is your umid|id is the umid|id == umid/);
-        expect(cidDesc).not.toMatch(/id is your umid|id is the umid|id == umid/);
+        expect((ENTITY.properties.id.description || '').toLowerCase()).not.toMatch(/is your umid|id is the umid|id == umid/);
+        expect((ENTITY.properties.canonical_id.description || '').toLowerCase()).not.toMatch(/id is your umid|id is the umid|id == umid/);
     });
 });
 describe('SRS-1 T-NONEXP: no capability expansion (counts/endpoints unchanged)', () => {
@@ -239,12 +228,21 @@ describe('SRS-1 T-NONEXP: no capability expansion (counts/endpoints unchanged)',
         const dynNames = [...MCP_SRC.matchAll(/name:\s*'(free2aitools_[a-z_]+)'/g)].map((m) => m[1]);
         expect([...new Set(dynNames)].length).toBe(5);
     });
-    it('OpenAPI path set unchanged: exactly the 10 declared endpoints', () => {
-        // 9 /api/v1/* + /api/mcp. Lock the count so a contract-only PR cannot
-        // silently add/remove an endpoint.
+    it('OpenAPI path set unchanged: exactly the 10 declared endpoints (9 /api/v1/* + /api/mcp)', () => {
         const paths = Object.keys(schema.paths).sort();
         expect(paths).toContain('/api/v1/search');
         expect(paths).toContain('/api/mcp');
         expect(paths.length).toBe(10);
+    });
+    // C4 Stage 1 (D-2026-0713-330 + D-2026-0713-331): SERVED entity-409 (ambiguity/type-conflict) + compare ambiguity/type-conflict + optional candidate_overflow + candidate maxItems=25 contract lock.
+    it('C4: entity 409 EntityAmbiguityError + compare ambiguity/type-conflict variants; codes + optional candidate_overflow + candidates maxItems 25; candidate = ONLY {id,type}', () => {
+        expect(schema.paths['/api/v1/entity/{id}'].get.responses['409'].content['application/json'].schema.$ref).toBe('#/components/schemas/EntityAmbiguityError');
+        const s = schema.components.schemas.EntityAmbiguityError, oneOf = schema.components.schemas.CompareResponse.properties.entities.items.oneOf;
+        expect(s.required.slice().sort()).toEqual(['candidates', 'code', 'error', 'requested_id']); // candidate_overflow optional, NOT required
+        expect([s.properties.code.enum.slice().sort().join(), s.properties.candidate_overflow.type, s.properties.candidates.maxItems]).toEqual(['AMBIGUOUS_ENTITY_ID,IDENTITY_TYPE_CONFLICT', 'boolean', 25]);
+        expect(Object.keys(schema.components.schemas.AmbiguityCandidate.properties).slice().sort()).toEqual(['id', 'type']);
+        const amb = oneOf.find((v: any) => v.properties?.ambiguous), conf = oneOf.find((v: any) => v.properties?.code?.enum?.[0] === 'IDENTITY_TYPE_CONFLICT' && !v.properties?.ambiguous);
+        expect([amb.properties.ambiguous.enum[0], amb.properties.code.enum[0], amb.properties.candidate_overflow.type, amb.properties.candidates.maxItems, amb.required.slice().sort().join()]).toEqual([true, 'AMBIGUOUS_ENTITY_ID', 'boolean', 25, 'ambiguous,candidates,code,found,id']);
+        expect([conf.properties.found.enum[0], conf.properties.candidates.maxItems, conf.required.slice().sort().join()]).toEqual([false, 25, 'candidates,code,found,id']); // D-331 compare type-conflict variant
     });
 });
