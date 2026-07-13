@@ -4,6 +4,7 @@ import { xxhash64Mod } from './xxhash64.js';
 import { generatePaperCandidates } from '../lib/slug-helper.js';
 import { withOpTimeout, isOpTimeout } from '../lib/op-timeout.js';
 import { resolveShardsForCandidates } from '../lib/entity-absence-oracle.js';
+import { resolveEntityMatch, CANDIDATE_FETCH_LIMIT } from '../lib/entity-match-resolver.js';
 import { env } from 'cloudflare:workers';
 
 // V27.91: wall-clock budget for the multi-shard probing below. A miss
@@ -22,7 +23,32 @@ const FALLBACK_BUDGET_MS = 6000;
 // releases its own SQLite lock, and warms the cache for the retry.
 const OP_TIMEOUT_MS = 5000;
 
-const SELECT_SQL = 'SELECT * FROM entities WHERE slug = ? OR id = ? LIMIT 1';
+// C4 Stage 1 (corrected): bounded MULTI-row fetch of CANDIDATE_FETCH_LIMIT (26 =
+// public cap + 1) rows so the resolver can DETECT overflow instead of truncating
+// into a false unique. A slug can be shared by two typed records co-resident on
+// one shard; the human route returns ONLY a row of the requested route type. The
+// ORDER BY binds the queried form as id + umid so an exact-id/umid row, if it
+// exists, is always in the window; type-ASC,id-ASC keeps the window deterministic.
+const SELECT_SQL = `SELECT * FROM entities WHERE slug = ? OR id = ? OR umid = ? ORDER BY (id = ?) DESC, (umid = ?) DESC, type ASC, id ASC LIMIT ${CANDIDATE_FETCH_LIMIT}`;
+
+/**
+ * Type-enforced pick for a human /<type>/ route. Discriminated outcome:
+ *   - { row }      resolver selected a row of the requested route type -> render.
+ *   - { overflow } the candidate set overflowed the public cap and NO authoritative
+ *                  route-typed exact row resolved -> INCONCLUSIVE: the caller returns
+ *                  a retryable transient, NEVER a wrong-typed row / clean notFound /
+ *                  false unique from a truncated window.
+ *   - null         clean non-match (wrong-type-only, plain ambiguity, conflict, miss)
+ *                  -> keep probing / fall through to an honest notFound.
+ * A /model/ page never renders a dataset twin (and vice versa).
+ */
+type RoutePick = { row: any } | { overflow: true } | null;
+function pickRouteTyped(rows: any[], form: string, type: string): RoutePick {
+    const m = resolveEntityMatch(form, type, rows);
+    if (m.kind === 'FOUND') return { row: m.row };
+    if (m.kind === 'AMBIGUOUS' && (m as any).candidate_overflow) return { overflow: true };
+    return null;
+}
 
 /**
  * V27.97: 3-way discriminated result. The old contract (`{data,source}` | null)
@@ -67,8 +93,10 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
             if (exists) {
                 const db = new Database(dbPath, { readonly: true });
                 for (const c of candidates) {
-                    const row = db.prepare(SELECT_SQL).get(c, c);
-                    if (row) { db.close(); return { data: row, source: 'local-sqlite' }; }
+                    const rows = db.prepare(SELECT_SQL).all(c, c, c, c, c) as any[];
+                    const pick = rows.length ? pickRouteTyped(rows, c, type) : null;
+                    if (pick && 'row' in pick) { db.close(); return { data: pick.row, source: 'local-sqlite' }; }
+                    if (pick && 'overflow' in pick) { db.close(); return { transient: true }; }
                 }
                 db.close();
             }
@@ -137,10 +165,18 @@ export async function resolveVfsMetadata(type: string, slug: string, locals: any
                         OP_TIMEOUT_MS, `open:${dbName}`);
                     for (const form of forms) {
                         const rows = await withOpTimeout(
-                            executeSql(engine.sqlite3, engine.db, SELECT_SQL, [form, form]),
+                            executeSql(engine.sqlite3, engine.db, SELECT_SQL, [form, form, form, form, form]),
                             OP_TIMEOUT_MS, `sql:${dbName}`);
                         if (rows.length > 0) {
-                            return { data: rows[0], source: `vfs:${dbName}` };
+                            // C4 Stage 1: enforce the route type. If this shard's
+                            // co-resident rows include a row of the requested type,
+                            // return it. A wrong-type-only shard is a clean non-match
+                            // (keep probing). Candidate OVERFLOW with no authoritative
+                            // route-typed exact row is INCONCLUSIVE -> transient (the
+                            // real row may sit in the un-fetched tail), never notFound.
+                            const pick = pickRouteTyped(rows, form, type);
+                            if (pick && 'row' in pick) return { data: pick.row, source: `vfs:${dbName}` };
+                            if (pick && 'overflow' in pick) inconclusive = true;
                         }
                     }
                 } catch (e: any) {

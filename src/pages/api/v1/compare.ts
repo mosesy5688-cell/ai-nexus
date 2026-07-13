@@ -10,6 +10,7 @@ import { META_SHARD_COUNT } from '../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../lib/etag-helper.js';
 import { deriveSlug, looksLikePaper, generatePaperCandidates } from '../../../lib/slug-helper.js';
 import { scanShardsBudgeted } from '../../../lib/compare-budget.js';
+import { resolveEntityMatch } from '../../../lib/entity-match-resolver.js';
 
 const API_VERSION = 'fni_v2.0';
 // V27.60: 10→25 Layer 0 surface generosity for Agent-driven bulk compare.
@@ -90,19 +91,43 @@ export const GET: APIRoute = async ({ url, request }) => {
       start,
     );
     const entityMap = scan.entityMap;
+    const slugMap = scan.slugMap;
 
     const entities = ids.map(id => {
-      // Resolve via any candidate key the row was indexed under (row.id /
-      // row.slug). For papers the matched row.slug is 'arxiv--<id>'/'unknown--<sha>'
-      // which is one of keysMap's candidates, not the bare derived slug.
-      let e = entityMap.get(id) || entityMap.get(id.toLowerCase());
-      if (!e) {
-        for (const key of keysMap.get(id) || []) {
-          e = entityMap.get(key);
-          if (e) break;
-        }
+      // C4 Stage 1: gather this id's co-resident candidate rows from BOTH
+      // indexes — exact-id hits (unique per id) + slug-keyed twins
+      // (candidate-preserving) — then run the shared deterministic resolver.
+      // For papers the matched row.slug is 'arxiv--<id>'/'unknown--<sha>', one of
+      // keysMap's candidates. An EXACT typed id resolves to its own twin; a
+      // bare-slug id mapping to >1 typed record is surfaced as an explicit
+      // ambiguity (additive; still HTTP 200 batch envelope), never a rowid guess.
+      const cand: any[] = [];
+      const seen = new Set<string>();
+      const push = (r: any) => { if (r && r.id && !seen.has(r.id)) { seen.add(r.id); cand.push(r); } };
+      for (const key of keysMap.get(id) || []) {
+        push(entityMap.get(key));
+        for (const r of slugMap.get(key) || []) push(r);
       }
-      if (!e) return { id, found: false };
+      const match = resolveEntityMatch(id, null, cand);
+      if (match.kind === 'AMBIGUOUS') {
+        // Additive ambiguity in the HTTP 200 batch. candidate_overflow (only when
+        // true) marks that the co-resident set exceeded the public cap, so the
+        // resolver refused a false unique from a truncated window.
+        const amb: any = { id, found: false, ambiguous: true, code: 'AMBIGUOUS_ENTITY_ID', candidates: match.candidates };
+        if (match.candidate_overflow) amb.candidate_overflow = true;
+        return amb;
+      }
+      if (match.kind === 'IDENTITY_TYPE_CONFLICT') {
+        // A prefix/stored-type conflict is NOT a clean miss and NOT a success:
+        // surface it explicitly (found:false + code + the stored canonical
+        // candidate) so the caller sees the real record and can correct the typed
+        // identifier. NOT ambiguous:true — only ONE candidate is proven.
+        return { id, found: false, code: 'IDENTITY_TYPE_CONFLICT', candidates: [{ id: match.row.id, type: match.row.type }] };
+      }
+      if (match.kind === 'NOT_FOUND') return { id, found: false };
+      // FOUND -> surface the actual stored row + its true type (compare shows each
+      // id's real record; the entity API is where a conflict becomes a 409).
+      const e = match.row;
       return {
         id: e.id, name: e.name, author: e.author, type: e.type,
         fni_score: e.fni_score ?? 0,
@@ -136,7 +161,11 @@ export const GET: APIRoute = async ({ url, request }) => {
     // surface which ids resolved vs pending (honest partial signal) so an Agent
     // retries only the rest. If everything resolved (warm cache) we ignore the
     // bail and return the complete 200 below.
-    const pending = entities.filter((e: any) => !e.found).map((e: any) => e.id);
+    // A definitively-resolved id (bare ambiguity OR identity type-conflict, both
+    // carrying a `code`) is NOT a transient miss — exclude it from `pending` so it
+    // never forces a false 503. A clean miss {found:false} with NO code stays
+    // pending: it may still be a transient/un-probed-shard miss.
+    const pending = entities.filter((e: any) => !e.found && !e.ambiguous && !e.code).map((e: any) => e.id);
     if (scan.exhausted && pending.length > 0) {
       const resolved = entities.filter((e: any) => e.found).map((e: any) => e.id);
       console.error('[COMPARE] inconclusive', `reason=${scan.reason} probed=${scan.probedShards}/${shardGroups.size} resolved=${resolved.length}/${ids.length}`);

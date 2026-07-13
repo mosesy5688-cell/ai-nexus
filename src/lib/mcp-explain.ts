@@ -59,6 +59,29 @@ export function buildExplainResult(id: string, res: EntityCallResult): McpToolRe
                 content: [{ type: 'text', text: `Lookup for "${id}" is temporarily unavailable (transient/budget). Retry after ${retry}s.` }],
             };
         }
+        // C4 Stage 1: a 409 is NOT a genuine miss — never funnel it into "No entity
+        // found". TWO distinct codes with DISTINCT remediation, kept separate:
+        //   AMBIGUOUS_ENTITY_ID    -> the id maps to MULTIPLE typed entities; retry
+        //                             with ONE exact typed canonical id.
+        //   IDENTITY_TYPE_CONFLICT -> the requested id's typed PREFIX conflicts with
+        //                             the stored record's type (a SINGLE record);
+        //                             retry with the listed candidate or fix the id.
+        // Never say "multiple entities" unless the code is AMBIGUOUS_ENTITY_ID.
+        if (res.status === 409) {
+            const cands = Array.isArray(res.data?.candidates) ? res.data.candidates : [];
+            const list = cands.map((c: any) => `${c.id} (${c.type})`).join(', ');
+            const tail = list ? ` Candidates: ${list}.` : '';
+            if (res.data?.code === 'IDENTITY_TYPE_CONFLICT') {
+                return {
+                    isError: true,
+                    content: [{ type: 'text', text: `Identifier "${id}" has an IDENTITY_TYPE_CONFLICT — the requested identifier's typed prefix conflicts with the stored record's type. Retry with the listed canonical candidate or correct the typed identifier.${tail}` }],
+                };
+            }
+            return {
+                isError: true,
+                content: [{ type: 'text', text: `Identifier "${id}" is AMBIGUOUS — it maps to multiple typed entities. Retry with ONE exact typed canonical id.${tail}` }],
+            };
+        }
         return { content: [{ type: 'text', text: `No entity found matching "${id}".` }] };
     }
     const f = e.fni?.factors || {};

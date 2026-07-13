@@ -55,6 +55,16 @@ export const MAX_COLD_SHARDS = 8;
 export interface ShardScanResult {
     /** Map of row.id and row.slug -> row, for id-resolution by the caller. */
     entityMap: Map<string, any>;
+    /**
+     * C4 Stage 1 — CANDIDATE-PRESERVING slug index: row.slug -> ALL rows sharing
+     * that slug (deduped by id), NOT the last-write-wins single row that
+     * `entityMap` keeps. A slug can be shared by two typed twins co-resident on
+     * one shard; the old `entityMap.set(row.slug, row)` silently dropped the
+     * earlier twin, so a bare-slug compare id resolved to an arbitrary rowid
+     * winner. The caller uses this to detect a bare-slug ambiguity explicitly
+     * while EXACT typed ids still resolve to their own twin via `entityMap`.
+     */
+    slugMap: Map<string, any[]>;
     /** True if the loop bailed on budget, op-timeout, or the fan-out cap. */
     exhausted: boolean;
     /** Why it bailed (telemetry / 503 body hint). */
@@ -84,6 +94,7 @@ export async function scanShardsBudgeted(
     start: number,
 ): Promise<ShardScanResult> {
     const entityMap = new Map<string, any>();
+    const slugMap = new Map<string, any[]>();
     let probedShards = 0;
     let exhausted = false;
     let reason: ShardScanResult['reason'] = null;
@@ -93,7 +104,7 @@ export async function scanShardsBudgeted(
     // cannot complete inside the budget — fail honestly rather than queue dozens
     // of cold opens behind the global lock and ride to a dead connection.
     if (shardGroups.size > MAX_COLD_SHARDS) {
-        return { entityMap, exhausted: true, reason: 'fanout_cap', probedShards: 0 };
+        return { entityMap, slugMap, exhausted: true, reason: 'fanout_cap', probedShards: 0 };
     }
 
     for (const [shardIdx, queryKeys] of shardGroups.entries()) {
@@ -108,7 +119,14 @@ export async function scanShardsBudgeted(
             const rows = await withOpTimeout(runSql(engine, keys), OP_TIMEOUT_MS, `sql:${dbName}`);
             for (const row of rows) {
                 entityMap.set(row.id, row);
-                if (row.slug) entityMap.set(row.slug, row);
+                // entityMap keeps the legacy slug key (last-write-wins) for
+                // back-compat; slugMap is the candidate-preserving twin index.
+                if (row.slug) {
+                    entityMap.set(row.slug, row);
+                    const arr = slugMap.get(row.slug);
+                    if (arr) { if (!arr.some((r: any) => r.id === row.id)) arr.push(row); }
+                    else slugMap.set(row.slug, [row]);
+                }
             }
         } catch (e: any) {
             // A hung/transient shard is treated as failed and the loop continues
@@ -119,5 +137,5 @@ export async function scanShardsBudgeted(
             if (!reason) reason = isOpTimeout(e) ? 'op_timeout' : 'budget';
         }
     }
-    return { entityMap, exhausted, reason, probedShards };
+    return { entityMap, slugMap, exhausted, reason, probedShards };
 }

@@ -5,7 +5,7 @@
  * metadata for one entity here (closes the search -> detail chain, P0-3).
  * Routing: per-candidate xxhash64Mod against partitions.meta_shards, probing
  * the highest-probability shard first (see buildEntityProbePlan), then
- * SELECT * WHERE id/slug/umid IN (candidate forms) LIMIT 1 per shard.
+ * SELECT * WHERE id/slug/umid IN (candidate forms), a bounded multi-row window.
  * Projection (60 raw cols -> ~30 Agent fields) lives in entity-projection.ts.
  * ?include=body lazy-loads readme_html from the .bin fused-shard (cold tier)
  * via packet-loader.fetchBundleReadme. EXCEPTION (legal-resilience L1): for
@@ -23,6 +23,7 @@ import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 import { withOpTimeout, isOpTimeout } from '../../../../lib/op-timeout.js';
 import { projectEntity } from '../../../../lib/entity-projection.js';
 import { resolveShardsForCandidates } from '../../../../lib/entity-absence-oracle.js';
+import { resolveEntityMatch, CANDIDATE_FETCH_LIMIT } from '../../../../lib/entity-match-resolver.js';
 
 const API_VERSION = 'fni_v2.0';
 
@@ -114,10 +115,14 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             return error(404, `Entity not found: ${rawId}`);
         }
 
-        // Per-shard try/catch: a single shard error (transient VFS / SQL) must
-        // not 500 the whole request if another shard might satisfy the lookup.
-        // Track errors + budget-bail so a transient miss is not a false 404.
-        let row: any = null;
+        // Per-shard try/catch: one shard error must not 500 the request; track errors +
+        // budget-bail so a transient miss is not a false 404. C4 Stage 1 (D-331 corrected):
+        // fetch CANDIDATE_FETCH_LIMIT (26 = cap+1) rows so the resolver DETECTS overflow
+        // instead of truncating into a false unique (co-resident slug twins share ONE shard).
+        // ORDER BY binds the requested id + umid so an EXACT-id/UMID row, if present, is ALWAYS
+        // in the window regardless of twin count; type-ASC,id-ASC tiebreak keeps it deterministic.
+        const exactMatchKey = rawId.toLowerCase();
+        let candidateRows: any[] = [];
         let probedShards = 0;
         let budgetBailed = false;
         const shardErrors: string[] = [];
@@ -126,8 +131,8 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             probedShards++;
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
             const placeholders = forms.map(() => '?').join(',');
-            const sql = `SELECT * FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders}) OR umid IN (${placeholders}) LIMIT 1`;
-            const bindings = [...forms, ...forms, ...forms];
+            const sql = `SELECT * FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders}) OR umid IN (${placeholders}) ORDER BY (id = ?) DESC, (umid = ?) DESC, type ASC, id ASC LIMIT ${CANDIDATE_FETCH_LIMIT}`;
+            const bindings = [...forms, ...forms, ...forms, exactMatchKey, exactMatchKey];
             try {
                 // Per-op firewall: a single hung cold open/SQL must not eat the
                 // whole budget or hang past it (mirrors the page resolver).
@@ -137,14 +142,14 @@ export const GET: APIRoute = async ({ params, url, request }) => {
                 const rows = await withOpTimeout(
                     executeSql(engine.sqlite3, engine.db, sql, bindings),
                     OP_TIMEOUT_MS, `sql:${dbName}`);
-                if (rows.length > 0) { row = rows[0]; break; }
+                if (rows.length > 0) { candidateRows = rows; break; }
             } catch (e: any) {
                 console.warn(`[ENTITY] shard probe ${isOpTimeout(e) ? 'timeout' : 'error'}`, dbName, e.message);
                 shardErrors.push(`${dbName}: ${e.message}`);
             }
         }
 
-        if (!row) {
+        if (candidateRows.length === 0) {
             // Honest-contract: 404 means "genuinely absent, do not retry" and is
             // only safe when every intended shard was probed cleanly with no row.
             // If we bailed on budget or any shard errored, the entity MAY exist
@@ -161,6 +166,20 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             }
             return error(404, `Entity not found: ${rawId}`);
         }
+
+        // C4 Stage 1: deterministic, type-aware, order-independent selection. Exact
+        // typed id wins; typed miss -> 404 (never the other twin); bare->>1 typed or
+        // prefix/type conflict -> 409. Under overflow a bare/type fallback becomes
+        // AMBIGUOUS(candidate_overflow) -> 409, NEVER a false FOUND / clean 404.
+        const match = resolveEntityMatch(rawId, null, candidateRows);
+        if (match.kind === 'NOT_FOUND') return error(404, `Entity not found: ${rawId}`);
+        if (match.kind === 'AMBIGUOUS') {
+            return ambiguity(409, 'Ambiguous entity identifier', 'AMBIGUOUS_ENTITY_ID', rawId, match.candidates, match.candidate_overflow);
+        }
+        if (match.kind === 'IDENTITY_TYPE_CONFLICT') {
+            return ambiguity(409, 'Entity identifier type conflict', 'IDENTITY_TYPE_CONFLICT', rawId, match.candidates);
+        }
+        const row = match.row;
 
         const entity = projectEntity(row);
         // LEGAL-RESILIENCE L1 (Papers Abstract-Only, 2026-06-06): never return the
@@ -216,4 +235,15 @@ export const OPTIONS: APIRoute = async () => new Response(null, { status: 204, h
 
 function error(status: number, message: string, extraHeaders: Record<string, string> = {}) {
     return new Response(JSON.stringify({ error: message }), { status, headers: { ...CORS_HEADERS, ...extraHeaders } });
+}
+
+// C4 Stage 1: structured identity 409. Body carries ONLY public {id,type} candidates
+// (never shard/rowid/internal); no-store so a CDN never pins an ambiguity a Stage-2
+// repair would resolve. `overflow` (additive, only when true) = set exceeded the cap.
+function ambiguity(status: number, message: string, code: string, requestedId: string, candidates: { id: string; type: string }[], overflow?: true) {
+    const body: Record<string, any> = { error: message, code, requested_id: requestedId, candidates };
+    if (overflow) body.candidate_overflow = true;
+    return new Response(JSON.stringify(body), {
+        status, headers: { ...CORS_HEADERS, 'Cache-Control': 'no-store' },
+    });
 }
