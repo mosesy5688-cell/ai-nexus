@@ -206,7 +206,10 @@ export class DatasetsAdapter extends BaseAdapter {
 
         const entity = {
             id: this.generateId(author, name, 'dataset'),
-            type: 'dataset', source: 'huggingface',
+            // C4 Stage-2 (D-333): immutable INTERNAL source-family provenance. The
+            // dataset adapter's family is 'dataset'; this anchors the canonical-id
+            // mint and the phantom reconciler. INTERNAL ONLY (never a public field).
+            type: 'dataset', source_entity_type: 'dataset', source: 'huggingface',
             source_url: `https://huggingface.co/datasets/${datasetId}`,
             title: name,
             description: this.extractDescription(raw.readme || raw.description),

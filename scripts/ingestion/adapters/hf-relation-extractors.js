@@ -10,6 +10,44 @@
  * @module ingestion/adapters/hf-relation-extractors
  */
 
+import { inferType } from './hf-utils.js';
+
+/**
+ * C4 Stage-2 (Founder D-2026-0714-333): SOURCE-FAMILY-AUTHORITATIVE identity type
+ * for the HF MODEL adapter. The model source family is 'model'; relationship
+ * metadata (cardData.datasets) and pipeline_tag==='dataset' CANNOT change the
+ * canonical identity type (that was the phantom root cause). inferType is DEMOTED
+ * to a descriptive/validation signal only (never an identity determinant).
+ *
+ * D-2026-0714-334/335/336 (PROSPECTIVE model->tool prevention): the HF MODEL source
+ * canonical identity type is ALWAYS 'model'. inferType (incl. its 'tool' verdict) is
+ * DESCRIPTIVE ONLY and MUST NOT set identity type / ID prefix / registry key. A
+ * transformers-no-pipeline HF model repo now mints hf-model-- (not hf-tool--).
+ * Existing historical hf-tool-- rows are NOT rewritten (valid_id_changed_count=0);
+ * they are a REPORT-ONLY residual (G1-P kept OPEN), never deleted in this PR.
+ * @param {Object} raw
+ * @returns {'model'}
+ */
+export function modelSourceEntityType(raw) {
+    return 'model';
+}
+
+/**
+ * C4 Stage-2 (D-333): INTERNAL/OBSERVATIONAL source-family vs inferred-descriptive
+ * -type diagnostic. Never a public field, never a gate. axis 'model-dataset' = the
+ * DEMOTED case (identity kept 'model'); axis 'model-tool' = the OUT-OF-SCOPE
+ * residual (identity preserved as 'tool'); 'none' = agreement.
+ * @param {Object} raw
+ * @returns {{source_family:'model', inferred_descriptive:string, identity_type:('model'|'tool'), agrees:boolean, axis:('none'|'model-dataset'|'model-tool')}}
+ */
+export function sourceTypeDiagnostic(raw) {
+    const inferred = inferType(raw);
+    const identity_type = modelSourceEntityType(raw);
+    const agrees = inferred === 'model';
+    const axis = agrees ? 'none' : (inferred === 'dataset' ? 'model-dataset' : 'model-tool');
+    return { source_family: 'model', inferred_descriptive: inferred, identity_type, agrees, axis };
+}
+
 /**
  * Extract base model reference with enhanced source matching
  * @param {Object} raw - Raw model data from HuggingFace

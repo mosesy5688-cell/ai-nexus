@@ -8,6 +8,31 @@ import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 import { SHARD_SIZE } from './registry-utils.js';
 import { writeIndexNowDelta } from './indexnow-delta.js';
 
+/**
+ * C4 Stage-2 (Founder D-2026-0714-333): resolve the identity type that drives the
+ * canonical-id mint. Prefers the IMMUTABLE source-family provenance
+ * (source_entity_type) so relationship metadata (cardData.datasets /
+ * pipeline_tag==='dataset') can NEVER flip a model's identity to 'dataset' - the
+ * phantom root cause. The legacy 'tool' sub-classification of a model-family
+ * entity is PRESERVED (PM Q1 surgical demotion: honors D-333 S10, no hf-tool--*
+ * id changes). Entities WITHOUT source_entity_type (legacy registry rows, non-HF
+ * adapters) keep their existing `type` verbatim - byte-identical mint behavior,
+ * no valid-id change, no canonical-ID algorithm change. Shared with
+ * merge-batches.js so BOTH id-mint chokepoints resolve identity identically.
+ *
+ * @param {{source_entity_type?:string, type?:string}} e
+ * @returns {string|undefined} identity type for normalizeId / getNodeSource
+ */
+export function resolveIdentityType(e) {
+    const fam = e && e.source_entity_type;
+    // D-336: HF model source family => identity ALWAYS 'model' (never 'tool'); dataset
+    // family => 'dataset'. inferType/tool never controls the mint. Legacy rows (no
+    // source_entity_type) keep their existing type verbatim (no valid-id change).
+    if (fam === 'model') return 'model';
+    if (fam === 'dataset') return 'dataset';
+    return e ? e.type : undefined;
+}
+
 export class RegistryManager {
     constructor() {
         this.accumulatorPath = './cache/accumulator.db';
@@ -101,7 +126,10 @@ export class RegistryManager {
         const CHUNK_SIZE = 500;
         const txnChunk = this.db.transaction((chunk) => {
             for (const e of chunk) {
-                const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
+                // C4 Stage-2 (D-333): mint from the immutable source-family identity
+                // type, not the (demoted) inferType-derived e.type.
+                const identityType = resolveIdentityType(e);
+                const id = normalizeId(e.id, getNodeSource(e.id, identityType), identityType);
                 const existingRow = select.get(id);
 
                 let finalData;
