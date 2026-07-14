@@ -23,6 +23,10 @@ on:
         description: 'Run ID of Harvest workflow (optional)'
         required: false
         type: string
+      run_attempt:
+        description: 'Run ATTEMPT of the Harvest run. REQUIRED alongside run_id for the C4 deletion-capable path (D-338 Blocker 2): a manual dispatch has NO gh-run-list latest fallback and NO default attempt 1 - both run_id AND run_attempt must be given or the run fails closed (ZERO_PUBLICATION).'
+        required: false
+        type: string
 
 jobs:
   # Validate upstream success
@@ -32,6 +36,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       upstream-run-id: ${{ steps.get-run-id.outputs.run_id }}
+      upstream-run-attempt: ${{ steps.get-run-id.outputs.run_attempt }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -45,19 +50,33 @@ jobs:
         id: get-run-id
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_RUN_ATTEMPT: ${{ inputs.run_attempt }}
+          WF_RUN_ID: ${{ github.event.workflow_run.id }}
+          WF_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          EXPECT_HEAD_SHA: ${{ github.sha }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          # 1. Start with the Harvest Run ID (Triggering event or manual input)
-          HARVEST_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
-          
-          # 2. If HARVEST_RUN_ID is missing, find the latest successful Harvest run on MAIN
-          if [ -z "$HARVEST_RUN_ID" ] || [ "$HARVEST_RUN_ID" == "null" ]; then
-            echo "🔍 Manual dispatch: Finding latest successful Harvest run on main branch..."
-            HARVEST_RUN_ID=$(gh run list --workflow factory-harvest.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
+          # C4-S2 (D-338 Blocker 2): PURE fail-closed harvest selection. The automatic workflow_run event is
+          # AUTHORITATIVE (its id + run_attempt name the EXACT triggering attempt). A MANUAL dispatch MUST carry
+          # BOTH run_id AND run_attempt - there is NO `gh run list` latest-selection and NO default attempt 1
+          # (a failed attempt-1 that wrote its manifest could otherwise be replayed as a deletion authority).
+          SEL=$(node --input-type=module -e "import {resolveHarvestSelection} from './scripts/factory/lib/c4s2-candidate-universe.js';const r=resolveHarvestSelection({eventName:process.env.EVENT_NAME,inputRunId:process.env.INPUT_RUN_ID,inputRunAttempt:process.env.INPUT_RUN_ATTEMPT,workflowRunId:process.env.WF_RUN_ID,workflowRunAttempt:process.env.WF_RUN_ATTEMPT});if(!r.ok){console.error('[C4-S2] '+r.terminal+': '+(r.reason||'')+' => ZERO_PUBLICATION');process.exit(1)}process.stdout.write(r.runId+' '+r.attempt+' '+r.source)") || { echo "::error::[C4-S2] harvest selection incomplete (manual dispatch needs BOTH run_id AND run_attempt; no latest, no default-1) => ZERO_PUBLICATION"; exit 1; }
+          export HARVEST_RUN_ID=$(echo "$SEL" | cut -d' ' -f1)
+          export HARVEST_RUN_ATTEMPT=$(echo "$SEL" | cut -d' ' -f2)
+          HARVEST_SOURCE=$(echo "$SEL" | cut -d' ' -f3)
+          echo "Resolved Harvest selection: run ${HARVEST_RUN_ID} attempt ${HARVEST_RUN_ATTEMPT} source ${HARVEST_SOURCE}"
+          # MANUAL path ONLY: re-verify the operator-named run/attempt is the EXACT successful Factory-1/4 Harvest
+          # attempt on main at THIS head (no failed/foreign/other-attempt replay). The automatic workflow_run path
+          # is already conclusion-gated ("Verify Upstream Conclusion") and workflow_run.* is authoritative.
+          if [ "$HARVEST_SOURCE" = "manual" ]; then
+            gh api "/repos/${GH_REPO}/actions/runs/${HARVEST_RUN_ID}/attempts/${HARVEST_RUN_ATTEMPT}" > /tmp/harvest-attempt.json || { echo "::error::[C4-S2] cannot read harvest run/attempt via API => ZERO_PUBLICATION"; exit 1; }
+            node --input-type=module -e "import {assertHarvestAttemptEligible} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const run=JSON.parse(fs.readFileSync('/tmp/harvest-attempt.json','utf8'));const r=assertHarvestAttemptEligible({apiRun:run,expectRunId:process.env.HARVEST_RUN_ID,expectAttempt:process.env.HARVEST_RUN_ATTEMPT,expectHeadSha:process.env.EXPECT_HEAD_SHA});if(!r.ok){console.error('[C4-S2] '+r.terminal+': '+r.reason+' => ZERO_PUBLICATION');process.exit(1)}console.log('[C4-S2] manual harvest attempt eligible: '+process.env.HARVEST_RUN_ID+'/'+process.env.HARVEST_RUN_ATTEMPT)" || { echo "::error::[C4-S2] harvest attempt ineligible (not the exact successful Harvest attempt at this head) => ZERO_PUBLICATION"; exit 1; }
           fi
-          
-          HARVEST_RUN_ID=$(echo $HARVEST_RUN_ID | tr -d '[:space:]')
           echo "run_id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Resolved Harvest ID: $HARVEST_RUN_ID"
+          echo "run_attempt=$HARVEST_RUN_ATTEMPT" >> $GITHUB_OUTPUT
+          echo "Resolved Harvest ID: $HARVEST_RUN_ID (attempt $HARVEST_RUN_ATTEMPT)"
 
   # V4.1: Prepare data from Cache (not Artifact)
   prepare-data:
@@ -148,6 +167,32 @@ jobs:
           node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-harvest/data/ data/
           node scripts/factory/r2-workflow-cli.js restore-dir state/cycle-harvest/cache/ cache/
           echo "✅ Harvest data restored from R2"
+
+      # C4 Stage-2 (D-336): STAGE-BY-STAGE tuple verify (2/4). This stage's upstream IS
+      # Harvest, so github.event.workflow_run.id (= upstream-run-id) is the producing
+      # Harvest run. Assert the immutable head-sha-scoped C4-S2 manifest was written by
+      # THAT harvest run (binding.runId). Cross-attempt / stale / missing => ZERO_PUBLICATION.
+      - name: C4 Stage-2 Producer-Tuple Verify (2/4, fail-closed)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          EXPECT_HARVEST_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          EXPECT_HARVEST_ATTEMPT: ${{ needs.check-upstream.outputs.upstream-run-attempt }}
+        run: |
+          mkdir -p state/c4-stage2
+          # D-337 Blocker 4: restore from the IMMUTABLE run/attempt/head key (no head-only overwrite).
+          node scripts/factory/r2-workflow-cli.js restore-file "state/c4-stage2/${EXPECT_HARVEST_RUN_ID}-${EXPECT_HARVEST_ATTEMPT}-${GITHUB_SHA}/exclusion-manifest.json" state/c4-stage2/manifest.json --strict
+          # Bind the manifest to THIS cascade's REAL harvest run AND ATTEMPT (workflow_run.*) + head -
+          # NOT the manifest's self-reported attempt. Any mismatch => ZERO_PUBLICATION. Then emit the tuple.
+          node --input-type=commonjs -e "const fs=require('fs');const m=require('./state/c4-stage2/manifest.json');const b=m.binding||{};const eR=process.env.EXPECT_HARVEST_RUN_ID,eA=process.env.EXPECT_HARVEST_ATTEMPT,eH=process.env.GITHUB_SHA;if(String(b.runId)!==String(eR)||String(b.attempt)!==String(eA)||String(b.headSha)!==String(eH)){console.error('[C4-S2] STAGE-VERIFY(2/4) FAIL: manifest binding {run:'+b.runId+',attempt:'+b.attempt+',head:'+b.headSha+'} != REAL harvest run/attempt/head {run:'+eR+',attempt:'+eA+',head:'+eH+'} => ZERO_PUBLICATION');process.exit(1)}fs.writeFileSync('state/c4-stage2/tuple.json',JSON.stringify({runId:b.runId,attempt:b.attempt,headSha:b.headSha}));console.log('[C4-S2] process stage-verify OK + cascade tuple emitted: run '+b.runId+' attempt '+b.attempt+' head '+b.headSha)"
+          # D-337 Blocker 4: emit the CASCADE-BOUND tuple keyed by THIS Process run id (= Aggregate's
+          # upstream). A concurrent same-head cascade has a different Process run id => different key =>
+          # it can NEVER overwrite/redirect this cascade's selector. NO head-only producer-tuple.
+          node scripts/factory/r2-workflow-cli.js upload-file state/c4-stage2/tuple.json "state/_handoff/c4-stage2/${GITHUB_RUN_ID}/tuple.json"
 
       - name: "Diagnostic: Show Workspace State"
         run: |

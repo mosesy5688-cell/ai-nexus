@@ -5,11 +5,21 @@
  * @module ingestion/adapters/datasets-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS, FetchError } from './base-adapter.js';
 import { extractSchemaInfo, extractDatasetAssets, buildDatasetMetaJson, parseDatasetId, normalizeDatasetTags } from './datasets-helpers.js';
+import { normalizeId } from '../../utils/id-normalizer.js';
+import { COMPLETE_FOR_C4_STAGE2_CANDIDATE_UNIVERSE } from '../../factory/lib/c4s2-candidate-universe.js';
 
 const HF_API_BASE = 'https://huggingface.co/api';
 const HF_RAW_BASE = 'https://huggingface.co';
+
+// C4 Stage-2 (D-335/336): RFC-5988 Link rel="next" cursor extractor (pure).
+function parseC4S2NextLink(link) {
+  if (!link) return null;
+  const seg = String(link).split(',').map(s => s.trim()).find(s => /rel="?next"?/.test(s));
+  const m = seg && seg.match(/<([^>]+)>/);
+  return m ? m[1] : null;
+}
 
 export class DatasetsAdapter extends BaseAdapter {
     constructor() {
@@ -241,6 +251,75 @@ export class DatasetsAdapter extends BaseAdapter {
     normalizeTags(tags) { return normalizeDatasetTags(tags); }
     buildMetaJson(raw) { return buildDatasetMetaJson(raw); }
     delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+    /**
+     * C4 Stage-2 (D-335/336): CANDIDATE-scoped HF DATASET source-family census. For EACH
+     * candidate owner, exhaust that owner's dataset listing via the REAL Link: rel="next"
+     * cursor to no-next-link (NO top-N truncation). Membership-only; does not alter normal
+     * harvest. COMPLETE_FOR_C4_STAGE2_CANDIDATE_UNIVERSE ONLY when EVERY owner is exhausted
+     * with no unrecovered error; ANY mid-pagination failure => INCOMPLETE (partial NEVER
+     * usable for deletion). deps.fetch/deps.delay injectable for hermetic tests. No token /
+     * cursor URL / headers in the return; emits rehearsal metrics.
+     */
+    async fetchCensusMembership(options = {}) {
+        const { authors = [], deps = {}, budgetMs = 20 * 60 * 1000, maxPagesPerOwner = 2000, max429Retries = 8 } = options;
+        const doFetch = deps.fetch || ((url) => this.fetchWithTimeout(url, { headers: this.getHeaders() }));
+        const delayFn = deps.delay || ((ms) => new Promise(r => setTimeout(r, ms)));
+        const EXPECTED_HOST = 'huggingface.co', FAMILY = '/api/datasets', TYPE = 'dataset';
+        const members = new Set(); const perOwner = {};
+        const metrics = { source: 'huggingface-datasets', candidateOwners: authors.length, pages: 0, requests: 0, rateLimited: 0, totalWaitMs: 0, startedAt: Date.now() };
+        let allExhausted = true;
+        for (const author of authors) {
+            const owner = String(author).toLowerCase();
+            const seen = new Set(); let exhausted = false, terminatedBy = null, pages = 0;
+            let url = `${HF_API_BASE}/datasets?author=${encodeURIComponent(owner)}&limit=1000`;
+            try {
+                while (url) {
+                    if (Date.now() - metrics.startedAt > budgetMs) { terminatedBy = 'budget'; break; }
+                    if (pages >= maxPagesPerOwner) { terminatedBy = 'page-guard'; break; }
+                    const u = new URL(url);
+                    if (u.protocol !== 'https:') throw new FetchError(this.sourceName, 'parse', 'census next url not https');
+                    if (u.host !== EXPECTED_HOST) throw new FetchError(this.sourceName, 'parse', 'census host jump');
+                    if (!u.pathname.startsWith(FAMILY)) throw new FetchError(this.sourceName, 'parse', 'census endpoint-family jump (models<->datasets)');
+                    if ((u.searchParams.get('author') || '').toLowerCase() !== owner) { terminatedBy = 'author-jump'; throw new FetchError(this.sourceName, 'parse', 'census author-filter jump (cursor changed owner)'); }
+                    if (seen.has(url)) { terminatedBy = 'cursor-loop'; throw new FetchError(this.sourceName, 'parse', 'census cursor loop'); }
+                    seen.add(url); // genuine loop detection: each url is added ONCE, before any 429 retry
+                    // Bounded 429 retry on the SAME url in an INNER loop that never re-enters the
+                    // cursor-loop guard; an unrecovered/over-budget 429 => not exhausted => INCOMPLETE.
+                    let resp = null, retries = 0;
+                    while (true) {
+                        if (Date.now() - metrics.startedAt > budgetMs) { terminatedBy = 'budget'; break; }
+                        resp = await doFetch(url); metrics.requests++;
+                        if (resp.status === 429) {
+                            metrics.rateLimited++;
+                            const wait = Math.min((parseInt(resp.headers.get('retry-after'), 10) || 5) * 1000, 60000);
+                            metrics.totalWaitMs += wait;
+                            if (++retries > max429Retries || metrics.totalWaitMs > budgetMs) { terminatedBy = '429-budget'; resp = null; break; }
+                            await delayFn(wait); continue;
+                        }
+                        break;
+                    }
+                    if (!resp) break;
+                    if (!resp.ok) { terminatedBy = 'http-' + resp.status; break; }
+                    let page; try { page = await resp.json(); } catch { throw new FetchError(this.sourceName, 'parse', 'census page parse'); }
+                    if (!Array.isArray(page)) throw new FetchError(this.sourceName, 'parse', 'census page not array');
+                    for (const d of page) { const raw = d && d.id; if (raw) { if (String(raw).split('/')[0].toLowerCase() !== owner) { terminatedBy = 'owner-mismatch'; throw new FetchError(this.sourceName, 'parse', 'census repo owner mismatch (foreign namespace)'); } members.add(normalizeId(raw, 'huggingface', TYPE)); } }
+                    pages++; metrics.pages++;
+                    const next = parseC4S2NextLink(resp.headers.get('link'));
+                    if (!next) { exhausted = true; terminatedBy = 'link-absent'; url = null; } else url = next;
+                }
+            } catch (e) { terminatedBy = terminatedBy || ('error:' + e.message); }
+            perOwner[owner] = { exhausted, pages, terminatedBy };
+            if (!exhausted) allExhausted = false;
+        }
+        metrics.elapsedMs = Date.now() - metrics.startedAt;
+        metrics.peakRssMb = Math.round(process.memoryUsage().rss / 1048576);
+        metrics.unfinishedOwners = Object.values(perOwner).filter(o => !o.exhausted).length;
+        metrics.memberCount = members.size;
+        metrics.withinBudget = metrics.elapsedMs <= budgetMs;
+        console.log(`[C4-S2][census][datasets] owners=${authors.length} pages=${metrics.pages} req=${metrics.requests} 429=${metrics.rateLimited} wait=${metrics.totalWaitMs}ms elapsed=${metrics.elapsedMs}ms rss=${metrics.peakRssMb}MB members=${members.size} unfinished=${metrics.unfinishedOwners} exhausted=${allExhausted}`);
+        return { members: Array.from(members).sort(), perOwner, completeness: allExhausted ? COMPLETE_FOR_C4_STAGE2_CANDIDATE_UNIVERSE : 'INCOMPLETE', allExhausted, metrics };
+    }
 }
 
 export default DatasetsAdapter;

@@ -1,8 +1,6 @@
 /**
- * Single-Source Harvester V22.2 (Industrial Stability Edition)
- * 
- * V22.1: Reverted matrix sharding for stability. 4-job parallel core.
- * V22.2: Added buffer water-level logging and Kaggle CLI stability fixes.
+ * Single-Source Harvester V22.2 (Industrial Stability Edition). 4-job parallel core;
+ * streaming NDJSON ingestion (OOM protection). + C4 Stage-2 candidate-scoped census mode.
  */
 
 import fs from 'node:fs';
@@ -13,6 +11,7 @@ import { shardNDJSON } from './ndjson-sharder.js';
 import { RateLimitExceededError, FetchError } from './adapters/base-adapter.js';
 import { evaluateFloorGate } from './harvest-floors.js';
 import { emitTerminalState, deriveSuccessStatus, STATUS, TIMEOUT_KIND } from './harvest-state.js';
+import { buildAuthorityArtifact, AUTHORITY_ROLE } from '../factory/lib/c4s2-candidate-universe.js';
 
 const OUTPUT_DIR = 'data';
 
@@ -54,12 +53,10 @@ export async function harvestSingle(sourceName, options = {}) {
                     const norm = adapter.normalize(rawBatch[i]);
 
                     if (norm) {
-                        // V22.3: LOSSLESS capture. Truncation is FORBIDDEN here.
-                        // V22.3: Implement Backpressure (OOM Protection for write buffer)
+                        // V22.3: LOSSLESS capture (truncation FORBIDDEN) + write backpressure.
                         const canWrite = writeStream.write(JSON.stringify(norm) + '\n');
 
                         if (!canWrite) {
-                            // High water mark reached, wait for drain
                             await new Promise(resolve => writeStream.once('drain', resolve));
                         }
 
@@ -80,28 +77,16 @@ export async function harvestSingle(sourceName, options = {}) {
             }
         };
 
-        // V28 (PR-D): intentionally NO `registryManager` here. The adapters' V22.4
-        // "incremental skip-unchanged" branches were dead anyway — they read
-        // `registryManager.registry?.entities`, a property the real (SQLite-backed)
-        // RegistryManager never exposes, so the optional chain always short-circuited
-        // and nothing was ever skipped. Re-enabling is NOT data-safe in this streaming
-        // harvester: (1) it would require materializing the full prior registry into
-        // memory, violating the O(1)-memory streaming design this file exists for; and
-        // (2) on skip there is no registry to re-emit the unchanged entity into here, so
-        // a skip would DROP the entity from the NDJSON output (data loss). Per the
-        // data-safety constraint we accept the full re-fetch cost and do NOT plumb a
-        // registryManager. The dead skip branches were removed from the adapters.
+        // V28 (PR-D): intentionally NO registryManager here (dead skip branch; O(1)
+        // streaming design; skip would drop entities = data loss). Full re-fetch accepted.
         const fetchOptions = {
             limit,
             onBatch: processBatch
         };
 
-        // H1 (fail loud): carries a hard fetch/abort/parse failure out of the
-        // inner catch so the final return can set result.error and trip the
-        // exit gate (main() → process.exit(1)). A RateLimitExceededError
-        // early-finish deliberately does NOT set this (CI-throughput tolerance,
-        // stays success), and a genuinely-empty [] never throws, so it stays
-        // success too. Only ERROR-caused emptiness becomes a hard failure.
+        // H1 (fail loud): carries a hard fetch/abort/parse failure out so the final
+        // return sets result.error + trips the exit gate. RateLimitExceededError
+        // early-finish and a genuinely-empty [] stay success; only ERROR-emptiness fails.
         let fetchHardError = null;
         // H2c: terminal-state signals (sidecar-only, never alter exit code).
         let rateLimited = false;        // RateLimitExceededError early-finish
@@ -152,15 +137,9 @@ export async function harvestSingle(sourceName, options = {}) {
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
         }
 
-        // PR-H2a (fail loud): KNOWN-LARGE-SOURCE FLOOR GATE. This gate lives
-        // ABOVE the adapters: the catch-and-return-empty HF adapters never set
-        // result.error, so a real outage would otherwise launder into a green
-        // "Complete | Total: 0". For sources we KNOW are large, a completed
-        // harvest (no adapter error — hadAdapterError=false here, the fetchHardError
-        // path already returned above so we never double-report) whose final
-        // unique-entity count falls below the conservative per-source floor is a
-        // zero/near-zero with no valid-zero proof. Reject it loudly. Sources not
-        // in the floor map are unaffected (small-source tolerance).
+        // PR-H2a (fail loud): KNOWN-LARGE-SOURCE FLOOR GATE (above the adapters). A
+        // completed harvest whose unique count falls below the per-source floor is a
+        // zero/near-zero without valid-zero proof; reject it loudly. Small sources exempt.
         const gate = evaluateFloorGate({ sourceName, count: results.total, hadAdapterError: false });
         if (gate.violated) {
             console.error(`\n❌ HARVEST FLOOR VIOLATION: ${sourceName} yielded ${results.total} < floor ${gate.floor} — known-large source zero/near-zero without valid-zero proof`);
@@ -197,11 +176,32 @@ export async function harvestSingle(sourceName, options = {}) {
     }
 }
 
+// C4 Stage-2 (D-335/336): CANDIDATE-scoped census (request-only). Reads the frozen
+// universe owners (reconciler `freeze`), exhausts EACH owner's model + dataset listing via
+// the adapters' real Link-cursor pagination, writes the dual-source authority artifacts
+// (members + tuple + per-owner completeness + universe-hash + metrics). Partial NEVER
+// usable for deletion: an owner not exhausted => that authority INCOMPLETE => ZERO_PUBLICATION.
+async function c4s2Census() {
+    const universe = JSON.parse(fs.readFileSync('data/state/c4-stage2/universe.json', 'utf8'));
+    const owners = universe.owners || [];
+    const { default: HuggingFaceAdapter } = await import('./adapters/huggingface-adapter.js');
+    const { default: DatasetsAdapter } = await import('./adapters/datasets-adapter.js');
+    const model = await new HuggingFaceAdapter().fetchCensusMembership({ authors: owners });
+    const dataset = await new DatasetsAdapter().fetchCensusMembership({ authors: owners });
+    // D-337 Blocker 3: authority-artifact producer = PURE helper (same memberHash the validator recomputes).
+    const art = (role, res) => ({ ...buildAuthorityArtifact({ members: res.members, role, runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT, headSha: process.env.GITHUB_SHA, universeHash: universe.universeHash, generatedAtUtc: new Date().toISOString(), completeness: res.completeness }), metrics: res.metrics });
+    fs.mkdirSync('data/state/c4-stage2', { recursive: true });
+    fs.writeFileSync('data/state/c4-stage2/model-authority.json', JSON.stringify(art(AUTHORITY_ROLE.MODEL, model)));
+    fs.writeFileSync('data/state/c4-stage2/dataset-authority.json', JSON.stringify(art(AUTHORITY_ROLE.DATASET, dataset)));
+    console.log(`[C4-S2] census: owners=${owners.length} model=${model.members.length}(${model.completeness}) dataset=${dataset.members.length}(${dataset.completeness})`);
+}
+
 /**
  * CLI Entry Point
  */
 async function main() {
     const args = process.argv.slice(2);
+    if (args[0] === 'c4s2-census') { await c4s2Census(); return; } // D-335/336 candidate-scoped census mode
     let sourceName = null;
     let limit = 10000;
     let chunkSize = 500;

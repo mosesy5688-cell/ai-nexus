@@ -1,11 +1,10 @@
 /**
- * Master Fusion Orchestrator V26.8 — Late-Binding FNI & Closed-World Integrity.
- * Zero double-read enrichment: Phase 1 captures shard→IDs, Phase 3 builds global
- * entity→R2 mapping, Phase 4 downloads per-shard O(1) disk. W3-O1: parse-attrition.
+ * Master Fusion Orchestrator V26.8 - Late-Binding FNI + Closed-World Integrity. Zero
+ * double-read enrichment (shard->IDs / entity->R2, per-shard O(1) disk); W3-O1 parse-attrition.
  */
-
 import fs from 'fs/promises';
 import path from 'path';
+import { exclusionIdSet } from './lib/hf-phantom-reconciler.js';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, downloadBufferFromR2FFI } from './lib/r2-bridge.js';
 import { zstdCompress } from './lib/zstd-helper.js';
 import { initRustBridge, fuseShardFFI, parseAccountingCapability } from './lib/rust-bridge.js';
@@ -26,10 +25,8 @@ async function main() {
     console.log('[FUSION V26.8] Starting Mesh Fusion...');
     initRustBridge();
 
-    // Phase 1: Build Valid ID Set + Shard→IDs index (single read, no double-read in Phase 4)
-    // CUT #2 (legal-resilience L1): capture id→type so Phase 4 applies the type-aware
-    // store policy when writing enrichment — else 4/4 RE-INJECTS full paper text from
-    // enrichment/fulltext + cold/shard, clobbering #2157's abstract-only adapter.
+    // Phase 1: Build Valid ID Set + Shard->IDs index (single read, no double-read in Phase 4).
+    // CUT #2 (legal-resilience L1): capture id->type so Phase 4 applies the type-aware store policy (else 4/4 re-injects full paper text, clobbering #2157's abstract-only adapter).
     const allValidIds = new Set();
     const entityTypeMap = new Map(); // entity_id → type (for content-policy gating)
     const shardEntityIds = new Map(); // shardIdx → [entity_id, ...]
@@ -39,6 +36,8 @@ async function main() {
         shardEntityIds.set(shardIdx, ids);
     }, { slim: true });
     console.log(`  [OK] ${allValidIds.size} valid entities across ${shardEntityIds.size} shards`);
+    // C4 Stage-2 (D-333): narrow set-difference - drop ONLY proven cross-type phantoms. Manifest is verified present+bound(+complete for any removal) by the PRE-fusion gate; registry untouched. HARD-FAIL if SET but unreadable (no silent fail-open).
+    { const _ex = process.env.C4S2_EXCLUSION_MANIFEST; let _d = 0; if (_ex) { const _mf = JSON.parse(await fs.readFile(_ex, 'utf-8')); for (const id of exclusionIdSet(_mf)) { if (allValidIds.delete(id)) _d++; } console.log(`  [C4-S2] Excluded ${_d} proven cross-type phantom(s); manifest publishable=${_mf.publishable} authority_complete=${_mf.authority_complete}.`); } }
 
     // P1-4: pass valid IDs as JSON string directly to Rust (no intermediate file)
     await fs.mkdir(CONFIG.OUTPUT_DIR, { recursive: true });
