@@ -737,6 +737,9 @@
           "version": { "type": "string", "example": "fni_v2.0" },
           "status": { "type": "string", "example": "ok" },
           "timestamp": { "type": "string", "format": "date-time" },
+          "served_build_id": { "type": "string", "nullable": true, "description": "P1b freshness signal: build_id of the served shards manifest for this cycle (null when the manifest carries no build_id token). The external reliability probe compares this against the public id-index header build_id for index<->manifest coherence.", "example": "run-29497071238" },
+          "manifest_etag": { "type": "string", "nullable": true, "description": "P1b: ETag of the served shards manifest (null if unavailable)." },
+          "manifest_state": { "type": "string", "enum": ["loaded", "fallback", "unavailable"], "description": "P1b: manifest load state — 'loaded' (real manifest resolved), 'fallback' (loadManifest hit its fallback path), or 'unavailable' (manifest could not be resolved). Sourced from the already-loaded small manifest; Health never force-loads the ~26MB id-index." },
           "vfs": {
             "type": "object",
             "description": "Per-isolate R2 VFS counters. Cache hit ratios are derived client-side: l0_hit_ratio = l0_hits / jread_total; l1_hit_ratio = l1_hits / (jread_total - l0_hits); short_read_rate = short_read_attempts / l2_fetches.",
