@@ -195,6 +195,28 @@ jobs:
             echo "⚠️ No harvest shards in cache."
           fi
 
+      # C4 Stage-2 (D-337 Blocker 4): STAGE-BY-STAGE cascade-bound verify (3/4). Restore the
+      # CASCADE-BOUND tuple keyed by THIS cascade's upstream (Process run id) - a concurrent
+      # same-head cascade wrote a DIFFERENT key and cannot redirect us - resolve+verify the
+      # manifest, then RE-EMIT the tuple keyed by THIS Aggregate run id (= Upload's upstream).
+      - name: C4 Stage-2 Cascade-Bound Verify (3/4, fail-closed)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_SHA: ${{ github.sha }}
+          UP: ${{ needs.check-upstream.outputs.process-id }}
+          AGG_RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p state/c4-stage2
+          node scripts/factory/r2-workflow-cli.js restore-file "state/_handoff/c4-stage2/${UP}/tuple.json" state/c4-stage2/tuple.json --strict
+          # Pure resolver (helper): per-hop key selection (un-overwritable) + head-match + manifest-key derivation.
+          MREF=$(node --input-type=module -e "import {resolveCascadeTuple,cascadeTupleKey} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const up=process.env.UP,h=process.env.GITHUB_SHA;const s={[cascadeTupleKey(up)]:JSON.parse(fs.readFileSync('state/c4-stage2/tuple.json','utf8'))};const r=resolveCascadeTuple({store:s,upstreamRunId:up,headSha:h});if(!r.ok){console.error('[C4-S2] '+r.reason+' => ZERO_PUBLICATION');process.exit(1)}process.stdout.write(r.manifestKey)")
+          node scripts/factory/r2-workflow-cli.js restore-file "state/c4-stage2/${MREF}/exclusion-manifest.json" state/c4-stage2/manifest.json --strict
+          node --input-type=commonjs -e "const m=require('./state/c4-stage2/manifest.json');const t=require('./state/c4-stage2/tuple.json');const b=m.binding||{};if(String(b.runId)!==String(t.runId)||String(b.attempt)!==String(t.attempt)||String(b.headSha)!==String(process.env.GITHUB_SHA)){console.error('[C4-S2] STAGE-VERIFY(3/4) FAIL: manifest binding {run:'+b.runId+',attempt:'+b.attempt+',head:'+b.headSha+'} != CASCADE-BOUND tuple {run:'+t.runId+',attempt:'+t.attempt+'} / current head '+process.env.GITHUB_SHA+' => ZERO_PUBLICATION');process.exit(1)}console.log('[C4-S2] aggregate stage-verify OK (cascade-bound): run '+t.runId+' attempt '+t.attempt+' head '+b.headSha)"
+          node scripts/factory/r2-workflow-cli.js upload-file state/c4-stage2/tuple.json "state/_handoff/c4-stage2/${AGG_RUN_ID}/tuple.json"
+
       # V26.9: R2 fallback for registry when harvest cache misses (e.g. re-run 3/4 only)
       - name: R2 Registry Fallback
         if: ${{ !cancelled() }}

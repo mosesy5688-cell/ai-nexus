@@ -7,8 +7,8 @@
  * @module ingestion/adapters/hf-normalizer
  */
 
-import { parseModelId, inferType, normalizeTags, buildMetaJson, detectGGUF, extractAssets } from './hf-utils.js';
-import { extractBaseModel, extractDatasetsUsed, extractArxivRefs } from './hf-relation-extractors.js';
+import { parseModelId, normalizeTags, buildMetaJson, detectGGUF, extractAssets } from './hf-utils.js';
+import { extractBaseModel, extractDatasetsUsed, extractArxivRefs, modelSourceEntityType, sourceTypeDiagnostic } from './hf-relation-extractors.js';
 
 /**
  * Normalize raw HuggingFace model to UnifiedEntity
@@ -26,7 +26,14 @@ export function normalizeModel(raw, adapter) {
     const entity = {
         // Identity
         id: adapter.generateId(author, name),
-        type: inferType(raw),
+        // C4 Stage-2 (D-333): source-family-authoritative identity type. Was
+        // `inferType(raw)`, which let cardData.datasets mint an hf-dataset-- phantom
+        // over a real model. modelSourceEntityType() is 'model' (or the preserved
+        // legacy 'tool' sub-classification), NEVER 'dataset'.
+        type: modelSourceEntityType(raw),
+        // Immutable INTERNAL source-family provenance (D-333 SA/S6). MUST NOT be
+        // surfaced as a public REST/MCP/SDK/OpenAPI/FNI/ranking/packed field.
+        source_entity_type: 'model',
         source: 'huggingface',
         source_url: `https://huggingface.co/${modelId}`,
 
@@ -67,6 +74,12 @@ export function normalizeModel(raw, adapter) {
 
         // Relations (discovered later)
         relations: [],
+
+        // C4 Stage-2 (D-333): INTERNAL informational source-family/inferred-type
+        // diagnostic (underscore-internal; dropped by slim projection + never read
+        // by the packed row-builder, so it stays off every public surface). Records
+        // the model<->dataset (demoted) and out-of-scope model<->tool disagreements.
+        _source_type_diagnostic: sourceTypeDiagnostic(raw),
 
         // System fields (calculated)
         content_hash: null,

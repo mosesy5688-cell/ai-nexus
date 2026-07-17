@@ -15,7 +15,7 @@ import { once } from 'events';
 import { mergeEntities } from './lib/entity-merger.js';
 import { zstdCompress, createZstdCompressStream } from '../factory/lib/zstd-helper.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
-import { RegistryManager } from '../factory/lib/registry-manager.js';
+import { RegistryManager, resolveIdentityType } from '../factory/lib/registry-manager.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { cleanAbstract } from '../factory/lib/abstract-cleaner.js';
@@ -185,9 +185,9 @@ async function mergeBatches() {
     const iterator = registryManager.getStreamingIterator('id ASC');
     for (const entity of iterator) {
         const oldId = entity.id;
-        const source = entity.source || getNodeSource(oldId, entity.type);
-        const newId = normalizeId(oldId, source, entity.type);
-        const scrubbed = { ...entity, id: newId };
+        const source = entity.source || getNodeSource(oldId, resolveIdentityType(entity)); // C4-S2 D-333: mint from immutable source-family identity, not demoted inferType
+        const newId = normalizeId(oldId, source, resolveIdentityType(entity));
+        const scrubbed = { ...entity, id: newId }; // source_entity_type carried via spread (internal only)
         attachSpaceDemo(scrubbed, spaceDemoMap); // #2142: fold space demo onto the model it USES
 
         const body = scrubbed.body_content || scrubbed.readme || scrubbed.content || ''; // CUT #3: raw feeds cleanAbstract

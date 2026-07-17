@@ -32,6 +32,11 @@ on:
         description: 'WO-3-B1 PR-B1A: Run ATTEMPT of source_run_id to recover from (REQUIRED with skip_harvest; caches are attempt-scoped, no prefix guess)'
         required: false
         type: string
+      c4s2_census:
+        description: 'C4 Stage-2: REQUEST the candidate-universe dual-source census (opt-in; only run where per-owner Link-cursor exhaustion is achievable). Empty/false on cron => Stage-2 dormant.'
+        required: false
+        type: string
+        default: ''
 
 concurrency:
   group: factory-harvest
@@ -775,6 +780,47 @@ jobs:
             echo "❌ Error: manifest.json not generated"
             exit 1
           fi
+
+      # ========================================================
+      # C4 Stage-2 (D-333/335/336): CANDIDATE-UNIVERSE attempt-bound reconciliation.
+      # (1) FREEZE a CLOSED candidate universe from the carried registry (PURE helper:
+      # HF model<->dataset collisions + type-mismatch rows; deterministic member + universe
+      # hash; owners; run/attempt/head tuple). (2) Census is a REQUEST: when requested,
+      # exhaust EACH candidate owner's model+dataset listing via the adapters' real
+      # Link: rel="next" cursor (completeness=COMPLETE_FOR_C4_STAGE2_CANDIDATE_UNIVERSE
+      # ONLY when every owner is exhausted; NO env forges completeness); else write DORMANT
+      # authorities. (3) Classify (explicit 3-way). (4) Persist the IMMUTABLE head-sha-scoped
+      # manifest (fail-closed). Upload verifies run/attempt tuple + drift; deletion NEVER
+      # uses partial results. Registry left append-only.
+      # ========================================================
+      - name: C4 Stage-2 Candidate-Universe Freeze + Reconciliation
+        env:
+          CACHE_DIR: ./cache
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_SHA: ${{ github.sha }}
+          C4S2_AUTHORITY_CENSUS: ${{ github.event.inputs.c4s2_census }}
+        run: |
+          mkdir -p data/state/c4-stage2
+          # (1) FREEZE the closed candidate universe from the carried registry (pure helper).
+          node scripts/factory/lib/hf-phantom-reconciler.js freeze data/state/c4-stage2/universe.json
+          # (2) Dual-source per-owner census ONLY when requested; else DORMANT authorities.
+          if [ "${C4S2_AUTHORITY_CENSUS}" = "true" ]; then
+            node scripts/ingestion/harvest-single.js c4s2-census
+          else
+            node --input-type=commonjs -e "const fs=require('fs');const u=JSON.parse(fs.readFileSync('data/state/c4-stage2/universe.json'));const t=r=>({runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,headSha:process.env.GITHUB_SHA,sourceRole:r,authoritySetHash:'dormant',completeness:'INCOMPLETE',generatedAtUtc:new Date().toISOString(),memberCount:0,universeHash:u.universeHash});for(const [f,r] of [['model','huggingface'],['dataset','academic']])fs.writeFileSync('data/state/c4-stage2/'+f+'-authority.json',JSON.stringify({members:[],tuple:t(r)}))"
+          fi
+          # (3) Classify (three-way; census flag flows via the frozen universe artifact).
+          node scripts/factory/lib/hf-phantom-reconciler.js classify data/state/c4-stage2/model-authority.json data/state/c4-stage2/dataset-authority.json data/state/c4-stage2/universe.json data/state/c4-stage2/exclusion-manifest.json
+          # (4) Persist the IMMUTABLE run/attempt/head-scoped manifest (D-337 Blocker 4: a retry
+          # or a different cascade on the SAME head writes a DIFFERENT path => no overwrite/replay).
+          node scripts/factory/r2-workflow-cli.js upload-file data/state/c4-stage2/exclusion-manifest.json "state/c4-stage2/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA}/exclusion-manifest.json"
 
       # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       - name: Save Entity Data to Cache

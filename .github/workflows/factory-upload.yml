@@ -497,6 +497,33 @@ jobs:
             echo "skip_compute=false" >> "$GITHUB_OUTPUT"
             echo "[V27.52] ${FUSED_COUNT} fused shards present (need ≥400 + .complete sentinel) → fresh Fusion"
           fi
+      # C4 Stage-2 (D-337 Blocker 5): a census-requested run must NEVER reuse the fused cache -
+      # that would SKIP the PRE/POST exclusion-manifest + drift + residual + count gates. If the
+      # manifest is census-requested AND the fused cache would be reused => fail closed
+      # (ZERO_PUBLICATION). The gates are UNSKIPPABLE on census (dormant cache-reuse still fine).
+      - name: C4 Stage-2 Census Cannot Skip Gates (fail-closed)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_SHA: ${{ github.sha }}
+          UP: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          SKIP_COMPUTE: ${{ steps.detect-fused.outputs.skip_compute }}
+        run: |
+          mkdir -p output/cache/c4-stage2
+          # D-338 Blocker 1: the cascade tuple MUST resolve. A missing/unreadable tuple (R2 flake / corrupt /
+          # absent) is a BROKEN cascade => ZERO_PUBLICATION - the OLD `if ! restore ... exit 0` was a reachable
+          # fail-open that skipped the PRE/POST exclusion+drift+count gates when skip_compute=true (D-337 Bl5 hole).
+          node scripts/factory/r2-workflow-cli.js restore-file "state/_handoff/c4-stage2/${UP}/tuple.json" output/cache/c4-stage2/tuple.json --strict || { echo "::error::[C4-S2] cascade tuple absent/unreadable => ZERO_PUBLICATION"; exit 1; }
+          # A foreign/malformed tuple must ALSO fail the step (command substitution does NOT abort by default):
+          # JSON.parse throws (=> non-zero) or resolveCascadeTuple returns ok:false (=> the node script exit 1).
+          MREF=$(node --input-type=module -e "import {resolveCascadeTuple,cascadeTupleKey} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const up=process.env.UP,h=process.env.GITHUB_SHA;const s={[cascadeTupleKey(up)]:JSON.parse(fs.readFileSync('output/cache/c4-stage2/tuple.json','utf8'))};const r=resolveCascadeTuple({store:s,upstreamRunId:up,headSha:h});if(!r.ok){console.error('[C4-S2] '+(r.terminal||r.reason)+' => ZERO_PUBLICATION');process.exit(1)}process.stdout.write(r.manifestKey)") || { echo "::error::[C4-S2] cascade tuple foreign/unreadable => ZERO_PUBLICATION"; exit 1; }
+          [ -n "$MREF" ] || { echo "::error::[C4-S2] empty manifest key => ZERO_PUBLICATION"; exit 1; }
+          node scripts/factory/r2-workflow-cli.js restore-file "state/c4-stage2/${MREF}/exclusion-manifest.json" output/cache/c4-stage2/exclusion-manifest.json --strict
+          # Dormant-vs-census decided by the PURE censusSkipGuardVerdict on the restored+validated tuple+manifest
+          # (behaviorally testable). census-requested + fused-cache reuse => PRE/POST gates skipped => fail-closed.
+          node --input-type=module -e "import {resolveCascadeTuple,cascadeTupleKey,censusSkipGuardVerdict} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const up=process.env.UP,h=process.env.GITHUB_SHA;const s={[cascadeTupleKey(up)]:JSON.parse(fs.readFileSync('output/cache/c4-stage2/tuple.json','utf8'))};const resolve=resolveCascadeTuple({store:s,upstreamRunId:up,headSha:h});const manifest=JSON.parse(fs.readFileSync('output/cache/c4-stage2/exclusion-manifest.json','utf8'));const v=censusSkipGuardVerdict({resolve,manifest,skipCompute:process.env.SKIP_COMPUTE==='true'});if(v.terminal){console.error('::error::[C4-S2] census-requested run would REUSE the fused cache (PRE/POST gates skipped) OR dormant manifest invalid => '+v.terminal+(v.reason?' ('+v.reason+')':'')+' ZERO_PUBLICATION. Re-run fresh (force_fresh).');process.exit(1)}console.log('[C4-S2] census-skip guard OK (skip_compute='+process.env.SKIP_COMPUTE+' dormant='+v.dormant+')')" || { echo "::error::[C4-S2] census-skip guard fatal => ZERO_PUBLICATION"; exit 1; }
       # D-297 (PR-B): FAIL-CLOSED capacity preflight BEFORE Master Fusion. Mirrors the
       # SAME skip guard so it runs only when Fusion will actually compute. master-fusion.js
       # loads the aligned registry .bin shards + enrichment-local into memory and re-writes
@@ -508,11 +535,46 @@ jobs:
         env:
           CAPACITY_OLD_SPACE_MB: '8192'  # mirror the Master Fusion step's --max-old-space-size for the coarse memory guard
         run: node scripts/factory/lib/runner-capacity-preflight.mjs UPLOAD_MASTER_FUSION
+      # C4 Stage-2 (D-333/336): PRE-fusion FAIL-CLOSED gate. Restore the IMMUTABLE
+      # head-sha-scoped exclusion manifest + the THREADED producer tuple (run/attempt bound
+      # by Process to the exact harvest run and carried through Aggregate). verify-pre
+      # enforces the full run+attempt+head triple anti-replay (only when the manifest carries
+      # removals). --strict makes an R2 miss fail closed. Cross-head/attempt/stale or
+      # unpublishable manifest => ZERO_PUBLICATION (fail before any fused artifact).
+      - name: C4 Stage-2 PRE-fusion Gate (fail-closed)
+        if: steps.detect-fused.outputs.skip_compute != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_SHA: ${{ github.sha }}
+          C4S2_EXPECT_HEAD: ${{ github.sha }}
+          UP: ${{ needs.check-upstream.outputs.upstream-run-id }}
+        run: |
+          mkdir -p output/cache/c4-stage2
+          # D-337 Blocker 4: restore the CASCADE-BOUND tuple keyed by THIS cascade's upstream (Aggregate
+          # run id). A concurrent same-head cascade wrote a DIFFERENT key => it can NOT redirect the manifest.
+          node scripts/factory/r2-workflow-cli.js restore-file "state/_handoff/c4-stage2/${UP}/tuple.json" output/cache/c4-stage2/tuple.json --strict
+          # THREADED anti-replay: the exact harvest run/attempt (cascade-bound, NOT head-keyed / gh-run-list-latest).
+          export C4S2_EXPECT_RUN_ID="$(node -e "process.stdout.write(String(require('./output/cache/c4-stage2/tuple.json').runId))")"
+          export C4S2_EXPECT_ATTEMPT="$(node -e "process.stdout.write(String(require('./output/cache/c4-stage2/tuple.json').attempt))")"
+          # Pure resolver (helper): per-hop selection (un-overwritable) + head-match + IMMUTABLE manifest key.
+          # D-338: harden the command substitution - a foreign/malformed tuple (resolve ok:false OR JSON.parse throw)
+          # must FAIL the step (command substitution does NOT abort by default), and an empty key => fail-closed.
+          MREF=$(node --input-type=module -e "import {resolveCascadeTuple,cascadeTupleKey} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const up=process.env.UP,h=process.env.GITHUB_SHA;const s={[cascadeTupleKey(up)]:JSON.parse(fs.readFileSync('output/cache/c4-stage2/tuple.json','utf8'))};const r=resolveCascadeTuple({store:s,upstreamRunId:up,headSha:h});if(!r.ok){console.error('[C4-S2] '+(r.terminal||r.reason)+' => ZERO_PUBLICATION');process.exit(1)}process.stdout.write(r.manifestKey)") || { echo "::error::[C4-S2] cascade tuple foreign/unreadable => ZERO_PUBLICATION"; exit 1; }
+          [ -n "$MREF" ] || { echo "::error::[C4-S2] empty manifest key => ZERO_PUBLICATION"; exit 1; }
+          node scripts/factory/r2-workflow-cli.js restore-file "state/c4-stage2/${MREF}/exclusion-manifest.json" output/cache/c4-stage2/exclusion-manifest.json --strict
+          echo "[C4-S2] cascade-bound anti-replay expected: run ${C4S2_EXPECT_RUN_ID} attempt ${C4S2_EXPECT_ATTEMPT} head ${GITHUB_SHA}"
+          node scripts/factory/lib/hf-phantom-reconciler.js verify-pre output/cache/c4-stage2/exclusion-manifest.json
       - name: Execute Master Fusion
         if: steps.detect-fused.outputs.skip_compute != 'true'
         env:
           CACHE_DIR: ./output/cache
           ARTIFACT_DIR: ./output/cache/registry
+          # C4 Stage-2 (D-333): master-fusion applies the verified exclusion manifest as
+          # a narrow allValidIds set-difference (proven cross-type phantoms only).
+          C4S2_EXCLUSION_MANIFEST: ./output/cache/c4-stage2/exclusion-manifest.json
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
@@ -1142,6 +1204,51 @@ jobs:
           mkdir -p output/meta
           printf '%s' "$VFS_PACK_CODE_VERSION" > output/meta/vfs-pack-code-version.txt
           echo "[STAGE-B] wrote pack-code sentinel: $(cat output/meta/vfs-pack-code-version.txt)"
+      # C4 Stage-2 (Founder D-2026-0714-333): POST-pack FAIL-CLOSED gate. Assert NO proven
+      # cross-type phantom survived into the packed meta-NN.db set AND the count contract
+      # holds (removed == removal-ledger members; valid_id_changed=0; valid_umid_changed=0;
+      # stale_record_removed=0). Any residual/drift => ZERO_PUBLICATION (fail before publish).
+      # C4 Stage-2 (D-337 Blocker 5): a census-requested run must NEVER reuse the pack cache
+      # (that would SKIP the POST-pack residual/drift/count gate) => fail closed. Unskippable on census.
+      - name: C4 Stage-2 Census Cannot Skip POST-pack (fail-closed)
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_SHA: ${{ github.sha }}
+          UP: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          SKIP_COMPUTE: ${{ steps.detect-vfs-pack.outputs.skip_compute }}
+        run: |
+          mkdir -p output/cache/c4-stage2
+          # D-338 Blocker 1: the cascade tuple MUST resolve. A missing/unreadable tuple is a BROKEN cascade =>
+          # ZERO_PUBLICATION - the OLD `if ! restore ... exit 0` was a reachable fail-open that skipped the
+          # POST-pack residual/drift/count gate when skip_compute=true (D-337 Bl5 hole).
+          node scripts/factory/r2-workflow-cli.js restore-file "state/_handoff/c4-stage2/${UP}/tuple.json" output/cache/c4-stage2/tuple.json --strict || { echo "::error::[C4-S2] cascade tuple absent/unreadable => ZERO_PUBLICATION"; exit 1; }
+          # A foreign/malformed tuple must ALSO fail the step (command substitution does NOT abort by default).
+          MREF=$(node --input-type=module -e "import {resolveCascadeTuple,cascadeTupleKey} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const up=process.env.UP,h=process.env.GITHUB_SHA;const s={[cascadeTupleKey(up)]:JSON.parse(fs.readFileSync('output/cache/c4-stage2/tuple.json','utf8'))};const r=resolveCascadeTuple({store:s,upstreamRunId:up,headSha:h});if(!r.ok){console.error('[C4-S2] '+(r.terminal||r.reason)+' => ZERO_PUBLICATION');process.exit(1)}process.stdout.write(r.manifestKey)") || { echo "::error::[C4-S2] cascade tuple foreign/unreadable => ZERO_PUBLICATION"; exit 1; }
+          [ -n "$MREF" ] || { echo "::error::[C4-S2] empty manifest key => ZERO_PUBLICATION"; exit 1; }
+          node scripts/factory/r2-workflow-cli.js restore-file "state/c4-stage2/${MREF}/exclusion-manifest.json" output/cache/c4-stage2/exclusion-manifest.json --strict
+          # Dormant-vs-census decided by the PURE censusSkipGuardVerdict; census + pack-cache reuse => POST-pack gate skipped => fail-closed.
+          node --input-type=module -e "import {resolveCascadeTuple,cascadeTupleKey,censusSkipGuardVerdict} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const up=process.env.UP,h=process.env.GITHUB_SHA;const s={[cascadeTupleKey(up)]:JSON.parse(fs.readFileSync('output/cache/c4-stage2/tuple.json','utf8'))};const resolve=resolveCascadeTuple({store:s,upstreamRunId:up,headSha:h});const manifest=JSON.parse(fs.readFileSync('output/cache/c4-stage2/exclusion-manifest.json','utf8'));const v=censusSkipGuardVerdict({resolve,manifest,skipCompute:process.env.SKIP_COMPUTE==='true'});if(v.terminal){console.error('::error::[C4-S2] census-requested run would REUSE the pack cache (POST-pack gate skipped) OR dormant manifest invalid => '+v.terminal+(v.reason?' ('+v.reason+')':'')+' ZERO_PUBLICATION. Re-run fresh (force_fresh).');process.exit(1)}console.log('[C4-S2] census POST-pack-skip guard OK (skip_compute='+process.env.SKIP_COMPUTE+' dormant='+v.dormant+')')" || { echo "::error::[C4-S2] census POST-pack-skip guard fatal => ZERO_PUBLICATION"; exit 1; }
+      - name: C4 Stage-2 POST-pack Gate (fail-closed)
+        if: steps.detect-vfs-pack.outputs.skip_compute != 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_SHA: ${{ github.sha }}
+          UP: ${{ needs.check-upstream.outputs.upstream-run-id }}
+        run: |
+          mkdir -p output/cache/c4-stage2
+          # D-337 Blocker 4: cascade-bound tuple keyed by THIS cascade's upstream (un-overwritable) -> IMMUTABLE manifest key.
+          node scripts/factory/r2-workflow-cli.js restore-file "state/_handoff/c4-stage2/${UP}/tuple.json" output/cache/c4-stage2/tuple.json --strict
+          # D-338: harden the command substitution - foreign/malformed tuple or empty key => fail-closed (defense-in-depth).
+          MREF=$(node --input-type=module -e "import {resolveCascadeTuple,cascadeTupleKey} from './scripts/factory/lib/c4s2-candidate-universe.js';import fs from 'fs';const up=process.env.UP,h=process.env.GITHUB_SHA;const s={[cascadeTupleKey(up)]:JSON.parse(fs.readFileSync('output/cache/c4-stage2/tuple.json','utf8'))};const r=resolveCascadeTuple({store:s,upstreamRunId:up,headSha:h});if(!r.ok){console.error('[C4-S2] '+(r.terminal||r.reason)+' => ZERO_PUBLICATION');process.exit(1)}process.stdout.write(r.manifestKey)") || { echo "::error::[C4-S2] cascade tuple foreign/unreadable => ZERO_PUBLICATION"; exit 1; }
+          [ -n "$MREF" ] || { echo "::error::[C4-S2] empty manifest key => ZERO_PUBLICATION"; exit 1; }
+          node scripts/factory/r2-workflow-cli.js restore-file "state/c4-stage2/${MREF}/exclusion-manifest.json" output/cache/c4-stage2/exclusion-manifest.json --strict
+          node scripts/factory/lib/hf-phantom-reconciler.js verify-post output/cache/c4-stage2/exclusion-manifest.json output/data
       # V27.2 fail-loud gate (always runs as sanity check on both fresh + cached data)
       - name: V27.2 Verify Shard-Meta Consistency
         run: node scripts/factory/verify-shard-meta-consistency.js
