@@ -1,0 +1,58 @@
+name: Reliability Probe
+# D-2026-0717-345 P1a — external synthetic reliability probe.
+# READ-ONLY, black-box. This is NOT a Factory workflow: it makes only public HTTP
+# requests to free2aitools.com + the public CDN index header, writes NO R2 object,
+# triggers NO Factory pipeline, and collects NO user/adoption data. Evidence is a
+# build artifact only (never committed to the repo, never written to R2).
+# Rollback = delete this file (no runtime coupling).
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 minutes (UTC)
+  workflow_dispatch:          # one allowed manual read-only post-merge validation run
+
+# Least privilege: the probe reads public endpoints only, so it needs no write
+# scopes and no repository contents beyond the checkout.
+permissions:
+  contents: read
+
+# Do NOT cancel an in-flight probe: a cancelled run would erase evidence and could
+# mask a first failure. Overlap is harmless (read-only) and rare at 15-min cadence.
+concurrency:
+  group: reliability-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: External Synthetic Probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      # No auto-retry / no rerun: a single attempt so a first failure is never masked.
+      - name: Run reliability probe (read-only)
+        id: probe
+        env:
+          PROBE_BASE_URL: https://free2aitools.com
+          PROBE_INDEX_URL: https://cdn.free2aitools.com/data/id-index.bin
+          PROBE_SCHEDULE_CRON: ${{ github.event.schedule }}
+        run: node scripts/monitoring/reliability-probe.mjs probe-evidence.json
+
+      # Persist the structured JSON evidence for >=35 days regardless of verdict.
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: reliability-probe-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: probe-evidence.json
+          retention-days: 35
+          # A crashed probe must still upload its minimal UNKNOWN evidence; a truly
+          # MISSING artifact is a hard failure (never a warning that passes green).
+          if-no-files-found: error

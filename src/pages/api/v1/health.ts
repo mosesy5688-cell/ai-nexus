@@ -29,7 +29,9 @@
  * the numbers as a snapshot, not a continuous metric.
  */
 import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
 import { getVfsHealth } from '../../../lib/r2-vfs.js';
+import { loadManifest } from '../../../lib/sqlite-engine.js';
 
 const HEALTH_HEADERS = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -53,10 +55,25 @@ export const GET: APIRoute = async () => {
         vfs = { error: e?.message || 'vfs_not_initialized' };
     }
 
+    // P1b (D-2026-0717-345): external freshness/coherence signal. Sourced ONLY
+    // from the already-loaded shards manifest (small JSON, memory-cached ~free).
+    // This MUST stay cheap: it does NOT force-load the ~26MB id-index.bin — the
+    // index<->manifest build_id comparison is done externally by the reliability
+    // probe via a public Range read of the index header, never by Health.
+    const r2Bucket = (env as any)?.R2_ASSETS;
+    const isDev = !!import.meta.env?.DEV;
+    const manifest = await loadManifest(r2Bucket, isDev).catch(() => null);
+    const manifest_state: 'loaded' | 'fallback' | 'unavailable' = !manifest
+        ? 'unavailable'
+        : manifest._etag === 'fallback' ? 'fallback' : 'loaded';
+
     const body = {
         version: API_VERSION,
         status: 'ok',
         timestamp: new Date().toISOString(),
+        served_build_id: manifest?.build_id ?? null,
+        manifest_etag: manifest?._etag ?? null,
+        manifest_state,
         vfs,
         runtime: {
             node_compat: typeof process !== 'undefined' && !!process.version,
