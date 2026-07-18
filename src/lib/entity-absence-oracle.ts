@@ -109,11 +109,13 @@ export interface ShardResolution {
     absenceProven: boolean;
 }
 
-async function tryLoadIndex(env: any): Promise<boolean> {
+async function tryLoadIndex(env: any, indexBlobKey?: string): Promise<boolean> {
     try {
         // loadIdIndex itself never throws, but a hung R2 GET on a cold isolate
         // could stall; the deadline turns that into a clean fan-out fallback.
-        return await withOpTimeout(loadIdIndex(env), INDEX_LOAD_TIMEOUT_MS, 'idindex:load');
+        // MF-4: indexBlobKey pins the cycle's id-index blob when the CyclePin has
+        // one (undefined in legacy_only -> today's fixed data/id-index.bin).
+        return await withOpTimeout(loadIdIndex(env, indexBlobKey), INDEX_LOAD_TIMEOUT_MS, 'idindex:load');
     } catch {
         return false; // timeout OR unexpected -> degrade, never block.
     }
@@ -190,6 +192,7 @@ export async function resolveShardsForCandidates(
     candidates: string[],
     env: any,
     manifestBuildId?: string | null,
+    indexBlobKey?: string,
 ): Promise<ShardResolution> {
     const entries = [...shardForms.entries()];
 
@@ -215,7 +218,7 @@ export async function resolveShardsForCandidates(
     // HIGH fan-out (>=3 shards): the index's shrink/absence proof is worth its
     // own bounded cold load. Await as before; on absent/slow/refused/parse-fail
     // tryLoadIndex returns false and we degrade to the prior fan-out EXACTLY.
-    const indexLoaded = await tryLoadIndex(env);
+    const indexLoaded = await tryLoadIndex(env, indexBlobKey);
     if (!indexLoaded) {
         return { orderedShards: entries, indexLoaded: false, absenceProven: false };
     }

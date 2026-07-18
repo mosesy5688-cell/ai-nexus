@@ -9,10 +9,7 @@ import { FacadeVFS } from '@journeyapps/wa-sqlite/src/FacadeVFS.js';
 import * as VFS from '@journeyapps/wa-sqlite/src/VFS.js';
 import { getChunkFromCacheAPI, putChunkToCacheAPI } from './vfs-cache-utils.js';
 import { prefetchWholeToL0 as prefetchWholeToL0Impl } from './vfs-prefetch.js';
-
-function getBasename(path: string): string {
-    return path.split(/[\\/]/).pop() || '';
-}
+import { vfsKeyForOpen, vfsStateName } from './vfs-blob-key.js';
 
 const CHUNK_SIZE = 256 * 1024; // 256KB chunks
 const L0_CACHE = new Map<string, Uint8Array>();
@@ -53,7 +50,7 @@ export class R2RangeVFS extends FacadeVFS {
         }
 
         state.sizePromise = (async () => {
-            const key = `data/${name}`;
+            const key = vfsKeyForOpen(name); // MF-6: pinned blob key verbatim, else data/<basename> (today)
             const MAX_RETRIES = 2;
             for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
                 try {
@@ -102,7 +99,9 @@ export class R2RangeVFS extends FacadeVFS {
 
     async jOpen(name: string | null, pFile: number, flags: number, pOutFlags: DataView): Promise<number> {
         if (!name) return VFS.SQLITE_CANTOPEN;
-        const fileName = getBasename(name);
+        // MF-6: pinned blob key kept VERBATIM as the fileStates/L0/L1 identity; a
+        // legacy name collapses to its basename exactly as before.
+        const fileName = vfsStateName(name);
         this.handleMap.set(pFile, fileName);
         await this._fetchSize(fileName);
         pOutFlags.setInt32(0, flags, true);
@@ -153,16 +152,17 @@ export class R2RangeVFS extends FacadeVFS {
                 // and surfacing as 503 / 500 to the caller.
                 const RETRY_BACKOFFS_MS = [200, 500];
                 let lastSize = -1;
+                const objKey = vfsKeyForOpen(fileName); // MF-6: same key rule as _fetchSize/jOpen
                 for (let attempt = 0; attempt <= RETRY_BACKOFFS_MS.length; attempt++) {
                     let candidate: Uint8Array;
                     if (this.bucket && !this.options.simulate) {
-                        const obj = await this.bucket.get(`data/${fileName}`, { range: { offset: start, length: CHUNK_SIZE } });
-                        if (!obj) throw new Error(`R2 miss data/${fileName}@${start}`);
+                        const obj = await this.bucket.get(objKey, { range: { offset: start, length: CHUNK_SIZE } });
+                        if (!obj) throw new Error(`R2 miss ${objKey}@${start}`);
                         candidate = new Uint8Array(await obj.arrayBuffer());
                     } else {
-                        const res = await fetch(`https://cdn.free2aitools.com/data/${fileName}`, { headers: { Range: `bytes=${start}-${end}` } });
+                        const res = await fetch(`https://cdn.free2aitools.com/${objKey}`, { headers: { Range: `bytes=${start}-${end}` } });
                         // V26.3: Validate HTTP status — 5xx body would be treated as valid data and poison the cache.
-                        if (!res.ok) throw new Error(`CDN fetch ${res.status} for data/${fileName}@${start}`);
+                        if (!res.ok) throw new Error(`CDN fetch ${res.status} for ${objKey}@${start}`);
                         candidate = new Uint8Array(await res.arrayBuffer());
                     }
                     // V27.5: chunk size must match expected (full CHUNK_SIZE, or
@@ -180,7 +180,7 @@ export class R2RangeVFS extends FacadeVFS {
                         continue;
                     }
                     VFS_COUNTERS.short_read_exhausted++;
-                    throw new Error(`Short read after ${RETRY_BACKOFFS_MS.length + 1} attempts: last ${lastSize} bytes, expected ${expectedSize} for data/${fileName}@${start} (etag=${state.etag}). Refusing to cache poisoned chunk.`);
+                    throw new Error(`Short read after ${RETRY_BACKOFFS_MS.length + 1} attempts: last ${lastSize} bytes, expected ${expectedSize} for ${objKey}@${start} (etag=${state.etag}). Refusing to cache poisoned chunk.`);
                 }
 
                 // Write back to Edge Cache (1-year Immutable TTL)
