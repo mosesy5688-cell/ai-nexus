@@ -740,6 +740,16 @@
           "served_build_id": { "type": "string", "nullable": true, "description": "P1b freshness signal: build_id of the served shards manifest for this cycle (null when the manifest carries no build_id token). The external reliability probe compares this against the public id-index header build_id for index<->manifest coherence.", "example": "run-29497071238" },
           "manifest_etag": { "type": "string", "nullable": true, "description": "P1b: ETag of the served shards manifest (null if unavailable)." },
           "manifest_state": { "type": "string", "enum": ["loaded", "fallback", "unavailable"], "description": "P1b: manifest load state — 'loaded' (real manifest resolved), 'fallback' (loadManifest hit its fallback path), or 'unavailable' (manifest could not be resolved). Sourced from the already-loaded small manifest; Health never force-loads the ~26MB id-index." },
+          "reader": {
+            "type": "object",
+            "description": "R5 Phase-1 reader substrate signal (Founder D-2026-0717-350). Publication metadata ONLY — reader_mode, publication_source, build_id, generation. Contains NO raw request counts, user traffic, or adoption/KPI (any path-selection counter is kept internal). Production is fenced to legacy_only; the pointer path is unreachable in production.",
+            "properties": {
+              "reader_mode": { "type": "string", "enum": ["legacy_only", "pointer_capable"], "description": "The reader mode this isolate resolved with. Production is hardcoded to 'legacy_only' (the fence); 'pointer_capable' is reachable only via test dependency injection." },
+              "publication_source": { "type": "string", "nullable": true, "enum": ["pointer", "legacy", "fallback"], "description": "Which serving path produced the pin: 'legacy' (fixed-key shards_manifest.json, the production path in Phase 1), 'fallback' (loadManifest hard-fallback), or 'pointer' (atomic published pointer — not reachable in production Phase 1). null when the manifest could not be resolved." },
+              "build_id": { "type": "string", "nullable": true, "description": "build_id of the resolved cycle pin (null when unresolved)." },
+              "generation": { "type": "integer", "nullable": true, "description": "Monotonic pointer generation. null in legacy_only (no pointer generation exists on the legacy path)." }
+            }
+          },
           "vfs": {
             "type": "object",
             "description": "Per-isolate R2 VFS counters. Cache hit ratios are derived client-side: l0_hit_ratio = l0_hits / jread_total; l1_hit_ratio = l1_hits / (jread_total - l0_hits); short_read_rate = short_read_attempts / l2_fetches.",
