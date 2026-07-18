@@ -6,7 +6,11 @@ import SQLiteAsyncESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite-async.m
 // @ts-ignore
 import { Factory } from '@journeyapps/wa-sqlite/src/sqlite-api.js';
 import { R2RangeVFS } from './r2-vfs.js';
-import { META_SHARD_COUNT } from '../constants/shard-constants.js';
+import {
+    PHASE1_READER_MODE, resolvePublishedPointer, loadLegacyCyclePin,
+    type CyclePin, type ReaderMode,
+} from './published-pointer.js';
+import { dbOpenName } from './vfs-blob-key.js';
 // V26.2: ?module import handled natively by @cloudflare/vite-plugin
 // This gives us a pre-compiled WebAssembly.Module at build time,
 // bypassing CF Workers' runtime WASM compilation block.
@@ -17,7 +21,7 @@ let globalSqlite3: any = null;
 let globalSqliteModule: any = null;
 let globalVFS: any = null;
 let sqliteInitPromise: Promise<void> | null = null;
-let shardManifest: any = null;
+let shardManifest: CyclePin | null = null;
 let manifestLoadedAt = 0;
 const MANIFEST_TTL = 300_000;
 
@@ -97,19 +101,26 @@ async function initSqlite(r2Bucket: any, shouldSimulate: boolean) {
 
 const openingDbs = new Map<string, Promise<any>>();
 
-export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boolean, dbName: string) {
+export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boolean, dbName: string, blobKey?: string) {
     await initSqlite(r2Bucket, shouldSimulate);
     if (!shouldSimulate && r2Bucket && globalVFS) globalVFS.bucket = r2Bucket;
 
-    if (dbCache.has(dbName)) {
-        const entry = dbCache.get(dbName)!;
+    // MF-4/MF-6: when a CyclePin pins a content-addressed blob key, dbCache + the
+    // VFS open name key by that immutable sha (a cross-cycle re-open is a NEW
+    // entry, never a stale-blob reuse). blobKey absent (every fixed-key consumer
+    // today) -> keyed by dbName, opened against data/<dbName> — exactly today.
+    const cacheKey = blobKey || dbName;
+    const openName = dbOpenName(dbName, blobKey);
+
+    if (dbCache.has(cacheKey)) {
+        const entry = dbCache.get(cacheKey)!;
         entry.lastUsed = Date.now();
         return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db };
     }
 
-    if (openingDbs.has(dbName)) {
-        await openingDbs.get(dbName);
-        const entry = dbCache.get(dbName);
+    if (openingDbs.has(cacheKey)) {
+        await openingDbs.get(cacheKey);
+        const entry = dbCache.get(cacheKey);
         if (entry) { entry.lastUsed = Date.now(); return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db }; }
     }
 
@@ -134,17 +145,17 @@ export async function getCachedDbConnection(r2Bucket: any, shouldSimulate: boole
     }
 
     const db = await withLock(async () => {
-        const handle = await globalSqlite3.open_v2(dbName, 1, 'r2-range');
-        if (!handle) throw new Error(`Failed to open handle: ${dbName}`);
+        const handle = await globalSqlite3.open_v2(openName, 1, 'r2-range');
+        if (!handle) throw new Error(`Failed to open handle: ${openName}`);
         return handle;
     });
 
-    dbCache.set(dbName, { db, lastUsed: Date.now() });
+    dbCache.set(cacheKey, { db, lastUsed: Date.now() });
     })();
 
-    openingDbs.set(dbName, openPromise);
-    try { await openPromise; } finally { openingDbs.delete(dbName); }
-    const entry = dbCache.get(dbName)!;
+    openingDbs.set(cacheKey, openPromise);
+    try { await openPromise; } finally { openingDbs.delete(cacheKey); }
+    const entry = dbCache.get(cacheKey)!;
     return { sqlite3: globalSqlite3, module: globalSqliteModule, db: entry.db };
 }
 
@@ -175,23 +186,33 @@ export async function evictCachedDb(dbName: string) {
     if (globalVFS) globalVFS.resetFileState(dbName);
 }
 
-export async function loadManifest(r2Bucket: any, simulate: boolean) {
+/**
+ * Resolve the served cycle pin, module-cached (MANIFEST_TTL). Returns a CyclePin
+ * whose build_id/partitions/_etag are byte-identical to the pre-R5 raw manifest in
+ * legacy_only (plus additive CyclePin fields the fixed-key consumers ignore).
+ *
+ * FENCE (D-350): `mode` defaults to PHASE1_READER_MODE ('legacy_only'), so every
+ * caller — the reference consumer AND the 12 unedited fixed-key consumers — runs
+ * legacy_only. In legacy_only this NEVER constructs the pointer resolver and NEVER
+ * GETs data/current.json (footprint == today: one shards_manifest.json GET).
+ * `pointer_capable` is reachable ONLY when a test passes it explicitly (DI) — no
+ * production caller does, so it is unreachable in production.
+ */
+export async function loadManifest(r2Bucket: any, simulate: boolean, mode: ReaderMode = PHASE1_READER_MODE): Promise<CyclePin> {
     if (shardManifest && (Date.now() - manifestLoadedAt) < MANIFEST_TTL) return shardManifest;
-    try {
-        if (r2Bucket && !simulate) {
-            const obj = await r2Bucket.get('data/shards_manifest.json');
-            shardManifest = await obj.json();
-            shardManifest._etag = (obj.httpEtag || obj.etag || 'v23').replace(/"/g, '');
-        } else {
-            const res = await fetch('https://cdn.free2aitools.com/data/shards_manifest.json');
-            shardManifest = await res.json();
-            shardManifest._etag = (res.headers.get('etag') || 'v23-dev').replace(/"/g, '');
-        }
-    } catch (e) {
-        shardManifest = { partitions: { meta_shards: META_SHARD_COUNT }, _etag: 'fallback' };
-    }
+    shardManifest = mode === 'legacy_only'
+        ? await loadLegacyCyclePin(r2Bucket, simulate)
+        : await resolvePublishedPointer(r2Bucket, simulate, mode, {
+            loadLegacy: () => loadLegacyCyclePin(r2Bucket, simulate),
+        });
     manifestLoadedAt = Date.now();
     return shardManifest;
+}
+
+/** Test hook: clear the module-scoped manifest cache so a fresh mode/mock resolves. */
+export function _resetManifestCacheForTest(): void {
+    shardManifest = null;
+    manifestLoadedAt = 0;
 }
 
 export async function executeSql(sqlite3: any, db: any, sql: string, params: any[] = [], semanticScores?: Map<number, number>) {

@@ -32,6 +32,7 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { getVfsHealth } from '../../../lib/r2-vfs.js';
 import { loadManifest } from '../../../lib/sqlite-engine.js';
+import { PHASE1_READER_MODE } from '../../../lib/published-pointer.js';
 
 const HEALTH_HEADERS = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -62,7 +63,10 @@ export const GET: APIRoute = async () => {
     // probe via a public Range read of the index header, never by Health.
     const r2Bucket = (env as any)?.R2_ASSETS;
     const isDev = !!import.meta.env?.DEV;
-    const manifest = await loadManifest(r2Bucket, isDev).catch(() => null);
+    // FENCE (D-350): resolve in legacy_only (never GETs data/current.json). The
+    // returned CyclePin drives BOTH the existing freshness fields and the R5
+    // reader block below — a SINGLE loadManifest call, no id-index force-load.
+    const manifest = await loadManifest(r2Bucket, isDev, PHASE1_READER_MODE).catch(() => null);
     const manifest_state: 'loaded' | 'fallback' | 'unavailable' = !manifest
         ? 'unavailable'
         : manifest._etag === 'fallback' ? 'fallback' : 'loaded';
@@ -74,6 +78,16 @@ export const GET: APIRoute = async () => {
         served_build_id: manifest?.build_id ?? null,
         manifest_etag: manifest?._etag ?? null,
         manifest_state,
+        // R5 Phase-1 reader substrate signal. Deliberately publication metadata
+        // ONLY — reader_mode / publication_source / build_id / generation. NO raw
+        // request counts, user traffic, or adoption/KPI (any path-selection counter
+        // stays internal). generation is null in legacy_only.
+        reader: {
+            reader_mode: PHASE1_READER_MODE,
+            publication_source: manifest?.source ?? null,
+            build_id: manifest?.build_id ?? null,
+            generation: manifest?.generation ?? null,
+        },
         vfs,
         runtime: {
             node_compat: typeof process !== 'undefined' && !!process.version,

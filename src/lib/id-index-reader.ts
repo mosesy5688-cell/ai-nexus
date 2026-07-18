@@ -59,11 +59,16 @@ let INDEX_BUILD_ID: string | null = null;
 let triedLoad = false;
 let loadPromise: Promise<boolean> | null = null;
 
-async function fetchIndexBytes(env: any): Promise<ArrayBuffer | null> {
+async function fetchIndexBytes(env: any, blobKey?: string): Promise<ArrayBuffer | null> {
     const isSimulating = !!env?.SIMULATE_PRODUCTION
         || (!!import.meta.env?.DEV && env?.NODE_ENV !== 'production');
+    // MF-4: GET the PINNED cycle blob key (data/blobs/<sha>) when a CyclePin
+    // supplies one; else the fixed data/id-index.bin — today's behavior. The
+    // load-once-per-isolate contract below is unchanged (R5 v1 adds no per-flip
+    // reload).
+    const key = blobKey || 'data/id-index.bin';
     if (env?.R2_ASSETS && !isSimulating) {
-        const obj = await env.R2_ASSETS.get('data/id-index.bin');
+        const obj = await env.R2_ASSETS.get(key);
         if (!obj) return null;
         // Size guard at the source: refuse oversized blobs WITHOUT reading the
         // body, so the legacy v1 (~117 MB) never allocates in the isolate.
@@ -73,7 +78,7 @@ async function fetchIndexBytes(env: any): Promise<ArrayBuffer | null> {
         }
         return obj.arrayBuffer();
     }
-    const res = await fetch('https://cdn.free2aitools.com/data/id-index.bin');
+    const res = await fetch(`https://cdn.free2aitools.com/${key}`);
     if (!res.ok) return null;
     const lenHeader = res.headers.get('content-length');
     if (lenHeader && Number(lenHeader) > MAX_INDEX_BYTES) {
@@ -127,14 +132,14 @@ function parseHeader(ab: ArrayBuffer): boolean {
  * any failure (or refusal) marks the index permanently unavailable for this
  * isolate and returns false (caller falls back). Never throws.
  */
-export async function loadIdIndex(env: any): Promise<boolean> {
+export async function loadIdIndex(env: any, blobKey?: string): Promise<boolean> {
     if (VIEW) return true;
     if (triedLoad && !loadPromise) return false;
     if (loadPromise) return loadPromise;
     loadPromise = (async () => {
         try {
             const start = Date.now();
-            const ab = await fetchIndexBytes(env);
+            const ab = await fetchIndexBytes(env, blobKey);
             if (!ab || !parseHeader(ab)) { triedLoad = true; return false; }
             triedLoad = true;
             console.log(`[IdIndex] Loaded ${KEY_COUNT} keys in ${Date.now() - start}ms`);

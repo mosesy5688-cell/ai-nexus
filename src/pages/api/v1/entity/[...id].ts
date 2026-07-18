@@ -15,6 +15,7 @@
 import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { getCachedDbConnection, executeSql, loadManifest } from '../../../../lib/sqlite-engine.js';
+import { PHASE1_READER_MODE } from '../../../../lib/published-pointer.js';
 import { xxhash64Mod } from '../../../../utils/xxhash64.js';
 import { META_SHARD_COUNT } from '../../../../constants/shard-constants.js';
 import { buildEtag, matchesIfNoneMatch, notModified } from '../../../../lib/etag-helper.js';
@@ -64,13 +65,13 @@ export const GET: APIRoute = async ({ params, url, request }) => {
     try {
         const r2Bucket = env?.R2_ASSETS;
         const isDev = !!import.meta.env?.DEV;
-        const manifest = await loadManifest(r2Bucket, isDev);
-        const metaShards = Number(manifest?.partitions?.meta_shards) || META_SHARD_COUNT;
+        const pin = await loadManifest(r2Bucket, isDev, PHASE1_READER_MODE); // R5 MF-4 fence: legacy_only == today's loadManifest
+        const metaShards = Number(pin?.partitions?.meta_shards) || META_SHARD_COUNT;
 
         // V27.22: ETag = manifest._etag + (id, include flag) — cross-cycle
         // invalidation handled by manifest bump; ?include=body has different
         // payload so it gets a different ETag bucket.
-        const etag = buildEtag(manifest?._etag, rawId.toLowerCase(), includeBody ? 'body' : '');
+        const etag = buildEtag(pin?._etag, rawId.toLowerCase(), includeBody ? 'body' : ''); // R5: pin._etag (NOT build_id) => byte-identical
         if (matchesIfNoneMatch(request, etag)) return notModified(etag, CORS_HEADERS);
 
         // V27.93 (D1+D2): ordered, paper-aware candidate plan. buildEntityProbePlan
@@ -107,7 +108,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         // prove absence ONLY when it equals the index's stamped build_id (same
         // bake, same request). Incoherent -> no zero-probe 404, no destructive
         // shrink — only non-destructive reorder (full fan-out still probed).
-        const resolution = await resolveShardsForCandidates(shardForms, candidates, env, manifest?.build_id);
+        const resolution = await resolveShardsForCandidates(shardForms, candidates, env, pin?.build_id, pin?.logicalToBlob?.get('id-index.bin'));
 
         if (resolution.absenceProven) {
             // Index loaded + every candidate missed it -> genuinely absent. Same
@@ -137,7 +138,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
                 // Per-op firewall: a single hung cold open/SQL must not eat the
                 // whole budget or hang past it (mirrors the page resolver).
                 const engine = await withOpTimeout(
-                    getCachedDbConnection(r2Bucket, isDev, dbName),
+                    getCachedDbConnection(r2Bucket, isDev, dbName, pin?.logicalToBlob?.get(dbName)), // R5 MF-4: undefined in legacy_only -> fixed key
                     OP_TIMEOUT_MS, `open:${dbName}`);
                 const rows = await withOpTimeout(
                     executeSql(engine.sqlite3, engine.db, sql, bindings),
@@ -223,7 +224,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         return new Response(JSON.stringify({
             version: API_VERSION,
             entity,
-            meta: { elapsed_ms: Date.now() - start, etag: manifest?._etag || null, candidates_tried: candidates.length },
+            meta: { elapsed_ms: Date.now() - start, etag: pin?._etag || null, candidates_tried: candidates.length },
         }), { headers: { ...CORS_HEADERS, ETag: etag } });
     } catch (e: any) {
         console.error('[ENTITY]', rawId, e.message, e.stack);
