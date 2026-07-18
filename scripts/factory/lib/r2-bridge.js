@@ -126,6 +126,31 @@ export async function downloadBufferFromR2FFI(client, key) {
     return Buffer.concat(chunks);
 }
 
+/**
+ * R5 single-part conditional PUT (S3/Node). Rust FFI has no conditional path ->
+ * force JS S3 client (mirrors headObjectIdentityFFI). { ok:true,etag } persisted;
+ * { ok:false, precondition_failed:true } on HTTP 412 (NOT persisted, never masked);
+ * any other error THROWS (fail-loud).
+ */
+export async function putObjectConditionalFFI(client, key, body, opts = {}) {
+    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const s3 = (client && client.constructor?.name !== 'R2Client')
+        ? client
+        : (_cachedJsClient ||= require('./r2-helpers.js').createR2Client());
+    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    const params = { Bucket: bucket, Key: key, Body: body, ContentType: opts.contentType || 'application/octet-stream' };
+    if (opts.ifNoneMatch) params.IfNoneMatch = opts.ifNoneMatch;
+    if (opts.ifMatch) params.IfMatch = opts.ifMatch;
+    try {
+        const r = await s3.send(new PutObjectCommand(params));
+        return { ok: true, etag: r.ETag?.replace(/"/g, '') };
+    } catch (e) {
+        const code = e?.$metadata?.httpStatusCode, name = e?.name || '';
+        if (code === 412 || name === 'PreconditionFailed') return { ok: false, precondition_failed: true };
+        throw new Error(`Conditional PUT ${key} failed: ${e?.message || name || 'unknown'}`);
+    }
+}
+
 export async function uploadBufferToR2FFI(client, key, buffer, contentType = 'application/octet-stream') {
     const jsClient = (client?.constructor?.name === 'R2Client') ? require('./r2-helpers.js').createR2Client() : client;
     const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';

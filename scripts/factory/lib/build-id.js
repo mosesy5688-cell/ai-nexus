@@ -11,10 +11,15 @@
  *
  * Source (most-robust-available, never runtime-generated on the read side):
  *   - GITHUB_RUN_ID : the existing per-bake CI run id (already the provenance
- *     job_id in r2-uploader.js / l5-manifest.js). UNIQUE per bake, so it
- *     distinguishes two re-bakes of the SAME commit (a cron re-run of unchanged
- *     main) — which a bare commit SHA cannot. This is the founder-approved
- *     "existing bake-run id".
+ *     job_id in r2-uploader.js / l5-manifest.js). UNIQUE per distinct bake, so it
+ *     distinguishes two SEPARATE cron runs of unchanged main — which a bare commit
+ *     SHA cannot. This is the founder-approved "existing bake-run id".
+ *   - GITHUB_RUN_ATTEMPT : (R5 MF-3) folded in as `a<attempt>`. GitHub "Re-run
+ *     jobs" REUSES GITHUB_RUN_ID, so run_id ALONE cannot distinguish a re-attempt
+ *     from its original — a re-bake would mint the SAME build_id and overwrite a
+ *     write-once cycle prefix. run_attempt makes a re-attempt mint a DISTINCT
+ *     build_id -> distinct cycle prefix -> no write-once collision. Precedent:
+ *     GITHUB_RUN_ATTEMPT already anchors identity at aggregate-handoff.mjs:616.
  *   - GITHUB_SHA (short) : bake commit, appended for human traceability. Stable
  *     within a run, so it never desyncs the two writers.
  *   - local fallback : `local-<epoch>` for non-CI bakes (still a single captured
@@ -32,10 +37,14 @@
  */
 export function deriveBuildId(env = process.env) {
     const runId = (env.GITHUB_RUN_ID || '').trim();
+    const attempt = (env.GITHUB_RUN_ATTEMPT || '').trim() || '1';
     const sha = (env.GITHUB_SHA || '').trim();
     if (runId) {
-        // run-id is the coherence anchor; short sha is decorative traceability.
-        return sha ? `run-${runId}-${sha.slice(0, 12)}` : `run-${runId}`;
+        // run-id + run-attempt are the coherence + re-attempt-uniqueness anchors;
+        // short sha is decorative traceability. A GitHub re-run (same run_id, new
+        // run_attempt) therefore mints a DISTINCT build_id (R5 MF-3).
+        const short = sha ? `-${sha.slice(0, 12)}` : '';
+        return `run-${runId}-a${attempt}${short}`;
     }
     // Non-CI / local bake: a single captured epoch (still one value for both
     // writers — never per-writer Date.now()).
