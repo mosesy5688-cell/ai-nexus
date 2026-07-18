@@ -1414,6 +1414,21 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
+          # R5-BACKUP-FENCE (Founder D-352 F-1 repair) -- FAIL-CLOSED, runs BEFORE any
+          # state/vfs-data PUT in this step. The command below is a BROAD directory
+          # backup of output/data/ into the PERMANENT state/vfs-data/ prefix, so any R5
+          # staging class appearing under output/data/ would accumulate there forever.
+          # Presence of these paths is therefore forbidden OUTRIGHT: an EMPTY directory
+          # fails, and a SYMLINK at the path fails. Detection prints ::error:: and exits
+          # non-zero, so backup-dir never runs. This guard does NOT rely on the legacy
+          # uploader's exclusions, on extension filters, on a warning, on an
+          # empty-directory assumption, on a future DELETE/GC, or on STAGE_MODE.
+          for forbidden in output/data/blobs output/data/cycles output/data/quarantine; do
+            if [ -e "$forbidden" ] || [ -L "$forbidden" ]; then
+              echo "::error::[R5-BACKUP-FENCE] forbidden path present: $forbidden"
+              exit 1
+            fi
+          done
           node scripts/factory/r2-workflow-cli.js backup-dir output/data/ state/vfs-data/
           if [ -d "output/meta" ]; then
             node scripts/factory/r2-workflow-cli.js backup-dir output/meta/ state/vfs-meta/ || true
@@ -2790,6 +2805,20 @@ jobs:
           # V25.8 §2.2: Enable S3 Multipart for fused-shard-NNN.bin (>8MB)
           R2_MULTIPART_ENABLED: 'true'
         run: node scripts/factory/r2-upload-s3.js
+      # R5 Phase 2 STAGE — content-addressed blob + cycle-manifest staging.
+      # PRODUCTION-EXECUTION-FENCED (Founder D-2026-0718-352): lib/r5-staging.js
+      # STAGE_MODE='stage_disabled' is a HARDCODED module constant — NOT this
+      # env/input/repo-var — so this step is a NO-OP in production for BOTH auto
+      # cron AND manual dispatch: it opens no R2 client and PUTs zero objects under
+      # data/blobs/**, data/cycles/**, data/quarantine/**, does no GET-and-rehash,
+      # and NEVER writes data/current.json. It does NOT self-enable. NO concurrency:,
+      # NO PROMOTE (Phase 3). Enabling staging is a future separate Founder ruling.
+      - name: R5 Phase 2 STAGE (fenced — no-op in production)
+        run: node scripts/factory/lib/r5-staging.js
+      # R5 Phase 2 VERIFY — exhaustive GET-and-rehash + manifest census + poison
+      # quarantine. Same hardcoded fence: a NO-OP in production (stage_disabled).
+      - name: R5 Phase 2 VERIFY (fenced — no-op in production)
+        run: node scripts/factory/acceptance-staged-cycle.js
       - name: Save Upload Manifest to Cache
         if: success()
         uses: actions/cache/save@v5
