@@ -4,9 +4,11 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import dotenv from 'dotenv';
 import { initR2Bridge, createR2ClientFFI, fetchAllR2ETagsFFI, uploadFileFFI, uploadFileMultipartFFI, headObjectIdentityFFI } from './lib/r2-bridge.js';
 import { isSitemapIndex, isSitemapChild, publishSitemapIndex } from './lib/sitemap-publication.js';
+import { isR5StagingPath } from './lib/r5-staging.js';
 
 dotenv.config();
 
@@ -55,16 +57,37 @@ async function getAllFiles(dir, files = []) {
     return files;
 }
 
-function toRemotePath(localPath) {
+export function toRemotePath(localPath) {
     return localPath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^output\//, '');
 }
 
-async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
+// Stamp the local-sync manifest with each file's hash. R5 FIX: a FAILED upload is
+// NEVER stamped "synced" (else a never-uploaded file would be locally skipped next
+// run). Failure path only — successful/skipped files are stamped exactly as before.
+export function applySyncedHashes(localManifest, filesToUpload, failedPaths) {
+    const failed = failedPaths || new Set();
+    for (const file of filesToUpload) {
+        const remotePath = toRemotePath(file.path);
+        if (failed.has(remotePath)) continue;
+        localManifest.hashes[remotePath] = file.localHash;
+    }
+    return localManifest;
+}
+
+export async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap, deps = {}) {
+    // R5 fence: the legacy fixed-key uploader NEVER touches the content-addressed
+    // staging prefixes (data/blobs|cycles|quarantine). Even though the R2_PREFIX_FILTER
+    // includes the broad `data/` prefix, an R5 staging path is excluded here, so the
+    // legacy path's new-prefix PUT count is STRICTLY 0 in production (stage_disabled).
+    const uploadOne = deps.uploadFile || uploadFileFFI;
+    const uploadMulti = deps.uploadFileMultipart || uploadFileMultipartFFI;
     let success = 0, fail = 0, unchanged = 0, childFail = 0;
     const changedPaths = [];
+    const failedPaths = new Set();
     const queue = files.filter(f => {
         const remotePath = toRemotePath(f.path);
         if (CONFIG.PREFIX_FILTER.length > 0 && !CONFIG.PREFIX_FILTER.some(p => remotePath.startsWith(p))) return false;
+        if (isR5StagingPath(remotePath)) return false; // R5 fence — never via the legacy path
         // D-140 §5: the sitemap INDEX is NEVER part of the unordered Phase-1
         // concurrency batch. It is published in a separate Phase 2 (publishSitemapIndex)
         // strictly AFTER every referenced child is uploaded + remotely verified.
@@ -73,7 +96,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
     });
 
     console.log(`📊 To upload: ${queue.length} files`);
-    if (queue.length === 0) return { success: 0, fail: 0, skipped: files.length, unchanged: 0, changedPaths, childFail: 0 };
+    if (queue.length === 0) return { success: 0, fail: 0, skipped: files.length, unchanged: 0, changedPaths, childFail: 0, failedPaths };
 
     for (let i = 0; i < queue.length; i += CONFIG.CONCURRENCY) {
         const batch = queue.slice(i, i + CONFIG.CONCURRENCY);
@@ -82,9 +105,9 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
         const results = await Promise.all(batch.map(file => {
             const remotePath = toRemotePath(file.path);
             if (useMultipart && file.size > 8 * 1024 * 1024 && remotePath.includes('fused-shard')) {
-                return uploadFileMultipartFFI(s3, file.path, remotePath);
+                return uploadMulti(s3, file.path, remotePath);
             }
-            return uploadFileFFI(s3, file.path, remotePath, r2ETagMap.get(remotePath));
+            return uploadOne(s3, file.path, remotePath, r2ETagMap.get(remotePath));
         }));
 
         for (const result of results) {
@@ -99,6 +122,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
             } else {
                 console.error(`\n   [FAIL] Upload: ${result.path} | Error: ${result.error}`);
                 fail++;
+                failedPaths.add(result.path); // R5: a FAILED upload must never be stamped "synced"
                 // D-140 §5: a child-shard upload failure must block index publication.
                 if (isSitemapChild(result.path)) childFail++;
             }
@@ -111,10 +135,10 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
         if ((success + unchanged) % 1000 === 0) await saveCheckpoint(checkpoint);
     }
     console.log(''); // New line after progress
-    return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths, childFail };
+    return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths, childFail, failedPaths };
 }
 
-async function main() {
+export async function main() {
     const { loadLocalManifest, saveLocalManifest, calculateHash } = await import('./lib/local-sync.js');
     const localManifestPath = path.join(process.env.CACHE_DIR || './cache', 'last-upload-manifest.json');
     const localManifest = await loadLocalManifest(localManifestPath);
@@ -144,13 +168,10 @@ async function main() {
 
     console.log(`[LOCAL-SYNC] Locally skipped: ${locallySkipped} files (MD5 matched manifest)`);
 
-    const { success, fail, skipped, unchanged, changedPaths, childFail } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
+    const { success, fail, skipped, unchanged, changedPaths, childFail, failedPaths } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
 
-    // Update local manifest with new successful hashes
-    for (const file of filesToUpload) {
-        const remotePath = toRemotePath(file.path);
-        localManifest.hashes[remotePath] = file.localHash;
-    }
+    // Update local manifest with new hashes (R5 failed-never-synced fix in helper).
+    applySyncedHashes(localManifest, filesToUpload, failedPaths);
     await saveLocalManifest(localManifestPath, localManifest);
 
     await saveCheckpoint(checkpoint);
@@ -189,7 +210,7 @@ async function main() {
     const purgeListPath = path.join(process.env.CACHE_DIR || './cache', 'purge-list.json');
     const allManifestPaths = allFiles
         .map(f => toRemotePath(f.path))
-        .filter(p => CONFIG.PREFIX_FILTER.length === 0 || CONFIG.PREFIX_FILTER.some(pf => p.startsWith(pf)));
+        .filter(p => (CONFIG.PREFIX_FILTER.length === 0 || CONFIG.PREFIX_FILTER.some(pf => p.startsWith(pf))) && !isR5StagingPath(p));
     await fs.writeFile(purgeListPath, JSON.stringify({
         changed: allManifestPaths, fresh_uploads: changedPaths, ts: new Date().toISOString(),
     }));
@@ -203,4 +224,9 @@ async function main() {
     if (fail > 0) process.exit(1);
 }
 
-main().catch(err => { console.error('❌ Fatal error:', err); process.exit(1); });
+// The R5 fenced STAGE + VERIFY entrypoints live in lib/r5-staging.js and
+// acceptance-staged-cycle.js (separate workflow steps) — NOT here — so this remains
+// the sole (once-referenced) public CDN write step, fully covered by the FINAL_UPLOAD
+// capacity gate. Exports above are behind this guard so tests can import without running.
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMainModule) main().catch(err => { console.error('❌ Fatal error:', err); process.exit(1); });
