@@ -101,10 +101,10 @@ async function main() {
             const positional = rest.filter(a => !a.startsWith('--'));
             const [localDir, r2Prefix] = positional;
             if (!localDir || !r2Prefix) { console.error('Usage: backup-dir <localDir> <r2Prefix>'); process.exit(1); }
-            const extStr = parseOpt(rest, 'extensions', null);
-            const extensions = extStr ? extStr.split(',') : null;
+            const extensions = parseOpt(rest, 'extensions', null)?.split(',') || null;
             const result = await backupDirectoryToR2FFI(client, localDir, r2Prefix, { extensions, requiredJson: rest.includes('--required-json') });
-            console.log(`[R2-CLI] backup-dir: ${result?.count || 0} files backed up to ${r2Prefix}`);
+            if (!result?.success) { console.error(`[R2-CLI] FATAL: backup-dir NOT committed (${result?.reason || 'incomplete'}) -> ${r2Prefix}`); process.exit(1); } // D-356 fail-closed default; best-effort call-sites keep `|| true`
+            console.log(`[R2-CLI] backup-dir OK: ${result.count || 0} new / ${result.verified}/${result.expected} verified -> ${r2Prefix}`);
             break;
         }
         case 'restore-rust-ffi': {
