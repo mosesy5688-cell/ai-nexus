@@ -22,12 +22,8 @@ export async function backupFileToR2(localPath, r2Key, opts = {}) {
     }
     try {
         const data = await fs.readFile(localPath);
-        // V27.63 zstd magic + 16B floor (replaced the old 256B .zst floor that
-        // false-positived legit small payloads: manifest 216B, tail chunks 80-200B,
-        // health 121B). D-262 A3: extracted VERBATIM to the shared PURE isUploadEligible
-        // so shards-handoff-manifest.mjs enumerates ONLY members this guard will accept
-        // (consistent by construction) -- same magic check, same 16B floor, same
-        // non-.zst min floor, same BLOCKED reason string. minSize maps to minBytes.
+        // V27.63 guard extracted VERBATIM into the shared PURE isUploadEligible (D-262 A3): the
+        // manifest builder enumerates ONLY members this guard accepts. minSize maps to minBytes.
         const { eligible, reason } = isUploadEligible(localPath, data, { minBytes: opts.minSize, requiredJson: opts.requiredJson });
         if (!eligible) {
             console.error(`[R2-HANDOFF] BLOCKED: ${localPath} ${reason}. Refusing upload to prevent state wipe.`);
@@ -81,25 +77,23 @@ export async function restoreFileFromR2(r2Key, localPath, opts = {}) {
 }
 
 /**
- * Backup a local directory to R2. ATOMIC (D-356): _manifest.json COMMIT RECORD is PUT LAST,
- * only after every object is confirmed; partial/empty/manifest-fail writes NO manifest (fail-closed).
- * @param {string} localDir - Local directory path
- * @param {string} r2Prefix - R2 key prefix (e.g. 'state/cycle-output/')
- * @param {object} opts - { concurrency: 5, extensions: null, requiredJson: false (opt-in) }
- * @returns {{ success, count, totalSize, verified, expected, failed, skipped, committed }}
+ * Backup a local directory to R2. ATOMIC (D-356) + three-state (D-359): _manifest.json COMMIT RECORD
+ * is PUT LAST, built ONLY from ELIGIBLE verified members; a POLICY_EXCLUDED file (a NON-.zst member the
+ * min-size guard refuses) is NEITHER failure NOR verified and is omitted -- a corrupt .zst still fails LOUD. Partial/empty/all-excluded/manifest-fail => NO manifest.
+ * @param opts {concurrency,extensions,requiredJson} @returns {{ success, count, totalSize, verified, expected, eligibleExpected, failed, skipped, policyExcluded, committed }}
  */
 export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
     const s3 = createR2Client();
-    if (!s3) { console.warn('[R2-HANDOFF] No R2 credentials. Skipping directory backup.'); return { success: false, count: 0, totalSize: 0, verified: 0, expected: 0, failed: 0, skipped: 0, committed: false, reason: 'no_credentials' }; }
+    if (!s3) { console.warn('[R2-HANDOFF] No R2 credentials. Skipping directory backup.'); return { success: false, count: 0, totalSize: 0, verified: 0, expected: 0, eligibleExpected: 0, failed: 0, skipped: 0, policyExcluded: 0, committed: false, reason: 'no_credentials' }; }
     const { concurrency = 5, extensions = null, requiredJson = false } = opts;
     const files = await walkDir(localDir, extensions);
     const expected = files.length;
     // Fail-closed default (D-356 #7): empty input is NOT a silent no-op. Best-effort call-sites opt out via shell `|| true`.
-    if (expected === 0) { console.warn(`[R2-HANDOFF] No files in ${localDir} (fail-closed empty)`); return { success: false, count: 0, totalSize: 0, verified: 0, expected: 0, failed: 0, skipped: 0, committed: false, empty: true, reason: 'empty_input' }; }
+    if (expected === 0) { console.warn(`[R2-HANDOFF] No files in ${localDir} (fail-closed empty)`); return { success: false, count: 0, totalSize: 0, verified: 0, expected: 0, eligibleExpected: 0, failed: 0, skipped: 0, policyExcluded: 0, committed: false, empty: true, reason: 'empty_input' }; }
     const crypto = await import('crypto');
     const r2Etags = await fetchR2Etags(s3, BUCKET, r2Prefix).catch(() => new Map());
     console.log(`[R2-HANDOFF] Incremental backup: ${expected} local, ${r2Etags.size} on R2`);
-    let uploaded = 0, skipped = 0, failed = 0, totalSize = 0;
+    let uploaded = 0, skipped = 0, failed = 0, policyExcluded = 0, totalSize = 0;
     // ATOMIC (D-356 #1/#2): ONLY confirmed relPaths enter verifiedRel; the _manifest.json commit record is PUT strictly LAST.
     const verifiedRel = [];
     for (let i = 0; i < files.length; i += concurrency) {
@@ -107,21 +101,26 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
         const results = await Promise.allSettled(batch.map(async (relPath) => {
             const rel = relPath.replace(/\\/g, '/'), localPath = path.join(localDir, relPath), r2Key = r2Prefix + rel;
             const data = await fs.readFile(localPath);
-            // Skip counts verified ONLY on proven remote byte identity (etag==md5) -- never key/existence alone (D-356 #3).
-            if (r2Etags.get(r2Key) === crypto.createHash('md5').update(data).digest('hex')) return { rel, skipped: true };
+            // D-359: independent up-front eligibility; verified-skip (etag==md5, D-356 #3) is ONLY for an eligible member.
+            const elig = isUploadEligible(localPath, data, { requiredJson });
+            if (elig.eligible && r2Etags.get(r2Key) === crypto.createHash('md5').update(data).digest('hex')) return { rel, skipped: true };
             const result = await backupFileToR2(localPath, r2Key, { requiredJson });
-            if (!result.success) throw new Error(`upload unconfirmed: ${rel}`);
-            return { rel, size: result.size || 0 };
+            if (result.success) return { rel, size: result.size || 0 };
+            // POLICY_EXCLUDED iff a NON-.zst member the uploader KNOWN-integrity-blocks AND the predicate agrees ineligible (the hard-checked sub-256B state-JSON family). A below-16B/magic-missing .zst is CORRUPTION => falls to throw = failed (loud, D-356), never a silent exclusion. eligible-but-blocked / unknown reason / rejection => failed.
+            if (result.reason === 'integrity_check_failed' && !elig.eligible && !rel.endsWith('.zst')) return { rel, policyExcluded: true };
+            throw new Error(`upload unconfirmed: ${rel} (reason=${result.reason || 'none'}, eligible=${elig.eligible})`);
         }));
         for (const r of results) {
             if (r.status !== 'fulfilled') { failed++; continue; }
+            if (r.value.policyExcluded) { policyExcluded++; continue; }
             verifiedRel.push(r.value.rel);
             r.value.skipped ? skipped++ : (uploaded++, totalSize += r.value.size);
         }
     }
     const verified = verifiedRel.length;
-    // COMMIT GATE (D-356 #1/#5): a partial backup writes NO manifest (the false-_manifest defect that claimed absent objects).
-    if (verified !== expected || failed > 0) { console.error(`[R2-HANDOFF] INCOMPLETE: ${verified}/${expected} verified, ${failed} failed -- manifest NOT written (fail-closed).`); return { success: false, count: uploaded, totalSize, verified, expected, failed, skipped, committed: false, reason: 'partial_upload' }; }
+    // COMMIT GATE (D-356 + D-359): enumerated = eligibleExpected + policyExcluded; verified = uploaded + identity-skip. All-excluded => eligibleExpected 0 => fail-closed. Partial => NO manifest.
+    const eligibleExpected = expected - policyExcluded;
+    if (eligibleExpected === 0 || verified !== eligibleExpected || failed > 0) { console.error(`[R2-HANDOFF] INCOMPLETE: ${verified}/${eligibleExpected} eligible verified, ${failed} failed, ${policyExcluded} policy-excluded -- manifest NOT written (fail-closed).`); return { success: false, count: uploaded, totalSize, verified, expected, eligibleExpected, failed, skipped, policyExcluded, committed: false, reason: eligibleExpected === 0 ? 'no_eligible_files' : 'partial_upload' }; }
     const manifestBody = JSON.stringify({ files: verifiedRel, timestamp: new Date().toISOString(), count: verifiedRel.length });
     let committed = false;
     for (let i = 0; i < 3 && !committed; i++) {
@@ -129,9 +128,9 @@ export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
         catch (e) { console.error(`[R2-HANDOFF] Manifest attempt ${i+1}/3: ${e.message || e.Code || JSON.stringify(e.$metadata || {})}`); if (i < 2) await new Promise(r => setTimeout(r, 2000*(i+1))); }
     }
     // Manifest PUT failure (D-356 #4) fails the whole op -> CLI non-zero.
-    if (!committed) { console.error(`[R2-HANDOFF] MANIFEST WRITE FAILED (${verifiedRel.length} entries) -- backup NOT committed.`); return { success: false, count: uploaded, totalSize, verified, expected, failed, skipped, committed: false, reason: 'manifest_write_failed' }; }
-    console.log(`[R2-HANDOFF] Directory backup COMMITTED: ${uploaded} new + ${skipped} unchanged / ${expected} total (${(totalSize/1024/1024).toFixed(1)}MB uploaded)`);
-    return { success: true, count: uploaded, totalSize, verified, expected, failed, skipped, committed: true };
+    if (!committed) { console.error(`[R2-HANDOFF] MANIFEST WRITE FAILED (${verifiedRel.length} entries) -- backup NOT committed.`); return { success: false, count: uploaded, totalSize, verified, expected, eligibleExpected, failed, skipped, policyExcluded, committed: false, reason: 'manifest_write_failed' }; }
+    console.log(`[R2-HANDOFF] Directory backup COMMITTED: ${uploaded} new + ${skipped} unchanged / ${eligibleExpected} eligible (${policyExcluded} policy-excluded) (${(totalSize/1024/1024).toFixed(1)}MB uploaded)`);
+    return { success: true, count: uploaded, totalSize, verified, expected, eligibleExpected, failed, skipped, policyExcluded, committed: true };
 }
 
 /**
