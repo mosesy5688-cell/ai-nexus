@@ -1,26 +1,27 @@
-// D-2026-0718-356 -- backup-dir ATOMIC commit. HERMETIC, no network.
-// Drives the REAL backupDirectoryToR2 (r2-handoff.js) AND the REAL CLI production path
-// (r2-workflow-cli.js backup-dir -> r2-bridge.js -> r2-handoff.js) against an in-memory R2
-// injected at the r2-helpers boundary (vi.mock). Proves _manifest.json is a COMMIT RECORD
-// written LAST -- it can never claim an object R2 does not actually have.
+// D-356 backup-dir ATOMIC commit + D-359 three-state POLICY_EXCLUDED. HERMETIC, no network. Drives the REAL
+// backupDirectoryToR2 + CLI path against an in-memory R2; proves _manifest.json is a COMMIT RECORD written LAST from ELIGIBLE verified members only (non-.zst min-size exclusions omitted; a corrupt .zst fails loud).
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
-
 vi.mock('../../scripts/factory/lib/r2-helpers.js', () => ({
     createR2Client: () => (globalThis as any).__R2_CLIENT ?? null,
     fetchR2Etags: async () => (globalThis as any).__R2_ETAGS ?? new Map(),
 }));
-import { backupDirectoryToR2 } from '../../scripts/factory/lib/r2-handoff.js';
+// D-359: a controllable seam over the SHARED eligibility predicate. Inert (delegates to the REAL guard)
+// unless a test sets __ELIG_OVERRIDE — used ONLY to force the up-front-eligible / uploader-blocked divergence.
+vi.mock('../../scripts/factory/lib/upload-eligibility.js', async (orig) => {
+    const a: any = await (orig as any)();
+    return { ...a, isUploadEligible: (n: string, d: Buffer, o?: any) => (globalThis as any).__ELIG_OVERRIDE?.(n, d, o, a.isUploadEligible) ?? a.isUploadEligible(n, d, o) };
+});
+import { backupDirectoryToR2, restoreDirectoryFromR2 } from '../../scripts/factory/lib/r2-handoff.js';
 
 const CLI = path.resolve(__dirname, '../../scripts/factory/r2-workflow-cli.js');
 const PREFIX = 'state/_handoff/atomic/R1/attempt-1/';
 
 type Bucket = { store: Map<string, Buffer>; puts: string[]; client: any };
-// In-memory R2. failPut(key) => that PUT rejects (simulates a partial/failed upload or a
-// manifest-PUT failure); every other op behaves like R2. LIST returns md5 as the ETag.
+// In-memory R2. failPut(key) => that PUT rejects (partial/manifest-PUT failure); every other op behaves like R2; LIST returns md5 as the ETag.
 function makeBucket(failPut: (key: string) => boolean = () => false): Bucket {
     const store = new Map<string, Buffer>();
     const puts: string[] = [];
@@ -58,7 +59,7 @@ const MANI = `${PREFIX}_manifest.json`;
 
 beforeEach(() => { process.env.R2_FORCE_JS = 'true'; });
 afterEach(() => {
-    delete (globalThis as any).__R2_CLIENT; delete (globalThis as any).__R2_ETAGS;
+    delete (globalThis as any).__R2_CLIENT; delete (globalThis as any).__R2_ETAGS; delete (globalThis as any).__ELIG_OVERRIDE;
     for (const d of roots.splice(0)) { try { fs.rmSync(d, { recursive: true, force: true }); } catch { /* */ } }
     for (const n of cliTmps.splice(0)) { try { fs.rmSync(path.join(path.dirname(CLI), n), { force: true }); } catch { /* */ } }
     vi.restoreAllMocks();
@@ -142,10 +143,74 @@ describe('backupDirectoryToR2 — manifest is a COMMIT RECORD written LAST (D-35
     });
 });
 
-// Real production path: r2-workflow-cli.js reads process.argv at load and calls main(). It carries
-// a `#!` shebang (a parse error on dynamic import), so stage a shebang-stripped copy BESIDE it
-// (temp_ prefix => CES-skipped; deleted in afterEach) and import THAT through vitest's transform so
-// the vi.mock(r2-helpers) still applies down the REAL CLI -> r2-bridge -> r2-handoff chain.
+// Sub-256B non-.zst JSON is BLOCKED by the shared isUploadEligible guard (min 256B) -- the harvest-state-<source>.json / enrichment-params-backfill.json family that fail-closed every cycle pre-D359.
+function smallJson(obj: object): Buffer { const b = Buffer.from(JSON.stringify(obj)); if (b.length >= 256) throw new Error('fixture must be <256B'); return b; }
+
+describe('backupDirectoryToR2 — D-359 three-state: POLICY_EXCLUDED (min-size/zstd) is neither failure nor verified', () => {
+    it('(1) a small POLICY_EXCLUDED file + a larger eligible file => manifest contains ONLY the eligible file', async () => {
+        const dir = tmp('pe1'); w(dir, 'harvest-state-hf.json', smallJson({ s: 'hf' })); w(dir, 'huggingface_master.ndjson', bin('m', 600)); const b = makeBucket(); use(b);
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.policyExcluded, r.eligibleExpected, r.verified]).toEqual([true, 1, 1, 1]);
+        expect(JSON.parse(b.store.get(MANI)!.toString()).files).toEqual(['huggingface_master.ndjson']); expect(b.store.has(`${PREFIX}harvest-state-hf.json`)).toBe(false);
+    });
+    it('(2) ALL files policy-excluded => eligible_expected===0 => fail-closed, NO manifest', async () => {
+        const dir = tmp('pe2'); w(dir, 'harvest-state-hf.json', smallJson({ a: 1 })); w(dir, 'enrichment-params-backfill.json', smallJson({ b: 2 })); const b = makeBucket(); use(b);
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.eligibleExpected, r.policyExcluded, r.reason]).toEqual([false, 0, 2, 'no_eligible_files']); expect(b.store.has(MANI)).toBe(false);
+    });
+    it('(3) an ELIGIBLE file the uploader WRONGLY reports blocked => FAILED, never excluded (up-front-eligible / uploader-blocked divergence; `&& !elig.eligible` guard)', async () => {
+        let n = 0; (globalThis as any).__ELIG_OVERRIDE = () => (++n % 2 ? { eligible: true, isZst: false, reason: null } : { eligible: false, isZst: false, reason: '0B < min 256B' });
+        const dir = tmp('pe3'); w(dir, 'a.bin', bin('a')); const b = makeBucket(); use(b);
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.failed, r.policyExcluded]).toEqual([false, 1, 0]); expect(b.store.has(MANI)).toBe(false);
+    });
+    it('(4) an eligible file that fails with an UNKNOWN (non-integrity) reason => FAILED, never excluded (reason guard)', async () => {
+        const dir = tmp('pe4'); w(dir, 'a.bin', bin('a')); const b = makeBucket((k) => k.endsWith('a.bin')); use(b);
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.failed, r.policyExcluded]).toEqual([false, 1, 0]); expect(b.store.has(MANI)).toBe(false);
+    });
+    it('(5) a normal upload failure => op FAILS, NO manifest (no member silently reclassified as excluded)', async () => {
+        const dir = tmp('pe5'); w(dir, 'a.bin', bin('a')); w(dir, 'b.bin', bin('b')); const b = makeBucket((k) => k.endsWith('b.bin')); use(b);
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.failed, r.policyExcluded]).toEqual([false, 1, 0]); expect(b.store.has(MANI)).toBe(false);
+    });
+    it('(6) manifest PUT failure => success:false, committed:false (=> CLI non-zero via r2-workflow-cli)', async () => {
+        const dir = tmp('pe6'); w(dir, 'harvest-state-hf.json', smallJson({ x: 1 })); w(dir, 'a.bin', bin('a')); const b = makeBucket((k) => k.endsWith('_manifest.json')); use(b);
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.committed, r.reason, r.policyExcluded, r.eligibleExpected, r.verified]).toEqual([false, false, 'manifest_write_failed', 1, 1, 1]); expect(b.store.has(MANI)).toBe(false);
+    }, 15000);
+    it('(7) identity-skip vs policy-exclusion strictly separated: skip IS in manifest+verified; exclusion is in NEITHER', async () => {
+        const dir = tmp('pe7'); const da = w(dir, 'a.bin', bin('a')); w(dir, 'harvest-state-hf.json', smallJson({ s: 1 })); const b = makeBucket(); use(b, new Map([[`${PREFIX}a.bin`, md5(da)]]));
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.skipped, r.policyExcluded, r.verified, r.eligibleExpected, r.count]).toEqual([true, 1, 1, 1, 1, 0]);
+        const m = JSON.parse(b.store.get(MANI)!.toString()); expect(m.files).toEqual(['a.bin']); expect(m.files).not.toContain('harvest-state-hf.json');
+    });
+    it('(8) REAL Harvest path: sub-256B state JSON + normal artifacts => backup(eligible only) => restore==manifested; excluded absent, no error', async () => {
+        const src = tmp('pe8s'); w(src, 'harvest-state-huggingface.json', smallJson({ s: 'hf', id: 42 })); w(src, 'harvest-state-github.json', smallJson({ s: 'gh' })); w(src, 'enrichment-params-backfill.json', smallJson({ bf: 1 }));
+        const artA = w(src, 'huggingface_master.ndjson', bin('hf', 800)); const artB = w(src, 'github_master.ndjson', bin('gh', 700)); const b = makeBucket(); use(b);
+        const bk: any = await backupDirectoryToR2(src, PREFIX, {});
+        expect([bk.success, bk.policyExcluded, bk.eligibleExpected, bk.verified]).toEqual([true, 3, 2, 2]);
+        expect(JSON.parse(b.store.get(MANI)!.toString()).files.sort()).toEqual(['github_master.ndjson', 'huggingface_master.ndjson']);
+        const dst = tmp('pe8d'); const rs: any = await restoreDirectoryFromR2(PREFIX, dst, {}); expect([rs.success, rs.count]).toEqual([true, 2]);
+        expect(md5(fs.readFileSync(path.join(dst, 'huggingface_master.ndjson')))).toBe(md5(artA)); expect(md5(fs.readFileSync(path.join(dst, 'github_master.ndjson')))).toBe(md5(artB));
+        for (const f of ['harvest-state-huggingface.json', 'harvest-state-github.json', 'enrichment-params-backfill.json']) expect(fs.existsSync(path.join(dst, f))).toBe(false);
+    });
+    it('(9) mutation proof: "all blocked => success" AND "policy-excluded counts as verified" both go RED', async () => {
+        const ad = tmp('pe9a'); w(ad, 'harvest-state-hf.json', smallJson({ a: 1 })); const ba = makeBucket(); use(ba); // Mutant A: all-excluded gate MUST fail-closed
+        const ra: any = await backupDirectoryToR2(ad, PREFIX, {}); expect([ra.success, ra.eligibleExpected]).toEqual([false, 0]); expect(ba.store.has(MANI)).toBe(false);
+        const mix = tmp('pe9b'); w(mix, 'harvest-state-hf.json', smallJson({ a: 1 })); w(mix, 'a.bin', bin('a')); const bb = makeBucket(); use(bb); // Mutant B: excluded MUST NOT count as verified/manifested
+        const rb: any = await backupDirectoryToR2(mix, PREFIX, {}); expect([rb.success, rb.verified, rb.policyExcluded]).toEqual([true, 1, 1]);
+        expect(JSON.parse(bb.store.get(MANI)!.toString()).files).toEqual(['a.bin']);
+    });
+    it('(10) a below-16B / magic-missing .zst (corruption) => op FAILS LOUD (throw=failed), NOT policy-excluded, NO manifest (D-356 fail-closed kept)', async () => {
+        const dir = tmp('pe10'); w(dir, 'corrupt.json.zst', zst('c', 8)); const b = makeBucket(); use(b); // zstd magic present but 8B < 16B floor => ineligible
+        const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect([r.success, r.policyExcluded, r.failed >= 1, b.store.has(MANI)]).toEqual([false, 0, true, false]);
+    });
+});
+
+// Real production path: r2-workflow-cli.js reads process.argv at load + calls main() and carries a `#!` shebang
+// (dynamic-import parse error), so stage a shebang-stripped copy BESIDE it (temp_ => CES-skipped; deleted in afterEach) and import THAT so vi.mocks apply down CLI -> bridge -> handoff.
 const cliTmps: string[] = []; let cliN = 0;
 function stageCli(): string {
     const src = fs.readFileSync(CLI, 'utf8').replace(/^#![^\n]*\r?\n/, '');
