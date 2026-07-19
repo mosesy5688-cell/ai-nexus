@@ -81,57 +81,57 @@ export async function restoreFileFromR2(r2Key, localPath, opts = {}) {
 }
 
 /**
- * Backup an entire local directory to R2 under a prefix.
- * Writes a _manifest.json for efficient restore.
+ * Backup a local directory to R2. ATOMIC (D-356): _manifest.json COMMIT RECORD is PUT LAST,
+ * only after every object is confirmed; partial/empty/manifest-fail writes NO manifest (fail-closed).
  * @param {string} localDir - Local directory path
  * @param {string} r2Prefix - R2 key prefix (e.g. 'state/cycle-output/')
  * @param {object} opts - { concurrency: 5, extensions: null, requiredJson: false (opt-in) }
- * @returns {{ success: boolean, count: number, totalSize: number }}
+ * @returns {{ success, count, totalSize, verified, expected, failed, skipped, committed }}
  */
 export async function backupDirectoryToR2(localDir, r2Prefix, opts = {}) {
     const s3 = createR2Client();
-    if (!s3) {
-        console.warn('[R2-HANDOFF] No R2 credentials. Skipping directory backup.');
-        return { success: false, count: 0, totalSize: 0 };
-    }
+    if (!s3) { console.warn('[R2-HANDOFF] No R2 credentials. Skipping directory backup.'); return { success: false, count: 0, totalSize: 0, verified: 0, expected: 0, failed: 0, skipped: 0, committed: false, reason: 'no_credentials' }; }
     const { concurrency = 5, extensions = null, requiredJson = false } = opts;
     const files = await walkDir(localDir, extensions);
-    if (files.length === 0) {
-        console.warn(`[R2-HANDOFF] No files found in ${localDir}`);
-        return { success: false, count: 0, totalSize: 0 };
-    }
-
+    const expected = files.length;
+    // Fail-closed default (D-356 #7): empty input is NOT a silent no-op. Best-effort call-sites opt out via shell `|| true`.
+    if (expected === 0) { console.warn(`[R2-HANDOFF] No files in ${localDir} (fail-closed empty)`); return { success: false, count: 0, totalSize: 0, verified: 0, expected: 0, failed: 0, skipped: 0, committed: false, empty: true, reason: 'empty_input' }; }
     const crypto = await import('crypto');
     const r2Etags = await fetchR2Etags(s3, BUCKET, r2Prefix).catch(() => new Map());
-    console.log(`[R2-HANDOFF] Incremental backup: ${files.length} local, ${r2Etags.size} on R2`);
-    let uploaded = 0, skipped = 0, totalSize = 0;
-    const manifest = [];
+    console.log(`[R2-HANDOFF] Incremental backup: ${expected} local, ${r2Etags.size} on R2`);
+    let uploaded = 0, skipped = 0, failed = 0, totalSize = 0;
+    // ATOMIC (D-356 #1/#2): ONLY confirmed relPaths enter verifiedRel; the _manifest.json commit record is PUT strictly LAST.
+    const verifiedRel = [];
     for (let i = 0; i < files.length; i += concurrency) {
         const batch = files.slice(i, i + concurrency);
         const results = await Promise.allSettled(batch.map(async (relPath) => {
-            const localPath = path.join(localDir, relPath);
-            const r2Key = r2Prefix + relPath.replace(/\\/g, '/');
-            manifest.push(relPath.replace(/\\/g, '/'));
+            const rel = relPath.replace(/\\/g, '/'), localPath = path.join(localDir, relPath), r2Key = r2Prefix + rel;
             const data = await fs.readFile(localPath);
-            if (r2Etags.get(r2Key) === crypto.createHash('md5').update(data).digest('hex')) { skipped++; return { success: true, skipped: true }; }
+            // Skip counts verified ONLY on proven remote byte identity (etag==md5) -- never key/existence alone (D-356 #3).
+            if (r2Etags.get(r2Key) === crypto.createHash('md5').update(data).digest('hex')) return { rel, skipped: true };
             const result = await backupFileToR2(localPath, r2Key, { requiredJson });
-            if (result.success) totalSize += result.size || 0;
-            return result;
+            if (!result.success) throw new Error(`upload unconfirmed: ${rel}`);
+            return { rel, size: result.size || 0 };
         }));
-        uploaded += results.filter(r => r.status === 'fulfilled' && r.value.success && !r.value.skipped).length;
+        for (const r of results) {
+            if (r.status !== 'fulfilled') { failed++; continue; }
+            verifiedRel.push(r.value.rel);
+            r.value.skipped ? skipped++ : (uploaded++, totalSize += r.value.size);
+        }
     }
-
-    // Write manifest with FRESH client + retry (original client stale after 2000+ ops)
-    const manifestBody = JSON.stringify({ files: manifest, timestamp: new Date().toISOString(), count: manifest.length });
-    let mOk = false;
-    for (let i = 0; i < 3 && !mOk; i++) {
-        try { const fc = createR2Client(); await fc.send(new PutObjectCommand({ Bucket: BUCKET, Key: r2Prefix + '_manifest.json', Body: manifestBody, ContentType: 'application/json' })); mOk = true; }
+    const verified = verifiedRel.length;
+    // COMMIT GATE (D-356 #1/#5): a partial backup writes NO manifest (the false-_manifest defect that claimed absent objects).
+    if (verified !== expected || failed > 0) { console.error(`[R2-HANDOFF] INCOMPLETE: ${verified}/${expected} verified, ${failed} failed -- manifest NOT written (fail-closed).`); return { success: false, count: uploaded, totalSize, verified, expected, failed, skipped, committed: false, reason: 'partial_upload' }; }
+    const manifestBody = JSON.stringify({ files: verifiedRel, timestamp: new Date().toISOString(), count: verifiedRel.length });
+    let committed = false;
+    for (let i = 0; i < 3 && !committed; i++) {
+        try { const fc = createR2Client(); await fc.send(new PutObjectCommand({ Bucket: BUCKET, Key: r2Prefix + '_manifest.json', Body: manifestBody, ContentType: 'application/json' })); committed = true; }
         catch (e) { console.error(`[R2-HANDOFF] Manifest attempt ${i+1}/3: ${e.message || e.Code || JSON.stringify(e.$metadata || {})}`); if (i < 2) await new Promise(r => setTimeout(r, 2000*(i+1))); }
     }
-    if (!mOk) console.error(`[R2-HANDOFF] ⚠️ MANIFEST WRITE FAILED (${manifest.length} entries)`);
-
-    console.log(`[R2-HANDOFF] Directory backup: ${uploaded} new + ${skipped} unchanged / ${files.length} total (${(totalSize/1024/1024).toFixed(1)}MB uploaded)`);
-    return { success: uploaded > 0, count: uploaded, totalSize };
+    // Manifest PUT failure (D-356 #4) fails the whole op -> CLI non-zero.
+    if (!committed) { console.error(`[R2-HANDOFF] MANIFEST WRITE FAILED (${verifiedRel.length} entries) -- backup NOT committed.`); return { success: false, count: uploaded, totalSize, verified, expected, failed, skipped, committed: false, reason: 'manifest_write_failed' }; }
+    console.log(`[R2-HANDOFF] Directory backup COMMITTED: ${uploaded} new + ${skipped} unchanged / ${expected} total (${(totalSize/1024/1024).toFixed(1)}MB uploaded)`);
+    return { success: true, count: uploaded, totalSize, verified, expected, failed, skipped, committed: true };
 }
 
 /**
