@@ -704,6 +704,16 @@ jobs:
           restore-keys: |
             checksums-
 
+      # D-364/D-365/D-366: FIRST reconcile. Validate the RESTORED entity-checksums
+      # artifact at the owner boundary — BEFORE Merge Batches (the consumer) and BEFORE
+      # both R2 backup routes. A poisoned/truncated restore is LOCAL-invalidated
+      # (honest cache-miss; never an R2 mutation). Fail-closed
+      # CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED reddens the job rather than reporting a
+      # false cache-miss. ENTITY-ONLY: task-checksums.json.zst is never touched.
+      # Never continue-on-error.
+      - name: Validate Restored Checksums Cache
+        run: node scripts/factory/validate-checksum-cache.js
+
       # V4.1: Restore global registry (Immutable Key + Prefix Match)
       - name: Restore Global Registry (Cache-First)
         id: cache-registry
@@ -971,3 +981,16 @@ jobs:
           echo "- **Manifest State**: Verified ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Next: Factory 2/4 - Process" >> $GITHUB_STEP_SUMMARY
+
+      # D-366: SECOND reconcile — the LAST job step that can affect
+      # cache/entity-checksums.json.zst. It runs AFTER every possible writer of that
+      # file (Merge Batches, Save Entity Data to Cache) so an entity-checksums artifact
+      # that is invalid at job end is LOCAL-invalidated BEFORE the combined "Restore
+      # Checksums" action's post-if:success() post-save runs — the poison is never
+      # re-propagated to the next cycle. Same ENTITY-ONLY CLI as the first reconcile
+      # (task-checksums.json.zst is never touched). If local invalidation cannot be
+      # verified it exits non-zero (CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED), the job
+      # FAILS, and the post-if:success() post-save therefore does NOT run.
+      # Never continue-on-error.
+      - name: Reconcile Checksums Before Post-Save
+        run: node scripts/factory/validate-checksum-cache.js
