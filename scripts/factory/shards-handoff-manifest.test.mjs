@@ -498,9 +498,15 @@ test('(F-T7) entity-checksums is INDEPENDENTLY hydrated + SAFE-ABSENT (SOURCE lo
     assert.match(wf, /entity-checksums-\$\{\{\s*github\.run_id\s*\}\}/);
     assert.match(wf, /R2 Fallback for Entity Checksums/);
     assert.match(wf, /meta\/backup\/entity-checksums\.json\.zst/);
-    // (b) loadEntityChecksums DEFAULTS to {} (safe absence) + save SKIPS empty (no 11B regen).
+    // (b) D-370/D-371 OWNER_LOCAL_ONLY: loadEntityChecksums reads the LOCAL cache ONLY — it must
+    //     NOT delegate to loadWithFallback (whose R2 fallback re-materializes the 11B poison) and
+    //     a missing/invalid local cache => {}; saveEntityChecksums still SKIPS empty (no 11B regen).
     const cm = readSrc('./lib/cache-manager.js');
-    assert.match(cm, /loadWithFallback\('entity-checksums\.json\.zst',\s*\{\}\)/);
+    const fn = cm.match(/export async function loadEntityChecksums\s*\([^)]*\)\s*\{[\s\S]*?\n\}/);
+    assert.ok(fn, 'loadEntityChecksums must be present');
+    const body = fn[0];
+    assert.doesNotMatch(body, /loadWithFallback/, 'OWNER_LOCAL_ONLY: loadEntityChecksums must NOT delegate to loadWithFallback (R2 fallback re-materializes the 11B poison)');
+    assert.match(body, /return\s*\{\}/, 'missing/invalid local cache => returns {} (no R2 re-materialization)');
     assert.match(cm, /skipping save/);
     // (c) the ONLY consumer use is change-detection feeding _updated -- NOT identity/FNI/
     //     ranking/shard-composition. entityChecksums appears ONLY as the param + the single read.

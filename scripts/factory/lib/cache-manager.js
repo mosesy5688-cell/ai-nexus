@@ -19,7 +19,19 @@ export {
 // (Removed redundant import that caused conflict)
 
 export async function loadEntityChecksums() {
-    return loadWithFallback('entity-checksums.json.zst', {});
+    // OWNER_LOCAL_ONLY_LOAD (D-370): entity-checksums is a NON-AUTHORITATIVE accelerator.
+    // Read ONLY the local cache; NEVER take the cache-core R2 fallback (whose tryR2 writes
+    // the R2 body to local BEFORE decompress/validate — re-materializing an 11B poison at
+    // cache-core.js:83). Missing/invalid local => honest {} (downstream recomputes).
+    const filePath = entityChecksumsPath();
+    const verdict = await isValidEntityChecksumArtifact(filePath);
+    if (!verdict.valid) return {};
+    try {
+        const raw = await autoDecompress(await fs.readFile(filePath));
+        return JSON.parse(raw.toString('utf-8'));
+    } catch {
+        return {};
+    }
 }
 
 export async function saveEntityChecksums(checksums) {
@@ -106,51 +118,38 @@ export async function isValidEntityChecksumArtifact(filePath) {
 /**
  * Owner-boundary reconciler. Targets ONLY entity-checksums.json.zst (never
  * task-checksums, never R2). Keep valid; LOCAL-invalidate invalid (fail-closed if
- * removal cannot be verified); no-op on absence.
- * @returns {Promise<{ status: string, reason?: string }>}
+ * removal cannot be verified); no-op on absence. Emits a STRUCTURED TRACE line
+ * (stage + status + reason + size bytes) — NEVER checksum keys, entity ids, or file
+ * content. @param {{ stage?: string }} options
+ * @returns {Promise<{ status: string, reason?: string, size: number }>}
  */
-export async function reconcileEntityChecksumCache() {
+export async function reconcileEntityChecksumCache(options = {}) {
+    const stage = options.stage || 'unspecified';
     const filePath = entityChecksumsPath();
+    let size = 0, st = null;
+    try { st = await fs.lstat(filePath); size = st.size; } catch { st = null; }
+    // Trace carries ONLY status/reason/size — no keys, no ids, no content.
+    const trace = (status, reason) => console.log(`[CHECKSUM-CACHE-TRACE] stage=${stage} status=${status} reason=${reason} size=${size}`);
 
-    let present = true;
-    try {
-        await fs.lstat(filePath);
-    } catch {
-        present = false;
-    }
-    if (!present) {
-        console.log(`[CHECKSUM-CACHE] No restored ${ENTITY_CHECKSUMS_FILE} — honest cache-miss (nothing to invalidate).`);
-        return { status: 'absent' };
-    }
+    if (!st) { trace('absent', 'none'); return { status: 'absent', size }; }
 
     const verdict = await isValidEntityChecksumArtifact(filePath);
-    if (verdict.valid) {
-        console.log(`[CHECKSUM-CACHE] Restored ${ENTITY_CHECKSUMS_FILE} is VALID — kept.`);
-        return { status: 'kept' };
-    }
+    if (verdict.valid) { trace('kept', 'ok'); return { status: 'kept', size }; }
 
     // Non-regular targets must NOT be unlinked as if they were the artifact.
     if (verdict.reason === 'not_regular_file') {
         throw new Error(`${CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED}: refusing to invalidate non-regular file at ${filePath}`);
     }
-
-    console.warn(`[CHECKSUM-CACHE] Restored ${ENTITY_CHECKSUMS_FILE} INVALID (${verdict.reason}) — invalidating LOCAL cache ONLY (no R2 mutation).`);
     try {
         await fs.unlink(filePath);
     } catch (e) {
         throw new Error(`${CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED}: unlink threw for ${filePath}: ${e.message}`);
     }
-
     let stillPresent = true;
-    try {
-        await fs.lstat(filePath);
-    } catch {
-        stillPresent = false;
-    }
+    try { await fs.lstat(filePath); } catch { stillPresent = false; }
     if (stillPresent) {
         throw new Error(`${CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED}: ${filePath} still present after unlink`);
     }
-
-    console.log(`[CHECKSUM-CACHE] Local invalid ${ENTITY_CHECKSUMS_FILE} removed — honest cache-miss (downstream recomputes).`);
-    return { status: 'invalidated', reason: verdict.reason };
+    trace('invalidated', verdict.reason);
+    return { status: 'invalidated', reason: verdict.reason, size };
 }

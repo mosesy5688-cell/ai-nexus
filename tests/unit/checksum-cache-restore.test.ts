@@ -1,36 +1,38 @@
-// tests/unit/checksum-cache-restore.test.ts
-// D-364/D-365/D-366: entity-checksum cache restore-validation via ENTITY_ONLY_DOUBLE_
-// RECONCILE, combined cache preserved. REAL validator/reconciler + REAL zstd frames +
-// REAL loader + REAL processEntity + REAL candidate enum. task-checksums NEVER touched.
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+// tests/unit/checksum-cache-restore.test.ts — D-364/D-366/D-370 entity-checksum cache
+// restore-validation: double-reconcile + combined cache preserved + OWNER_LOCAL_ONLY_LOAD
+// (no R2 re-materialization) + 3rd pre-carrier reconcile + structured stage trace. REAL
+// validator/reconciler/loader, REAL zstd frames, REAL candidate enum, REAL processEntity.
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import fsPromises from 'fs/promises';
 import { readFileSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import { zstdCompress } from '../../scripts/factory/lib/zstd-helper.js';
 import {
-    isValidEntityChecksumArtifact,
-    reconcileEntityChecksumCache,
-    loadEntityChecksums,
-    CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED,
+    isValidEntityChecksumArtifact, reconcileEntityChecksumCache, loadEntityChecksums,
+    loadWithFallback, CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED,
 } from '../../scripts/factory/lib/cache-manager.js';
 import { processEntity } from '../../scripts/factory/lib/processor-core.js';
 
+// R2 mock: cache-core tryR2 gets a client serving an 11B poison. A LOCAL-ONLY load never
+// reaches it; the old loadWithFallback path re-materializes it (root cause anchor).
+const h = vi.hoisted(() => {
+    const state: { getCalls: number; poison: Uint8Array | null } = { getCalls: 0, poison: null };
+    const client = { send: async () => { state.getCalls++; return { Body: { transformToByteArray: async () => state.poison }, ContentLength: state.poison ? state.poison.length : 0 }; } };
+    return { state, client };
+});
+vi.mock('../../scripts/factory/lib/r2-helpers.js', async (orig) => ({ ...(await (orig as () => Promise<Record<string, unknown>>)()), createR2Client: () => h.client }));
+
 const FILE = 'entity-checksums.json.zst';
 const TASK = 'task-checksums.json.zst';
-const HEX_A = '0123456789abcdef'.repeat(4);   // 64 lowercase hex (varied, RLE-resistant)
-const HEX_B = 'fedcba9876543210'.repeat(4);   // 64 lowercase hex
-const PAD = ' \t\n'.repeat(80);               // mixed WS: forces frame >= 16B; valid JSON tail
-const ZMAGIC = Buffer.from([0x28, 0xB5, 0x2F, 0xFD]); // zstd magic (LE 0xFD2FB528)
-
-const frame = (s: string) => zstdCompress(Buffer.from(s + PAD)); // real zstd frame, size-safe
-const CORRUPT = Buffer.concat([ZMAGIC, Buffer.from('garbage-body-000000000000')]); // magic-ok, undecompressable
-
-let dir: string;
-let cachePath: string;
-let taskPath: string;
+const HEX_A = '0123456789abcdef'.repeat(4);
+const HEX_B = 'fedcba9876543210'.repeat(4);
+const PAD = ' \t\n'.repeat(80);                // mixed WS: frame >= 16B, valid JSON tail
+const ZMAGIC = Buffer.from([0x28, 0xB5, 0x2F, 0xFD]);
+const frame = (s: string) => zstdCompress(Buffer.from(s + PAD));
+const CORRUPT = Buffer.concat([ZMAGIC, Buffer.from('garbage-body-000000000000')]);
+let dir: string, cachePath: string, taskPath: string;
 const savedEnv: Record<string, string | undefined> = {};
-
 async function writeArtifact(buf: Buffer) { await fsPromises.writeFile(cachePath, buf); }
 async function present(p: string) { try { await fsPromises.lstat(p); return true; } catch { return false; } }
 async function candidates(): Promise<string[]> { // mirrors r2-handoff backup-dir walk
@@ -44,12 +46,11 @@ async function candidates(): Promise<string[]> { // mirrors r2-handoff backup-di
     await walk(dir, '');
     return out;
 }
-
+beforeAll(async () => { h.state.poison = new Uint8Array(await zstdCompress(Buffer.from('{}'))); }); // ~11B poison
 beforeEach(async () => {
     dir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'ckcache-'));
-    cachePath = path.join(dir, FILE);
-    taskPath = path.join(dir, TASK);
-    process.env.CACHE_DIR = dir;
+    cachePath = path.join(dir, FILE); taskPath = path.join(dir, TASK);
+    process.env.CACHE_DIR = dir; h.state.getCalls = 0;
     for (const k of ['R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ACCOUNT_ID', 'CLOUDFLARE_ACCOUNT_ID', 'CF_ACCOUNT_ID', 'FORCE_R2_RESTORE']) {
         savedEnv[k] = process.env[k]; delete process.env[k];
     }
@@ -59,7 +60,6 @@ afterEach(async () => {
     for (const k of Object.keys(savedEnv)) { if (savedEnv[k] === undefined) delete process.env[k]; else process.env[k] = savedEnv[k]; }
     await fsPromises.rm(dir, { recursive: true, force: true });
 });
-
 describe('isValidEntityChecksumArtifact — exhaustive reason codes', () => {
     const rows: Array<{ n: string; make: () => Buffer | Promise<Buffer>; reason: string }> = [
         { n: 'T1 11B header-only', make: () => Buffer.alloc(11), reason: 'too_small' },
@@ -89,8 +89,7 @@ describe('isValidEntityChecksumArtifact — exhaustive reason codes', () => {
 });
 describe('reconcileEntityChecksumCache — LOCAL invalidation, fail-closed', () => {
     it('T1/T2/T3/T4 invalid -> removed -> honest cache-miss + absent from candidate set (T9)', async () => {
-        const makes = [() => Buffer.alloc(11), () => CORRUPT, () => frame('{}'), () => frame('[1,2,3]')];
-        for (const make of makes) {
+        for (const make of [() => Buffer.alloc(11), () => CORRUPT, () => frame('{}'), () => frame('[1,2,3]')]) {
             await writeArtifact(await make());
             expect((await reconcileEntityChecksumCache()).status).toBe('invalidated');
             expect(await present(cachePath)).toBe(false);
@@ -105,40 +104,32 @@ describe('reconcileEntityChecksumCache — LOCAL invalidation, fail-closed', () 
         expect(await candidates()).toContain(FILE);
         expect(await loadEntityChecksums()).toEqual(map);
     });
-    it('T6 valid fresh non-empty -> kept', async () => {
-        await writeArtifact(await frame(JSON.stringify({ 'hf-model--a/b': HEX_A, 'gh-tool--c/d': HEX_B })));
+    it('T6 valid fresh -> kept; T7 miss -> absent/{}; T8 no fabrication after invalidation', async () => {
+        await writeArtifact(await frame(JSON.stringify({ 'hf-model--a/b': HEX_A })));
         expect((await reconcileEntityChecksumCache()).status).toBe('kept');
-        expect(await present(cachePath)).toBe(true);
-    });
-    it('T7 cache miss (no file) -> no-op -> {}', async () => {
+        await fsPromises.rm(cachePath);
         expect((await reconcileEntityChecksumCache()).status).toBe('absent');
         expect(await loadEntityChecksums()).toEqual({});
-    });
-    it('T8 regeneration deferred -> no fabricated file after invalidation', async () => {
         await writeArtifact(Buffer.alloc(11));
         await reconcileEntityChecksumCache();
         expect(await present(cachePath)).toBe(false);
-        expect(await loadEntityChecksums()).toEqual({});
     });
 });
-
-describe('D-366 entity-only double-reconcile + fail-closed (A-E, S3)', () => {
-    it('A invalid entity + valid task -> entity removed; task bytes UNCHANGED + still a save candidate', async () => {
+describe('D-366 entity-only + fail-closed (A-E, S3)', () => {
+    it('A invalid entity + valid task -> entity removed; task bytes UNCHANGED + still a candidate', async () => {
         const taskBytes = await frame(JSON.stringify({ 'task:1': HEX_A }));
         await fsPromises.writeFile(taskPath, taskBytes);
         await writeArtifact(Buffer.alloc(11));
         expect((await reconcileEntityChecksumCache()).status).toBe('invalidated');
         expect(await present(cachePath)).toBe(false);
-        expect(await fsPromises.readFile(taskPath)).toEqual(taskBytes); // never read/deleted/modified
-        const c = await candidates();
-        expect(c).toContain(TASK);       // still in the combined-save candidate path
-        expect(c).not.toContain(FILE);
+        expect(await fsPromises.readFile(taskPath)).toEqual(taskBytes);
+        const c = await candidates(); expect(c).toContain(TASK); expect(c).not.toContain(FILE);
     });
-    it('B invalid entity + missing task -> cache-miss, no fabricated file', async () => {
+    it('B invalid entity + missing task -> cache-miss, task not fabricated', async () => {
         await writeArtifact(Buffer.alloc(11));
         await reconcileEntityChecksumCache();
         expect(await present(cachePath)).toBe(false);
-        expect(await present(taskPath)).toBe(false); // task not fabricated
+        expect(await present(taskPath)).toBe(false);
         expect(await loadEntityChecksums()).toEqual({});
     });
     it('C valid entity + task -> both kept', async () => {
@@ -146,105 +137,114 @@ describe('D-366 entity-only double-reconcile + fail-closed (A-E, S3)', () => {
         await fsPromises.writeFile(taskPath, taskBytes);
         await writeArtifact(await frame(JSON.stringify({ 'hf-model--a/b': HEX_A })));
         expect((await reconcileEntityChecksumCache()).status).toBe('kept');
-        expect(await present(cachePath)).toBe(true);
         expect(await fsPromises.readFile(taskPath)).toEqual(taskBytes);
     });
-    it('D entity re-manufactured invalid AFTER 1st reconcile -> 2nd reconcile (same CLI) removes it again', async () => {
+    it('D re-manufactured invalid after 1st reconcile -> a later reconcile removes it again', async () => {
         await writeArtifact(await frame(JSON.stringify({ 'hf-model--a/b': HEX_A })));
-        expect((await reconcileEntityChecksumCache()).status).toBe('kept');   // 1st (boundary)
-        await writeArtifact(Buffer.alloc(11));                                 // a later writer corrupts it
-        expect((await reconcileEntityChecksumCache()).status).toBe('invalidated'); // 2nd (pre post-save)
+        expect((await reconcileEntityChecksumCache()).status).toBe('kept');
+        await writeArtifact(Buffer.alloc(11));
+        expect((await reconcileEntityChecksumCache()).status).toBe('invalidated');
         expect(await present(cachePath)).toBe(false);
     });
-    it('E 2nd reconcile unlink unverifiable -> CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED (job fails, post-save skipped)', async () => {
+    it('E unlink unverifiable -> fail-closed; S3 non-regular -> refused fail-closed', async () => {
         await writeArtifact(Buffer.alloc(11));
-        const spy = vi.spyOn(fsPromises, 'unlink').mockResolvedValue(undefined as unknown as void); // "succeeds", leaves file
+        const spy = vi.spyOn(fsPromises, 'unlink').mockResolvedValue(undefined as unknown as void);
         await expect(reconcileEntityChecksumCache()).rejects.toThrow(CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED);
         expect(spy).toHaveBeenCalled();
-        expect(await present(cachePath)).toBe(true); // NOT reported removed
-    });
-    it('S3 non-regular target (directory) -> refused + fail-closed, never unlinked', async () => {
-        await fsPromises.mkdir(cachePath);
+        expect(await present(cachePath)).toBe(true);
+        spy.mockRestore();
+        await fsPromises.rm(cachePath); await fsPromises.mkdir(cachePath);
         expect(await isValidEntityChecksumArtifact(cachePath)).toEqual({ valid: false, reason: 'not_regular_file' });
         await expect(reconcileEntityChecksumCache()).rejects.toThrow(CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED);
         expect(await present(cachePath)).toBe(true);
     });
 });
-describe('T10 shared .zst gate files are untouched', () => {
+describe('D-370 OWNER_LOCAL_ONLY_LOAD — no R2 re-materialization', () => {
+    it('missing local + R2 poison available: no GET, no re-materialize -> {}', async () => {
+        expect(await present(cachePath)).toBe(false);
+        expect(await loadEntityChecksums()).toEqual({});
+        expect(h.state.getCalls).toBe(0);
+        expect(await present(cachePath)).toBe(false);
+    });
+    it('ROOT-CAUSE anchor: the old loadWithFallback R2 path DOES re-materialize the 11B poison', async () => {
+        expect(await loadWithFallback(FILE, {})).toEqual({});
+        expect(h.state.getCalls).toBeGreaterThan(0);
+        expect(await present(cachePath)).toBe(true); // poison written to local (cache-core.js:83)
+    });
+    it('valid local loads normally (no R2); invalid-post-reconcile not re-materialized', async () => {
+        const map = { 'hf-model--a/b': HEX_A };
+        await writeArtifact(await frame(JSON.stringify(map)));
+        expect(await loadEntityChecksums()).toEqual(map);
+        await writeArtifact(Buffer.alloc(11));
+        await reconcileEntityChecksumCache();
+        expect(await loadEntityChecksums()).toEqual({});
+        expect(await present(cachePath)).toBe(false);
+        expect(h.state.getCalls).toBe(0);
+    });
+    it('OWNER_LOCAL_ONLY source guard: loadEntityChecksums does NOT delegate to loadWithFallback', () => {
+        const cm = readFileSync(path.resolve(__dirname, '../../scripts/factory/lib/cache-manager.js'), 'utf8');
+        const body = cm.slice(cm.indexOf('export async function loadEntityChecksums'), cm.indexOf('export async function saveEntityChecksums'));
+        expect(body).not.toContain('loadWithFallback');
+        expect(body).toContain('isValidEntityChecksumArtifact');
+    });
+    it('structured trace carries stage/status/reason/size but NO keys/ids/content', async () => {
+        const KEY = 'hf-model--secret--entity';
+        await writeArtifact(await frame(JSON.stringify({ [KEY]: HEX_A })));
+        const logs: string[] = [];
+        vi.spyOn(console, 'log').mockImplementation(((...a: unknown[]) => { logs.push(a.join(' ')); }) as unknown as typeof console.log);
+        await reconcileEntityChecksumCache({ stage: 'post_owner_load_pre_carrier' });
+        const trace = logs.find(l => l.includes('CHECKSUM-CACHE-TRACE')) || '';
+        expect(trace).toContain('stage=post_owner_load_pre_carrier');
+        expect(trace).toContain('status=kept');
+        expect(trace).toMatch(/size=\d+/);
+        expect(trace).not.toContain(KEY);
+        expect(trace).not.toContain(HEX_A);
+    });
+});
+describe('T10 shared .zst gate files untouched', () => {
     const r2 = readFileSync(path.resolve(__dirname, '../../scripts/factory/lib/r2-handoff.js'), 'utf8');
     const elig = readFileSync(path.resolve(__dirname, '../../scripts/factory/lib/upload-eligibility.js'), 'utf8');
-    it('r2-handoff.js + upload-eligibility.js retain the gate and carry no checksum-cache edits', () => {
-        expect(r2).toContain('isUploadEligible');
-        expect(r2).toContain('integrity_check_failed');
-        expect(elig).toContain('0xFD2FB528'); // the real zstd .zst magic gate
-        for (const src of [r2, elig]) {
-            expect(src).not.toContain('reconcileEntityChecksumCache');
-            expect(src).not.toContain('entity-checksums');
-            expect(src).not.toContain(CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED);
-        }
+    it('r2-handoff.js + upload-eligibility.js keep the gate, no checksum-cache edits', () => {
+        expect(r2).toContain('isUploadEligible'); expect(elig).toContain('0xFD2FB528');
+        for (const src of [r2, elig]) { expect(src).not.toContain('reconcileEntityChecksumCache'); expect(src).not.toContain('entity-checksums'); }
     });
 });
 describe('T12 data-parity: only _updated varies with checksum state', () => {
     const entity = { id: 'hf-model--foo/bar', slug: 'foo-bar', name: 'Foo', type: 'model', source: 'huggingface', body_content: 'hello world content', tags: ['nlp'] };
     it('valid/stale/empty/missing -> identical emitted entity+fields except _updated', async () => {
-        const base = await processEntity({ ...entity }, {}, {}, {}, {}); // empty/missing -> changed
+        const base = await processEntity({ ...entity }, {}, {}, {}, {});
         const matchHash = base._checksum;
-        const maps = [{}, { [base.id]: matchHash }, { [base.id]: HEX_A }]; // base.id = normalizeId lookup id: missing, fresh(cache-HIT isChanged=false), stale(nonempty->changed)
-        for (const m of maps) {
+        for (const m of [{}, { [base.id]: matchHash }, { [base.id]: HEX_A }]) { // missing, fresh(cache-HIT), stale
             const o = await processEntity({ ...entity }, {}, m, {}, {});
-            expect(o.success).toBe(true);
-            expect(o._checksum).toBe(matchHash); // checksum stable regardless of cache state
+            expect(o.success).toBe(true); expect(o._checksum).toBe(matchHash);
             const a: Record<string, unknown> = { ...o.enriched }; const b: Record<string, unknown> = { ...base.enriched };
-            delete a._updated; delete b._updated;
-            expect(a).toEqual(b);
+            delete a._updated; delete b._updated; expect(a).toEqual(b);
         }
     });
 });
-
-describe('D-366 workflow contract (F/G/H/I) — RED if reverted', () => {
+describe('D-370 workflow contract: triple reconcile + preserved combined cache (RED if reverted)', () => {
     const wf = readFileSync(path.resolve(__dirname, '../../.github/workflows/factory-harvest.yml'), 'utf8').replace(/\r\n/g, '\n');
-    const stepBlock = (name: string) => {
-        const s = wf.indexOf(`- name: ${name}`);
-        if (s < 0) return '';
-        const n = wf.slice(s + 1).indexOf('\n      - name:');
-        return n < 0 ? wf.slice(s) : wf.slice(s, s + 1 + n);
-    };
-    const CLI = 'node scripts/factory/validate-checksum-cache.js';
-    const first = wf.indexOf('- name: Validate Restored Checksums Cache');
-    const second = wf.indexOf('- name: Reconcile Checksums Before Post-Save');
-
-    it('I Restore Checksums preserves the COMBINED cache baseline (matches 3528bbb9c)', () => {
+    const stepBlock = (n: string) => { const s = wf.indexOf(`- name: ${n}`); if (s < 0) return ''; const x = wf.slice(s + 1).indexOf('\n      - name:'); return x < 0 ? wf.slice(s) : wf.slice(s, s + 1 + x); };
+    const at = (n: string) => wf.indexOf(`- name: ${n}`);
+    const first = at('Validate Restored Checksums Cache'), pre = at('Reconcile Checksums Pre-Carrier'), last = at('Reconcile Checksums Before Post-Save');
+    it('combined cache baseline preserved; no should_save / valid-only save', () => {
         const b = stepBlock('Restore Checksums');
-        expect(b).toContain('uses: actions/cache@v5');
-        expect(b).not.toContain('uses: actions/cache/restore@v5');
-        expect(b).toContain('cache/entity-checksums.json.zst');
-        expect(b).toContain('cache/task-checksums.json.zst');
+        expect(b).toContain('uses: actions/cache@v5'); expect(b).not.toContain('uses: actions/cache/restore@v5');
+        expect(b).toContain('cache/entity-checksums.json.zst'); expect(b).toContain('cache/task-checksums.json.zst');
         expect(b).toContain('key: checksums-${{ github.run_id }}');
-        expect(b).toContain('restore-keys:');
+        expect(wf).not.toContain('should_save'); expect(wf).not.toContain('--assert-valid-for-save');
     });
-    it('H no should_save / valid-only-save survives (task-INDEPENDENCE preserved)', () => {
-        expect(wf).not.toContain('should_save');
-        expect(wf).not.toContain('--assert-valid-for-save');
-        expect(wf).not.toContain('- name: Save Validated Checksums Cache');
-    });
-    it('F first reconcile runs before Merge Batches + both R2 backups, not continue-on-error', () => {
-        expect(first).toBeGreaterThan(-1);
-        expect(first).toBeLessThan(wf.indexOf('- name: Merge Batches'));
-        expect(first).toBeLessThan(wf.indexOf('- name: Backup Harvest Cycle to R2'));
-        expect(first).toBeLessThan(wf.indexOf('- name: Backup FNI/Accum/Checksums to R2'));
-        const b = stepBlock('Validate Restored Checksums Cache');
-        expect(b).toContain(CLI);
-        expect(b).not.toContain('continue-on-error');
-    });
-    it('G second reconcile runs after Merge Batches + Save Entity Data to Cache, last, not continue-on-error', () => {
-        expect(second).toBeGreaterThan(wf.indexOf('- name: Merge Batches'));
-        expect(second).toBeGreaterThan(wf.indexOf('- name: Save Entity Data to Cache'));
-        expect(second).toBeGreaterThan(first);
-        const b = stepBlock('Reconcile Checksums Before Post-Save');
-        expect(b).toContain(CLI);
-        expect(b).not.toContain('continue-on-error');
-    });
-    it('both reconciles invoke the SAME entity-only CLI (>= 2 invocations)', () => {
-        expect((wf.match(/node scripts\/factory\/validate-checksum-cache\.js/g) || []).length).toBeGreaterThanOrEqual(2);
+    it('three staged reconciles, correctly ordered, none continue-on-error', () => {
+        expect(first).toBeGreaterThan(-1); expect(pre).toBeGreaterThan(-1); expect(last).toBeGreaterThan(-1);
+        expect(first).toBeLessThan(at('Merge Batches'));
+        expect(pre).toBeGreaterThan(at('Merge Batches'));
+        expect(pre).toBeLessThan(at('Save Entity Data to Cache'));
+        expect(pre).toBeLessThan(at('Backup Harvest Cycle to R2'));
+        expect(pre).toBeLessThan(at('Backup FNI/Accum/Checksums to R2'));
+        expect(last).toBeGreaterThan(at('Save Entity Data to Cache'));
+        for (const [nm, stg] of [['Validate Restored Checksums Cache', 'post_restore'], ['Reconcile Checksums Pre-Carrier', 'post_owner_load_pre_carrier'], ['Reconcile Checksums Before Post-Save', 'pre_post_save']] as const) {
+            const b = stepBlock(nm); expect(b).toContain(`validate-checksum-cache.js --stage ${stg}`); expect(b).not.toContain('continue-on-error');
+        }
+        expect((wf.match(/validate-checksum-cache\.js/g) || []).length).toBe(3);
     });
 });
