@@ -712,7 +712,7 @@ jobs:
       # false cache-miss. ENTITY-ONLY: task-checksums.json.zst is never touched.
       # Never continue-on-error.
       - name: Validate Restored Checksums Cache
-        run: node scripts/factory/validate-checksum-cache.js
+        run: node scripts/factory/validate-checksum-cache.js --stage post_restore
 
       # V4.1: Restore global registry (Immutable Key + Prefix Match)
       - name: Restore Global Registry (Cache-First)
@@ -831,6 +831,16 @@ jobs:
           # (4) Persist the IMMUTABLE run/attempt/head-scoped manifest (D-337 Blocker 4: a retry
           # or a different cascade on the SAME head writes a DIFFERENT path => no overwrite/replay).
           node scripts/factory/r2-workflow-cli.js upload-file data/state/c4-stage2/exclusion-manifest.json "state/c4-stage2/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA}/exclusion-manifest.json"
+
+      # D-370: THIRD reconcile (post_owner_load_pre_carrier). Runs AFTER Merge Batches
+      # (which calls the owner load) and BEFORE the CYCLE-CACHE save (Save Entity Data
+      # to Cache, key cycle-<run_id>-harvest) AND before both R2 backup routes — so a
+      # re-materialized/invalid entity-checksums artifact cannot be carried by ANY
+      # downstream carrier (cycle cache, backup-dir, or the combined post-save). Same
+      # ENTITY-ONLY CLI; task-checksums.json.zst is never touched. Fail-closed
+      # (CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED -> non-zero -> job RED). Never continue-on-error.
+      - name: Reconcile Checksums Pre-Carrier
+        run: node scripts/factory/validate-checksum-cache.js --stage post_owner_load_pre_carrier
 
       # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       - name: Save Entity Data to Cache
@@ -993,4 +1003,4 @@ jobs:
       # FAILS, and the post-if:success() post-save therefore does NOT run.
       # Never continue-on-error.
       - name: Reconcile Checksums Before Post-Save
-        run: node scripts/factory/validate-checksum-cache.js
+        run: node scripts/factory/validate-checksum-cache.js --stage pre_post_save

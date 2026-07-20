@@ -1,39 +1,41 @@
 #!/usr/bin/env node
 /**
- * D-364/D-365/D-366: entity-checksum cache OWNER-BOUNDARY RECONCILE CLI.
+ * D-364/D-366/D-370: entity-checksum cache OWNER-BOUNDARY RECONCILE CLI.
  *
  * Operates ONLY on cache/entity-checksums.json.zst (never task-checksums, never
- * R2). Keeps a valid restored/merged artifact; LOCAL-invalidates an invalid one
- * (turning a poisoned hit into an honest cache-miss). Exits NON-ZERO only when
- * local invalidation could not be verified (CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED)
- * — a fail-closed, never a silently-reported success. A removed-invalid /
- * kept-valid / absent artifact all exit 0 (the cycle continues honestly).
+ * R2). Keeps a valid artifact; LOCAL-invalidates an invalid one (turning a poisoned
+ * hit into an honest cache-miss). Exits NON-ZERO only when local invalidation could
+ * not be verified (CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED) — fail-closed, never a
+ * silently-reported success. Removed-invalid / kept-valid / absent all exit 0.
  *
- * D-366 double-reconcile: factory-harvest.yml invokes this SAME CLI twice — once
- * at the owner boundary right after the combined "Restore Checksums" restore
- * (before Merge Batches + both R2 backups), and once as the LAST job step before
- * the combined action's post-if:success() post-save, so an artifact that is invalid
- * at job end is removed before it can be re-propagated to the next cycle. If the
- * second reconcile fails closed, the job fails and the post-save does not run.
+ * D-370 triple-reconcile: factory-harvest.yml invokes this SAME CLI three times, each
+ * with a --stage label: post_restore (right after the combined restore),
+ * post_owner_load_pre_carrier (after Merge Batches, before the cycle-cache save +
+ * both R2 backups), and pre_post_save (last step, before the combined post-save).
+ * The reconciler emits a STRUCTURED TRACE (stage + status + reason + size bytes only —
+ * never checksum keys, entity ids, or file content).
  */
 import {
     reconcileEntityChecksumCache,
     CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED,
 } from './lib/cache-manager.js';
 
-async function main() {
-    const result = await reconcileEntityChecksumCache();
-    console.log(`[CHECKSUM-CACHE] reconcile status=${result.status}${result.reason ? ` reason=${result.reason}` : ''}`);
+function parseStage() {
+    const args = process.argv.slice(2);
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--stage' && args[i + 1]) return args[i + 1];
+        if (args[i].startsWith('--stage=')) return args[i].slice('--stage='.length);
+    }
+    return 'unspecified';
 }
 
-main().catch((e) => {
+const stage = parseStage();
+
+reconcileEntityChecksumCache({ stage }).catch((e) => {
     const msg = e && e.message ? e.message : String(e);
+    // Fail-closed trace (status/reason only — no keys/ids/content) + the raw signal.
+    console.error(`[CHECKSUM-CACHE-TRACE] stage=${stage} status=fail_closed reason=local_invalidation_failed`);
     console.error(`[CHECKSUM-CACHE] ${msg}`);
-    // Fail-closed: local invalidation could not be verified. A non-zero exit
-    // here MUST redden the boundary/post-save step — do NOT report a cache-miss
-    // success (and, for the second reconcile, keep the combined post-save from running).
-    if (msg.includes(CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED)) {
-        process.exit(2);
-    }
+    if (msg.includes(CHECKSUM_CACHE_LOCAL_INVALIDATION_FAILED)) process.exit(2);
     process.exit(1);
 });
