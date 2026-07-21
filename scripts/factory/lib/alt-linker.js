@@ -161,6 +161,7 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
     }
     if (rustResult?.categoriesData && rustResult?.metaData) {
         for (const cat of rustResult.categoriesData) {
+            if (cat.relationCount === 0) continue; // D-375 PRODUCER_OMIT_ZERO_RELATION_FRAME: physical fence vs a stale cached .node
             await fs.writeFile(path.join(relationsDir, cat.filename), Buffer.from(cat.compressedData));
         }
         const metaDir = path.join(outputDir, 'cache', 'relations');
@@ -188,7 +189,8 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
         byCategoryCount: {},
     };
 
-    // Process each category
+    // Process each category. Hoist the zstd-helper import once (idempotent+cached), reused for category + meta writes.
+    const { zstdCompress } = await import('./zstd-helper.js');
     for (const category of categories) {
         const categoryEntities = byCategory[category];
         console.log(`  Processing ${category}: ${categoryEntities.length} entities`);
@@ -196,6 +198,7 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
         const relations = computeCategoryAlts(categoryEntities, category);
         stats.byCategoryCount[category] = relations.length;
         stats.totalRelations += relations.length;
+        if (relations.length === 0) continue; // D-375 PRODUCER_OMIT_ZERO_RELATION_FRAME: omit empty frame (census kept above)
 
         // Output V14.5.2 format
         const output = {
@@ -205,8 +208,6 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
             _count: relations.length,
             relations,
         };
-
-        const { zstdCompress } = await import('./zstd-helper.js');
         // Sanitize category name for filename
         const safeCategory = category.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
         await fs.writeFile(
@@ -215,8 +216,7 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
         );
     }
 
-    const { zstdCompress: zstdCompressMeta } = await import('./zstd-helper.js');
-    // Write meta file
+    // Write meta file (census of ALL categories, incl. zero-relation ones)
     const meta = {
         _v: '14.5.2',
         _ts: new Date().toISOString(),
@@ -225,7 +225,7 @@ export async function computeAltRelations(shardReader, outputDir = './output', o
     };
     await fs.writeFile(
         path.join(outputDir, 'cache', 'relations', 'alt-meta.json.zst'),
-        await zstdCompressMeta(JSON.stringify(meta, null, 2))
+        await zstdCompress(JSON.stringify(meta, null, 2))
     );
 
     console.log(`  [ALT-LINKER] Completed in ${Date.now() - startTime}ms`);
