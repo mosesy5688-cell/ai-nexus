@@ -87,6 +87,13 @@ jobs:
         working-directory: rust/identity-cluster
         run: cargo test --release
 
+      # D-375 NOTE: satellite-tasks alt_linker PRODUCER_OMIT_ZERO_RELATION_FRAME is NOT
+      # gated via `cargo test` here. A standalone cargo-test executable for this napi
+      # crate does not link on Linux (undefined napi_* runtime symbols — provided only by
+      # the node host when the .node is loaded, e.g. napi_throw / threadsafe-function).
+      # The omit is CI-enforced on the REAL built .node by the "Alt-Linker Omit NAPI
+      # Binding Gate" in the verify job below (scripts/factory/verify-alt-omit-binding.mjs),
+      # which is stronger than cargo test (real .node, real NAPI boundary, both paths).
       - name: Upload .node Artifact
         uses: actions/upload-artifact@v6
         with:
@@ -180,6 +187,16 @@ jobs:
           ls -la rust/stream-aggregator/stream-aggregator-rust.node
           node scripts/factory/verify-parse-accounting-binding.mjs
 
+      # D-375: prove the alt-linker PRODUCER_OMIT_ZERO_RELATION_FRAME contract on the
+      # SAME final-head Linux satellite-tasks.node this run built+placed. The verifier
+      # runs the REAL computeAltRelations + computeAltRelationsFromDir over a fixture
+      # with a zero-relation category and asserts the empty frame is OMITTED while the
+      # census still records it. The ls -la prints the exact same-run/same-SHA .node.
+      - name: Alt-Linker Omit NAPI Binding Gate
+        run: |
+          ls -la rust/satellite-tasks/satellite-tasks-rust.node
+          node scripts/factory/verify-alt-omit-binding.mjs
+
       - name: IVF-PQ Rust-JS Parity Gate
         # CI runs `napi build`, NOT `cargo test`, so the Rust #[test] suite is not a
         # gate (#2132/#2136 lesson). This node step IS the Rust==JS lockstep gate.
@@ -203,7 +220,9 @@ jobs:
           key: rust-ffi-v3-${{ hashFiles('rust/Cargo.toml', 'rust/*/Cargo.toml', 'rust/*/src/**') }}
 
       # V25.8 §6.2: Backup Rust FFI to R2 vault (immutable, survives GHA cache eviction)
+      # D-375: main-only. Feature-branch builds must NOT write the durable R2 vault.
       - name: Backup Rust FFI to R2
+        if: github.ref == 'refs/heads/main'
         continue-on-error: true
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}

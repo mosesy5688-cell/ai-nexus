@@ -68,8 +68,8 @@ const REGISTRY_EXCLUDE_RE = /(^|\/)(registry(\/|$)|global-registry[^/]*$)/;
 //   * OPTIONAL_ACCELERATOR (EXCLUDE): the `<payload>.meta.json` MD5 checksum sidecars
 //     (smart-writer.js). ONLY consumer = smart-writer getRemoteHash() at PRODUCE time; zero
 //     serve/4-4 readers; regenerable; NOT authoritative cycle-output -> never a member.
-//   * EMPTY_PLACEHOLDER (EXCLUDE): a sub-16B (empty-`{}`) alt-by-category frame for a sparse
-//     category. The Rust alt-linker path emits a bare 11B `{}` (< the .zst 16B floor). Consumer
+//   * EMPTY_PLACEHOLDER (EXCLUDE): a sub-16B (empty-`[]`) alt-by-category frame for a sparse
+//     category. The Rust alt-linker path emits a bare 11B `[]` (< the .zst 16B floor). Consumer
 //     knowledge-cache-reader.fetchCategoryAlts treats absent == present-empty (both -> []), so
 //     excluding it is DATA-SAFE (proven-safe fallback per the PR-A decision rule; alt-linker.js
 //     is at the CES 250-line ceiling so a net-zero producer normalize is infeasible). A >=16B
@@ -100,7 +100,7 @@ function classifyCycleMember(rel, absPath) {
     if (ALT_FRAME_RE.test(rel)) {
         let size = Infinity;
         try { size = fs.statSync(absPath).size; } catch { size = Infinity; }
-        return size < ZSTD_MIN_BYTES ? 'placeholder' : 'authoritative'; // empty-{} sparse cat vs real
+        return size < ZSTD_MIN_BYTES ? 'placeholder' : 'authoritative'; // empty-[] sparse cat vs real
     }
     if (TRANSPORT_JSON.has(rel)) return 'transport';            // consumer-required small JSON
     if (AUTHORITATIVE_SHAPE_RE.test(rel)) return 'authoritative';

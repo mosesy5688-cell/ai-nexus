@@ -132,18 +132,28 @@ pub fn compute_alt_relations_from_dir(shard_dir: String, _output_dir: String) ->
             }
         }
 
+        // D-375 PRODUCER_OMIT_ZERO_RELATION_FRAME: ALWAYS record the per-category
+        // census entry (entity_count + relation_count, incl. 0) so alt-meta stays a
+        // complete census; only EMIT a payload frame when the category has >=1
+        // relation. A 0-relation category serializes to a bare `[]` (~11B zstd frame)
+        // that is below the r2-handoff .zst 16B upload floor and would fail-close the
+        // whole 3/4 Aggregate job. Omitting the frame is data-safe: consumers treat an
+        // absent category identically to a present-empty one (both -> []). The
+        // serialize+compress+push for a non-empty category is byte-identical to baseline.
         let filename = format!("{}.json.zst", sanitize_filename(&category));
-        let cat_json = serde_json::to_vec(&cat_results)
-            .map_err(|e| Error::from_reason(format!("Serialize: {}", e)))?;
-        let compressed = zstd_bytes(&cat_json)?;
         meta_categories.push(serde_json::json!({
             "category": category, "filename": filename,
             "entity_count": group.len(), "relation_count": cat_rel_count,
         }));
         total_relations += cat_rel_count;
-        categories_data.push(AltCategoryResult {
-            category: category.clone(), filename, compressed_data: compressed.into(), relation_count: cat_rel_count,
-        });
+        if cat_rel_count > 0 {
+            let cat_json = serde_json::to_vec(&cat_results)
+                .map_err(|e| Error::from_reason(format!("Serialize: {}", e)))?;
+            let compressed = zstd_bytes(&cat_json)?;
+            categories_data.push(AltCategoryResult {
+                category: category.clone(), filename, compressed_data: compressed.into(), relation_count: cat_rel_count,
+            });
+        }
     }
 
     let meta = serde_json::json!({ "_v": "25.8.3", "categories": meta_categories, "total_relations": total_relations });
@@ -248,11 +258,13 @@ fn compute_alt_relations_inner(entities: &[Value]) -> Result<AltLinkerResult> {
             }
         }
 
+        // D-375 PRODUCER_OMIT_ZERO_RELATION_FRAME: ALWAYS record the census entry
+        // (entity_count + relation_count incl. 0); only emit a payload frame when the
+        // category has >=1 relation. A 0-relation category compresses to a bare `[]`
+        // (~11B zstd) below the r2-handoff .zst 16B upload floor, which would fail-close
+        // the 3/4 job. Absent == present-empty for consumers, so omission is data-safe.
+        // The non-empty serialize+compress+push is byte-identical to baseline.
         let filename = format!("{}.json.zst", sanitize_filename(&category));
-        let cat_json = serde_json::to_vec(&cat_results)
-            .map_err(|e| Error::from_reason(format!("Serialize error: {}", e)))?;
-        let compressed = zstd_bytes(&cat_json)?;
-
         meta_categories.push(serde_json::json!({
             "category": category,
             "filename": filename,
@@ -261,12 +273,17 @@ fn compute_alt_relations_inner(entities: &[Value]) -> Result<AltLinkerResult> {
         }));
 
         total_relations += cat_rel_count;
-        categories_data.push(AltCategoryResult {
-            category: category.clone(),
-            filename,
-            compressed_data: compressed.into(),
-            relation_count: cat_rel_count,
-        });
+        if cat_rel_count > 0 {
+            let cat_json = serde_json::to_vec(&cat_results)
+                .map_err(|e| Error::from_reason(format!("Serialize error: {}", e)))?;
+            let compressed = zstd_bytes(&cat_json)?;
+            categories_data.push(AltCategoryResult {
+                category: category.clone(),
+                filename,
+                compressed_data: compressed.into(),
+                relation_count: cat_rel_count,
+            });
+        }
     }
 
     let meta = serde_json::json!({
@@ -283,4 +300,109 @@ fn compute_alt_relations_inner(entities: &[Value]) -> Result<AltLinkerResult> {
         meta_data: meta_compressed.into(),
         total_relations,
     })
+}
+
+// D-375 PRODUCER_OMIT_ZERO_RELATION_FRAME acceptance tests. These run LOCALLY via
+// `cargo test` (where Node's napi_* symbols are link-resolvable). They are intentionally
+// NOT a Linux CI gate: a standalone cargo-test executable for this napi crate cannot
+// resolve napi_* runtime symbols on Linux (provided only by the node host when the .node
+// is loaded), so it fails to link. The omit is CI-enforced on the REAL built .node by the
+// "Alt-Linker Omit NAPI Binding Gate" (scripts/factory/verify-alt-omit-binding.mjs), which
+// exercises BOTH producer paths: the legacy Buffer-input `compute_alt_relations_inner`
+// and the direct-shard `compute_alt_relations_from_dir`.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a minimal entity Value with an id, category, tags, and a fixed fni_score.
+    fn ent(id: &str, cat: &str, tags: &[&str]) -> Value {
+        serde_json::json!({
+            "id": id,
+            "primary_category": cat,
+            "tags": tags,
+            "fni_score": 1.0,
+        })
+    }
+
+    /// A zero-relation category (empty tags) + a real category (identical tags).
+    fn fixture() -> Vec<Value> {
+        vec![
+            ent("e1", "empty-cat", &[]),
+            ent("e2", "empty-cat", &[]),
+            ent("r1", "real-cat", &["nlp", "text"]),
+            ent("r2", "real-cat", &["nlp", "text"]),
+        ]
+    }
+
+    /// Decompress a meta_data / compressed_data Buffer (derefs to [u8]) as JSON.
+    fn decode(buf: &[u8]) -> Value {
+        let raw = zstd::decode_all(buf).expect("zstd decode");
+        serde_json::from_slice(&raw).expect("json parse")
+    }
+
+    /// Assert the omit contract on a computed result: real-cat frame present,
+    /// empty-cat frame absent, but BOTH categories in the meta census.
+    fn assert_omit(result: &AltLinkerResult) {
+        let emitted: Vec<&str> = result
+            .categories_data
+            .iter()
+            .map(|c| c.category.as_str())
+            .collect();
+        assert!(emitted.contains(&"real-cat"), "real-cat frame must be emitted");
+        assert!(!emitted.contains(&"empty-cat"), "empty-cat frame must be OMITTED (D-375)");
+        let real = result
+            .categories_data
+            .iter()
+            .find(|c| c.category == "real-cat")
+            .expect("real-cat present");
+        assert!(real.relation_count > 0, "real-cat must carry relations");
+        assert!(real.compressed_data.len() >= 16, "real frame must be a full zstd frame");
+
+        // Census: BOTH categories in meta.categories, empty-cat at relation_count=0.
+        let meta = decode(&result.meta_data[..]);
+        let cats = meta["categories"].as_array().expect("categories array");
+        let empty_meta = cats
+            .iter()
+            .find(|c| c["category"] == "empty-cat")
+            .expect("empty-cat still in census");
+        assert_eq!(empty_meta["relation_count"], 0, "empty-cat census relation_count=0");
+        assert_eq!(empty_meta["entity_count"], 2, "empty-cat census entity_count=2");
+        let real_meta = cats
+            .iter()
+            .find(|c| c["category"] == "real-cat")
+            .expect("real-cat in census");
+        assert!(real_meta["relation_count"].as_u64().unwrap() > 0);
+        assert_eq!(real_meta["entity_count"], 2);
+        assert!(result.total_relations > 0, "total_relations must be > 0");
+    }
+
+    #[test]
+    fn inner_omits_zero_relation_category() {
+        let entities = fixture();
+        let result = compute_alt_relations_inner(&entities).expect("inner ok");
+        assert_omit(&result);
+    }
+
+    #[test]
+    fn from_dir_omits_zero_relation_category() {
+        // Direct-shard path: write a plain-JSON `part-*` shard (discover_shards accepts
+        // .json) so the REAL compute_alt_relations_from_dir -> for_each_shard path runs.
+        let dir = std::env::temp_dir().join("alt_omit_from_dir_shards");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("mk shard dir");
+        let entities = fixture();
+        std::fs::write(
+            dir.join("part-000.json"),
+            serde_json::to_vec(&entities).unwrap(),
+        )
+        .expect("write shard");
+        let out = std::env::temp_dir().join("alt_omit_from_dir_out");
+        let result = compute_alt_relations_from_dir(
+            dir.to_string_lossy().to_string(),
+            out.to_string_lossy().to_string(),
+        )
+        .expect("from_dir ok");
+        assert_omit(&result);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
