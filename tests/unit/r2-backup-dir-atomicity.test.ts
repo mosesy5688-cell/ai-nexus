@@ -158,10 +158,11 @@ describe('backupDirectoryToR2 — D-359 three-state: POLICY_EXCLUDED (min-size/z
         const r: any = await backupDirectoryToR2(dir, PREFIX, {});
         expect([r.success, r.eligibleExpected, r.policyExcluded, r.reason]).toEqual([false, 0, 2, 'no_eligible_files']); expect(b.store.has(MANI)).toBe(false);
     });
-    it('(3) an ELIGIBLE file the uploader WRONGLY reports blocked => FAILED, never excluded (up-front-eligible / uploader-blocked divergence; `&& !elig.eligible` guard)', async () => {
-        let n = 0; (globalThis as any).__ELIG_OVERRIDE = () => (++n % 2 ? { eligible: true, isZst: false, reason: null } : { eligible: false, isZst: false, reason: '0B < min 256B' });
-        const dir = tmp('pe3'); w(dir, 'a.bin', bin('a')); const b = makeBucket(); use(b);
+    it('(3) D-380 eligibility is computed ONCE/file (up-front vs uploader divergence structurally eliminated) => an ELIGIBLE file whose PUT is refused is FAILED, never policy-excluded', async () => {
+        let calls = 0; (globalThis as any).__ELIG_OVERRIDE = (n: string, d: Buffer, o: any, real: any) => { calls++; return real(n, d, o); };
+        const dir = tmp('pe3'); w(dir, 'a.bin', bin('a')); const b = makeBucket((k) => k.endsWith('a.bin')); use(b);
         const r: any = await backupDirectoryToR2(dir, PREFIX, {});
+        expect(calls).toBe(1); // ONCE per file: no second uploader re-check can diverge from the up-front decision
         expect([r.success, r.failed, r.policyExcluded]).toEqual([false, 1, 0]); expect(b.store.has(MANI)).toBe(false);
     });
     it('(4) an eligible file that fails with an UNKNOWN (non-integrity) reason => FAILED, never excluded (reason guard)', async () => {
@@ -226,8 +227,7 @@ async function runCli(argv: string[]): Promise<{ code: number; logs: string[]; e
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((c?: number) => { if (code === undefined) code = c ?? 0; return undefined as never; }) as any);
     const origArgv = process.argv; process.argv = [process.execPath, CLI, ...argv];
     try {
-        await import(stageCli());
-        await vi.waitFor(() => { if (code === undefined && !logs.some((l) => /backup-dir OK/.test(l))) throw new Error('pending'); }, { timeout: 5000, interval: 10 });
+        const mod: any = await import(stageCli()); await mod.main(); // D-380: main() gated (no auto-run) + exported
     } finally { process.argv = origArgv; logSpy.mockRestore(); errSpy.mockRestore(); exitSpy.mockRestore(); }
     return { code: code ?? 0, logs, errs };
 }

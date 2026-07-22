@@ -30,12 +30,14 @@
 //   * A5 UNCLASSIFIED fail-loud      -> (F-A5) a non-JSON-family cache member => UNCLASSIFIED_MEMBER (generate AND verify).
 //   * A5 included-eligibility assert -> (F-A3)/(F-A6) drop assertMemberEligibility => an 11B included member no longer
 //                                       fails loud (silently-unsatisfiable manifest -> late FILE_MISSING).
-//   * A5 whole-seam consistency      -> (F-SRC) r2-handoff threads requiredJson + the CLI parses --required-json + the
-//                                       producer step passes it (so generate == upload eligibility by construction).
+//   * A5 whole-seam consistency      -> (F-SRC) r2-handoff backupDirectoryToR2 threads requiredJson into the SINGLE-client
+//                                       dir-upload (putObjectWithClient, no per-object backupFileToR2) + the CLI parses
+//                                       --required-json + the producer step passes it (generate == upload eligibility).
 //   * MF-1 ADDITIVE (rescue-only)     -> (MF1-A) a >=256B .gz/.jsonl authoritative member is eligible under the guard
 //                                       requiredJson predicate (never JSON-parsed); the OLD REPLACING predicate reds it.
 //                                       (MF1-B) a sub-floor non-JSON authoritative member fails loud + guard-blocked.
-//   * SF-2 opts passthrough source    -> (SF-2) CLI -> r2-bridge (whole opts) -> r2-handoff (destructure requiredJson);
+//   * SF-2 opts passthrough source    -> (SF-2) CLI (client=undefined) -> r2-bridge (whole opts) -> r2-handoff
+//                                       backupDirectoryToR2 body (destructure requiredJson -> single-client putObjectWithClient);
 //                                       a refactor dropping opts anywhere in the chain reds the source-lock.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -553,7 +555,7 @@ test('(F-A12 case 12) the guard DEFAULT path is byte-identical for a NON-classif
     assert.equal(isNonEmptyJson(Buffer.from('{"a":1}')), true);
 });
 
-test('(F-SRC) whole-seam consistency SOURCE lock: r2-handoff threads requiredJson + CLI parses --required-json + producer step passes it', () => {
+test('(F-SRC) whole-seam consistency SOURCE lock: r2-handoff dir-backup threads requiredJson through the SINGLE-client upload + CLI parses --required-json + producer step passes it', () => {
     // the extracted predicate remains the single source (default path == the original oracle).
     for (const [name, buf, opts] of [['x.json', Buffer.alloc(255, 65), {}], ['x.zst', zst(11), {}], ['x.zst', zst(16), {}]]) {
         const got = isUploadEligible(name, buf, opts);
@@ -562,10 +564,20 @@ test('(F-SRC) whole-seam consistency SOURCE lock: r2-handoff threads requiredJso
         assert.equal(got.reason, exp.reason);
     }
     // r2-handoff.js applies isUploadEligible AND threads the opt-in requiredJson (no inline predicate).
+    // D-380: the dir backup uploads each ELIGIBLE member through ONE dir-level client (putObjectWithClient(s3,...)),
+    // NOT a per-object backupFileToR2 call -- so the seam-lock is SCOPED to the backupDirectoryToR2() body.
     const r2 = readSrc('./lib/r2-handoff.js');
     assert.match(r2, /import\s*\{\s*isUploadEligible\s*\}\s*from\s*'\.\/upload-eligibility\.js'/);
     assert.match(r2, /isUploadEligible\(localPath,\s*data,\s*\{[^}]*requiredJson/);
-    assert.match(r2, /backupFileToR2\(localPath,\s*r2Key,\s*\{\s*requiredJson\s*\}\)/);
+    const s = r2.indexOf('export async function backupDirectoryToR2');
+    const dirBody = r2.slice(s, r2.indexOf('export async function', s + 1)); // dir-backup body only; ends before restoreDirectoryFromR2
+    assert.ok(dirBody.includes('Promise.allSettled'), 'dirBody must contain the concurrency loop');
+    assert.ok(!dirBody.includes('restoreDirectoryFromR2'), 'dirBody must end before restoreDirectoryFromR2');
+    assert.match(dirBody, /const\s*\{[^}]*\brequiredJson\b[^}]*\}\s*=\s*opts/);               // destructures requiredJson from opts
+    assert.match(dirBody, /isUploadEligible\(localPath,\s*data,\s*\{\s*requiredJson\s*\}\)/);  // eligibility in the body with requiredJson
+    assert.equal((dirBody.match(/isUploadEligible\(/g) || []).length, 1);                      // eligibility computed EXACTLY once per member
+    assert.match(dirBody, /putObjectWithClient\(s3,\s*r2Key,\s*data,/);                        // dir-level client + same r2Key + same already-read data
+    assert.ok(!/backupFileToR2\s*\(/.test(dirBody), 'dir backup must not call the per-object helper');
     assert.ok(!r2.includes('0xFD2FB528'), 'magic literal must live ONLY in upload-eligibility.js');
     // the manifest module imports the SAME predicate (single source of truth).
     const mf = readSrc('./cycle-output-handoff-manifest.mjs');
@@ -585,19 +597,27 @@ test('(F-SRC2) consumer absent == present-empty proves the alt-frame EXCLUDE is 
     assert.match(kr, /return\s+\[\]/); // catch/guard path also returns []
 });
 
-test('(SF-2) --required-json opts passthrough is source-locked end-to-end: CLI -> r2-bridge -> r2-handoff (a refactor dropping opts must RED)', () => {
-    // (1) r2-handoff DESTRUCTURES requiredJson from opts + threads it to backupFileToR2 + the guard.
+test('(SF-2) --required-json opts passthrough is source-locked end-to-end: CLI -> r2-bridge -> r2-handoff SINGLE-client dir-upload (a refactor dropping opts must RED)', () => {
+    // (1) r2-handoff backupDirectoryToR2 DESTRUCTURES requiredJson from opts + threads it to the guard on EVERY
+    //     member, then uploads through ONE dir-level client (D-380: no per-object backupFileToR2). SCOPED to the
+    //     backupDirectoryToR2() body so it cannot false-green off the STANDALONE backupFileToR2 helper (r2-handoff.js:77).
     const r2 = readSrc('./lib/r2-handoff.js');
-    assert.match(r2, /const\s*\{[^}]*\brequiredJson\b[^}]*\}\s*=\s*opts/); // backupDirectoryToR2 destructure
-    assert.match(r2, /backupFileToR2\(localPath,\s*r2Key,\s*\{\s*requiredJson\s*\}\)/);
-    assert.match(r2, /isUploadEligible\(localPath,\s*data,\s*\{[^}]*requiredJson:\s*opts\.requiredJson/);
+    const s = r2.indexOf('export async function backupDirectoryToR2');
+    const dirBody = r2.slice(s, r2.indexOf('export async function', s + 1)); // dir-backup body only; ends before restoreDirectoryFromR2
+    assert.ok(dirBody.includes('Promise.allSettled'), 'dirBody must contain the concurrency loop');
+    assert.ok(!dirBody.includes('restoreDirectoryFromR2'), 'dirBody must end before restoreDirectoryFromR2');
+    assert.match(dirBody, /const\s*\{[^}]*\brequiredJson\b[^}]*\}\s*=\s*opts/);               // backupDirectoryToR2 destructure
+    assert.match(dirBody, /isUploadEligible\(localPath,\s*data,\s*\{\s*requiredJson\s*\}\)/);  // eligibility in the body with requiredJson
+    assert.equal((dirBody.match(/isUploadEligible\(/g) || []).length, 1);                      // eligibility EXACTLY once per member
+    assert.match(dirBody, /putObjectWithClient\(s3,\s*r2Key,\s*data,/);                        // dir-level client + same r2Key + same already-read data
+    assert.ok(!/backupFileToR2\s*\(/.test(dirBody), 'dir backup must not call the per-object helper');
     // (2) r2-bridge backupDirectoryToR2FFI forwards the WHOLE opts object to r2-handoff (no filter).
     const bridge = readSrc('./lib/r2-bridge.js');
     assert.match(bridge, /export async function backupDirectoryToR2FFI\(client,\s*localDir,\s*r2Prefix,\s*opts\s*=\s*\{\}\)/);
     assert.match(bridge, /return\s+backupDirectoryToR2\(absDir,\s*r2Prefix,\s*opts\)/);
-    // (3) the CLI parses --required-json into that opts object for backup-dir.
+    // (3) the CLI parses --required-json into that opts object for backup-dir (D-380: dir ops pass client=undefined).
     const cli = readSrc('./r2-workflow-cli.js');
-    assert.match(cli, /backupDirectoryToR2FFI\(client,\s*localDir,\s*r2Prefix,\s*\{\s*extensions,\s*requiredJson:\s*rest\.includes\('--required-json'\)\s*\}\)/);
+    assert.match(cli, /backupDirectoryToR2FFI\(undefined,\s*localDir,\s*r2Prefix,\s*\{\s*extensions,\s*requiredJson:\s*rest\.includes\('--required-json'\)\s*\}\)/);
     // (4) the finalize producer step opts in, AND generate mirrors it (uploaderRequiredJson).
     const wf = readSrc('../../.github/workflows/factory-aggregate.yml');
     assert.match(wf, /backup-dir output\/cache\/ "\$\{STAGING\}cache\/" --required-json/);
