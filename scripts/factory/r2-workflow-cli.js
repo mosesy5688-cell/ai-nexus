@@ -1,33 +1,20 @@
 #!/usr/bin/env node
 /**
- * V26.3 R2 Workflow CLI — Replaces inline `node -e` R2 blocks in workflow YAML.
- * All operations go through r2-bridge.js (Rust FFI with JS fallback).
- *
- * Usage:
- *   node r2-workflow-cli.js upload-file <localPath> <r2Key>
- *   node r2-workflow-cli.js upload-buffer <localPath> <r2Key> [--content-type=...]
- *   node r2-workflow-cli.js restore-file <r2Key> <localPath>
- *   node r2-workflow-cli.js restore-dir <r2Prefix> <localDir> [--strict]
- *   node r2-workflow-cli.js backup-dir <localDir> <r2Prefix> [--extensions=.json,.zst] [--required-json]
- *   node r2-workflow-cli.js restore-rust-ffi [crate1,crate2,...]
- *   node r2-workflow-cli.js list-prefix <r2Prefix> [--delimiter=/]
- *   node r2-workflow-cli.js delete-prefix <r2Prefix> [--dry-run]
- *   node r2-workflow-cli.js handoff-establish
- *   node r2-workflow-cli.js handoff-consume --role=<merge-core-persist|finalize>
- *   node r2-workflow-cli.js satellite-registry-establish
- *   node r2-workflow-cli.js satellite-registry-preflight
- *   node r2-workflow-cli.js satellite-registry-consume --role=<search-index|rankings|knowledge-mesh|trending>
- *   node r2-workflow-cli.js harvest-handoff-establish --role=<huggingface|github|academic|ecosystem> | harvest-handoff-consume
- *
+ * V26.3 R2 Workflow CLI — Replaces inline `node -e` R2 blocks in workflow YAML. All ops go through r2-bridge.js
+ * (Rust FFI with JS fallback). Actions: upload-file <localPath> <r2Key> | upload-buffer <localPath> <r2Key>
+ * [--content-type=...] | restore-file <r2Key> <localPath> [--strict] | restore-dir <r2Prefix> <localDir> [--strict] |
+ * backup-dir <localDir> <r2Prefix> [--extensions=.json,.zst] [--required-json] | restore-rust-ffi [crate,...] |
+ * backup-rust-ffi [crate,...] | list-prefix <r2Prefix> [--delimiter=/] | delete-prefix <r2Prefix> [--dry-run] |
+ * handoff-establish | handoff-consume --role=<merge-core-persist|finalize> | satellite-registry-establish/preflight |
+ * satellite-registry-consume --role=<...> | harvest-handoff-establish --role=<...> | harvest-handoff-consume.
  * handoff-* / satellite-registry-* / harvest-handoff-* : attempt-scoped R2 authority carriers in
- *   aggregate-handoff.mjs / satellite-registry-handoff.mjs / harvest-authoritative-handoff.mjs.
+ * aggregate-handoff.mjs / satellite-registry-handoff.mjs / harvest-authoritative-handoff.mjs.
  */
 import fs from 'fs';
+import { pathToFileURL } from 'url';
 import {
-    initR2Bridge, createR2ClientFFI,
-    backupFileToR2FFI, restoreFileFromR2FFI,
-    backupDirectoryToR2FFI, restoreDirectoryFromR2FFI,
-    uploadFileFFI, uploadBufferToR2FFI
+    initR2Bridge, createR2ClientFFI, backupFileToR2FFI, restoreFileFromR2FFI,
+    backupDirectoryToR2FFI, restoreDirectoryFromR2FFI, uploadFileFFI, uploadBufferToR2FFI
 } from './lib/r2-bridge.js';
 
 const [action, ...rest] = process.argv.slice(2);
@@ -35,10 +22,11 @@ const DEFAULT_CRATES = 'shard-router,fni-calc,content-extractor,stream-aggregato
 
 async function main() {
     initR2Bridge();
-    const client = createR2ClientFFI();
-
+    // D-380 §5.1 LAZY client: created ONLY inside actions that use it; backup-dir/restore-dir make their OWN JS
+    // client in r2-handoff.js (FFI `client` arg unused for dir ops => pass undefined), no up-front construction.
     switch (action) {
         case 'upload-file': {
+            const client = createR2ClientFFI();
             const [localPath, r2Key] = rest.filter(a => !a.startsWith('--'));
             if (!localPath || !r2Key) { console.error('Usage: upload-file <localPath> <r2Key>'); process.exit(1); }
             const result = await uploadFileFFI(client, localPath, r2Key);
@@ -47,6 +35,7 @@ async function main() {
             break;
         }
         case 'upload-buffer': {
+            const client = createR2ClientFFI();
             const positional = rest.filter(a => !a.startsWith('--'));
             const [localPath, r2Key] = positional;
             if (!localPath || !r2Key) { console.error('Usage: upload-buffer <localPath> <r2Key>'); process.exit(1); }
@@ -90,11 +79,15 @@ async function main() {
         case 'restore-dir': {
             const positional = rest.filter(a => !a.startsWith('--'));
             const [r2Prefix, localDir] = positional;
-            if (!r2Prefix || !localDir) { console.error('Usage: restore-dir <r2Prefix> <localDir>'); process.exit(1); }
+            if (!r2Prefix || !localDir) { console.error('Usage: restore-dir <r2Prefix> <localDir> [--strict]'); process.exit(1); }
             const strict = rest.includes('--strict');
-            const result = await restoreDirectoryFromR2FFI(client, r2Prefix, localDir);
-            console.log(`[R2-CLI] restore-dir: ${result?.count || 0} files restored from ${r2Prefix}`);
-            if (strict && !result?.count) { console.error('[R2-CLI] FATAL: No files restored (strict mode)'); process.exit(1); }
+            const result = await restoreDirectoryFromR2FFI(undefined, r2Prefix, localDir, { strict });
+            // D-382 §3.2: structured (non-exit-changing) result line so tests assert the exact restore outcome through the REAL CLI seam.
+            console.log(`[R2-CLI-RESULT] ${JSON.stringify({ action: 'restore-dir', success: !!result?.success, restored: result?.restored || 0, expected: result?.expected || 0, missing: result?.missing || [], failed: result?.failed || [], source: result?.source || 'none', manifestFound: !!result?.manifestFound, reason: result?.reason })}`);
+            console.log(`[R2-CLI] restore-dir: ${result?.restored || 0}/${result?.expected || 0} restored from ${r2Prefix} (source=${result?.source || 'none'})`);
+            if (!result?.success) console.error(`[R2-CLI] restore-dir INCOMPLETE: missing ${result?.missing?.length ?? '?'} (reason=${result?.reason || 'n/a'})`);
+            // D-380 §8: strict exit decided by result.success, NOT count>0 -- a 4015/4016 short restore MUST exit non-zero.
+            if (strict && !result?.success) { console.error('[R2-CLI] FATAL: restore-dir incomplete (strict mode)'); process.exit(1); }
             break;
         }
         case 'backup-dir': {
@@ -102,7 +95,7 @@ async function main() {
             const [localDir, r2Prefix] = positional;
             if (!localDir || !r2Prefix) { console.error('Usage: backup-dir <localDir> <r2Prefix>'); process.exit(1); }
             const extensions = parseOpt(rest, 'extensions', null)?.split(',') || null;
-            const result = await backupDirectoryToR2FFI(client, localDir, r2Prefix, { extensions, requiredJson: rest.includes('--required-json') });
+            const result = await backupDirectoryToR2FFI(undefined, localDir, r2Prefix, { extensions, requiredJson: rest.includes('--required-json') });
             if (!result?.success) { console.error(`[R2-CLI] FATAL: backup-dir NOT committed (${result?.reason || 'incomplete'}) -> ${r2Prefix}`); process.exit(1); } // D-356 fail-closed default; best-effort call-sites keep `|| true`
             console.log(`[R2-CLI] backup-dir OK: ${result.count || 0} new / ${result.verified}/${result.expected} verified -> ${r2Prefix}`);
             break;
@@ -247,4 +240,8 @@ async function deleteKeys(keys) {
     return deleted;
 }
 
-main().catch(err => { console.error(`[R2-CLI] Fatal: ${err.message}`); process.exit(1); });
+export { main };
+// D-380: gate auto-run so tests import + drive main() in-process. As a real script the guard is true (unchanged).
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    main().catch(err => { console.error(`[R2-CLI] Fatal: ${err.message || err.name || 'unknown'}`); process.exit(1); });
+}
