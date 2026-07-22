@@ -1173,6 +1173,46 @@ post-deploy workflow and is never a PR check.
 | HG-CAT4-EVIDENCE | Each category-4 (SINGLE_ARCHIVE_IMMUNE) generator's SOURCE contains `buildArchive(` + `.putObject(` + `archive_sha256` (one archive uploaded whole, sha-verified) AND is structurally NOT per-file-guard-exposed: it does NOT import the per-file `upload-eligibility` predicate nor use a per-file `backup-dir` member upload verb. NON-VACUITY (in-test): a faux source that imports the per-file guard flips `noPerFileGuard` to false | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE | **NEW** |
 | HG-DIFFERENT-RISK | The two sweep carriers with NO per-file handoff manifest generator (registry/D-250 count-floor silent-subset; output/data/cluster-ann-index.bin warm-tier coverage gap) are registered as cat-5 with a non-empty documentation string, and are confirmed to correctly have NO `*handoff*manifest*` generator on disk (they are documented so the gate never silently forgets them) | `tests/srs1/factory-handoff-guard-classification-invariant.test.ts` | SOURCE (STRUCT) | **NEW** |
 
+## Registry — STRICT-MANIFEST-TOPOLOGY (consumer-side reconciliation of PR #2295 hardened `restore-dir --strict`)
+
+> Deterministic, hermetic STATIC invariants for the 24 `restore-dir ... --strict`
+> callsites across the 4 `factory-*.yml` workflows. PR #2295 hardened
+> `restoreDirectoryFromR2` so `--strict` REQUIRES an exact-prefix `<prefix>_manifest.json`
+> and fails closed with NO LIST fallback when absent. That regressed consumers that
+> restored a ROOT staging prefix whose producer wrote only SUB-PREFIX manifests
+> (e.g. `<root>cache/_manifest.json`) with NO `<root>_manifest.json` -> 404 fail-closed
+> (first failure: the 2/4 GAP-5 producer read-back). FIX is CONSUMER-SIDE ONLY: each
+> broken callsite now restores the EXACT sub-prefix its producer actually wrote a
+> manifest at (`data/` + `cache/` for prep; `cache/` for cycle-output; `profile-shards/`
+> + an explicit `profile-evidence-dict.json.zst` for mesh, EACH mesh recover explicitly
+> fail-closed), the matrix-shards transport moves off the manifestless fixed `state/shards/`
+> onto an EXACT run/attempt prefix with a MANIFEST-LAST exact-20 `_manifest.json`, and the
+> manifest-impossible harvest `ingestion/raw/` strict recovery is removed (fail-closed on an
+> authority-output inconsistency instead). **Enforceable census (SMT-CENSUS):** the post-fix
+> strict `restore-dir` command callsites total **24** — harvest 0 / process 5 / aggregate 2 /
+> upload 17 — and every forbidden bare-root restore of a sub-prefix-manifest producer is
+> absent. **Fix families:** GAP-5 prep read-back split into exact `data/`+`cache/` restores;
+> shards moved to an exact run/attempt transport prefix; cycle-output (1 producer read-back +
+> 4 consumers) restore the exact `cache/` sub-prefix; mesh (3 consumers) restore the exact
+> `profile-shards/` sub-prefix plus an explicit dict restore; the legacy `ingestion/raw/`
+> strict recovery removed. (The prior "13 legal / 3 / 7 / 1" tally mixed post-fix line counts
+> with pre-fix blocker/recovery SITE counts and a removed callsite — accurate as a site
+> inventory but NOT an arithmetic identity, so the enforceable census above is the lock.)
+> Strict SEMANTICS in `scripts/factory/lib/r2-handoff.js` + `r2-workflow-cli.js` are UNCHANGED
+> (out of scope; #2295 NOT rolled back). TEST reads the YAMLs + libs as TEXT (CRLF-normalized;
+> NO network, NO workflow run, NO prod). Runs in the EXISTING `unit-test` vitest job (no CI
+> wiring added).
+
+| ID | Protected behavior | Assertion file | Evidence | Status |
+|----|--------------------|----------------|----------|--------|
+| SMT-CENSUS | Exactly 24 `restore-dir ... --strict` command callsites remain (harvest 0 / process 5 / aggregate 2 / upload 17), and every forbidden bare-root restore of a sub-prefix-manifest producer (GAP-5 prep read-back, `state/shards/`, cycle-output read-back, cycle-output consumers `output/`, mesh consumers `output/cache/mesh/`, `ingestion/raw/`) is ABSENT. The 13 legal callsites (exact sub-prefix, or a bare-root restore of a bare-root `backup-dir` producer — FIX-3 shards read-back, shards recover, fused, VFS meta/warm/term_index, vfs-derived) are intact. NON-VACUITY: re-adding any forbidden bare-root form reds it | `tests/unit/strict-manifest-topology.test.ts` | SOURCE (STRUCT) | **NEW** |
+| SMT-PREP-READBACK | The GAP-5 prepared-entity-data producer read-back restores EACH exact sub-prefix (`${STAGING}data/` + `${STAGING}cache/`, both fail-closed) and NEVER the bare `${STAGING}` root (whose `_manifest.json` the producer never wrote). Deleting either sub-prefix restore or re-adding the bare-root restore reds it | `tests/unit/strict-manifest-topology.test.ts` + `tests/unit/shards-handoff-workflow.test.ts` (F2) | SOURCE | **NEW** |
+| SMT-SHARDS-TRANSPORT | The 20 matrix jobs stream each shard into the EXACT run/attempt transport prefix `state/_handoff/shards/<run>/attempt-<n>/`; save-shards-cache (`needs: matrix-shards`, so all shard objects durable first) publishes the exact-20 `_manifest.json` MANIFEST-LAST then strict-restores from that exact prefix; `state/shards/` remains ONLY as a non-authoritative diagnostic copy (no longer a recovery input). A missing/extra member (`Array.from({length:20})` drift), a manifest-before-data reorder (dropping the `needs`), or a reverted `restore-dir state/shards/` reds it | `tests/unit/strict-manifest-topology.test.ts` | SOURCE | **NEW** |
+| SMT-CYCLE-OUTPUT | The 3/4 producer read-back restores the EXACT `${STAGING}cache/` sub-prefix; all FOUR 4/4 consumers recover the EXACT `${STAGING_PREFIX}cache/` sub-prefix into `output/cache/`, wiping ONLY `output/cache/` (NEVER `output/data/`). Re-adding the bare-root `output/` restore or widening the wipe to `output/data/` reds it | `tests/unit/strict-manifest-topology.test.ts` + `tests/unit/cycle-output-handoff-workflow.test.ts` (P-READBACK/C-RECOVER) | SOURCE | **NEW** |
+| SMT-MESH-PROFILE | Each of the 3 mesh-profile consumers restores the EXACT `${STAGING_PREFIX}profile-shards/` sub-prefix AND restores `profile-evidence-dict.json.zst` EXPLICITLY + exactly (never the bare `output/cache/mesh/` root, whose `_manifest.json` the producer never wrote). Deleting the explicit dict restore (x3) or re-adding the bare-root mesh restore reds it | `tests/unit/strict-manifest-topology.test.ts` | SOURCE | **NEW** |
+| SMT-HARVEST-LEGACY | The manifest-impossible `restore-dir ingestion/raw/ data/ --strict` recovery is GONE; on an empty `data/*_master.ndjson` after the four-source R2 authority resolver, the workflow fails closed reporting an authority-output inconsistency (no identity-unconstrained `ingestion/raw/` fallback). The `ingestion/raw/` producer WRITE stream is untouched. Re-adding the strict recovery reds it | `tests/unit/strict-manifest-topology.test.ts` | SOURCE | **NEW** |
+| SMT-SEMANTICS-UNCHANGED | `lib/r2-handoff.js` keeps the `<prefix>_manifest.json` contract + the `manifest_required_strict` fail-closed (no LIST bypass), and `r2-workflow-cli.js` keeps the `strict && !result.success => exit` gate (no re-added LIST fallback). This fix is consumer-side only; touching strict semantics reds it | `tests/unit/strict-manifest-topology.test.ts` | SOURCE | **NEW** |
+
 ## Registry — DOC-PUB-HONESTY-S1 (D-2026-0711-317 Stage-3 S1 doc-honesty)
 
 > Deterministic, hermetic DOCUMENTATION-CONTRACT lock for the Stage-3 S1

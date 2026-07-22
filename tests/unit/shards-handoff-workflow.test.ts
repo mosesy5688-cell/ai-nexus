@@ -169,15 +169,28 @@ describe('FIX-3 / GAP-5 SCOPE GUARD -- forbidden surfaces unchanged', () => {
 });
 
 describe('D-262 amendment F2 -- producer FULL-SET read-back gates the authority (fail-closed on partial upload)', () => {
-    for (const [label, job, staging, manifestTmp, tag] of [
-        ['shards', saveJob, '${STAGING}', '/tmp/shards-manifest.json', 'shards-authority'],
-        ['prepared-entity-data', prepareJob, '${STAGING}', '/tmp/prep-manifest.json', 'prepared-entity-data-authority'],
+    // STRICT-TOPOLOGY: the read-back reads back EACH exact sub-prefix a producer actually staged.
+    // shards were staged with backup-dir to the bare ${STAGING} root (its own _manifest.json), so
+    // the shards read-back is a single bare-root restore. prepared-entity-data was staged into the
+    // data/ + cache/ sub-prefixes (per-role _manifest.json, NO ${STAGING}_manifest.json), so it
+    // reads back EACH sub-prefix -- a bare ${STAGING} root restore there is manifest-impossible.
+    for (const [label, job, rbAnchors, manifestTmp, tag] of [
+        ['shards', saveJob, ['restore-dir "${STAGING}" "${RB_DIR}" --strict'], '/tmp/shards-manifest.json', 'shards-authority'],
+        ['prepared-entity-data', prepareJob, ['restore-dir "${STAGING}data/" "${RB_DIR}/data/" --strict', 'restore-dir "${STAGING}cache/" "${RB_DIR}/cache/" --strict'], '/tmp/prep-manifest.json', 'prepared-entity-data-authority'],
     ] as const) {
-        it(`${label}: read-back restore + verify precede the "authority established" emit (READ-ONLY, no new write)`, () => {
-            const rbRestoreIdx = job.indexOf(`restore-dir "${staging}" "${'${RB_DIR}'}" --strict`);
+        it(`${label}: read-back restore(s) + verify precede the "authority established" emit (READ-ONLY, no new write)`, () => {
+            const rbRestoreIdx = job.indexOf(rbAnchors[0]);
             const rbVerifyIdx = job.indexOf(`verify "${'${RB_DIR}'}" ${manifestTmp} --carrier=${tag}`);
             const emitIdx = job.indexOf('authority established (read-back verified)');
             expect(rbRestoreIdx).toBeGreaterThan(0);
+            // every required sub-prefix read-back is present AND precedes the set-hash verify.
+            for (const anchor of rbAnchors) {
+                const idx = job.indexOf(anchor);
+                expect(idx).toBeGreaterThan(0);
+                expect(idx).toBeLessThan(rbVerifyIdx);
+            }
+            // no bare ${STAGING} root restore when the producer only staged sub-prefix manifests.
+            if (label === 'prepared-entity-data') expect(job).not.toContain('restore-dir "${STAGING}" "${RB_DIR}" --strict');
             expect(rbVerifyIdx).toBeGreaterThan(rbRestoreIdx);
             expect(emitIdx).toBeGreaterThan(rbVerifyIdx);
             // fail-closed: a read-back set-hash mismatch (partial upload) hard-fails before the emit.

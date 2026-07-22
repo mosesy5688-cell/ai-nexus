@@ -296,7 +296,12 @@ jobs:
           # temp dir + verify set_sha256 + exact-set membership, so a PARTIAL upload cannot
           # establish a FALSE authority. Fail-closed BEFORE emitting "authority established".
           RB_DIR="$(mktemp -d)"
-          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" "${RB_DIR}" --strict || { echo "::error::GAP-5: producer read-back restore failed (${STAGING}). Fail-closed."; exit 1; }
+          # STRICT-TOPOLOGY: the producer wrote per-role sub-prefix manifests
+          # (${STAGING}data/_manifest.json + ${STAGING}cache/_manifest.json) and NO
+          # ${STAGING}_manifest.json, so read back EACH exact sub-prefix (both fail-closed).
+          mkdir -p "${RB_DIR}/data" "${RB_DIR}/cache"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}data/" "${RB_DIR}/data/" --strict || { echo "::error::GAP-5: producer read-back restore failed (${STAGING}data/). Fail-closed."; exit 1; }
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}cache/" "${RB_DIR}/cache/" --strict || { echo "::error::GAP-5: producer read-back restore failed (${STAGING}cache/). Fail-closed."; exit 1; }
           rm -f "${RB_DIR}/manifest.json" "${RB_DIR}/handoff.json" "${RB_DIR}/_manifest.json" 2>/dev/null || true
           RB_SET=$(node scripts/factory/shards-handoff-manifest.mjs verify "${RB_DIR}" /tmp/prep-manifest.json --carrier=prepared-entity-data-authority) || { echo "::error::GAP-5: producer read-back verify failed (partial/corrupt upload). Fail-closed."; exit 1; }
           [ "$(printf '%s' "$RB_SET" | tail -n1)" = "${SET_SHA}" ] || { echo "::error::GAP-5: producer read-back set hash != ${SET_SHA} (partial upload). Fail-closed."; exit 1; }
@@ -497,19 +502,28 @@ jobs:
           key: shard-${{ matrix.shard }}-${{ github.run_id }}
 
       # V25.8 §2.2 / FIX-3 (D-262) DEMOTED: streaming each shard to the fixed prefix
-      # state/shards/ is now a NON-AUTHORITATIVE compat transport used ONLY to convey
-      # the 20 matrix outputs to the save-shards-cache aggregation job. It is NOT a
-      # current-cycle authority; the attempt-scoped, set_sha-verified R2 authority over
-      # the EXACT 20-shard set is established once in save-shards-cache.
+      # STRICT-TOPOLOGY: each matrix output is streamed to the EXACT run/attempt-bound R2
+      # transport prefix (state/_handoff/shards/<run>/attempt-<n>/) that save-shards-cache
+      # restores under a manifest-last _manifest.json (strict, fail-closed). The fixed prefix
+      # state/shards/ REMAINS ONLY as a non-authoritative diagnostic copy — it is NO LONGER a
+      # recovery input. The attempt-scoped, set_sha-verified R2 authority over the EXACT
+      # 20-shard set is established once in save-shards-cache.
       - name: Stream Shard to R2 (compat transport, non-authoritative)
         env:
+          HANDOFF_PROCESS_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
+          set -euo pipefail
           SHARD_FILE="artifacts/shard-${{ matrix.shard }}.json.zst"
           if [ -f "$SHARD_FILE" ]; then
+            STAGING="state/_handoff/shards/${HANDOFF_PROCESS_RUN_ID}/attempt-${HANDOFF_PRODUCER_ATTEMPT}/"
+            # authority transport FIRST (fail the job if it does not land — the strict restore
+            # in save-shards-cache depends on it); then the non-authoritative diagnostic copy.
+            node scripts/factory/r2-workflow-cli.js upload-buffer "$SHARD_FILE" "${STAGING}shard-${{ matrix.shard }}.json.zst" --content-type=application/zstd
             node scripts/factory/r2-workflow-cli.js upload-buffer "$SHARD_FILE" "state/shards/shard-${{ matrix.shard }}.json.zst" --content-type=application/zstd
           fi
 
@@ -529,17 +543,28 @@ jobs:
           cache: 'npm'
       - run: npm ci
 
-      # V25.8 §2.2: R2-Primary shard restoration (each matrix job streamed to R2)
+      # STRICT-TOPOLOGY: restore the 20 matrix shards from the EXACT run/attempt-bound R2
+      # transport prefix under a manifest-last _manifest.json (strict; fail-closed on any
+      # missing/extra member). The fixed prefix state/shards/ is NO LONGER a recovery input.
       - name: Restore Shards from R2
         env:
+          HANDOFF_PROCESS_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
+          set -euo pipefail
           mkdir -p artifacts output/shards
-          echo "📦 Restoring 20 shards from R2 state/shards/..."
-          node scripts/factory/r2-workflow-cli.js restore-dir state/shards/ artifacts/ --strict
+          STAGING="state/_handoff/shards/${HANDOFF_PROCESS_RUN_ID}/attempt-${HANDOFF_PRODUCER_ATTEMPT}/"
+          echo "📦 Restoring 20 shards from exact R2 transport ${STAGING}..."
+          # MANIFEST-LAST: all 20 matrix jobs are `needs`-gated, so every shard object is
+          # durable in ${STAGING} before this exact-20 _manifest.json commit record is written
+          # and the strict restore below runs (a missing/extra member fails closed).
+          node -e "const fs=require('fs');const files=Array.from({length:20},(_,i)=>'shard-'+i+'.json.zst');fs.writeFileSync('/tmp/shards-transport-manifest.json',JSON.stringify({files,count:files.length,timestamp:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/shards-transport-manifest.json "${STAGING}_manifest.json"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" artifacts/ --strict
 
       - name: Organize Shards
         run: |
