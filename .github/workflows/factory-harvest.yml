@@ -654,8 +654,13 @@ jobs:
           if [ "$NDJSON_COUNT" -gt 0 ]; then
             echo "✅ $NDJSON_COUNT NDJSON files from cache. Skipping R2 fallback."
           else
-            echo "⚠️ No NDJSON files from cache. Restoring from R2 ingestion/raw/..."
-            node scripts/factory/r2-workflow-cli.js restore-dir ingestion/raw/ data/ --strict
+            # STRICT-TOPOLOGY: ingestion/raw/ has NO directory manifest, so a --strict restore
+            # there is manifest-impossible. The four-source R2 source-authority resolver above
+            # already populated data/ (or failed closed), so an empty data/*_master.ndjson here
+            # is an authority-output inconsistency, NOT a recoverable miss. Fail closed rather
+            # than fall back to the mutable, identity-unconstrained ingestion/raw/ prefix.
+            echo "::error::Harvest authority-output inconsistency: the R2 source-authority resolver reported success but data/*_master.ndjson is empty. No identity-unconstrained ingestion/raw/ fallback. Fail-closed."
+            exit 1
           fi
 
       - name: List Batches (Current or Recovered)

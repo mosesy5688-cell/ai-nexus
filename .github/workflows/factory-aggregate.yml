@@ -1133,7 +1133,11 @@ jobs:
           # success on uploaded>0, so a PARTIAL upload would otherwise establish a FALSE authority.
           # Fail-closed BEFORE emitting "authority established".
           RB_DIR="$(mktemp -d)"
-          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" "${RB_DIR}" --strict || { echo "::error::FIX-2: producer read-back restore failed (${STAGING}). Fail-closed."; exit 1; }
+          # STRICT-TOPOLOGY: the producer wrote the cache set under the ${STAGING}cache/ sub-prefix
+          # (its own _manifest.json) and NO ${STAGING}_manifest.json, so read back the EXACT
+          # cache/ sub-prefix (fail-closed; a complete transport read-back of the just-written set).
+          mkdir -p "${RB_DIR}/cache"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}cache/" "${RB_DIR}/cache/" --strict || { echo "::error::FIX-2: producer read-back restore failed (${STAGING}cache/). Fail-closed."; exit 1; }
           rm -f "${RB_DIR}/manifest.json" "${RB_DIR}/handoff.json" "${RB_DIR}/_manifest.json" 2>/dev/null || true
           RB_SET=$(node scripts/factory/cycle-output-handoff-manifest.mjs verify "${RB_DIR}" /tmp/cycle-output-manifest.json --carrier=cycle-output-authority) || { echo "::error::FIX-2: producer read-back verify failed (partial/corrupt upload). Fail-closed."; exit 1; }
           [ "$(printf '%s' "$RB_SET" | tail -n1)" = "${SET_SHA}" ] || { echo "::error::FIX-2: producer read-back set hash != ${SET_SHA} (partial upload). Fail-closed."; exit 1; }

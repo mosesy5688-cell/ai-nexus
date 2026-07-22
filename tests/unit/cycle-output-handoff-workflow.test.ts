@@ -19,7 +19,7 @@
 //   * data->manifest->descriptor last-> (P-ORDER) reorder the three uploads => red.
 //   * relocation (no fixed prefix)   -> (P-RELOCATE) re-add backup-dir output/ state/cycle-output/ => red.
 //   * consumer verify-before-accept  -> (C-VERIFY) drop the set_sha equality on the GHA fast path => red.
-//   * consumer recover-from-staging  -> (C-RECOVER) drop the recover restore-dir "$STAGING_PREFIX" => red.
+//   * consumer recover-from-staging  -> (C-RECOVER) drop the recover restore-dir "${STAGING_PREFIX}cache/" => red.
 //   * wipe excludes output/data/     -> (C-WIPE) change wipe to rm -rf output/data => red.
 //   * fixed-prefix removed (all 4)   -> (C-NOFIXED) re-add restore-dir state/cycle-output/ output/ => red.
 //   * restore-keys prefix removed    -> (C-NOLOOSE) re-add restore-keys: cycle-<id>- => red.
@@ -87,7 +87,10 @@ describe('FIX-2 PRODUCER (finalize) -- durable manifest-last cycle-output R2 aut
     });
     it('P-READBACK: descriptor read-back + FULL-SET read-back precede the "authority established" emit (READ-ONLY, no new write)', () => {
         const descRbIdx = finalizeJob.indexOf(`verify-descriptor /tmp/cycle-output-handoff-rb.json ${CARRIER}`);
-        const rbRestoreIdx = finalizeJob.indexOf('restore-dir "${STAGING}" "${RB_DIR}" --strict');
+        // STRICT-TOPOLOGY: cache was staged under ${STAGING}cache/ (its own _manifest.json) and
+        // there is NO ${STAGING}_manifest.json, so the read-back restores the EXACT cache/ sub-prefix.
+        const rbRestoreIdx = finalizeJob.indexOf('restore-dir "${STAGING}cache/" "${RB_DIR}/cache/" --strict');
+        expect(finalizeJob).not.toContain('restore-dir "${STAGING}" "${RB_DIR}" --strict');
         const rbVerifyIdx = finalizeJob.indexOf(`verify "${'${RB_DIR}'}" /tmp/cycle-output-manifest.json ${CARRIER}`);
         const emitIdx = finalizeJob.indexOf('authority established (read-back verified)');
         expect(descRbIdx).toBeGreaterThan(0);
@@ -142,7 +145,10 @@ describe('FIX-2 CONSUMERS (all four) -- GHA acceleration-only, R2 authority, wip
         it(`${name}: C-RECOVER + C-WIPE -- GHA miss/mismatch wipes ONLY output/cache/** (NEVER output/data/) + recovers from the EXACT staging + re-verifies`, () => {
             const v = vorRegion(job);
             expect(v).toContain('rm -rf output/cache; mkdir -p output/cache');
-            expect(v).toContain('restore-dir "$STAGING_PREFIX" output/ --strict');
+            // STRICT-TOPOLOGY: recover from the EXACT ${STAGING_PREFIX}cache/ sub-prefix into output/cache/
+            // (the producer staged only ${STAGING_PREFIX}cache/_manifest.json, never a bare-root manifest).
+            expect(v).toContain('restore-dir "${STAGING_PREFIX}cache/" output/cache/ --strict');
+            expect(v).not.toContain('restore-dir "$STAGING_PREFIX" output/ --strict');
             // wipe discipline: output/data/ (FIX-4 meta-NN.db territory) is NEVER wiped or recovered here.
             expect(v).not.toMatch(/rm -rf output\/data/);
             expect(v).not.toContain('restore-dir "$STAGING_PREFIX" output/data');

@@ -156,7 +156,7 @@ jobs:
           # from the EXACT attempt-scoped staging + re-verify set_sha256.
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/cache; mkdir -p output/cache
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}cache/" output/cache/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}cache/). Fail-closed."; exit 1; }
             rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
             OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
@@ -332,7 +332,7 @@ jobs:
           # from the EXACT attempt-scoped staging + re-verify set_sha256.
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/cache; mkdir -p output/cache
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}cache/" output/cache/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}cache/). Fail-closed."; exit 1; }
             rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
             OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
@@ -917,7 +917,7 @@ jobs:
           # from the EXACT attempt-scoped staging + re-verify set_sha256.
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/cache; mkdir -p output/cache
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}cache/" output/cache/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}cache/). Fail-closed."; exit 1; }
             rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
             OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
@@ -1071,7 +1071,8 @@ jobs:
           fi
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/cache/mesh/profile-shards output/cache/mesh/profile-evidence-dict.json.zst; mkdir -p output/cache/mesh
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/mesh/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}profile-shards/" output/cache/mesh/profile-shards/ --strict || { echo "::error::AUTH-M: mesh recovery restore failed (${STAGING_PREFIX}profile-shards/). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}profile-evidence-dict.json.zst" output/cache/mesh/profile-evidence-dict.json.zst --strict || { echo "::error::AUTH-M: mesh recovery restore failed (${STAGING_PREFIX}profile-evidence-dict.json.zst). Fail-closed."; exit 1; }
             rm -f output/cache/mesh/manifest.json output/cache/mesh/handoff.json output/cache/mesh/_manifest.json 2>/dev/null || true
             OUT2=$(verify_mesh) || { echo "::error::AUTH-M: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::AUTH-M: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
@@ -1634,7 +1635,8 @@ jobs:
           fi
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/cache/mesh/profile-shards output/cache/mesh/profile-evidence-dict.json.zst; mkdir -p output/cache/mesh
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/mesh/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}profile-shards/" output/cache/mesh/profile-shards/ --strict || { echo "::error::AUTH-M: mesh recovery restore failed (${STAGING_PREFIX}profile-shards/). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}profile-evidence-dict.json.zst" output/cache/mesh/profile-evidence-dict.json.zst --strict || { echo "::error::AUTH-M: mesh recovery restore failed (${STAGING_PREFIX}profile-evidence-dict.json.zst). Fail-closed."; exit 1; }
             rm -f output/cache/mesh/manifest.json output/cache/mesh/handoff.json output/cache/mesh/_manifest.json 2>/dev/null || true
             OUT2=$(verify_mesh) || { echo "::error::AUTH-M: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::AUTH-M: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
@@ -1792,7 +1794,7 @@ jobs:
           # from the EXACT attempt-scoped staging + re-verify set_sha256.
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/cache; mkdir -p output/cache
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}cache/" output/cache/ --strict || { echo "::error::FIX-2: recover restore failed (${STAGING_PREFIX}cache/). Fail-closed."; exit 1; }
             rm -f output/manifest.json output/handoff.json output/_manifest.json 2>/dev/null || true
             OUT2=$(verify_cycle_output) || { echo "::error::FIX-2: exact-staging cycle-output recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::FIX-2: recovered cycle-output set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
@@ -1947,7 +1949,8 @@ jobs:
           fi
           if [ "$NEED_RECOVER" = "1" ]; then
             rm -rf output/cache/mesh/profile-shards output/cache/mesh/profile-evidence-dict.json.zst; mkdir -p output/cache/mesh
-            node scripts/factory/r2-workflow-cli.js restore-dir "$STAGING_PREFIX" output/cache/mesh/ --strict
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}profile-shards/" output/cache/mesh/profile-shards/ --strict || { echo "::error::AUTH-M: mesh recovery restore failed (${STAGING_PREFIX}profile-shards/). Fail-closed."; exit 1; }
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}profile-evidence-dict.json.zst" output/cache/mesh/profile-evidence-dict.json.zst --strict || { echo "::error::AUTH-M: mesh recovery restore failed (${STAGING_PREFIX}profile-evidence-dict.json.zst). Fail-closed."; exit 1; }
             rm -f output/cache/mesh/manifest.json output/cache/mesh/handoff.json output/cache/mesh/_manifest.json 2>/dev/null || true
             OUT2=$(verify_mesh) || { echo "::error::AUTH-M: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::AUTH-M: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
