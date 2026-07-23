@@ -2261,6 +2261,20 @@ jobs:
           # V25.8 §2.2: Enable S3 Multipart for fused-shard-NNN.bin (>8MB)
           R2_MULTIPART_ENABLED: 'true'
         run: node scripts/factory/r2-upload-s3.js
+      # R5 Phase 2 STAGE — content-addressed blob + cycle-manifest staging.
+      # PRODUCTION-EXECUTION-FENCED (Founder D-2026-0718-352): lib/r5-staging.js
+      # STAGE_MODE='stage_disabled' is a HARDCODED module constant — NOT this
+      # env/input/repo-var — so this step is a NO-OP in production for BOTH auto
+      # cron AND manual dispatch: it opens no R2 client and PUTs zero objects under
+      # data/blobs/**, data/cycles/**, data/quarantine/**, does no GET-and-rehash,
+      # and NEVER writes data/current.json. It does NOT self-enable. NO concurrency:,
+      # NO PROMOTE (Phase 3). Enabling staging is a future separate Founder ruling.
+      - name: R5 Phase 2 STAGE (fenced — no-op in production)
+        run: node scripts/factory/lib/r5-staging.js
+      # R5 Phase 2 VERIFY — exhaustive GET-and-rehash + manifest census + poison
+      # quarantine. Same hardcoded fence: a NO-OP in production (stage_disabled).
+      - name: R5 Phase 2 VERIFY (fenced — no-op in production)
+        run: node scripts/factory/acceptance-staged-cycle.js
       - name: Save Upload Manifest to Cache
         if: success()
         uses: actions/cache/save@v5

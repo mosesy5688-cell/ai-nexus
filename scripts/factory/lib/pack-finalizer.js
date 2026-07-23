@@ -8,6 +8,71 @@ import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+// R5 Phase 2 (cycle-manifest emit) — the served-artifact classes whose whole-object
+// sha256 IS the content-address (data/blobs/<sha256>). Enumerated at finalize; note
+// the pack ORDER generates id-index/hot-shard/vector-core/cluster-ann/term_index
+// AFTER finalizePack, so the finalize-time manifest captures whatever is already on
+// disk. This local manifest is NEVER uploaded here (STAGE is a separate, fenced step).
+const R5_SERVED_TOPLEVEL = [
+    (n) => /^meta-\d+\.db$/.test(n),                                   // dynamic meta shards
+    (n) => n === 'meta-knowledge.db' || n === 'meta-report.db',        // reader anchor singletons
+    (n) => /^rankings-[a-z0-9-]+\.db$/.test(n),                        // rankings-<group>.db (type/category/all)
+    (n) => /^fused-shard-\d+\.bin$/.test(n),
+    (n) => n === 'id-index.bin' || n === 'hot-shard.bin' || n === 'vector-core.bin',
+    (n) => /^cluster-ann/.test(n),
+];
+const R5_SERVED_SUBDIRS = new Set(['term_index']);
+
+export function sha256File(absPath) {
+    return crypto.createHash('sha256').update(fsSync.readFileSync(absPath)).digest('hex');
+}
+
+/** Discover every served artifact currently on disk under shardDir (recurses
+ *  term_index/ + cluster-ann dirs). Logical name = forward-slash path from shardDir. */
+export function discoverServedArtifacts(shardDir) {
+    const out = [];
+    for (const entry of fsSync.readdirSync(shardDir, { withFileTypes: true })) {
+        const n = entry.name;
+        if (entry.isFile() && R5_SERVED_TOPLEVEL.some((f) => f(n))) {
+            out.push({ logical: n, absPath: path.join(shardDir, n) });
+        } else if (entry.isDirectory() && (R5_SERVED_SUBDIRS.has(n) || /^cluster-ann/.test(n))) {
+            const stack = [path.join(shardDir, n)];
+            while (stack.length) {
+                const d = stack.pop();
+                for (const e2 of fsSync.readdirSync(d, { withFileTypes: true })) {
+                    const p = path.join(d, e2.name);
+                    if (e2.isDirectory()) stack.push(p);
+                    else out.push({ logical: path.relative(shardDir, p).replace(/\\/g, '/'), absPath: p });
+                }
+            }
+        }
+    }
+    out.sort((a, b) => a.logical.localeCompare(b.logical));
+    return out;
+}
+
+/** Immutable per-cycle manifest { build_id, partitions, blobs:{logical->sha256} }.
+ *  The whole-object sha256 doubles as the content-address blob key (key==content
+ *  by construction at the producer). */
+export function buildCycleManifest({ buildId, partitions, artifacts }) {
+    const blobs = {};
+    for (const a of artifacts) blobs[a.logical] = sha256File(a.absPath);
+    return { build_id: buildId || null, partitions: { ...partitions }, blobs };
+}
+
+/** Emit the local cycle manifest under <shardDir>/cycles/<buildId>/manifest.json
+ *  (mirrors the R2 data/cycles/ layout). LOCAL ONLY — no R2 write; the legacy
+ *  uploader EXCLUDES data/cycles/ so this file is never PUT in production. */
+export async function emitCycleManifest(shardDir, buildId, partitions) {
+    const artifacts = discoverServedArtifacts(shardDir);
+    const cycleManifest = buildCycleManifest({ buildId, partitions, artifacts });
+    const dir = path.join(shardDir, 'cycles', String(buildId));
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, 'manifest.json'), JSON.stringify(cycleManifest, null, 2));
+    console.log(`[R5-CYCLE-MANIFEST] hashed ${artifacts.length} served artifacts -> ${path.join(dir, 'manifest.json')} (build ${buildId})`);
+    return cycleManifest;
+}
+
 export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary, buildId) {
     console.log('[VFS] Computing shard manifest hashes...');
     const hashStart = Date.now();
@@ -76,6 +141,14 @@ export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, 
     }
     await fs.writeFile(path.join(shardDir, 'shards_manifest.json'), manifestJson);
     console.log(`[VFS] Manifest: ${(manifestBytes / 1024).toFixed(1)}KB (limit: 5MB)`);
+
+    // R5 Phase 2: emit the immutable per-cycle manifest LOCALLY (per-artifact
+    // sha256). Additive + separate file — shards_manifest.json above is untouched.
+    try {
+        await emitCycleManifest(shardDir, buildId, partitionCounts);
+    } catch (e) {
+        console.warn(`[R5-CYCLE-MANIFEST] emit skipped: ${e.message}`);
+    }
 
     console.log('[VFS] Optimizing databases...');
     const vacStart = Date.now();
