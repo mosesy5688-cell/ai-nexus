@@ -45,6 +45,7 @@ const REGISTRY: Gen[] = [
   { file: 'mesh-profile-handoff-manifest.mjs', category: 1, note: 'shared predicate + bypassRe-guarded assert (one documented cat-3 bypass member)' },
   { file: 'fused-handoff-manifest.js', category: 1, note: 'shared predicate + inline isUploadEligible()+throw MEMBER_UPLOAD_INELIGIBLE idiom' },
   { file: 'vfs-derived-handoff-manifest.mjs', category: 1, note: 'shared predicate + assertMemberEligibility (Pack members + warm_read)' },
+  { file: 'rankings-db-handoff-manifest.mjs', category: 1, alsoCategory: 2, note: 'shared predicate + assertMemberEligibility generate-time assert (both rankings carriers); ALSO classifyRankingsMember/EXCLUDED_CLASSES registry (cat 2) dropping the regenerable .meta.json sidecars' },
   { file: 'aggregate-handoff.mjs', category: 4, note: 'single handoff.tar.zst archive, putObject whole, archive_sha256-verified' },
   { file: 'harvest-authoritative-handoff.mjs', category: 4, note: 'per-role single <role>.tar.zst archive, putObject, archive_sha256' },
   { file: 'satellite-registry-handoff.mjs', category: 4, note: 'single registry.tar.zst archive, putObject, archive_sha256' },
@@ -81,7 +82,7 @@ const byCat = (c: Cat) => REGISTRY.filter((g) => g.category === c);
 // key above could be dodged by a future in-class generator NOT named *-handoff-*
 // (review-proven escape). This idiom scan enumerates EVERY scripts/factory/*.{js,mjs}
 // (non-recursive => lib/ excluded; no tests) and flags the GENERATOR IDIOM. Verified
-// to match EXACTLY the 8 registered generators with ZERO false positives: manifest
+// to match EXACTLY the 9 registered generators with ZERO false positives: manifest
 // generators carry the `carrier_type` schema field and/or an exported generateManifest();
 // archive generators carry buildArchive()+archive_sha256. Non-generators
 // (r2-workflow-cli.js [await-imports gens + a generic backup-dir CLI verb],
@@ -95,8 +96,8 @@ const GEN_IDIOM = (src: string) =>
 const IDIOM_MATCHED = ALL_FACTORY.filter((f) => GEN_IDIOM(read(f))).sort();
 
 describe('handoff-generator DISCOVERY <-> registry bijection (anti-one-seam completeness)', () => {
-  it('sanity: the sweep carriers are all discovered (>= the 8 known generators)', () => {
-    expect(DISCOVERED.length).toBeGreaterThanOrEqual(8);
+  it('sanity: the sweep carriers are all discovered (>= the 9 known generators)', () => {
+    expect(DISCOVERED.length).toBeGreaterThanOrEqual(9);
     for (const g of REGISTRY) expect(DISCOVERED, `registered ${g.file} must be on disk`).toContain(g.file);
   });
 
@@ -118,7 +119,7 @@ describe('handoff-generator DISCOVERY <-> registry bijection (anti-one-seam comp
 });
 
 describe('STRUCTURAL idiom discovery cross-check (filename-independent; closes the naming escape)', () => {
-  it('the generator IDIOM matches EXACTLY the 8 registered generators (zero false positives)', () => {
+  it('the generator IDIOM matches EXACTLY the 9 registered generators (zero false positives)', () => {
     const registeredFiles = REGISTRY.map((g) => g.file).sort();
     // If a non-generator (r2-workflow-cli.js etc) were flagged, this set would differ.
     expect(IDIOM_MATCHED).toEqual(registeredFiles);
@@ -154,6 +155,18 @@ describe('category-1 SHARED_PREDICATE_PLUS_ASSERT evidence (both idioms; removed
     const src = read(cyc.file);
     expect(src).toMatch(/classifyCycleMember/);
     expect(src).toMatch(/EXCLUDED_CLASSES/);
+  });
+
+  it('rankings-db ALSO carries the explicit class-membership registry (its cat-2 tag)', () => {
+    const rank = REGISTRY.find((g) => g.file === 'rankings-db-handoff-manifest.mjs')!;
+    expect(rank.alsoCategory).toBe(2);
+    const src = read(rank.file);
+    expect(src).toMatch(/classifyRankingsMember/);
+    expect(src).toMatch(/EXCLUDED_CLASSES/);
+    // an UNKNOWN member must fail LOUD, never be silently included
+    expect(src).toMatch(/UNCLASSIFIED_MEMBER/);
+    // and the same single membership function feeds BOTH generate and verify
+    expect(src).toMatch(/export function listCarrierFiles/);
   });
 
   it('NON-VACUITY: stripping the generate-time assert from a cat-1 source flips its evidence RED', () => {

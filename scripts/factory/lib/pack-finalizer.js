@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { assertRankingsDbSet, verifyOptsFromEnv } from './rankings-db-verifier.js';
 
 export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, cacheDir, stats, partitionCounts, injectMetadata, printBuildSummary, buildId) {
     console.log('[VFS] Computing shard manifest hashes...');
@@ -21,7 +22,20 @@ export async function finalizePack(metaDbs, manifest, currentShardId, shardDir, 
     console.log(`[VFS] Manifest hashes computed (${((Date.now() - hashStart) / 1000).toFixed(1)}s)`);
 
     await injectMetadata(metaDbs, null, cacheDir);
-    try { if (fsSync.readdirSync(shardDir).some(f => f.startsWith('rankings-') && f.endsWith('.db'))) partitionCounts.rankings_dbs = true; } catch {};
+    // FAIL-CLOSED rankings-DB publication gate (D9a). The old line here was an
+    // any-one-file boolean shortcut (`readdirSync(...).some(f => f.startsWith('rankings-'))`)
+    // wrapped in a swallowing `try {} catch {}`: one stray DB set the flag true and a
+    // partial/absent/corrupt set silently OMITTED the key (the live production shape).
+    // Now the flag is the RESULT of a COMPLETE-SET verification -- EXACT 10-name set,
+    // SQLite magic + quick_check, schema derived from the producer, per-DB provenance,
+    // and one identical run/attempt/head identity across all members (bound to the
+    // current-cycle handoff manifest when the workflow supplies it). ANY defect THROWS,
+    // so pack-db.js fails -> vfs-pack-db fails -> vfs-derived + upload (which `needs:`
+    // it) never run -> ZERO public write and the last-good build keeps serving. The flag
+    // is written EXPLICITLY boolean true and is NEVER written false (an absent key can
+    // never be read as a verified negative).
+    assertRankingsDbSet(shardDir, verifyOptsFromEnv());
+    partitionCounts.rankings_dbs = true;
     // V27.26: total_entities = authoritative global catalog size, derived from
     // stats.packed (count of entities written across all meta DBs). Surfaces
     // can read this via manifest.partitions.total_entities to render an honest

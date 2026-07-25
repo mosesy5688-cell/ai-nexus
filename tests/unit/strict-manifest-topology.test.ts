@@ -4,10 +4,16 @@
 // `<prefix>_manifest.json` and fail closed with NO LIST fallback when absent. Several
 // Factory callsites restored a ROOT staging prefix whose producer wrote only SUB-PREFIX
 // manifests (e.g. `<root>cache/_manifest.json`) with NO `<root>_manifest.json`, so they
-// 404'd fail-closed. This suite locks the 24 `restore-dir ... --strict` callsites across
+// 404'd fail-closed. This suite locks the 28 `restore-dir ... --strict` callsites across
 // the 4 factory-*.yml workflows to the manifest TOPOLOGY each producer actually wrote:
-//   (a) 13 LEGAL   — exact sub-prefix restore, OR bare-root restore of a bare-root
+//   (a) 17 LEGAL   — 13 PRE-EXISTING + 4 rankings-authority. Exact sub-prefix restore, OR
+//                    bare-root restore of a bare-root
 //                    backup-dir producer (its own `${STAGING}_manifest.json` exists).
+//                    Includes the 4 rankings-authority callsites (2 producer read-backs,
+//                    1 SEAM_A consumer recovery, 1 SEAM_B consumer promotion): each
+//                    producer stages with a BARE-ROOT `backup-dir "$STAGE" "${STAGING}"`,
+//                    so `${STAGING}_manifest.json` exists and a bare-root strict restore
+//                    is the CORRECT topology (never a sub-prefix-manifest producer).
 //   (b) 3  BLOCKER — GAP-5 prep read-back, save-shards-cache, cycle-output read-back:
 //                    were bare-root restores of sub-prefix-manifest producers => 404.
 //   (c) 7  RECOVERY— 4 cycle-output consumers + 3 mesh-profile consumers: same defect
@@ -41,14 +47,17 @@ function strictRestoreDirLines(yml: string): string[] {
     return yml.split('\n').filter((l) => /r2-workflow-cli\.js restore-dir\b/.test(l) && l.includes('--strict'));
 }
 
-describe('STRICT-TOPOLOGY census — the 24 restore-dir --strict callsites', () => {
-    it('exactly 24 restore-dir --strict command callsites across the 4 workflows (0/5/2/17)', () => {
+describe('STRICT-TOPOLOGY census — the 28 restore-dir --strict callsites', () => {
+    it('exactly 28 restore-dir --strict command callsites across the 4 workflows (0/5/5/18)', () => {
         expect(strictRestoreDirLines(harvestYml).length).toBe(0);
         expect(strictRestoreDirLines(processYml).length).toBe(5);
-        expect(strictRestoreDirLines(aggYml).length).toBe(2);
-        expect(strictRestoreDirLines(uploadYml).length).toBe(17);
+        // aggregate 2 -> 5: + rankings SEAM_A producer read-back, SEAM_A consumer recovery,
+        // SEAM_B producer read-back (all bare-root restores of bare-root backup-dir producers).
+        expect(strictRestoreDirLines(aggYml).length).toBe(5);
+        // upload 17 -> 18: + the SEAM_B consumer promotion restore in vfs-pack-db.
+        expect(strictRestoreDirLines(uploadYml).length).toBe(18);
         const total = Object.values(ALL).reduce((n, y) => n + strictRestoreDirLines(y).length, 0);
-        expect(total).toBe(24);
+        expect(total).toBe(28);
     });
     it('REQ-3: NO bare-root restore of a sub-prefix-manifest producer remains (each forbidden form is absent)', () => {
         // Discriminated by the fail-closed message so the LEGAL FIX-3 shards bare-root read-back
@@ -63,7 +72,22 @@ describe('STRICT-TOPOLOGY census — the 24 restore-dir --strict callsites', () 
         ];
         for (const f of forbidden) for (const [name, y] of Object.entries(ALL)) expect(count(y, f), `${f} @ ${name}`).toBe(0);
     });
-    it('13 LEGAL callsites intact (exact sub-prefix, or bare-root of a bare-root backup-dir producer)', () => {
+    it('the 4 rankings-authority callsites are bare-root restores of BARE-ROOT backup-dir producers', () => {
+        // SEAM_A producer read-back + SEAM_A consumer recovery + SEAM_B producer read-back (aggregate)
+        expect(count(aggYml, 'restore-dir "${STAGING}" "${RB_DIR}/" --strict')).toBe(2);
+        expect(count(aggYml, 'restore-dir "${STAGING_PREFIX}" "${STAGE}/" --strict')).toBe(1);
+        // SEAM_B consumer promotion (upload / vfs-pack-db)
+        expect(count(uploadYml, 'restore-dir "${STAGING_PREFIX}" "${STAGE}/" --strict')).toBe(1);
+        // TOPOLOGY TIE: each is legal ONLY because its producer staged with a BARE-ROOT
+        // backup-dir (writing ${STAGING}_manifest.json). Switching a producer to a
+        // sub-prefix backup-dir without switching the restore reds this pairing.
+        expect(count(aggYml, 'backup-dir "$STAGE_LOCAL" "${STAGING}"')).toBe(2);
+        for (const y of [aggYml, uploadYml]) {
+            expect(y).not.toContain('backup-dir "$STAGE_LOCAL" "${STAGING}data/"');
+            expect(y).not.toContain('backup-dir "$STAGE_LOCAL" "${STAGING}cache/"');
+        }
+    });
+    it('the 13 PRE-EXISTING LEGAL callsites intact (exact sub-prefix, or bare-root of a bare-root backup-dir producer)', () => {
         expect(count(processYml, 'restore-dir "${STAGING_PREFIX}data/" data/ --strict')).toBe(1);   // GAP-5 consumer recover
         expect(count(processYml, 'restore-dir "${STAGING}" "${RB_DIR}" --strict || { echo "::error::FIX-3:')).toBe(1); // shards read-back
         expect(count(aggYml, 'restore-dir "$STAGING_PREFIX" artifacts/ --strict')).toBe(1);          // shards consumer recover

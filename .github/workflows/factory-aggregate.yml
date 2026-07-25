@@ -664,6 +664,13 @@ jobs:
           CACHE_DIR: ./cache
           ENABLE_R2_BACKUP: 'true'
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          # D6: per-DB cycle identity stamped into every rankings-<group>.db
+          # site_metadata (factory_run_id / factory_run_attempt / head_sha). MANDATORY:
+          # rankings-db-exporter.resolveRankingsIdentity fails LOUD when absent, so a DB
+          # with unverifiable identity is never written.
+          RANKINGS_RUN_ID: ${{ github.run_id }}
+          RANKINGS_RUN_ATTEMPT: ${{ github.run_attempt }}
+          RANKINGS_HEAD_SHA: ${{ github.sha }}
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=rankings
@@ -676,20 +683,84 @@ jobs:
             output/cache/category_stats.json.zst
             output/data/
           key: intra-cycle-${{ github.run_id }}-rankings
-      # R2 backup for rankings satellite (P0-R2: R2-primary resilience)
-      - name: Backup Rankings Results to R2
+      # SEAM_A PRODUCER (rankings-authority repair): establish the attempt-scoped,
+      # content-verified R2 AUTHORITY over the EXACT rankings satellite set consumed by
+      # 3/4 finalize. Bound to this producing run id + producer attempt + head_sha;
+      # set_sha256 over data/rankings-<group>.db (EXACTLY 10) + cache/rankings/** page
+      # JSONs + cache/category_stats.json.zst, so a complete DB set can NEVER mask
+      # missing ranking JSON pages.
+      #
+      # CLASS-A COST (honest accounting, Founder D-395, RANKINGS-SATELLITE-PREFIX-RETIRED): the mutable fixed-prefix
+      # state/satellite-rankings/** write that used to sit here is DELETED, so this carrier
+      # is now a RELOCATION, not a duplication -- the ~510 PUT/cycle that prefix cost is
+      # GONE and this immutable attempt-scoped authority is the ONLY rankings carrier
+      # (correctness AND diagnostics). Steady-state cost is therefore roughly NET-NEUTRAL
+      # vs the pre-repair pipeline: ~515 PUT (10 DBs + up to ~500 ranking page JSONs at up
+      # to 50 pages x 10 groups, fewer for small groups + category_stats + backup-dir's own
+      # _manifest.json + manifest.json + handoff.json) replacing the ~510 it removes, for a
+      # real delta of roughly +5 PUT plus the read-back. The read-back is the same order of
+      # magnitude in GET (1 descriptor + 1 ${STAGING}_manifest.json + every data member;
+      # ${STAGING}manifest.json is NOT in backup-dir's commit record so restore-dir never
+      # fetches it), with ZERO PUT/COPY/DELETE. NO existing R2 object is deleted and NO GC
+      # is introduced. Order: producer DB verification -> manifest -> data FIRST -> manifest
+      # LAST -> descriptor LAST-of-all -> descriptor read-back -> FULL-SET read-back
+      # (read-only) -> only then "authority established".
+      - name: Establish Rankings-Satellite Authority (SEAM_A)
+        id: establish-rankings-satellite
         env:
+          HANDOFF_PRODUCER_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          node scripts/factory/r2-workflow-cli.js backup-dir output/cache/rankings/ state/satellite-rankings/rankings/
-          [ -f "output/cache/category_stats.json.zst" ] && node scripts/factory/r2-workflow-cli.js upload-buffer output/cache/category_stats.json.zst state/satellite-rankings/category_stats.json.zst
-          # V27.40: 13 serial uploads -> 6-way parallel xargs (saves ~2-3m)
-          ls output/data/rankings-*.db 2>/dev/null | xargs -I{} -P 6 -n 1 bash -c \
-            'node scripts/factory/r2-workflow-cli.js upload-buffer "$1" "state/satellite-rankings/$(basename "$1")" || true' _ {}
-          echo "✅ Rankings results + DBs backed up to R2 (parallel)"
+          set -euo pipefail
+          MOD=scripts/factory/rankings-db-handoff-manifest.mjs
+          PID="${HANDOFF_PRODUCER_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/rankings-satellite/${PID}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (0) assemble the carrier set into /tmp ONLY (D4: NEVER a new output/ subtree --
+          # r2-upload-s3 R2_PREFIX_FILTER includes bare `data/`, so anything under
+          # output/data/ publishes to the public CDN). The regenerable smart-writer
+          # `.meta.json` MD5 sidecars are dropped (OPTIONAL class, produce-time only).
+          STAGE_LOCAL=/tmp/rankings-stage
+          rm -rf "$STAGE_LOCAL"; mkdir -p "$STAGE_LOCAL/data" "$STAGE_LOCAL/cache"
+          cp output/data/rankings-*.db "$STAGE_LOCAL/data/"
+          cp -r output/cache/rankings "$STAGE_LOCAL/cache/rankings"
+          find "$STAGE_LOCAL/cache" -name '*.meta.json' -delete
+          cp output/cache/category_stats.json.zst "$STAGE_LOCAL/cache/category_stats.json.zst"
+          # (1) PRODUCER complete-set verification BEFORE any authority claim: EXACT 10-name
+          # set + SQLite magic + quick_check + derived schema + provenance + ONE identical
+          # run/attempt/head across all 10 (equal to THIS run/attempt/head).
+          RANKINGS_REQUIRE_IDENTITY=1 RANKINGS_EXPECT_RUN_ID="${PID}" RANKINGS_EXPECT_HEAD_SHA="${HANDOFF_HEAD_SHA}" RANKINGS_MAX_ATTEMPT="${ATT}" \
+            node "$MOD" verify-dbs "$STAGE_LOCAL/data" || { echo "::error::SEAM_A: producer rankings DB set failed complete-set verification. Fail-closed (no authority)."; exit 1; }
+          # (2) manifest over the EXACT staged set -> /tmp only.
+          node "$MOD" generate "$STAGE_LOCAL" /tmp/rankings-satellite-manifest.json --carrier=rankings-satellite
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/rankings-satellite-manifest.json').set_sha256)")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/rankings-satellite-manifest.json')).digest('hex'))")
+          # (3) data FIRST to the attempt-scoped staging.
+          node scripts/factory/r2-workflow-cli.js backup-dir "$STAGE_LOCAL" "${STAGING}"
+          # (4) manifest.json LAST (after every data object is durable).
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/rankings-satellite-manifest.json "${STAGING}manifest.json"
+          # (5) run-scoped descriptor handoff.json LAST OF ALL.
+          node -e "const f=require('fs');f.writeFileSync('/tmp/rankings-satellite-handoff.json',JSON.stringify({schema_version:1,carrier_type:'rankings-satellite',producer_run_id:String(process.env.HANDOFF_PRODUCER_RUN_ID),producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,head_sha:String(process.env.HANDOFF_HEAD_SHA),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/rankings-satellite-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (6) descriptor read-back + provenance verify before the handoff is announced.
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/rankings-satellite-handoff-rb.json --strict
+          HANDOFF_RUN_ATTEMPT="${ATT}" node "$MOD" verify-descriptor /tmp/rankings-satellite-handoff-rb.json --carrier=rankings-satellite
+          # (7) producer FULL-SET read-back (READ-ONLY; ZERO new PUT/COPY/DELETE): backup-dir
+          # returns success on uploaded>0, so a PARTIAL upload would otherwise establish a
+          # FALSE authority. Fail-closed BEFORE emitting "authority established".
+          RB_DIR="$(mktemp -d)"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" "${RB_DIR}/" --strict || { echo "::error::SEAM_A: producer read-back restore failed (${STAGING}). Fail-closed."; exit 1; }
+          rm -f "${RB_DIR}/manifest.json" "${RB_DIR}/handoff.json" "${RB_DIR}/_manifest.json" 2>/dev/null || true
+          RB_SET=$(node "$MOD" verify "${RB_DIR}" /tmp/rankings-satellite-manifest.json --carrier=rankings-satellite) || { echo "::error::SEAM_A: producer read-back verify failed (partial/corrupt upload). Fail-closed."; exit 1; }
+          [ "$(printf '%s' "$RB_SET" | tail -n1)" = "${SET_SHA}" ] || { echo "::error::SEAM_A: producer read-back set hash != ${SET_SHA} (partial upload). Fail-closed."; exit 1; }
+          echo "staging_prefix=${STAGING}" >> "$GITHUB_OUTPUT"
+          echo "set_sha=${SET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "[RANKINGS-SATELLITE-HANDOFF] authority established (read-back verified): ${STAGING} set_sha256=${SET_SHA}"
 
   aggregate-trending:
     name: "Agg: Trending"
@@ -864,6 +935,11 @@ jobs:
     outputs:
       cycle_output_staging_prefix: ${{ steps.establish-cycle-output.outputs.staging_prefix }}
       cycle_output_set_sha: ${{ steps.establish-cycle-output.outputs.set_sha }}
+      # SEAM_B: the read-back-VERIFIED rankings-db authority identity. The 4/4 consumer
+      # derives the SAME prefix from the R2 descriptor (cross-workflow), so these are
+      # telemetry -- 4/4 never depends on a GHA job output for correctness.
+      rankings_db_staging_prefix: ${{ steps.establish-rankings-db.outputs.staging_prefix }}
+      rankings_db_set_sha: ${{ steps.establish-rankings-db.outputs.set_sha }}
     steps:
       # V27.40: composite setup replaces V27.37 inline free-disk + V25 setup blocks
       - uses: actions/checkout@v5
@@ -978,21 +1054,97 @@ jobs:
             output/cache/category_stats.json.zst
             output/data/
           key: intra-cycle-${{ github.run_id }}-rankings
-      - name: R2 Fallback for Rankings DBs
-        if: steps.cache-rankings.outputs.cache-hit != 'true'
+      # SEAM_A CONSUMER (rankings-authority repair, D10). REPLACES the fail-silent
+      # fixed-prefix restore that lived here: 10 HARDCODED DB names, EVERY restore
+      # `|| true`, the count merely ECHOED (never gated), reading the MUTABLE
+      # cross-cycle-overwritable prefix state/satellite-rankings/*. That block could
+      # deliver 0..9 DBs and still leave the job green.
+      #
+      # Now: the attempt-scoped R2 authority descriptor established by
+      # `aggregate-rankings` in THIS run is the ONLY correctness source. The GHA cache
+      # restored above is a NON-AUTHORITATIVE accelerator: its content is verified
+      # against the descriptor's manifest (EXACT set + per-file size/sha256 + set_sha)
+      # and DISCARDED + re-fetched from the exact prefix on ANY mismatch. `state/
+      # satellite-rankings/*` is NEVER an input. Runs UNCONDITIONALLY (no cache-hit
+      # gate: a GHA hit is not evidence of correctness) and FAILS CLOSED, so finalize
+      # cannot publish a cycle-output whose rankings set is incomplete -- and 4/4
+      # therefore never runs on one.
+      - name: Consume Rankings-Satellite Authority (SEAM_A, fail-closed)
         env:
+          HANDOFF_PRODUCER_RUN_ID: ${{ github.run_id }}
+          HANDOFF_RUN_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_BUCKET: ai-nexus-assets
         run: |
+          set -uo pipefail
+          MOD=scripts/factory/rankings-db-handoff-manifest.mjs
           mkdir -p output/data output/cache/rankings
-          node scripts/factory/r2-workflow-cli.js restore-dir state/satellite-rankings/rankings/ output/cache/rankings/ || true
-          node scripts/factory/r2-workflow-cli.js restore-file state/satellite-rankings/category_stats.json.zst output/cache/category_stats.json.zst || true
-          for t in all model paper dataset tool text-generation knowledge-retrieval vision-multimedia automation-workflow infrastructure-ops; do
-            node scripts/factory/r2-workflow-cli.js restore-file "state/satellite-rankings/rankings-${t}.db" "output/data/rankings-${t}.db" 2>/dev/null || true
-          done
-          echo "✅ Rankings restored from R2: $(ls output/data/rankings-*.db 2>/dev/null | wc -l) DBs"
+          PID="${HANDOFF_PRODUCER_RUN_ID}"
+          # (1) resolve the current-run attempt-scoped authority descriptor (fail-closed).
+          DESC="state/_handoff/rankings-satellite/${PID}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/rankings-satellite-handoff-rb.json --strict || { echo "::error::SEAM_A: no current-cycle rankings-satellite authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node "$MOD" verify-descriptor /tmp/rankings-satellite-handoff-rb.json --carrier=rankings-satellite) || { echo "::error::SEAM_A: rankings-satellite descriptor provenance invalid (run/attempt/head/prefix). Fail-closed."; exit 1; }
+          # UNIFIED PARSE IDIOM: take the LAST stdout line before cutting fields, so a future
+          # extra stdout line can never turn a prefix/sha into a multi-line value. The module
+          # emits exactly ONE tab-delimited line (prefix, set_sha, head_sha, attempt) on
+          # stdout with all diagnostics on stderr; that contract is pinned by a test.
+          DESC_LINE=$(printf '%s' "$OUT" | tail -n1)
+          STAGING_PREFIX=$(printf '%s' "$DESC_LINE" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$DESC_LINE" | cut -f2)
+          EXPECT_ATT=$(printf '%s' "$DESC_LINE" | cut -f4)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/rankings-satellite-manifest.json --strict || { echo "::error::SEAM_A: rankings-satellite manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          STAGE=/tmp/rankings-stage
+          verify_stage() { node "$MOD" verify "$STAGE" /tmp/rankings-satellite-manifest.json --carrier=rankings-satellite; }
+          # (2) GHA ACCELERATOR fast path: assemble the workspace copy into the carrier
+          # shape and hold it to the SAME identity/hash verification as R2.
+          rm -rf "$STAGE"; mkdir -p "$STAGE/data" "$STAGE/cache"
+          cp output/data/rankings-*.db "$STAGE/data/" 2>/dev/null || true
+          [ -d output/cache/rankings ] && cp -r output/cache/rankings "$STAGE/cache/rankings" || true
+          [ -f output/cache/category_stats.json.zst ] && cp output/cache/category_stats.json.zst "$STAGE/cache/" || true
+          find "$STAGE/cache" -name '*.meta.json' -delete 2>/dev/null || true
+          NEED_RECOVER=0
+          if OUT2=$(verify_stage) && [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ]; then
+            echo "[RANKINGS-SATELLITE-HANDOFF] GHA fast-path matches producer set_sha=$EXPECT_SET_SHA"
+          else
+            echo "[RANKINGS-SATELLITE-HANDOFF] GHA miss/mismatch -- DISCARD + recover from exact staging"; NEED_RECOVER=1
+          fi
+          # (3) miss/mismatch => discard the accelerator content entirely and recover from
+          # the EXACT attempt-scoped staging, then re-verify set_sha256 (fail-closed).
+          if [ "$NEED_RECOVER" = "1" ]; then
+            rm -rf "$STAGE"; mkdir -p "$STAGE"
+            node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}" "${STAGE}/" --strict || { echo "::error::SEAM_A: recover restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            rm -f "$STAGE/manifest.json" "$STAGE/handoff.json" "$STAGE/_manifest.json" 2>/dev/null || true
+            OUT2=$(verify_stage) || { echo "::error::SEAM_A: exact-staging recovery failed verification (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+            [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::SEAM_A: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+            echo "[RANKINGS-SATELLITE-HANDOFF] recovered + verified rankings satellite set from exact staging"
+          fi
+          # (4) PROMOTE = verified COPY into the workspace (never rename/move, so a re-run
+          # is idempotent). BOTH promotion targets are WIPED first, then repopulated from the
+          # authority -- which carries the COMPLETE page set, so wiping is safe and is the
+          # only way an ORPHAN from a previous attempt (e.g. a stale p40.json.zst after
+          # totalPages shrank) cannot survive into the cycle-output carrier and get published
+          # unverified. The regenerable produce-time .meta.json sidecars are NOT carried (they
+          # are an EXCLUDED/OPTIONAL class with no 3/4-finalize or 4/4 reader).
+          rm -f output/data/rankings-*.db
+          cp "$STAGE"/data/rankings-*.db output/data/ || { echo "::error::SEAM_A: promotion copy failed. Fail-closed."; exit 1; }
+          rm -rf output/cache/rankings; mkdir -p output/cache/rankings
+          cp -r "$STAGE"/cache/rankings/. output/cache/rankings/ || { echo "::error::SEAM_A: ranking-page promotion copy failed. Fail-closed."; exit 1; }
+          cp "$STAGE"/cache/category_stats.json.zst output/cache/category_stats.json.zst || { echo "::error::SEAM_A: category_stats promotion copy failed. Fail-closed."; exit 1; }
+          # (5) RE-VERIFY the WHOLE promoted projection at the DESTINATION (D8), not just the
+          # DB half: every authority member (10 DBs + every ranking page + category_stats)
+          # must be present and byte-identical, AND the two exclusive scopes
+          # (output/data/rankings-*.db + output/cache/rankings/**) must hold NO orphan.
+          node "$MOD" verify-projection output /tmp/rankings-satellite-manifest.json --carrier=rankings-satellite || { echo "::error::SEAM_A: promoted projection failed destination verification (missing/tampered member or orphan page). Fail-closed."; exit 1; }
+          # (6) plus the SQLite integrity/identity check set on the promoted DBs: magic +
+          # quick_check + derived schema + provenance + ONE identical run/attempt/head equal
+          # to THIS run and head. RANKINGS_REQUIRE_IDENTITY=1 => an EMPTY expectation is a
+          # LOUD failure, never a silently skipped check.
+          RANKINGS_REQUIRE_IDENTITY=1 RANKINGS_DB_MANIFEST=/tmp/rankings-satellite-manifest.json RANKINGS_MEMBER_PREFIX=data/ \
+          RANKINGS_EXPECT_RUN_ID="${PID}" RANKINGS_EXPECT_HEAD_SHA="${HANDOFF_HEAD_SHA}" RANKINGS_MAX_ATTEMPT="${EXPECT_ATT}" \
+            node "$MOD" verify-dbs output/data || { echo "::error::SEAM_A: promoted output/data rankings set failed post-promotion verification. Fail-closed."; exit 1; }
+          echo "[RANKINGS-SATELLITE-HANDOFF] promoted + re-verified projection (10/10 DBs + pages + category_stats, zero orphans) set_sha=${EXPECT_SET_SHA}"
       - name: Disk usage after Rankings restore (peak)
         run: df -h /
       - name: Merge Core with Satellite Outputs
@@ -1144,6 +1296,79 @@ jobs:
           echo "staging_prefix=${STAGING}" >> "$GITHUB_OUTPUT"
           echo "set_sha=${SET_SHA}" >> "$GITHUB_OUTPUT"
           echo "[CYCLE-OUTPUT-HANDOFF] authority established (read-back verified): ${STAGING} set_sha256=${SET_SHA}"
+
+      # SEAM_B PRODUCER (rankings-authority repair). The cycle-output carrier above is
+      # BYTE-FROZEN to output/cache/** and NEVER carries output/data/ (4/4-owned), so
+      # until now the 10 rankings DBs reached 4/4 ONLY via the `cycle-<run>-output` GHA
+      # cache -- and GHA cache WRITES are 100% denied on this repo, so 4/4 saw ZERO
+      # rankings DBs and manifest.partitions.rankings_dbs was never set (the /api/v1/select
+      # 503). This establishes a SECOND, dedicated, attempt-scoped R2 authority over the
+      # EXACT 10-DB publication payload, bound to this finalize run id + producer attempt
+      # + head_sha. A separate descriptor is REQUIRED (not a cycle-output extension):
+      # different producer job for SEAM_A, and 4/4 resolves the 3/4 run id independently.
+      #
+      # CLASS-A COST (honest accounting): +13 PUT per cycle (the 10 DBs + backup-dir's own
+      # _manifest.json + manifest.json + handoff.json). The attempt-scoped STAGING prefix
+      # therefore holds 12 objects (handoff.json lives one level up at RUN_PREFIX, OUTSIDE
+      # STAGING). The read-back is 12 GET: 1 descriptor (RUN_PREFIX/handoff.json) + 1
+      # ${STAGING}_manifest.json + the 10 DB members. ${STAGING}manifest.json is NOT in
+      # backup-dir's commit record, so restore-dir never fetches it. ZERO PUT/COPY/DELETE on
+      # the read-back path. Small and genuinely additive: the same 10 DBs are also staged by
+      # SEAM_A (a different seam, a different consumer), but the mutable
+      # state/satellite-rankings/* duplicate is now DELETED (D-395, RANKINGS-SATELLITE-PREFIX-RETIRED), so this is the
+      # only other copy. Order: DB verification -> manifest -> data FIRST -> manifest
+      # LAST -> descriptor LAST-of-all -> descriptor read-back -> FULL-SET read-back ->
+      # "authority established".
+      - name: Establish Rankings-DB Authority (SEAM_B)
+        id: establish-rankings-db
+        env:
+          HANDOFF_PRODUCER_RUN_ID: ${{ github.run_id }}
+          HANDOFF_PRODUCER_ATTEMPT: ${{ github.run_attempt }}
+          HANDOFF_HEAD_SHA: ${{ github.sha }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -euo pipefail
+          MOD=scripts/factory/rankings-db-handoff-manifest.mjs
+          PID="${HANDOFF_PRODUCER_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          RUN_PREFIX="state/_handoff/rankings-db/${PID}"
+          export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
+          # (0) stage the publication payload into /tmp ONLY (D4: never a new output/ subtree).
+          STAGE_LOCAL=/tmp/rankings-db-stage
+          rm -rf "$STAGE_LOCAL"; mkdir -p "$STAGE_LOCAL/data"
+          cp output/data/rankings-*.db "$STAGE_LOCAL/data/"
+          # (1) complete-set verification of the payload BEFORE any authority claim. The
+          # DB-borne identity must be THIS cycle's 3/4 run + head (the DBs were produced by
+          # `aggregate-rankings` in this SAME workflow run, so github.sha is exact); the
+          # producer attempt may legitimately be <= finalize's attempt on a failed-jobs re-run.
+          RANKINGS_REQUIRE_IDENTITY=1 RANKINGS_EXPECT_RUN_ID="${PID}" RANKINGS_EXPECT_HEAD_SHA="${HANDOFF_HEAD_SHA}" RANKINGS_MAX_ATTEMPT="${ATT}" \
+            node "$MOD" verify-dbs "$STAGE_LOCAL/data" || { echo "::error::SEAM_B: rankings DB payload failed complete-set verification. Fail-closed (no authority)."; exit 1; }
+          # (2) manifest over the EXACT 10-member set -> /tmp only.
+          node "$MOD" generate "$STAGE_LOCAL" /tmp/rankings-db-manifest.json --carrier=rankings-db
+          export SET_SHA=$(node -e "process.stdout.write(require('/tmp/rankings-db-manifest.json').set_sha256)")
+          export MANIFEST_SHA=$(node -e "const c=require('crypto'),f=require('fs');process.stdout.write(c.createHash('sha256').update(f.readFileSync('/tmp/rankings-db-manifest.json')).digest('hex'))")
+          # (3) data FIRST.
+          node scripts/factory/r2-workflow-cli.js backup-dir "$STAGE_LOCAL" "${STAGING}"
+          # (4) manifest.json LAST.
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/rankings-db-manifest.json "${STAGING}manifest.json"
+          # (5) descriptor handoff.json LAST OF ALL.
+          node -e "const f=require('fs');f.writeFileSync('/tmp/rankings-db-handoff.json',JSON.stringify({schema_version:1,carrier_type:'rankings-db',producer_run_id:String(process.env.HANDOFF_PRODUCER_RUN_ID),producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,head_sha:String(process.env.HANDOFF_HEAD_SHA),created_at:new Date().toISOString()}))"
+          node scripts/factory/r2-workflow-cli.js upload-file /tmp/rankings-db-handoff.json "${RUN_PREFIX}/handoff.json"
+          # (6) descriptor read-back + provenance verify.
+          node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/rankings-db-handoff-rb.json --strict
+          HANDOFF_RUN_ATTEMPT="${ATT}" node "$MOD" verify-descriptor /tmp/rankings-db-handoff-rb.json --carrier=rankings-db
+          # (7) producer FULL-SET read-back (READ-ONLY; ZERO new PUT/COPY/DELETE) so a
+          # PARTIAL upload can never establish a FALSE authority. Fail-closed.
+          RB_DIR="$(mktemp -d)"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING}" "${RB_DIR}/" --strict || { echo "::error::SEAM_B: producer read-back restore failed (${STAGING}). Fail-closed."; exit 1; }
+          rm -f "${RB_DIR}/manifest.json" "${RB_DIR}/handoff.json" "${RB_DIR}/_manifest.json" 2>/dev/null || true
+          RB_SET=$(node "$MOD" verify "${RB_DIR}" /tmp/rankings-db-manifest.json --carrier=rankings-db) || { echo "::error::SEAM_B: producer read-back verify failed (partial/corrupt upload). Fail-closed."; exit 1; }
+          [ "$(printf '%s' "$RB_SET" | tail -n1)" = "${SET_SHA}" ] || { echo "::error::SEAM_B: producer read-back set hash != ${SET_SHA} (partial upload). Fail-closed."; exit 1; }
+          echo "staging_prefix=${STAGING}" >> "$GITHUB_OUTPUT"
+          echo "set_sha=${SET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "[RANKINGS-DB-HANDOFF] authority established (read-back verified): ${STAGING} set_sha256=${SET_SHA}"
 
       - name: Summary
         run: |
