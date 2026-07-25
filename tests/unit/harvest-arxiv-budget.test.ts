@@ -75,15 +75,18 @@ describe('WO-3-A1 D-67 BLOCKER A — true OAI active-transport budget', () => {
     it('TEST2 enrichment + 20s pacing do NOT consume the active-transport budget', async () => {
         let t = 0;
         const clock = { now: () => t, sleep: async () => undefined };
-        vi.spyOn(adapter, 'delay').mockImplementation(async () => { t += 5_000_000; });
-        vi.spyOn(adapter, 'enrichBatch').mockImplementation(async () => { t += 5_000_000; });
+        // Sized to CROSS the 6300000ms budget if enrichment were wrongly charged:
+        // 2 pages x (1000 transport + 3500000 enrich) = 7002000 > 6300000, so a
+        // mis-charging mutation trips the loop-top budget check on page 3 and reds.
+        vi.spyOn(adapter, 'delay').mockImplementation(async (ms: number) => { t += ms; });
+        vi.spyOn(adapter, 'enrichBatch').mockImplementation(async () => { t += 3_500_000; });
         let n = 0;
         vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async () => {
             n++; t += 1000;
             return OK(PAGE(`x.${n}`, n >= 3 ? undefined : `T${n}`)) as any;
         });
         const result = await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, clock);
-        expect(result.length).toBe(3); // >20M ms pacing+enrich wall time; budget untouched
+        expect(result.length).toBe(3); // 10.5M ms pacing+enrich wall time vs 3000ms of transport
     });
 
     // TEST 3: request timeout is capped by remaining transport budget.
@@ -189,7 +192,7 @@ describe('WO-3-A1 D-67 BLOCKER C — rate-limit fully arbiter-owned', () => {
         });
         const result = await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, clock);
         expect(result.length).toBe(2);
-        expect(sleeps).toContain(7000); // arbiter executed the Retry-After (not the 15s default)
+        expect(sleeps).toContain(7000); // arbiter executed the Retry-After (not the 60s default)
     });
 });
 

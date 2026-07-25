@@ -69,6 +69,12 @@ export class ArXivAdapter extends BaseAdapter {
         while (totalFetched < limit) {
             // BLOCKER A: ACTIVE-transport budget (only startSpan..endSpan is charged).
             if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
+            // NBF-1: gate ORDINARY page requests too -- pacing + ar5iv follow EVERY accepted
+            // page, so a purely healthy walk can cross the step deadline with the transport
+            // budget barely touched. Never issue a request that may cross the protection line
+            // and then rely on the runner kill.
+            const admitted = state.admitNextPage();
+            if (admitted) { terminal = admitted; break; } // no fetch, no wait: fail loud
 
             state.beginToken(resumptionToken);
             const url = buildListRecordsUrl(resumptionToken, from);
@@ -78,52 +84,45 @@ export class ArXivAdapter extends BaseAdapter {
             const page = await fetchOaiPage({
                 fetchWithTimeout: this.fetchWithTimeout.bind(this),
                 url,
-                timeoutMs: state.requestTimeoutMs(), // min(120000, remaining budget)
+                timeoutMs: state.requestTimeoutMs(), // min(attempt window 120/300/300s, remaining budget)
                 headers: { 'User-Agent': 'Free2AITools-OAI/1.0' },
             });
             state.endSpan(); // close span: IO done; cycle/progress CPU is not transport.
 
             // BLOCKER C: retryable HTTP/fetch/parse outcomes route through the SINGLE
-            // arbiter (canRetryToken + budget-charged wait, Retry-After bounded, retry
-            // SAME token); legacy handleRateLimit() NEVER called. PRECEDENCE (Blocker 2,
-            // identical in http/fetch/parse): (1) budget gone -> TOTAL_BUDGET_EXHAUSTED;
-            // (2) attempts exhausted -> PAGE_TIMEOUT/FETCH_ERROR/RATE_LIMIT/MALFORMED_XML;
-            // (3) retry-wait can't FIT budget -> TOTAL_BUDGET_EXHAUSTED; (4) fit -> retry.
+            // arbiter; legacy handleRateLimit() NEVER called. The arbiter's retry entry
+            // point is the one admission surface, in D-68 PRECEDENCE order: budget gone ->
+            // attempts exhausted -> wall-clock reserve -> third-attempt run quota ->
+            // retry-wait can't FIT budget -> wait+retry. null = retry now (SAME token);
+            // 'ATTEMPTS_EXHAUSTED' = map to this branch's terminal; anything else = that
+            // terminal verbatim. Each branch checks budgetExhausted() FIRST so exhaustion
+            // is never relabelled as a transport error (D-68 Blocker 2 / NBF-2).
             if (page.kind === 'http') {
-                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
+                state.recordAttemptFailure('http', page.status); // real HTTP status: recorded
+                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; } // NBF-2
                 const httpRetryable = [403, 429, 502, 503, 504].includes(page.status);
-                if (httpRetryable && state.canRetryToken()) {
-                    if (await state.executeRetryWait(parseRetryAfterMs(page.response))) {
-                        console.warn(`   🔄 [ArXiv] arbiter retry HTTP ${page.status} ${tokenFingerprint(resumptionToken)}`);
-                        continue;
-                    }
-                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
-                }
-                terminal = (page.status === 429 || page.status === 403) ? 'RATE_LIMIT_EXHAUSTED' : 'FETCH_ERROR';
-                console.warn(`   ⚠️ ArXiv OAI HTTP ${page.status} (${tokenFingerprint(resumptionToken)})`);
+                const t = httpRetryable ? await state.requestRetry(parseRetryAfterMs(page.response)) : 'ATTEMPTS_EXHAUSTED';
+                if (t === null) { console.warn(`   🔄 [ArXiv] arbiter retry HTTP ${page.status} ${tokenFingerprint(resumptionToken)}`); continue; }
+                terminal = t !== 'ATTEMPTS_EXHAUSTED' ? t : (page.status === 429 || page.status === 403) ? 'RATE_LIMIT_EXHAUSTED' : 'FETCH_ERROR';
+                console.warn(`   ⚠️ ArXiv OAI HTTP ${page.status} (${tokenFingerprint(resumptionToken)}) -> ${terminal}`);
                 break;
             }
             if (page.kind === 'fetch') { // SAME-TOKEN retry within budget; else fail loud.
-                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
-                if (state.canRetryToken()) {
-                    if (await state.executeRetryWait()) {
-                        console.warn(`   🔄 [ArXiv] same-token retry ${tokenFingerprint(resumptionToken)} (${page.errorKind})`);
-                        continue;
-                    }
-                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
-                }
-                terminal = page.errorKind === 'abort' ? 'PAGE_TIMEOUT_EXHAUSTED' : 'FETCH_ERROR';
+                state.recordAttemptFailure(page.errorKind); // 'abort' (slow tail) | 'fetch'; NO http status
+                const t = await state.requestRetry();
+                if (t === null) { console.warn(`   🔄 [ArXiv] same-token retry ${tokenFingerprint(resumptionToken)} (${page.errorKind})`); continue; }
+                terminal = t !== 'ATTEMPTS_EXHAUSTED' ? t : page.errorKind === 'abort' ? 'PAGE_TIMEOUT_EXHAUSTED' : 'FETCH_ERROR';
                 break;
             }
-            if (page.kind === 'parse') { // SAME budget precedence as fetch branch.
-                if (state.budgetExhausted()) { terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; }
-                if (state.canRetryToken()) {
-                    if (await state.executeRetryWait()) continue; // retry SAME token
-                    terminal = 'TOTAL_BUDGET_EXHAUSTED'; break; // wait refused: budget can't fit
-                }
-                terminal = 'MALFORMED_XML'; break; // parse attempts exhausted, budget remains
+            if (page.kind === 'parse') { // SAME precedence as the fetch branch.
+                state.recordAttemptFailure('parse'); // 200 body, no HTTP FAILURE status -> null
+                const t = await state.requestRetry();
+                if (t === null) continue; // retry SAME token
+                terminal = t !== 'ATTEMPTS_EXHAUSTED' ? t : 'MALFORMED_XML';
+                break;
             }
             if (page.kind === 'oai') {
+                state.recordAttemptFailure('oai'); // protocol envelope: terminal, NEVER retried
                 terminal = classifyOaiError(page.oaiError, resumptionToken, seenIds.size);
                 if (terminal === 'COMPLETE') break; // initial noRecordsMatch -> clean-zero
                 console.warn(`   ⛔ [ArXiv] OAI error ${page.oaiError.code} -> ${terminal}`);

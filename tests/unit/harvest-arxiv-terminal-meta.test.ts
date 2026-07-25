@@ -191,17 +191,16 @@ describe('WO-3-A1 D-68 BLOCKER 2 — budget-exhausted beats page-timeout (termin
         expect(timeouts[1]).toBe(50000); // tokened request was clipped to remaining budget (< 120000)
     });
 
-    // CASE (ii): AMPLE budget; three full 120s same-token aborts (attempts exhausted) -> PAGE_TIMEOUT_EXHAUSTED.
-    it('BUDGET-ii three full 120s same-token aborts with budget remaining -> PAGE_TIMEOUT_EXHAUSTED (not TOTAL_BUDGET)', async () => {
-        let t = 0; const clock = { now: () => t, sleep: async () => undefined }; // backoff zeroed
-        const tokenTimeouts: number[] = [];
+    // CASE (ii): AMPLE budget; three same-token aborts (attempts exhausted) -> PAGE_TIMEOUT_EXHAUSTED. 2026-07-25 widening: windows are 120s/300s/300s, not 3x120s.
+    it('BUDGET-ii three same-token aborts (120s/300s/300s) with budget remaining -> PAGE_TIMEOUT_EXHAUSTED (not TOTAL_BUDGET)', async () => {
+        let t = 0; const clock = { now: () => t, sleep: async () => undefined }; const tokenTimeouts: number[] = []; // backoff zeroed
         vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string, _o: any, timeoutMs: number) => {
-            if (url.includes('resumptionToken')) { tokenTimeouts.push(timeoutMs); t += 120000; throw D68_ABORT(); }
+            if (url.includes('resumptionToken')) { tokenTimeouts.push(timeoutMs); t += timeoutMs; throw D68_ABORT(); }
             t += 3000; return D68_OK(D68_FIRST_TOKEN) as any;
         });
         await expect(adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, clock))
             .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', detail: expect.stringContaining('PAGE_TIMEOUT_EXHAUSTED') });
-        expect(tokenTimeouts).toEqual([120000, 120000, 120000]); // attempts, not budget, was the limit
+        expect(tokenTimeouts).toEqual([120000, 300000, 300000]); // attempts, not budget, was the limit
     });
 
     // A retryable wait that cannot FIT remaining budget -> TOTAL_BUDGET (not RATE_LIMIT/PAGE_TIMEOUT; never conflated).
@@ -209,7 +208,7 @@ describe('WO-3-A1 D-68 BLOCKER 2 — budget-exhausted beats page-timeout (termin
         let t = 0; const clock = { now: () => t, sleep: async () => undefined };
         vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
             if (url.includes('resumptionToken')) return D68_HTTP(503) as any; // retryable, but wait can't fit
-            t += (TOTAL_BUDGET_MS - 5000); // leave 5000ms < 15000ms first backoff -> wait refused
+            t += (TOTAL_BUDGET_MS - 5000); // leave 5000ms < 60000ms first backoff -> wait refused
             return D68_OK(D68_FIRST_TOKEN) as any;
         });
         await expect(adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, clock))
@@ -229,7 +228,7 @@ describe('WO-3-A1 D-69 — parse branch budget precedence (FetchError.kind + ter
         let t = 0; const clock = { now: () => t, sleep: async () => undefined };
         vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
             if (url.includes('resumptionToken')) return D68_OK(D69_BAD_XML) as any; // parse fails, wait can't fit
-            t += (TOTAL_BUDGET_MS - 5000); return D68_OK(D68_FIRST_TOKEN) as any; // 5000 < 15000 backoff
+            t += (TOTAL_BUDGET_MS - 5000); return D68_OK(D68_FIRST_TOKEN) as any; // 5000 < 60000 backoff
         });
         await expect(adapter.fetchOAI({ limit: 100000, from: '2026-01-01' }, clock))
             .rejects.toMatchObject({ name: 'FetchError', kind: 'abort', detail: expect.stringContaining('TOTAL_BUDGET_EXHAUSTED') });
