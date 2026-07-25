@@ -81,20 +81,20 @@ describe('ArXiv OAI transport recovery — same-token retry (WO-3-A1)', () => {
         expect(fetchSpy).toHaveBeenCalledTimes(3);
     });
 
-    it('every request (first + deep + retry) uses the 120000ms deep-page envelope', async () => {
+    // 2026-07-25 slow-tail widening: attempt 1 of EVERY token keeps 120000ms; only a
+    // post-failure retry of the SAME token widens to 300000ms.
+    it('attempt 1 of every token = 120000ms; a same-token retry = 300000ms', async () => {
         let tokenCall = 0;
         const fetchSpy = vi.spyOn(adapter, 'fetchWithTimeout').mockImplementation(async (url: string) => {
             if (url.includes('resumptionToken')) {
-                tokenCall++;
-                if (tokenCall === 1) throw makeAbortError();
+                if (++tokenCall === 1) throw makeAbortError();
                 return OK(SECOND_PAGE_NO_TOKEN) as any;
             }
             return OK(FIRST_PAGE_WITH_TOKEN) as any;
         });
         await adapter.fetchOAI({ limit: 100, from: '2026-01-01' }, NO_SLEEP);
-        expect(fetchSpy.mock.calls[0][2]).toBe(120000);
-        expect(fetchSpy.mock.calls[1][2]).toBe(120000);
-        expect(fetchSpy.mock.calls[2][2]).toBe(120000);
+        // [first page attempt 1, deep token attempt 1, deep token attempt 2 = widened retry]
+        expect(fetchSpy.mock.calls.map((c: any[]) => c[2])).toEqual([120000, 120000, 300000]);
     });
 
     it('exhaustion: same token times out to the limit -> PAGE_TIMEOUT_EXHAUSTED fail-loud, no window query', async () => {

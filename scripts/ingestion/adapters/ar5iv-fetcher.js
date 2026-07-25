@@ -24,33 +24,48 @@ let _lastFetchTime = 0;
  * @param {string} arxivId - e.g. "2401.12345" or "2401.12345v2"
  * @returns {string|null} Cleaned HTML text or null on failure
  */
-export async function fetchAr5ivHtml(arxivId) {
+export async function fetchAr5ivHtml(arxivId, deps = {}) {
     if (!arxivId) return null;
+    // Test seam only; production passes nothing and keeps FETCH_TIMEOUT_MS, the 5s
+    // RATE_LIMIT_MS spacing and the global fetch exactly as they are.
+    const timeoutMs = Number.isFinite(deps.timeoutMs) ? deps.timeoutMs : FETCH_TIMEOUT_MS;
+    const rateLimitMs = Number.isFinite(deps.rateLimitMs) ? deps.rateLimitMs : RATE_LIMIT_MS;
+    const fetchImpl = deps.fetch || fetch;
 
     // Strip version suffix for ar5iv (uses latest)
     const cleanId = arxivId.replace(/v\d+$/, '');
     const url = `${AR5IV_BASE}/${cleanId}`;
 
-    // Rate limiting
+    // Rate limiting. _lastFetchTime is stamped BEFORE the fetch (below), so the
+    // interval is measured start-to-start and overlaps the previous call's duration --
+    // that overlap is what makes a call cost at most max(rateLimitMs, timeoutMs).
     const now = Date.now();
     const elapsed = now - _lastFetchTime;
-    if (elapsed < RATE_LIMIT_MS) {
-        await new Promise(r => setTimeout(r, RATE_LIMIT_MS - elapsed));
+    if (elapsed < rateLimitMs) {
+        await new Promise(r => setTimeout(r, rateLimitMs - elapsed));
     }
     _lastFetchTime = Date.now();
 
+    // NBF-4 FULL-RESPONSE DEADLINE. One AbortController + ONE timer, armed at fetch
+    // start and kept armed through `response.text()`, so timeoutMs bounds the WHOLE
+    // lifecycle: fetch start -> headers -> complete body consumption -> text returned.
+    // Previously the timer was cleared the moment headers arrived, leaving the body
+    // read unbounded -- so FETCH_TIMEOUT_MS was not a bound and the 10 x 15000 = 150000
+    // per-page figure the admission gate prices was unsound. Aborting the signal
+    // errors the body stream, so a stalled OR slowly-trickling body fails AT the
+    // deadline (total duration, not idle). The timer is cleared in `finally`, i.e. on
+    // success, HTTP-error, body-failure and timeout paths alike; nothing is awaited
+    // during cleanup, so no orphaned network task and no handle blocks settlement.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-        const response = await fetch(url, {
+        const response = await fetchImpl(url, {
             headers: {
                 'User-Agent': 'Free2AITools-Scholar/1.0 (academic-indexing)',
                 'Accept': 'text/html'
             },
             signal: controller.signal
         });
-        clearTimeout(timeout);
 
         if (!response.ok) {
             if (response.status === 404) return null; // Paper not yet rendered
@@ -58,7 +73,7 @@ export async function fetchAr5ivHtml(arxivId) {
             return null;
         }
 
-        const html = await response.text();
+        const html = await response.text(); // STILL under the same armed deadline
         if (html.length > MAX_HTML_SIZE) {
             return extractMainContent(html.substring(0, MAX_HTML_SIZE));
         }
@@ -68,6 +83,8 @@ export async function fetchAr5ivHtml(arxivId) {
             console.warn(`[AR5IV] Timeout for ${arxivId}`);
         }
         return null;
+    } finally {
+        clearTimeout(timeout);
     }
 }
 

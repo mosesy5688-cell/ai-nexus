@@ -7,59 +7,27 @@
  * BLOCKER A -- TRUE ACTIVE-TRANSPORT BUDGET: measures ONLY active OAI transport
  * time (each fetch + XML read/parse + page-validation span, plus arbiter-owned
  * retry/backoff sleeps). It does NOT accumulate enrichBatch()/ar5iv time, the 20s
- * inter-page pacing, or normalize/relation work. The adapter wraps each
- * fetch+parse+validate with startSpan()/endSpan(); pacing + enrichment run
- * OUTSIDE any span. budgetExhausted()/remaining derive from `transportActiveMs`,
- * NOT wall-clock since startedAt. TOKEN LIFECYCLE: same-run only, never persisted.
+ * inter-page pacing, or normalize/relation work. budgetExhausted()/remaining derive
+ * from `transportActiveMs`, NOT wall-clock since startedAt. TOKEN LIFECYCLE:
+ * same-run only, never persisted.
  *
  * @module ingestion/adapters/arxiv-recovery-state
  */
-import { FetchError } from './base-adapter.js';
-
-// First page (cold ListRecords, no resumptionToken) absorbs the OAI slow-tail
-// spike (observed 65-90s). Deep (resumptionToken) pages get the SAME raised 120s
-// budget on every attempt (D-65 s3 / s III.1: resumption PAGE_TIMEOUT_MS 60000 ->
-// 120000) so a 65-90s page clears on its FIRST attempt, paired with same-token
-// retry for transient failures -- not a standalone bump (retry is mandatory).
-export const FIRST_PAGE_TIMEOUT_MS = 120000;
-export const PAGE_TIMEOUT_MS = 120000;
-export const PAGE_RETRY_TIMEOUT_MS = 120000;
-// Per-request hard cap regardless of remaining budget (D-65 deep-page envelope).
-export const MAX_REQUEST_TIMEOUT_MS = 120000;
-
-// Bounded same-token retry: max 3 total requests per token (initial + 2 retries).
-export const MAX_REQUESTS_PER_TOKEN = 3;
-// Bounded backoff between same-token retries, COUNTED against the single budget.
-// Injectable/zeroable via the clock+sleep seam so tests never really sleep.
-export const TOKEN_BACKOFF_MS = [15000, 30000];
-
-// BLOCKER A -- ACTIVE-TRANSPORT ceiling (NOT wall-clock). Derivation: a healthy
-// deep walk is ~60 resumption pages; worst-case deep slow-tail 90s/page ->
-// 60*90s = 5400s, plus a bounded same-token retry allowance (a few pages with
-// 1-2 retries + their 15s/30s arbiter backoff) ~600s -> 6000s, rounded to
-// 6300000ms (105min) of PURE active transport. This EXCLUDES the 20s inter-page
-// pacing (60*20s = 1200s) and all enrichBatch()/ar5iv time, so a healthy ~92min
-// end-to-end walk stays well under it. The old 600000ms wall-clock ceiling
-// counted pacing + enrichment + loop time and killed a healthy walk -- retired.
-export const TOTAL_BUDGET_MS = 6300000;
-
-// NO_PROGRESS: bounded window of accepted pages over which zero RAW transport
-// progress (no new raw record IDs / fingerprint change / token advance) is
-// treated as a stall (terminal). Distinct from TOKEN_CYCLE (token identity).
-export const NO_PROGRESS_WINDOW = 3;
-
-/**
- * Short, non-reversible fingerprint of a resumptionToken for logs (never the
- * full token, which is not a governance id and must not be persisted/leaked).
- */
-export function tokenFingerprint(token) {
-    if (!token) return 'none';
-    let h = 0;
-    for (let i = 0; i < token.length; i++) {
-        h = (h * 31 + token.charCodeAt(i)) | 0;
-    }
-    return 'tok#' + (h >>> 0).toString(16);
-}
+// The FROZEN per-token envelope (2026-07-25 arXiv P0 slow-tail widening:
+// 120/300/300s requests, 60/300s backoffs, 3 requests/token, UNCHANGED 6300000ms
+// active-transport ceiling) lives in one auditable module, re-exported whole so
+// the arbiter stays the single import surface for its existing consumers.
+export * from './arxiv-recovery-envelope.js';
+import {
+    MAX_REQUESTS_PER_TOKEN, TOTAL_BUDGET_MS, NO_PROGRESS_WINDOW,
+    attemptBackoffMs, attemptTimeoutMs,
+} from './arxiv-recovery-envelope.js';
+// Run-scoped admission policy (Founder ruling): third-attempt quota + wall-clock
+// gate + Retry-After cap. It owns no advancement; this arbiter is its only caller.
+import { PROCESS_RUN_SCOPE, createRunScope, effectiveRetryAfterMs, nextPageCostMs, recordAdmission, retryDecision, tokenFingerprint } from './arxiv-run-admission.js';
+export { createRunScope, tokenFingerprint } from './arxiv-run-admission.js';
+export { TERMINAL_KIND } from './arxiv-terminal-meta.js';
+import { buildSnapshot, buildTerminalError } from './arxiv-terminal-meta.js';
 
 /**
  * The single-arbiter transport budget + retry/progress state machine.
@@ -72,15 +40,30 @@ export class ArxivRecoveryState {
         this.startedAt = this.now();
         this.transportActiveMs = 0; // BLOCKER A: cumulative ACTIVE-transport (spans+sleeps).
         this._spanStartedAt = null; // open transport span marker.
-        this.currentToken = null;   // current token + its same-token attempt counter.
-        this.tokenAttempts = 0;
-        this.acceptedPages = 0;
-        this.acceptedUniqueIds = 0;
-        this.totalRetries = 0;
+        this.currentToken = null; this.tokenAttempts = 0; // token + same-token attempts.
+        this.acceptedPages = 0; this.acceptedUniqueIds = 0; this.totalRetries = 0;
         this.lastProgressAt = this.startedAt;
         this.progressWindow = [];   // BLOCKER D: window keyed on RAW progress, not yield.
         this.seenPageFingerprints = new Set(); // replayed raw page = no-progress.
         this.tokenHistory = [];     // TOKEN_CYCLE: ordered accepted next-tokens.
+        // 2026-07-25 slow-tail evidence: COMPLETED recoveries (page committed after a
+        // slow-tail failure on the SAME token) -- never attempts; per-token-window
+        // slow-tail flag; last FAILED attempt's kind/status (null when there was none).
+        this.slowTailRecoveries = 0; this.tokenSlowTail = false;
+        this.lastErrorKind = null; this.lastHttpStatus = null;
+        this.lastRetryAfterRawMs = null; // RAW header value, diagnostics ONLY (never slept).
+        this.runElapsedMs = null; this.projectedCompletionMs = null; // last admission evidence.
+        // RUN scope (Founder ruling): PROCESS-scoped in production, so the third-attempt
+        // quota and the run-start anchor survive arbiter re-initialisation / token-loop
+        // reconstruction / exception re-entry within the process (= the run). PRODUCTION
+        // NEVER passes deps: ArXivAdapter.fetch() calls fetchOAI(options) with no second
+        // argument, so the live path always lands on PROCESS_RUN_SCOPE. A scope is only
+        // comparable to the clock that stamped its start, so an INJECTED clock gets its
+        // own scope unless the caller supplies one explicitly (how the quota/re-entry
+        // tests deliberately share one). Stamped ONCE; a scope carrying a corrupt
+        // (non-finite) start is never re-stamped and makes admitWallClock fail closed.
+        this.runScope = deps.runScope || (deps.now ? createRunScope() : PROCESS_RUN_SCOPE);
+        if (this.runScope.startedAtMs === undefined) this.runScope.startedAtMs = this.now();
     }
 
     // -- BLOCKER A: active-transport span accounting -------------------------
@@ -119,6 +102,7 @@ export class ArxivRecoveryState {
         if (token !== this.currentToken) {
             this.currentToken = token;
             this.tokenAttempts = 0;
+            this.tokenSlowTail = false; // new token window: fresh slow-tail state.
         }
         this.tokenAttempts++;
         return this.tokenAttempts;
@@ -130,11 +114,28 @@ export class ArxivRecoveryState {
     }
 
     /**
-     * BLOCKER A: per-request timeout = min(120000 deep-page envelope, remaining
-     * active-transport budget). remaining <= 0 -> caller issues no further request.
+     * Record a FAILED transport attempt for the CURRENT token (adapter calls it on
+     * every http/fetch/parse/oai failure branch, retryable or not). HONESTY:
+     * httpStatus is stored ONLY when the failure carried a real HTTP status line; a
+     * local abort/timeout, a transport throw, a parse failure, or an OAI <error>
+     * envelope on an otherwise-200 body store null -- never a synthesized 0/408/504.
+     * errorKind 'abort' (per-request timeout) marks a slow-tail token window.
+     * @param {string} errorKind - 'abort' | 'fetch' | 'parse' | 'http' | 'oai'.
+     */
+    recordAttemptFailure(errorKind, httpStatus) {
+        this.lastErrorKind = errorKind || null;
+        this.lastHttpStatus = Number.isInteger(httpStatus) ? httpStatus : null;
+        if (errorKind === 'abort') this.tokenSlowTail = true;
+    }
+
+    /**
+     * BLOCKER A: per-request timeout = min(this attempt's envelope window, remaining
+     * active-transport budget). Attempt 1 = 120000 (normal/fast page, unchanged
+     * cost); attempts 2-3 = 300000 (slow-tail recovery only). remaining <= 0 ->
+     * caller issues no further request.
      */
     requestTimeoutMs() {
-        return Math.min(MAX_REQUEST_TIMEOUT_MS, this.remainingTransportBudget());
+        return Math.min(attemptTimeoutMs(this.tokenAttempts), this.remainingTransportBudget());
     }
 
     /**
@@ -144,15 +145,45 @@ export class ArxivRecoveryState {
      * executed (retry SAME token); false if it cannot fit (caller fails loud).
      * @param {number} [retryAfterMs] - server Retry-After in ms (optional).
      */
+    /**
+     * The wait the arbiter WOULD execute next: the configured backoff for the
+     * just-failed attempt (60s then 300s), unless a server Retry-After supplies a
+     * shorter-or-capped hint. BF-2: the hint is clamped to MAX_RETRY_AFTER_MS, so
+     * the CAPPED value is what gets slept, charged and wall-clock admitted; the raw
+     * header is kept only as diagnostics. Used by the admission gate and the wait
+     * itself, so both reason about exactly the same number.
+     */
+    plannedWaitMs(retryAfterMs) {
+        this.lastRetryAfterRawMs = Number.isFinite(retryAfterMs) ? retryAfterMs : null;
+        const hint = effectiveRetryAfterMs(retryAfterMs);
+        return hint === null ? attemptBackoffMs(this.tokenAttempts) : hint;
+    }
+
+    /**
+     * SINGLE retry entry point for the adapter. Returns null when the retry is
+     * admitted (its wait already executed), else the TERMINAL to fail loud with.
+     * The arbiter stays the only owner: this just composes its own state.
+     */
+    async requestRetry(retryAfterMs) {
+        return retryDecision(this, retryAfterMs);
+    }
+
+    /** Wall-clock admission for a `costMs` action; records the evidence either way. */
+    admit(costMs) {
+        return recordAdmission(this, costMs);
+    }
+
+    /** NBF-1: admission for an ORDINARY page request (pacing/enrichment follow each). */
+    admitNextPage() {
+        return recordAdmission(this, nextPageCostMs());
+    }
+
     async executeRetryWait(retryAfterMs) {
-        const idx = Math.min(this.tokenAttempts - 1, TOKEN_BACKOFF_MS.length - 1);
-        const base = TOKEN_BACKOFF_MS[idx];
-        const ms = Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : base;
+        const ms = this.plannedWaitMs(retryAfterMs);
         // REFUSED-DUE-TO-BUDGET (Blocker 2): if the FULL wait cannot fit the remaining
         // active-transport budget, refuse without sleeping/charging so the adapter
-        // classifies TOTAL_BUDGET_EXHAUSTED (budgetExhausted() true), not a clipped
-        // partial wait masquerading as a retry. Refusal-due-to-ATTEMPTS is the
-        // adapter's canRetryToken() gate; this gate is purely budget.
+        // classifies TOTAL_BUDGET_EXHAUSTED, not a clipped partial wait masquerading as
+        // a retry. Refusal-due-to-ATTEMPTS is the adapter's canRetryToken() gate.
         if (ms > this.remainingTransportBudget()) return false;
         await this.sleep(ms);
         this.transportActiveMs += ms; // arbiter-owned wait IS active-transport time.
@@ -167,9 +198,9 @@ export class ArxivRecoveryState {
      * (nextToken repeats / A->B->A) | 'NO_PROGRESS' (zero RAW progress across the
      * window) | null (accepted, advance). RAW progress = a never-seen record-id-only
      * fingerprint (replayed page = no-progress even with a fresh token); rawNewIds
-     * rescues the ids-absent fallback. PRODUCT yield drives paper count only.
-     * TWO-PHASE: a rejected page mutates NOTHING (validate is pure), so snapshot()/
-     * terminal_meta exclude it; mutation happens ONLY in the commit phase below.
+     * rescues the ids-absent fallback. PRODUCT yield drives paper count only. TWO-PHASE:
+     * a rejected page mutates NOTHING (validate is pure), so snapshot()/terminal_meta
+     * exclude it; mutation happens ONLY in the commit phase below.
      */
     acceptPage({ newProductYield, rawNewIds, pageFingerprint, nextToken }) {
         // PHASE 1 VALIDATE (PURE -- zero mutation before a pass).
@@ -186,6 +217,9 @@ export class ArxivRecoveryState {
         }
 
         // PHASE 2 COMMIT (only after validation passes). All mutation happens here.
+        // A page committed on attempt >1 of a slow-tail (abort) token window IS a
+        // completed recovery -- counted EXACTLY once, on the commit, never per attempt.
+        if (this.tokenAttempts > 1 && this.tokenSlowTail) this.slowTailRecoveries++;
         if (pageFingerprint) this.seenPageFingerprints.add(pageFingerprint);
         if (rawProgress > 0) this.lastProgressAt = this.now();
         this.progressWindow.push(rawProgress);
@@ -198,42 +232,13 @@ export class ArxivRecoveryState {
 
     /** Truthful partial-yield metadata for a terminal (never healthy-partial). */
     snapshot(terminal) {
-        return {
-            terminal,
-            accepted_pages: this.acceptedPages,
-            accepted_unique_ids: this.acceptedUniqueIds,
-            total_retries: this.totalRetries,
-            token_attempts: this.tokenAttempts,
-            current_token_fp: tokenFingerprint(this.currentToken),
-            elapsed_transport_ms: this.transportActiveMs,
-            elapsed_ms: this.now() - this.startedAt,
-        };
+        return buildSnapshot(this, terminal);
     }
 
-    /**
-     * BLOCKER E: build a fail-loud FetchError for a non-COMPLETE terminal, carrying
-     * machine-readable structured terminal metadata (`err.meta`) from snapshot().
-     * The adapter throws this; harvest-single propagates meta into terminal_meta.
-     */
+    /** BLOCKER E: the fail-loud FetchError + structured `err.meta` for a terminal. */
     terminalError(terminal, uniqueIds) {
-        const snap = this.snapshot(terminal);
-        const meta = {
-            terminal, acceptedPages: snap.accepted_pages, totalRetries: snap.total_retries,
-            uniqueIds, elapsedTransportMs: snap.elapsed_transport_ms,
-            tokenFingerprint: snap.current_token_fp,
-        };
-        return new FetchError('arxiv', TERMINAL_KIND[terminal] || 'fetch',
-            `${terminal}: ${uniqueIds} accepted before failure`, meta);
+        return buildTerminalError(this, terminal, uniqueIds);
     }
 }
-
-// Non-COMPLETE terminal -> FetchError kind (H1 fetch/abort/parse taxonomy; all
-// non-COMPLETE fail loud, never a green healthy-partial).
-export const TERMINAL_KIND = {
-    PAGE_TIMEOUT_EXHAUSTED: 'abort', TOTAL_BUDGET_EXHAUSTED: 'abort',
-    FETCH_ERROR: 'fetch', OAI_ERROR: 'fetch', BAD_RESUMPTION_TOKEN: 'fetch',
-    NO_PROGRESS: 'fetch', TOKEN_CYCLE: 'fetch', RATE_LIMIT_EXHAUSTED: 'fetch',
-    MALFORMED_XML: 'parse',
-};
 
 export default ArxivRecoveryState;
