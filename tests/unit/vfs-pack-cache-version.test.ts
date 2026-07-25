@@ -23,12 +23,27 @@ function vfsPackKeyLines(): string[] {
     return yml.split('\n').map(l => l.trim()).filter(l => l.includes('intra-4-4-vfs-pack-') && !l.startsWith('#'));
 }
 
+// Slice a named step to its REAL boundary (the next `      - name:` / `      - uses:`).
+// Replaces a fixed-byte window: the window silently truncated once the step gained env
+// keys, which turned an ORDER assertion into a false negative instead of a real check.
+function stepBlock(stepName: string): string {
+    const start = yml.replace(/\r\n/g, '\n').indexOf(stepName);
+    if (start < 0) return '';
+    const rest = yml.replace(/\r\n/g, '\n').slice(start);
+    const next = rest.slice(1).search(/\n {6}- (name|uses):/);
+    return next < 0 ? rest : rest.slice(0, next + 1);
+}
+
 describe('STAGE-B vfs-pack cache versioning — frozen token', () => {
     it('declares a frozen VFS_PACK_CODE_VERSION token in env', () => {
         expect(versionDecl).not.toBeNull();
         expect(VERSION.length).toBeGreaterThan(0);
         // Frozen value for this remediation (bump-on-code-change discipline).
-        expect(VERSION).toBe('citation-authority-v2');
+        // BUMPED for the rankings-manifest authority: pack-finalizer is now the ONLY writer
+        // of partitions.rankings_dbs + shards_manifest.json, so an OLD pack cache hitting
+        // (skip_compute=true) would skip that writer entirely and leave the publication
+        // manifest missing/stale. A new token makes the first run after merge a FRESH pack.
+        expect(VERSION).toBe('rankings-manifest-authority-v1');
     });
 
     it('EVERY intra-4-4-vfs-pack cache key/restore-prefix carries the version token', () => {
@@ -90,8 +105,8 @@ describe('STAGE-B vfs-pack cache versioning — sentinel + skip gate', () => {
     });
 
     it('the fresh-pack step overwrites restored rows (pack-db runs then stamps sentinel)', () => {
-        const execIdx = yml.indexOf('Execute Stable 1.0 Packer');
-        const block = yml.slice(execIdx, execIdx + 1400);
+        const block = stepBlock('Execute Stable 1.0 Packer');
+        expect(block).not.toBe('');
         // condition: only when not skipping (which is also the force_fresh path)
         expect(block).toContain("skip_compute != 'true'");
         // pack-db.js runs BEFORE the sentinel is stamped (sentinel only on success)

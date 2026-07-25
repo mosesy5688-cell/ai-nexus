@@ -54,12 +54,17 @@ env:
   # so the intra-4-4-vfs-pack cache cannot be REUSED across incompatible packer code.
   # A cache restored under an OLD version (or with a missing/mismatched sentinel) MUST
   # NOT satisfy skip-detect — pack-db.js re-runs and rewrites the rows. Bumped to
-  # citation-authority-v2 for the row-builders citation re-derivation (final authority
-  # at the pack chokepoint): a re-run on the prior cache would otherwise skip pack-db
-  # and ship the stale raw-citation rows. Scope is the SQLite rows ONLY — the fused
+  # rankings-manifest-authority-v1 (D-395, RANKINGS-PACK-VERSION-BUMP): pack-finalizer.js is the ONLY
+  # writer of BOTH partitions.rankings_dbs=true AND output/data/shards_manifest.json, so
+  # an OLD pack cache hitting (skip_compute=true) would skip that writer entirely and
+  # leave the publication manifest absent/stale — the confirmed failure chain that
+  # refused publication on the skip-compute and FIX-4 paths. A new token makes the first
+  # run after merge a necessarily FRESH pack. (Prior value: the row-builders citation
+  # re-derivation token, whose rationale still holds — bumping only ever adds safety.)
+  # Scope is the SQLite rows ONLY — the fused
   # entities + warm embedding caches are intentionally NOT busted (their keys are
   # untouched), so only the packed rows rebuild while fusion/embeddings stay warm.
-  VFS_PACK_CODE_VERSION: 'citation-authority-v2'
+  VFS_PACK_CODE_VERSION: 'rankings-manifest-authority-v1'
   # AUTHORITY-M: mesh-profile-CODE version token. BUMP whenever the mesh-profile bake
   # logic (mesh-profile-baker.js) changes so the AUTH-M descriptor cross-SHA gate rejects
   # a foreign-code cycle's dict/profile-shards. Scope is the AUTH-M provenance bind ONLY.
@@ -853,6 +858,10 @@ jobs:
       # AUTHORITY-W (4/4): the VERIFIED warm-read (bins + term_index) sibling set-sha so
       # vfs-derived + upload verify the served warm-tier artifacts are THIS exact cycle's.
       verified_vfs_pack_warm_read_set_sha: ${{ steps.vfs-pack-handoff.outputs.warm_read_set_sha }}
+      # RANKINGS-PUBLICATION-SIBLING (D-395): the VERIFIED publication sibling identity
+      # so BOTH FIX-4 consumers (vfs-derived + upload) can verify-or-recover it.
+      verified_vfs_pack_shards_manifest_sha: ${{ steps.vfs-pack-handoff.outputs.shards_manifest_sha }}
+      verified_vfs_pack_shards_manifest_size: ${{ steps.vfs-pack-handoff.outputs.shards_manifest_size }}
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
@@ -1145,6 +1154,83 @@ jobs:
           key: intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
           restore-keys: |
             intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-
+      # SEAM_B CONSUMER + PROMOTION (rankings-authority repair, D7/D8). Before this
+      # step existed, output/data/rankings-<group>.db reached 4/4 ONLY through the
+      # `cycle-<run>-output` GHA cache -- and GHA cache WRITES are 100% denied on this
+      # repo, so the packer saw ZERO rankings DBs, pack-finalizer's any-one-file boolean
+      # shortcut left manifest.partitions.rankings_dbs UNSET, and POST /api/v1/select
+      # returned 503. The 3/4 `rankings-db` R2 authority is now the sole source.
+      #
+      # Placed AFTER the vfs-pack cache restore (whose restore-keys PREFIX can pull a
+      # PREVIOUS attempt's output/data/, including stale/foreign rankings DBs) and BEFORE
+      # both the skip-detection and the Packer, and it runs UNCONDITIONALLY -- so the
+      # promoted set is authoritative on the fresh-pack path AND on the skip_compute
+      # path, and it is in place before the end-of-job vfs-pack handoff manifest
+      # (`backup-dir output/data/ --extensions=.db`) captures it for the FIX-4
+      # publication binding. Promotion is a verified COPY, never a rename/move (so a
+      # re-run is idempotent) and never a rebuild (impossible: exportRankingsDbs needs
+      # the fni-sorted accumulator that exists only inside 3/4 rankings-generator).
+      - name: Promote Rankings DBs from R2 Authority (SEAM_B, fail-closed)
+        id: promote-rankings-dbs
+        env:
+          HANDOFF_PRODUCER_RUN_ID: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          MOD=scripts/factory/rankings-db-handoff-manifest.mjs
+          PID="${HANDOFF_PRODUCER_RUN_ID}"
+          if [ -z "$PID" ]; then echo "::error::SEAM_B: no upstream-run-id resolved -- cannot consume the rankings-db authority safely. Fail-closed."; exit 1; fi
+          # (1) resolve the current-cycle attempt-scoped authority descriptor. Cross-workflow
+          # cycle key = the 3/4 Aggregate run id = check-upstream upstream-run-id.
+          DESC="state/_handoff/rankings-db/${PID}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/rankings-db-handoff-rb.json --strict || { echo "::error::SEAM_B: no current-cycle rankings-db authority descriptor ($DESC). Fail-closed."; exit 1; }
+          OUT=$(node "$MOD" verify-descriptor /tmp/rankings-db-handoff-rb.json --carrier=rankings-db) || { echo "::error::SEAM_B: rankings-db descriptor provenance invalid (run/attempt/prefix). Fail-closed."; exit 1; }
+          # UNIFIED PARSE IDIOM (see the SEAM_A consumer): LAST stdout line, then cut fields
+          # (prefix, set_sha, head_sha, attempt). Single-line stdout is pinned by a test.
+          DESC_LINE=$(printf '%s' "$OUT" | tail -n1)
+          STAGING_PREFIX=$(printf '%s' "$DESC_LINE" | cut -f1); EXPECT_SET_SHA=$(printf '%s' "$DESC_LINE" | cut -f2)
+          EXPECT_HEAD=$(printf '%s' "$DESC_LINE" | cut -f3); EXPECT_ATT=$(printf '%s' "$DESC_LINE" | cut -f4)
+          # (2) CROSS-CARRIER FAMILY BIND: rankings-db and cycle-output are written by the
+          # SAME 3/4 finalize job execution, so they MUST agree on run id + producer attempt
+          # + head_sha. This is how this cross-workflow consumer -- which cannot know the 3/4
+          # head sha on its own -- gets an EXACT head-SHA bind for SEAM_B.
+          node scripts/factory/r2-workflow-cli.js restore-file "state/_handoff/cycle-output/${PID}/handoff.json" /tmp/rankings-db-sibling.json --strict || { echo "::error::SEAM_B: sibling cycle-output descriptor missing -- cannot family-bind the rankings authority. Fail-closed."; exit 1; }
+          node "$MOD" verify-sibling /tmp/rankings-db-handoff-rb.json /tmp/rankings-db-sibling.json || { echo "::error::SEAM_B: rankings-db and cycle-output authorities disagree on run/attempt/head -- refusing a mixed-cycle rankings promotion. Fail-closed."; exit 1; }
+          # (3) manifest, then restore the EXACT staging into /tmp (D4: never output/).
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/rankings-db-manifest.json --strict || { echo "::error::SEAM_B: rankings-db manifest missing at ${STAGING_PREFIX}. Fail-closed."; exit 1; }
+          STAGE=/tmp/rankings-stage
+          rm -rf "$STAGE"; mkdir -p "$STAGE"
+          node scripts/factory/r2-workflow-cli.js restore-dir "${STAGING_PREFIX}" "${STAGE}/" --strict || { echo "::error::SEAM_B: restore failed (${STAGING_PREFIX}). Fail-closed."; exit 1; }
+          rm -f "$STAGE/manifest.json" "$STAGE/handoff.json" "$STAGE/_manifest.json" 2>/dev/null || true
+          OUT2=$(node "$MOD" verify "$STAGE" /tmp/rankings-db-manifest.json --carrier=rankings-db) || { echo "::error::SEAM_B: staged rankings set failed manifest verification. Fail-closed."; exit 1; }
+          [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::SEAM_B: staged set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
+          # (4) FULL check set on the STAGED copies (D7): EXACT 10-name set, size+sha256 vs
+          # the manifest, SQLite magic, PRAGMA quick_check, producer-derived schema,
+          # provenance keys, and ONE identical run/attempt/head equal to the descriptor's.
+          # RANKINGS_REQUIRE_IDENTITY=1: an EMPTY expectation must be a LOUD failure
+          # (IDENTITY_BINDING_REQUIRED_BUT_EMPTY), never a silently skipped identity check.
+          export RANKINGS_REQUIRE_IDENTITY=1
+          export RANKINGS_DB_MANIFEST=/tmp/rankings-db-manifest.json
+          export RANKINGS_MEMBER_PREFIX=data/
+          export RANKINGS_EXPECT_RUN_ID="${PID}"
+          export RANKINGS_EXPECT_HEAD_SHA="${EXPECT_HEAD}"
+          export RANKINGS_MAX_ATTEMPT="${EXPECT_ATT}"
+          node "$MOD" verify-dbs "$STAGE/data" || { echo "::error::SEAM_B: staged rankings DBs failed the integrity/identity check set. Fail-closed."; exit 1; }
+          # (5) promote = verified COPY, wiping any stale/extra rankings DB the GHA
+          # restore-keys prefix may have carried in from a previous attempt.
+          mkdir -p output/data
+          rm -f output/data/rankings-*.db
+          cp "$STAGE"/data/rankings-*.db output/data/ || { echo "::error::SEAM_B: promotion copy into output/data failed. Fail-closed."; exit 1; }
+          # (6) RE-VERIFY at the DESTINATION (D8) -- the copy itself is not trusted.
+          node "$MOD" verify-dbs output/data || { echo "::error::SEAM_B: promoted output/data rankings set failed post-promotion verification. Fail-closed."; exit 1; }
+          echo "expect_run_id=${PID}" >> "$GITHUB_OUTPUT"
+          echo "expect_head_sha=${EXPECT_HEAD}" >> "$GITHUB_OUTPUT"
+          echo "max_attempt=${EXPECT_ATT}" >> "$GITHUB_OUTPUT"
+          echo "set_sha=${EXPECT_SET_SHA}" >> "$GITHUB_OUTPUT"
+          echo "[RANKINGS-DB-HANDOFF] promoted + re-verified 10/10 rankings DBs into output/data (set_sha=${EXPECT_SET_SHA})"
       # P3-EVIDENCE-1 STAGE-B: skip pack-db ONLY when ALL hold —
       #   (a) force_fresh is NOT set,
       #   (b) >= 20 meta-NN.db present,
@@ -1195,6 +1281,16 @@ jobs:
           AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
           NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
           VFS_PACK_CODE_VERSION: ${{ env.VFS_PACK_CODE_VERSION }}
+          # D9a: bind pack-finalizer's fail-closed rankings gate to the SAME
+          # current-cycle authority the promotion step above already verified.
+          # REQUIRE_IDENTITY=1 => an empty expectation THROWS instead of degrading
+          # the gate to structure-only with no signal.
+          RANKINGS_REQUIRE_IDENTITY: '1'
+          RANKINGS_DB_MANIFEST: /tmp/rankings-db-manifest.json
+          RANKINGS_MEMBER_PREFIX: data/
+          RANKINGS_EXPECT_RUN_ID: ${{ steps.promote-rankings-dbs.outputs.expect_run_id }}
+          RANKINGS_EXPECT_HEAD_SHA: ${{ steps.promote-rankings-dbs.outputs.expect_head_sha }}
+          RANKINGS_MAX_ATTEMPT: ${{ steps.promote-rankings-dbs.outputs.max_attempt }}
         # P3-EVIDENCE-1 STAGE-B: a SUCCESSFUL fresh pack stamps the version sentinel
         # (output/meta/, carried by the vfs-pack save below). It is written only after
         # pack-db.js exits 0, so a failed/partial pack leaves no/old sentinel and the
@@ -1397,6 +1493,25 @@ jobs:
           [ -d output/data/term_index ] && node scripts/factory/r2-workflow-cli.js backup-dir output/data/term_index/ "${STAGING}term_index/"
           # warm-read-manifest.json (SIBLING of manifest.json) — after all warm data is durable.
           node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-warm-read-manifest.json "${STAGING}warm-read-manifest.json"
+          # (2p) RANKINGS-PUBLICATION-SIBLING (D-395) ADDITIVE member: carry output/data/shards_manifest.json.
+          # pack-finalizer is its ONLY writer, so on the skip-compute path (old pack cache
+          # hit) and on the FIX-4 recovery path (rm -rf output/data/ + restore of .db/warm
+          # .bin/term_index ONLY) it is ABSENT -- and the D9b pre-publish gate requires it.
+          # NOT mixed into the meta set_sha256 (that hash + the warm_read sibling stay
+          # BYTE-IDENTICAL); it is bound by its OWN descriptor sha+size fields below.
+          # Validation is SEMANTIC before anything is claimed: exists -> non-empty -> parses
+          # -> partitions.rankings_dbs === true -> hash+size. Data uploaded FIRST (here),
+          # descriptor LAST (3), read-back re-verified (4p), announced only after that.
+          SM_OUT=$(node scripts/factory/rankings-db-handoff-manifest.mjs shards-manifest-emit output/data/shards_manifest.json) || { echo "::error::RANKINGS-PUBLICATION-SIBLING: output/data/shards_manifest.json missing/unparseable or partitions.rankings_dbs !== true -- refusing to establish a publication authority. Fail-closed."; exit 1; }
+          SM_LINE=$(printf '%s' "$SM_OUT" | tail -n1)
+          export SM_SHA=$(printf '%s' "$SM_LINE" | cut -f1); export SM_SIZE=$(printf '%s' "$SM_LINE" | cut -f2)
+          # The LOCAL identity is what seeds the descriptor AND what is later handed to
+          # shards-manifest-fields as --expect-sha/--expect-size. The module treats an EMPTY
+          # expectation as "no expectation" (a legacy-permissive branch kept for off-workflow
+          # callers), so an empty value here would SILENTLY SKIP the divergence check and
+          # re-open the decorative-binding defect. Close it at the call site, fail-closed.
+          if [ -z "${SM_SHA}" ] || [ -z "${SM_SIZE}" ]; then echo "::error::RANKINGS-PUBLICATION-SIBLING: locally computed shards_manifest identity is EMPTY (SM_SHA='${SM_SHA}' SM_SIZE='${SM_SIZE}') -- the local identity used as the descriptor expectation must never be empty, otherwise the divergence check would silently skip. Fail-closed."; exit 1; fi
+          node scripts/factory/r2-workflow-cli.js upload-file output/data/shards_manifest.json "${STAGING}publication/shards_manifest.json"
           # (2c) manifest.json LAST (after every data object incl. present RSS inputs is durable).
           node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-pack-manifest.json "${STAGING}manifest.json"
           # (3) run-scoped descriptor handoff.json LAST OF ALL. Binds ONLY current upstream
@@ -1404,7 +1519,7 @@ jobs:
           # and RECORDS per-RSS-input presence (D-246 §2) so paused/absent is distinguishable.
           # AUTHORITY-W: the descriptor gains ONLY additive warm_read_set_sha256 +
           # warm_read_member_count — the meta set_sha256/manifest_sha256 are UNCHANGED.
-          node -e "const f=require('fs');const m=require('/tmp/vfs-pack-manifest.json');f.writeFileSync('/tmp/vfs-pack-handoff.json',JSON.stringify({schema_version:1,carrier_type:'vfs-pack-authority',producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,warm_read_set_sha256:String(process.env.WARM_SET_SHA),warm_read_member_count:Number(process.env.WARM_MEMBER_COUNT),upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),head_sha:String(process.env.HANDOFF_HEAD_SHA),vfs_pack_code_version:String(process.env.HANDOFF_VFS_PACK_CODE_VERSION),parent_set_sha256:null,rss_inputs:(m.rss_inputs||[]).map(e=>({name:e.name,present:e.present})),created_at:new Date().toISOString()}))"
+          node -e "const f=require('fs');const m=require('/tmp/vfs-pack-manifest.json');f.writeFileSync('/tmp/vfs-pack-handoff.json',JSON.stringify({schema_version:1,carrier_type:'vfs-pack-authority',producer_attempt:Number(process.env.HANDOFF_PRODUCER_ATTEMPT),exact_staging_prefix:process.env.STAGING,manifest_sha256:process.env.MANIFEST_SHA,set_sha256:process.env.SET_SHA,warm_read_set_sha256:String(process.env.WARM_SET_SHA),warm_read_member_count:Number(process.env.WARM_MEMBER_COUNT),shards_manifest_sha256:String(process.env.SM_SHA),shards_manifest_size:Number(process.env.SM_SIZE),upstream_run_id:String(process.env.HANDOFF_UPSTREAM_RUN_ID),factory_run_id:String(process.env.HANDOFF_FACTORY_RUN_ID),head_sha:String(process.env.HANDOFF_HEAD_SHA),vfs_pack_code_version:String(process.env.HANDOFF_VFS_PACK_CODE_VERSION),parent_set_sha256:null,rss_inputs:(m.rss_inputs||[]).map(e=>({name:e.name,present:e.present})),created_at:new Date().toISOString()}))"
           node scripts/factory/r2-workflow-cli.js upload-file /tmp/vfs-pack-handoff.json "${RUN_PREFIX}/handoff.json"
           # (4) read-back verify the descriptor provenance (missing/malformed => fail-loud).
           node scripts/factory/r2-workflow-cli.js restore-file "${RUN_PREFIX}/handoff.json" /tmp/vfs-pack-handoff-rb.json --strict
@@ -1415,12 +1530,35 @@ jobs:
           node scripts/factory/r2-workflow-cli.js restore-file "${STAGING}warm-read-manifest.json" /tmp/vfs-warm-read-manifest-rb.json --strict
           RB_WARM_SET=$(node -e "process.stdout.write(require('/tmp/vfs-warm-read-manifest-rb.json').set_sha256)")
           [ "$RB_WARM_SET" = "$WARM_SET_SHA" ] || { echo "::error::AUTH-W: warm-read-manifest read-back set_sha mismatch. Fail-closed."; exit 1; }
+          # (4p) RANKINGS-PUBLICATION-SIBLING read-back: the descriptor must actually CARRY the two new
+          # fields, and the durable object must re-verify byte-for-byte AND semantically
+          # (parses + partitions.rankings_dbs === true) against them, so a partial or
+          # corrupt sibling upload can never be announced as an authority.
+          # The ENFORCED identity must ORIGINATE in the durable descriptor read-back, never in
+          # producer-local shell variables. Presence+syntax alone left the binding DECORATIVE: a
+          # different-but-well-formed SHA and a different-but-positive size passed, because the
+          # sibling was then checked against the LOCAL values and those locals were exported as
+          # the job outputs. So: parse RB_SM_SHA/RB_SM_SIZE OUT of /tmp/vfs-pack-handoff-rb.json,
+          # require EXACT agreement with the local SM_SHA/SM_SIZE (distinct *_DIVERGED codes =
+          # "the descriptor lied or the upload raced"), then use ONLY the read-back values for the
+          # durable sibling verification, the job outputs and both FIX-4 consumers.
+          RB_FIELDS=$(node scripts/factory/rankings-db-handoff-manifest.mjs shards-manifest-fields /tmp/vfs-pack-handoff-rb.json --expect-sha="${SM_SHA}" --expect-size="${SM_SIZE}") || { echo "::error::RANKINGS-PUBLICATION-SIBLING: descriptor shards_manifest identity missing/malformed, or DIVERGED from the locally computed hash/size. Fail-closed."; exit 1; }
+          RB_FIELDS_LINE=$(printf '%s' "$RB_FIELDS" | tail -n1)
+          RB_SM_SHA=$(printf '%s' "$RB_FIELDS_LINE" | cut -f1); RB_SM_SIZE=$(printf '%s' "$RB_FIELDS_LINE" | cut -f2)
+          # An EMPTY parsed value is a HARD error, never "no expectation".
+          if [ -z "${RB_SM_SHA}" ] || [ -z "${RB_SM_SIZE}" ]; then echo "::error::RANKINGS-PUBLICATION-SIBLING: empty shards_manifest identity parsed from the read-back descriptor. Fail-closed."; exit 1; fi
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING}publication/shards_manifest.json" /tmp/vfs-pack-shards-manifest-rb.json --strict || { echo "::error::RANKINGS-PUBLICATION-SIBLING: publication sibling read-back restore failed. Fail-closed."; exit 1; }
+          node scripts/factory/rankings-db-handoff-manifest.mjs shards-manifest-verify /tmp/vfs-pack-shards-manifest-rb.json --sha="${RB_SM_SHA}" --size="${RB_SM_SIZE}" || { echo "::error::RANKINGS-PUBLICATION-SIBLING: publication sibling read-back failed hash/size/semantic verification. Fail-closed."; exit 1; }
           # (5) export the verified identity for the VFS Derived + Upload consumers.
           echo "staging_prefix=${V_PREFIX}" >> "$GITHUB_OUTPUT"
           echo "set_sha=${V_SET}" >> "$GITHUB_OUTPUT"
           echo "producer_attempt=${ATT}" >> "$GITHUB_OUTPUT"
           echo "warm_read_set_sha=${WARM_SET_SHA}" >> "$GITHUB_OUTPUT"
-          echo "[VFS-PACK-HANDOFF] staging=${V_PREFIX} set_sha256=${V_SET} warm_read_set_sha256=${WARM_SET_SHA} descriptor=${RUN_PREFIX}/handoff.json"
+          # (d) EXPORT THE READ-BACK-PARSED values (never the producer-local SM_SHA/SM_SIZE):
+          # these are what both FIX-4 consumers verify-or-recover against.
+          echo "shards_manifest_sha=${RB_SM_SHA}" >> "$GITHUB_OUTPUT"
+          echo "shards_manifest_size=${RB_SM_SIZE}" >> "$GITHUB_OUTPUT"
+          echo "[VFS-PACK-HANDOFF] staging=${V_PREFIX} set_sha256=${V_SET} warm_read_set_sha256=${WARM_SET_SHA} shards_manifest_sha256=${RB_SM_SHA} shards_manifest_size=${RB_SM_SIZE} descriptor=${RUN_PREFIX}/handoff.json"
       # V27.40: end of vfs-pack-db. Save VFS pack output (data/meta/reports/knowledge/mesh)
       # as inter-job cache for vfs-derived. Sitemap + RSS + health move to vfs-derived job.
       # P3-EVIDENCE-1 STAGE-B: the save key carries VFS_PACK_CODE_VERSION so a fresh
@@ -1551,6 +1689,42 @@ jobs:
             OUTW=$(verify_warm) || { echo "::error::AUTH-W: warm_read exact-staging recovery failed verification ($STAGING_PREFIX). Fail-closed."; exit 1; }
             [ "$(printf '%s' "$OUTW" | tail -n1)" = "$EXPECT_WARM_SET_SHA" ] || { echo "::error::AUTH-W: recovered warm_read set hash != producer $EXPECT_WARM_SET_SHA. Fail-closed."; exit 1; }
             echo "[VFS-PACK-HANDOFF] recovered + verified meta-NN.db + warm_read from exact staging"
+          fi
+      # RANKINGS-PUBLICATION-SIBLING-RECOVERY (D-395), VFS Derived. pack-finalizer is the ONLY writer of
+      # output/data/shards_manifest.json, and the FIX-4 recovery immediately above does
+      # `rm -rf output/data/` then restores ONLY .db / warm .bin / term_index -- so on that
+      # path (and on the skip-compute path, where the Packer never ran) the publication
+      # manifest is ABSENT. The D9b pre-publish gate legitimately REQUIRES it, so recover
+      # it from the ADDITIVE attempt-scoped sibling instead of weakening the gate.
+      # VERIFY-OR-RECOVER: missing OR hash-mismatch OR unparseable OR
+      # partitions.rankings_dbs !== true all count as "must recover"; recovery is
+      # restore-file --strict from the EXACT attempt prefix, then RE-VERIFIED. The gate
+      # itself is untouched and the manifest is NEVER fabricated or boolean-patched here:
+      # the only thing that can satisfy this step is the producer-verified authority copy.
+      - name: Verify or Recover Published shards_manifest.json from VFS Pack Authority (D-395)
+        env:
+          STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
+          EXPECT_SM_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_shards_manifest_sha }}
+          EXPECT_SM_SIZE: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_shards_manifest_size }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          MOD=scripts/factory/rankings-db-handoff-manifest.mjs
+          if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SM_SHA}" ] || [ -z "${EXPECT_SM_SIZE}" ]; then
+            echo "::error::RANKINGS-PUBLICATION-SIBLING-RECOVERY/VFS-DERIVED: vfs-pack-db exported no verified shards_manifest sibling identity. Fail-closed."; exit 1
+          fi
+          verify_sm() { node "$MOD" shards-manifest-verify output/data/shards_manifest.json --sha="${EXPECT_SM_SHA}" --size="${EXPECT_SM_SIZE}"; }
+          if verify_sm >/dev/null; then
+            echo "[RANKINGS-PUBLICATION-SIBLING] output/data/shards_manifest.json already matches the authority sibling"
+          else
+            echo "[RANKINGS-PUBLICATION-SIBLING] shards_manifest.json missing/mismatched/unparseable/flag-not-true -- recover from exact staging"
+            mkdir -p output/data
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}publication/shards_manifest.json" output/data/shards_manifest.json --strict || { echo "::error::RANKINGS-PUBLICATION-SIBLING-RECOVERY/VFS-DERIVED: publication sibling recovery restore failed (${STAGING_PREFIX}publication/shards_manifest.json). Fail-closed."; exit 1; }
+            verify_sm || { echo "::error::RANKINGS-PUBLICATION-SIBLING-RECOVERY/VFS-DERIVED: recovered shards_manifest.json failed hash/size/semantic re-verification. Fail-closed."; exit 1; }
+            echo "[RANKINGS-PUBLICATION-SIBLING] recovered + re-verified shards_manifest.json from the exact attempt prefix"
           fi
       # V27.40.1 + V27.52: fail-fast on missing meta-NN.db. File-existence detection
       # (cache-hit output false-fires on restore-keys partial match).
@@ -2136,6 +2310,42 @@ jobs:
             [ "$(printf '%s' "$OUTW" | tail -n1)" = "$EXPECT_WARM_SET_SHA" ] || { echo "::error::AUTH-W: recovered warm_read set hash != vfs-pack authority $EXPECT_WARM_SET_SHA. Fail-closed."; exit 1; }
             echo "[FIX-4/AUTH-W] recovered + verified meta-NN.db + warm_read from exact vfs-pack staging"
           fi
+      # RANKINGS-PUBLICATION-SIBLING-RECOVERY (D-395), Final Upload. pack-finalizer is the ONLY writer of
+      # output/data/shards_manifest.json, and the FIX-4 recovery immediately above does
+      # `rm -rf output/data/` then restores ONLY .db / warm .bin / term_index -- so on that
+      # path (and on the skip-compute path, where the Packer never ran) the publication
+      # manifest is ABSENT. The D9b pre-publish gate legitimately REQUIRES it, so recover
+      # it from the ADDITIVE attempt-scoped sibling instead of weakening the gate.
+      # VERIFY-OR-RECOVER: missing OR hash-mismatch OR unparseable OR
+      # partitions.rankings_dbs !== true all count as "must recover"; recovery is
+      # restore-file --strict from the EXACT attempt prefix, then RE-VERIFIED. The gate
+      # itself is untouched and the manifest is NEVER fabricated or boolean-patched here:
+      # the only thing that can satisfy this step is the producer-verified authority copy.
+      - name: Verify or Recover Published shards_manifest.json from VFS Pack Authority (D-395)
+        env:
+          STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
+          EXPECT_SM_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_shards_manifest_sha }}
+          EXPECT_SM_SIZE: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_shards_manifest_size }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          MOD=scripts/factory/rankings-db-handoff-manifest.mjs
+          if [ -z "${STAGING_PREFIX}" ] || [ -z "${EXPECT_SM_SHA}" ] || [ -z "${EXPECT_SM_SIZE}" ]; then
+            echo "::error::RANKINGS-PUBLICATION-SIBLING-RECOVERY/UPLOAD: vfs-pack-db exported no verified shards_manifest sibling identity. Fail-closed."; exit 1
+          fi
+          verify_sm() { node "$MOD" shards-manifest-verify output/data/shards_manifest.json --sha="${EXPECT_SM_SHA}" --size="${EXPECT_SM_SIZE}"; }
+          if verify_sm >/dev/null; then
+            echo "[RANKINGS-PUBLICATION-SIBLING] output/data/shards_manifest.json already matches the authority sibling"
+          else
+            echo "[RANKINGS-PUBLICATION-SIBLING] shards_manifest.json missing/mismatched/unparseable/flag-not-true -- recover from exact staging"
+            mkdir -p output/data
+            node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}publication/shards_manifest.json" output/data/shards_manifest.json --strict || { echo "::error::RANKINGS-PUBLICATION-SIBLING-RECOVERY/UPLOAD: publication sibling recovery restore failed (${STAGING_PREFIX}publication/shards_manifest.json). Fail-closed."; exit 1; }
+            verify_sm || { echo "::error::RANKINGS-PUBLICATION-SIBLING-RECOVERY/UPLOAD: recovered shards_manifest.json failed hash/size/semantic re-verification. Fail-closed."; exit 1; }
+            echo "[RANKINGS-PUBLICATION-SIBLING] recovered + re-verified shards_manifest.json from the exact attempt prefix"
+          fi
       - name: Consolidate Enrichment Artifacts
         run: |
           # V22.8: RSS feeds restored directly to output/rss/ via cache
@@ -2242,6 +2452,45 @@ jobs:
           node scripts/factory/r2-workflow-cli.js restore-file "$VD" /tmp/fam-vfs-derived.json --strict || { echo "::error::FAMILY: vfs-derived descriptor missing ($VD). Fail-closed."; exit 1; }
           node scripts/factory/vfs-derived-handoff-manifest.mjs family-gate /tmp/fam-vfs-pack.json /tmp/fam-mesh-profile.json /tmp/fam-vfs-derived.json || { echo "::error::FAMILY: cross-descriptor closure gate FAILED — refusing a mixed-cycle publish. Fail-closed."; exit 1; }
           echo "[PUBLICATION-FAMILY] one coherent 4/4 cycle-family verified — Final Upload unlocked."
+      # RANKINGS-DB PUBLICATION GATE (D9b) — MANDATORY, strictly BEFORE the sole public
+      # CDN write (the r2-upload-s3.js step below). The pack-finalizer gate
+      # (D9a) alone is BYPASSABLE: when skip_compute=true the vfs-pack-db job skips
+      # pack-db.js entirely, so finalizePack never runs and its throw never fires, while
+      # output/data/ can have been restored from a `restore-keys` PREFIX (a previous
+      # attempt's tree). This gate re-derives the truth at the last barrier: resolve the
+      # 3/4 rankings-db authority descriptor, then assert the to-be-published
+      # output/data/ carries the EXACT 10-name set with size+sha256 matching that
+      # authority manifest, valid SQLite (magic + PRAGMA quick_check), the
+      # producer-derived schema, full provenance, ONE identical run/attempt/head equal to
+      # this cycle's, AND that output/data/shards_manifest.json declares
+      # partitions.rankings_dbs === boolean true (an ABSENT key -- the live production
+      # shape -- and `false` are BOTH refused; an absent key is never a verified
+      # negative). Any failure => exit 1 BEFORE any public write, so the last-good
+      # published build keeps serving. READ-ONLY vs R2: 2 small GETs, ZERO PUT/DELETE.
+      - name: Rankings-DB Publication Gate (fail-closed, BEFORE any public write)
+        env:
+          UP: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          set -uo pipefail
+          MOD=scripts/factory/rankings-db-handoff-manifest.mjs
+          if [ -z "$UP" ]; then echo "::error::RANKINGS-DB: missing upstream-run-id — cannot gate the rankings publication. Fail-closed."; exit 1; fi
+          DESC="state/_handoff/rankings-db/${UP}/handoff.json"
+          node scripts/factory/r2-workflow-cli.js restore-file "$DESC" /tmp/rankings-db-handoff-pub.json --strict || { echo "::error::RANKINGS-DB: authority descriptor missing ($DESC). Fail-closed (zero public write)."; exit 1; }
+          OUT=$(HANDOFF_PRODUCER_RUN_ID="$UP" node "$MOD" verify-descriptor /tmp/rankings-db-handoff-pub.json --carrier=rankings-db) || { echo "::error::RANKINGS-DB: authority descriptor provenance invalid. Fail-closed (zero public write)."; exit 1; }
+          # UNIFIED PARSE IDIOM (see the SEAM_A consumer): LAST stdout line, then cut fields
+          # (prefix, set_sha, head_sha, attempt). Single-line stdout is pinned by a test.
+          DESC_LINE=$(printf '%s' "$OUT" | tail -n1)
+          STAGING_PREFIX=$(printf '%s' "$DESC_LINE" | cut -f1)
+          EXPECT_HEAD=$(printf '%s' "$DESC_LINE" | cut -f3); EXPECT_ATT=$(printf '%s' "$DESC_LINE" | cut -f4)
+          node scripts/factory/r2-workflow-cli.js restore-file "${STAGING_PREFIX}manifest.json" /tmp/rankings-db-manifest-pub.json --strict || { echo "::error::RANKINGS-DB: authority manifest missing at ${STAGING_PREFIX}. Fail-closed (zero public write)."; exit 1; }
+          RANKINGS_REQUIRE_IDENTITY=1 RANKINGS_DB_MANIFEST=/tmp/rankings-db-manifest-pub.json RANKINGS_MEMBER_PREFIX=data/ \
+          RANKINGS_EXPECT_RUN_ID="$UP" RANKINGS_EXPECT_HEAD_SHA="${EXPECT_HEAD}" RANKINGS_MAX_ATTEMPT="${EXPECT_ATT}" \
+            node "$MOD" verify-publication output/data output/data/shards_manifest.json || { echo "::error::RANKINGS-DB: published output/data rankings set failed the exact-10 / integrity / identity / manifest-flag gate. Fail-closed (zero public write; last-good build keeps serving)."; exit 1; }
+          echo "[RANKINGS-DB] publication gate PASS — exact 10-set + integrity + identity + partitions.rankings_dbs===true verified."
       # D-297 (PR-B): FAIL-CLOSED capacity preflight — LAST barrier BEFORE the sole public
       # CDN write (r2-upload-s3.js). Positioned so a shortfall short-circuits the job BEFORE
       # ANY public write (state/ backups earlier in this job are producer-internal, not the

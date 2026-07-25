@@ -2,12 +2,22 @@
  * Rankings DB Exporter (V3 §5.0)
  * Writes per-group rankings to standalone SQLite DBs for VFS-compliant SSR consumption.
  * Each DB is a self-contained subset of the meta-NN.db schema — 1 R2 Range Read per type.
+ *
+ * EXACT-SET CONTRACT (rankings-authority repair, D6/D11): the group set is the single
+ * source RANKINGS_GROUPS (src/constants/rankings-groups.js) and ALL of them must be
+ * non-empty — a silently-short export is the upstream half of the
+ * `manifest.partitions.rankings_dbs` outage, so an empty group now fails LOUD with the
+ * offending group names AND their entity counts (so an operator can tell "pipeline
+ * broke" from "group legitimately empty"). Every DB also carries the cycle identity
+ * (factory_run_id / factory_run_attempt / head_sha) so the downstream complete-set
+ * verification can prove all 10 members came from the SAME run+attempt+code head.
  */
 
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { classifyLicense } from './row-builders.js';
+import { RANKINGS_GROUPS, RANKINGS_DB_COUNT, rankingsDbName } from '../../../src/constants/rankings-groups.js';
 
 /**
  * V25.11 (2026-05-03, #1925 fix): Defensive filter for the 'model' rankings DB.
@@ -48,7 +58,7 @@ function qualifiesForModelRanking(e) {
     return true;
 }
 
-const RANKINGS_SCHEMA = `
+export const RANKINGS_SCHEMA = `
     CREATE TABLE entities (
         id TEXT PRIMARY KEY, slug TEXT, name TEXT, type TEXT, author TEXT,
         summary TEXT, fni_score REAL, pipeline_tag TEXT, license TEXT,
@@ -80,27 +90,79 @@ const INSERT_SQL = `INSERT OR IGNORE INTO entities (
     ollama_compatible, hosted_on, license_type, can_run_local, hosted_on_checked_at
 ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
-export async function exportRankingsDbs(groups, outputDir) {
-    const dataDir = path.join(outputDir, 'data');
-    fs.mkdirSync(dataDir, { recursive: true });
-    let totalDbs = 0;
+const GITSHA_RE = /^[0-9a-f]{40}$/;
 
-    for (const [groupName, entitiesIn] of Object.entries(groups)) {
-        if (!entitiesIn.length) continue;
+/**
+ * Resolve the cycle identity stamped into every rankings DB's site_metadata.
+ *
+ * EXPLICIT POLICY (D6): the three env vars are MANDATORY and a missing/malformed
+ * value fails LOUD. A DB written with empty/invented identity would be REJECTED by
+ * the downstream complete-set verification, so it must never be written at all —
+ * "no silent failure" over local-dev convenience. The only production caller is the
+ * 3/4 `aggregate-rankings` job, which supplies github.run_id / github.run_attempt /
+ * github.sha (mirroring the HANDOFF_* env convention of the handoff carriers).
+ *
+ * @param {Object} [env]
+ * @returns {{runId: string, attempt: string, headSha: string}}
+ */
+export function resolveRankingsIdentity(env = process.env) {
+    const runId = String(env.RANKINGS_RUN_ID || '').trim();
+    const attempt = String(env.RANKINGS_RUN_ATTEMPT || '').trim();
+    const headSha = String(env.RANKINGS_HEAD_SHA || '').trim().toLowerCase();
+    const bad = [];
+    if (!/^[0-9]+$/.test(runId)) bad.push(`RANKINGS_RUN_ID="${runId}"`);
+    if (!/^[0-9]+$/.test(attempt) || Number(attempt) < 1) bad.push(`RANKINGS_RUN_ATTEMPT="${attempt}"`);
+    if (!GITSHA_RE.test(headSha)) bad.push(`RANKINGS_HEAD_SHA="${headSha}"`);
+    if (bad.length) {
+        throw new Error(`RANKINGS_IDENTITY_ENV_INVALID: missing/malformed ${bad.join(', ')} - refusing to write rankings DBs without a verifiable run/attempt/head identity`);
+    }
+    return { runId, attempt, headSha };
+}
 
-        // V25.11 (#1925 fix): defensive filter for 'model' group
+/**
+ * Apply the per-group admission rules and return the EXACT ordered set of
+ * (group -> entities) that will be written. Throws when the EXACT-10 floor is
+ * violated, naming every offending group and every per-group count.
+ */
+export function prepareRankingsGroups(groups) {
+    const unknown = Object.keys(groups || {}).filter((g) => !RANKINGS_GROUPS.includes(g));
+    if (unknown.length) {
+        throw new Error(`RANKINGS_GROUP_UNEXPECTED: accumulator carries non-rankings group(s) [${unknown.join(', ')}] - the rankings DB set is EXACTLY [${RANKINGS_GROUPS.join(', ')}]`);
+    }
+    const prepared = new Map();
+    const counts = [];
+    for (const groupName of RANKINGS_GROUPS) {
+        const entitiesIn = Array.isArray(groups && groups[groupName]) ? groups[groupName] : [];
         let entities = entitiesIn;
         if (groupName === 'model') {
-            const before = entitiesIn.length;
             entities = entitiesIn.filter(qualifiesForModelRanking);
-            const dropped = before - entities.length;
+            const dropped = entitiesIn.length - entities.length;
             if (dropped > 0) {
                 console.log(`  [RANKINGS-DB] ${groupName}: filtered out ${dropped} non-qualified entities (#1925 GitHub repo without model signal)`);
             }
         }
+        prepared.set(groupName, entities);
+        counts.push(entities.length === entitiesIn.length ? `${groupName}=${entities.length}` : `${groupName}=${entities.length}(of ${entitiesIn.length})`);
+    }
+    const empty = RANKINGS_GROUPS.filter((g) => prepared.get(g).length === 0);
+    if (empty.length) {
+        throw new Error(`RANKINGS_GROUP_EMPTY: ${empty.length}/${RANKINGS_DB_COUNT} rankings group(s) have ZERO entities [${empty.join(', ')}]; per-group counts: ${counts.join(' ')}. The EXACT-${RANKINGS_DB_COUNT} rankings DB set is a HARD floor - refusing to emit a partial set.`);
+    }
+    console.log(`[RANKINGS-DB] group counts: ${counts.join(' ')}`);
+    return prepared;
+}
 
-        if (!entities.length) continue;
-        const dbPath = path.join(dataDir, `rankings-${groupName}.db`);
+export async function exportRankingsDbs(groups, outputDir) {
+    const identity = resolveRankingsIdentity();
+    const prepared = prepareRankingsGroups(groups);
+    const dataDir = path.join(outputDir, 'data');
+    fs.mkdirSync(dataDir, { recursive: true });
+    let totalDbs = 0;
+
+    for (const groupName of RANKINGS_GROUPS) {
+        const entities = prepared.get(groupName);
+        const dbPath = path.join(dataDir, rankingsDbName(groupName));
+        fs.rmSync(dbPath, { force: true }); // never append onto a stale/foreign DB
         const db = new Database(dbPath);
         db.pragma('journal_mode = OFF');
         db.pragma('synchronous = OFF');
@@ -129,13 +191,22 @@ export async function exportRankingsDbs(groups, outputDir) {
         db.exec('COMMIT');
         const metaInsert = db.prepare('INSERT INTO site_metadata (key, value) VALUES (?, ?)');
         metaInsert.run('rankings_group', groupName);
+        // entity_count meaning + TEXT type UNCHANGED (live-read by catalog-fetcher pagination).
         metaInsert.run('entity_count', String(entities.length));
         metaInsert.run('generated', new Date().toISOString());
+        // D6 per-DB cycle identity: all 10 members must agree, and must match the
+        // producing run/attempt/code head the handoff descriptor binds.
+        metaInsert.run('factory_run_id', identity.runId);
+        metaInsert.run('factory_run_attempt', identity.attempt);
+        metaInsert.run('head_sha', identity.headSha);
         db.exec('VACUUM');
         db.close();
         const sizeMb = (fs.statSync(dbPath).size / 1048576).toFixed(2);
         console.log(`  [RANKINGS-DB] ${groupName}: ${entities.length} entities → ${sizeMb}MB`);
         totalDbs++;
     }
-    console.log(`[RANKINGS-DB] Exported ${totalDbs} ranking databases to ${dataDir}`);
+    if (totalDbs !== RANKINGS_DB_COUNT) {
+        throw new Error(`RANKINGS_DB_COUNT_MISMATCH: wrote ${totalDbs} databases, expected EXACTLY ${RANKINGS_DB_COUNT}`);
+    }
+    console.log(`[RANKINGS-DB] Exported ${totalDbs} ranking databases to ${dataDir} (run=${identity.runId} attempt=${identity.attempt} head=${identity.headSha})`);
 }

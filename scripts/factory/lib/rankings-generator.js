@@ -10,18 +10,13 @@ import { getV6Category } from './category-stats-generator.js';
 import { exportRankingsDbs } from './rankings-db-exporter.js';
 import { emitListPreload } from './list-preload-emitter.js';
 import { loadHostedOnMap, enrichHostedOn } from './hosted-on-enricher.js';
+import { RANKINGS_GROUPS } from '../../../src/constants/rankings-groups.js';
 
-// 'prompts' category + 'prompt' type removed — prompt entity type cancelled.
-// No rankings-prompt.db / rankings-prompts.db is produced (the /prompts page
-// 301s to /tools and prompts are dropped at the pack source).
-const CATEGORIES = [
-    'text-generation', 'knowledge-retrieval', 'vision-multimedia',
-    'automation-workflow', 'infrastructure-ops',
-];
-// 'space' (merged into model) + 'agent' (cancelled) removed — no rankings-space
-// .db / rankings-agent.db is produced (their list pages 301 to /models / /tools
-// and the entities are dropped at the pack source). MCP servers rank as 'tool'.
-const ENTITY_TYPES = ['model', 'paper', 'dataset', 'tool'];
+// SINGLE SOURCE (D5): the rankings group set lives in src/constants/rankings-groups.js
+// and is shared by the exporter, both handoff carriers, the complete-set verifier and
+// the pre-publish gate. 'prompts'/'prompt' (cancelled), 'space' (merged into model) and
+// 'agent' (cancelled) are absent there, so no rankings-prompt.db / rankings-space.db /
+// rankings-agent.db is produced. MCP servers rank as 'tool'.
 const PAGE_SIZE = 50;
 const MAX_PAGES = 50;
 const MAX_PER_GROUP = PAGE_SIZE * MAX_PAGES; // 2500
@@ -34,10 +29,10 @@ export async function generateRankings(shardReader, outputDir = './output') {
     const cacheDir = path.join(outputDir, 'cache');
     const { map: hostedOnMap, timestamp: hostedOnTs } = loadHostedOnMap(cacheDir);
 
-    // Per-group bounded accumulators
-    const groups = { all: [] };
-    for (const cat of CATEGORIES) groups[cat] = [];
-    for (const type of ENTITY_TYPES) groups[type] = [];
+    // Per-group bounded accumulators — EXACTLY the RANKINGS_GROUPS set, always all
+    // 10 keys present (an empty group is a LOUD failure at exportRankingsDbs, D11).
+    const groups = {};
+    for (const g of RANKINGS_GROUPS) groups[g] = [];
 
     await shardReader(async (entities) => {
         for (const e of entities) {
