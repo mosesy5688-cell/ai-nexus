@@ -2,7 +2,28 @@ name: Infra Alert - Failure Notifications
 
 on:
   workflow_run:
-    workflows: ["Infra Deploy", "L1 Harvester - Daily Data Ingestion", "L3 Guardian - Weekly Maintenance"]
+    # Defect 2 (2026-07-26 Factory 1/4 S2 incident, run 30189935455): Factory 1/4
+    # failed on a natural cron and NOTHING alerted, because this list did not
+    # contain it and 2/4-4/4 were not covered either. Each Factory string below is
+    # the EXACT `name:` value of its workflow file, byte-verified:
+    #   Factory 1/4 - Harvest    -> .github/workflows/factory-harvest.yml:11
+    #   Factory 2/4 - Process    -> .github/workflows/factory-process.yml
+    #   Factory 3/4 - Aggregate  -> .github/workflows/factory-aggregate.yml
+    #   Factory 4/4 - Finalize   -> .github/workflows/factory-upload.yml
+    # NOTE the 4/4 name is "Finalize", NOT "Upload" -- guessing from the FILE name
+    # is exactly how this list silently stops matching. The pairing is asserted by
+    # scripts/ci/alert-notification-matrix.test.mjs -- the blocking guard in the
+    # `node --test` list -- which re-reads each `name:` from its own file and matches
+    # it against the EXACT parsed list below (never a whole-file substring), so drift
+    # fails a test instead of disabling alerting in silence.
+    workflows:
+      - "Infra Deploy"
+      - "L1 Harvester - Daily Data Ingestion"
+      - "L3 Guardian - Weekly Maintenance"
+      - "Factory 1/4 - Harvest"
+      - "Factory 2/4 - Process"
+      - "Factory 3/4 - Aggregate"
+      - "Factory 4/4 - Finalize"
     types: [completed]
   workflow_dispatch:
 
@@ -16,12 +37,17 @@ jobs:
     name: Check Status & Send Alerts
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    
+    # Defect 2: react to `timed_out` and `cancelled` as well as `failure`. The three
+    # are NOT collapsed -- scripts/ci/alert-notification-matrix.mjs assigns each its
+    # own alert class, and a cancellation never reports as a failure. Cancellation
+    # INTENT is never inferred from the trigger event -- only the run's ORIGIN is
+    # classified, and the cause is always stated as not proven.
+    if: ${{ contains(fromJSON('["failure","timed_out","cancelled"]'), github.event.workflow_run.conclusion) }}
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-      
+
       - name: Get Workflow Details
         id: workflow
         run: |
@@ -31,39 +57,33 @@ jobs:
           echo "sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
           echo "actor=${{ github.event.workflow_run.triggering_actor.login }}" >> $GITHUB_OUTPUT
           echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
-      
-      - name: Determine Severity
-        id: severity
-        run: |
-          WORKFLOW_NAME="${{ steps.workflow.outputs.name }}"
-          
-          if [[ "$WORKFLOW_NAME" == *"Backup"* ]]; then
-            echo "level=CRITICAL" >> $GITHUB_OUTPUT
-            echo "emoji=🚨" >> $GITHUB_OUTPUT
-            echo "color=#FF0000" >> $GITHUB_OUTPUT
-          elif [[ "$WORKFLOW_NAME" == *"Deploy"* ]]; then
-            echo "level=HIGH" >> $GITHUB_OUTPUT
-            echo "emoji=⚠️" >> $GITHUB_OUTPUT
-            echo "color=#FFA500" >> $GITHUB_OUTPUT
-          else
-            echo "level=MEDIUM" >> $GITHUB_OUTPUT
-            echo "emoji=⚡" >> $GITHUB_OUTPUT
-            echo "color=#FFFF00" >> $GITHUB_OUTPUT
-          fi
-      
+
+      # THE NOTIFICATION MATRIX. Severity/class/routing all come from one pure,
+      # unit-tested module (scripts/ci/alert-notification-matrix.test.mjs) instead of
+      # inline bash, so the failure/timed_out/cancelled contract is asserted by test
+      # rather than by reading YAML. Replaces the previous `Determine Severity` step
+      # and preserves its Backup=CRITICAL / Deploy=HIGH / else=MEDIUM rules.
+      - name: Classify Conclusion (notification matrix)
+        id: matrix
+        env:
+          WF_NAME: ${{ github.event.workflow_run.name }}
+          WF_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WF_EVENT: ${{ github.event.workflow_run.event }}
+        run: node scripts/ci/alert-notification-matrix.mjs >> "$GITHUB_OUTPUT"
+
       - name: Send Slack Notification
-        if: vars.SLACK_WEBHOOK_URL != ''
+        if: vars.SLACK_WEBHOOK_URL != '' && steps.matrix.outputs.notify == 'true'
         run: |
           curl -X POST ${{ vars.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
             -d '{
-              "text": "${{ steps.severity.outputs.emoji }} Workflow Failed: ${{ steps.workflow.outputs.name }}",
+              "text": "${{ steps.matrix.outputs.emoji }} ${{ steps.matrix.outputs.subject_prefix }} ${{ steps.workflow.outputs.name }}",
               "blocks": [
                 {
                   "type": "header",
                   "text": {
                     "type": "plain_text",
-                    "text": "${{ steps.severity.outputs.emoji }} Workflow Failure Alert"
+                    "text": "${{ steps.matrix.outputs.emoji }} Workflow ${{ steps.matrix.outputs.outcome_noun }} Alert"
                   }
                 },
                 {
@@ -75,7 +95,7 @@ jobs:
                     },
                     {
                       "type": "mrkdwn",
-                      "text": "*Severity:*\n${{ steps.severity.outputs.level }}"
+                      "text": "*Severity:*\n${{ steps.matrix.outputs.level }} | *Class:* ${{ steps.matrix.outputs.alert_class }}"
                     },
                     {
                       "type": "mrkdwn",
@@ -99,7 +119,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "<!channel> Action required!"
+                    "text": "${{ steps.matrix.outputs.action_text }}"
                   }
                 },
                 {
@@ -128,28 +148,28 @@ jobs:
             }'
       
       - name: Send Email Notification
-        if: vars.NOTIFICATION_EMAIL != ''
+        if: vars.NOTIFICATION_EMAIL != '' && steps.matrix.outputs.notify == 'true'
         uses: dawidd6/action-send-mail@v17
         with:
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "${{ steps.severity.outputs.emoji }} Workflow Failed: ${{ steps.workflow.outputs.name }}"
+          subject: "${{ steps.matrix.outputs.emoji }} ${{ steps.matrix.outputs.subject_prefix }} ${{ steps.workflow.outputs.name }}"
           to: ${{ vars.NOTIFICATION_EMAIL }}
           from: AI-Nexus Alerts <noreply@free2aitools.com>
           html_body: |
             <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-              <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid ${{ steps.severity.outputs.color }}; border-radius: 8px;">
-                <h2 style="color: ${{ steps.severity.outputs.color }};">
-                  ${{ steps.severity.outputs.emoji }} Workflow Failure Alert
+              <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid ${{ steps.matrix.outputs.color }}; border-radius: 8px;">
+                <h2 style="color: ${{ steps.matrix.outputs.color }};">
+                  ${{ steps.matrix.outputs.emoji }} Workflow ${{ steps.matrix.outputs.outcome_noun }} Alert
                 </h2>
                 
                 <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
                   <h3 style="margin-top: 0;">Details</h3>
                   <p><strong>Workflow:</strong> ${{ steps.workflow.outputs.name }}</p>
-                  <p><strong>Severity:</strong> <span style="color: ${{ steps.severity.outputs.color }}; font-weight: bold;">${{ steps.severity.outputs.level }}</span></p>
+                  <p><strong>Severity:</strong> <span style="color: ${{ steps.matrix.outputs.color }}; font-weight: bold;">${{ steps.matrix.outputs.level }}</span></p>
                   <p><strong>Branch:</strong> ${{ steps.workflow.outputs.branch }}</p>
                   <p><strong>Triggered By:</strong> ${{ steps.workflow.outputs.actor }}</p>
                   <p><strong>Time:</strong> ${{ steps.workflow.outputs.time }}</p>
@@ -158,7 +178,7 @@ jobs:
                 
                 <div style="margin: 20px 0;">
                   <a href="${{ steps.workflow.outputs.url }}" 
-                     style="display: inline-block; padding: 12px 24px; background-color: ${{ steps.severity.outputs.color }}; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                     style="display: inline-block; padding: 12px 24px; background-color: ${{ steps.matrix.outputs.color }}; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
                     View Workflow Logs
                   </a>
                 </div>
@@ -172,17 +192,18 @@ jobs:
             </html>
       
       - name: Create GitHub Issue (Critical Only)
-        if: steps.severity.outputs.level == 'CRITICAL'
+        if: steps.matrix.outputs.create_issue == 'true'
         uses: actions/github-script@v8
         with:
           script: |
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🚨 CRITICAL: ${{ steps.workflow.outputs.name }} Failed`,
-              body: `## Workflow Failure Alert
-              
+              title: `🚨 CRITICAL: ${{ steps.workflow.outputs.name }} ${{ steps.matrix.outputs.outcome_noun }}`,
+              body: `## Workflow ${{ steps.matrix.outputs.outcome_noun }} Alert
+
               **Severity:** CRITICAL
+              **Alert class:** ${{ steps.matrix.outputs.alert_class }}
               **Workflow:** ${{ steps.workflow.outputs.name }}
               **Branch:** ${{ steps.workflow.outputs.branch }}
               **Triggered By:** @${{ steps.workflow.outputs.actor }}
@@ -216,6 +237,11 @@ jobs:
           echo "## 🚨 Alert Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Workflow**: ${{ steps.workflow.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Severity**: ${{ steps.severity.outputs.level }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: Notifications sent" >> $GITHUB_STEP_SUMMARY
+          echo "- **Conclusion**: ${{ github.event.workflow_run.conclusion }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alert class**: ${{ steps.matrix.outputs.alert_class }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Severity**: ${{ steps.matrix.outputs.level }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cancellation origin**: ${{ steps.matrix.outputs.cancellation_origin }}" >> $GITHUB_STEP_SUMMARY
+          # Honest: report whether notifications were ACTUALLY routed, never a blanket
+          # "Notifications sent" (a manual-origin cancellation routes nothing on purpose).
+          echo "- **Notified**: ${{ steps.matrix.outputs.notify }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Logs**: [${{ steps.workflow.outputs.url }}](${{ steps.workflow.outputs.url }})" >> $GITHUB_STEP_SUMMARY

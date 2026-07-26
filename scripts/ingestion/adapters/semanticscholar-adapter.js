@@ -9,19 +9,25 @@
  */
 
 import { BaseAdapter, RateLimitExceededError } from './base-adapter.js';
+import { S2RetryState } from './s2-retry-state.js';
+import { runBulkSearch, DEFAULT_TOPICS, S2_API_BASE } from './s2-bulk-search.js';
 
 // V28: depth cap for self-recursive single-paper/search retries (handleRateLimit's
 // circuit breaker also throws at attempt>=6, but this is a hard floor in case a
 // future header path keeps returning true without escalating).
 const S2_MAX_RETRY_DEPTH = 4;
 
-const S2_API_BASE = 'https://api.semanticscholar.org/graph/v1';
 const S2_API_KEY = process.env.S2_API_KEY || '';
 
 export class SemanticScholarAdapter extends BaseAdapter {
     constructor() {
         super('semantic_scholar');
         this.entityTypes = ['paper'];
+        // TEST SEAM for the bounded recovery ladder ({ now, sleep }). Production
+        // leaves it null, so the live path always builds a real clock + real timer;
+        // harvest-single.js never sets it. Mirrors the `_adapter` seam that lets the
+        // chokepoint's error-vs-empty gate be tested without a network.
+        this.retryDeps = null;
     }
 
     getHeaders() {
@@ -32,107 +38,37 @@ export class SemanticScholarAdapter extends BaseAdapter {
 
 
     /**
-     * Main Fetch Entry Point
+     * Main Fetch Entry Point.
+     *
+     * 2026-07-26 S2 incident repair (Factory 1/4 run 30189935455): the bulk-search
+     * walk moved to s2-bulk-search.js, arbitrated by S2RetryState. The old in-line
+     * loop swallowed a transport throw and an HTTP 500 with `console.*` + `break`
+     * and then returned an empty array, so harvest-single.js saw a clean zero-yield
+     * (`had_adapter_error: false`) and misclassified it `floor_violation: 0 < 300`.
+     * Now every non-2xx, request failure, timeout, parse failure and exhausted
+     * bounded retry leaves the walk as a FetchError -- the repository's canonical
+     * hard-error type (base-adapter.js:48) -- so the source fails loud and
+     * INCOMPLETE. The RateLimitExceededError tolerance is preserved unchanged.
+     *
+     * V28 (PR-D): still no registryManager here (the dead V22.4 skip-unchanged path
+     * read a property the SQLite-backed RegistryManager never exposes). Honest:
+     * re-fetch every cycle, do not advertise a dead optimization.
+     *
+     * @param {Object} [options] - limit / topics / onBatch. `_retryDeps` is a TEST
+     *   SEAM ({ now, sleep }) for the bounded ladder; production never passes it.
      */
     async fetch(options = {}) {
-        const {
-            limit = 1000,
-            topics = ['machine learning', 'artificial intelligence', 'nlp', 'computer vision'],
-            onBatch
-        } = options;
-
+        const { limit = 1000, topics = [...DEFAULT_TOPICS], onBatch, _retryDeps } = options;
         console.log(`📥 [Semantic Scholar] Bulk Search Ingestion: target ${limit} papers...`);
-
-        const allPapers = [];
-        const seenIds = new Set();
-        const batchSize = 1000;
-
-        // V28 (PR-D): removed the dead V22.4 incremental skip-unchanged path. It read
-        // `registryManager.registry?.entities` (a property the real SQLite-backed
-        // RegistryManager never exposes), so the index was always null and nothing was
-        // ever skipped. registryManager is now always undefined from the prod streaming
-        // harvester. Honest: re-fetch every cycle, stop advertising a dead optimization.
-
-        for (const topic of topics) {
-            if (seenIds.size >= limit) break;
-
-            let token = null;
-            let topicFetched = 0;
-            // V28 hang-fix: loop-scoped 429 attempt counter. A header-less 429 does
-            // NOT advance the token (same page re-requested), so the old
-            // `handleRateLimit(response)` (legacy flat 60s + continue) spun forever.
-            // Pass a numeric attempt → exponential escalation + circuit breaker; reset
-            // to 0 after each successful page.
-            let attempt = 0;
-
-            console.log(`   🔍 Searching: ${topic}...`);
-
-            try {
-                while (topicFetched < limit / topics.length) {
-                    const fields = 'paperId,externalIds,title,abstract,authors,venue,year,referenceCount,citationCount,influentialCitationCount,openAccessPdf,fieldsOfStudy,s2FieldsOfStudy,publicationTypes,publicationDate';
-                    let url = `${S2_API_BASE}/paper/search/bulk?query=${encodeURIComponent(topic)}&limit=${batchSize}&fields=${fields}`;
-                    if (token) url += `&token=${token}`;
-
-                    let response;
-                    try {
-                        response = await this.fetchWithTimeout(url, { headers: this.getHeaders() });
-                    } catch (error) {
-                        console.error(`   ❌ S2 Bulk error for ${topic}: ${error.message}`);
-                        break;
-                    }
-
-                    if (!response.ok) {
-                        // V28: numeric attempt → escalation + breaker (breaker throws
-                        // RateLimitExceededError, caught below to finish gracefully).
-                        if (await this.handleRateLimit(response, attempt++)) continue;
-                        console.warn(`   ⚠️ S2 Bulk failed: ${response.status}`);
-                        break;
-                    }
-                    // V28: page fetched OK → reset the 429 escalation counter.
-                    attempt = 0;
-
-                    const data = await response.json();
-                    const papers = data.data || [];
-                    if (papers.length === 0) break;
-
-                    const batch = [];
-                    for (const paper of papers) {
-                        if (paper.paperId && !seenIds.has(paper.paperId)) {
-                            // NSFW Filter
-                            if (!this.isSafeForWork({ title: paper.title, description: paper.abstract })) continue;
-
-                            seenIds.add(paper.paperId);
-                            batch.push(paper);
-                        }
-                    }
-
-                    topicFetched += batch.length;
-                    if (onBatch && batch.length > 0) {
-                        await onBatch(batch);
-                    } else {
-                        allPapers.push(...batch);
-                    }
-
-                    console.log(`   [S2] ${topic} Bulk Batch: +${batch.length} papers (total unique: ${seenIds.size})`);
-
-                    token = data.token;
-                    if (!token || seenIds.size >= limit) break;
-
-                    await this.delay(5000);
-                }
-            } catch (error) {
-                // V28: breaker tripped (persistent header-less 429) → finish gracefully
-                // with what we have rather than spin. Other topics' work is preserved.
-                if (error instanceof RateLimitExceededError) {
-                    console.warn(`   🛑 [S2] rate-limit breaker tripped on "${topic}" — finishing early with ${seenIds.size} unique papers.`);
-                    break;
-                }
-                throw error;
-            }
-        }
-
-        console.log(`✅ [Semantic Scholar] Ingestion Complete: ${seenIds.size} unique papers`);
-        return onBatch ? [] : allPapers;
+        // RESET per invocation. The registry (adapters/index.js) holds ONE adapter
+        // instance for the whole process, so a stale completion claim or terminalMeta
+        // from an earlier fetch() must never leak into a fresh run -- that would let a
+        // healthy run inherit "incomplete", or worse, a partial run inherit "complete".
+        this.completion = null;
+        this.terminalMeta = null;
+        const state = new S2RetryState(_retryDeps || this.retryDeps || {});
+        this.retryState = state; // evidence handle; never read by the control flow.
+        return runBulkSearch({ adapter: this, state, limit, topics, onBatch });
     }
 
     /**

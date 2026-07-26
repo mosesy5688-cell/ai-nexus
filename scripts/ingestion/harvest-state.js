@@ -108,6 +108,11 @@ export function buildSidecar(state = {}) {
     if (state.pages !== undefined) sidecar.pages = state.pages;
     if (state.retry_count !== undefined) sidecar.retry_count = state.retry_count;
     if (state.partial_reason !== undefined) sidecar.partial_reason = state.partial_reason;
+    // Founder ruling 2026-07-26 (S2 incident): an instrumented source states its
+    // completeness explicitly ('complete' | 'incomplete'), so a consumer never has to
+    // infer completeness from a yield number. Absent for un-instrumented sources --
+    // absence means "not claimed", never "complete".
+    if (state.completion_status !== undefined) sidecar.completion_status = state.completion_status;
     if (state.terminal_meta !== undefined && state.terminal_meta !== null) {
         sidecar.terminal_meta = state.terminal_meta;
     }

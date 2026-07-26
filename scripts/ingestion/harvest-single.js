@@ -11,6 +11,7 @@ import { shardNDJSON } from './ndjson-sharder.js';
 import { RateLimitExceededError, FetchError } from './adapters/base-adapter.js';
 import { evaluateFloorGate } from './harvest-floors.js';
 import { emitTerminalState, deriveSuccessStatus, STATUS, TIMEOUT_KIND } from './harvest-state.js';
+import { evaluateCompletionGate, incompleteStatus } from './harvest-completion.js';
 import { buildAuthorityArtifact, AUTHORITY_ROLE } from '../factory/lib/c4s2-candidate-universe.js';
 
 const OUTPUT_DIR = 'data';
@@ -132,8 +133,11 @@ export async function harvestSingle(sourceName, options = {}) {
             console.error(`\n❌ [Harvest] FAILED (fetch error) — ${sourceName} | Captured before failure: ${results.total} | Time: ${duration}s`);
             console.error(`   Output (partial): ${ndjsonPath}`);
             // H2c: hard error -> failed; abort -> timeout. BLOCKER E: merge FetchError.meta into terminal_meta.
-            const hardMeta = { ...(requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : {}), ...(fetchHardError.meta || {}) };
-            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: true, floor_violated: false, terminal_meta: Object.keys(hardMeta).length ? hardMeta : undefined });
+            // 2026-07-26: an instrumented source's completion claim rides along here too,
+            // so `completion_status` is emitted on the HARD path as well as the gate path
+            // (undefined -- and therefore absent -- for an un-instrumented source).
+            const hardMeta = { ...(requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : {}), ...(adapter.completion || {}), ...(fetchHardError.meta || {}) };
+            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: true, floor_violated: false, completion_status: adapter.completion?.completion_status, terminal_meta: Object.keys(hardMeta).length ? hardMeta : undefined });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
         }
 
@@ -147,6 +151,27 @@ export async function harvestSingle(sourceName, options = {}) {
             // H2c sidecar: floor_violation; carry cause=rate_limited when an early-finish drove the shortfall (H2a gate unchanged).
             emitTerminalState({ source: sourceName, status: STATUS.FLOOR_VIOLATION, yield: results.total, duration_ms: Date.now() - startTime, errors: [`floor violation: ${results.total} < ${gate.floor}`], had_adapter_error: false, floor_violated: true, terminal_meta: rateLimited ? { cause: STATUS.RATE_LIMITED } : undefined });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: `floor violation: ${results.total} < ${gate.floor}` };
+        }
+
+        // COMPLETENESS GATE (Founder ruling, 2026-07-26 S2 incident). Positioned
+        // DELIBERATELY here: ABOVE the green "Complete" log, ABOVE the NDJSON bridge
+        // and ABOVE the success return, so a REQUIRED source that abandoned planned
+        // work can neither print green, nor emit bridge shards, nor return without
+        // `error`. `result.error` is what makes the CLI exit 1, which is in turn what
+        // keeps the (non-`always()`) R2 source-authority step and `Merge & Upload`
+        // from running. Marking incomplete WITHOUT exiting non-zero was the hole.
+        //
+        // Source-agnostic: it reads a claim the adapter publishes on ITSELF. An
+        // adapter that publishes nothing is unaffected (absence is never treated as
+        // incompleteness). It runs AFTER the H2a floor gate so that gate's behaviour
+        // stays bit-identical -- the floor is an anti-zero control, completeness is a
+        // different question, and neither substitutes for the other.
+        const comp = evaluateCompletionGate(adapter.completion || null);
+        if (comp.blocked) {
+            console.error(`\n❌ HARVEST INCOMPLETE: ${sourceName} — ${comp.error}`);
+            console.error(`   Output (partial, NOT bridged): ${ndjsonPath} | Time: ${duration}s`);
+            emitTerminalState({ source: sourceName, status: incompleteStatus({ rateLimited }), yield: results.total, duration_ms: Date.now() - startTime, errors: [comp.error], had_adapter_error: false, floor_violated: false, completion_status: comp.record.completion_status, terminal_meta: { ...comp.record, ...(adapter.terminalMeta || {}) } });
+            return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: comp.error };
         }
 
         console.log(`\n✅ [Harvest] Complete`);
@@ -165,7 +190,11 @@ export async function harvestSingle(sourceName, options = {}) {
         // H2c sidecar (terminal success path); status precedence in deriveSuccessStatus.
         const tMeta = adapter.terminalMeta || null;
         const sv = deriveSuccessStatus({ total: results.total, rateLimited, terminalMeta: tMeta });
-        emitTerminalState({ source: sourceName, status: sv.status, yield: results.total, duration_ms: Date.now() - startTime, errors: [], had_adapter_error: false, floor_violated: false, partial_reason: sv.partial_reason, terminal_meta: tMeta || undefined });
+        // The completion record travels on the SUCCESS path too, so the Founder-ruled
+        // fields (planned/completed topics, limit_satisfied, termination_reason) are
+        // present on every emission for an instrumented source, not only on failures.
+        const okMeta = comp.record ? { ...comp.record, ...(tMeta || {}) } : tMeta;
+        emitTerminalState({ source: sourceName, status: sv.status, yield: results.total, duration_ms: Date.now() - startTime, errors: [], had_adapter_error: false, floor_violated: false, partial_reason: sv.partial_reason, completion_status: comp.record?.completion_status, terminal_meta: okMeta || undefined });
         return { source: sourceName, count: results.total, duration, file: ndjsonPath };
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
@@ -181,7 +210,7 @@ export async function harvestSingle(sourceName, options = {}) {
 // the adapters' real Link-cursor pagination, writes the dual-source authority artifacts
 // (members + tuple + per-owner completeness + universe-hash + metrics). Partial NEVER
 // usable for deletion: an owner not exhausted => that authority INCOMPLETE => ZERO_PUBLICATION.
-async function c4s2Census() {
+export async function c4s2Census() {
     const universe = JSON.parse(fs.readFileSync('data/state/c4-stage2/universe.json', 'utf8'));
     const owners = universe.owners || [];
     const { default: HuggingFaceAdapter } = await import('./adapters/huggingface-adapter.js');
@@ -196,55 +225,18 @@ async function c4s2Census() {
     console.log(`[C4-S2] census: owners=${owners.length} model=${model.members.length}(${model.completeness}) dataset=${dataset.members.length}(${dataset.completeness})`);
 }
 
-/**
- * CLI Entry Point
- */
-async function main() {
-    const args = process.argv.slice(2);
-    if (args[0] === 'c4s2-census') { await c4s2Census(); return; } // D-335/336 candidate-scoped census mode
-    let sourceName = null;
-    let limit = 10000;
-    let chunkSize = 500;
-    let skipBridge = false;
-
-    for (let i = 0; i < args.length; i++) {
-        if (args[i] === '--limit' && args[i + 1]) {
-            limit = parseInt(args[i + 1], 10);
-            i++;
-        } else if (args[i] === '--chunk-size' && args[i + 1]) {
-            chunkSize = parseInt(args[i + 1], 10);
-            i++;
-        } else if (args[i] === '--no-bridge') {
-            skipBridge = true;
-        } else if (!args[i].startsWith('--') && !sourceName) {
-            sourceName = args[i];
-        }
-    }
-
-    if (!sourceName) {
-        console.log('Usage: node harvest-single.js <source> [--limit N] [--chunk-size S] [--no-bridge]');
-        process.exit(1);
-    }
-
-    const result = await harvestSingle(sourceName, { limit, chunkSize, skipBridge });
-
-    // V28: A hard failure (mkdir/stream/sharder error — surfaced as result.error)
-    // must fail the workflow step visibly. A RateLimitExceededError early-finish
-    // is NOT a hard failure: harvestSingle() handles it gracefully (writes what it
-    // got, no result.error) and returns normally, so it stays exit 0.
-    if (result && result.error) {
-        console.error(`\n❌ [Harvest] Hard failure for ${sourceName}: ${result.error}`);
-        process.exit(1);
-    }
-}
-
 // Main-guard: only run the CLI when invoked directly (node harvest-single.js).
 // Importing this module (e.g. from a unit test exercising harvestSingle()) must
 // NOT trigger main()/process.exit. Mirrors the repo's established guard pattern.
+// The CLI body itself now lives in harvest-cli.js (CES headroom for the Founder-
+// ruled completeness gate above); it is imported DYNAMICALLY so this module never
+// participates in an import cycle with it.
 if (process.argv[1]?.endsWith('harvest-single.js')) {
-    main().catch((err) => {
-        // V28: any uncaught hard error fails the step (exit 1) instead of green.
-        console.error(`\n❌ [Harvest] Fatal: ${err && err.stack ? err.stack : err}`);
-        process.exit(1);
-    });
+    import('./harvest-cli.js')
+        .then((cli) => cli.main())
+        .catch((err) => {
+            // V28: any uncaught hard error fails the step (exit 1) instead of green.
+            console.error(`\n❌ [Harvest] Fatal: ${err && err.stack ? err.stack : err}`);
+            process.exit(1);
+        });
 }
