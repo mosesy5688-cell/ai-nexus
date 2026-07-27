@@ -72,8 +72,14 @@ jobs:
       # vfs-pack-db), the EXACT-10 complete-set integrity/identity verifier and the
       # FAIL-CLOSED pack-finalizer publication gate that replaced the any-one-file
       # boolean shortcut behind manifest.partitions.rankings_dbs.
-      - name: Run node --test factory handoff suites (satellite + core + harvest + vfs-derived + shards + cycle-output + mesh-profile + rankings-db, blocking)
-        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs scripts/factory/shards-handoff-manifest.test.mjs scripts/factory/cycle-output-handoff-manifest.test.mjs scripts/factory/mesh-profile-handoff-manifest.test.mjs scripts/factory/aggregate-bounded-finalization.test.mjs scripts/factory/runner-capacity-preflight.test.mjs scripts/factory/rankings-db-handoff-manifest.test.mjs
+      # 2026-07-26 (Factory 1/4 S2 incident): the Factory ALERT notification-matrix
+      # suite is appended to the SAME explicit list. It must be listed here or it is
+      # not a gate at all -- and an untested alert matrix is how Factory 1/4 failed
+      # on a natural cron with nothing notified. It asserts the exact `name:` string
+      # of each Factory workflow (read from that workflow's own file) plus the
+      # failure / timed_out / cancelled matrix. It sends NO notification.
+      - name: Run node --test factory handoff suites (satellite + core + harvest + vfs-derived + shards + cycle-output + mesh-profile + rankings-db + alert-matrix, blocking)
+        run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs scripts/factory/shards-handoff-manifest.test.mjs scripts/factory/cycle-output-handoff-manifest.test.mjs scripts/factory/mesh-profile-handoff-manifest.test.mjs scripts/factory/aggregate-bounded-finalization.test.mjs scripts/factory/runner-capacity-preflight.test.mjs scripts/factory/rankings-db-handoff-manifest.test.mjs scripts/ci/alert-notification-matrix.test.mjs
 
       - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
         run: npx vitest run --coverage
