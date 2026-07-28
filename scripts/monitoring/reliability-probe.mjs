@@ -52,7 +52,16 @@ async function finishWith(code) {
     process.exit(code);
 }
 
-/** Non-verdict metadata shared by the normal record and the crash-evidence record. */
+/**
+ * Non-verdict metadata shared by the normal record and the crash-evidence record.
+ *
+ * PROBE-OBS-01: run/client identity is read from AMBIENT GitHub-provided env vars
+ * only (no workflow change, no token, no secret, no repository content). We record
+ * only run id / attempt / event / commit sha, the runner OS+arch GitHub itself
+ * exports, and the local Node version. We deliberately do NOT record or infer a
+ * cloud region for the runner: it is not exported here, and a runner region is NOT
+ * equivalent to a Cloudflare colo (see cf_colo_suffix, derived from cf-ray only).
+ */
 function runMeta(runUtc) {
     return {
         run_utc: runUtc,
@@ -62,7 +71,13 @@ function runMeta(runUtc) {
             run_id: process.env.GITHUB_RUN_ID || null,
             run_attempt: process.env.GITHUB_RUN_ATTEMPT || null,
             event_name: process.env.GITHUB_EVENT_NAME || null,
+            sha: process.env.GITHUB_SHA || null,
         },
+        runner: {
+            os: process.env.RUNNER_OS || null,
+            arch: process.env.RUNNER_ARCH || null,
+        },
+        node: { version: process.version || null },
     };
 }
 
@@ -114,11 +129,18 @@ async function main() {
         overall,
         targets,
         github: meta.github,
+        runner: meta.runner,
+        node: meta.node,
     };
 
     writeFileSync(OUTPUT_PATH, JSON.stringify(record, null, 2));
 
-    const line = (t) => `  ${t.state.padEnd(7)} ${t.target.padEnd(16)} http=${t.http_status} total=${t.total_ms == null ? '-' : Math.round(t.total_ms)}ms guardian=${t.guardian_ms == null ? '-' : t.guardian_ms}ms${t.error ? ' err=' + t.error : ''}`;
+    // Log line carries the transport facts needed to triage from the run log alone:
+    // whether headers arrived, how many body bytes were received, whether the body
+    // completed, which phase failed, and the cf-ray/cache values AS RECEIVED. An
+    // assertion-retention overflow is DISCLOSED explicitly (assert_overflow=true +
+    // the applied limit) so an operator never has to infer it from a byte count.
+    const line = (t) => `  ${t.state.padEnd(7)} ${t.target.padEnd(16)} http=${t.http_status} total=${t.total_ms == null ? '-' : Math.round(t.total_ms)}ms guardian=${t.guardian_ms == null ? '-' : t.guardian_ms}ms hdrs=${t.headers_received} body=${t.body_bytes_received}B complete=${t.body_complete} assert_overflow=${t.assertion_body_overflowed} assert_limit=${t.assertion_body_limit_bytes ?? '-'} phase=${t.failure_phase ?? '-'} timedout=${t.timed_out} cf_ray=${t.cf_ray ?? '-'} cf_cache=${t.cf_cache_status ?? '-'}${t.error ? ' err=' + t.error : ''}`;
     console.log(`[reliability-probe] base=${BASE_URL} overall=${overall} served_build_id=${record.served_build_id}`);
     for (const t of targets) console.log(line(t));
     console.log(`[reliability-probe] evidence written to ${OUTPUT_PATH}`);
