@@ -27,6 +27,28 @@ const uploadJob = jobBlock('upload');
 const VMOD = 'scripts/factory/vfs-derived-handoff-manifest.mjs';
 const MMOD = 'scripts/factory/mesh-profile-handoff-manifest.mjs';
 
+// JOB-LEVEL vs STEP-LEVEL timeout isolation (2026-08-01). `jobBlock()` returns the WHOLE
+// job, steps included, so a bare toContain('timeout-minutes: N') cannot tell a JOB ceiling
+// from a STEP ceiling — which is exactly how the previous vfs-derived assertion survived the
+// 30 -> 60 change for the wrong reason. These readers anchor on INDENTATION: the job key is
+// the 4-space `timeout-minutes:` ABOVE `steps:`; a step key is the 8-space one inside that
+// step's own bounds. Deliberately LOCAL to this file (no shared cross-file helper).
+function jobOwnTimeoutMinutes(job: string): number | null {
+    const i = job.indexOf('\n    steps:');
+    expect(i, 'job block has no `    steps:` key — the job-level region cannot be isolated').toBeGreaterThan(-1);
+    const m = job.slice(0, i).match(/^ {4}timeout-minutes: *(\d+) *(#.*)?$/m);
+    return m ? Number(m[1]) : null;
+}
+function stepOwnTimeoutMinutes(job: string, name: string): number | null {
+    const lines = job.split('\n');
+    const start = lines.indexOf(`      - name: ${name}`);
+    expect(start, `step not found: ${name}`).toBeGreaterThan(-1);
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) if (/^ {6}- /.test(lines[i])) { end = i; break; }
+    const m = lines.slice(start, end).join('\n').match(/^ {8}timeout-minutes: *(\d+) *(#.*)?$/m);
+    return m ? Number(m[1]) : null;
+}
+
 describe('AUTHORITY-W producer (vfs-pack-db) — sibling warm-read manifest, meta byte-identical', () => {
     it('exports the VERIFIED warm_read set-sha as a job output', () => {
         expect(packJob).toContain('verified_vfs_pack_warm_read_set_sha: ${{ steps.vfs-pack-handoff.outputs.warm_read_set_sha }}');
@@ -182,10 +204,26 @@ describe('SCOPE GUARD — no meta-set regression, permissions + timeouts intact'
         expect(yml).toContain('permissions:\n  actions: write\n  contents: read\n  id-token: write');
         expect(yml).not.toMatch(/\n {4}permissions:/);
     });
-    it('job timeouts intact (mesh-baking 330, vfs-pack-db 330, vfs-derived 30, upload 330)', () => {
+    // 2026-08-01: the vfs-derived JOB ceiling moved 30 -> 60 (measured; incident run
+    // 30630342243) and a 30-minute STEP ceiling was added to the D-245 recovery step. The
+    // previous assertion here was `expect(derivedJob).toContain('timeout-minutes: 30')`, which
+    // then kept passing for the WRONG REASON: jobBlock() includes the steps, so the substring
+    // was satisfied by the 8-space STEP key while the 4-space JOB key had already become 60.
+    // Job-level and step-level are now asserted as SEPARATE, indentation-anchored contracts.
+    it('job timeouts intact (mesh-baking 330, vfs-pack-db 330, vfs-derived JOB 60, upload 330)', () => {
         expect(meshJob).toContain('timeout-minutes: 330');
         expect(packJob).toContain('timeout-minutes: 330');
-        expect(derivedJob).toContain('timeout-minutes: 30');
+        expect(jobOwnTimeoutMinutes(derivedJob)).toBe(60);      // the JOB's own 4-space key only
+        expect(jobOwnTimeoutMinutes(derivedJob)).not.toBe(30);  // the old 30-minute ceiling is GONE
         expect(uploadJob).toContain('timeout-minutes: 330');
+    });
+    it('STEP-LEVEL contract (distinct from the job ceiling): D-245 recovery 30, SQL health 25', () => {
+        // Labelled and scoped explicitly so the surviving `30` can never again be mistaken for
+        // the job ceiling. Read from each step's OWN bounds, never from the job region.
+        const D245 = 'Verify or Recover VFS Pack from Exact Staging (D-245)';
+        expect(stepOwnTimeoutMinutes(derivedJob, D245)).toBe(30);
+        expect(stepOwnTimeoutMinutes(derivedJob, 'V23.1 SQL Health Check')).toBe(25);
+        // the two levels are genuinely different values, so neither can silently stand in for the other
+        expect(stepOwnTimeoutMinutes(derivedJob, D245)).not.toBe(jobOwnTimeoutMinutes(derivedJob));
     });
 });
