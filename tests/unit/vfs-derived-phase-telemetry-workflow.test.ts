@@ -55,11 +55,23 @@ function precedingComments(src: string, header: string, indent: number): string 
 function flat(text: string): string {
     return text.replace(/^[ \t]*#[ \t]?/gm, '').replace(/\s+/g, ' ').trim();
 }
+/** A step's `run:` body reduced to EXECUTABLE shell lines: blank lines and lines whose first
+ *  non-space character is `#` are dropped. Commenting a guard out therefore REMOVES it from
+ *  this text — which is precisely what makes the guard pins below comment-proof (F-1 / F-2).
+ *  Guard TEXT existing somewhere in the step is NOT evidence that the guard still runs. */
+function executableShell(stepText: string): string {
+    const marker = '\n        run: |\n';
+    const i = stepText.indexOf(marker);
+    expect(i, 'step has no `run: |` body').toBeGreaterThan(-1);
+    return stepText.slice(i + marker.length).split('\n')
+        .filter((l) => l.trim() !== '' && !l.trim().startsWith('#')).join('\n');
+}
 
 const derived = block(yml, 'vfs-derived:', 2);
 const derivedDoc = precedingComments(yml, 'vfs-derived:', 2);
 const reporter = step(derived, 'VFS Derived Phase + Budget Report');
 const reporterDoc = precedingComments(derived, '- name: VFS Derived Phase + Budget Report', 6);
+const reporterExec = executableShell(reporter);
 const MARKS = '"$RUNNER_TEMP/vfs-derived-phases.tsv"';
 const PHASES = ['setup', 'restore', 'sitemap', 'rss', 'mesh-profiles', 'sql-health', 'handoff', 'cache-persist'] as const;
 
@@ -137,15 +149,40 @@ describe('T-3 the budget reporter exists, is always(), and warns on erosion', ()
 });
 
 describe('T-3 missing reporter inputs FAIL CLOSED where the reporter executes', () => {
-    it('a missing/empty marks file is an ERROR, never a silent skip', () => {
-        expect(reporter).toContain('MARKS_ABSENT');
-        expect(reporter).toMatch(/\[ -s "\$MARKS" \][\s\S]*MARKS_ABSENT[\s\S]*exit 1/);
-        expect(reporter).toContain('Missing telemetry is an ERROR, never a silent skip.');
+    // F-1 / F-2 (Founder BLOCKING). The previous assertions matched guard text ANYWHERE in the
+    // step, so COMMENTING a guard out kept them green while the guard stopped executing; and the
+    // shared BUDGET_INPUT_INVALID code let EITHER budget guard be deleted unnoticed. Both are now
+    // pinned as COMPLETE PREDICATES against the EXECUTABLE-ONLY body, independently of each other.
+    const MARKS_GUARD = '[ -s "$MARKS" ] || { echo "::error::VFS-DERIVED-BUDGET MARKS_ABSENT: the phase-marks file is missing or empty ($MARKS). Missing telemetry is an ERROR, never a silent skip. Fail-closed."; exit 1; }';
+    const BUDGET_TYPE_GUARD = `''|*[!0-9]*) echo "::error::VFS-DERIVED-BUDGET BUDGET_INPUT_INVALID: VFS_DERIVED_TIMEOUT_MIN is missing or non-numeric ('$BUDGET_MIN'). Fail-closed."; exit 1;;`;
+    const BUDGET_RANGE_GUARD = '[ "$BUDGET_MIN" -gt 0 ] || { echo "::error::VFS-DERIVED-BUDGET BUDGET_INPUT_INVALID: VFS_DERIVED_TIMEOUT_MIN must be greater than 0. Fail-closed."; exit 1; }';
+
+    it('the MARKS_ABSENT guard is an EXECUTABLE line, not merely text that exists', () => {
+        expect(reporterExec).toContain(MARKS_GUARD);  // commenting it out drops it from reporterExec
+        expect(reporterExec).toContain('Missing telemetry is an ERROR, never a silent skip.');
+        expect(reporterExec.split('MARKS_ABSENT').length - 1).toBe(1);  // never prose-only
+        expect(MARKS_GUARD).toContain('exit 1');
+        // reader anti-vacuity: the filter really does drop a commented-out guard
+        expect(executableShell(`\n        run: |\n          # ${MARKS_GUARD}`)).not.toContain(MARKS_GUARD);
     });
 
-    it('a missing or non-numeric budget input is an ERROR', () => {
-        expect(reporter).toContain('BUDGET_INPUT_INVALID');
-        expect(reporter).toMatch(/BUDGET_INPUT_INVALID[\s\S]*exit 1/);
+    it('BOTH budget guards pinned by COMPLETE PREDICATE — the shared error code is not enough', () => {
+        expect(reporterExec).toContain('case "$BUDGET_MIN" in');
+        expect(reporterExec).toContain(BUDGET_TYPE_GUARD);   // empty / non-numeric / negative
+        expect(reporterExec).toContain(BUDGET_RANGE_GUARD);  // zero: all-digits, so it clears the case
+        expect(reporterExec.split('BUDGET_INPUT_INVALID').length - 1).toBe(2);  // delete either => reds
+        for (const g of [BUDGET_TYPE_GUARD, BUDGET_RANGE_GUARD]) expect(g).toContain('exit 1');
+    });
+
+    it('every input guard executes BEFORE the value it protects is consumed', () => {
+        const t = reporterExec.indexOf(BUDGET_TYPE_GUARD);
+        const r = reporterExec.indexOf(BUDGET_RANGE_GUARD);
+        const m = reporterExec.indexOf(MARKS_GUARD);
+        const consume = reporterExec.indexOf('awk -F');
+        for (const i of [t, r, m, consume]) expect(i).toBeGreaterThan(-1);
+        expect(r).toBeGreaterThan(t);       // type check precedes the range check
+        expect(consume).toBeGreaterThan(r); // both budget guards precede the computation
+        expect(consume).toBeGreaterThan(m); // the marks guard precedes the read
     });
 
     it('malformed, unknown, duplicated, and setup-less mark sets all fail closed', () => {
