@@ -1579,14 +1579,44 @@ jobs:
           key: intra-4-4-vfs-pack-${{ env.VFS_PACK_CODE_VERSION }}-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
 
   # V27.40: vfs-derived = sitemap-gen + RSS-gen + SQL-health + cache saves.
-  # ~2m; failure here costs minutes, not hours (vs old vfs-packing 2h10m blast radius).
-  # Recovery: GHA UI "Re-run failed jobs" — run_id stable, vfs-pack cache hits within ~5min window.
+  # MEASURED BUDGET (2026-08-01). EVIDENCE ANCHOR: run 30630342243 = the 2026-07-31
+  # job-level timeout incident, in which VFS Derived was cancelled at 30m09s with only
+  # 81 of 98 databases health-verified (the cycle was NOT publishable and Final Upload
+  # correctly skipped). The three preceding SUCCESSFUL runs measured 25m38s / 25m39s /
+  # 26m27s = 85.4% / 85.5% / 88.2% of the OLD 30-minute ceiling, i.e. 3-4 minutes of
+  # headroom and no capacity to absorb any I/O tail. On 2026-07-31 the meta/ restore-dir
+  # went 212-228s -> 637.5s (3.00x on an IDENTICAL 108-object payload) and the job could
+  # not finish. Worst-observed component sum = 34m32s. Variance+growth model (one further
+  # 1.5x R2 tail excursion AND +25% hash-shard count) = 44m51s. 60 minutes carries 1.74x
+  # over the worst behaviour ever observed and 1.34x over the growth model; 90 minutes has
+  # NO measurement behind it and would only delay incident detection.
+  # DO NOT TRUST THIS NUMBER - RE-DERIVE IT: the budget reporter at the end of this job
+  # prints [VFS-DERIVED-BUDGET] used_pct every run and warns at 70% / 85%.
+  # Recovery: GHA UI "Re-run failed jobs" — run_id stable. The former five-minute
+  # cache-hit recovery claim is WITHDRAWN as obsolete: the intra-4-4 vfs-pack GHA cache
+  # has been write-denied ("cache write denied: token has no writable scopes") for at
+  # least four consecutive cycles and never hits, so R2 exact-staging recovery is the
+  # PERMANENT path and structurally costs 548-1022s of every cycle.
   # No R2 fallback for vfs-pack cache miss (state/cycle-output/ does NOT contain meta-NN.db).
+  # TELEMETRY BOUNDARY (truthful, do not overstate): the `if: always()` budget reporter at
+  # the end of this job is REQUIRED to execute after an ordinary step failure and after a
+  # STEP-level timeout where the runner remains available. Its execution is NOT guaranteed
+  # after a JOB-level timeout, an external cancellation, or runner loss - in those cases
+  # reporting is BEST-EFFORT ONLY. The step-level timeouts added below (30 min on the D-245
+  # R2 recovery, 25 min on the SQL health check) are valuable because they convert the two
+  # main hang paths into `failure` BEFORE the 60-minute job ceiling, which RAISES THE
+  # PROBABILITY that the reporter runs. That is a probability improvement, NOT a guarantee.
   vfs-derived:
     name: VFS Derived (Sitemap + RSS + Health)
     needs: [vfs-pack-db, check-upstream]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # ANTI-DRIFT: GitHub does NOT expose the `env` context to a job-level
+    # `timeout-minutes:` key, so the literal here and VFS_DERIVED_TIMEOUT_MIN below are a
+    # DELIBERATE duplicate. tests/unit/vfs-derived-timeout-budget-workflow.test.ts ties the
+    # two numerically so they can never drift apart.
+    timeout-minutes: 60
+    env:
+      VFS_DERIVED_TIMEOUT_MIN: '60'
     # D-245 SECONDARY: expose the VERIFIED vfs-derived (sitemaps + RSS) R2 authority so
     # Final Upload publishes ONLY the current-cycle sitemap/RSS identity (the sitemap/RSS
     # GHA caches have no R2 fallback, so the same token denial could otherwise ship a
@@ -1596,6 +1626,12 @@ jobs:
       verified_vfs_derived_set_sha: ${{ steps.vfs-derived-handoff.outputs.set_sha }}
       verified_vfs_derived_producer_attempt: ${{ steps.vfs-derived-handoff.outputs.producer_attempt }}
     steps:
+      # PHASE TELEMETRY (1/8) `setup`. Emitted FIRST so every later phase elapsed is measured
+      # against a real job-start anchor and the budget reporter always has at least one mark.
+      - name: Phase Mark (setup)
+        run: |
+          set -euo pipefail
+          printf '%s\t%s\n' 'setup' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
       - uses: actions/checkout@v5
       - uses: ./.github/actions/factory-setup
         with:
@@ -1605,6 +1641,13 @@ jobs:
       # version — the key + restore-keys prefix carry VFS_PACK_CODE_VERSION so a
       # cross-version vfs-pack cache can never be pulled into the derived (sitemap/RSS/
       # health) job that runs over the packed meta-NN.db.
+      # PHASE TELEMETRY (2/8) `restore` = the GHA cache restore + the D-245 R2 exact-staging
+      # recovery. The cache restore is a `uses:` step and cannot carry an inline mark, so an
+      # adjacent one-line `run:` step emits it immediately before the phase begins.
+      - name: Phase Mark (restore)
+        run: |
+          set -euo pipefail
+          printf '%s\t%s\n' 'restore' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
       - name: Restore VFS Pack Output from intra-cache
         id: cache-restore-vfs-pack
         uses: actions/cache/restore@v5
@@ -1634,6 +1677,13 @@ jobs:
       # SAME attempt prefix, and warm is then VERIFIED (not ignored via --ext=.db) so a
       # missing/stale warm-tier artifact fails BEFORE the SQL health check + sitemap gen.
       - name: Verify or Recover VFS Pack from Exact Staging (D-245)
+        # STEP-LEVEL CEILING (2026-08-01): worst observed 17m02s (run 30630342243) -> 30 min
+        # = 1.76x. A genuinely HUNG R2 restore now fails THIS STEP with conclusion `failure`
+        # instead of silently consuming the whole job budget and surfacing as an ambiguous
+        # job-level `cancelled`. It also fails BEFORE the 60-minute job ceiling, which RAISES
+        # THE PROBABILITY that the always() budget reporter still executes - best-effort, not
+        # guaranteed (see the TELEMETRY BOUNDARY note on this job).
+        timeout-minutes: 30
         env:
           STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
           EXPECT_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_set_sha }}
@@ -1690,6 +1740,15 @@ jobs:
             [ "$(printf '%s' "$OUTW" | tail -n1)" = "$EXPECT_WARM_SET_SHA" ] || { echo "::error::AUTH-W: recovered warm_read set hash != producer $EXPECT_WARM_SET_SHA. Fail-closed."; exit 1; }
             echo "[VFS-PACK-HANDOFF] recovered + verified meta-NN.db + warm_read from exact staging"
           fi
+          # PATH TELEMETRY - UNCONDITIONAL, BOTH BRANCHES. Makes "did this cycle take the GHA
+          # fast path or the R2 exact-staging recovery?" greppable rather than inferred from
+          # prose. Emitted after the verify/recover decision is final, so it reports the path
+          # actually taken. Four consecutive cycles have taken r2-exact-staging-recovery.
+          if [ "$NEED_RECOVER" = "1" ]; then
+            echo "[VFS-DERIVED-PATH] vfs_pack_source=r2-exact-staging-recovery"
+          else
+            echo "[VFS-DERIVED-PATH] vfs_pack_source=gha-cache-fastpath"
+          fi
       # RANKINGS-PUBLICATION-SIBLING-RECOVERY (D-395), VFS Derived. pack-finalizer is the ONLY writer of
       # output/data/shards_manifest.json, and the FIX-4 recovery immediately above does
       # `rm -rf output/data/` then restores ONLY .db / warm .bin / term_index -- so on that
@@ -1737,7 +1796,12 @@ jobs:
           fi
           echo "✅ VFS pack present: $META_COUNT meta-NN.db files"
       - name: Generate VFS-Parity Sitemaps
-        run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
+        run: |
+          set -euo pipefail
+          # PHASE TELEMETRY (3/8) `sitemap`. FIRST line of this phase's OWN run: body, so a
+          # phase that executes CANNOT omit its mark.
+          printf '%s\t%s\n' 'sitemap' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
+          node scripts/factory/vfs-sitemap-gen.js --db=output/data/meta-00.db --out=output
       # D-246 RSS INPUT RECOVERY. The RSS-generator inputs (output/cache/{reports,knowledge}/
       # index.json.zst) are now carried durably by the vfs-pack R2 authority. Recover every
       # DECLARED-PRESENT input from the EXACT current-cycle staging BEFORE rss-generator +
@@ -1753,6 +1817,8 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           set -uo pipefail
+          # PHASE TELEMETRY (4/8) `rss`. FIRST line of this phase's OWN run: body.
+          printf '%s\t%s\n' 'rss' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
           if [ -z "${STAGING_PREFIX}" ]; then echo "::error::no verified vfs-pack staging prefix for RSS inputs."; exit 1; fi
           # The verified producer manifest (with rss_inputs) is at /tmp/vfs-pack-manifest.json
           # from the meta verify-or-recover step; re-fetch defensively if absent.
@@ -1793,6 +1859,8 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: |
           set -uo pipefail
+          # PHASE TELEMETRY (5/8) `mesh-profiles`. FIRST line of this phase's OWN run: body.
+          printf '%s\t%s\n' 'mesh-profiles' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
           UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"
           if [ -z "$UP" ] || [ -z "$RUN" ]; then echo "::error::AUTH-M: missing run identity — cannot consume mesh-profiles safely."; exit 1; fi
           DESC="state/_handoff/mesh-profile/${UP}/${RUN}/handoff.json"
@@ -1816,13 +1884,152 @@ jobs:
             [ "$(printf '%s' "$OUT2" | tail -n1)" = "$EXPECT_SET_SHA" ] || { echo "::error::AUTH-M: recovered set hash != producer $EXPECT_SET_SHA. Fail-closed."; exit 1; }
             echo "[MESH-PROFILE-HANDOFF] recovered + verified mesh-profile from exact staging"
           fi
+      # V23.1 SQL HEALTH CHECK + FAIL-CLOSED INDEPENDENT-AUTHORITY MEMBER-SET CENSUS GATE.
+      #
+      # WHY THIS GATE EXISTS. On 2026-07-31 (run 30630342243) this loop checked 81 of 98
+      # databases and the job was cancelled. Nothing in the job ASSERTED the shortfall - the
+      # "Final Upload cannot publish after partial health checking" rule held only IMPLICITLY,
+      # because a cancelled step skips the downstream `if: success()` steps and `upload.needs`
+      # then skips. That is an emergent property of step ordering, not an asserted invariant:
+      # if this loop ever exits 0 early (a future `continue`, a glob that matches nothing, a
+      # `|| true`) the job would go GREEN on a partial set and publish. This gate converts the
+      # implicit property into an explicit, machine-checked, fail-closed assertion.
+      #
+      # INDEPENDENT AUTHORITY. EXPECTED comes ENTIRELY from the vfs-pack PRODUCER MANIFEST
+      # (/tmp/vfs-pack-manifest.json), restored from the EXACT producer staging prefix and
+      # ALREADY verified by the D-245 step above (exact set equality + per-file sha256 +
+      # set_sha256 == the vfs-pack-db descriptor's exported set-sha). It is produced by a
+      # DIFFERENT job and stored in R2, so the directory under test contributes ZERO expected
+      # names. Runtime directory enumeration is used ONLY to enumerate PRESENT members.
+      # Count-only equality is NOT sufficient and is NOT what this gate does: it compares
+      # MEMBER IDENTITIES, sorted, line for line.
+      #
+      # PRODUCER-SIDE FLOOR GAP, CLOSED EXPLICITLY. The manifest's ONLY declared required
+      # class is meta_db (/(^|\/)meta-\d+\.db$/, min 1). meta-knowledge.db and meta-report.db
+      # match NO required class, so a manifest missing them would be SELF-CONSISTENT, would
+      # pass its own verification, and would silently yield 97 instead of 98. The census
+      # therefore asserts those two BY NAME against the manifest. That is an assertion against
+      # an INDEPENDENT CARRIER, not an expected list invented from the directory under test;
+      # both names are load-bearing repo constants (produced by
+      # scripts/factory/lib/meta-anchors.js, consumed by src/pages/api/v1/concepts.ts and
+      # src/pages/{knowledge,trends}.astro, pinned by tests/unit/r5-vfs-idindex-b4.test.ts).
+      #
+      # RANKINGS. The 10 rankings DBs are a SEPARATE canonical authority
+      # (src/constants/rankings-groups.js, EXACTLY 10) and are not part of the non-ranking
+      # health set. They are excluded BY THAT CANONICAL NAME LIST on BOTH sides, never by
+      # pattern guessing - so a stray rankings-<unknown>.db still surfaces as unexpected.
+      # 96 meta-NN.db + meta-knowledge.db + meta-report.db + 10 rankings = the 108 .db members
+      # the producer manifest carries today; 108 - 10 = the 98 members checked here.
+      #
+      # NOTHING IS WEAKENED: same `node scripts/factory/verify-db.js` call, same member set,
+      # same ASCII order, same fail-closed `set -e`. verify-db.js is NOT modified.
       - name: V23.1 SQL Health Check
+        # STEP-LEVEL CEILING: full-set projection 13m06s at the worst measured per-shard rate
+        # -> 25 min = 1.91x. Converts a hung health loop into `failure` before the job ceiling.
+        timeout-minutes: 25
+        env:
+          VFS_PACK_MANIFEST: /tmp/vfs-pack-manifest.json
+          CENSUS_EXPECTED_FILE: /tmp/vfs-derived-expected-members.txt
+          CENSUS_PRESENT_FILE: /tmp/vfs-derived-present-members.txt
+          CENSUS_COMPLETED_FILE: /tmp/vfs-derived-completed-members.txt
         run: |
-          for db in output/data/*.db; do
-            case "$(basename "$db")" in rankings-*) echo "⏭ Skipping rankings DB: $db"; continue;; esac
-            echo "🔍 Verifying $db..."
-            node scripts/factory/verify-db.js "$db"
-          done
+          set -euo pipefail
+          # PHASE TELEMETRY (6/8) `sql-health`. FIRST line of this phase's OWN run: body.
+          printf '%s\t%s\n' 'sql-health' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
+          [ -s "$VFS_PACK_MANIFEST" ] || { echo "::error::VFS-DERIVED-CENSUS MANIFEST_ABSENT: the vfs-pack producer manifest ($VFS_PACK_MANIFEST) is missing or empty - the independent expected-member authority is unavailable. Fail-closed."; exit 1; }
+          cat > /tmp/vfs-derived-census.mjs <<'VFS_DERIVED_CENSUS_EOF'
+          // Emits the EXPECTED member set (independent producer authority) and the PRESENT
+          // member set (runtime directory enumeration), then fails closed on any divergence.
+          import fs from "node:fs";
+          import path from "node:path";
+          import { pathToFileURL } from "node:url";
+
+          const MANIFEST = process.env.VFS_PACK_MANIFEST;
+          const DATA_DIR = "output/data";
+          const ANCHOR_MEMBERS = ["meta-knowledge.db", "meta-report.db"];
+          const META_SHARD_RE = /^meta-\d+\.db$/;
+          const die = (code, msg) => {
+            console.log(`::error::VFS-DERIVED-CENSUS ${code}: ${msg} Fail-closed.`);
+            process.exit(1);
+          };
+
+          // >>> EXPECTED-DERIVATION BEGIN (INDEPENDENT PRODUCER AUTHORITY ONLY) <<<
+          // The directory under test contributes ZERO names to EXPECTED.
+          let manifest;
+          try { manifest = JSON.parse(fs.readFileSync(MANIFEST, "utf8")); }
+          catch (e) { die("MANIFEST_UNREADABLE", `cannot read the producer manifest ${MANIFEST}: ${e.message}.`); }
+          if (manifest.carrier_type !== "vfs-pack-authority") die("MANIFEST_CARRIER_WRONG", `carrier_type "${manifest.carrier_type}" is not vfs-pack-authority.`);
+          if (!Array.isArray(manifest.files) || manifest.files.length === 0) die("MANIFEST_FILES_EMPTY", "the producer manifest carries no member identities.");
+          const rg = await import(pathToFileURL(path.resolve("src/constants/rankings-groups.js")).href);
+          const RANKINGS = new Set(rg.RANKINGS_DB_NAMES);
+          if (RANKINGS.size !== 10 || RANKINGS.size !== rg.RANKINGS_DB_COUNT) die("RANKINGS_AUTHORITY_UNEXPECTED", `the canonical rankings set is ${RANKINGS.size}, expected exactly 10.`);
+          const carried = [];
+          for (const f of manifest.files) {
+            const rel = String((f && f.relative_path) || "");
+            if (!rel.endsWith(".db")) continue;
+            if (rel.includes("/")) die("MEMBER_NAME_INVALID", `manifest .db member is not a flat output/data member: "${rel}".`);
+            carried.push(rel);
+          }
+          const dupes = [...new Set(carried.filter((n, i) => carried.indexOf(n) !== i))];
+          if (dupes.length) die("MEMBER_DUPLICATE", `duplicate .db member(s) in the producer manifest: ${dupes.join(",")}.`);
+          const expected = carried.filter((n) => !RANKINGS.has(n)).sort();
+          if (expected.length === 0) die("EXPECTED_SET_EMPTY", "the expected member set is EMPTY - refusing to health-check a vacuous set.");
+          for (const n of expected) {
+            if (!META_SHARD_RE.test(n) && !ANCHOR_MEMBERS.includes(n)) die("MEMBER_NAME_INVALID", `unrecognised non-ranking .db member "${n}".`);
+          }
+          if (!expected.some((n) => META_SHARD_RE.test(n))) die("EXPECTED_META_ZERO", "the expected set contains no meta-NN.db hash shard.");
+          for (const a of ANCHOR_MEMBERS) {
+            if (!expected.includes(a)) die("ANCHOR_MEMBER_ABSENT", `required non-ranking database "${a}" is ABSENT from the producer manifest (no required-class floor covers it).`);
+          }
+          // >>> EXPECTED-DERIVATION END <<<
+
+          // >>> PRESENT-DERIVATION BEGIN (RUNTIME DIRECTORY ENUMERATION) <<<
+          // Permitted to enumerate PRESENT members. NEVER defines EXPECTED.
+          let dirents;
+          try { dirents = fs.readdirSync(DATA_DIR, { withFileTypes: true }); }
+          catch (e) { die("DATA_DIR_UNREADABLE", `cannot enumerate ${DATA_DIR}: ${e.message}.`); }
+          const present = dirents.filter((d) => d.isFile() && d.name.endsWith(".db") && !RANKINGS.has(d.name)).map((d) => d.name).sort();
+          // >>> PRESENT-DERIVATION END <<<
+
+          const preSet = new Set(present);
+          const expSet = new Set(expected);
+          const metaN = expected.filter((n) => META_SHARD_RE.test(n)).length;
+          console.log(`[VFS-DERIVED-CENSUS] expected_db=${expected.length} expected_meta=${metaN} present_db=${present.length} rankings_excluded=${RANKINGS.size} expected_source=vfs-pack-producer-manifest(${MANIFEST}) present_source=runtime-dir(${DATA_DIR})`);
+          const missing = expected.filter((n) => !preSet.has(n));
+          if (missing.length) die("MEMBER_MISSING", `expected member(s) absent from ${DATA_DIR}: ${missing.join(",")}.`);
+          const unexpected = present.filter((n) => !expSet.has(n));
+          if (unexpected.length) die("MEMBER_UNEXPECTED", `unexpected non-ranking database(s) in ${DATA_DIR}: ${unexpected.join(",")}.`);
+          fs.writeFileSync(process.env.CENSUS_EXPECTED_FILE, expected.join("\n") + "\n");
+          fs.writeFileSync(process.env.CENSUS_PRESENT_FILE, present.join("\n") + "\n");
+          console.log(`[VFS-DERIVED-CENSUS] expected==present member-identity check PASSED (${expected.length} members)`);
+          VFS_DERIVED_CENSUS_EOF
+          node /tmp/vfs-derived-census.mjs
+          # The loop is driven BY THE EXPECTED LIST (the independent authority), never by a
+          # glob of the directory under test, so EXPECTED can never be re-derived from what
+          # happens to be on disk and can never be assigned from COMPLETED.
+          TOTAL=$(wc -l < "$CENSUS_EXPECTED_FILE" | tr -d ' ')
+          [ "$TOTAL" -gt 0 ] || { echo "::error::VFS-DERIVED-CENSUS EXPECTED_SET_EMPTY: refusing to health-check a vacuous set. Fail-closed."; exit 1; }
+          : > "$CENSUS_COMPLETED_FILE"
+          I=0; T0=$(date -u +%s)
+          while IFS= read -r NAME; do
+            [ -n "$NAME" ] || continue
+            I=$((I+1))
+            echo "[HEALTH $I/$TOTAL] $NAME elapsed=$(( $(date -u +%s) - T0 ))s"
+            node scripts/factory/verify-db.js "output/data/$NAME" < /dev/null
+            printf '%s\n' "$NAME" >> "$CENSUS_COMPLETED_FILE"
+          done < "$CENSUS_EXPECTED_FILE"
+          # POST-LOOP MEMBER-SET IDENTITY GATE. Compares IDENTITIES, not counts: a set of the
+          # same SIZE with one member swapped for another reds here, as does a missing member,
+          # an extra member, a duplicate, and any incomplete health execution.
+          sort -o "$CENSUS_COMPLETED_FILE" "$CENSUS_COMPLETED_FILE"
+          COMPLETED_N=$(wc -l < "$CENSUS_COMPLETED_FILE" | tr -d ' ')
+          echo "[VFS-DERIVED-CENSUS] completed_db=$COMPLETED_N expected_db=$TOTAL"
+          if ! diff -u "$CENSUS_EXPECTED_FILE" "$CENSUS_COMPLETED_FILE" > /tmp/vfs-derived-census-set.diff; then
+            echo "::error::VFS-DERIVED-CENSUS MEMBER_SET_DIVERGED: the successfully health-checked member set is NOT identical to the independent expected member set (expected $TOTAL, completed $COMPLETED_N). Final Upload MUST NOT publish. Fail-closed."
+            sed -n '1,120p' /tmp/vfs-derived-census-set.diff
+            exit 1
+          fi
+          echo "[VFS-DERIVED-CENSUS] PASS expected_member_set == completed_member_set ($COMPLETED_N members, compared by member identity)"
       # D-245 SECONDARY EXACT-PRODUCER R2 HANDOFF (sitemaps + RSS). The vfs-assets +
       # rss-feeds GHA caches are the ONLY carriers of output/sitemaps/ + sitemap.xml +
       # output/rss/ to Final Upload, with NO R2 fallback — the SAME token denial can ship
@@ -1848,6 +2055,8 @@ jobs:
         run: |
           set -euo pipefail
           UP="${HANDOFF_UPSTREAM_RUN_ID}"; RUN="${HANDOFF_FACTORY_RUN_ID}"; ATT="${HANDOFF_PRODUCER_ATTEMPT}"
+          # PHASE TELEMETRY (7/8) `handoff`.
+          printf '%s\t%s\n' 'handoff' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
           RUN_PREFIX="state/_handoff/vfs-derived/${UP}/${RUN}"
           export STAGING="${RUN_PREFIX}/attempt-${ATT}/"
           # Assemble the sitemap/RSS carrier set into one staging tree (never uploaded to
@@ -1876,6 +2085,14 @@ jobs:
           echo "set_sha=${V_SET}" >> "$GITHUB_OUTPUT"
           echo "producer_attempt=${ATT}" >> "$GITHUB_OUTPUT"
           echo "[VFS-DERIVED-HANDOFF] staging=${V_PREFIX} set_sha256=${V_SET} descriptor=${RUN_PREFIX}/handoff.json"
+      # PHASE TELEMETRY (8/8) `cache-persist`. The two cache saves are `uses:` steps and
+      # cannot carry an inline mark. This NEW step carries its own `if: success()`; the
+      # `if: success()` on the existing handoff and cache-save steps is UNCHANGED.
+      - name: Phase Mark (cache-persist)
+        if: success()
+        run: |
+          set -euo pipefail
+          printf '%s\t%s\n' 'cache-persist' "$(date -u +%s)" >> "$RUNNER_TEMP/vfs-derived-phases.tsv"
       - name: Save VFS Assets to Cache
         if: success()
         uses: actions/cache/save@v5
@@ -1892,6 +2109,69 @@ jobs:
         with:
           path: output/rss/
           key: intra-4-4-rss-feeds-${{ needs.check-upstream.outputs.upstream-run-id }}-${{ github.run_id }}
+      # BUDGET REPORTER (2026-08-01). Makes future timeout-budget EROSION observable: on the
+      # three 2026-07-28/29/30 successes this reporter would have printed used_pct 88.2 /
+      # 85.4 / 85.5 and raised the CRITICAL warning EVERY TIME. The erosion was fully
+      # measurable and simply was not measured.
+      #
+      # EXECUTION BOUNDARY (truthful, do not overstate): `if: always()` makes this step
+      # REQUIRED to execute after an ordinary step failure and after a STEP-level timeout
+      # where the runner remains available. It does NOT guarantee execution after a JOB-level
+      # timeout, an external cancellation, or runner loss - GitHub may cancel the whole job
+      # and no further step is guaranteed an execution slot. Reporting in those cases is
+      # BEST-EFFORT ONLY. The step-level timeouts (30 min D-245 recovery, 25 min SQL health)
+      # convert the two main hang paths into `failure` BEFORE the 60-minute job ceiling and
+      # therefore RAISE THE PROBABILITY that this reporter runs - a probability improvement,
+      # never a guarantee.
+      #
+      # FAIL-CLOSED ON ITS OWN INPUTS: a telemetry line that can silently not print is not
+      # observability, so a missing/empty/malformed marks file, an unknown or duplicated phase
+      # name, an absent `setup` mark, or a missing/non-numeric budget is an ERROR (exit 1),
+      # never a silent skip. Phases that legitimately did not run (e.g. handoff after a health
+      # failure) are NOT required - only the marks that were actually emitted are validated.
+      - name: VFS Derived Phase + Budget Report
+        if: always()
+        run: |
+          set -euo pipefail
+          MARKS="$RUNNER_TEMP/vfs-derived-phases.tsv"
+          BUDGET_MIN="${VFS_DERIVED_TIMEOUT_MIN:-}"
+          case "$BUDGET_MIN" in
+            ''|*[!0-9]*) echo "::error::VFS-DERIVED-BUDGET BUDGET_INPUT_INVALID: VFS_DERIVED_TIMEOUT_MIN is missing or non-numeric ('$BUDGET_MIN'). Fail-closed."; exit 1;;
+          esac
+          [ "$BUDGET_MIN" -gt 0 ] || { echo "::error::VFS-DERIVED-BUDGET BUDGET_INPUT_INVALID: VFS_DERIVED_TIMEOUT_MIN must be greater than 0. Fail-closed."; exit 1; }
+          [ -s "$MARKS" ] || { echo "::error::VFS-DERIVED-BUDGET MARKS_ABSENT: the phase-marks file is missing or empty ($MARKS). Missing telemetry is an ERROR, never a silent skip. Fail-closed."; exit 1; }
+          NOW=$(date -u +%s)
+          awk -F'\t' -v now="$NOW" -v budget_min="$BUDGET_MIN" '
+            BEGIN {
+              split("setup restore sitemap rss mesh-profiles sql-health handoff cache-persist", k, " ");
+              for (i in k) known[k[i]] = 1;
+              n = 0;
+            }
+            {
+              if (NF != 2 || $1 == "" || $2 !~ /^[0-9]+$/) { printf "::error::VFS-DERIVED-BUDGET MARK_MALFORMED: line %d is not <phase>\\t<epoch>. Fail-closed.\n", NR; bad = 1; exit 1 }
+              if (!($1 in known)) { printf "::error::VFS-DERIVED-BUDGET MARK_UNKNOWN_PHASE: \"%s\" is not a declared phase. Fail-closed.\n", $1; bad = 1; exit 1 }
+              if ($1 in seen) { printf "::error::VFS-DERIVED-BUDGET MARK_DUPLICATE: phase \"%s\" marked more than once. Fail-closed.\n", $1; bad = 1; exit 1 }
+              seen[$1] = 1; order[++n] = $1; at[$1] = $2 + 0;
+            }
+            END {
+              if (bad) { exit 1 }
+              if (n == 0) { print "::error::VFS-DERIVED-BUDGET MARKS_EMPTY: no phase marks were recorded. Fail-closed."; exit 1 }
+              if (!("setup" in seen)) { print "::error::VFS-DERIVED-BUDGET MARK_SETUP_ABSENT: the setup phase mark is absent, so no job-start anchor exists. Fail-closed."; exit 1 }
+              printf "| phase | started (epoch) | elapsed_s |\n|---|---:|---:|\n";
+              for (i = 1; i <= n; i++) {
+                p = order[i];
+                e = (i < n ? at[order[i+1]] : now) - at[p];
+                printf "| %s | %d | %d |\n", p, at[p], e;
+              }
+              total = now - at["setup"];
+              budget = budget_min * 60;
+              pct = (budget > 0 ? total * 100.0 / budget : 0);
+              printf "\n[VFS-DERIVED-BUDGET] total_elapsed_s=%d budget_s=%d used_pct=%.1f phases_marked=%d\n", total, budget, pct, n;
+              if (pct >= 85) printf "::warning::VFS Derived budget erosion CRITICAL: %.1f%% of its %d-minute timeout consumed. Re-derive the budget NOW.\n", pct, budget_min;
+              else if (pct >= 70) printf "::warning::VFS Derived budget erosion: %.1f%% of its %d-minute timeout consumed. Re-derive the budget.\n", pct, budget_min;
+            }
+          ' "$MARKS" | tee -a "$GITHUB_STEP_SUMMARY"
+          # `set -o pipefail` propagates the awk fail-closed exits through the tee pipeline.
 
   # V25.13: rss-feeds job DELETED — RSS gen moved into vfs-packing (now vfs-derived).
   # V27.40: vfs-packing further split into vfs-pack-db (heavy compute) + vfs-derived (light).
