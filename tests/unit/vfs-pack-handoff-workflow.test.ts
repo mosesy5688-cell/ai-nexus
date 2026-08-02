@@ -29,6 +29,14 @@ const packJob = jobBlock('vfs-pack-db');
 const derivedJob = jobBlock('vfs-derived');
 const uploadJob = jobBlock('upload');
 const MOD = 'scripts/factory/vfs-derived-handoff-manifest.mjs';
+// JOB-LEVEL timeout isolation (2026-08-01): jobBlock() includes the steps, so a bare
+// toContain('timeout-minutes: N') cannot tell a JOB ceiling from a STEP ceiling. Anchor on
+// indentation — the job key is the 4-space one ABOVE `steps:`. Local by design.
+function jobOwnTimeoutMinutes(job: string): number | null {
+    const head = job.slice(0, job.indexOf('\n    steps:'));
+    const m = /^ {4}timeout-minutes: *(\d+) *(#.*)?$/m.exec(head);
+    return m ? Number(m[1]) : null;
+}
 
 describe('D-245 PRIMARY producer (vfs-pack-db) — durable manifest-last R2 authority', () => {
     it('exports the VERIFIED vfs-pack identity as job outputs', () => {
@@ -224,9 +232,11 @@ describe('D-245 SCOPE GUARD — forbidden surfaces unchanged', () => {
         // no per-job `permissions:` block was introduced by this PR
         expect(yml).not.toMatch(/\n {4}permissions:/);
     });
-    it('job timeouts are intact (vfs-pack-db 330, vfs-derived 30, upload 330)', () => {
+    // 2026-08-01: vfs-derived JOB ceiling is 60 (was 30). The old toContain('timeout-minutes: 30')
+    // kept passing for the WRONG REASON — it matched the 8-space STEP key on the D-245 step.
+    it('job timeouts are intact (vfs-pack-db 330, vfs-derived JOB 60, upload 330)', () => {
         expect(packJob).toContain('timeout-minutes: 330');
-        expect(derivedJob).toContain('timeout-minutes: 30');
+        expect(jobOwnTimeoutMinutes(derivedJob)).toBe(60);  // the JOB's own 4-space key, never a step's
         expect(uploadJob).toContain('timeout-minutes: 330');
     });
     it('#NEG reverting the consumer to a restore-keys prefix or fixed-prefix recovery reds this gate', () => {
