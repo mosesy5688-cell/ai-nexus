@@ -63,59 +63,44 @@ jobs:
           if-no-files-found: error
 
       # ----------------------------------------------------------------------
-      # D-403 BRANCH-ONLY workflow_dispatch path: one-shot READ-ONLY registry
-      # evidence collection. Restore-only cache access with EXACT keys and no
-      # prefix-fallback lookup; R2 LIST/GET only (runtime allow-list in the
-      # collector). No cache save, no R2 write, no Factory dispatch, no retry.
-      # This block exists only on branch
+      # D-403 SUPPLEMENT, BRANCH-ONLY workflow_dispatch path. The PRE capture
+      # already ran and preserved only the DIGEST of state/indexnow-delta.json,
+      # so the URL difference set cannot be recomputed. This path preserves the
+      # RAW BODY before the running Factory 1/4 cycle overwrites the object.
+      #
+      # Deliberately narrower than the PRE capture: ONE exact GetObject, NO GHA
+      # cache restore, NO immutable-handoff recapture, and NO shard-decryption
+      # key (prohibited in this supplement). R2 access stays LIST/GET/HEAD-only
+      # via the shared runtime allow-list. No cache save, no R2 write, no
+      # Factory dispatch, no retry, no rerun. This block exists only on branch
       # audit/d403-registry-readonly-evidence-20260805 and is deleted with it.
       # ----------------------------------------------------------------------
       - name: Install dependencies (D-403)
         if: github.event_name == 'workflow_dispatch'
         run: npm ci --ignore-scripts
 
-      - name: Restore global registry cache (exact key, restore-only)
-        id: d403-registry-cache
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            cache/global-registry.json.zst
-            cache/registry/
-          key: global-registry-29963927733
-
-      - name: Restore upload manifest cache (exact key, restore-only)
-        id: d403-manifest-cache
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/cache/restore@v5
-        with:
-          path: output/cache/last-upload-manifest.json
-          key: r2-upload-manifest-30802427780-30815518168
-
-      - name: Collect D-403 read-only evidence
+      - name: Capture pre-cycle IndexNow delta raw body (single exact GET)
         if: github.event_name == 'workflow_dispatch'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          D403_BASE_SHA: 096e4b30c2ea9cbe1587868d651aa577762c7b49
-          D403_RESTORED_GLOBAL_REGISTRY: ${{ steps.d403-registry-cache.outputs.cache-matched-key }}
-          D403_RESTORED_UPLOAD_MANIFEST: ${{ steps.d403-manifest-cache.outputs.cache-matched-key }}
-        run: node scripts/audit/d403-evidence-collector.mjs
+          D403_BASE_SHA: 4bd92290fbece12ced8f3abea97fd0737ef7a203
+        run: node scripts/audit/d403-indexnow-supplement.mjs
 
       # Fail closed: the artifact is worthless without BOTH the report and the
       # package manifest, so a missing file is a hard red, never a warning.
       - name: Verify evidence package completeness
         if: always() && github.event_name == 'workflow_dispatch'
         run: |
-          test -s d403-evidence/report.json
-          test -s d403-evidence/package-manifest.json
+          test -s d403-indexnow-evidence/report.json
+          test -s d403-indexnow-evidence/package-manifest.json
 
-      - name: Upload D-403 evidence (single artifact)
+      - name: Upload D-403 supplemental evidence (single artifact)
         if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v6
         with:
-          name: d403-readonly-registry-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: d403-evidence/
+          name: d403-indexnow-supplement-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: d403-indexnow-evidence/
           retention-days: 35
           if-no-files-found: error
