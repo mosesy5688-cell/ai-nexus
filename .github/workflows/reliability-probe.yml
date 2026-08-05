@@ -63,44 +63,88 @@ jobs:
           if-no-files-found: error
 
       # ----------------------------------------------------------------------
-      # D-403 SUPPLEMENT, BRANCH-ONLY workflow_dispatch path. The PRE capture
-      # already ran and preserved only the DIGEST of state/indexnow-delta.json,
-      # so the URL difference set cannot be recomputed. This path preserves the
-      # RAW BODY before the running Factory 1/4 cycle overwrites the object.
+      # D-403 POST, BRANCH-ONLY workflow_dispatch path. The natural 1/4 (run
+      # 30978426411, attempt 1, schedule, head 096e4b30c) reached terminal
+      # success at 2026-08-05T08:48:17Z, so this path recovers the post-cycle
+      # evidence: the two immutable handoff registries (P, F), the harvest cycle
+      # cache (H), the global-registry cache (C), the current IndexNow delta, and
+      # the meta/backup/registry parts needed to byte-close the promotion
+      # finding. All identities are hardcoded; no discovery, no prefix fallback.
       #
-      # Deliberately narrower than the PRE capture: ONE exact GetObject, NO GHA
-      # cache restore, NO immutable-handoff recapture, and NO shard-decryption
-      # key (prohibited in this supplement). R2 access stays LIST/GET/HEAD-only
-      # via the shared runtime allow-list. No cache save, no R2 write, no
-      # Factory dispatch, no retry, no rerun. This block exists only on branch
+      # R2 access stays LIST/GET/HEAD-only via the shared runtime allow-list. No
+      # cache save/delete/reserve, no R2 write, no Factory dispatch, no retry,
+      # no rerun. This block exists only on branch
       # audit/d403-registry-readonly-evidence-20260805 and is deleted with it.
       # ----------------------------------------------------------------------
       - name: Install dependencies (D-403)
         if: github.event_name == 'workflow_dispatch'
         run: npm ci --ignore-scripts
 
-      - name: Capture pre-cycle IndexNow delta raw body (single exact GET)
+      # Both caches unpack into cache/, so the harvest cache is restored FIRST
+      # and its registry is moved aside before the global-registry cache lands.
+      # EXACT keys only, no prefix-fallback lookup, restore-only (never saved).
+      - name: Restore harvest cycle cache (exact key, restore-only)
+        id: d403-harvest-cache
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            data/merged_shard_*.json.zst
+            data/manifest.json
+            cache/
+          key: cycle-30978426411-harvest
+
+      # Conditional so a cache miss still reaches the collector, which is the
+      # fail-closed gate: it emits the STOP evidence and exits non-zero rather
+      # than this step failing silently early. No fallback key is ever tried.
+      - name: Set aside harvest registry
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ -d cache/registry ]; then
+            mv cache/registry h-registry
+          fi
+
+      - name: Restore global registry cache (exact key, restore-only)
+        id: d403-registry-cache
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            cache/global-registry.json.zst
+            cache/registry/
+          key: global-registry-29963927733
+
+      # The shard decryption secret is wired ONLY here, only for shard decoding.
+      # It is never echoed, interpolated into a shell command, or written to the
+      # report or artifact; the collector validates presence and format without
+      # printing it, and the guard asserts it appears exactly once in this file.
+      - name: Collect D-403 post-cycle evidence
         if: github.event_name == 'workflow_dispatch'
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          D403_BASE_SHA: 4bd92290fbece12ced8f3abea97fd0737ef7a203
-        run: node scripts/audit/d403-indexnow-supplement.mjs
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          D403_BASE_SHA: dca11869f13f6da60a80b4fe69537a2fef90a62e
+          D403_BUDGET_MINUTES: '44'
+          D403_RESTORED_HARVEST: ${{ steps.d403-harvest-cache.outputs.cache-matched-key }}
+          D403_RESTORED_GLOBAL_REGISTRY: ${{ steps.d403-registry-cache.outputs.cache-matched-key }}
+          NODE_OPTIONS: --max-old-space-size=5120
+        run: node scripts/audit/d403-post-collect.mjs
 
       # Fail closed: the artifact is worthless without BOTH the report and the
       # package manifest, so a missing file is a hard red, never a warning.
       - name: Verify evidence package completeness
         if: always() && github.event_name == 'workflow_dispatch'
         run: |
-          test -s d403-indexnow-evidence/report.json
-          test -s d403-indexnow-evidence/package-manifest.json
+          test -s d403-post-evidence/report.json
+          test -s d403-post-evidence/package-manifest.json
 
-      - name: Upload D-403 supplemental evidence (single artifact)
+      - name: Upload D-403 post-cycle evidence (single artifact)
         if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v6
         with:
-          name: d403-indexnow-supplement-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-          path: d403-indexnow-evidence/
+          name: d403-post-cycle-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: d403-post-evidence/
           retention-days: 35
           if-no-files-found: error

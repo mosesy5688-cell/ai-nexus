@@ -87,13 +87,17 @@ test('collector imports only read-only SDK commands', () => {
   assert.equal(/\brequire\s*\(/.test(src), false, 'require() is forbidden');
 });
 
-test('workflow keeps least privilege and never wires a decryption key', () => {
+test('workflow keeps least privilege and exact-key restore only', () => {
   const yml = fs.readFileSync(WORKFLOW, 'utf8');
   assert.match(yml, /permissions:\r?\n\s+contents: read\r?\n/);
   assert.equal(/^\s*(id-token|packages|actions|pull-requests|issues|deployments):\s*write/m.test(yml), false);
   assert.equal(/restore-keys/.test(yml), false, 'prefix-fallback cache lookup is forbidden');
-  assert.equal(/AES_CRYPTO_KEY/.test(yml), false, 'shard decryption key must never be wired');
   assert.match(yml, /if-no-files-found: error/);
+  // The shard decryption secret became authorized for the POST stage only. Its
+  // exact scoping (one occurrence, collector step, never echoed) is asserted in
+  // d403-post.test.mjs; the PRE surface must still never reference it.
+  const preSurface = fs.readFileSync(COLLECTOR, 'utf8') + fs.readFileSync(SUPPLEMENT, 'utf8');
+  assert.equal(/AES_CRYPTO_KEY|initShardCrypto/.test(preSurface), false);
 });
 
 test('supplement is a single-GET, no-cache, no-AES capture of the exact key', () => {
