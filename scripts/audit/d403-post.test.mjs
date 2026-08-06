@@ -80,20 +80,16 @@ test('POST modules import only read-only SDK commands and never dynamic-import',
   assert.equal(/\brequire\s*\(/.test(src), false);
 });
 
-test('AES key is wired ONLY in the POST collector step and never printed', () => {
+test('the POST collector is retained but is no longer reachable from any dispatch', () => {
+  // STEP 2 replaced the full-POST dispatch path with the target-isolated
+  // carrier. These modules stay on disk as the record of the POST run, but
+  // nothing may invoke them. AES scoping now belongs to the target step and is
+  // asserted in d403-target.test.mjs.
   const yml = fs.readFileSync(WORKFLOW, 'utf8');
-  const hits = yml.split(/\r?\n/).filter((l) => l.includes('AES_CRYPTO_KEY'));
-  assert.equal(hits.length, 1, 'AES_CRYPTO_KEY must appear exactly once');
-  assert.match(hits[0], /^ {10}AES_CRYPTO_KEY: \$\{\{ secrets\.AES_CRYPTO_KEY \}\}$/);
-  // It must sit inside the POST collector step, not any other step.
-  const step = yml.slice(yml.indexOf('- name: Collect D-403 post-cycle evidence'));
-  const block = step.slice(0, step.indexOf('- name: Verify evidence package completeness'));
-  assert.ok(block.includes('AES_CRYPTO_KEY'), 'AES must be scoped to the collector step');
-  // Never echoed, never interpolated into a shell command.
-  assert.equal(/echo[^\n]*AES_CRYPTO_KEY/.test(yml), false);
-  assert.equal(/\$AES_CRYPTO_KEY|\$\{AES_CRYPTO_KEY\}/.test(yml), false);
+  assert.equal(/d403-post-collect\.mjs/.test(yml), false, 'POST collector must not be invoked');
+  assert.equal(/d403-post-evidence/.test(yml), false, 'POST artifact path must be gone');
   const src = MODULES.map((f) => fs.readFileSync(f, 'utf8')).join('\n');
-  assert.equal(/console\.[a-z]+\([^\n]*AES_CRYPTO_KEY/.test(src), false, 'key must never be logged');
+  assert.equal(/console\.[a-z]+\([^\n]*(AES_CRYPTO_KEY|SECRET)/.test(src), false, 'key must never be logged');
 });
 
 test('identity field is the single authoritative `id` with no fallback chain', () => {
