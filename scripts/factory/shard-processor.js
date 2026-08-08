@@ -23,6 +23,7 @@ import { loadEntityChecksums, loadDailyAccum, loadFniHistory } from './lib/cache
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { initR2Bridge, createR2ClientFFI, downloadFromR2FFI } from './lib/r2-bridge.js';
 import { initRustBridge } from './lib/rust-bridge.js';
+import { evaluateShardAccounting, formatAccountingTerminal, formatShardAccountingTelemetry } from './lib/shard-accounting-gate.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -142,8 +143,10 @@ async function main() {
 
     let entityIndex = 0;       // total lines seen on the input stream (for zero-loss guard)
     let processedCount = 0;    // entities actually processed in this run
-    let successCount = 0;
+    let successCount = 0;      // returns with result.success === true
     let writtenCount = 0;      // entities serialized to outStream (for comma framing)
+    // D-6: processedCount conflated success with failure. These split it apart.
+    let malformedCount = 0, failedCount = 0, writeErrorCount = 0;
     const startTime = Date.now();
 
     for await (const line of lineSource) {
@@ -154,6 +157,7 @@ async function main() {
             entity = JSON.parse(line);
         } catch (e) {
             console.warn(`[SHARD ${shardId}] ⚠️ Skipping malformed NDJSON line (${e.message}): ${line.slice(0, 120)}`);
+            malformedCount++;
             entityIndex++;
             continue;
         }
@@ -161,7 +165,9 @@ async function main() {
         try {
             const result = await processEntity(entity, globalStats, entityChecksums, fniHistory, CONFIG);
 
-            if (result.success) successCount++;
+            // D-6: processEntity RETURNS {success:false} on entity failure (it never
+            // throws for that), so success and failure must be counted separately here.
+            if (result.success) successCount++; else failedCount++;
             processedCount++;
 
             const comma = writtenCount === 0 ? '' : ',\n';
@@ -175,26 +181,41 @@ async function main() {
             }
         } catch (e) {
             console.error(`[SHARD ${shardId}] Error processing ${entity?.id}:`, e.message);
+            writeErrorCount++;
             processedCount++;
         }
 
         entityIndex++;
     }
 
-    // V56.2: Hard fail on zero entities — never silently produce empty shards.
-    // entityIndex == 0 means the input stream produced no parseable lines at all
-    // (truly broken). processedCount == 0 with lines seen means every entity
-    // errored in processEntity — also a silent loss scenario.
+    // D-6 ACCOUNTING GATE. Three ORDERED terminals; the order is load-bearing.
+    // For an empty input all three predicates are true, and for an all-malformed
+    // input the last two are, so moving the new guard up would silently steal
+    // both pinned terminal messages (mutation M-D6.c makes that falsifiable).
+    //   entityIndex === 0    -> nothing parseable was streamed at all.
+    //   processedCount === 0 -> lines were seen but EVERY ONE failed JSON.parse.
+    //     (It does NOT mean "every entity errored in processEntity": processEntity
+    //      returns {success:false} instead of throwing, so a failing entity still
+    //      increments processedCount. That case is caught by the third guard.)
+    //   successCount === 0   -> entities were processed and NONE succeeded.
+    const accounting = evaluateShardAccounting({
+        totalSeen: entityIndex, malformedCount, processedCount, successCount, failedCount, writeErrorCount,
+    });
+    console.log(formatShardAccountingTelemetry(shardId, accounting));
     if (entityIndex === 0) {
         throw new Error(`Shard ${shardId} streamed 0 entities from ${shardFilePath} — refusing silent loss`);
     }
     if (processedCount === 0) {
         throw new Error(`Shard ${shardId} processed 0 entities (saw ${entityIndex} lines) — refusing silent loss`);
     }
+    if (successCount === 0 && processedCount > 0) {
+        throw new Error(formatAccountingTerminal(shardId, shardFilePath, accounting));
+    }
 
-    // Footer
+    // Footer. FLAT SCALARS ONLY: aggregator-stream-utils.js scans every depth-1
+    // `{...}` as an entity candidate, so a nested object here would be parsed as one.
     const timestamp = new Date().toISOString();
-    await safeWrite(`\n],\n"timestamp":"${timestamp}",\n"processedCount":${processedCount},\n"successCount":${successCount},\n"totalSeen":${entityIndex},\n"version":"56.2-streaming"\n}`);
+    await safeWrite(`\n],\n"timestamp":"${timestamp}",\n"processedCount":${processedCount},\n"successCount":${successCount},\n"failedCount":${failedCount},\n"malformedCount":${malformedCount},\n"writeErrorCount":${writeErrorCount},\n"totalSeen":${entityIndex},\n"version":"56.2-streaming"\n}`);
 
     // Finalize
     outStream.end();

@@ -9,7 +9,7 @@
  * here; this file only wires the streams and the operands into it.
  *
  * WHY THE CEILINGS ARE PARAMETERS, NOT MODULE CONSTANTS
- * shard-oom-deployed-wiring.test.mjs proves the R2a pin is falsifiable by
+ * shard-oom-slow.test.mjs proves the R2a pin is falsifiable by
  * neutering the ceiling literals INSIDE the deployed shard-processor.js text.
  * Passing both ceilings in from that call site keeps the deployed wiring
  * visible — and mutable — exactly where that test expects to find it. Hoisting
