@@ -102,3 +102,8 @@ upload-checkpoint.json
 test-results/
 playwright-report/
 playwright/.cache/
+
+# D-2026-0806-404: scratch mutant copies written by hermetic mutation tests.
+# A killed run must never leave a production-code copy sweepable into a commit.
+scripts/factory/.tmp-mutant-*.js
+scripts/factory/lib/.tmp-mutant-*.js

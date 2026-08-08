@@ -14,14 +14,17 @@
 import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
-import readline from 'readline';
 import { once } from 'events';
+import { readNdjsonLines, MAX_RECORD_BYTES, READER_RETAINED_CAP_BYTES, RecordSizeLimitExceededError } from './lib/ndjson-byte-reader.js';
+import { evaluateShardMemoryGate, projectShardPeakHeapBytes, scanShardProfile, formatShardGateTelemetry } from './lib/shard-memory-gate.js';
 import { processEntity } from './lib/processor-core.js';
 import { zstdCompress, autoDecompress, createZstdCompressStream, createAutoDecompressStream } from './lib/zstd-helper.js';
 import { loadEntityChecksums, loadDailyAccum, loadFniHistory } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import { initR2Bridge, createR2ClientFFI, downloadFromR2FFI } from './lib/r2-bridge.js';
 import { initRustBridge } from './lib/rust-bridge.js';
+import os from 'os';
+import { readOldSpaceLimitBytes } from './lib/runner-capacity-preflight.mjs';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -97,6 +100,36 @@ async function main() {
 
     await ensureLocalShard();
 
+    // R3: consumer-side PROCESS_SHARD gate. Bounded prefix scan of line byte
+    // lengths (no parse), then a decision rule with comparisonFactor 1.0 and an
+    // explicit reserve - NOT the old clearlyFactor 1.5, which a perfect
+    // 6.03 GiB estimate still cleared. Detection only; R1 is the repair.
+    const gateRs = fsSync.createReadStream(shardFilePath);
+    const gateProfile = await scanShardProfile(
+        readNdjsonLines(gateRs.pipe(createAutoDecompressStream()), {
+            shardId, inputIdentity: shardFilePath, maxRecordBytes: MAX_RECORD_BYTES,
+        })
+    );
+    gateRs.destroy();
+    const gateDecision = evaluateShardMemoryGate({
+        phase: 'PROCESS_SHARD',
+        projectedPeakHeapBytes: projectShardPeakHeapBytes({
+            baseContextBytes: process.memoryUsage().heapUsed,
+            readerRetainedCapBytes: READER_RETAINED_CAP_BYTES,
+            maxRecordBytes: gateProfile.maxRecordBytes,
+        }),
+        oldSpaceLimitBytes: readOldSpaceLimitBytes(),
+        availableRamBytes: os.totalmem(),
+        maxRecordBytes: gateProfile.maxRecordBytes,
+        recordCeilingBytes: MAX_RECORD_BYTES,
+    });
+    console.log(formatShardGateTelemetry(shardId, gateProfile, gateDecision));
+    if (!gateDecision.ok) {
+        throw new Error(`${gateDecision.terminalCode}: shard=${shardId} input=${shardFilePath} ` +
+            `reasons=${gateDecision.reasons.join(',')} projected=${gateDecision.projectedPeakHeapBytes} ` +
+            `usable=${gateDecision.usableBytes} maxRecordBytes=${gateProfile.maxRecordBytes}`);
+    }
+
     // V18.12.5.21: Industrial Streaming Output (Art 3.4) — open BEFORE the read loop
     // so the read→process→write pipeline runs end-to-end without buffering entities.
     const outPath = path.join(CONFIG.ARTIFACT_DIR, `shard-${shardId}.json.zst`);
@@ -121,9 +154,13 @@ async function main() {
     fileRs.on('error', e => { console.error(`[SHARD ${shardId}] Read stream error: ${e.message}`); process.exit(1); });
     decompStream.on('error', e => { console.error(`[SHARD ${shardId}] Decompress error: ${e.message}`); process.exit(1); });
     outStream.on('error', e => { console.error(`[SHARD ${shardId}] Write stream error: ${e.message}`); process.exit(1); });
-    const rl = readline.createInterface({
-        input: fileRs.pipe(decompStream),
-        crlfDelay: Infinity
+    // R1: byte-bounded reader replaces readline's count-bounded (~1,024 line)
+    // read-ahead. R2a: the same reader enforces the per-record ceiling before
+    // any JSON.parse, fail-closed, with no skip/truncate/degrade path.
+    const lineSource = readNdjsonLines(fileRs.pipe(decompStream), {
+        shardId,
+        inputIdentity: shardFilePath,
+        maxRecordBytes: MAX_RECORD_BYTES,
     });
 
     // Backpressure-aware write helper: respect outStream.write() returning false.
@@ -137,7 +174,7 @@ async function main() {
     let writtenCount = 0;      // entities serialized to outStream (for comma framing)
     const startTime = Date.now();
 
-    for await (const line of rl) {
+    for await (const line of lineSource) {
         if (!line) continue;
 
         let entity;
@@ -201,6 +238,11 @@ async function main() {
 }
 
 main().catch(err => {
+    // R2a: a record-ceiling breach is a NAMED terminal. No record content is
+    // logged; only identity and measurement travel with the error.
+    if (err instanceof RecordSizeLimitExceededError) {
+        console.error(`[SHARD ${err.shardId}] ${err.terminalCode}`);
+    }
     console.error('Fatal Shard Error:', err);
     process.exit(1);
 });
