@@ -6,16 +6,18 @@
 // WHY IT IS SLOW, AND WHY IT MUST STAY SLOW
 // Both cases below drive the REAL shard-processor.js over a synthetic shard
 // holding a record of MAX_RECORD_BYTES + 1 (= 64 MiB + 1). Measured on this
-// worktree: DEPLOYED 245.4s, MUTATION 278.6s, 524.3s for the file. The cost IS
-// the coverage: shrinking the fixture below the production ceiling would stop
-// proving that the PRODUCTION constant is the one that is wired.
+// worktree, two runs: DEPLOYED 158.4s / 245.4s, MUTATION 239.5s / 278.6s
+// (the higher pair was taken under concurrent CPU load, so treat ~400s for the
+// file as the floor, not a ceiling). The cost IS the coverage: shrinking the
+// fixture below the production ceiling would stop proving that the PRODUCTION
+// constant is the one that is wired.
 //
 // GAP-5 slow tests were MOVED, NOT SHORTENED - shortening would no longer prove
 // the production constants are wired.
 //
-// The fast OOM suite is therefore the explicit list (all sub-second):
-//   shard-oom-ceiling / shard-oom-chunking / shard-oom-q8-invariant /
-//   shard-oom-repair / shard-oom-m8f-probe
+// The fast OOM set (ceiling / chunking / q8-invariant / repair / m8f-probe)
+// completes in well under a minute - 26.6 s measured, dominated by repair
+// 24.9 s and ceiling 4.2 s - whereas this file alone takes ~7 min uncontended.
 // NOTE: a `shard-oom-*.test.mjs` GLOB still matches this file. Select the fast
 // set by explicit list, which is also how .github/workflows/test-suite.yml
 // invokes `node --test`. No workflow is changed by D-405 A1; CI hook-up for
