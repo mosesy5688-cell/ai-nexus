@@ -1,3 +1,26 @@
+// ============================ SLOW SUITE ============================
+// D-2026-0808-405 A1 ②: this file was MOVED here from
+// scripts/factory/shard-oom-deployed-wiring.test.mjs. Nothing below this
+// header changed - the move is byte-for-byte.
+//
+// WHY IT IS SLOW, AND WHY IT MUST STAY SLOW
+// Both cases below drive the REAL shard-processor.js over a synthetic shard
+// holding a record of MAX_RECORD_BYTES + 1 (= 64 MiB + 1). Measured on this
+// worktree: DEPLOYED 245.4s, MUTATION 278.6s, 524.3s for the file. The cost IS
+// the coverage: shrinking the fixture below the production ceiling would stop
+// proving that the PRODUCTION constant is the one that is wired.
+//
+// GAP-5 slow tests were MOVED, NOT SHORTENED - shortening would no longer prove
+// the production constants are wired.
+//
+// The fast OOM suite is therefore the explicit list (all sub-second):
+//   shard-oom-ceiling / shard-oom-chunking / shard-oom-q8-invariant /
+//   shard-oom-repair / shard-oom-m8f-probe
+// NOTE: a `shard-oom-*.test.mjs` GLOB still matches this file. Select the fast
+// set by explicit list, which is also how .github/workflows/test-suite.yml
+// invokes `node --test`. No workflow is changed by D-405 A1; CI hook-up for
+// both the fast set and this slow file is left to a later ruling.
+// ====================================================================
 // D-2026-0806-404 GAP 5: bind the R2a pin to the DEPLOYED path.
 // This test executes the PRODUCTION scripts/factory/shard-processor.js entry -
 // not a reimplementation - and then re-executes a SCRATCH COPY of that same file
