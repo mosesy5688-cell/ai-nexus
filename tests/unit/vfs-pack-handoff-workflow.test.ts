@@ -232,11 +232,11 @@ describe('D-245 SCOPE GUARD — forbidden surfaces unchanged', () => {
         // no per-job `permissions:` block was introduced by this PR
         expect(yml).not.toMatch(/\n {4}permissions:/);
     });
-    // 2026-08-01: vfs-derived JOB ceiling is 60 (was 30). The old toContain('timeout-minutes: 30')
-    // kept passing for the WRONG REASON — it matched the 8-space STEP key on the D-245 step.
-    it('job timeouts are intact (vfs-pack-db 330, vfs-derived JOB 60, upload 330)', () => {
+    // vfs-derived JOB ceiling: 30 -> 60 (2026-08-01) -> 75 (T2, D-2026-0808-405). The old
+    // toContain('timeout-minutes: 30') passed for the WRONG REASON: it matched the STEP key.
+    it('job timeouts are intact (vfs-pack-db 330, vfs-derived JOB 75, upload 330)', () => {
         expect(packJob).toContain('timeout-minutes: 330');
-        expect(jobOwnTimeoutMinutes(derivedJob)).toBe(60);  // the JOB's own 4-space key, never a step's
+        expect(jobOwnTimeoutMinutes(derivedJob)).toBe(75);  // the JOB's own 4-space key, never a step's
         expect(uploadJob).toContain('timeout-minutes: 330');
     });
     it('#NEG reverting the consumer to a restore-keys prefix or fixed-prefix recovery reds this gate', () => {

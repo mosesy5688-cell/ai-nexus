@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { createR2Client, fetchR2Etags } from './r2-helpers.js';
 import { isUploadEligible } from './upload-eligibility.js';
+import { createRestoreProgress } from './r2-restore-progress.js';
 import { PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
@@ -165,11 +166,15 @@ export async function restoreDirectoryFromR2(r2Prefix, localDir, opts = {}) {
     const { concurrency = 5, strict = false } = opts;
     const restoreEach = async (keys, prefix) => {
         const restored = new Set(), failedArr = [];
-        for (let i = 0; i < keys.length; i += concurrency) {
-            await Promise.all(keys.slice(i, i + concurrency).map(async (rel) => {
-                try { await getObjectWithClient(s3, prefix + rel, path.join(localDir, rel)); restored.add(rel); } catch { failedArr.push(rel); }
-            }));
-        }
+        // T3: observation only. No retry/success/strict semantics are read or changed here.
+        const prog = createRestoreProgress({ expected: keys.length, concurrency });
+        try {
+            for (let i = 0; i < keys.length; i += concurrency) {
+                await Promise.all(keys.slice(i, i + concurrency).map(async (rel) => {
+                    try { const g = await getObjectWithClient(s3, prefix + rel, path.join(localDir, rel)); restored.add(rel); prog.onRestored(g && g.size); } catch { failedArr.push(rel); prog.onFailed(); }
+                }));
+            }
+        } finally { prog.stop(failedArr.length ? 'complete_with_failures' : 'complete'); }
         return { restored, failedArr };
     };
     // 1. Manifest GET via the shared retry/classifier.

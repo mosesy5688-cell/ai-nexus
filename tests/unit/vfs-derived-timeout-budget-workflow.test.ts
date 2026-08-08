@@ -1,7 +1,8 @@
 // tests/unit/vfs-derived-timeout-budget-workflow.test.ts
 // T-1 (2026-08-01 VFS Derived timeout repair). STATIC workflow invariants pinning the
-// MEASURED 60-minute job budget, the tied VFS_DERIVED_TIMEOUT_MIN telemetry value, the two
-// new STEP-level ceilings, and the ABSENCE of the two obsolete runtime claims.
+// MEASURED 75-minute job budget (T2, D-2026-0808-405; was 60), the tied
+// VFS_DERIVED_TIMEOUT_MIN telemetry value, the two STEP-level ceilings (D-245 45, SQL 25),
+// and the ABSENCE of the two obsolete runtime claims.
 //
 // Evidence anchor: run 30630342243 (2026-07-31) — VFS Derived cancelled at 30m09s with only
 // 81 of 98 databases health-verified. The three preceding successes measured 25m38s / 25m39s
@@ -13,8 +14,8 @@
 // smuggle in an undeclared dependency). Anchoring is strictly STRONGER than substring
 // matching: a value inside a COMMENT can never satisfy `^ {n}key:`, and a value belonging to a
 // LATER step is outside the sliced block entirely. That matters acutely here — the repaired
-// job legitimately contains a STEP-level `timeout-minutes: 30`, so a naive
-// `toContain('timeout-minutes: 30')` would pass for the WRONG REASON.
+// job legitimately contains a STEP-level `timeout-minutes: 45`, so a naive
+// `toContain('timeout-minutes: 45')` would pass for the WRONG REASON.
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -68,14 +69,15 @@ const derivedHead = derived.slice(0, derived.indexOf('\n    steps:'));
 // `derived`. The evidence anchor is asserted against this slice specifically.
 const derivedDoc = precedingComments(yml, 'vfs-derived:', 2);
 
-describe('T-1 VFS Derived job budget — the 60-minute ceiling is OWNED, not merely present', () => {
-    it('the vfs-derived JOB owns timeout-minutes 60 (not 30, not a step-level value)', () => {
-        expect(ownNumber(derivedHead, 'timeout-minutes', 4)).toBe(60);
+describe('T-1/T2 VFS Derived job budget — the 75-minute ceiling is OWNED, not merely present', () => {
+    it('the vfs-derived JOB owns timeout-minutes 75 (not 45, not a step-level value)', () => {
+        expect(ownNumber(derivedHead, 'timeout-minutes', 4)).toBe(75);
         // The stale value must not survive at JOB level. This is the assertion a naive
-        // whole-job `toContain('timeout-minutes: 30')` cannot make, because the repaired job
-        // deliberately carries a STEP-level 30 on the D-245 recovery step.
-        expect(ownNumber(derivedHead, 'timeout-minutes', 4)).not.toBe(30);
-        expect(derivedHead).not.toMatch(/^ {4}timeout-minutes: 30 *$/m);
+        // whole-job `toContain('timeout-minutes: 45')` cannot make, because the repaired job
+        // deliberately carries a STEP-level 45 on the D-245 recovery step.
+        expect(ownNumber(derivedHead, 'timeout-minutes', 4)).not.toBe(45);
+        expect(derivedHead).not.toMatch(/^ {4}timeout-minutes: 45 *$/m);
+        expect(derivedHead).not.toMatch(/^ {4}timeout-minutes: 60 *$/m);
     });
 
     it('the tied telemetry budget VFS_DERIVED_TIMEOUT_MIN exists and is NUMERICALLY EQUAL to the literal', () => {
@@ -84,22 +86,22 @@ describe('T-1 VFS Derived job budget — the 60-minute ceiling is OWNED, not mer
         // preventing the two from silently diverging.
         const m = derivedHead.match(/^ {6}VFS_DERIVED_TIMEOUT_MIN: '(\d+)'$/m);
         expect(m, 'job env VFS_DERIVED_TIMEOUT_MIN not found at 6-space indent').not.toBeNull();
-        expect(Number(m![1])).toBe(60);
+        expect(Number(m![1])).toBe(75);
         expect(Number(m![1])).toBe(ownNumber(derivedHead, 'timeout-minutes', 4));
     });
 
     it('the env value lives in the JOB block, above steps: (a step env cannot satisfy the budget reporter)', () => {
         expect(derivedHead).toMatch(/^ {4}env:$/m);
-        expect(derivedHead).toContain("VFS_DERIVED_TIMEOUT_MIN: '60'");
+        expect(derivedHead).toContain("VFS_DERIVED_TIMEOUT_MIN: '75'");
     });
 });
 
 describe('T-1 STEP-level ceilings — the two hang paths fail BEFORE the job ceiling', () => {
-    it('the D-245 R2 recovery step OWNS timeout-minutes 30 (worst observed 17m02s -> 1.76x)', () => {
+    it('the D-245 R2 recovery step OWNS timeout-minutes 45 (new lower bound 30m13s -> ~1.49x)', () => {
         const s = step(derived, 'Verify or Recover VFS Pack from Exact Staging (D-245)');
         // right step: the R2 exact-staging role restores are its body
         expect(s).toContain('restore-dir "${STAGING_PREFIX}meta/" output/data/ --strict');
-        expect(ownNumber(s, 'timeout-minutes', 8)).toBe(30);
+        expect(ownNumber(s, 'timeout-minutes', 8)).toBe(45);
     });
 
     it('the V23.1 SQL Health Check step OWNS timeout-minutes 25 (full-set projection 13m06s -> 1.91x)', () => {
@@ -149,42 +151,56 @@ describe('T-1 obsolete runtime claims are GONE and replaced by a re-derivable ev
         expect(derivedDoc).toContain('NO measurement behind it');
     });
 
+    it('T2 the 75/45 re-derivation is RE-DERIVABLE from the job doc block', () => {
+        // DOCUMENTATION-DRIFT TIE for D-2026-0808-405. Changing 75 or 45 without updating
+        // the recorded derivation reds this.
+        expect(derivedDoc).toContain('D-2026-0808-405');
+        expect(derivedDoc).toContain('30m13s');      // the NEW D-245 lower bound
+        expect(derivedDoc).toContain('1.49x');       // 45 min vs that lower bound
+        expect(derivedDoc).toContain('30 -> 45');    // the step move
+        expect(derivedDoc).toContain('60 -> 75');    // the job move
+        expect(derivedDoc).toContain('~16 minutes'); // non-D-245 aggregate
+        expect(derivedDoc).toContain('~14 minutes'); // residual job budget
+        expect(derivedDoc).toContain('90 minutes remains UNSUPPORTED');
+    });
+
     it('#NEG the rejected alternatives are never adopted as the literal ceiling', () => {
         expect(derived).not.toMatch(/^ {4}timeout-minutes: 90 *$/m);
         expect(derived).not.toMatch(/^ {4}timeout-minutes: 35 *$/m);
         expect(derived).not.toMatch(/^ {4}timeout-minutes: 45 *$/m);
+        expect(derived).not.toMatch(/^ {4}timeout-minutes: 60 *$/m);
     });
 });
 
 describe('T-1 READER anti-vacuity — the anchored reader rejects the two weakenings', () => {
     it('a commented value and a later-step value can never satisfy ownNumber', () => {
         const fake = [
-            '  vfs-derived:', '    name: VFS Derived', '    timeout-minutes: 60',
-            '    # timeout-minutes: 30', '    env:', "      VFS_DERIVED_TIMEOUT_MIN: '60'",
+            '  vfs-derived:', '    name: VFS Derived', '    timeout-minutes: 75',
+            '    # timeout-minutes: 45', '    env:', "      VFS_DERIVED_TIMEOUT_MIN: '75'",
             '    steps:',
             '      - name: Verify or Recover VFS Pack from Exact Staging (D-245)',
-            '        timeout-minutes: 30',
+            '        timeout-minutes: 45',
             '      - name: V23.1 SQL Health Check', '        timeout-minutes: 25', '',
         ].join('\n');
         const job = block(fake, 'vfs-derived:', 2);
         const head = job.slice(0, job.indexOf('\n    steps:'));
-        expect(ownNumber(head, 'timeout-minutes', 4)).toBe(60);      // NOT the commented 30
-        expect(head).toContain('# timeout-minutes: 30');             // the comment IS present...
-        expect(ownNumber(head, 'timeout-minutes', 4)).not.toBe(30);  // ...and still does not count
+        expect(ownNumber(head, 'timeout-minutes', 4)).toBe(75);      // NOT the commented 45
+        expect(head).toContain('# timeout-minutes: 45');             // the comment IS present...
+        expect(ownNumber(head, 'timeout-minutes', 4)).not.toBe(45);  // ...and still does not count
         // and the STEP-level 30 does not leak upward into the job-level read
-        expect(ownNumber(step(job, 'Verify or Recover VFS Pack from Exact Staging (D-245)'), 'timeout-minutes', 8)).toBe(30);
+        expect(ownNumber(step(job, 'Verify or Recover VFS Pack from Exact Staging (D-245)'), 'timeout-minutes', 8)).toBe(45);
         expect(ownNumber(step(job, 'V23.1 SQL Health Check'), 'timeout-minutes', 8)).toBe(25);
     });
 
-    it('#NEG a job that reverted to 30 reds the job-level assertion (mutation proof)', () => {
-        const reverted = derivedHead.replace(/^ {4}timeout-minutes: 60 *$/m, '    timeout-minutes: 30');
+    it('#NEG a job that reverted to 60 reds the job-level assertion (mutation proof)', () => {
+        const reverted = derivedHead.replace(/^ {4}timeout-minutes: 75 *$/m, '    timeout-minutes: 60');
         expect(reverted).not.toBe(derivedHead); // the mutation actually applied
-        expect(ownNumber(reverted, 'timeout-minutes', 4)).toBe(30);
-        expect(ownNumber(reverted, 'timeout-minutes', 4)).not.toBe(60);
+        expect(ownNumber(reverted, 'timeout-minutes', 4)).toBe(60);
+        expect(ownNumber(reverted, 'timeout-minutes', 4)).not.toBe(75);
     });
 
     it('#NEG a drifted VFS_DERIVED_TIMEOUT_MIN reds the numeric tie (mutation proof)', () => {
-        const drifted = derivedHead.replace("VFS_DERIVED_TIMEOUT_MIN: '60'", "VFS_DERIVED_TIMEOUT_MIN: '30'");
+        const drifted = derivedHead.replace("VFS_DERIVED_TIMEOUT_MIN: '75'", "VFS_DERIVED_TIMEOUT_MIN: '60'");
         expect(drifted).not.toBe(derivedHead);
         const m = drifted.match(/^ {6}VFS_DERIVED_TIMEOUT_MIN: '(\d+)'$/m);
         expect(Number(m![1])).not.toBe(ownNumber(derivedHead, 'timeout-minutes', 4));

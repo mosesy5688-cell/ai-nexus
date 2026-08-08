@@ -205,23 +205,24 @@ describe('SCOPE GUARD — no meta-set regression, permissions + timeouts intact'
         expect(yml).not.toMatch(/\n {4}permissions:/);
     });
     // 2026-08-01: the vfs-derived JOB ceiling moved 30 -> 60 (measured; incident run
-    // 30630342243) and a 30-minute STEP ceiling was added to the D-245 recovery step. The
+    // 30630342243) and a 30-minute STEP ceiling was added to the D-245 recovery step.
+    // T2 (D-2026-0808-405): JOB 60 -> 75 and the D-245 STEP 30 -> 45 (new lower bound 30m13s). The
     // previous assertion here was `expect(derivedJob).toContain('timeout-minutes: 30')`, which
     // then kept passing for the WRONG REASON: jobBlock() includes the steps, so the substring
     // was satisfied by the 8-space STEP key while the 4-space JOB key had already become 60.
     // Job-level and step-level are now asserted as SEPARATE, indentation-anchored contracts.
-    it('job timeouts intact (mesh-baking 330, vfs-pack-db 330, vfs-derived JOB 60, upload 330)', () => {
+    it('job timeouts intact (mesh-baking 330, vfs-pack-db 330, vfs-derived JOB 75, upload 330)', () => {
         expect(meshJob).toContain('timeout-minutes: 330');
         expect(packJob).toContain('timeout-minutes: 330');
-        expect(jobOwnTimeoutMinutes(derivedJob)).toBe(60);      // the JOB's own 4-space key only
-        expect(jobOwnTimeoutMinutes(derivedJob)).not.toBe(30);  // the old 30-minute ceiling is GONE
+        expect(jobOwnTimeoutMinutes(derivedJob)).toBe(75);      // the JOB's own 4-space key only
+        expect(jobOwnTimeoutMinutes(derivedJob)).not.toBe(60);  // the pre-T2 60-minute ceiling is GONE
         expect(uploadJob).toContain('timeout-minutes: 330');
     });
-    it('STEP-LEVEL contract (distinct from the job ceiling): D-245 recovery 30, SQL health 25', () => {
+    it('STEP-LEVEL contract (distinct from the job ceiling): D-245 recovery 45, SQL health 25', () => {
         // Labelled and scoped explicitly so the surviving `30` can never again be mistaken for
         // the job ceiling. Read from each step's OWN bounds, never from the job region.
         const D245 = 'Verify or Recover VFS Pack from Exact Staging (D-245)';
-        expect(stepOwnTimeoutMinutes(derivedJob, D245)).toBe(30);
+        expect(stepOwnTimeoutMinutes(derivedJob, D245)).toBe(45);
         expect(stepOwnTimeoutMinutes(derivedJob, 'V23.1 SQL Health Check')).toBe(25);
         // the two levels are genuinely different values, so neither can silently stand in for the other
         expect(stepOwnTimeoutMinutes(derivedJob, D245)).not.toBe(jobOwnTimeoutMinutes(derivedJob));

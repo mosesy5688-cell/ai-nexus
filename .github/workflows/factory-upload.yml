@@ -1590,6 +1590,16 @@ jobs:
   # 1.5x R2 tail excursion AND +25% hash-shard count) = 44m51s. 60 minutes carries 1.74x
   # over the worst behaviour ever observed and 1.34x over the growth model; 90 minutes has
   # NO measurement behind it and would only delay incident detection.
+  # T2 RE-DERIVATION (D-2026-0808-405). A NEW observation moved the D-245 recovery lower
+  # bound to ~30m13s, which EXCEEDS the previous 30-minute step ceiling outright: that step
+  # could no longer complete even in the newly observed best case, so the ceiling itself had
+  # become the failure. The step ceiling moves 30 -> 45 minutes = ~1.49x that 30m13s lower
+  # bound. The non-D-245 phases (setup + restore + sitemap + RSS + mesh-profiles + SQL
+  # health + cache saves) measure ~16 minutes in aggregate, so the job ceiling moves
+  # 60 -> 75 minutes: even if the D-245 step consumes its full 45, ~14 minutes of job budget
+  # remain beyond the ~16-minute remainder. 90 minutes remains UNSUPPORTED by measurement
+  # and is NOT authorized. All fail-closed behaviour is preserved: no timeout is removed, no
+  # step ceiling is raised to equal the job ceiling, and the SQL health ceiling stays at 25.
   # DO NOT TRUST THIS NUMBER - RE-DERIVE IT: the budget reporter at the end of this job
   # prints [VFS-DERIVED-BUDGET] used_pct every run and warns at 70% / 85%.
   # Recovery: GHA UI "Re-run failed jobs" — run_id stable. The former five-minute
@@ -1602,9 +1612,9 @@ jobs:
   # the end of this job is REQUIRED to execute after an ordinary step failure and after a
   # STEP-level timeout where the runner remains available. Its execution is NOT guaranteed
   # after a JOB-level timeout, an external cancellation, or runner loss - in those cases
-  # reporting is BEST-EFFORT ONLY. The step-level timeouts added below (30 min on the D-245
+  # reporting is BEST-EFFORT ONLY. The step-level timeouts added below (45 min on the D-245
   # R2 recovery, 25 min on the SQL health check) are valuable because they convert the two
-  # main hang paths into `failure` BEFORE the 60-minute job ceiling, which RAISES THE
+  # main hang paths into `failure` BEFORE the 75-minute job ceiling, which RAISES THE
   # PROBABILITY that the reporter runs. That is a probability improvement, NOT a guarantee.
   vfs-derived:
     name: VFS Derived (Sitemap + RSS + Health)
@@ -1614,9 +1624,9 @@ jobs:
     # `timeout-minutes:` key, so the literal here and VFS_DERIVED_TIMEOUT_MIN below are a
     # DELIBERATE duplicate. tests/unit/vfs-derived-timeout-budget-workflow.test.ts ties the
     # two numerically so they can never drift apart.
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
-      VFS_DERIVED_TIMEOUT_MIN: '60'
+      VFS_DERIVED_TIMEOUT_MIN: '75'
     # D-245 SECONDARY: expose the VERIFIED vfs-derived (sitemaps + RSS) R2 authority so
     # Final Upload publishes ONLY the current-cycle sitemap/RSS identity (the sitemap/RSS
     # GHA caches have no R2 fallback, so the same token denial could otherwise ship a
@@ -1677,13 +1687,17 @@ jobs:
       # SAME attempt prefix, and warm is then VERIFIED (not ignored via --ext=.db) so a
       # missing/stale warm-tier artifact fails BEFORE the SQL health check + sitemap gen.
       - name: Verify or Recover VFS Pack from Exact Staging (D-245)
-        # STEP-LEVEL CEILING (2026-08-01): worst observed 17m02s (run 30630342243) -> 30 min
-        # = 1.76x. A genuinely HUNG R2 restore now fails THIS STEP with conclusion `failure`
-        # instead of silently consuming the whole job budget and surfacing as an ambiguous
-        # job-level `cancelled`. It also fails BEFORE the 60-minute job ceiling, which RAISES
-        # THE PROBABILITY that the always() budget reporter still executes - best-effort, not
-        # guaranteed (see the TELEMETRY BOUNDARY note on this job).
-        timeout-minutes: 30
+        # STEP-LEVEL CEILING. Originally 30 min against a worst observed 17m02s (run
+        # 30630342243) = 1.76x. T2 (D-2026-0808-405) raises it to 45 min: a NEW observation
+        # put this step's LOWER bound at ~30m13s, which exceeds the old 30-minute ceiling
+        # outright, so the ceiling had itself become the failure. 45 min = ~1.49x that
+        # 30m13s lower bound. A genuinely HUNG R2 restore still fails THIS STEP with
+        # conclusion `failure` instead of silently consuming the whole job budget and
+        # surfacing as an ambiguous job-level `cancelled`. It still fails BEFORE the
+        # 75-minute job ceiling, which RAISES THE PROBABILITY that the always() budget
+        # reporter still executes - best-effort, not guaranteed (see the TELEMETRY BOUNDARY
+        # note on this job).
+        timeout-minutes: 45
         env:
           STAGING_PREFIX: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_staging_prefix }}
           EXPECT_SET_SHA: ${{ needs.vfs-pack-db.outputs.verified_vfs_pack_set_sha }}
