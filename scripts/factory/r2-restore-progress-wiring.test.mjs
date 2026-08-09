@@ -64,7 +64,16 @@ test('T3 BLOCKING-2: restore opts CANNOT inject telemetry dependencies', () => {
     assert.equal(/createRestoreProgress\(\{[^}]*opts\./.test(src), false, 'opts must not reach telemetry');
 });
 
-test('T3 BLOCKING-2 MUTATION: restoring the injection seam reds the pin', () => {
+// --- #NEG regex-sensitivity controls (renamed under D-2026-0808-410 N1) -----
+// The three tests below used to be named "... MUTATION: ...", which read as a
+// claim that the DEPLOYED file had been mutated and re-executed. They do no such
+// thing: each builds a SYNTHETIC in-memory string from `src` and re-runs the same
+// regex against it. That proves the regex is not a constant-true no-op -- useful,
+// but it is regex sensitivity, NOT mutation proof. Real mutation proofs in this
+// repo write a scratch copy of the production file and EXECUTE it (see
+// shard-oom-chunking.test.mjs B1 and shard-oom-slow.test.mjs GAP-5). Names only
+// changed here; every assertion below is byte-for-byte as it was.
+test('#NEG regex sensitivity: restoring the injection seam in a synthetic copy stops matching the pin', () => {
     const mutated = src.replace(
         'createRestoreProgress({ expected: keys.length, concurrency })',
         'createRestoreProgress({ expected: keys.length, concurrency, ...(opts.progressDeps || {}) })');
@@ -82,13 +91,15 @@ test('T3 the heartbeat is torn down in a finally on the real restore loop', () =
     assert.ok(loop.indexOf('} finally {') > loop.indexOf('await Promise.all'), 'finally must close after it');
 });
 
-test('T3 MUTATION: dropping the finally teardown reds the teardown pin', () => {
+// #NEG regex-sensitivity control (see the note above): synthetic string only.
+test('#NEG regex sensitivity: dropping the finally teardown in a synthetic copy stops matching the teardown pin', () => {
     const mutated = src.replace(/\} finally \{ prog\.stop\([^)]*\); \}/, '}');
     assert.notEqual(mutated, src, 'mutation must apply');
     assert.equal(/\} finally \{ prog\.stop\(/.test(mutated), false, 'teardown pin goes RED');
 });
 
-test('T3 MUTATION: weakening the strict success predicate reds the semantics pin', () => {
+// #NEG regex-sensitivity control (see the note above): synthetic string only.
+test('#NEG regex sensitivity: weakening the success predicate in a synthetic copy stops matching the semantics pin', () => {
     const mutated = src.replace(
         /const success = keys\.length > 0 && restored\.size === keys\.length && missing\.length === 0 && failedArr\.length === 0;/,
         'const success = restored.size > 0;');
