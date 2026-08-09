@@ -14,6 +14,10 @@
  */
 
 import { BaseAdapter, NSFW_KEYWORDS, RateLimitExceededError } from './base-adapter.js';
+// D-2026-0809-416 (FINDING-GR-1): producer-side field contract, applied at THIS
+// normalisation boundary and BEFORE content_hash, so an unbounded third-party
+// DTO array can never enter a batch file. Bounds live in lib/field-contracts.js.
+import { applyFieldContracts } from '../lib/field-contract-enforcer.js';
 const KAGGLE_API_BASE = 'https://www.kaggle.com/api/v1';
 
 /**
@@ -301,6 +305,10 @@ export class KaggleAdapter extends BaseAdapter {
             quality_score: null
         };
 
+        // Producer-side field contract BEFORE the hash: content_hash must
+        // describe the content that is actually stored (counted + disclosed).
+        applyFieldContracts(entity);
+
         // Calculate system fields
         entity.content_hash = this.generateContentHash(entity);
         entity.compliance_status = this.getComplianceStatus(entity);
@@ -344,6 +352,9 @@ export class KaggleAdapter extends BaseAdapter {
             compliance_status: null,
             quality_score: null
         };
+
+        // Producer-side field contract BEFORE the hash (see normalizeDataset).
+        applyFieldContracts(entity);
 
         // Calculate system fields
         entity.content_hash = this.generateContentHash(entity);

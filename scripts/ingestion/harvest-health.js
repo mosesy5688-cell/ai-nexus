@@ -77,6 +77,8 @@ export function buildDoc(overall, rows, enrichment, prevLastYieldedAt, ts) {
             source: r.source, tier: r.tier, gated: r.gated, status: r.status,
             yield: r.yield, previous_yield: r.previous_yield, freshness: r.freshness,
             verdict: r.verdict, draft: r.draft,
+            // D-2026-0809-416: producer-side truncation / quarantine counters.
+            producer_bounds: r.producer_bounds || null,
             // Carry-forward: last time this source yielded>0 (for next run's freshness).
             last_yielded_at: r.yield > 0 ? nowIso : (prevLastYieldedAt[r.source] || null),
         })),

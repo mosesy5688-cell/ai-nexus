@@ -73,6 +73,9 @@ export function evaluateSource(entry, sidecar, stepOutcome, previousYield, lastY
         yield: sidecar && Number.isFinite(sidecar.yield) ? sidecar.yield : 0,
         previous_yield: Number.isFinite(previousYield) ? previousYield : null,
         freshness: 'unknown', draft: false, notes,
+        // D-2026-0809-416: producer-bound counters travel from the harvest sidecar
+        // into harvest health. null = the source published none (never "zero").
+        producer_bounds: (sidecar && sidecar.terminal_meta && sidecar.terminal_meta.producer_bounds) || null,
     };
 
     // ANTI-LYING (b): missing sidecar -> step outcome is the 2nd independent input.

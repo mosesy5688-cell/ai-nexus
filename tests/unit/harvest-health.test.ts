@@ -174,6 +174,48 @@ describe('harvest-health — table + doc shape', () => {
     });
 });
 
+// D-2026-0809-416 REQUIRED-F3: the producer-bound counters travel
+// harvest sidecar -> evaluateSource row -> buildDoc -> the R2 doc. Every hop in
+// that chain was previously ungated: renaming or deleting the field anywhere
+// along it left the whole suite green, i.e. the counters could silently become
+// zero/absent while every gate stayed happy. These tests close the seam.
+describe('harvest-health — producer_bounds publication chain (D-2026-0809-416)', () => {
+    const PB = {
+        schema_version: 1, records_contract_examined: 12, records_field_truncated: 3,
+        records_field_projected: 3, fields_truncated: 3, elements_dropped: 599936,
+        records_quarantined: 2, quarantine_identities_recorded: 2,
+        producer_line_max_bytes: 33554432,
+    };
+
+    it('evaluateSource carries producer_bounds from the sidecar into the health row', () => {
+        const row = evaluateSource(gated('arxiv'),
+            { source: 'arxiv', status: STATUS.SUCCESS, yield: 60000, terminal_meta: { producer_bounds: PB } },
+            'success', undefined, undefined);
+        expect(row.producer_bounds).toEqual(PB);
+    });
+
+    it('evaluateSource reports null (never a fabricated zero) when the source published none', () => {
+        const row = evaluateSource(gated('arxiv'),
+            { source: 'arxiv', status: STATUS.SUCCESS, yield: 60000 }, 'success', undefined, undefined);
+        expect(row.producer_bounds).toBeNull();
+    });
+
+    it('buildDoc lands producer_bounds in doc.sources[]', () => {
+        const ts = Date.parse('2026-08-09T00:00:00Z');
+        const rows = [{ source: 'kaggle', tier: 'small', gated: false, status: 'success', yield: 10, previous_yield: null, freshness: 'unknown', verdict: 'green', draft: false, producer_bounds: PB }];
+        const doc = buildDoc('green', rows as any, evaluateEnrichment(null), {}, ts);
+        expect(doc.sources[0].producer_bounds).toEqual(PB);
+    });
+
+    it('buildDoc emits producer_bounds: null for a source that published none', () => {
+        const ts = Date.parse('2026-08-09T00:00:00Z');
+        const rows = [{ source: 'kaggle', tier: 'small', gated: false, status: 'success', yield: 10, previous_yield: null, freshness: 'unknown', verdict: 'green', draft: false }];
+        const doc = buildDoc('green', rows as any, evaluateEnrichment(null), {}, ts);
+        expect('producer_bounds' in doc.sources[0]).toBe(true);
+        expect(doc.sources[0].producer_bounds).toBeNull();
+    });
+});
+
 describe('harvest-health — DRAFT threshold constants are the documented values', () => {
     it('yield-drop 0.5, enrich 0.25, stale 7d', () => {
         expect(DRAFT_YIELD_DROP).toBe(0.5);
