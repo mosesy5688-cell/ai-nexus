@@ -12,7 +12,12 @@ import { RateLimitExceededError, FetchError } from './adapters/base-adapter.js';
 import { evaluateFloorGate } from './harvest-floors.js';
 import { emitTerminalState, deriveSuccessStatus, STATUS, TIMEOUT_KIND } from './harvest-state.js';
 import { evaluateCompletionGate, incompleteStatus } from './harvest-completion.js';
-import { buildAuthorityArtifact, AUTHORITY_ROLE } from '../factory/lib/c4s2-candidate-universe.js';
+// C4 Stage-2 census lives in its own module (CES Art 5.1 headroom for the
+// producer-bound escalation below); re-exported so import sites are unchanged.
+export { c4s2Census } from './lib/c4s2-census.js';
+// D-2026-0809-416 (FINDING-GR-1): producer-side emission guard (quarantine screen
+// + emitted-line assertion) and its counters. Bounds live in lib/field-contracts.js.
+import { emitNormalizedRecord, producerBoundSummary, writeQuarantineManifest, resetCounters, PRODUCER_LINE_TERMINAL } from './lib/producer-emitter.js';
 
 const OUTPUT_DIR = 'data';
 
@@ -24,7 +29,10 @@ export async function harvestSingle(sourceName, options = {}) {
     const { limit = 10000, chunkSize = 500, skipBridge = false } = options;
     // Test seam: allow injecting a fake adapter so the chokepoint's error-vs-empty
     // gate can be unit-tested without the real source registry or any network.
-    // Production callers never pass _adapter, so the live path is unchanged.
+    // `options._bounds` is the same kind of seam for the producer bound (it drives
+    // the quarantine screen and the emitted-line assertion independently, so the
+    // assertion's escalation path is testable without a 32 MiB fixture).
+    // Production callers never pass _adapter/_bounds, so the live path is unchanged.
     const adapter = options._adapter || adapters[sourceName];
 
     if (!adapter) {
@@ -46,6 +54,8 @@ export async function harvestSingle(sourceName, options = {}) {
         console.log(`   Writing to: ${ndjsonPath}`);
 
         const results = { source: sourceName, total: 0, failed: 0 };
+        // One tally per harvest process; the adapter's field contracts charge it too.
+        const bounds = resetCounters();
 
         // V22.3 NDJSON Streaming Processor
         const processBatch = async (rawBatch) => {
@@ -54,18 +64,21 @@ export async function harvestSingle(sourceName, options = {}) {
                     const norm = adapter.normalize(rawBatch[i]);
 
                     if (norm) {
-                        // V22.3: LOSSLESS capture (truncation FORBIDDEN) + write backpressure.
-                        const canWrite = writeStream.write(JSON.stringify(norm) + '\n');
-
-                        if (!canWrite) {
-                            await new Promise(resolve => writeStream.once('drain', resolve));
-                        }
-
-                        results.total++;
+                        // D-2026-0809-416: quarantine screen -> emitted-line assertion ->
+                        // write (with backpressure). A quarantine is counted + disclosed,
+                        // an assertion breach throws PRODUCER_LINE_BYTES_LIMIT_EXCEEDED.
+                        const emission = await emitNormalizedRecord(norm, writeStream, bounds, options._bounds);
+                        if (emission.emitted) results.total++;
                     } else {
                         results.failed++;
                     }
                 } catch (e) {
+                    // D-2026-0809-416 F2: the producer-line terminal is a CODE
+                    // invariant breach, not a per-record normalise error. Rethrow so it
+                    // reaches the top-level terminal path and exits 1 -- laundering it
+                    // into failed++ (logged for the first 5 records only, never carried
+                    // into the sidecar) is exactly the silent skip the guard forbids.
+                    if (e && e.code === PRODUCER_LINE_TERMINAL) throw e;
                     results.failed++;
                     if (results.total < 5) console.warn(`   ⚠️ Normalize error [${results.total}]: ${e.message}`);
                 }
@@ -114,6 +127,13 @@ export async function harvestSingle(sourceName, options = {}) {
             rawEntities = [];
         }
 
+        // D1: every live adapter wraps `await onBatch(...)` in a catch-all that logs,
+        // breaks and returns [] cleanly, so the rethrow above dies INSIDE the adapter
+        // and the run would end a GREEN valid_zero. The emitter records the breach on
+        // shared state; promote it here, independent of any adapter's error handling.
+        const lineBreach = bounds.producer_line_breach || null;
+        if (lineBreach && !fetchHardError) fetchHardError = new Error(`${PRODUCER_LINE_TERMINAL}: emitted line ${lineBreach.line_bytes} B > producer bound ${lineBreach.max_bytes} B (id=${lineBreach.id})`);
+
         // Backward compatibility for non-streaming adapters
         if (rawEntities && rawEntities.length > 0) {
             console.log(`   ✓ Adapter returned ${rawEntities.length} buffered entities. Streaming to disk...`);
@@ -123,6 +143,12 @@ export async function harvestSingle(sourceName, options = {}) {
 
         // Finalize stream (always flush what we captured before the failure).
         await new Promise((resolve) => writeStream.end(resolve));
+
+        // D-2026-0809-416: producer-bound disclosure. The identity-only quarantine
+        // manifest is best-effort on disk; `pb` (the COUNTS) rides every terminal
+        // state below, so a quarantine can never become invisible.
+        writeQuarantineManifest(sourceName, bounds);
+        const pb = producerBoundSummary(bounds);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -136,8 +162,8 @@ export async function harvestSingle(sourceName, options = {}) {
             // 2026-07-26: an instrumented source's completion claim rides along here too,
             // so `completion_status` is emitted on the HARD path as well as the gate path
             // (undefined -- and therefore absent -- for an un-instrumented source).
-            const hardMeta = { ...(requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : {}), ...(adapter.completion || {}), ...(fetchHardError.meta || {}) };
-            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: true, floor_violated: false, completion_status: adapter.completion?.completion_status, terminal_meta: Object.keys(hardMeta).length ? hardMeta : undefined });
+            const hardMeta = { ...(requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : {}), ...(adapter.completion || {}), ...(fetchHardError.meta || {}), producer_bounds: pb };
+            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: !lineBreach, floor_violated: false, completion_status: adapter.completion?.completion_status, terminal_meta: Object.keys(hardMeta).length ? hardMeta : undefined });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
         }
 
@@ -149,7 +175,7 @@ export async function harvestSingle(sourceName, options = {}) {
             console.error(`\n❌ HARVEST FLOOR VIOLATION: ${sourceName} yielded ${results.total} < floor ${gate.floor} — known-large source zero/near-zero without valid-zero proof`);
             console.error(`   Output (partial): ${ndjsonPath} | Time: ${duration}s`);
             // H2c sidecar: floor_violation; carry cause=rate_limited when an early-finish drove the shortfall (H2a gate unchanged).
-            emitTerminalState({ source: sourceName, status: STATUS.FLOOR_VIOLATION, yield: results.total, duration_ms: Date.now() - startTime, errors: [`floor violation: ${results.total} < ${gate.floor}`], had_adapter_error: false, floor_violated: true, terminal_meta: rateLimited ? { cause: STATUS.RATE_LIMITED } : undefined });
+            emitTerminalState({ source: sourceName, status: STATUS.FLOOR_VIOLATION, yield: results.total, duration_ms: Date.now() - startTime, errors: [`floor violation: ${results.total} < ${gate.floor}`], had_adapter_error: false, floor_violated: true, terminal_meta: { ...(rateLimited ? { cause: STATUS.RATE_LIMITED } : {}), producer_bounds: pb } });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: `floor violation: ${results.total} < ${gate.floor}` };
         }
 
@@ -170,7 +196,7 @@ export async function harvestSingle(sourceName, options = {}) {
         if (comp.blocked) {
             console.error(`\n❌ HARVEST INCOMPLETE: ${sourceName} — ${comp.error}`);
             console.error(`   Output (partial, NOT bridged): ${ndjsonPath} | Time: ${duration}s`);
-            emitTerminalState({ source: sourceName, status: incompleteStatus({ rateLimited }), yield: results.total, duration_ms: Date.now() - startTime, errors: [comp.error], had_adapter_error: false, floor_violated: false, completion_status: comp.record.completion_status, terminal_meta: { ...comp.record, ...(adapter.terminalMeta || {}) } });
+            emitTerminalState({ source: sourceName, status: incompleteStatus({ rateLimited }), yield: results.total, duration_ms: Date.now() - startTime, errors: [comp.error], had_adapter_error: false, floor_violated: false, completion_status: comp.record.completion_status, terminal_meta: { ...comp.record, ...(adapter.terminalMeta || {}), producer_bounds: pb } });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: comp.error };
         }
 
@@ -193,36 +219,16 @@ export async function harvestSingle(sourceName, options = {}) {
         // The completion record travels on the SUCCESS path too, so the Founder-ruled
         // fields (planned/completed topics, limit_satisfied, termination_reason) are
         // present on every emission for an instrumented source, not only on failures.
-        const okMeta = comp.record ? { ...comp.record, ...(tMeta || {}) } : tMeta;
-        emitTerminalState({ source: sourceName, status: sv.status, yield: results.total, duration_ms: Date.now() - startTime, errors: [], had_adapter_error: false, floor_violated: false, partial_reason: sv.partial_reason, completion_status: comp.record?.completion_status, terminal_meta: okMeta || undefined });
+        const okMeta = { ...(comp.record || {}), ...(tMeta || {}), producer_bounds: pb };
+        emitTerminalState({ source: sourceName, status: sv.status, yield: results.total, duration_ms: Date.now() - startTime, errors: [], had_adapter_error: false, floor_violated: false, partial_reason: sv.partial_reason, completion_status: comp.record?.completion_status, terminal_meta: okMeta });
         return { source: sourceName, count: results.total, duration, file: ndjsonPath };
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
         // H2c sidecar (top-level catch). Last in-process terminal point; a runner KILL
         // leaves NO sidecar -> that step_killed case is the aggregator's inference, never faked here.
-        emitTerminalState({ source: sourceName, status: STATUS.FAILED, yield: 0, duration_ms: Date.now() - startTime, errors: [error.message], had_adapter_error: false, floor_violated: false });
+        emitTerminalState({ source: sourceName, status: STATUS.FAILED, yield: 0, duration_ms: Date.now() - startTime, errors: [error.message], had_adapter_error: false, floor_violated: false, terminal_meta: { producer_bounds: producerBoundSummary() } });
         return { source: sourceName, count: 0, error: error.message };
     }
-}
-
-// C4 Stage-2 (D-335/336): CANDIDATE-scoped census (request-only). Reads the frozen
-// universe owners (reconciler `freeze`), exhausts EACH owner's model + dataset listing via
-// the adapters' real Link-cursor pagination, writes the dual-source authority artifacts
-// (members + tuple + per-owner completeness + universe-hash + metrics). Partial NEVER
-// usable for deletion: an owner not exhausted => that authority INCOMPLETE => ZERO_PUBLICATION.
-export async function c4s2Census() {
-    const universe = JSON.parse(fs.readFileSync('data/state/c4-stage2/universe.json', 'utf8'));
-    const owners = universe.owners || [];
-    const { default: HuggingFaceAdapter } = await import('./adapters/huggingface-adapter.js');
-    const { default: DatasetsAdapter } = await import('./adapters/datasets-adapter.js');
-    const model = await new HuggingFaceAdapter().fetchCensusMembership({ authors: owners });
-    const dataset = await new DatasetsAdapter().fetchCensusMembership({ authors: owners });
-    // D-337 Blocker 3: authority-artifact producer = PURE helper (same memberHash the validator recomputes).
-    const art = (role, res) => ({ ...buildAuthorityArtifact({ members: res.members, role, runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT, headSha: process.env.GITHUB_SHA, universeHash: universe.universeHash, generatedAtUtc: new Date().toISOString(), completeness: res.completeness }), metrics: res.metrics });
-    fs.mkdirSync('data/state/c4-stage2', { recursive: true });
-    fs.writeFileSync('data/state/c4-stage2/model-authority.json', JSON.stringify(art(AUTHORITY_ROLE.MODEL, model)));
-    fs.writeFileSync('data/state/c4-stage2/dataset-authority.json', JSON.stringify(art(AUTHORITY_ROLE.DATASET, dataset)));
-    console.log(`[C4-S2] census: owners=${owners.length} model=${model.members.length}(${model.completeness}) dataset=${dataset.members.length}(${dataset.completeness})`);
 }
 
 // Main-guard: only run the CLI when invoked directly (node harvest-single.js).

@@ -139,7 +139,26 @@ describe('harvest-single — terminal-state integration', () => {
         expect(res.error).toMatch(/floor violation/); // H2a gate still fires (exit semantics unchanged)
         const sc = readSidecar('huggingface');
         expect(sc.status).toBe(STATUS.FLOOR_VIOLATION);
-        expect(sc.terminal_meta).toEqual({ cause: STATUS.RATE_LIMITED });
+        // D-2026-0809-416: producer-bound counters now ride EVERY terminal state
+        // (a quarantine must stay visible even on a floor violation). The exact-key
+        // intent of the original assertion is preserved by pinning the key SET, so
+        // this stays a closed assertion rather than a loosened one.
+        expect(Object.keys(sc.terminal_meta).sort()).toEqual(['cause', 'producer_bounds']);
+        expect(sc.terminal_meta.cause).toBe(STATUS.RATE_LIMITED);
+        // The NESTED object is pinned by its full key set too: a counter that is
+        // renamed or dropped from producerBoundSummary() must not slip through as
+        // a silently absent field (D-2026-0809-416 review adjudication 4).
+        expect(Object.keys(sc.terminal_meta.producer_bounds).sort()).toEqual([
+            'elements_dropped', 'fields_truncated', 'producer_line_breach',
+            'producer_line_max_bytes', 'quarantine_identities_recorded',
+            'records_contract_examined', 'records_field_projected',
+            'records_field_truncated', 'records_quarantined', 'schema_version',
+        ]);
+        expect(sc.terminal_meta.producer_bounds.records_quarantined).toBe(0);
+        // D3: the breach marker is honestly null when nothing breached (never absent,
+        // never a fabricated zero) -- harvest health distinguishes it from an adapter
+        // error and from a quarantine.
+        expect(sc.terminal_meta.producer_bounds.producer_line_breach).toBeNull();
     });
 
     it('partial-by-design (enrich_budget): adapter.terminalMeta -> status=partial, NO result.error', async () => {
