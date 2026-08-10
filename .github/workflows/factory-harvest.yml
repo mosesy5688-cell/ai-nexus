@@ -745,6 +745,70 @@ jobs:
           mkdir -p cache/registry cache/fni-history cache/daily-accum
           node scripts/factory/lib/r2-registry-restore.js
 
+      # ========================================================
+      # OP-GR-B (D-2026-0810-418): ONE-TIME re-normalisation of the giant-`tags`
+      # cohort (FINDING-GR-1) in the WORKING registry.
+      #
+      # POSITION IS LOAD-BEARING. It sits AFTER the registry is loaded -- the
+      # GHA-cache restore above, then r2-registry-restore.js -- and BEFORE
+      # Merge Batches, which is the first step to consume or mutate it. That
+      # makes cache/registry/ the ruling's chosen authority target: the registry
+      # the pipeline ACTUALLY loaded, not any of the five divergent R2 mirrors.
+      # It does NOT alter the restore/precedence logic above; washing data and
+      # changing precedence in one cycle would alias the two variables, which
+      # the ruling prohibits (FINDING-PREC-1 is scheduled separately).
+      #
+      # TRIGGER: the Founder-set repository variable OP_GR_B_RENORM **and** a
+      # `schedule` event. This workflow also carries workflow_dispatch (with
+      # skip_harvest recovery inputs), so the flag ALONE would leave the step
+      # manually reachable; the event-name guard is what makes "exercised by the
+      # next NATURAL cascade, zero manual dispatch" true rather than merely
+      # intended. With either condition unmet neither step runs at all, so cron
+      # behaviour with the flag unset is byte-equivalent to today.
+      #
+      # ONE-TIME, TWICE OVER: the step first reads a durable R2 completion
+      # marker and skips itself if present; the Founder then revokes the
+      # variable after a confirmed cycle. A third guard is structural -- once
+      # repaired, no giants remain, so the cohort no longer reconciles and the
+      # step self-abandons.
+      #
+      # FAIL-CLOSED: a pre-image snapshot and a dry-run manifest are produced
+      # BEFORE any mutation, and ANY mismatch against the embedded 274-id census
+      # self-abandons with ZERO rewrites and exit 0 -- the cascade then proceeds
+      # exactly as it does today. Only a post-mutation verification failure
+      # exits non-zero.
+      # ========================================================
+      - name: OP-GR-B One-Time Registry Re-normalisation (flag-gated)
+        if: vars.OP_GR_B_RENORM == 'true' && github.event_name == 'schedule'
+        env:
+          OP_GR_B_RENORM: 'true'
+          CACHE_DIR: ./cache
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node --max-old-space-size=8192 scripts/factory/registry-renorm-cli.js
+
+      # The pre-image snapshot is the recoverability guarantee, so it is uploaded
+      # whether the step succeeded, abandoned or failed. Bounded by construction:
+      # only the AFFECTED shards are copied (the 274 largest of 648 registry
+      # shards sum to 603 MiB, an absolute upper bound), and the run self-abandons
+      # rather than exceed OP_GR_B_SNAPSHOT_MAX_BYTES.
+      - name: Upload OP-GR-B Artifacts (pre-image + manifests)
+        if: always() && vars.OP_GR_B_RENORM == 'true' && github.event_name == 'schedule'
+        uses: actions/upload-artifact@v6
+        with:
+          name: op-gr-b-renorm-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            op-gr-b/dry-run-manifest.json
+            op-gr-b/verification.json
+            op-gr-b/pre-image/
+          retention-days: 90
+          if-no-files-found: warn
 
       - name: Restore Caches from R2 (params + benchmark)
         continue-on-error: true
