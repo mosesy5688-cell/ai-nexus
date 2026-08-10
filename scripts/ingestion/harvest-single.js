@@ -132,6 +132,8 @@ export async function harvestSingle(sourceName, options = {}) {
         // and the run would end a GREEN valid_zero. The emitter records the breach on
         // shared state; promote it here, independent of any adapter's error handling.
         const lineBreach = bounds.producer_line_breach || null;
+        // N1 (D-2026-0810-418): D3 exempts a breach that is the SOLE cause -- capture that decision BEFORE the next line mutates fetchHardError (producer-compound-failure.test.mjs).
+        const breachPromoted = Boolean(lineBreach) && !fetchHardError;
         if (lineBreach && !fetchHardError) fetchHardError = new Error(`${PRODUCER_LINE_TERMINAL}: emitted line ${lineBreach.line_bytes} B > producer bound ${lineBreach.max_bytes} B (id=${lineBreach.id})`);
 
         // Backward compatibility for non-streaming adapters
@@ -163,7 +165,7 @@ export async function harvestSingle(sourceName, options = {}) {
             // so `completion_status` is emitted on the HARD path as well as the gate path
             // (undefined -- and therefore absent -- for an un-instrumented source).
             const hardMeta = { ...(requestTimeout ? { timeout_kind: TIMEOUT_KIND.REQUEST_TIMEOUT } : {}), ...(adapter.completion || {}), ...(fetchHardError.meta || {}), producer_bounds: pb };
-            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: !lineBreach, floor_violated: false, completion_status: adapter.completion?.completion_status, terminal_meta: Object.keys(hardMeta).length ? hardMeta : undefined });
+            emitTerminalState({ source: sourceName, status: requestTimeout ? STATUS.TIMEOUT : STATUS.FAILED, yield: results.total, duration_ms: Date.now() - startTime, errors: [fetchHardError.message], had_adapter_error: !breachPromoted, floor_violated: false, completion_status: adapter.completion?.completion_status, terminal_meta: Object.keys(hardMeta).length ? hardMeta : undefined });
             return { source: sourceName, count: results.total, duration, file: ndjsonPath, error: fetchHardError.message };
         }
 

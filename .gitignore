@@ -107,3 +107,6 @@ playwright/.cache/
 # A killed run must never leave a production-code copy sweepable into a commit.
 scripts/factory/.tmp-mutant-*.js
 scripts/factory/lib/.tmp-mutant-*.js
+
+# OP-GR-B one-time re-normalisation artifacts (pre-image + manifests, CI-only)
+/op-gr-b/

@@ -67,8 +67,18 @@ test('W2c harvest-single.js escalates the producer-line terminal (no failed++ la
         'the harvester must read the recorded breach after fetch() returns');
     assert.ok(src.includes('if (lineBreach && !fetchHardError) fetchHardError ='),
         'a recorded breach must be promoted onto the hard-failure path');
-    assert.ok(src.includes('had_adapter_error: !lineBreach'),
-        'a producer-emission breach must NOT be reported as an adapter error (D3)');
+    // N1 (D-2026-0810-418): the D3 exemption belongs to the breach that is the
+    // SOLE cause, so the label must read the PROMOTION decision, not the mere
+    // presence of a breach. The capture must also precede the promotion, or it
+    // would observe the already-mutated fetchHardError and always be false.
+    assert.ok(src.includes('const breachPromoted = Boolean(lineBreach) && !fetchHardError;'),
+        'the promotion decision must be captured before fetchHardError is mutated');
+    assert.ok(src.indexOf('const breachPromoted =') < src.indexOf('if (lineBreach && !fetchHardError) fetchHardError ='),
+        'breachPromoted must be captured BEFORE the promotion line, not after it');
+    assert.ok(src.includes('had_adapter_error: !breachPromoted'),
+        'a SOLE producer-emission breach must NOT be reported as an adapter error (D3), but a compound failure must (N1)');
+    assert.equal(src.includes('had_adapter_error: !lineBreach'), false,
+        'the pre-N1 label must not survive: it mislabels the compound case');
 });
 
 test('W3 kaggle-adapter.js applies the contract BEFORE content_hash', () => {
