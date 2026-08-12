@@ -130,8 +130,19 @@ export async function runRenorm(deps) {
     const abandon = (reason, detail = {}) => {
         loud(`SELF-ABANDON: ${reason}`);
         loud('ZERO records were rewritten. The cascade proceeds unchanged.');
-        writeJson(manifestPath, { status: OUTCOME.ABANDONED, reason, ...meta(), ...detail });
-        return { outcome: OUTCOME.ABANDONED, reason };
+        // PR-GR-C (D-2026-0812-421): PRESERVE the dry-run evidence. This used to
+        // overwrite the manifest at the same path, destroying records[],
+        // accounting, size_probes and affected_shards exactly in the case where
+        // they matter most -- the run 31563250233 investigation had to rebuild
+        // that evidence from R2 because the abandon had erased it. Merge onto
+        // whatever was already written instead; an abandon that fires BEFORE the
+        // full manifest exists (no credentials, unreadable marker, no key, no
+        // shards, bad census) simply has nothing to merge and writes the short
+        // form, exactly as before. Same path, so the artifact upload is unchanged.
+        let prior = {};
+        try { prior = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch { /* nothing written yet */ }
+        writeJson(manifestPath, { ...prior, status: OUTCOME.ABANDONED, reason, ...meta(), ...detail });
+        return { outcome: OUTCOME.ABANDONED, reason, records: Array.isArray(prior.records) ? prior.records.length : 0 };
     };
 
     if (!flagEnabled) {

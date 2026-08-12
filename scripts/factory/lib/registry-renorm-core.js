@@ -39,11 +39,27 @@ const ALLOWED = new Set(ALLOWED_DELTA_FIELDS);
 /** Reconciliation outcomes. MISMATCH is always fail-closed (zero rewrite). */
 export const RECONCILE = Object.freeze({ MATCH: 'MATCH', MISMATCH: 'MISMATCH' });
 
+/**
+ * The pipeline layer whose id spelling reconcile() matches.
+ *
+ * PR-GR-C: schema v1 embedded EXPORT-layer ids (kaggle-dataset--<tail>, as spelled
+ * in merged_shard_*.json.zst) while the step scans the REGISTRY layer
+ * (hf-dataset--<tail>, as minted by registry-manager.js). The two disagree by
+ * construction, so the census could never match and run 31563250233 self-abandoned
+ * on 274 missing / 274 extra with an exact tail bijection. The census must now
+ * DECLARE its layer, and loading fails closed if that declaration is absent or
+ * unrecognised -- a silent layer confusion is exactly what cost a cycle.
+ */
+export const CENSUS_LAYER = 'registry';
+
 /** Load and validate the embedded census. Identity only -- ids, never content. */
 export function loadCensus(doc) {
     const records = (doc && doc.records) || [];
     if (!Array.isArray(records) || records.length === 0) {
         throw new Error('OP_GR_B_CENSUS_EMPTY');
+    }
+    if (doc.matches_layer !== CENSUS_LAYER) {
+        throw new Error(`OP_GR_B_CENSUS_LAYER_MISMATCH: matches_layer=${JSON.stringify(doc.matches_layer)} but reconcile matches the ${CENSUS_LAYER} layer`);
     }
     if (doc.count !== records.length) {
         throw new Error(`OP_GR_B_CENSUS_COUNT_DRIFT: header ${doc.count} vs ${records.length} rows`);

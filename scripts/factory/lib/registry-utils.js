@@ -8,6 +8,56 @@ import path from 'path';
 export const SHARD_SIZE = 1000;
 
 /**
+ * Shard-file extensions the registry LOADER will actually read back.
+ * registry-loader.js loadRegistryShardsSequentially accepts .bin, .json.zst and
+ * .json (it rejects .json.gz loudly). A stale file in ANY of these at an index
+ * beyond the current shard count is a ghost the loader can pick up, so all of
+ * them must be purged -- purging only .bin would leave the hazard half-open.
+ */
+export const LOADER_VISIBLE_SHARD_EXTS = Object.freeze(['.bin', '.json.zst', '.json', '.json.gz']);
+
+/**
+ * Purge stale LOCAL registry shards left by a prior, larger save (PR-GR-C).
+ *
+ * WHY THIS EXISTS. registry-saver.js saveGlobalRegistry() (the AGGREGATOR path)
+ * already purges surplus local shards; registry-manager.js save() (the HARVEST
+ * path) did not. When the harvest-side registry shrinks, the surplus high-index
+ * shards survive, ride the GHA cache, and are read back by
+ * loadRegistryShardsSequentially. Because registry-manager.js load() inserts with
+ * INSERT OR IGNORE over shards in sorted filename order, THE FIRST FILE WINS --
+ * so a stale ghost can shadow the current record for a whole cycle. That hazard
+ * is live independently of any one-time repair; it also produced the duplicate
+ * ids that made OP-GR-B self-abandon in run 31563250233.
+ *
+ * INDEX RULE is aligned verbatim with saveGlobalRegistry's local purge: delete
+ * `part-<n>` whose n >= currentShardCount. Best-effort and non-fatal -- a purge
+ * failure must never lose a registry that was just written successfully.
+ *
+ * @param {string} registryDir directory holding part-NNN.* shard files
+ * @param {number} currentShardCount number of shards just written
+ * @returns {Promise<{purged: number, files: string[]}>}
+ */
+export async function purgeStaleLocalShards(registryDir, currentShardCount) {
+    const files = [];
+    try {
+        const { readdir, unlink } = await import('fs/promises');
+        const localFiles = await readdir(registryDir).catch(() => []);
+        for (const f of localFiles) {
+            const m = f.match(/^part-(\d+)(\.bin|\.json\.zst|\.json\.gz|\.json)$/);
+            if (!m || parseInt(m[1], 10) < currentShardCount) continue;
+            await unlink(path.join(registryDir, f)).catch(() => { });
+            files.push(f);
+        }
+        if (files.length > 0) {
+            console.log(`[REGISTRY] Purged ${files.length} stale local shard file(s) (index >= ${currentShardCount})`);
+        }
+    } catch (e) {
+        console.warn(`[REGISTRY] Local stale shard purge failed: ${e.message}`);
+    }
+    return { purged: files.length, files };
+}
+
+/**
  * Purge stale sharded files from R2 to prevent baseline mutation
  */
 export async function purgeStaleShards(directory, currentShardCount) {

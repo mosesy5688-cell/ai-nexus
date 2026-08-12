@@ -5,7 +5,7 @@ import { loadRegistryShardsSequentially } from './registry-loader.js';
 import { saveRegistryShard } from './registry-saver.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
-import { SHARD_SIZE } from './registry-utils.js';
+import { SHARD_SIZE, purgeStaleLocalShards } from './registry-utils.js';
 import { writeIndexNowDelta } from './indexnow-delta.js';
 
 /**
@@ -217,6 +217,11 @@ export class RegistryManager {
         }
 
         console.log(`  [REGISTRY] Saved ${shardIndex} shards.`);
+
+        // PR-GR-C (D-2026-0812-421): purge surplus shards from a prior, larger
+        // save. Without this the harvest path leaves ghosts that load() can pick
+        // up ahead of the current record (INSERT OR IGNORE, first file wins).
+        await purgeStaleLocalShards(path.join(process.env.CACHE_DIR || './cache', 'registry'), shardIndex);
 
         // V27.89: emit the IndexNow true-delta manifest (new-this-cycle page URLs).
         await writeIndexNowDelta(this.sessionAddedIds);

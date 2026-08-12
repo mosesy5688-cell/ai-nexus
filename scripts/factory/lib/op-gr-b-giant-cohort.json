@@ -1,11 +1,16 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "finding": "FINDING-GR-1",
-  "ruling": "D-2026-0809-416 SS2 STEP 2 / D-2026-0810-418",
-  "source": "FREE2AITOOLS_GIANT_RECORD_FORENSICS_v1.txt Appendix C.1 + C.2",
+  "ruling": "D-2026-0809-416 SS2 STEP 2 / D-2026-0810-418 / D-2026-0812-421 (census v2)",
+  "matches_layer": "registry",
+  "matches_layer_note": "The `id` field is the REGISTRY-layer spelling -- the id as stored in cache/registry/part-*.bin, which is what reconcile() matches. It is minted by registry-manager.js mergeCurrentBatch via getNodeSource(), which returns \"hf\" for EVERY dataset regardless of the record's own source, so a Kaggle dataset is stored as hf-dataset--<tail>. `export_layer_id` is the SAME record as spelled in merged_shard_*.json.zst / state/processing-shards, minted by merge-batches.js from entity.source (\"kaggle\"). Schema v1 embedded the EXPORT-layer ids and could therefore never match the registry; run 31563250233 self-abandoned on 274 missing / 274 extra with an exact tail bijection. Both spellings are recorded here so a layer confusion cannot recur silently.",
+  "source": "FREE2AITOOLS_GR1_CENSUS_DRIFT_DELTA_v1.txt (registry-layer ids observed by run 31563250233)",
   "forensics_sha256": "16c97d7eca66a31c7609d1d75601885236966937a85fa5de1eefb6573940efea",
-  "cycle": "2026-08-09",
-  "note": "Public dataset identities already present in the public corpus. IDENTITY ONLY - no record content, no tag values. census_bytes is the 08-09 processing-shard record size and is CONTEXT, never a gate: the registry record serialises differently (merge-batches adds/strips fields), so only the ID SET is matched one-for-one.",
+  "census_v1_source": "FREE2AITOOLS_GIANT_RECORD_FORENSICS_v1.txt Appendix C.1 + C.2 (export layer)",
+  "census_v2_id_list_sha256": "e0c9cb74c381f407861016f7913a9f72a3ba09ce0c5542dcd58946c41fc8dd6a",
+  "census_v2_id_list_sha256_note": "sha256 of the 274 `id` values, sorted ascending and joined with a single \n, no trailing newline.",
+  "cycle": "2026-08-12 (registry state observed by run 31563250233, head 1a965e4f)",
+  "note": "Public dataset identities already present in the public corpus. IDENTITY ONLY - no record content, no tag values. census_bytes is the 08-09 EXPORT-layer record size and is CONTEXT, never a gate: the registry record serialises differently, so only the ID SET is matched one-for-one.",
   "count": 274,
   "bands": {
     "ge_64mib": 100,
@@ -13,1373 +18,1921 @@
   },
   "records": [
     {
-      "id": "kaggle-dataset--hugomathien--soccer",
-      "census_bytes": 141231040,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--chiragsaipanuganti--morph",
-      "census_bytes": 105223756,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--fedesoriano--stroke-prediction-dataset",
-      "census_bytes": 104215847,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--orvile--bone-fracture-dataset",
-      "census_bytes": 93602412,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--novandraanugrah--xauusd-gold-price-historical-data-2004present",
-      "census_bytes": 92104998,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--jainaru--electric-car-sales-2010-2024",
-      "census_bytes": 90104186,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhrubangtalukdar--afcon-202526-complete-match-statistics",
-      "census_bytes": 89347195,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--miadul--irrigation-water-requirement-prediction-dataset",
-      "census_bytes": 86507851,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--alessiocorrado99--animals10",
-      "census_bytes": 86269071,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adarshrouniyar--air-pollution-image-dataset-from-india-and-nepal",
-      "census_bytes": 86114847,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--akashdeepkuila--bakery",
-      "census_bytes": 81929308,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mr1rameez--universal-health-coverage-dataset-1985-2024",
-      "census_bytes": 81812689,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhrubangtalukdar--indian-premier-league-ipl-all-matches2008-2025",
-      "census_bytes": 81402502,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dataclusterlabs--stairs-image-dataset",
-      "census_bytes": 80158583,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mabubakrsiddiq--global-lifestyle-and-lifespan-synthetic-dataset",
-      "census_bytes": 78844824,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--imranbukhari--comprehensive-btcusd-1m-data",
-      "census_bytes": 77398449,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ashrafkhetran--global-international-bandwidth-usage-per-capita",
-      "census_bytes": 76799647,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--aniketa14--wizard-analyst-instruct-500k",
-      "census_bytes": 75511509,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhrubangtalukdar--global-mental-health-and-lifestyle-survey-dataset",
-      "census_bytes": 73953201,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--rajdahiwal--global-co2ghg-emissions-our-world-in-data",
-      "census_bytes": 72696153,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hosseinbadrnezhad--iran-universities-and-higher-education-centers",
-      "census_bytes": 71414516,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mczielinski--bitcoin-historical-data",
-      "census_bytes": 71347576,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ayeshaseherr--bmw-dataset",
-      "census_bytes": 70559883,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--omsandeeppatil--india-aadhaar-trends-weather-policy-analysis",
-      "census_bytes": 69879392,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--debajyotipodder--co2-emission-by-vehicles",
-      "census_bytes": 69184119,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adamvakar--apple-comprehensive-financial-dataset-1980-2026",
-      "census_bytes": 68296329,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--barrybhunter--geograph-places-tag-dataset",
-      "census_bytes": 67425093,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--abdullahkhan70--daily-multi-year-ohlcv-crypto-market-data",
+      "id": "hf-dataset--abdullahkhan70--daily-multi-year-ohlcv-crypto-market-data",
+      "export_layer_id": "kaggle-dataset--abdullahkhan70--daily-multi-year-ohlcv-crypto-market-data",
+      "tail": "abdullahkhan70--daily-multi-year-ohlcv-crypto-market-data",
       "census_bytes": 311226666,
       "band": "ge_64mib"
     },
     {
-      "id": "kaggle-dataset--adilshamim8--tesla-stock-price-history",
-      "census_bytes": 292304138,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--alexteboul--diabetes-health-indicators-dataset",
-      "census_bytes": 289974726,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhrubangtalukdar--abb-india-stock-data-2002-2025",
-      "census_bytes": 273613985,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--atharvasoundankar--global-music-streaming-trends-and-listener-insights",
-      "census_bytes": 271430069,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hetmengar--medical-insurance-cost-prediction",
-      "census_bytes": 244141342,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adilshamim8--predict-students-dropout-and-academic-success",
-      "census_bytes": 238390694,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--amineipad--titanic-dataset",
-      "census_bytes": 207738202,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ankitrajmishra--sales-store",
-      "census_bytes": 206311770,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adharshinikumar--2025-hearing-wellness-survey",
-      "census_bytes": 198245642,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--fivethirtyeight--fivethirtyeight-comic-characters-dataset",
-      "census_bytes": 189568379,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--atharvasoundankar--universal-bank-customer-profiles",
-      "census_bytes": 186964371,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ashirwadsangwan--imdb-dataset",
-      "census_bytes": 186023005,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--aminealibi--ufc-fights-fighters-and-events-dataset",
-      "census_bytes": 178456700,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--barkataliarbab--u-s-interest-rates-and-monetary-policy-indicators",
-      "census_bytes": 173424706,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--likithagedipudi--genz-slang-evolution-tracker-2020-2025",
-      "census_bytes": 171479441,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--deasadiqbal--private-data-1",
-      "census_bytes": 169650466,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ansariusama152--kababjees-review-dataset-2025",
-      "census_bytes": 166696223,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kazanova--sentiment140",
-      "census_bytes": 162433494,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--angelchaudhary--harry-potter-characters-by-book-dataset",
-      "census_bytes": 162411550,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--bornaetminan--cleaned-real-and-fake-news-dataset-english",
-      "census_bytes": 152847416,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--krakenteach13--ventas-tienda",
-      "census_bytes": 142852576,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--grandmaster07--restaurant-tips-dataset-analysis",
-      "census_bytes": 141660603,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adilshamim8--microsoft-stock-price-history",
-      "census_bytes": 139907467,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dewanmukto--social-messages-and-emoji-reactions",
-      "census_bytes": 137318732,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mihikaajayjadhav--top-1000-cryptocurrencies-real-time-data-2025",
-      "census_bytes": 130017449,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--bwandowando--reddit-rindonesia-subreddit-dataset-2026",
-      "census_bytes": 122864414,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--muzaddidafaque--global-and-indian-financial-markets-dataset-2025",
-      "census_bytes": 122034081,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--coosti--denmark-retail-price-indices-and-market-trends",
-      "census_bytes": 120692954,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mikhail1681--walmart-sales",
-      "census_bytes": 118326096,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mosapabdelghany--telcom-customer-churn-dataset",
-      "census_bytes": 113400810,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ibrahimshahrukh--nvidia-daily-stock-prices-20162026-dataset",
-      "census_bytes": 112367438,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--emanafi--churndataset",
-      "census_bytes": 110188834,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--miguelroca--global-health-nutrition-mortality-economic-data",
-      "census_bytes": 104110884,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--meowmeowmeowmeowmeow--gtsrb-german-traffic-sign",
-      "census_bytes": 102029849,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kpraveenkumar566--ecu-ioht",
-      "census_bytes": 100210992,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kagg3001--quantum-encoded-features",
-      "census_bytes": 98805055,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--lchikry--international-football-match-features-and-statistics",
-      "census_bytes": 98161933,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--algozee--climate-cahnge",
-      "census_bytes": 98028575,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--aryanprajapati33--smart-india-hackathon-2025-team-outcomes",
-      "census_bytes": 96270747,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--devang03mgr--cattle-diseases-datasets",
-      "census_bytes": 92284658,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--efeatagul--wneura-synthetic-burnout-data",
-      "census_bytes": 85838788,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--fichka--almaty-air-quality-history",
-      "census_bytes": 84769768,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mahmoudabusaqer--combined-hate-speech-dataset",
-      "census_bytes": 82943625,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--beatafaron--telco-customer-churn-realistic-customer-feedback",
-      "census_bytes": 81954312,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mhantor--russian-cursive-handwriting",
-      "census_bytes": 81686936,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--atanastonchev--bulgarian-parliament-transcripts",
-      "census_bytes": 74905977,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dnkumars--asana-enterprise-workspace-simulation-dataset",
-      "census_bytes": 74680084,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adityaaryan526--indian-upi-transactions",
-      "census_bytes": 71806328,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--jayjoshi37--smart-energy-consumption-and-peak-load-analysis",
-      "census_bytes": 70283678,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--imtkaggleteam--kidney-stone-classification-and-object-detection",
-      "census_bytes": 69820833,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hassanjameelahmed--price-of-healthy-diet-clean",
-      "census_bytes": 67556601,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhairyajeetsingh--ecommerce-customer-behavior-dataset",
-      "census_bytes": 89976223,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mhassansaboor--nextera-energy-inc-stocks-data-1973-2026",
-      "census_bytes": 87609865,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhrubangtalukdar--magnus-carlsen-chess-com-games",
-      "census_bytes": 73603699,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mabubakrsiddiq--student-exam-performance",
-      "census_bytes": 73168961,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--andrewsundberg--college-basketball-dataset",
-      "census_bytes": 326138280,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ashyou09--cryptocurrency-market-dataset",
-      "census_bytes": 228262034,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--aryanpatel212--india-solar-site-selection-data",
-      "census_bytes": 181848052,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--emanfatima2--ai-trust-insights",
-      "census_bytes": 119284168,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--abdulmalekx--saudi-stocks-prediction-data-tadawul-2020-2026",
-      "census_bytes": 118253198,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--furkanark--myanimelist-top-10000-anime-dataset",
-      "census_bytes": 117090334,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nugrahmaindonesa--shopee-seller-transaction",
-      "census_bytes": 101674402,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--guriya79--pakistans-largest-e-commerce-dataset-20162018",
-      "census_bytes": 94324659,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dilaraiek--silver-futures-price-data",
-      "census_bytes": 91793628,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hamza202404--drdm1-six-fundus-images-datasets-by-mian-hamza",
-      "census_bytes": 86344202,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--harshgupta4444--hp-laptops-specification-dataset-india",
-      "census_bytes": 84107867,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ayeshaimran1619--customer-spending-patterns",
-      "census_bytes": 82811811,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--calvinrostanto--fantasy-premier-league-2025-2026",
-      "census_bytes": 72516464,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--gmudit--preprocessed-wind-data",
-      "census_bytes": 123596495,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--miadul--smart-crop-yield-predication-dataset",
-      "census_bytes": 67708990,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--debashis74017--nifty-50-minute-data",
-      "census_bytes": 158164367,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--asaniczka--tmdb-movies-dataset-2023-930k-movies",
-      "census_bytes": 280158450,
-      "band": "ge_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ahsanneural--drone-swarm-coordination-dataset",
-      "census_bytes": 67058287,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--artofintelligence--ham-spam",
-      "census_bytes": 64921399,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--jocelyndumlao--malhari-dataset",
-      "census_bytes": 63470127,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--abdulwadood11220--netflix-customer-churn-dataset",
-      "census_bytes": 63020132,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--alexanderyevchenko--corn-disease-drone-images",
-      "census_bytes": 61360428,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--miadul--kidney-disease-risk-dataset",
-      "census_bytes": 60890514,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--awallay--worlds-biggest-data-breaches-and-hacks-2004-2025",
-      "census_bytes": 60374625,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dizzypanda--gen-1-pokemon",
-      "census_bytes": 60066052,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adilshamim8--rock-paper-scissors",
-      "census_bytes": 59908962,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--gmudit--employer-data",
-      "census_bytes": 59576721,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--matthewmaemura--all-pokemon-gen-9-national-dex-new-za-megas",
-      "census_bytes": 59292006,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--jockeroika--job-acceptance-prediction-system",
-      "census_bytes": 58588549,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adilshamim8--education-and-career-success",
-      "census_bytes": 56519341,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--chrissyserb--sovereignty-nvidia-auditor-dataset",
-      "census_bytes": 56123280,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nikitamanaenkov--x-ray-contraband-detection-dataset",
-      "census_bytes": 55810452,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--aryanpatel212--cleaned-nyc-taxi-trip-data-2025-sample",
-      "census_bytes": 54575204,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ahsanneural--aigenerated-vs-humanwritten-code",
-      "census_bytes": 54101362,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--headsortails--us-natural-disaster-declarations",
-      "census_bytes": 53490751,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--eriklindqvist--fragdb-fragrance-database",
-      "census_bytes": 52778070,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--alhamdulliah123--personal-expense-analysis-and-budget-prediction",
-      "census_bytes": 52705042,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ashishkumarak--netflix-reviews-playstore-daily-updated",
-      "census_bytes": 52508296,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--lainguyn123--employee-survey",
-      "census_bytes": 52508284,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--bwandowando--reddit-rcanada-subreddit-dataset-2026",
-      "census_bytes": 52284190,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ishank2005--social-network-ads",
-      "census_bytes": 51830331,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--andrewmvd--steam-reviews",
-      "census_bytes": 51609624,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mdfaisalahmed025--electronic-component-recognizer",
-      "census_bytes": 51465011,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nalisha--data-science-careers-and-salaries-2025",
-      "census_bytes": 51049998,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nprottay--heart-disease-info",
-      "census_bytes": 51010533,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mohammedjaveed--loveda-dataset",
-      "census_bytes": 49633017,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--grandmaster07--bmw-sales-analysis-and-prediction-20102024",
-      "census_bytes": 49070841,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adityathakekar--iot-dataset",
-      "census_bytes": 49051968,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--crawford--cat-dataset",
-      "census_bytes": 48546490,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--noaa--gsod",
-      "census_bytes": 48090331,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--khushikyad001--personal-finance-tracker-dataset",
-      "census_bytes": 48075521,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--asaniczka--top-spotify-songs-in-73-countries-daily-updated",
-      "census_bytes": 47857393,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ahmeduzaki--concrete-compressive-strength-dataset",
-      "census_bytes": 46961355,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kolaa8--mammalian-vs-plant-cytochrome-c-protein-sequences",
-      "census_bytes": 46737858,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--catalinaadelachirtes--parrot-hierarchical-detection-dataset",
-      "census_bytes": 46594517,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--gpreda--covid19-tweets",
-      "census_bytes": 45933609,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kadekpadmadarmawan--crypto-trump-tariff-market-reaction",
-      "census_bytes": 45622114,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--robikscube--mrbeast-youtube-stats-daily",
-      "census_bytes": 44410466,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--borapajo--food-choices",
-      "census_bytes": 44251630,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--parohod--warp-waste-recycling-plant-dataset",
-      "census_bytes": 44155847,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ravindrasinghrana--country-military-size",
-      "census_bytes": 44061982,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--macaronimutton--mumbai-rainfall-data",
-      "census_bytes": 43778482,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--rosariomc--world-bank-gdp-ranking",
-      "census_bytes": 43417853,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--rafiaaa--country-names-with-short-codes-a2-a3-iso",
-      "census_bytes": 43159997,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--muratkokludataset--raisin-dataset",
-      "census_bytes": 42908600,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--niladriroy0--performance-limits-in-rocket-propulsion-systems",
-      "census_bytes": 41291475,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--fatihilhan--global-superstore-dataset",
-      "census_bytes": 41144592,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--musireddy--potato-leaf-disease",
-      "census_bytes": 41006727,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--rabieelkharoua--students-performance-dataset",
-      "census_bytes": 40960935,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nuforc--ufo-sightings",
-      "census_bytes": 40538986,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--midhundasl--co2-emission-of-cars-dataset",
-      "census_bytes": 40076853,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--alexanderyyy--pills-detection-dataset",
-      "census_bytes": 40040775,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--joebeachcapital--phishing-urls",
-      "census_bytes": 39871836,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--pranshuljoshi--global-startup-funding-and-valuation-cleaned-dataset",
-      "census_bytes": 39713312,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--jithinanievarghese--nykaa-popular-brands-cosmetics-beauty-products",
-      "census_bytes": 39365158,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--petrovdanila--almaty-hotels-data-q1-2026",
-      "census_bytes": 38790313,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--fireballbyedimyrnmom--us-counties-covid-19-dataset",
-      "census_bytes": 38610672,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adrianboguszewski--landcoverai",
-      "census_bytes": 38400959,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--miadul--hospital-readmission-risk-dataset",
-      "census_bytes": 38251811,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--codebynadiia--gdp-per-country-20202025",
-      "census_bytes": 38071434,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mahmoudreda55--satellite-image-classification",
-      "census_bytes": 37831872,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adarsh2626--indian-accident-dataset",
-      "census_bytes": 37717825,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--riteshswami08--height-and-weight-dataset-with-bmi-age-and-gender",
-      "census_bytes": 37598225,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--debarghamitraroy--casia-webface",
-      "census_bytes": 37487403,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kutayahin--glass-match-ai-faces",
-      "census_bytes": 36788910,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--rivalytics--saas-subscription-and-churn-analytics-dataset",
-      "census_bytes": 36785304,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhrubangtalukdar--200-years-of-global-major-earthquakes-18262026",
-      "census_bytes": 36774584,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adithyachalla--waste-classification",
-      "census_bytes": 36728823,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--sadiajavedd--brand-wise-laptop-price-dataset",
-      "census_bytes": 36360917,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--bryanb--fifa-player-stats-database",
-      "census_bytes": 36304287,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ankushpanday2--heart-attack-prediction-in-indonesia",
-      "census_bytes": 36064733,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--guilloth3b3st--synshapes",
-      "census_bytes": 36044534,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ashrafkhetran--copper-price-analysis-and-forecasting-2026",
-      "census_bytes": 35953174,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--emadmakhlouf--linearly-inseperable-dataset",
-      "census_bytes": 35359209,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--aisuko--ucf101-subset",
-      "census_bytes": 35358761,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--alessandrasala79--ai-vs-human-generated-dataset",
-      "census_bytes": 35301438,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--jeleeladekunlefijabi--uk-maib-maritime-accidents-20202024",
-      "census_bytes": 35161530,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--rockyt07--formula-1-championships-1950-2025",
-      "census_bytes": 35106164,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--muqaddasejaz--women-in-tech-dataset",
-      "census_bytes": 35066720,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dubltap--factory-oee-and-downtime-synthetic-starter-dataset",
-      "census_bytes": 34918057,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--sadiajavedd--synthetic-hospital-patient-record-dataset",
-      "census_bytes": 34702008,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--parthpatel2130--realistic-loan-approval-dataset-us-and-canada",
-      "census_bytes": 34567421,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--emirhanakku--disaster-events-2025",
-      "census_bytes": 34479097,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--lepchenkov--usedcarscatalog",
-      "census_bytes": 34447159,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hammadfarooq470--google-play-store-most-downloaded-android-apps",
-      "census_bytes": 34406157,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--harrychristian--pcso-lottery-results-philippines",
-      "census_bytes": 34283416,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kiranmehta1--indian-telecom-customer-churn-prediction-dataset",
-      "census_bytes": 33978739,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kerneler--wilayaapi",
-      "census_bytes": 33949947,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kritikseth--fruit-and-vegetable-image-recognition",
-      "census_bytes": 33903545,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ajaypalsinghlo--world-happiness-report-2021",
-      "census_bytes": 66473362,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--metawave--vehicle-price-prediction",
-      "census_bytes": 64134362,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mafaqbhatti--cloud-giants-stock-prices-20192024",
-      "census_bytes": 60616691,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ethancratchley--email-phishing-dataset",
-      "census_bytes": 59577015,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kutayahin--letterboxd-movies-dataset",
-      "census_bytes": 58874444,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--abdullahkhan70--netflix-nflx-stock-price-history",
+      "id": "hf-dataset--abdullahkhan70--netflix-nflx-stock-price-history",
+      "export_layer_id": "kaggle-dataset--abdullahkhan70--netflix-nflx-stock-price-history",
+      "tail": "abdullahkhan70--netflix-nflx-stock-price-history",
       "census_bytes": 56170329,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--aghileshadbi--iris-data",
-      "census_bytes": 55928092,
+      "id": "hf-dataset--abdulmalekx--saudi-stocks-prediction-data-tadawul-2020-2026",
+      "export_layer_id": "kaggle-dataset--abdulmalekx--saudi-stocks-prediction-data-tadawul-2020-2026",
+      "tail": "abdulmalekx--saudi-stocks-prediction-data-tadawul-2020-2026",
+      "census_bytes": 118253198,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--abdulwadood11220--netflix-customer-churn-dataset",
+      "export_layer_id": "kaggle-dataset--abdulwadood11220--netflix-customer-churn-dataset",
+      "tail": "abdulwadood11220--netflix-customer-churn-dataset",
+      "census_bytes": 63020132,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--barkataliarbab--license-plate-detection-dataset-10125-images",
-      "census_bytes": 55319864,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dastgeerjutt--pakistan-super-league-psl",
-      "census_bytes": 53097247,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--lawhan--convnext-pretrained-weights",
-      "census_bytes": 51450346,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dtkngan--100-bien-so-xe-may-ocr",
-      "census_bytes": 50939782,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--abhishekgodara--ipl-data-set",
+      "id": "hf-dataset--abhishekgodara--ipl-data-set",
+      "export_layer_id": "kaggle-dataset--abhishekgodara--ipl-data-set",
+      "tail": "abhishekgodara--ipl-data-set",
       "census_bytes": 50389244,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--dharshiyanacc--dog-vs-cat",
-      "census_bytes": 50257384,
-      "band": "from_32_to_64mib"
+      "id": "hf-dataset--adamvakar--apple-comprehensive-financial-dataset-1980-2026",
+      "export_layer_id": "kaggle-dataset--adamvakar--apple-comprehensive-financial-dataset-1980-2026",
+      "tail": "adamvakar--apple-comprehensive-financial-dataset-1980-2026",
+      "census_bytes": 68296329,
+      "band": "ge_64mib"
     },
     {
-      "id": "kaggle-dataset--ayeshasiddiqa123--student-perfirmance",
-      "census_bytes": 50208684,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--guriya79--bmw-cars",
-      "census_bytes": 49882525,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--muhammadrameez242--temperature-records-of-pakistan-1901-2016",
-      "census_bytes": 49760170,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nathansmallcalder--league-of-legends-match-interval-snapshots-2026",
-      "census_bytes": 49656614,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mhassansaboor--synthetic-grocery-transactions-practice-dataset",
-      "census_bytes": 48098158,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--andrewmvd--metastatic-tissue-classification-patchcamelyon",
-      "census_bytes": 46008960,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dikshaasinghhh--bajaj",
-      "census_bytes": 45402107,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hammadfarooq470--geospatial-and-demographic-data-of-pakistani-cities",
-      "census_bytes": 45267713,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kirkdco--google-cartoon-faces-attributes",
-      "census_bytes": 44838120,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--pkdarabi--solarpanel",
-      "census_bytes": 44665119,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--atharvasoundankar--ben-10-alien-universe-realistic-battle-dataset",
-      "census_bytes": 44113294,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ayushmandatta1--deepdetect-2025",
-      "census_bytes": 43762173,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--jacksonjohannessen--fifa-and-irl-soccer-player-data",
-      "census_bytes": 42257414,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mohtiw--techno-managerial-decision-scenarios-for-engineers",
-      "census_bytes": 42257107,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--grandmaster07--student-stress-levels-dataset",
-      "census_bytes": 41261510,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hassaan2580--churn-prediction-gym-members-dataset",
-      "census_bytes": 40617512,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nicapotato--womens-ecommerce-clothing-reviews",
-      "census_bytes": 40102240,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hammadfarooq470--cleaned-wjp-rule-of-law-index-2021-dataset",
-      "census_bytes": 40078466,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dheerajkr1a1a--rainfall-data",
-      "census_bytes": 39778759,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--marknghk--canadian-substance-use-survey-csus",
-      "census_bytes": 39124316,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nowke9--ipldata",
-      "census_bytes": 36652263,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--dhrubangtalukdar--10-years-climate-data-for-100-cities-worldwide",
-      "census_bytes": 36034962,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--muratkokludataset--pumpkin-seeds-dataset",
-      "census_bytes": 35259466,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mrgabrielblins--speaker-recognition-cmu-arctic",
-      "census_bytes": 35092766,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--christosbasdekis--annotated-facial-landmarks-dataset",
-      "census_bytes": 34574704,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adilimadeddinehosni--multi-resistance-antibiotic-susceptibility",
-      "census_bytes": 63771320,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ngshiheng--michelin-guide-restaurants-2021",
-      "census_bytes": 55560754,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--bertnardomariouskono--green-logistics-carbon-footprint-for-e-commerce",
-      "census_bytes": 45554564,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mohadesehemamipour--human-bones-fractured-vs-non-fractured-dataset",
-      "census_bytes": 45080581,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--hosseinbadrnezhad--ames-housing-cleaned-standardized-and-normalized",
-      "census_bytes": 39576254,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--nalisha--tesla-ea-deliveries-and-production-data20152025",
-      "census_bytes": 38955093,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--indraputra21--pcpartpicker-ram-dataset",
-      "census_bytes": 38364904,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--muhammadahmaddaar--diamonds-characteristics-and-pricing-analysis",
-      "census_bytes": 36978362,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kundanbedmutha--college-admission-dataset-india",
-      "census_bytes": 36653559,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--adamvakar--how-financial-crises-are-born-warning-indicators",
+      "id": "hf-dataset--adamvakar--how-financial-crises-are-born-warning-indicators",
+      "export_layer_id": "kaggle-dataset--adamvakar--how-financial-crises-are-born-warning-indicators",
+      "tail": "adamvakar--how-financial-crises-are-born-warning-indicators",
       "census_bytes": 36365812,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--hassanjameelahmed--e-commerce-customer-ds",
-      "census_bytes": 33728396,
+      "id": "hf-dataset--adarsh2626--indian-accident-dataset",
+      "export_layer_id": "kaggle-dataset--adarsh2626--indian-accident-dataset",
+      "tail": "adarsh2626--indian-accident-dataset",
+      "census_bytes": 37717825,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--agungpambudi--exploring-world-economies-global-currency-data",
+      "id": "hf-dataset--adarshrouniyar--air-pollution-image-dataset-from-india-and-nepal",
+      "export_layer_id": "kaggle-dataset--adarshrouniyar--air-pollution-image-dataset-from-india-and-nepal",
+      "tail": "adarshrouniyar--air-pollution-image-dataset-from-india-and-nepal",
+      "census_bytes": 86114847,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--adharshinikumar--2025-hearing-wellness-survey",
+      "export_layer_id": "kaggle-dataset--adharshinikumar--2025-hearing-wellness-survey",
+      "tail": "adharshinikumar--2025-hearing-wellness-survey",
+      "census_bytes": 198245642,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--adilimadeddinehosni--multi-resistance-antibiotic-susceptibility",
+      "export_layer_id": "kaggle-dataset--adilimadeddinehosni--multi-resistance-antibiotic-susceptibility",
+      "tail": "adilimadeddinehosni--multi-resistance-antibiotic-susceptibility",
+      "census_bytes": 63771320,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--adilshamim8--education-and-career-success",
+      "export_layer_id": "kaggle-dataset--adilshamim8--education-and-career-success",
+      "tail": "adilshamim8--education-and-career-success",
+      "census_bytes": 56519341,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--adilshamim8--microsoft-stock-price-history",
+      "export_layer_id": "kaggle-dataset--adilshamim8--microsoft-stock-price-history",
+      "tail": "adilshamim8--microsoft-stock-price-history",
+      "census_bytes": 139907467,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--adilshamim8--predict-students-dropout-and-academic-success",
+      "export_layer_id": "kaggle-dataset--adilshamim8--predict-students-dropout-and-academic-success",
+      "tail": "adilshamim8--predict-students-dropout-and-academic-success",
+      "census_bytes": 238390694,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--adilshamim8--rock-paper-scissors",
+      "export_layer_id": "kaggle-dataset--adilshamim8--rock-paper-scissors",
+      "tail": "adilshamim8--rock-paper-scissors",
+      "census_bytes": 59908962,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--adilshamim8--tesla-stock-price-history",
+      "export_layer_id": "kaggle-dataset--adilshamim8--tesla-stock-price-history",
+      "tail": "adilshamim8--tesla-stock-price-history",
+      "census_bytes": 292304138,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--adithyachalla--waste-classification",
+      "export_layer_id": "kaggle-dataset--adithyachalla--waste-classification",
+      "tail": "adithyachalla--waste-classification",
+      "census_bytes": 36728823,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--adityaaryan526--indian-upi-transactions",
+      "export_layer_id": "kaggle-dataset--adityaaryan526--indian-upi-transactions",
+      "tail": "adityaaryan526--indian-upi-transactions",
+      "census_bytes": 71806328,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--adityathakekar--iot-dataset",
+      "export_layer_id": "kaggle-dataset--adityathakekar--iot-dataset",
+      "tail": "adityathakekar--iot-dataset",
+      "census_bytes": 49051968,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--adrianboguszewski--landcoverai",
+      "export_layer_id": "kaggle-dataset--adrianboguszewski--landcoverai",
+      "tail": "adrianboguszewski--landcoverai",
+      "census_bytes": 38400959,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--aghileshadbi--iris-data",
+      "export_layer_id": "kaggle-dataset--aghileshadbi--iris-data",
+      "tail": "aghileshadbi--iris-data",
+      "census_bytes": 55928092,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--agungpambudi--exploring-world-economies-global-currency-data",
+      "export_layer_id": "kaggle-dataset--agungpambudi--exploring-world-economies-global-currency-data",
+      "tail": "agungpambudi--exploring-world-economies-global-currency-data",
       "census_bytes": 66638061,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--miadul--student-performance-dataset",
-      "census_bytes": 60626921,
+      "id": "hf-dataset--ahmeduzaki--concrete-compressive-strength-dataset",
+      "export_layer_id": "kaggle-dataset--ahmeduzaki--concrete-compressive-strength-dataset",
+      "tail": "ahmeduzaki--concrete-compressive-strength-dataset",
+      "census_bytes": 46961355,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--miadul--customer-churn-prediction-business-dataset",
-      "census_bytes": 59150284,
+      "id": "hf-dataset--ahsanneural--aigenerated-vs-humanwritten-code",
+      "export_layer_id": "kaggle-dataset--ahsanneural--aigenerated-vs-humanwritten-code",
+      "tail": "ahsanneural--aigenerated-vs-humanwritten-code",
+      "census_bytes": 54101362,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--jhamilgutierrez--biodegradable-fabrics-dataset",
-      "census_bytes": 53185714,
+      "id": "hf-dataset--ahsanneural--drone-swarm-coordination-dataset",
+      "export_layer_id": "kaggle-dataset--ahsanneural--drone-swarm-coordination-dataset",
+      "tail": "ahsanneural--drone-swarm-coordination-dataset",
+      "census_bytes": 67058287,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--hammadfarooq470--top-large-language-models-llms-and-their-details",
-      "census_bytes": 51688600,
+      "id": "hf-dataset--aisuko--ucf101-subset",
+      "export_layer_id": "kaggle-dataset--aisuko--ucf101-subset",
+      "tail": "aisuko--ucf101-subset",
+      "census_bytes": 35358761,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--i0taiisquare--mens-wrist-watches-dataset",
-      "census_bytes": 51050178,
+      "id": "hf-dataset--ajaypalsinghlo--world-happiness-report-2021",
+      "export_layer_id": "kaggle-dataset--ajaypalsinghlo--world-happiness-report-2021",
+      "tail": "ajaypalsinghlo--world-happiness-report-2021",
+      "census_bytes": 66473362,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--algozee--llm-model",
-      "census_bytes": 48285155,
+      "id": "hf-dataset--akashdeepkuila--bakery",
+      "export_layer_id": "kaggle-dataset--akashdeepkuila--bakery",
+      "tail": "akashdeepkuila--bakery",
+      "census_bytes": 81929308,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--alessandrasala79--ai-vs-human-generated-dataset",
+      "export_layer_id": "kaggle-dataset--alessandrasala79--ai-vs-human-generated-dataset",
+      "tail": "alessandrasala79--ai-vs-human-generated-dataset",
+      "census_bytes": 35301438,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--marawaneslam--movie-reviews-sentiment-analysis-datasetimdb",
-      "census_bytes": 46368071,
+      "id": "hf-dataset--alessiocorrado99--animals10",
+      "export_layer_id": "kaggle-dataset--alessiocorrado99--animals10",
+      "tail": "alessiocorrado99--animals10",
+      "census_bytes": 86269071,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--alexanderyevchenko--corn-disease-drone-images",
+      "export_layer_id": "kaggle-dataset--alexanderyevchenko--corn-disease-drone-images",
+      "tail": "alexanderyevchenko--corn-disease-drone-images",
+      "census_bytes": 61360428,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--hossainadnan1012--noise-speech",
-      "census_bytes": 44423112,
+      "id": "hf-dataset--alexanderyyy--pills-detection-dataset",
+      "export_layer_id": "kaggle-dataset--alexanderyyy--pills-detection-dataset",
+      "tail": "alexanderyyy--pills-detection-dataset",
+      "census_bytes": 40040775,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--novandraanugrah--nasdaq-100-nas100-historical-price-data",
-      "census_bytes": 38352224,
-      "band": "from_32_to_64mib"
+      "id": "hf-dataset--alexteboul--diabetes-health-indicators-dataset",
+      "export_layer_id": "kaggle-dataset--alexteboul--diabetes-health-indicators-dataset",
+      "tail": "alexteboul--diabetes-health-indicators-dataset",
+      "census_bytes": 289974726,
+      "band": "ge_64mib"
     },
     {
-      "id": "kaggle-dataset--hassanjameelahmed--corn-annual-summary",
-      "census_bytes": 36808770,
-      "band": "from_32_to_64mib"
+      "id": "hf-dataset--algozee--climate-cahnge",
+      "export_layer_id": "kaggle-dataset--algozee--climate-cahnge",
+      "tail": "algozee--climate-cahnge",
+      "census_bytes": 98028575,
+      "band": "ge_64mib"
     },
     {
-      "id": "kaggle-dataset--atharvasoundankar--viral-social-media-trends-and-engagement-analysis",
-      "census_bytes": 36102438,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mabubakrsiddiq--sentiment-analysis-dataset-31k-samples",
-      "census_bytes": 35115223,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--mabubakrsiddiq--chinese-pinyin-english-dataset",
-      "census_bytes": 63696073,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--matepapava--doctors-in-us-reviews-and-scores",
-      "census_bytes": 61823617,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--chrissyserb--redteam-playback-prompt-fruit-jailbreak",
-      "census_bytes": 61028847,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--aliiihussain--e-commerce-data-analyst",
-      "census_bytes": 53533365,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--barrybhunter--geograph-types-dataset-1",
-      "census_bytes": 52994986,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ashrafkhetran--silver-futures-price-data-and-ml-forecast-2016-2026",
-      "census_bytes": 51488126,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--haseebhsb--ebay-headphones-market-intelligence-dataset",
-      "census_bytes": 49221351,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--tascj0--vasculature-packages",
-      "census_bytes": 41773507,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--eduardosilva46--euromillions",
-      "census_bytes": 40774474,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--orvile--ravdess-dataset",
-      "census_bytes": 40763462,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--prince7489--employee-salary-dataset",
-      "census_bytes": 33788268,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kylejameshanger--akkadian-model-zoo-v1-0",
-      "census_bytes": 57810306,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--sargamgoya1--pidnet-s-weights",
-      "census_bytes": 51450308,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--ealtman2019--ibm-transactions-for-anti-money-laundering-aml",
-      "census_bytes": 42320536,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--kgaooo--oai-tissue-segmentations",
-      "census_bytes": 41706711,
-      "band": "from_32_to_64mib"
-    },
-    {
-      "id": "kaggle-dataset--algozee--european-residential-housing-prices",
+      "id": "hf-dataset--algozee--european-residential-housing-prices",
+      "export_layer_id": "kaggle-dataset--algozee--european-residential-housing-prices",
+      "tail": "algozee--european-residential-housing-prices",
       "census_bytes": 39040417,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--ashrafkhetran--nvidia-and-openai-share-price-analysis",
+      "id": "hf-dataset--algozee--llm-model",
+      "export_layer_id": "kaggle-dataset--algozee--llm-model",
+      "tail": "algozee--llm-model",
+      "census_bytes": 48285155,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--alhamdulliah123--personal-expense-analysis-and-budget-prediction",
+      "export_layer_id": "kaggle-dataset--alhamdulliah123--personal-expense-analysis-and-budget-prediction",
+      "tail": "alhamdulliah123--personal-expense-analysis-and-budget-prediction",
+      "census_bytes": 52705042,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--aliiihussain--e-commerce-data-analyst",
+      "export_layer_id": "kaggle-dataset--aliiihussain--e-commerce-data-analyst",
+      "tail": "aliiihussain--e-commerce-data-analyst",
+      "census_bytes": 53533365,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--aminealibi--ufc-fights-fighters-and-events-dataset",
+      "export_layer_id": "kaggle-dataset--aminealibi--ufc-fights-fighters-and-events-dataset",
+      "tail": "aminealibi--ufc-fights-fighters-and-events-dataset",
+      "census_bytes": 178456700,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--amineipad--titanic-dataset",
+      "export_layer_id": "kaggle-dataset--amineipad--titanic-dataset",
+      "tail": "amineipad--titanic-dataset",
+      "census_bytes": 207738202,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--andrewmvd--metastatic-tissue-classification-patchcamelyon",
+      "export_layer_id": "kaggle-dataset--andrewmvd--metastatic-tissue-classification-patchcamelyon",
+      "tail": "andrewmvd--metastatic-tissue-classification-patchcamelyon",
+      "census_bytes": 46008960,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--andrewmvd--steam-reviews",
+      "export_layer_id": "kaggle-dataset--andrewmvd--steam-reviews",
+      "tail": "andrewmvd--steam-reviews",
+      "census_bytes": 51609624,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--andrewsundberg--college-basketball-dataset",
+      "export_layer_id": "kaggle-dataset--andrewsundberg--college-basketball-dataset",
+      "tail": "andrewsundberg--college-basketball-dataset",
+      "census_bytes": 326138280,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--angelchaudhary--harry-potter-characters-by-book-dataset",
+      "export_layer_id": "kaggle-dataset--angelchaudhary--harry-potter-characters-by-book-dataset",
+      "tail": "angelchaudhary--harry-potter-characters-by-book-dataset",
+      "census_bytes": 162411550,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--aniketa14--wizard-analyst-instruct-500k",
+      "export_layer_id": "kaggle-dataset--aniketa14--wizard-analyst-instruct-500k",
+      "tail": "aniketa14--wizard-analyst-instruct-500k",
+      "census_bytes": 75511509,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--ankitrajmishra--sales-store",
+      "export_layer_id": "kaggle-dataset--ankitrajmishra--sales-store",
+      "tail": "ankitrajmishra--sales-store",
+      "census_bytes": 206311770,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--ankushpanday2--heart-attack-prediction-in-indonesia",
+      "export_layer_id": "kaggle-dataset--ankushpanday2--heart-attack-prediction-in-indonesia",
+      "tail": "ankushpanday2--heart-attack-prediction-in-indonesia",
+      "census_bytes": 36064733,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ansariusama152--kababjees-review-dataset-2025",
+      "export_layer_id": "kaggle-dataset--ansariusama152--kababjees-review-dataset-2025",
+      "tail": "ansariusama152--kababjees-review-dataset-2025",
+      "census_bytes": 166696223,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--artofintelligence--ham-spam",
+      "export_layer_id": "kaggle-dataset--artofintelligence--ham-spam",
+      "tail": "artofintelligence--ham-spam",
+      "census_bytes": 64921399,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--aryanpatel212--cleaned-nyc-taxi-trip-data-2025-sample",
+      "export_layer_id": "kaggle-dataset--aryanpatel212--cleaned-nyc-taxi-trip-data-2025-sample",
+      "tail": "aryanpatel212--cleaned-nyc-taxi-trip-data-2025-sample",
+      "census_bytes": 54575204,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--aryanpatel212--india-solar-site-selection-data",
+      "export_layer_id": "kaggle-dataset--aryanpatel212--india-solar-site-selection-data",
+      "tail": "aryanpatel212--india-solar-site-selection-data",
+      "census_bytes": 181848052,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--aryanprajapati33--smart-india-hackathon-2025-team-outcomes",
+      "export_layer_id": "kaggle-dataset--aryanprajapati33--smart-india-hackathon-2025-team-outcomes",
+      "tail": "aryanprajapati33--smart-india-hackathon-2025-team-outcomes",
+      "census_bytes": 96270747,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--asaniczka--tmdb-movies-dataset-2023-930k-movies",
+      "export_layer_id": "kaggle-dataset--asaniczka--tmdb-movies-dataset-2023-930k-movies",
+      "tail": "asaniczka--tmdb-movies-dataset-2023-930k-movies",
+      "census_bytes": 280158450,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--asaniczka--top-spotify-songs-in-73-countries-daily-updated",
+      "export_layer_id": "kaggle-dataset--asaniczka--top-spotify-songs-in-73-countries-daily-updated",
+      "tail": "asaniczka--top-spotify-songs-in-73-countries-daily-updated",
+      "census_bytes": 47857393,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ashirwadsangwan--imdb-dataset",
+      "export_layer_id": "kaggle-dataset--ashirwadsangwan--imdb-dataset",
+      "tail": "ashirwadsangwan--imdb-dataset",
+      "census_bytes": 186023005,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--ashishkumarak--netflix-reviews-playstore-daily-updated",
+      "export_layer_id": "kaggle-dataset--ashishkumarak--netflix-reviews-playstore-daily-updated",
+      "tail": "ashishkumarak--netflix-reviews-playstore-daily-updated",
+      "census_bytes": 52508296,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ashrafkhetran--copper-price-analysis-and-forecasting-2026",
+      "export_layer_id": "kaggle-dataset--ashrafkhetran--copper-price-analysis-and-forecasting-2026",
+      "tail": "ashrafkhetran--copper-price-analysis-and-forecasting-2026",
+      "census_bytes": 35953174,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ashrafkhetran--global-international-bandwidth-usage-per-capita",
+      "export_layer_id": "kaggle-dataset--ashrafkhetran--global-international-bandwidth-usage-per-capita",
+      "tail": "ashrafkhetran--global-international-bandwidth-usage-per-capita",
+      "census_bytes": 76799647,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--ashrafkhetran--nvidia-and-openai-share-price-analysis",
+      "export_layer_id": "kaggle-dataset--ashrafkhetran--nvidia-and-openai-share-price-analysis",
+      "tail": "ashrafkhetran--nvidia-and-openai-share-price-analysis",
       "census_bytes": 51453643,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--pritishmishra--resources-albumentations-guide",
-      "census_bytes": 47618287,
+      "id": "hf-dataset--ashrafkhetran--silver-futures-price-data-and-ml-forecast-2016-2026",
+      "export_layer_id": "kaggle-dataset--ashrafkhetran--silver-futures-price-data-and-ml-forecast-2016-2026",
+      "tail": "ashrafkhetran--silver-futures-price-data-and-ml-forecast-2016-2026",
+      "census_bytes": 51488126,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--prachipalsodkar--churn-datset",
+      "id": "hf-dataset--ashyou09--cryptocurrency-market-dataset",
+      "export_layer_id": "kaggle-dataset--ashyou09--cryptocurrency-market-dataset",
+      "tail": "ashyou09--cryptocurrency-market-dataset",
+      "census_bytes": 228262034,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--atanastonchev--bulgarian-parliament-transcripts",
+      "export_layer_id": "kaggle-dataset--atanastonchev--bulgarian-parliament-transcripts",
+      "tail": "atanastonchev--bulgarian-parliament-transcripts",
+      "census_bytes": 74905977,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--atharvasoundankar--ben-10-alien-universe-realistic-battle-dataset",
+      "export_layer_id": "kaggle-dataset--atharvasoundankar--ben-10-alien-universe-realistic-battle-dataset",
+      "tail": "atharvasoundankar--ben-10-alien-universe-realistic-battle-dataset",
+      "census_bytes": 44113294,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--atharvasoundankar--global-music-streaming-trends-and-listener-insights",
+      "export_layer_id": "kaggle-dataset--atharvasoundankar--global-music-streaming-trends-and-listener-insights",
+      "tail": "atharvasoundankar--global-music-streaming-trends-and-listener-insights",
+      "census_bytes": 271430069,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--atharvasoundankar--universal-bank-customer-profiles",
+      "export_layer_id": "kaggle-dataset--atharvasoundankar--universal-bank-customer-profiles",
+      "tail": "atharvasoundankar--universal-bank-customer-profiles",
+      "census_bytes": 186964371,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--atharvasoundankar--viral-social-media-trends-and-engagement-analysis",
+      "export_layer_id": "kaggle-dataset--atharvasoundankar--viral-social-media-trends-and-engagement-analysis",
+      "tail": "atharvasoundankar--viral-social-media-trends-and-engagement-analysis",
+      "census_bytes": 36102438,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--awallay--worlds-biggest-data-breaches-and-hacks-2004-2025",
+      "export_layer_id": "kaggle-dataset--awallay--worlds-biggest-data-breaches-and-hacks-2004-2025",
+      "tail": "awallay--worlds-biggest-data-breaches-and-hacks-2004-2025",
+      "census_bytes": 60374625,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ayeshaimran1619--customer-spending-patterns",
+      "export_layer_id": "kaggle-dataset--ayeshaimran1619--customer-spending-patterns",
+      "tail": "ayeshaimran1619--customer-spending-patterns",
+      "census_bytes": 82811811,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--ayeshaseherr--bmw-dataset",
+      "export_layer_id": "kaggle-dataset--ayeshaseherr--bmw-dataset",
+      "tail": "ayeshaseherr--bmw-dataset",
+      "census_bytes": 70559883,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--ayeshasiddiqa123--student-perfirmance",
+      "export_layer_id": "kaggle-dataset--ayeshasiddiqa123--student-perfirmance",
+      "tail": "ayeshasiddiqa123--student-perfirmance",
+      "census_bytes": 50208684,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ayushmandatta1--deepdetect-2025",
+      "export_layer_id": "kaggle-dataset--ayushmandatta1--deepdetect-2025",
+      "tail": "ayushmandatta1--deepdetect-2025",
+      "census_bytes": 43762173,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--barkataliarbab--license-plate-detection-dataset-10125-images",
+      "export_layer_id": "kaggle-dataset--barkataliarbab--license-plate-detection-dataset-10125-images",
+      "tail": "barkataliarbab--license-plate-detection-dataset-10125-images",
+      "census_bytes": 55319864,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--barkataliarbab--u-s-interest-rates-and-monetary-policy-indicators",
+      "export_layer_id": "kaggle-dataset--barkataliarbab--u-s-interest-rates-and-monetary-policy-indicators",
+      "tail": "barkataliarbab--u-s-interest-rates-and-monetary-policy-indicators",
+      "census_bytes": 173424706,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--barrybhunter--geograph-places-tag-dataset",
+      "export_layer_id": "kaggle-dataset--barrybhunter--geograph-places-tag-dataset",
+      "tail": "barrybhunter--geograph-places-tag-dataset",
+      "census_bytes": 67425093,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--barrybhunter--geograph-types-dataset-1",
+      "export_layer_id": "kaggle-dataset--barrybhunter--geograph-types-dataset-1",
+      "tail": "barrybhunter--geograph-types-dataset-1",
+      "census_bytes": 52994986,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--beatafaron--telco-customer-churn-realistic-customer-feedback",
+      "export_layer_id": "kaggle-dataset--beatafaron--telco-customer-churn-realistic-customer-feedback",
+      "tail": "beatafaron--telco-customer-churn-realistic-customer-feedback",
+      "census_bytes": 81954312,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--bertnardomariouskono--green-logistics-carbon-footprint-for-e-commerce",
+      "export_layer_id": "kaggle-dataset--bertnardomariouskono--green-logistics-carbon-footprint-for-e-commerce",
+      "tail": "bertnardomariouskono--green-logistics-carbon-footprint-for-e-commerce",
+      "census_bytes": 45554564,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--borapajo--food-choices",
+      "export_layer_id": "kaggle-dataset--borapajo--food-choices",
+      "tail": "borapajo--food-choices",
+      "census_bytes": 44251630,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--bornaetminan--cleaned-real-and-fake-news-dataset-english",
+      "export_layer_id": "kaggle-dataset--bornaetminan--cleaned-real-and-fake-news-dataset-english",
+      "tail": "bornaetminan--cleaned-real-and-fake-news-dataset-english",
+      "census_bytes": 152847416,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--bryanb--fifa-player-stats-database",
+      "export_layer_id": "kaggle-dataset--bryanb--fifa-player-stats-database",
+      "tail": "bryanb--fifa-player-stats-database",
+      "census_bytes": 36304287,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--bwandowando--reddit-rcanada-subreddit-dataset-2026",
+      "export_layer_id": "kaggle-dataset--bwandowando--reddit-rcanada-subreddit-dataset-2026",
+      "tail": "bwandowando--reddit-rcanada-subreddit-dataset-2026",
+      "census_bytes": 52284190,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--bwandowando--reddit-rindonesia-subreddit-dataset-2026",
+      "export_layer_id": "kaggle-dataset--bwandowando--reddit-rindonesia-subreddit-dataset-2026",
+      "tail": "bwandowando--reddit-rindonesia-subreddit-dataset-2026",
+      "census_bytes": 122864414,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--calvinrostanto--fantasy-premier-league-2025-2026",
+      "export_layer_id": "kaggle-dataset--calvinrostanto--fantasy-premier-league-2025-2026",
+      "tail": "calvinrostanto--fantasy-premier-league-2025-2026",
+      "census_bytes": 72516464,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--catalinaadelachirtes--parrot-hierarchical-detection-dataset",
+      "export_layer_id": "kaggle-dataset--catalinaadelachirtes--parrot-hierarchical-detection-dataset",
+      "tail": "catalinaadelachirtes--parrot-hierarchical-detection-dataset",
+      "census_bytes": 46594517,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--chiragsaipanuganti--morph",
+      "export_layer_id": "kaggle-dataset--chiragsaipanuganti--morph",
+      "tail": "chiragsaipanuganti--morph",
+      "census_bytes": 105223756,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--chrissyserb--redteam-playback-prompt-fruit-jailbreak",
+      "export_layer_id": "kaggle-dataset--chrissyserb--redteam-playback-prompt-fruit-jailbreak",
+      "tail": "chrissyserb--redteam-playback-prompt-fruit-jailbreak",
+      "census_bytes": 61028847,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--chrissyserb--sovereignty-nvidia-auditor-dataset",
+      "export_layer_id": "kaggle-dataset--chrissyserb--sovereignty-nvidia-auditor-dataset",
+      "tail": "chrissyserb--sovereignty-nvidia-auditor-dataset",
+      "census_bytes": 56123280,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--christosbasdekis--annotated-facial-landmarks-dataset",
+      "export_layer_id": "kaggle-dataset--christosbasdekis--annotated-facial-landmarks-dataset",
+      "tail": "christosbasdekis--annotated-facial-landmarks-dataset",
+      "census_bytes": 34574704,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--codebynadiia--gdp-per-country-20202025",
+      "export_layer_id": "kaggle-dataset--codebynadiia--gdp-per-country-20202025",
+      "tail": "codebynadiia--gdp-per-country-20202025",
+      "census_bytes": 38071434,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--coosti--denmark-retail-price-indices-and-market-trends",
+      "export_layer_id": "kaggle-dataset--coosti--denmark-retail-price-indices-and-market-trends",
+      "tail": "coosti--denmark-retail-price-indices-and-market-trends",
+      "census_bytes": 120692954,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--crawford--cat-dataset",
+      "export_layer_id": "kaggle-dataset--crawford--cat-dataset",
+      "tail": "crawford--cat-dataset",
+      "census_bytes": 48546490,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dastgeerjutt--pakistan-super-league-psl",
+      "export_layer_id": "kaggle-dataset--dastgeerjutt--pakistan-super-league-psl",
+      "tail": "dastgeerjutt--pakistan-super-league-psl",
+      "census_bytes": 53097247,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dataclusterlabs--stairs-image-dataset",
+      "export_layer_id": "kaggle-dataset--dataclusterlabs--stairs-image-dataset",
+      "tail": "dataclusterlabs--stairs-image-dataset",
+      "census_bytes": 80158583,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--deasadiqbal--private-data-1",
+      "export_layer_id": "kaggle-dataset--deasadiqbal--private-data-1",
+      "tail": "deasadiqbal--private-data-1",
+      "census_bytes": 169650466,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--debajyotipodder--co2-emission-by-vehicles",
+      "export_layer_id": "kaggle-dataset--debajyotipodder--co2-emission-by-vehicles",
+      "tail": "debajyotipodder--co2-emission-by-vehicles",
+      "census_bytes": 69184119,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--debarghamitraroy--casia-webface",
+      "export_layer_id": "kaggle-dataset--debarghamitraroy--casia-webface",
+      "tail": "debarghamitraroy--casia-webface",
+      "census_bytes": 37487403,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--debashis74017--nifty-50-minute-data",
+      "export_layer_id": "kaggle-dataset--debashis74017--nifty-50-minute-data",
+      "tail": "debashis74017--nifty-50-minute-data",
+      "census_bytes": 158164367,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--devang03mgr--cattle-diseases-datasets",
+      "export_layer_id": "kaggle-dataset--devang03mgr--cattle-diseases-datasets",
+      "tail": "devang03mgr--cattle-diseases-datasets",
+      "census_bytes": 92284658,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dewanmukto--social-messages-and-emoji-reactions",
+      "export_layer_id": "kaggle-dataset--dewanmukto--social-messages-and-emoji-reactions",
+      "tail": "dewanmukto--social-messages-and-emoji-reactions",
+      "census_bytes": 137318732,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dhairyajeetsingh--ecommerce-customer-behavior-dataset",
+      "export_layer_id": "kaggle-dataset--dhairyajeetsingh--ecommerce-customer-behavior-dataset",
+      "tail": "dhairyajeetsingh--ecommerce-customer-behavior-dataset",
+      "census_bytes": 89976223,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dharshiyanacc--dog-vs-cat",
+      "export_layer_id": "kaggle-dataset--dharshiyanacc--dog-vs-cat",
+      "tail": "dharshiyanacc--dog-vs-cat",
+      "census_bytes": 50257384,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dheerajkr1a1a--rainfall-data",
+      "export_layer_id": "kaggle-dataset--dheerajkr1a1a--rainfall-data",
+      "tail": "dheerajkr1a1a--rainfall-data",
+      "census_bytes": 39778759,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dhrubangtalukdar--10-years-climate-data-for-100-cities-worldwide",
+      "export_layer_id": "kaggle-dataset--dhrubangtalukdar--10-years-climate-data-for-100-cities-worldwide",
+      "tail": "dhrubangtalukdar--10-years-climate-data-for-100-cities-worldwide",
+      "census_bytes": 36034962,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dhrubangtalukdar--200-years-of-global-major-earthquakes-18262026",
+      "export_layer_id": "kaggle-dataset--dhrubangtalukdar--200-years-of-global-major-earthquakes-18262026",
+      "tail": "dhrubangtalukdar--200-years-of-global-major-earthquakes-18262026",
+      "census_bytes": 36774584,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dhrubangtalukdar--abb-india-stock-data-2002-2025",
+      "export_layer_id": "kaggle-dataset--dhrubangtalukdar--abb-india-stock-data-2002-2025",
+      "tail": "dhrubangtalukdar--abb-india-stock-data-2002-2025",
+      "census_bytes": 273613985,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dhrubangtalukdar--afcon-202526-complete-match-statistics",
+      "export_layer_id": "kaggle-dataset--dhrubangtalukdar--afcon-202526-complete-match-statistics",
+      "tail": "dhrubangtalukdar--afcon-202526-complete-match-statistics",
+      "census_bytes": 89347195,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dhrubangtalukdar--global-mental-health-and-lifestyle-survey-dataset",
+      "export_layer_id": "kaggle-dataset--dhrubangtalukdar--global-mental-health-and-lifestyle-survey-dataset",
+      "tail": "dhrubangtalukdar--global-mental-health-and-lifestyle-survey-dataset",
+      "census_bytes": 73953201,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dhrubangtalukdar--indian-premier-league-ipl-all-matches2008-2025",
+      "export_layer_id": "kaggle-dataset--dhrubangtalukdar--indian-premier-league-ipl-all-matches2008-2025",
+      "tail": "dhrubangtalukdar--indian-premier-league-ipl-all-matches2008-2025",
+      "census_bytes": 81402502,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dhrubangtalukdar--magnus-carlsen-chess-com-games",
+      "export_layer_id": "kaggle-dataset--dhrubangtalukdar--magnus-carlsen-chess-com-games",
+      "tail": "dhrubangtalukdar--magnus-carlsen-chess-com-games",
+      "census_bytes": 73603699,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dikshaasinghhh--bajaj",
+      "export_layer_id": "kaggle-dataset--dikshaasinghhh--bajaj",
+      "tail": "dikshaasinghhh--bajaj",
+      "census_bytes": 45402107,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dilaraiek--silver-futures-price-data",
+      "export_layer_id": "kaggle-dataset--dilaraiek--silver-futures-price-data",
+      "tail": "dilaraiek--silver-futures-price-data",
+      "census_bytes": 91793628,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dizzypanda--gen-1-pokemon",
+      "export_layer_id": "kaggle-dataset--dizzypanda--gen-1-pokemon",
+      "tail": "dizzypanda--gen-1-pokemon",
+      "census_bytes": 60066052,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dnkumars--asana-enterprise-workspace-simulation-dataset",
+      "export_layer_id": "kaggle-dataset--dnkumars--asana-enterprise-workspace-simulation-dataset",
+      "tail": "dnkumars--asana-enterprise-workspace-simulation-dataset",
+      "census_bytes": 74680084,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--dtkngan--100-bien-so-xe-may-ocr",
+      "export_layer_id": "kaggle-dataset--dtkngan--100-bien-so-xe-may-ocr",
+      "tail": "dtkngan--100-bien-so-xe-may-ocr",
+      "census_bytes": 50939782,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--dubltap--factory-oee-and-downtime-synthetic-starter-dataset",
+      "export_layer_id": "kaggle-dataset--dubltap--factory-oee-and-downtime-synthetic-starter-dataset",
+      "tail": "dubltap--factory-oee-and-downtime-synthetic-starter-dataset",
+      "census_bytes": 34918057,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ealtman2019--ibm-transactions-for-anti-money-laundering-aml",
+      "export_layer_id": "kaggle-dataset--ealtman2019--ibm-transactions-for-anti-money-laundering-aml",
+      "tail": "ealtman2019--ibm-transactions-for-anti-money-laundering-aml",
+      "census_bytes": 42320536,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--eduardosilva46--euromillions",
+      "export_layer_id": "kaggle-dataset--eduardosilva46--euromillions",
+      "tail": "eduardosilva46--euromillions",
+      "census_bytes": 40774474,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--efeatagul--wneura-synthetic-burnout-data",
+      "export_layer_id": "kaggle-dataset--efeatagul--wneura-synthetic-burnout-data",
+      "tail": "efeatagul--wneura-synthetic-burnout-data",
+      "census_bytes": 85838788,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--emadmakhlouf--linearly-inseperable-dataset",
+      "export_layer_id": "kaggle-dataset--emadmakhlouf--linearly-inseperable-dataset",
+      "tail": "emadmakhlouf--linearly-inseperable-dataset",
+      "census_bytes": 35359209,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--emanafi--churndataset",
+      "export_layer_id": "kaggle-dataset--emanafi--churndataset",
+      "tail": "emanafi--churndataset",
+      "census_bytes": 110188834,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--emanfatima2--ai-trust-insights",
+      "export_layer_id": "kaggle-dataset--emanfatima2--ai-trust-insights",
+      "tail": "emanfatima2--ai-trust-insights",
+      "census_bytes": 119284168,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--emirhanakku--disaster-events-2025",
+      "export_layer_id": "kaggle-dataset--emirhanakku--disaster-events-2025",
+      "tail": "emirhanakku--disaster-events-2025",
+      "census_bytes": 34479097,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--eriklindqvist--fragdb-fragrance-database",
+      "export_layer_id": "kaggle-dataset--eriklindqvist--fragdb-fragrance-database",
+      "tail": "eriklindqvist--fragdb-fragrance-database",
+      "census_bytes": 52778070,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ethancratchley--email-phishing-dataset",
+      "export_layer_id": "kaggle-dataset--ethancratchley--email-phishing-dataset",
+      "tail": "ethancratchley--email-phishing-dataset",
+      "census_bytes": 59577015,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--fatihilhan--global-superstore-dataset",
+      "export_layer_id": "kaggle-dataset--fatihilhan--global-superstore-dataset",
+      "tail": "fatihilhan--global-superstore-dataset",
+      "census_bytes": 41144592,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--fedesoriano--stroke-prediction-dataset",
+      "export_layer_id": "kaggle-dataset--fedesoriano--stroke-prediction-dataset",
+      "tail": "fedesoriano--stroke-prediction-dataset",
+      "census_bytes": 104215847,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--fichka--almaty-air-quality-history",
+      "export_layer_id": "kaggle-dataset--fichka--almaty-air-quality-history",
+      "tail": "fichka--almaty-air-quality-history",
+      "census_bytes": 84769768,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--fireballbyedimyrnmom--us-counties-covid-19-dataset",
+      "export_layer_id": "kaggle-dataset--fireballbyedimyrnmom--us-counties-covid-19-dataset",
+      "tail": "fireballbyedimyrnmom--us-counties-covid-19-dataset",
+      "census_bytes": 38610672,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--fivethirtyeight--fivethirtyeight-comic-characters-dataset",
+      "export_layer_id": "kaggle-dataset--fivethirtyeight--fivethirtyeight-comic-characters-dataset",
+      "tail": "fivethirtyeight--fivethirtyeight-comic-characters-dataset",
+      "census_bytes": 189568379,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--furkanark--myanimelist-top-10000-anime-dataset",
+      "export_layer_id": "kaggle-dataset--furkanark--myanimelist-top-10000-anime-dataset",
+      "tail": "furkanark--myanimelist-top-10000-anime-dataset",
+      "census_bytes": 117090334,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--gmudit--employer-data",
+      "export_layer_id": "kaggle-dataset--gmudit--employer-data",
+      "tail": "gmudit--employer-data",
+      "census_bytes": 59576721,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--gmudit--preprocessed-wind-data",
+      "export_layer_id": "kaggle-dataset--gmudit--preprocessed-wind-data",
+      "tail": "gmudit--preprocessed-wind-data",
+      "census_bytes": 123596495,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--gpreda--covid19-tweets",
+      "export_layer_id": "kaggle-dataset--gpreda--covid19-tweets",
+      "tail": "gpreda--covid19-tweets",
+      "census_bytes": 45933609,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--grandmaster07--bmw-sales-analysis-and-prediction-20102024",
+      "export_layer_id": "kaggle-dataset--grandmaster07--bmw-sales-analysis-and-prediction-20102024",
+      "tail": "grandmaster07--bmw-sales-analysis-and-prediction-20102024",
+      "census_bytes": 49070841,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--grandmaster07--restaurant-tips-dataset-analysis",
+      "export_layer_id": "kaggle-dataset--grandmaster07--restaurant-tips-dataset-analysis",
+      "tail": "grandmaster07--restaurant-tips-dataset-analysis",
+      "census_bytes": 141660603,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--grandmaster07--student-stress-levels-dataset",
+      "export_layer_id": "kaggle-dataset--grandmaster07--student-stress-levels-dataset",
+      "tail": "grandmaster07--student-stress-levels-dataset",
+      "census_bytes": 41261510,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--guilloth3b3st--synshapes",
+      "export_layer_id": "kaggle-dataset--guilloth3b3st--synshapes",
+      "tail": "guilloth3b3st--synshapes",
+      "census_bytes": 36044534,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--guriya79--bmw-cars",
+      "export_layer_id": "kaggle-dataset--guriya79--bmw-cars",
+      "tail": "guriya79--bmw-cars",
+      "census_bytes": 49882525,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--guriya79--pakistans-largest-e-commerce-dataset-20162018",
+      "export_layer_id": "kaggle-dataset--guriya79--pakistans-largest-e-commerce-dataset-20162018",
+      "tail": "guriya79--pakistans-largest-e-commerce-dataset-20162018",
+      "census_bytes": 94324659,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--hammadfarooq470--cleaned-wjp-rule-of-law-index-2021-dataset",
+      "export_layer_id": "kaggle-dataset--hammadfarooq470--cleaned-wjp-rule-of-law-index-2021-dataset",
+      "tail": "hammadfarooq470--cleaned-wjp-rule-of-law-index-2021-dataset",
+      "census_bytes": 40078466,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hammadfarooq470--geospatial-and-demographic-data-of-pakistani-cities",
+      "export_layer_id": "kaggle-dataset--hammadfarooq470--geospatial-and-demographic-data-of-pakistani-cities",
+      "tail": "hammadfarooq470--geospatial-and-demographic-data-of-pakistani-cities",
+      "census_bytes": 45267713,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hammadfarooq470--google-play-store-most-downloaded-android-apps",
+      "export_layer_id": "kaggle-dataset--hammadfarooq470--google-play-store-most-downloaded-android-apps",
+      "tail": "hammadfarooq470--google-play-store-most-downloaded-android-apps",
+      "census_bytes": 34406157,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hammadfarooq470--top-large-language-models-llms-and-their-details",
+      "export_layer_id": "kaggle-dataset--hammadfarooq470--top-large-language-models-llms-and-their-details",
+      "tail": "hammadfarooq470--top-large-language-models-llms-and-their-details",
+      "census_bytes": 51688600,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hamza202404--drdm1-six-fundus-images-datasets-by-mian-hamza",
+      "export_layer_id": "kaggle-dataset--hamza202404--drdm1-six-fundus-images-datasets-by-mian-hamza",
+      "tail": "hamza202404--drdm1-six-fundus-images-datasets-by-mian-hamza",
+      "census_bytes": 86344202,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--harrychristian--pcso-lottery-results-philippines",
+      "export_layer_id": "kaggle-dataset--harrychristian--pcso-lottery-results-philippines",
+      "tail": "harrychristian--pcso-lottery-results-philippines",
+      "census_bytes": 34283416,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--harshgupta4444--hp-laptops-specification-dataset-india",
+      "export_layer_id": "kaggle-dataset--harshgupta4444--hp-laptops-specification-dataset-india",
+      "tail": "harshgupta4444--hp-laptops-specification-dataset-india",
+      "census_bytes": 84107867,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--haseebhsb--ebay-headphones-market-intelligence-dataset",
+      "export_layer_id": "kaggle-dataset--haseebhsb--ebay-headphones-market-intelligence-dataset",
+      "tail": "haseebhsb--ebay-headphones-market-intelligence-dataset",
+      "census_bytes": 49221351,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hassaan2580--churn-prediction-gym-members-dataset",
+      "export_layer_id": "kaggle-dataset--hassaan2580--churn-prediction-gym-members-dataset",
+      "tail": "hassaan2580--churn-prediction-gym-members-dataset",
+      "census_bytes": 40617512,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hassanjameelahmed--corn-annual-summary",
+      "export_layer_id": "kaggle-dataset--hassanjameelahmed--corn-annual-summary",
+      "tail": "hassanjameelahmed--corn-annual-summary",
+      "census_bytes": 36808770,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hassanjameelahmed--e-commerce-customer-ds",
+      "export_layer_id": "kaggle-dataset--hassanjameelahmed--e-commerce-customer-ds",
+      "tail": "hassanjameelahmed--e-commerce-customer-ds",
+      "census_bytes": 33728396,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hassanjameelahmed--price-of-healthy-diet-clean",
+      "export_layer_id": "kaggle-dataset--hassanjameelahmed--price-of-healthy-diet-clean",
+      "tail": "hassanjameelahmed--price-of-healthy-diet-clean",
+      "census_bytes": 67556601,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--headsortails--us-natural-disaster-declarations",
+      "export_layer_id": "kaggle-dataset--headsortails--us-natural-disaster-declarations",
+      "tail": "headsortails--us-natural-disaster-declarations",
+      "census_bytes": 53490751,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hetmengar--medical-insurance-cost-prediction",
+      "export_layer_id": "kaggle-dataset--hetmengar--medical-insurance-cost-prediction",
+      "tail": "hetmengar--medical-insurance-cost-prediction",
+      "census_bytes": 244141342,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--hossainadnan1012--noise-speech",
+      "export_layer_id": "kaggle-dataset--hossainadnan1012--noise-speech",
+      "tail": "hossainadnan1012--noise-speech",
+      "census_bytes": 44423112,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hosseinbadrnezhad--ames-housing-cleaned-standardized-and-normalized",
+      "export_layer_id": "kaggle-dataset--hosseinbadrnezhad--ames-housing-cleaned-standardized-and-normalized",
+      "tail": "hosseinbadrnezhad--ames-housing-cleaned-standardized-and-normalized",
+      "census_bytes": 39576254,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--hosseinbadrnezhad--iran-universities-and-higher-education-centers",
+      "export_layer_id": "kaggle-dataset--hosseinbadrnezhad--iran-universities-and-higher-education-centers",
+      "tail": "hosseinbadrnezhad--iran-universities-and-higher-education-centers",
+      "census_bytes": 71414516,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--hugomathien--soccer",
+      "export_layer_id": "kaggle-dataset--hugomathien--soccer",
+      "tail": "hugomathien--soccer",
+      "census_bytes": 141231040,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--i0taiisquare--mens-wrist-watches-dataset",
+      "export_layer_id": "kaggle-dataset--i0taiisquare--mens-wrist-watches-dataset",
+      "tail": "i0taiisquare--mens-wrist-watches-dataset",
+      "census_bytes": 51050178,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ibrahimshahrukh--nvidia-daily-stock-prices-20162026-dataset",
+      "export_layer_id": "kaggle-dataset--ibrahimshahrukh--nvidia-daily-stock-prices-20162026-dataset",
+      "tail": "ibrahimshahrukh--nvidia-daily-stock-prices-20162026-dataset",
+      "census_bytes": 112367438,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--imranbukhari--comprehensive-btcusd-1m-data",
+      "export_layer_id": "kaggle-dataset--imranbukhari--comprehensive-btcusd-1m-data",
+      "tail": "imranbukhari--comprehensive-btcusd-1m-data",
+      "census_bytes": 77398449,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--imtkaggleteam--kidney-stone-classification-and-object-detection",
+      "export_layer_id": "kaggle-dataset--imtkaggleteam--kidney-stone-classification-and-object-detection",
+      "tail": "imtkaggleteam--kidney-stone-classification-and-object-detection",
+      "census_bytes": 69820833,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--indraputra21--pcpartpicker-ram-dataset",
+      "export_layer_id": "kaggle-dataset--indraputra21--pcpartpicker-ram-dataset",
+      "tail": "indraputra21--pcpartpicker-ram-dataset",
+      "census_bytes": 38364904,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ishank2005--social-network-ads",
+      "export_layer_id": "kaggle-dataset--ishank2005--social-network-ads",
+      "tail": "ishank2005--social-network-ads",
+      "census_bytes": 51830331,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--jacksonjohannessen--fifa-and-irl-soccer-player-data",
+      "export_layer_id": "kaggle-dataset--jacksonjohannessen--fifa-and-irl-soccer-player-data",
+      "tail": "jacksonjohannessen--fifa-and-irl-soccer-player-data",
+      "census_bytes": 42257414,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--jainaru--electric-car-sales-2010-2024",
+      "export_layer_id": "kaggle-dataset--jainaru--electric-car-sales-2010-2024",
+      "tail": "jainaru--electric-car-sales-2010-2024",
+      "census_bytes": 90104186,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--jayjoshi37--smart-energy-consumption-and-peak-load-analysis",
+      "export_layer_id": "kaggle-dataset--jayjoshi37--smart-energy-consumption-and-peak-load-analysis",
+      "tail": "jayjoshi37--smart-energy-consumption-and-peak-load-analysis",
+      "census_bytes": 70283678,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--jeleeladekunlefijabi--uk-maib-maritime-accidents-20202024",
+      "export_layer_id": "kaggle-dataset--jeleeladekunlefijabi--uk-maib-maritime-accidents-20202024",
+      "tail": "jeleeladekunlefijabi--uk-maib-maritime-accidents-20202024",
+      "census_bytes": 35161530,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--jhamilgutierrez--biodegradable-fabrics-dataset",
+      "export_layer_id": "kaggle-dataset--jhamilgutierrez--biodegradable-fabrics-dataset",
+      "tail": "jhamilgutierrez--biodegradable-fabrics-dataset",
+      "census_bytes": 53185714,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--jithinanievarghese--nykaa-popular-brands-cosmetics-beauty-products",
+      "export_layer_id": "kaggle-dataset--jithinanievarghese--nykaa-popular-brands-cosmetics-beauty-products",
+      "tail": "jithinanievarghese--nykaa-popular-brands-cosmetics-beauty-products",
+      "census_bytes": 39365158,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--jocelyndumlao--malhari-dataset",
+      "export_layer_id": "kaggle-dataset--jocelyndumlao--malhari-dataset",
+      "tail": "jocelyndumlao--malhari-dataset",
+      "census_bytes": 63470127,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--jockeroika--job-acceptance-prediction-system",
+      "export_layer_id": "kaggle-dataset--jockeroika--job-acceptance-prediction-system",
+      "tail": "jockeroika--job-acceptance-prediction-system",
+      "census_bytes": 58588549,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--joebeachcapital--phishing-urls",
+      "export_layer_id": "kaggle-dataset--joebeachcapital--phishing-urls",
+      "tail": "joebeachcapital--phishing-urls",
+      "census_bytes": 39871836,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kadekpadmadarmawan--crypto-trump-tariff-market-reaction",
+      "export_layer_id": "kaggle-dataset--kadekpadmadarmawan--crypto-trump-tariff-market-reaction",
+      "tail": "kadekpadmadarmawan--crypto-trump-tariff-market-reaction",
+      "census_bytes": 45622114,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kagg3001--quantum-encoded-features",
+      "export_layer_id": "kaggle-dataset--kagg3001--quantum-encoded-features",
+      "tail": "kagg3001--quantum-encoded-features",
+      "census_bytes": 98805055,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--kazanova--sentiment140",
+      "export_layer_id": "kaggle-dataset--kazanova--sentiment140",
+      "tail": "kazanova--sentiment140",
+      "census_bytes": 162433494,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--kerneler--wilayaapi",
+      "export_layer_id": "kaggle-dataset--kerneler--wilayaapi",
+      "tail": "kerneler--wilayaapi",
+      "census_bytes": 33949947,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kgaooo--oai-tissue-segmentations",
+      "export_layer_id": "kaggle-dataset--kgaooo--oai-tissue-segmentations",
+      "tail": "kgaooo--oai-tissue-segmentations",
+      "census_bytes": 41706711,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--khushikyad001--personal-finance-tracker-dataset",
+      "export_layer_id": "kaggle-dataset--khushikyad001--personal-finance-tracker-dataset",
+      "tail": "khushikyad001--personal-finance-tracker-dataset",
+      "census_bytes": 48075521,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kiranmehta1--indian-telecom-customer-churn-prediction-dataset",
+      "export_layer_id": "kaggle-dataset--kiranmehta1--indian-telecom-customer-churn-prediction-dataset",
+      "tail": "kiranmehta1--indian-telecom-customer-churn-prediction-dataset",
+      "census_bytes": 33978739,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kirkdco--google-cartoon-faces-attributes",
+      "export_layer_id": "kaggle-dataset--kirkdco--google-cartoon-faces-attributes",
+      "tail": "kirkdco--google-cartoon-faces-attributes",
+      "census_bytes": 44838120,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kolaa8--mammalian-vs-plant-cytochrome-c-protein-sequences",
+      "export_layer_id": "kaggle-dataset--kolaa8--mammalian-vs-plant-cytochrome-c-protein-sequences",
+      "tail": "kolaa8--mammalian-vs-plant-cytochrome-c-protein-sequences",
+      "census_bytes": 46737858,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kpraveenkumar566--ecu-ioht",
+      "export_layer_id": "kaggle-dataset--kpraveenkumar566--ecu-ioht",
+      "tail": "kpraveenkumar566--ecu-ioht",
+      "census_bytes": 100210992,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--krakenteach13--ventas-tienda",
+      "export_layer_id": "kaggle-dataset--krakenteach13--ventas-tienda",
+      "tail": "krakenteach13--ventas-tienda",
+      "census_bytes": 142852576,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--kritikseth--fruit-and-vegetable-image-recognition",
+      "export_layer_id": "kaggle-dataset--kritikseth--fruit-and-vegetable-image-recognition",
+      "tail": "kritikseth--fruit-and-vegetable-image-recognition",
+      "census_bytes": 33903545,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kundanbedmutha--college-admission-dataset-india",
+      "export_layer_id": "kaggle-dataset--kundanbedmutha--college-admission-dataset-india",
+      "tail": "kundanbedmutha--college-admission-dataset-india",
+      "census_bytes": 36653559,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kutayahin--glass-match-ai-faces",
+      "export_layer_id": "kaggle-dataset--kutayahin--glass-match-ai-faces",
+      "tail": "kutayahin--glass-match-ai-faces",
+      "census_bytes": 36788910,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kutayahin--letterboxd-movies-dataset",
+      "export_layer_id": "kaggle-dataset--kutayahin--letterboxd-movies-dataset",
+      "tail": "kutayahin--letterboxd-movies-dataset",
+      "census_bytes": 58874444,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--kylejameshanger--akkadian-model-zoo-v1-0",
+      "export_layer_id": "kaggle-dataset--kylejameshanger--akkadian-model-zoo-v1-0",
+      "tail": "kylejameshanger--akkadian-model-zoo-v1-0",
+      "census_bytes": 57810306,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--lainguyn123--employee-survey",
+      "export_layer_id": "kaggle-dataset--lainguyn123--employee-survey",
+      "tail": "lainguyn123--employee-survey",
+      "census_bytes": 52508284,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--lawhan--convnext-pretrained-weights",
+      "export_layer_id": "kaggle-dataset--lawhan--convnext-pretrained-weights",
+      "tail": "lawhan--convnext-pretrained-weights",
+      "census_bytes": 51450346,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--lchikry--international-football-match-features-and-statistics",
+      "export_layer_id": "kaggle-dataset--lchikry--international-football-match-features-and-statistics",
+      "tail": "lchikry--international-football-match-features-and-statistics",
+      "census_bytes": 98161933,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--lepchenkov--usedcarscatalog",
+      "export_layer_id": "kaggle-dataset--lepchenkov--usedcarscatalog",
+      "tail": "lepchenkov--usedcarscatalog",
+      "census_bytes": 34447159,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--likithagedipudi--genz-slang-evolution-tracker-2020-2025",
+      "export_layer_id": "kaggle-dataset--likithagedipudi--genz-slang-evolution-tracker-2020-2025",
+      "tail": "likithagedipudi--genz-slang-evolution-tracker-2020-2025",
+      "census_bytes": 171479441,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mabubakrsiddiq--chinese-pinyin-english-dataset",
+      "export_layer_id": "kaggle-dataset--mabubakrsiddiq--chinese-pinyin-english-dataset",
+      "tail": "mabubakrsiddiq--chinese-pinyin-english-dataset",
+      "census_bytes": 63696073,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mabubakrsiddiq--global-lifestyle-and-lifespan-synthetic-dataset",
+      "export_layer_id": "kaggle-dataset--mabubakrsiddiq--global-lifestyle-and-lifespan-synthetic-dataset",
+      "tail": "mabubakrsiddiq--global-lifestyle-and-lifespan-synthetic-dataset",
+      "census_bytes": 78844824,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mabubakrsiddiq--sentiment-analysis-dataset-31k-samples",
+      "export_layer_id": "kaggle-dataset--mabubakrsiddiq--sentiment-analysis-dataset-31k-samples",
+      "tail": "mabubakrsiddiq--sentiment-analysis-dataset-31k-samples",
+      "census_bytes": 35115223,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mabubakrsiddiq--student-exam-performance",
+      "export_layer_id": "kaggle-dataset--mabubakrsiddiq--student-exam-performance",
+      "tail": "mabubakrsiddiq--student-exam-performance",
+      "census_bytes": 73168961,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--macaronimutton--mumbai-rainfall-data",
+      "export_layer_id": "kaggle-dataset--macaronimutton--mumbai-rainfall-data",
+      "tail": "macaronimutton--mumbai-rainfall-data",
+      "census_bytes": 43778482,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mafaqbhatti--cloud-giants-stock-prices-20192024",
+      "export_layer_id": "kaggle-dataset--mafaqbhatti--cloud-giants-stock-prices-20192024",
+      "tail": "mafaqbhatti--cloud-giants-stock-prices-20192024",
+      "census_bytes": 60616691,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mahmoudabusaqer--combined-hate-speech-dataset",
+      "export_layer_id": "kaggle-dataset--mahmoudabusaqer--combined-hate-speech-dataset",
+      "tail": "mahmoudabusaqer--combined-hate-speech-dataset",
+      "census_bytes": 82943625,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mahmoudreda55--satellite-image-classification",
+      "export_layer_id": "kaggle-dataset--mahmoudreda55--satellite-image-classification",
+      "tail": "mahmoudreda55--satellite-image-classification",
+      "census_bytes": 37831872,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--marawaneslam--movie-reviews-sentiment-analysis-datasetimdb",
+      "export_layer_id": "kaggle-dataset--marawaneslam--movie-reviews-sentiment-analysis-datasetimdb",
+      "tail": "marawaneslam--movie-reviews-sentiment-analysis-datasetimdb",
+      "census_bytes": 46368071,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--marknghk--canadian-substance-use-survey-csus",
+      "export_layer_id": "kaggle-dataset--marknghk--canadian-substance-use-survey-csus",
+      "tail": "marknghk--canadian-substance-use-survey-csus",
+      "census_bytes": 39124316,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--martj42--international-football-results-from-1872-to-2017",
+      "export_layer_id": "kaggle-dataset--martj42--international-football-results-from-1872-to-2017",
+      "tail": "martj42--international-football-results-from-1872-to-2017",
+      "census_bytes": 57079376,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--matepapava--doctors-in-us-reviews-and-scores",
+      "export_layer_id": "kaggle-dataset--matepapava--doctors-in-us-reviews-and-scores",
+      "tail": "matepapava--doctors-in-us-reviews-and-scores",
+      "census_bytes": 61823617,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--matthewmaemura--all-pokemon-gen-9-national-dex-new-za-megas",
+      "export_layer_id": "kaggle-dataset--matthewmaemura--all-pokemon-gen-9-national-dex-new-za-megas",
+      "tail": "matthewmaemura--all-pokemon-gen-9-national-dex-new-za-megas",
+      "census_bytes": 59292006,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mczielinski--bitcoin-historical-data",
+      "export_layer_id": "kaggle-dataset--mczielinski--bitcoin-historical-data",
+      "tail": "mczielinski--bitcoin-historical-data",
+      "census_bytes": 71347576,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mdfaisalahmed025--electronic-component-recognizer",
+      "export_layer_id": "kaggle-dataset--mdfaisalahmed025--electronic-component-recognizer",
+      "tail": "mdfaisalahmed025--electronic-component-recognizer",
+      "census_bytes": 51465011,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--meowmeowmeowmeowmeow--gtsrb-german-traffic-sign",
+      "export_layer_id": "kaggle-dataset--meowmeowmeowmeowmeow--gtsrb-german-traffic-sign",
+      "tail": "meowmeowmeowmeowmeow--gtsrb-german-traffic-sign",
+      "census_bytes": 102029849,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--metawave--vehicle-price-prediction",
+      "export_layer_id": "kaggle-dataset--metawave--vehicle-price-prediction",
+      "tail": "metawave--vehicle-price-prediction",
+      "census_bytes": 64134362,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mhantor--russian-cursive-handwriting",
+      "export_layer_id": "kaggle-dataset--mhantor--russian-cursive-handwriting",
+      "tail": "mhantor--russian-cursive-handwriting",
+      "census_bytes": 81686936,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mhassansaboor--nextera-energy-inc-stocks-data-1973-2026",
+      "export_layer_id": "kaggle-dataset--mhassansaboor--nextera-energy-inc-stocks-data-1973-2026",
+      "tail": "mhassansaboor--nextera-energy-inc-stocks-data-1973-2026",
+      "census_bytes": 87609865,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mhassansaboor--synthetic-grocery-transactions-practice-dataset",
+      "export_layer_id": "kaggle-dataset--mhassansaboor--synthetic-grocery-transactions-practice-dataset",
+      "tail": "mhassansaboor--synthetic-grocery-transactions-practice-dataset",
+      "census_bytes": 48098158,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--miadul--customer-churn-prediction-business-dataset",
+      "export_layer_id": "kaggle-dataset--miadul--customer-churn-prediction-business-dataset",
+      "tail": "miadul--customer-churn-prediction-business-dataset",
+      "census_bytes": 59150284,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--miadul--hospital-readmission-risk-dataset",
+      "export_layer_id": "kaggle-dataset--miadul--hospital-readmission-risk-dataset",
+      "tail": "miadul--hospital-readmission-risk-dataset",
+      "census_bytes": 38251811,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--miadul--irrigation-water-requirement-prediction-dataset",
+      "export_layer_id": "kaggle-dataset--miadul--irrigation-water-requirement-prediction-dataset",
+      "tail": "miadul--irrigation-water-requirement-prediction-dataset",
+      "census_bytes": 86507851,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--miadul--kidney-disease-risk-dataset",
+      "export_layer_id": "kaggle-dataset--miadul--kidney-disease-risk-dataset",
+      "tail": "miadul--kidney-disease-risk-dataset",
+      "census_bytes": 60890514,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--miadul--smart-crop-yield-predication-dataset",
+      "export_layer_id": "kaggle-dataset--miadul--smart-crop-yield-predication-dataset",
+      "tail": "miadul--smart-crop-yield-predication-dataset",
+      "census_bytes": 67708990,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--miadul--student-performance-dataset",
+      "export_layer_id": "kaggle-dataset--miadul--student-performance-dataset",
+      "tail": "miadul--student-performance-dataset",
+      "census_bytes": 60626921,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--midhundasl--co2-emission-of-cars-dataset",
+      "export_layer_id": "kaggle-dataset--midhundasl--co2-emission-of-cars-dataset",
+      "tail": "midhundasl--co2-emission-of-cars-dataset",
+      "census_bytes": 40076853,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--miguelroca--global-health-nutrition-mortality-economic-data",
+      "export_layer_id": "kaggle-dataset--miguelroca--global-health-nutrition-mortality-economic-data",
+      "tail": "miguelroca--global-health-nutrition-mortality-economic-data",
+      "census_bytes": 104110884,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mihikaajayjadhav--top-1000-cryptocurrencies-real-time-data-2025",
+      "export_layer_id": "kaggle-dataset--mihikaajayjadhav--top-1000-cryptocurrencies-real-time-data-2025",
+      "tail": "mihikaajayjadhav--top-1000-cryptocurrencies-real-time-data-2025",
+      "census_bytes": 130017449,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mikhail1681--walmart-sales",
+      "export_layer_id": "kaggle-dataset--mikhail1681--walmart-sales",
+      "tail": "mikhail1681--walmart-sales",
+      "census_bytes": 118326096,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mohadesehemamipour--human-bones-fractured-vs-non-fractured-dataset",
+      "export_layer_id": "kaggle-dataset--mohadesehemamipour--human-bones-fractured-vs-non-fractured-dataset",
+      "tail": "mohadesehemamipour--human-bones-fractured-vs-non-fractured-dataset",
+      "census_bytes": 45080581,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mohammedjaveed--loveda-dataset",
+      "export_layer_id": "kaggle-dataset--mohammedjaveed--loveda-dataset",
+      "tail": "mohammedjaveed--loveda-dataset",
+      "census_bytes": 49633017,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mohtiw--techno-managerial-decision-scenarios-for-engineers",
+      "export_layer_id": "kaggle-dataset--mohtiw--techno-managerial-decision-scenarios-for-engineers",
+      "tail": "mohtiw--techno-managerial-decision-scenarios-for-engineers",
+      "census_bytes": 42257107,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--mosapabdelghany--telcom-customer-churn-dataset",
+      "export_layer_id": "kaggle-dataset--mosapabdelghany--telcom-customer-churn-dataset",
+      "tail": "mosapabdelghany--telcom-customer-churn-dataset",
+      "census_bytes": 113400810,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mr1rameez--universal-health-coverage-dataset-1985-2024",
+      "export_layer_id": "kaggle-dataset--mr1rameez--universal-health-coverage-dataset-1985-2024",
+      "tail": "mr1rameez--universal-health-coverage-dataset-1985-2024",
+      "census_bytes": 81812689,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--mrgabrielblins--speaker-recognition-cmu-arctic",
+      "export_layer_id": "kaggle-dataset--mrgabrielblins--speaker-recognition-cmu-arctic",
+      "tail": "mrgabrielblins--speaker-recognition-cmu-arctic",
+      "census_bytes": 35092766,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--muhammadahmaddaar--diamonds-characteristics-and-pricing-analysis",
+      "export_layer_id": "kaggle-dataset--muhammadahmaddaar--diamonds-characteristics-and-pricing-analysis",
+      "tail": "muhammadahmaddaar--diamonds-characteristics-and-pricing-analysis",
+      "census_bytes": 36978362,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--muhammadrameez242--temperature-records-of-pakistan-1901-2016",
+      "export_layer_id": "kaggle-dataset--muhammadrameez242--temperature-records-of-pakistan-1901-2016",
+      "tail": "muhammadrameez242--temperature-records-of-pakistan-1901-2016",
+      "census_bytes": 49760170,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--muqaddasejaz--women-in-tech-dataset",
+      "export_layer_id": "kaggle-dataset--muqaddasejaz--women-in-tech-dataset",
+      "tail": "muqaddasejaz--women-in-tech-dataset",
+      "census_bytes": 35066720,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--muratkokludataset--pumpkin-seeds-dataset",
+      "export_layer_id": "kaggle-dataset--muratkokludataset--pumpkin-seeds-dataset",
+      "tail": "muratkokludataset--pumpkin-seeds-dataset",
+      "census_bytes": 35259466,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--muratkokludataset--raisin-dataset",
+      "export_layer_id": "kaggle-dataset--muratkokludataset--raisin-dataset",
+      "tail": "muratkokludataset--raisin-dataset",
+      "census_bytes": 42908600,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--musireddy--potato-leaf-disease",
+      "export_layer_id": "kaggle-dataset--musireddy--potato-leaf-disease",
+      "tail": "musireddy--potato-leaf-disease",
+      "census_bytes": 41006727,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--muzaddidafaque--global-and-indian-financial-markets-dataset-2025",
+      "export_layer_id": "kaggle-dataset--muzaddidafaque--global-and-indian-financial-markets-dataset-2025",
+      "tail": "muzaddidafaque--global-and-indian-financial-markets-dataset-2025",
+      "census_bytes": 122034081,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--nalisha--data-science-careers-and-salaries-2025",
+      "export_layer_id": "kaggle-dataset--nalisha--data-science-careers-and-salaries-2025",
+      "tail": "nalisha--data-science-careers-and-salaries-2025",
+      "census_bytes": 51049998,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--nalisha--tesla-ea-deliveries-and-production-data20152025",
+      "export_layer_id": "kaggle-dataset--nalisha--tesla-ea-deliveries-and-production-data20152025",
+      "tail": "nalisha--tesla-ea-deliveries-and-production-data20152025",
+      "census_bytes": 38955093,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--nathansmallcalder--league-of-legends-match-interval-snapshots-2026",
+      "export_layer_id": "kaggle-dataset--nathansmallcalder--league-of-legends-match-interval-snapshots-2026",
+      "tail": "nathansmallcalder--league-of-legends-match-interval-snapshots-2026",
+      "census_bytes": 49656614,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--ngshiheng--michelin-guide-restaurants-2021",
+      "export_layer_id": "kaggle-dataset--ngshiheng--michelin-guide-restaurants-2021",
+      "tail": "ngshiheng--michelin-guide-restaurants-2021",
+      "census_bytes": 55560754,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--nicapotato--womens-ecommerce-clothing-reviews",
+      "export_layer_id": "kaggle-dataset--nicapotato--womens-ecommerce-clothing-reviews",
+      "tail": "nicapotato--womens-ecommerce-clothing-reviews",
+      "census_bytes": 40102240,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--nikitamanaenkov--x-ray-contraband-detection-dataset",
+      "export_layer_id": "kaggle-dataset--nikitamanaenkov--x-ray-contraband-detection-dataset",
+      "tail": "nikitamanaenkov--x-ray-contraband-detection-dataset",
+      "census_bytes": 55810452,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--niladriroy0--performance-limits-in-rocket-propulsion-systems",
+      "export_layer_id": "kaggle-dataset--niladriroy0--performance-limits-in-rocket-propulsion-systems",
+      "tail": "niladriroy0--performance-limits-in-rocket-propulsion-systems",
+      "census_bytes": 41291475,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--noaa--gsod",
+      "export_layer_id": "kaggle-dataset--noaa--gsod",
+      "tail": "noaa--gsod",
+      "census_bytes": 48090331,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--novandraanugrah--nasdaq-100-nas100-historical-price-data",
+      "export_layer_id": "kaggle-dataset--novandraanugrah--nasdaq-100-nas100-historical-price-data",
+      "tail": "novandraanugrah--nasdaq-100-nas100-historical-price-data",
+      "census_bytes": 38352224,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--novandraanugrah--xauusd-gold-price-historical-data-2004present",
+      "export_layer_id": "kaggle-dataset--novandraanugrah--xauusd-gold-price-historical-data-2004present",
+      "tail": "novandraanugrah--xauusd-gold-price-historical-data-2004present",
+      "census_bytes": 92104998,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--nowke9--ipldata",
+      "export_layer_id": "kaggle-dataset--nowke9--ipldata",
+      "tail": "nowke9--ipldata",
+      "census_bytes": 36652263,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--nprottay--heart-disease-info",
+      "export_layer_id": "kaggle-dataset--nprottay--heart-disease-info",
+      "tail": "nprottay--heart-disease-info",
+      "census_bytes": 51010533,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--nuforc--ufo-sightings",
+      "export_layer_id": "kaggle-dataset--nuforc--ufo-sightings",
+      "tail": "nuforc--ufo-sightings",
+      "census_bytes": 40538986,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--nugrahmaindonesa--shopee-seller-transaction",
+      "export_layer_id": "kaggle-dataset--nugrahmaindonesa--shopee-seller-transaction",
+      "tail": "nugrahmaindonesa--shopee-seller-transaction",
+      "census_bytes": 101674402,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--omsandeeppatil--india-aadhaar-trends-weather-policy-analysis",
+      "export_layer_id": "kaggle-dataset--omsandeeppatil--india-aadhaar-trends-weather-policy-analysis",
+      "tail": "omsandeeppatil--india-aadhaar-trends-weather-policy-analysis",
+      "census_bytes": 69879392,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--orvile--bone-fracture-dataset",
+      "export_layer_id": "kaggle-dataset--orvile--bone-fracture-dataset",
+      "tail": "orvile--bone-fracture-dataset",
+      "census_bytes": 93602412,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--orvile--ravdess-dataset",
+      "export_layer_id": "kaggle-dataset--orvile--ravdess-dataset",
+      "tail": "orvile--ravdess-dataset",
+      "census_bytes": 40763462,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--parohod--warp-waste-recycling-plant-dataset",
+      "export_layer_id": "kaggle-dataset--parohod--warp-waste-recycling-plant-dataset",
+      "tail": "parohod--warp-waste-recycling-plant-dataset",
+      "census_bytes": 44155847,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--parthpatel2130--realistic-loan-approval-dataset-us-and-canada",
+      "export_layer_id": "kaggle-dataset--parthpatel2130--realistic-loan-approval-dataset-us-and-canada",
+      "tail": "parthpatel2130--realistic-loan-approval-dataset-us-and-canada",
+      "census_bytes": 34567421,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--petrovdanila--almaty-hotels-data-q1-2026",
+      "export_layer_id": "kaggle-dataset--petrovdanila--almaty-hotels-data-q1-2026",
+      "tail": "petrovdanila--almaty-hotels-data-q1-2026",
+      "census_bytes": 38790313,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--pkdarabi--solarpanel",
+      "export_layer_id": "kaggle-dataset--pkdarabi--solarpanel",
+      "tail": "pkdarabi--solarpanel",
+      "census_bytes": 44665119,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--prachipalsodkar--churn-datset",
+      "export_layer_id": "kaggle-dataset--prachipalsodkar--churn-datset",
+      "tail": "prachipalsodkar--churn-datset",
       "census_bytes": 52230953,
       "band": "from_32_to_64mib"
     },
     {
-      "id": "kaggle-dataset--martj42--international-football-results-from-1872-to-2017",
-      "census_bytes": 57079376,
+      "id": "hf-dataset--pranshuljoshi--global-startup-funding-and-valuation-cleaned-dataset",
+      "export_layer_id": "kaggle-dataset--pranshuljoshi--global-startup-funding-and-valuation-cleaned-dataset",
+      "tail": "pranshuljoshi--global-startup-funding-and-valuation-cleaned-dataset",
+      "census_bytes": 39713312,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--prince7489--employee-salary-dataset",
+      "export_layer_id": "kaggle-dataset--prince7489--employee-salary-dataset",
+      "tail": "prince7489--employee-salary-dataset",
+      "census_bytes": 33788268,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--pritishmishra--resources-albumentations-guide",
+      "export_layer_id": "kaggle-dataset--pritishmishra--resources-albumentations-guide",
+      "tail": "pritishmishra--resources-albumentations-guide",
+      "census_bytes": 47618287,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--rabieelkharoua--students-performance-dataset",
+      "export_layer_id": "kaggle-dataset--rabieelkharoua--students-performance-dataset",
+      "tail": "rabieelkharoua--students-performance-dataset",
+      "census_bytes": 40960935,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--rafiaaa--country-names-with-short-codes-a2-a3-iso",
+      "export_layer_id": "kaggle-dataset--rafiaaa--country-names-with-short-codes-a2-a3-iso",
+      "tail": "rafiaaa--country-names-with-short-codes-a2-a3-iso",
+      "census_bytes": 43159997,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--rajdahiwal--global-co2ghg-emissions-our-world-in-data",
+      "export_layer_id": "kaggle-dataset--rajdahiwal--global-co2ghg-emissions-our-world-in-data",
+      "tail": "rajdahiwal--global-co2ghg-emissions-our-world-in-data",
+      "census_bytes": 72696153,
+      "band": "ge_64mib"
+    },
+    {
+      "id": "hf-dataset--ravindrasinghrana--country-military-size",
+      "export_layer_id": "kaggle-dataset--ravindrasinghrana--country-military-size",
+      "tail": "ravindrasinghrana--country-military-size",
+      "census_bytes": 44061982,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--riteshswami08--height-and-weight-dataset-with-bmi-age-and-gender",
+      "export_layer_id": "kaggle-dataset--riteshswami08--height-and-weight-dataset-with-bmi-age-and-gender",
+      "tail": "riteshswami08--height-and-weight-dataset-with-bmi-age-and-gender",
+      "census_bytes": 37598225,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--rivalytics--saas-subscription-and-churn-analytics-dataset",
+      "export_layer_id": "kaggle-dataset--rivalytics--saas-subscription-and-churn-analytics-dataset",
+      "tail": "rivalytics--saas-subscription-and-churn-analytics-dataset",
+      "census_bytes": 36785304,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--robikscube--mrbeast-youtube-stats-daily",
+      "export_layer_id": "kaggle-dataset--robikscube--mrbeast-youtube-stats-daily",
+      "tail": "robikscube--mrbeast-youtube-stats-daily",
+      "census_bytes": 44410466,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--rockyt07--formula-1-championships-1950-2025",
+      "export_layer_id": "kaggle-dataset--rockyt07--formula-1-championships-1950-2025",
+      "tail": "rockyt07--formula-1-championships-1950-2025",
+      "census_bytes": 35106164,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--rosariomc--world-bank-gdp-ranking",
+      "export_layer_id": "kaggle-dataset--rosariomc--world-bank-gdp-ranking",
+      "tail": "rosariomc--world-bank-gdp-ranking",
+      "census_bytes": 43417853,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--sadiajavedd--brand-wise-laptop-price-dataset",
+      "export_layer_id": "kaggle-dataset--sadiajavedd--brand-wise-laptop-price-dataset",
+      "tail": "sadiajavedd--brand-wise-laptop-price-dataset",
+      "census_bytes": 36360917,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--sadiajavedd--synthetic-hospital-patient-record-dataset",
+      "export_layer_id": "kaggle-dataset--sadiajavedd--synthetic-hospital-patient-record-dataset",
+      "tail": "sadiajavedd--synthetic-hospital-patient-record-dataset",
+      "census_bytes": 34702008,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--sargamgoya1--pidnet-s-weights",
+      "export_layer_id": "kaggle-dataset--sargamgoya1--pidnet-s-weights",
+      "tail": "sargamgoya1--pidnet-s-weights",
+      "census_bytes": 51450308,
+      "band": "from_32_to_64mib"
+    },
+    {
+      "id": "hf-dataset--tascj0--vasculature-packages",
+      "export_layer_id": "kaggle-dataset--tascj0--vasculature-packages",
+      "tail": "tascj0--vasculature-packages",
+      "census_bytes": 41773507,
       "band": "from_32_to_64mib"
     }
   ]
