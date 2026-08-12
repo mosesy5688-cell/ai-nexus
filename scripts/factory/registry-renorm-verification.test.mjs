@@ -91,7 +91,7 @@ test('V5 the process exits NON-ZERO so the cascade stops loudly', async () => {
 
 test('V6 exit-code policy is exhaustive: only VERIFICATION_FAILED is non-zero', () => {
     const all = Object.values(OUTCOME);
-    assert.equal(all.length, 5, 'a new terminal outcome must be given an explicit exit code here');
+    assert.equal(all.length, 6, 'a new terminal outcome must be given an explicit exit code here');
     for (const o of all) {
         assert.equal(exitCodeFor(o), o === OUTCOME.VERIFICATION_FAILED ? 1 : 0, `exit code for ${o}`);
     }
@@ -100,5 +100,6 @@ test('V6 exit-code policy is exhaustive: only VERIFICATION_FAILED is non-zero', 
     assert.equal(exitCodeFor(OUTCOME.SKIPPED_MARKER_PRESENT), 0);
     assert.equal(exitCodeFor(OUTCOME.ABANDONED), 0, 'self-abandon must let the cascade proceed (ruling)');
     assert.equal(exitCodeFor(OUTCOME.VERIFIED), 0);
+    assert.equal(exitCodeFor(OUTCOME.RECONCILED), 0, 'REHEARSAL-1 reconcile-only mutates nothing');
     assert.equal(exitCodeFor(OUTCOME.VERIFICATION_FAILED), 1);
 });

@@ -143,6 +143,12 @@ test('R7 MATCH: transforms the cohort, preserves everything else, verifies, mark
         assert.equal(s3.puts[0].Key, 'state/op-gr-b/renorm-complete.json');
 
         // The refresh census must be honest about what 1/4 cannot observe.
+        // ADVISORY-F2: belt-and-braces beside the G9 workflow pin -- a PRODUCTION
+        // manifest must never claim rehearsal status. If this ever reads true, the
+        // run stopped at the manifest and repaired nothing.
+        const dry = JSON.parse(fs.readFileSync(path.join(s.artifactDir, 'dry-run-manifest.json'), 'utf8'));
+        assert.equal(dry.rehearsal, false, 'a production run must be marked rehearsal:false');
+
         const v = JSON.parse(fs.readFileSync(path.join(s.artifactDir, 'verification.json'), 'utf8'));
         assert.equal(v.status, 'VERIFIED');
         assert.ok(v.refresh_census.some((c) => c.observable_here === false && /3\/4 aggregate/.test(c.stage)),
