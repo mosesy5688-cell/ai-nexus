@@ -152,6 +152,52 @@ test('R7 MATCH: transforms the cohort, preserves everything else, verifies, mark
     } finally { cleanup(s); }
 });
 
+test('R10 PR-GR-C: an abandon PRESERVES the full dry-run manifest', async () => {
+    // Regression: abandon() used to overwrite the manifest at the same path,
+    // destroying records[]/accounting/size_probes exactly when they matter most
+    // -- the run 31563250233 investigation had to rebuild that evidence from R2.
+    // Post-merge cycle 1 WILL abandon (ghost duplicates), so that manifest is the
+    // first beneficiary and must come back complete.
+    const s = await scenario();
+    try {
+        const r = await runRenorm(base(s, { s3: fakeS3(), censusDoc: censusOf([GIANT_ID, 'kaggle-dataset--absent--id']) }));
+        assert.equal(r.outcome, OUTCOME.ABANDONED);
+
+        const m = JSON.parse(fs.readFileSync(path.join(s.artifactDir, 'dry-run-manifest.json'), 'utf8'));
+        // The abandon verdict is recorded...
+        assert.equal(m.status, 'ABANDONED');
+        assert.match(m.reason, /one for one/);
+        assert.deepEqual(m.reconciliation.missing, ['kaggle-dataset--absent--id']);
+        // ...AND every piece of dry-run evidence survives it.
+        assert.ok(Array.isArray(m.records) && m.records.length >= 1,
+            'records[] must survive the abandon -- this is the whole point');
+        assert.equal(m.records[0].id, GIANT_ID);
+        assert.ok(m.records[0].before_bytes > 0 && m.records[0].after_bytes > 0,
+            'per-record byte accounting must survive');
+        assert.ok(m.accounting && m.accounting.governed_records >= 1, 'accounting must survive');
+        assert.ok(m.size_probes, 'size_probes must survive');
+        assert.ok(Array.isArray(m.affected_shards), 'affected_shards must survive');
+        assert.equal(m.entities_scanned > 0, true);
+        // ...and the caller is told how much evidence it has.
+        assert.equal(r.records, m.records.length);
+    } finally { cleanup(s); }
+});
+
+test('R11 an EARLY abandon (before any manifest exists) still writes the short form', async () => {
+    // The merge must degrade cleanly when there is nothing to preserve.
+    const s = await scenario();
+    try {
+        const boom = new Error('AccessDenied'); boom.name = 'AccessDenied'; boom.$metadata = { httpStatusCode: 403 };
+        const r = await runRenorm(base(s, { s3: fakeS3({ headError: boom }), censusDoc: censusOf([GIANT_ID]) }));
+        assert.equal(r.outcome, OUTCOME.ABANDONED);
+        assert.equal(r.records, 0, 'no evidence existed yet, and none is invented');
+        const m = JSON.parse(fs.readFileSync(path.join(s.artifactDir, 'dry-run-manifest.json'), 'utf8'));
+        assert.equal(m.status, 'ABANDONED');
+        assert.match(m.reason, /marker unreadable/);
+        assert.equal(m.records, undefined, 'no fabricated records[] on an early abandon');
+    } finally { cleanup(s); }
+});
+
 test('R8 idempotence without the marker: a second pass finds no giants and abandons', async () => {
     const s = await scenario();
     try {

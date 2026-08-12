@@ -176,6 +176,8 @@ test('G8 every new .test.mjs in this PR is registered in the required node --tes
         'scripts/factory/registry-renorm-shard.test.mjs',
         'scripts/factory/registry-renorm-run.test.mjs',
         'scripts/factory/registry-renorm-verification.test.mjs',
+        'scripts/factory/registry-renorm-census.test.mjs',
+        'scripts/factory/registry-stale-shard-purge.test.mjs',
         'scripts/factory/registry-renorm-wiring.test.mjs',
         'scripts/ingestion/producer-compound-failure.test.mjs',
     ]) {

@@ -17,7 +17,10 @@ import { GIANT_MIN_BYTES } from './lib/registry-renorm-core.js';
 export const GIANT_ID = 'kaggle-dataset--synthetic--giant';
 export const sha = (p) => crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
 export const smallRec = (id) => JSON.stringify({ id, source: 'kaggle', type: 'dataset', name: id, tags: ['a', 'b'] });
-export const censusOf = (ids) => ({ count: ids.length, forensics_sha256: 'test', records: ids.map((id) => ({ id })) });
+export const censusOf = (ids) => ({
+    count: ids.length, forensics_sha256: 'test', matches_layer: 'registry',
+    records: ids.map((id) => ({ id })),
+});
 
 /** A real over-bound record: a raw Kaggle Tag-DTO array, as the corpus stores it. */
 export function giantRec(id, targetBytes = GIANT_MIN_BYTES + 1024 * 1024) {

@@ -10,7 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    GIANT_MIN_BYTES, ALLOWED_DELTA_FIELDS, RECONCILE,
+    GIANT_MIN_BYTES, ALLOWED_DELTA_FIELDS, RECONCILE, CENSUS_LAYER,
     loadCensus, fieldDelta, deltaIsGoverned, transformRecord,
     reconcile, accounting, verifyOutcome,
 } from './lib/registry-renorm-core.js';
@@ -25,7 +25,10 @@ const kaggleRecord = (id, tagCount) => ({
     id, source: 'kaggle', type: 'dataset', name: 'n', status: 'active',
     tags: Array.from({ length: tagCount }, (_, i) => dto(i)),
 });
-const census = (ids) => loadCensus({ count: ids.length, forensics_sha256: 'x', records: ids.map((id) => ({ id })) });
+const census = (ids) => loadCensus({
+    count: ids.length, forensics_sha256: 'x', matches_layer: CENSUS_LAYER,
+    records: ids.map((id) => ({ id })),
+});
 
 test('C0 the giant bound IS the producer bound (no second constant exists)', () => {
     assert.equal(GIANT_MIN_BYTES, PRODUCER_LINE_MAX_BYTES);
@@ -40,10 +43,11 @@ test('C0b the governed field set is exactly tags + the five disclosure stamps', 
 });
 
 test('C1 loadCensus rejects an empty, mis-counted or duplicated census', () => {
-    assert.throws(() => loadCensus({ count: 0, records: [] }), /OP_GR_B_CENSUS_EMPTY/);
-    assert.throws(() => loadCensus({ count: 9, records: [{ id: 'a' }] }), /OP_GR_B_CENSUS_COUNT_DRIFT/);
-    assert.throws(() => loadCensus({ count: 2, records: [{ id: 'a' }, { id: 'a' }] }), /OP_GR_B_CENSUS_DUPLICATE_ID/);
-    assert.throws(() => loadCensus({ count: 1, records: [{ census_bytes: 1 }] }), /OP_GR_B_CENSUS_ROW_WITHOUT_ID/);
+    const L = { matches_layer: CENSUS_LAYER };
+    assert.throws(() => loadCensus({ ...L, count: 0, records: [] }), /OP_GR_B_CENSUS_EMPTY/);
+    assert.throws(() => loadCensus({ ...L, count: 9, records: [{ id: 'a' }] }), /OP_GR_B_CENSUS_COUNT_DRIFT/);
+    assert.throws(() => loadCensus({ ...L, count: 2, records: [{ id: 'a' }, { id: 'a' }] }), /OP_GR_B_CENSUS_DUPLICATE_ID/);
+    assert.throws(() => loadCensus({ ...L, count: 1, records: [{ census_bytes: 1 }] }), /OP_GR_B_CENSUS_ROW_WITHOUT_ID/);
 });
 
 test('C2 transformRecord projects tags and stamps exactly the five disclosures', () => {
