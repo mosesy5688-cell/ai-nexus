@@ -1,18 +1,13 @@
 /**
- * OP-GR-B orchestration (ruling D-2026-0810-418). Dependency-injected so every
- * terminal path -- inert, marker-skip, self-abandon, verified -- is reachable
- * from a test with synthetic NXVF fixtures and a fake R2, never the real ones.
+ * OP-GR-B orchestration (D-2026-0810-418). Dependency-injected so every terminal
+ * path is reachable from a test with synthetic NXVF fixtures and a fake R2.
  *
- * FAIL-CLOSED ORDER, in the order the ruling states it:
- *   1. flag off              -> INERT (nothing read, nothing written)
- *   2. marker present        -> SKIPPED (one-time insurance (a))
- *   3. marker unreadable     -> ABANDONED (never assume "not yet run")
- *   4. no key / no shards    -> ABANDONED
- *   5. scan + DRY-RUN MANIFEST written BEFORE any mutation
- *   6. cohort mismatch       -> ABANDONED, zero rewrites, cascade unaffected
- *   7. PRE-IMAGE SNAPSHOT (hashed both sides) BEFORE any mutation
- *   8. stage every rewrite to temp; swap only after ALL succeed
- *   9. verify; only then write the completion marker
+ * FAIL-CLOSED ORDER: flag off -> INERT; marker present -> SKIPPED; marker
+ * unreadable / no key / no shards -> ABANDONED; scan + DRY-RUN MANIFEST written
+ * BEFORE any mutation; cohort mismatch -> ABANDONED with zero rewrites; then
+ * PRE-IMAGE SNAPSHOT, staged rewrites swapped only after ALL succeed, verify,
+ * and only then the completion marker. REHEARSAL-1 (D-2026-0812-422) stops at
+ * the manifest -- see the hard stop in runRenorm.
  *
  * This module never calls process.exit and never prints record content.
  */
@@ -30,25 +25,24 @@ export const OUTCOME = Object.freeze({
     ABANDONED: 'ABANDONED',
     VERIFIED: 'VERIFIED',
     VERIFICATION_FAILED: 'VERIFICATION_FAILED',
+    RECONCILED: 'RECONCILED', // REHEARSAL-1 (D-2026-0812-422): reconcile-only hard stop.
 });
 
 /**
- * EXIT-CODE POLICY, as a predicate so it can be tested exhaustively rather than
- * inferred from a ternary buried in the CLI.
- *
- * VERIFICATION_FAILED is the ONLY non-zero terminal: the registry WAS mutated
- * and did not verify, so the cascade must stop loudly. Every other terminal --
- * INERT, SKIPPED_MARKER_PRESENT, ABANDONED, VERIFIED -- performed zero
- * mutations or a verified one, so the cascade must proceed exactly as today.
+ * EXIT-CODE POLICY as a predicate, so it can be tested exhaustively rather than
+ * inferred from a ternary buried in the CLI. VERIFICATION_FAILED is the ONLY
+ * non-zero terminal: the registry WAS mutated and did not verify, so the cascade
+ * must stop loudly. Every other terminal mutated nothing, or mutated and
+ * verified, so the cascade must proceed exactly as today.
  */
 export function exitCodeFor(outcome) {
     return outcome === OUTCOME.VERIFICATION_FAILED ? 1 : 0;
 }
 
 /**
- * WHICH REGISTRY COPIES THIS CYCLE REFRESHES. 1/4 can only OBSERVE its own
- * local write; everything downstream is an EXPECTATION carrying the exact stage
- * and step that will perform it. Never claim a later stage's write as done.
+ * WHICH REGISTRY COPIES THIS CYCLE REFRESHES. 1/4 can only OBSERVE its own local
+ * write; the rest are EXPECTATIONS naming the exact stage/step that performs
+ * them. Never claim a later stage's write as done.
  */
 export const REFRESH_CENSUS = Object.freeze([
     { copy: 'cache/registry/*.bin (runner-local working registry)', stage: '1/4 harvest', step: 'this step; rewritten again by Merge Batches -> RegistryManager.save()', observable_here: true },
@@ -117,6 +111,7 @@ export async function runRenorm(deps) {
     const {
         s3, bucket, censusDoc, registryDir, artifactDir,
         flagEnabled, snapshotMaxBytes, context = {},
+        reconcileOnly = false, // REHEARSAL-1: reconcile + manifest, then STOP (see the hard stop below).
         log = () => { }, loud = () => { },
     } = deps;
 
@@ -130,15 +125,11 @@ export async function runRenorm(deps) {
     const abandon = (reason, detail = {}) => {
         loud(`SELF-ABANDON: ${reason}`);
         loud('ZERO records were rewritten. The cascade proceeds unchanged.');
-        // PR-GR-C (D-2026-0812-421): PRESERVE the dry-run evidence. This used to
-        // overwrite the manifest at the same path, destroying records[],
-        // accounting, size_probes and affected_shards exactly in the case where
-        // they matter most -- the run 31563250233 investigation had to rebuild
-        // that evidence from R2 because the abandon had erased it. Merge onto
-        // whatever was already written instead; an abandon that fires BEFORE the
-        // full manifest exists (no credentials, unreadable marker, no key, no
-        // shards, bad census) simply has nothing to merge and writes the short
-        // form, exactly as before. Same path, so the artifact upload is unchanged.
+        // PR-GR-C (D-2026-0812-421): PRESERVE the dry-run evidence -- this used to
+        // overwrite the manifest, destroying records[]/accounting exactly when they
+        // matter most. Merge onto whatever was written; an abandon that fires before
+        // the manifest exists has nothing to merge and writes the short form. Same
+        // path, so the artifact upload is unchanged.
         let prior = {};
         try { prior = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch { /* nothing written yet */ }
         writeJson(manifestPath, { ...prior, status: OUTCOME.ABANDONED, reason, ...meta(), ...detail });
@@ -153,14 +144,19 @@ export async function runRenorm(deps) {
 
     if (!s3) return abandon('no R2 credentials -- cannot read the one-time completion marker');
 
+    // Marker is READ in both modes; under reconcileOnly it is only REPORTED, never acted on or written.
     const marker = await readMarker(s3, bucket);
+    const markerReport = { state: marker.state, ...(marker.error ? { error: marker.error } : {}) };
     if (marker.state === MARKER.PRESENT) {
         const body = await fetchMarkerBody(s3, bucket);
-        log(`completion marker present (run ${body?.run_id || 'unknown'}) -- already done, skipping.`);
-        writeJson(manifestPath, { status: OUTCOME.SKIPPED_MARKER_PRESENT, marker: body, ...meta() });
-        return { outcome: OUTCOME.SKIPPED_MARKER_PRESENT, marker: body };
+        markerReport.marker = body;
+        if (!reconcileOnly) {
+            log(`completion marker present (run ${body?.run_id || 'unknown'}) -- already done, skipping.`);
+            writeJson(manifestPath, { status: OUTCOME.SKIPPED_MARKER_PRESENT, marker: body, ...meta() });
+            return { outcome: OUTCOME.SKIPPED_MARKER_PRESENT, marker: body };
+        }
     }
-    if (marker.state === MARKER.UNKNOWN) {
+    if (marker.state === MARKER.UNKNOWN && !reconcileOnly) {
         return abandon(`completion marker unreadable (${marker.error}) -- refusing to run a one-time operation without confirming it has not already run`);
     }
 
@@ -180,10 +176,22 @@ export async function runRenorm(deps) {
     const rec = reconcile(scan.rows, census);
     writeJson(manifestPath, {
         status: rec.status, ...meta(),
+        rehearsal: reconcileOnly, marker: markerReport,
         shards_scanned: shardFiles.length, entities_scanned: scan.entitiesSeen,
         size_probes: scan.probes, reconciliation: rec, accounting: accounting(scan.rows),
         affected_shards: [...scan.perShard.keys()].sort(), records: scan.rows,
     });
+
+    // REHEARSAL-1 HARD STOP (D-2026-0812-422 property (i)). Everything below this
+    // line is the mutating half: snapshot, staging, swap, verification, marker
+    // write. Returning here is what makes ALL of it unreachable in reconcile-only
+    // mode -- there is no second guard and no partial path.
+    if (reconcileOnly) {
+        for (const r of rec.reasons) loud(`  reason: ${r}`);
+        log(`RECONCILE-ONLY: ${rec.status} -- observed ${rec.observed} of ${rec.expected} census id(s).`);
+        log('RECONCILE-ONLY: no snapshot, no staging, no swap, no marker write. Artifacts only.');
+        return { outcome: OUTCOME.RECONCILED, status: rec.status, reconciliation: rec, records: scan.rows.length };
+    }
 
     if (rec.status !== RECONCILE.MATCH) {
         loud(`DRY-RUN MISMATCH -- expected ${rec.expected} census id(s), observed ${rec.observed} giant(s).`);

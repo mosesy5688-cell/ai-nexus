@@ -169,6 +169,26 @@ test('G7 the step runs with headroom for one giant record parse', () => {
         'no literal key may ever appear in the workflow');
 });
 
+test('G9 the PRODUCTION step must NEVER carry --reconcile-only', () => {
+    // THE DANGEROUS INVERSE of the CLI-forwarding pin. `--reconcile-only` makes
+    // runRenorm stop at the manifest, so if it ever reached the ARMED production
+    // step the wash would become a silent, permanent no-op: it would scan, write
+    // a manifest, report RECONCILED and exit 0 while repairing NOTHING -- and
+    // because no completion marker is written, the flag stays armed and every
+    // subsequent cycle repeats the same green nothing, indefinitely. A green CI
+    // run would look identical to a successful repair.
+    const text = yml();
+    const at = text.indexOf(`- name: ${STEP}`);
+    assert.ok(at > 0, 'the production step must exist');
+    const body = text.slice(at, text.indexOf('- name: ', at + 10));
+    assert.match(body, /node .*registry-renorm-cli\.js/, 'anti-vacuity: the slice must contain the CLI invocation');
+    assert.equal(/--reconcile-only/.test(body), false,
+        'the production OP-GR-B step must never run in reconcile-only mode');
+    // The rehearsal lane owns that flag; production must not mention it at all.
+    assert.equal(/--reconcile-only/.test(text), false,
+        'factory-harvest.yml must not reference --reconcile-only anywhere');
+});
+
 test('G8 every new .test.mjs in this PR is registered in the required node --test list', () => {
     const suite = fs.readFileSync(TEST_SUITE_YML, 'utf8').replace(/\r\n/g, '\n');
     for (const f of [
@@ -178,6 +198,7 @@ test('G8 every new .test.mjs in this PR is registered in the required node --tes
         'scripts/factory/registry-renorm-verification.test.mjs',
         'scripts/factory/registry-renorm-census.test.mjs',
         'scripts/factory/registry-stale-shard-purge.test.mjs',
+        'scripts/factory/rehearsal-reconcile.test.mjs',
         'scripts/factory/registry-renorm-wiring.test.mjs',
         'scripts/ingestion/producer-compound-failure.test.mjs',
     ]) {

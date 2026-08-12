@@ -29,13 +29,21 @@ import { runRenorm, exitCodeFor } from './lib/registry-renorm-run.js';
 const CENSUS = JSON.parse(fs.readFileSync(
     new URL('./lib/op-gr-b-giant-cohort.json', import.meta.url), 'utf8'));
 
+// REHEARSAL-1 (D-2026-0812-422): `--reconcile-only` runs the census comparison
+// and writes the dry-run manifest, then stops -- no snapshot, no staging, no
+// swap, no marker write. It is NOT gated on the Founder variable, because a
+// rehearsal must be runnable BEFORE the operation is armed and, by construction,
+// cannot write anything. Its authorisation is the manual dispatch itself.
+const reconcileOnly = process.argv.includes('--reconcile-only');
+
 const result = await runRenorm({
     s3: createR2Client(),
     bucket: process.env.R2_BUCKET || 'ai-nexus-assets',
     censusDoc: CENSUS,
     registryDir: `${process.env.CACHE_DIR || './cache'}/registry`,
     artifactDir: process.env.OP_GR_B_ARTIFACT_DIR || 'op-gr-b',
-    flagEnabled: process.env.OP_GR_B_RENORM === 'true',
+    reconcileOnly,
+    flagEnabled: reconcileOnly || process.env.OP_GR_B_RENORM === 'true',
     snapshotMaxBytes: parseInt(process.env.OP_GR_B_SNAPSHOT_MAX_BYTES || String(2 * 1024 * 1024 * 1024), 10),
     context: {
         run_id: process.env.GITHUB_RUN_ID || null,

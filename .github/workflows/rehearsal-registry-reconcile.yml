@@ -1,0 +1,149 @@
+# REHEARSAL-1 (D-2026-0812-422 / D-2026-0812-423) -- RECONCILE-ONLY REGISTRY DRY RUN
+#
+# THIS IS NOT A FACTORY STAGE. It is deliberately outside the Factory N/4 chain:
+# nothing triggers it but a human, and it triggers nothing. It answers exactly one
+# question -- "does the repair logic reconcile against the registry the pipeline
+# actually loads?" -- and it answers NOTHING ELSE.
+#
+# WHAT A GREEN RUN DOES **NOT** MEAN (property (iii), stated here and echoed into
+# the job summary so it cannot be quoted out of context):
+#   - it is NOT an acceptance test and satisfies NO G criterion;
+#   - it does NOT open, advance or close any validation window;
+#   - it does NOT authorise arming OP_GR_B_RENORM or any production wash;
+#   - a MISMATCH here is a RESULT, not a failure of the workflow.
+#
+# THE FIVE HARD PROPERTIES:
+#   (i)   ZERO PRODUCTION WRITES -- outputs are build artifacts only. The invoked
+#         path issues Head/Get/List against R2 and never a Put: the reconcile-only
+#         hard stop in registry-renorm-run.js returns before snapshot, staging,
+#         swap, verification and the completion-marker write. The registry restore
+#         below uses actions/cache/RESTORE (never actions/cache, which would save
+#         on post) and r2-registry-restore.js, which only downloads.
+#   (ii)  ZERO CASCADE LINKAGE -- workflow_dispatch ONLY. No schedule, no
+#         workflow_run, no repository_dispatch. No existing Factory workflow file
+#         is modified by this lane.
+#   (iii) ZERO ACCEPTANCE STATUS -- see above.
+#   (iv)  EXPLICIT IDENTITY -- the run-name carries [REHEARSAL].
+#   (v)   READ-ONLY PRODUCTION INPUTS -- the job takes AES_CRYPTO_KEY and the R2
+#         read credentials from repo secrets exactly as the harvest job does, and
+#         restores the registry by the SAME two steps in the SAME order
+#         (GHA-cache-first, then R2 gap-fill), so it reflects the TRUE loaded state
+#         including the cache-first precedence.
+name: REHEARSAL - Registry Reconcile (dispatch-only)
+run-name: "[REHEARSAL] registry reconcile-only (dispatch)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why this rehearsal is being run (recorded in the summary)'
+        required: false
+        default: 'scenario-1 reconcile rehearsal'
+
+permissions:
+  contents: read
+
+# A rehearsal reads the registry the cascade is actively rewriting. Overlapping a
+# live Factory run would reconcile a MOVING target and produce a result nobody can
+# interpret. This guard only serialises rehearsals against each other -- GitHub
+# concurrency cannot reference another workflow's runs -- so the OPERATIONAL RULE
+# stands and is restated in the summary: do not dispatch while a Factory cascade is
+# in flight. Cancel-in-progress is FALSE: a rehearsal is cheap but long, and
+# silently killing one mid-scan would look like a failure.
+concurrency:
+  group: rehearsal-registry-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Reconcile-only dry run
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+
+    steps:
+      - uses: actions/checkout@v5
+      # Read-only setup: disk headroom, Node, npm ci. No Rust FFI -- the decode
+      # path this lane uses is fzstd + node:crypto, identical with or without it.
+      - uses: ./.github/actions/factory-setup
+        with:
+          aggressive-disk-cleanup: 'true'
+          with-rust-ffi: 'false'
+
+      # --- REGISTRY RESTORE: byte-for-byte the harvest job's own two steps ------
+      # Cache FIRST (most recently created `global-registry-` entry), then R2 as a
+      # GAP-FILLER that skips any shard already on disk. Reproducing this order is
+      # the whole point: it is what makes the rehearsal see what the renorm sees.
+      - name: Restore Global Registry (Cache-First)
+        id: cache-registry
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            cache/global-registry.json.zst
+            cache/registry/
+          key: global-registry-${{ github.run_id }}  # Won't match (not saved yet)
+          restore-keys: |
+            global-registry-
+
+      - name: R2 Registry Restoration (V25.8)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          mkdir -p cache/registry cache/fni-history cache/daily-accum
+          node scripts/factory/lib/r2-registry-restore.js
+
+      - name: Registry Provenance (what was actually loaded)
+        run: |
+          echo "cache-hit(exact)=${{ steps.cache-registry.outputs.cache-hit }}"
+          echo "restored-key=${{ steps.cache-registry.outputs.cache-matched-key }}"
+          echo "shards on disk: $(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)"
+
+      # --- THE RECONCILE ITSELF -------------------------------------------------
+      - name: Reconcile-only dry run (no writes)
+        env:
+          CACHE_DIR: ./cache
+          AES_CRYPTO_KEY: ${{ secrets.AES_CRYPTO_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+          OP_GR_B_ARTIFACT_DIR: rehearsal-out
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node scripts/factory/registry-renorm-cli.js --reconcile-only
+
+      - name: Upload rehearsal manifest
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: rehearsal-reconcile-${{ github.run_id }}-${{ github.run_attempt }}
+          path: rehearsal-out/dry-run-manifest.json
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Summary (scope disclaimer is mandatory)
+        if: always()
+        run: |
+          {
+            echo "## [REHEARSAL] Registry reconcile-only"
+            echo ""
+            echo "Reason: ${{ inputs.reason }}"
+            echo ""
+            echo "### What this run answers"
+            echo "Only: **is the repair logic correct against the loaded registry?**"
+            echo ""
+            echo "### What it does NOT mean"
+            echo "- NOT an acceptance test; satisfies **no G criterion** and opens/advances/closes **no validation window**."
+            echo "- Does **not** authorise arming the production flag or any wash."
+            echo "- A cohort MISMATCH is a **result**, not a workflow failure."
+            echo ""
+            echo "### Guarantees"
+            echo "- Zero production writes: build artifacts only (R2 reads only; no marker write)."
+            echo "- Zero cascade linkage: dispatch-only; triggers nothing."
+            echo "- Operational rule: do **not** dispatch while a Factory cascade is in flight (moving registry)."
+          } >> "$GITHUB_STEP_SUMMARY"
