@@ -14,6 +14,7 @@ import {
     GATE_TERMINAL_PROJECTED, GATE_TERMINAL_RECORD,
 } from './lib/shard-memory-gate.js';
 import { evaluateMemoryGate, MEMORY_CLEARLY_FACTOR } from './lib/runner-capacity-preflight.mjs';
+import { evaluateShardAccounting, ACCOUNTING_TERMINAL_ALL_FAILED } from './lib/shard-accounting-gate.js';
 
 const MiB = 1024 * 1024;
 const chunked = (s, n) => {
@@ -155,15 +156,51 @@ test('T-4 M4.b: neutering the processedCount guard falsifies ONLY with fixture (
     assert.equal(zeroLossGuards(acc, { neuterProcessedGuard: true }), null);
 });
 
-test('T-4 pins CURRENT D-6 behaviour: a throwing processEntity still counts as processed', () => {
-    // NOT a fix. D-6 is a separate lane. Pinned so this lane cannot drift it.
-    let entityIndex = 0, processedCount = 0;
+test('T-4/D-6 REPAIRED: a run where every entity fails is now caught by the third guard', () => {
+    // WAS: "pins CURRENT D-6 behaviour ... guard does NOT fire". That pin documented
+    // the defect and, because it used the test-local zeroLossGuards helper rather than
+    // the deployed chain, it would have kept passing after the repair - a silent
+    // honest-contract failure in the suite. Re-pinned to the FIXED behaviour
+    // (design v1 §3.4), keeping the D-6 reference so defect -> repair stays greppable.
+    let entityIndex = 0, processedCount = 0, successCount = 0, failedCount = 0, writeErrorCount = 0;
     for (const _ of ['{"id":"a"}', '{"id":"b"}']) {
-        try { throw new Error('processEntity failed'); } catch { processedCount++; }
-        entityIndex++;
+        // processEntity RETURNS {success:false}; it does not throw for entity failure.
+        failedCount++; processedCount++; entityIndex++;
     }
-    assert.deepEqual([entityIndex, processedCount], [2, 2]);
-    assert.equal(zeroLossGuards({ entityIndex, processedCount }), null, 'guard does NOT fire - current behaviour');
+    // The two pre-existing guards still do NOT fire - that is exactly why D-6 was invisible.
+    assert.deepEqual([entityIndex, processedCount, successCount], [2, 2, 0]);
+    assert.equal(zeroLossGuards({ entityIndex, processedCount }), null, 'the first two guards remain silent');
+    // The NEW third guard is what catches it.
+    const a = evaluateShardAccounting({ totalSeen: entityIndex, malformedCount: 0, processedCount, successCount, failedCount, writeErrorCount });
+    assert.equal(a.ok, false);
+    assert.equal(a.terminalCode, ACCOUNTING_TERMINAL_ALL_FAILED);
+});
+
+// --- D6-R2  UNIT, PURE RULE ------------------------------------------------
+test('D6-R2 the pure accounting rule fires only on zero-success WITH work done', () => {
+    const rule = (o) => evaluateShardAccounting(o);
+    // all-failed -> terminal
+    assert.equal(rule({ totalSeen: 3, processedCount: 3, successCount: 0, failedCount: 3 }).terminalCode, ACCOUNTING_TERMINAL_ALL_FAILED);
+    // any success -> ok
+    assert.equal(rule({ totalSeen: 3, processedCount: 3, successCount: 1, failedCount: 2 }).ok, true);
+    // nothing processed -> NOT this rule's terminal (the earlier guards own it)
+    assert.equal(rule({ totalSeen: 2, malformedCount: 2, processedCount: 0, successCount: 0 }).ok, true);
+    assert.equal(rule({}).ok, true, 'the empty case belongs to the entityIndex guard');
+    // write-side faults count as non-success
+    const w = rule({ totalSeen: 2, processedCount: 2, successCount: 0, failedCount: 1, writeErrorCount: 1 });
+    assert.equal(w.terminalCode, ACCOUNTING_TERMINAL_ALL_FAILED);
+    assert.equal(w.successRatio, 0);
+});
+
+// --- D6-R7  ACCOUNTING INVARIANT ------------------------------------------
+test('D6-R7 processed === success + failed + writeErrors, and seen === processed + malformed', () => {
+    const a = evaluateShardAccounting({ totalSeen: 10, malformedCount: 2, processedCount: 8, successCount: 5, failedCount: 2, writeErrorCount: 1 });
+    assert.equal(a.countsConsistent, true);
+    assert.equal(a.seenConsistent, true);
+    assert.equal(a.successRatio, 5 / 8);
+    // MUTATION: drift any counter and the invariant must report inconsistent.
+    assert.equal(evaluateShardAccounting({ totalSeen: 10, malformedCount: 2, processedCount: 8, successCount: 5, failedCount: 1, writeErrorCount: 1 }).countsConsistent, false);
+    assert.equal(evaluateShardAccounting({ totalSeen: 11, malformedCount: 2, processedCount: 8, successCount: 5, failedCount: 2, writeErrorCount: 1 }).seenConsistent, false);
 });
 
 // --- T-5 R2a OVERSIZE RECORD, FAIL-CLOSED (Class C) -----------------------

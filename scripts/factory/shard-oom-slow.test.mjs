@@ -114,6 +114,19 @@ test('GAP-5 MUTATION: neutering the R2a ceiling INSIDE shard-processor.js turns 
         assert.equal(all.includes(RECORD_SIZE_TERMINAL), false, 'mutant must NOT emit the terminal');
         assert.ok(fs.existsSync(path.join(cwd, 'artifacts', 'shard-0.json.zst')),
             'mutant emits an artifact despite the oversize record => the baseline assertion is falsifiable');
+        // D-6 COUPLING, MADE VISIBLE (design v1 §2.5). This mutant only reaches exit 0
+        // because its two bookend entities SUCCEED: their ids contain '/', so
+        // hasValidCachePath passes. If they ever failed, successCount would be 0 and the
+        // D-6 accounting guard would fail the mutant for a reason unrelated to R2a,
+        // turning this test RED misleadingly. The coupling is CONTINGENT (the local probe
+        // ran on the JS fallback; CI restores the Rust FFI), so assert it rather than
+        // rely on it. If this line reds, read it as "the fixture stopped succeeding",
+        // NOT as an R2a regression.
+        const acc = all.split('\n').find((l) => l.includes('[SHARD-ACCOUNTING]'));
+        assert.ok(acc, 'the accounting telemetry line must be present');
+        const parsed = JSON.parse(acc.slice(acc.indexOf('{')));
+        assert.ok(parsed.successCount > 0,
+            `GAP-5 mutant must have at least one succeeding entity; got successCount=${parsed.successCount}`);
     } finally {
         fs.rmSync(mutantPath, { force: true });
         fs.rmSync(cwd, { recursive: true, force: true });
