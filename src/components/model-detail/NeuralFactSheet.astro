@@ -6,6 +6,7 @@
  * Restores technical intelligence from R2 metadata.
  */
 import MarkdownRenderer from './MarkdownRenderer.astro';
+import { honestLicense } from '../../utils/honest-render.ts';
 
 interface Props {
   model: any;
@@ -19,7 +20,9 @@ const params = model.params_billions ? `${model.params_billions}B` : 'Large Scal
 const arch = cleanArchitecture(model.architecture || 'Neural Transformer');
 const ctx = model.context_length ? `${Math.round(model.context_length / 1024)}k` : 'Standard (2k-4k)';
 const vram = model.vram_gb ? `~${Math.ceil(model.vram_gb)}GB (Q4)` : 'Computing...';
-const license = (model.license || model.license_spdx) ? (model.license || model.license_spdx).toUpperCase() : 'Proprietary/Restricted';
+// R-1/T3: an absent license is NOT evidence of a restrictive one. Asserting
+// "Proprietary/Restricted" invents a legal fact; omit the line instead.
+const license = honestLicense(model)?.toUpperCase() || null;
 const fni = model.fni_score ? `${model.fni_score}/100` : 'Auditing...';
 
 const content = `
@@ -33,7 +36,7 @@ const content = `
 - **Parameter Scale:** ${params}
 - **Neural Architecture:** ${arch}
 - **Inference Efficiency:** ${fni} (FNI Logic Score)
-- **License Profile:** ${license}
+${license ? `- **License Profile:** ${license}` : ''}
 
 ## ⚙️ Technical Capabilities
 - **Neural Context Window:** ${ctx} tokens

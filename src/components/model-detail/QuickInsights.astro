@@ -4,6 +4,8 @@
  * Displays key decision metrics: Params, Context, Downloads, License
  * V15.0 Design Spec
  */
+import { honestLicense } from '../../utils/honest-render.ts';
+
 const { model } = Astro.props;
 
 // Formatting helpers
@@ -17,7 +19,9 @@ const formatNumber = (num) => {
 const params = model.params_billions ? `${model.params_billions}B` : '-';
 const context = model.context_length ? `${Math.round(model.context_length / 1024)}k` : '-';
 const downloads = formatNumber(model.downloads);
-const license = model.license || 'Unknown';
+// R-1/T3: read the same resolver the caution banner reads. Printing "Unknown"
+// here while the page states a real license elsewhere is a same-page contradiction.
+const license = honestLicense(model) || '-';
 const updated = model.last_updated ? new Date(model.last_updated).toLocaleDateString() : '-';
 ---
 

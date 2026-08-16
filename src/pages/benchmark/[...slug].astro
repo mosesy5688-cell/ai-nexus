@@ -23,6 +23,7 @@ import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getEntityRoute } from '../../utils/mesh-routing-core.js';
 import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
+import { honestAuthor, registryEntryDescription } from '../../utils/honest-render.ts';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -52,7 +53,7 @@ try {
     const displayName = benchmark?.name || benchmark?.title || 'Unknown Benchmark';
     pageTitle = `${displayName} - AI Evaluation Benchmark`;
     cleanedDesc = cleanDescription(benchmark?.description || '');
-    pageDescription = benchmark?.seo_summary?.description || cleanedDesc || `Evaluation benchmark ${displayName} as measured by Open LLM Leaderboard v2.`;
+    pageDescription = benchmark?.seo_summary?.description || cleanedDesc || registryEntryDescription('benchmark', displayName);
 
     benchmark.html_readme = html || benchmark.html_readme || null;
   }
@@ -76,7 +77,8 @@ if (benchmark) {
 
 const benchmarkName = benchmark?.name || 'Unknown Benchmark';
 const entityId = benchmark?.id || slugStr;
-const displayAuthor = benchmark?.leaderboard_source || 'Open LLM Leaderboard v2';
+// R-1/T6: do not credit a specific leaderboard the record does not name.
+const displayAuthor = honestAuthor(benchmark?.leaderboard_source);
 
 const hasFNI = benchmark?.fni_score !== undefined || benchmark?.fni_percentile !== undefined;
 const placeholderImage = '/placeholder-model.png';
@@ -92,7 +94,7 @@ const jsonld = benchmark ? {
   "@type": "Dataset",
   "name": benchmarkName,
   "description": pageDescription,
-  "creator": { "@type": "Organization", "name": displayAuthor }
+  ...(displayAuthor ? { "creator": { "@type": "Organization", "name": displayAuthor } } : {})
 } : undefined;
 
 const canonicalPath = benchmark ? getEntityRoute(benchmark, 'benchmark') : undefined;
@@ -140,7 +142,7 @@ const canonicalPath = benchmark ? getEntityRoute(benchmark, 'benchmark') : undef
       <div slot="insights-extra" class="mt-4">
         <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
           Frozen leaderboard snapshot{evaluatedAt ? ` as-of ${String(evaluatedAt).slice(0, 10)}` : ''} — scores are
-          not continuously refreshed. Measured by {displayAuthor}.
+          not continuously refreshed.{displayAuthor ? ` Measured by ${displayAuthor}.` : ''}
         </div>
       </div>
     )}
@@ -167,6 +169,7 @@ const canonicalPath = benchmark ? getEntityRoute(benchmark, 'benchmark') : undef
               author={displayAuthor}
               url={benchmark.source_url}
               type="benchmark"
+              entity={benchmark}
             />
          </div>
       </div>

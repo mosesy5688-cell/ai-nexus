@@ -3,6 +3,8 @@
  * FullMetadata - V15.1 Curated Transparency Report
  * Implements Progressive Disclosure by grouping metadata and filtering internals.
  */
+import { isKnown } from '../../utils/honest-render.ts';
+
 interface Props {
   entity: any;
   type?: string;
@@ -55,7 +57,10 @@ const extraKeys = allKeys.filter(k => !groupedKeys.has(k)).sort();
 
 function esc(s: string): string { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c)); }
 function formatValue(val: any): string {
-  if (val === null || val === undefined) return '<span class="text-gray-400 italic">null</span>';
+  // R-1/T4 (D-436): this printed the literal word "null" as if it were the value
+  // (90.1% of live pages). Unknown fields are dropped from activeFields below;
+  // this branch is the defence-in-depth marker, never the word "null".
+  if (!isKnown(val)) return '<span class="text-gray-400 italic">Not provided</span>';
   if (typeof val === 'boolean') return val ? '<span class="text-emerald-500 font-bold">true</span>' : '<span class="text-rose-500 font-bold">false</span>';
   if (Array.isArray(val)) {
     return `<div class="flex flex-wrap gap-1">${val.map(v => `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-md text-[11px] font-medium text-gray-600 dark:text-gray-400 border border-gray-200/50 dark:border-gray-700/50">${esc(String(v))}</span>`).join('')}</div>`;
@@ -91,7 +96,10 @@ function formatValue(val: any): string {
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     {groups.map(group => {
-      const activeFields = group.fields.filter(f => entity[f] !== undefined);
+      // R-1/T4: `!== undefined` kept null/"null"/"" fields and rendered them as
+      // values. Unknown -> field-level omission. isKnown() deliberately keeps
+      // MEASURED ZERO (downloads=0, stars=0, false) — 0 is data, not absence.
+      const activeFields = group.fields.filter(f => isKnown(entity[f]));
       if (activeFields.length === 0) return null;
       
       return (

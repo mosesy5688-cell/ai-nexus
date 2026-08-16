@@ -22,6 +22,7 @@
  * zero 404s, zero fabricated edges.
  */
 import { getRouteFromId as routeFromId, stripPrefix } from '../../utils/mesh-routing-core.js';
+import { resolveEntityYear } from '../../utils/honest-render.ts';
 
 // The .js helper accepts a type string at runtime; wrap once so call sites stay
 // type-clean (its inferred param type is null|undefined) without per-call casts.
@@ -107,15 +108,13 @@ const hasNeighbours = neighbours.length > 0;
 const citationCount = Number(paper?.citations ?? paper?.citation_count);
 const hasCitations = Number.isFinite(citationCount) && citationCount > 0;
 
-const publishedYear = (() => {
-  const raw = paper?.published_date || paper?.published_year;
-  if (!raw) return null;
-  const y = new Date(raw).getFullYear();
-  if (Number.isFinite(y) && y > 1900 && y <= new Date().getFullYear() + 1) return y;
-  // published_year may already be a bare year
-  const n = Number(paper?.published_year);
-  return Number.isFinite(n) && n > 1900 ? n : null;
-})();
+// R-1/T2 (D-436): this tile rendered "Published 1970" on 22/22 sampled papers.
+// `published_year` is stored as a BARE integer (2026); `new Date(2026)` reads it
+// as epoch-milliseconds -> 1970-01-01, and the old `y > 1900` guard let 1970 pass.
+// resolveEntityYear recognises a bare year BEFORE any Date parsing; unknown -> null,
+// and the tile is omitted rather than asserting a false date. Live evidence:
+// api/v1/entity published_year=2026 (int) while the page rendered 1970.
+const publishedYear = resolveEntityYear(paper);
 
 const fniA = Number(paper?.fni_a);
 const fniR = Number(paper?.fni_r);

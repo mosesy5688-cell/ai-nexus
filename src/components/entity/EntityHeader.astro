@@ -6,6 +6,7 @@
 import ShareButtons from '../common/ShareButtons.astro';
 import EntityMetricGrid from './EntityMetricGrid.astro';
 import { formatRelativeTime } from '../../utils/date-formatter.ts';
+import { honestAuthor } from '../../utils/honest-render.ts';
 
 interface Props {
   name: string;
@@ -112,7 +113,9 @@ const typeColors: Record<string, string> = {
 };
 
 const colors = typeColors[entityType] || typeColors.model;
-const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
+// R-1/T6: no real author -> render nothing. "Independent / Community" asserted
+// an attribution the record does not support.
+const displayAuthor = honestAuthor(author);
 const relativeTime = formatRelativeTime(lastUpdated);
 ---
 
@@ -141,9 +144,11 @@ const relativeTime = formatRelativeTime(lastUpdated);
         </h1>
         
         <div class="flex flex-wrap items-center gap-6 text-sm font-medium text-zinc-500">
-          <span class="flex items-center gap-2">
-            by <strong class="text-white font-bold">{displayAuthor}</strong>
-          </span>
+          {displayAuthor && (
+            <span class="flex items-center gap-2">
+              by <strong class="text-white font-bold">{displayAuthor}</strong>
+            </span>
+          )}
           {displayEntityId && (
             <span class="font-mono text-xs text-zinc-500 opacity-80 truncate max-w-[350px]" title={displayEntityId}>
               {displayEntityId}

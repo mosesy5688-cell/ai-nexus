@@ -22,6 +22,7 @@ import { getUseCases } from '../../utils/inference.js';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { honestAuthor, registryEntryDescription } from '../../utils/honest-render.ts';
 
 const { slug } = Astro.params;
 let slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -53,7 +54,7 @@ try {
 
     const displayPaperName = paper?.name || paper?.title || 'Unknown Research Paper';
     pageTitle = `${displayPaperName} - AI Research Insight`;
-    pageDescription = paper?.seo_summary?.description || paper?.abstract || `Deep dive into ${displayPaperName} research and architecture.`;
+    pageDescription = paper?.seo_summary?.description || paper?.abstract || registryEntryDescription('paper', displayPaperName);
 
     paper.html_readme = html || paper.html_readme || null;
   }
@@ -92,7 +93,7 @@ const modelId = entityId;
 const paperId = entityId;
 const arxivId = entityId;
 const slugString = slugStr;
-const displayAuthor = paper?.author || (Array.isArray(paper?.authors) && paper.authors[0]) || 'Research Community';
+const displayAuthor = honestAuthor(paper?.author, Array.isArray(paper?.authors) ? paper.authors[0] : null);
 
 const placeholderImage = '/placeholder-model.png';
 const coverImage = paper?.image_url || placeholderImage;
@@ -102,7 +103,9 @@ const jsonld = paper ? {
   "@type": "ScholarlyArticle",
   "headline": paperTitle,
   "description": pageDescription,
-  "author": Array.isArray(paper.authors) ? paper.authors.map(a => ({ "@type": "Person", "name": a })) : [{ "@type": "Person", "name": displayAuthor }]
+  ...(Array.isArray(paper.authors) && paper.authors.length > 0
+    ? { "author": paper.authors.map(a => ({ "@type": "Person", "name": a })) }
+    : (displayAuthor ? { "author": [{ "@type": "Person", "name": displayAuthor }] } : {}))
 } : null;
 
 const canonicalPath = paper ? getRouteFromId(paper.id || paperId, 'paper') : undefined;
@@ -182,6 +185,7 @@ const derivedUseCases = paper ? getUseCases(tagsArray, '', 'paper', paper.fni_sc
               url={paper.source_url}
               type="paper"
               citeKey={paper.arxiv_id ? `arxiv_${paper.arxiv_id.replace(/\./g, '_')}` : undefined}
+              entity={paper}
             />
          </div>
       </div>

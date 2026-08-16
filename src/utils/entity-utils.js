@@ -9,8 +9,13 @@ import { heuristicMining } from './entity-type-handlers.js';
  * 1. Identity & Author Extraction (V1.0 Legacy Restoration)
  */
 
+// R-1/T6 gate-2 (R-1-F1): this used to return the literal 'Open Source' whenever
+// it could not derive an author. That is a fabricated byline, not a derivation --
+// ids without an 'org/name' shape (every paper id, e.g.
+// 'arxiv-paper--unknown--<hash>') fell straight through to it. Undeterminable
+// author -> null, and the render layer omits the byline.
 export function extractAuthor(id, fallbackAuthor) {
-    if (!id) return fallbackAuthor || 'Open Source';
+    if (!id) return fallbackAuthor || null;
 
     // If author is numeric, treat it as missing/invalid
     const isNumeric = /^\d+$/.test(fallbackAuthor);
@@ -27,7 +32,7 @@ export function extractAuthor(id, fallbackAuthor) {
         return parts[0];
     }
 
-    return 'Open Source';
+    return null;
 }
 
 export function getSourceMetadata(id) {
@@ -104,8 +109,10 @@ export function beautifyAuthor(hydrated) {
             .map(w => w.charAt(0).toUpperCase() + w.slice(1))
             .join(' ');
 
+        // R-1/T6: a source prefix ('Hf'/'Gh') is not an author. Leave it unset so
+        // the render layer shows no byline instead of crediting a fiction.
         if (!hydrated.author || hydrated.author === 'Hf' || hydrated.author === 'Gh') {
-            hydrated.author = 'Independent / Community';
+            hydrated.author = null;
         }
     }
 }

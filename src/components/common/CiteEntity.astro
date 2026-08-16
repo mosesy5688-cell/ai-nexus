@@ -5,20 +5,32 @@
  * Compliance: Zero-Limit R2 architecture. No D1/KV.
  */
 import { getEntityRoute } from '../../utils/mesh-routing-core.js';
+import { resolveEntityYear, honestAuthor } from '../../utils/honest-render.ts';
 
 interface Props {
   id: string;
   name: string;
-  author?: string;
+  author?: string | null;
   url?: string;
   type?: string;
   className?: string;
   citeKey?: string;
   slug?: string;
+  /** Source entity — the citation year is read from its real publication date. */
+  entity?: any;
 }
 
-const { id = '', name, author = 'Free2AITools Contributors', url, type = 'model', className = '', citeKey, slug } = Astro.props;
-const currentYear = new Date().getFullYear();
+const { id = '', name, author, url, type = 'model', className = '', citeKey, slug, entity } = Astro.props;
+
+// R-1/T1 (D-436): the citation year MUST be the entity's real publication year.
+// It used to be read off the wall clock, which stamped every citation on the site
+// with the current year — a fabricated fact in a machine-quotable artifact
+// (forensics F1: 293/293 live pages). No real year -> the year component is
+// OMITTED; both BibTeX and APA permit that, and we never guess. Same rule for the
+// author: producer placeholders ("Unknown"/"Community") are absence, not
+// attribution, so honestAuthor rejects them.
+const citeYear = resolveEntityYear(entity);
+const citeAuthor = honestAuthor(author, entity?.author);
 
 const safeType = type || 'model';
 const safeId = id || 'entity';
@@ -42,15 +54,26 @@ const fallbackUrl = canonicalRoute && canonicalRoute !== '#'
   : `https://free2aitools.com/${safeType}/${rawKey || safeId}`;
 const citeUrl = url || fallbackUrl;
 
-const bibtex = `@misc{${cleanKey},
-  author = {${author}},
-  title = {${name} ${safeType.charAt(0).toUpperCase() + safeType.slice(1)}},
-  year = {${currentYear}},
-  howpublished = {\\url{${citeUrl}}},
-  note = {Accessed via Free2AITools.}
-}`;
+const typeLabel = safeType.charAt(0).toUpperCase() + safeType.slice(1);
 
-const apa = `${author}. (${currentYear}). ${name} [${safeType.charAt(0).toUpperCase() + safeType.slice(1)}]. Free2AITools. ${citeUrl}`;
+// Only components backed by real data are emitted. An absent author/year leaves
+// the field out entirely rather than shipping a plausible-looking invention.
+const bibtexFields = [
+  citeAuthor ? `  author = {${citeAuthor}},` : null,
+  `  title = {${name} ${typeLabel}},`,
+  citeYear ? `  year = {${citeYear}},` : null,
+  `  howpublished = {\\url{${citeUrl}}},`,
+  `  note = {Accessed via Free2AITools.}`
+].filter(Boolean).join('\n');
+const bibtex = `@misc{${cleanKey},\n${bibtexFields}\n}`;
+
+const apa = [
+  citeAuthor ? `${citeAuthor}.` : null,
+  citeYear ? `(${citeYear}).` : null,
+  `${name} [${typeLabel}].`,
+  'Free2AITools.',
+  citeUrl
+].filter(Boolean).join(' ');
 
 const encodedBibtex = encodeURIComponent(bibtex);
 const encodedApa = encodeURIComponent(apa);

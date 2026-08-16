@@ -23,6 +23,7 @@ import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getEntityRoute } from '../../utils/mesh-routing-core.js';
 import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
+import { honestAuthor, registryEntryDescription } from '../../utils/honest-render.ts';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -58,7 +59,7 @@ try {
     const displayDatasetName = dataset?.name || dataset?.title || 'Unknown Dataset';
     pageTitle = `${displayDatasetName} - AI Dataset Insights`;
     cleanedDesc = cleanDescription(dataset?.description || '');
-    pageDescription = dataset?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayDatasetName}.`;
+    pageDescription = dataset?.seo_summary?.description || cleanedDesc || registryEntryDescription('dataset', displayDatasetName);
 
     dataset.html_readme = html || dataset.html_readme || null;
   }
@@ -89,7 +90,7 @@ const datasetName = dataset?.name || 'Unknown Dataset';
 const entityId = model?.id || slugStr;
 const modelId = entityId;
 const datasetId = entityId;
-const displayAuthor = dataset?.author || 'Independent / Community';
+const displayAuthor = honestAuthor(dataset?.author);
 
 const hasFNI = dataset?.fni_score !== undefined || dataset?.fni_percentile !== undefined;
 const placeholderImage = '/placeholder-model.png';
@@ -100,10 +101,7 @@ const jsonld = dataset ? {
   "@type": "Dataset",
   "name": datasetName,
   "description": pageDescription,
-  "creator": {
-    "@type": "Organization",
-    "name": displayAuthor
-  },
+  ...(displayAuthor ? { "creator": { "@type": "Organization", "name": displayAuthor } } : {}),
   "license": dataset?.license_spdx || dataset?.license
 } : null;
 
@@ -184,6 +182,7 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
               author={displayAuthor} 
               url={dataset.source_url} 
               type="dataset" 
+              entity={dataset}
             />
          </div>
       </div>
