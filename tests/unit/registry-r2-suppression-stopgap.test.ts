@@ -116,12 +116,20 @@ describe('D-250 fresh current-cycle R2 WINS (mandatory restore + stale-cache wip
 
 describe('D-250 fail CLOSED on no current-cycle registry', () => {
     it('#6 a sub-floor registry after all recovery paths fails closed (exit 1) as the TERMINAL gate', () => {
+        // D-2026-0816-438 REST-2b: the TERMINAL gate is now EQUALITY against the count the R2
+        // _manifest.json declares (an independent producer authority written by 3/4), replacing
+        // the static -lt 100 floor that let the 08-16 449-of-654 truncation through at 449.
         // the fail-closed check comes AFTER the R2 restore + bootstrap
-        expect(ensureStep.indexOf(R2_RESTORE)).toBeLessThan(ensureStep.lastIndexOf('-lt 100'));
-        expect(ensureStep).toMatch(/-lt 100[\s\S]*exit 1/);
+        expect(ensureStep.indexOf(R2_RESTORE)).toBeLessThan(ensureStep.lastIndexOf('-ne "$EXPECTED"'));
+        expect(ensureStep).toMatch(/-ne "\$EXPECTED"[\s\S]*exit 1/);
         expect(ensureStep).toContain('::error::');
         // the error is the D-250 stale/mixed-cycle guard, not a generic 0-entities note
-        expect(ensureStep).toMatch(/Failing CLOSED to prevent stale\/mixed-cycle Master Fusion publication/);
+        expect(ensureStep).toMatch(/Failing CLOSED to prevent stale\/mixed-cycle or truncated Master Fusion publication/);
+        // Scope: this proves only that the superseded `-lt 100` form is gone from the
+        // R2-AUTHORITY path. It does NOT claim the step is free of static floors --
+        // the GHA exact-cache fast path still exits 0 on `-ge 100` (REST-5 residual,
+        // annotated at that branch in factory-upload.yml).
+        expect(ensureStep).not.toContain('-lt 100');
     });
 });
 
