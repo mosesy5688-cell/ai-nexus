@@ -163,12 +163,15 @@ async function main() {
         }
 
         try {
+            // F-1 (D-414): THE single processedCount increment. Counting the parsed line
+            // once, before anything below can throw, is what keeps seen === processed +
+            // malformed; try AND catch both incrementing double-counted a write failure.
+            processedCount++;
             const result = await processEntity(entity, globalStats, entityChecksums, fniHistory, CONFIG);
 
             // D-6: processEntity RETURNS {success:false} on entity failure (it never
             // throws for that), so success and failure must be counted separately here.
             if (result.success) successCount++; else failedCount++;
-            processedCount++;
 
             const comma = writtenCount === 0 ? '' : ',\n';
             await safeWrite(comma + JSON.stringify(result));
@@ -182,7 +185,6 @@ async function main() {
         } catch (e) {
             console.error(`[SHARD ${shardId}] Error processing ${entity?.id}:`, e.message);
             writeErrorCount++;
-            processedCount++;
         }
 
         entityIndex++;
