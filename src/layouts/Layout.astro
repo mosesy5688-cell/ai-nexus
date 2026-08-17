@@ -116,8 +116,10 @@ const siteMeta = {
 
     <link rel="canonical" href={canonicalURL.href} />
 
-    <meta property="article:published_time" content={new Date().toISOString()} />
-    <meta property="article:modified_time" content={new Date().toISOString()} />
+    {/* R-1/T2 (D-436): article:published_time / article:modified_time used to be
+        stamped with `new Date()`, asserting to every crawler that EVERY page was
+        published and modified at request time. We hold no real per-page publication
+        timestamp here, so the honest state is to assert nothing. */}
 
     <!-- V26.3: Schema.org JSON-LD (Organization + WebSite by default, page-specific when provided) -->
     <script type="application/ld+json" set:html={JSON.stringify(schemaToUse)} />

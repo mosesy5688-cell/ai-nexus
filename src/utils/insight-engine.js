@@ -3,6 +3,7 @@
  * Generates technical metrics and badges for the detail page (Zone 2)
  * Separated from inference.js for CES Art 5.1 compliance (< 250 lines)
  */
+import { resolveEntityYear } from './honest-render.ts';
 
 /**
  * Format large numbers for technical display (e.g. 1.2M, 45K)
@@ -101,7 +102,10 @@ export function getQuickInsights(entity, type) {
         // V27.92 Honest-contract: don't default agent language to "Python" when unknown.
         insights.push({ label: 'Language', value: entity.language || '-', highlight: !!entity.language });
         insights.push({ label: 'Stars', value: formatMetricNumber(entity.stars || entity.github_stars), badge: (entity.stars > 1000) ? 'Popular' : null });
-        insights.push({ label: 'Capability', value: entity.verified ? 'Verified' : 'Community', highlight: entity.verified });
+        // R-1/T6 gate-2 (R-1-F2): a 'Capability' tile keyed on `entity.verified` was
+        // removed. Nothing in the render data path or the producers ever sets
+        // `verified`, so the tile was a CONSTANT that labelled every agent
+        // 'Community' -- a verification verdict asserted with no verification.
         if (entity.license) insights.push({ label: 'License', value: entity.license });
     }
 
@@ -126,7 +130,8 @@ export function getQuickInsights(entity, type) {
             highlight: citations > 0,
             badge: citations > 0 ? 'Semantic Scholar' : null
         });
-        const year = entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || null);
+        // R-1/T2: a bare `published_year` fed to new Date() yields 1970. Resolve honestly.
+        const year = resolveEntityYear(entity);
         if (year) insights.push({ label: 'Year', value: year });
         if (entity.venue) insights.push({ label: 'Venue', value: entity.venue, badge: 'Peer-Reviewed' });
 

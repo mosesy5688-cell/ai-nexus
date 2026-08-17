@@ -146,7 +146,7 @@ export function renderResults(items, container, query = '') {
 
                         <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-zinc-500 dark:text-zinc-400">
                             <span class="text-[10px] sm:text-[11px] font-medium truncate">
-                                by ${escapeHtml(item.author || 'Open Source')}
+                                ${item.author ? `by ${escapeHtml(item.author)}` : ''}
                             </span>
 
                             <div class="flex items-center gap-2 overflow-hidden">

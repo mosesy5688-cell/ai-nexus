@@ -5,6 +5,7 @@
 
 import { generateEntityUrl } from '../../utils/url-utils.js';
 import { extractAuthor, getSourceMetadata, isActive as isRecentlyActive } from '../../utils/entity-utils.js';
+import { honestAuthor } from '../../utils/honest-render.ts';
 
 const { item, type = 'model', isRisingStar = false } = Astro.props;
 
@@ -15,7 +16,9 @@ if (!baseName || baseName.toLowerCase() === 'unknown') {
     baseName = id.split('/').pop()?.split('--').pop()?.replace(/--/g, '/') || 'Untitled Entity';
 }
 const displayTitle = baseName;
-const author = extractAuthor(id, item.author || item.creator || item.organization || 'Community');
+// R-1/T6: no "Community" invention. extractAuthor derives from the id when it can;
+// when nothing real remains the card shows no byline.
+const author = honestAuthor(extractAuthor(id, item.author || item.creator || item.organization || ''));
 const description = item.description || item.summary || item.seo_summary?.description || 'Structural intelligence indexing in progress...';
 let textDesc = description;
 if (typeof textDesc === 'string' && textDesc.startsWith('---')) {

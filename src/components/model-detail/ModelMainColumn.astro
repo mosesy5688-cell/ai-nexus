@@ -3,6 +3,7 @@
 import ModelNotices from './ModelNotices.astro';
 
 import FullReadmeSection from './FullReadmeSection.astro';
+import { honestLicense } from '../../utils/honest-render.ts';
 
 
 interface Props {
@@ -10,6 +11,14 @@ interface Props {
 }
 
 const { model } = Astro.props;
+
+// R-1/T3 (D-436): the "License Unknown" caution banner fired on 18/18 sampled
+// model pages while 17 of those SAME pages simultaneously rendered a real
+// license (MIT / Apache-2.0 / ...) elsewhere. The template condition was
+// correct; the wiring was not — only `license_spdx` was passed, and it is
+// empty on models whose license lives in `license`. Resolve across the same
+// fields the rest of the page reads, so one page states one thing.
+const resolvedLicense = honestLicense(model);
 ---
 
 <div class="lg:col-span-2 space-y-6">
@@ -32,7 +41,7 @@ const { model } = Astro.props;
     entityLabel={model.entityDefinition?.display?.labelSingular || 'Model'}
     sourceUrl={model.source_url}
     sourceTrail={model.source_trail}
-    license={model.license_spdx}
+    license={resolvedLicense}
     hasDescription={!!model.description}
     hasSeoSummary={!!model.seo_summary}
   />

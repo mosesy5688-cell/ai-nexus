@@ -10,6 +10,7 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions.js';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers.ts';
+import { honestAuthor, registryEntryDescription } from '../../utils/honest-render.ts';
 import { getModelFromCache } from '../../utils/entity-cache-reader.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON.js';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
@@ -60,7 +61,7 @@ try {
   const displayModelName = model?.name || model?.canonical_name || 'Unknown Model';
   pageTitle = `${displayModelName} - AI Model Insights & Benchmarks`;
   cleanedDesc = cleanDescription(model?.description || '');
-  pageDescription = model?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayModelName}.`;
+  pageDescription = model?.seo_summary?.description || cleanedDesc || registryEntryDescription('model', displayModelName);
   
   // V16.5: Explicit HTML Assignment (Stream B Source)
   model.html_readme = html || model.html_readme || null;
@@ -102,7 +103,7 @@ const hasBench = toMetricRows(benchBlob).length > 0 || Boolean(model?.mmlu || mo
 const placeholderImage = '/placeholder-model.png';
 const coverImage = model?.image_url || placeholderImage;
 const modelName = model?.name || 'Unknown Model';
-const displayAuthor = model?.author || 'Independent / Community';
+const displayAuthor = honestAuthor(model?.author);
 const entityId = model?.id || slugStr;
 const modelId = entityId;
 
@@ -130,7 +131,7 @@ const canonicalPath = model ? getEntityRoute(model, 'model') : undefined;
         entityIcon={model.entityDefinition?.display?.icon || '🧠'}
         entityLabel={model.entityDefinition?.display?.labelSingular || 'Model'}
         verified={false} 
-        author={model.author}
+        author={displayAuthor}
         lastUpdated={model.last_updated}
         description={model.seo_summary?.description || cleanedDesc}
         fniScore={model.fni_score}
@@ -185,9 +186,10 @@ const canonicalPath = model ? getEntityRoute(model, 'model') : undefined;
             <CiteEntity 
               id={modelId} 
               name={modelName} 
-              author={model.author} 
+              author={displayAuthor} 
               url={model.source_url} 
               type="model" 
+              entity={model}
             />
          </div>
       </div>

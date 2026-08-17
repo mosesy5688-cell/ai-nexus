@@ -18,7 +18,8 @@ if (!source) {
   else if (idStr.includes('arxiv')) source = 'arXiv';
   else if (idStr.includes('kaggle')) source = 'Kaggle';
   else if (idStr.includes('replicate')) source = 'Replicate';
-  else source = 'Community / Independent';
+  // R-1/T6: an unrecognised id does not make the source "Community / Independent".
+  else source = null;
 }
 
 // V16.7: Type-aware labels
@@ -84,10 +85,12 @@ if (type === 'paper') {
         </tr>
       )}
 
-      <tr class="hover:bg-zinc-800/20 transition-colors">
-        <td class="px-3 py-2 font-black text-white bg-[var(--bg-canvas)]">Provider</td>
-        <td class="px-3 py-2 text-zinc-300 capitalize">{source}</td>
-      </tr>
+      {source && (
+        <tr class="hover:bg-zinc-800/20 transition-colors">
+          <td class="px-3 py-2 font-black text-white bg-[var(--bg-canvas)]">Provider</td>
+          <td class="px-3 py-2 text-zinc-300 capitalize">{source}</td>
+        </tr>
+      )}
     </tbody>
   </table>
 </div>
