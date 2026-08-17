@@ -104,7 +104,12 @@ describe('restore transport ops via REAL CLI seam (D-380 §C/§E · D-382 §1/§
         inj(r, 'GET', P + tail, ...S(4));
         const d1 = tmp('short'); const res1 = await runCli(['restore-dir', P, d1]); const out = cliResult(res1);
         expect([out.success, out.restored, out.expected, out.missing]).toEqual([false, N - 1, N, [tail]]);
-        expect(res1.code).toBe(0); expect(fs.existsSync(path.join(d1, tail))).toBe(false); expect(fs.existsSync(path.join(d1, 'f0.bin'))).toBe(true);
+        // D-2026-0816-438 REST-1a SUPERSEDES the former "non-strict short restore exits 0"
+        // contract: partial success IS failure. A manifest-short restore now exits non-zero and
+        // emits R2_RESTORE_INCOMPLETE even WITHOUT --strict. That exit-0 was the hole that let
+        // the 08-16 449-of-654 registry truncation be consumed as if it were whole.
+        expect(res1.code).toBe(1); expect(res1.errs.join('\n')).toMatch(/R2_RESTORE_INCOMPLETE/);
+        expect(fs.existsSync(path.join(d1, tail))).toBe(false); expect(fs.existsSync(path.join(d1, 'f0.bin'))).toBe(true);
         inj(r, 'GET', P + tail, ...S(4)); // re-arm the exhausting GET for the strict re-run
         const res2 = await runCli(['restore-dir', P, tmp('short2'), '--strict']);
         expect(res2.code).toBe(1); expect(res2.errs.join('\n')).toMatch(/restore-dir incomplete \(strict mode\)/);

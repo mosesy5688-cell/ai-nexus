@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { createR2Client, fetchR2Etags } from './r2-helpers.js';
 import { isUploadEligible } from './upload-eligibility.js';
 import { createRestoreProgress } from './r2-restore-progress.js';
+import { readBodyWithIdleDeadline } from './r2-transport-deadlines.js';
 import { PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
@@ -56,8 +57,7 @@ const putObjectWithClient = (client, key, buffer, contentType) => withR2Retry(()
 async function getBufferWithClient(client, key, op = 'GET') {
     return withR2Retry(async () => {
         const resp = await client.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
-        const chunks = []; for await (const c of resp.Body) chunks.push(c);
-        const data = Buffer.concat(chunks);
+        const data = await readBodyWithIdleDeadline(resp.Body); // REST-1b: a stalled body throws instead of hanging
         // D-382 Gap 3: ANY short read against a known ContentLength is a retryable premature-EOF truncation
         // (drop the *0.9 tolerance). This throws BEFORE getObjectWithClient writes to disk / counts a restore.
         if (resp.ContentLength && data.length < resp.ContentLength) { const e = new Error(`truncated ${key} (${data.length}/${resp.ContentLength}B)`); e.retryableStream = true; throw e; }

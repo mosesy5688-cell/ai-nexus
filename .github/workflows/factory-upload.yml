@@ -442,6 +442,13 @@ jobs:
           CACHE_EXACT_HIT: ${{ steps.cache-global-registry.outputs.cache-hit }}
         run: |
           # (1) EXACT current-cycle GHA cache hit is the ONLY trusted fast path.
+          # REST-5 RESIDUAL (D-2026-0816-439 gate-2 R4): the shard floor below is the
+          # LAST surviving static floor on this step. It can still accept a truncated
+          # cache as authority, exactly as the R2 path did at 449/654 -- the only
+          # difference is that a GHA cache hit was not the 08-16 mechanism (cache-hit
+          # was ''). Closing it needs an independent authority for the CACHE
+          # population, which REST-2b's manifest is not; that is registered to REST-5
+          # and is deliberately NOT changed here.
           if [ "$CACHE_EXACT_HIT" = "true" ]; then
             BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
             if [ "$BIN_COUNT" -ge 100 ]; then
@@ -458,19 +465,58 @@ jobs:
           rm -rf cache/registry cache/global-registry.json.zst
           mkdir -p cache/registry
           # Fresh path (state/registry/) first — the current-cycle authority 3/4 wrote.
-          node scripts/factory/r2-workflow-cli.js restore-dir state/registry/ cache/registry/ || echo "⚠️ state/registry/ unavailable (3/4 V27.53 may not have run yet)"
+          # REST-2a (D-2026-0816-438 + D-439 §A.b): --strict, AND the `|| echo` swallow
+          # is GONE. The old form was a double failure: the call lacked --strict, and
+          # even with it the `|| echo "..."` discarded the non-zero exit in place, so
+          # r2-workflow-cli.js's strict exit could never reach this shell. The exit code
+          # is now CAPTURED and reported; adjudication is deferred to the manifest-level
+          # gates below, with the D-250 equality gate as the final arbiter. This keeps
+          # the legacy bootstrap fallback reachable without ever discarding a signal.
+          # A1: tee, so the [R2-RESTORE-PROGRESS] heartbeats stay LIVE in the step log.
+          # A buffered redirect would hide exactly the signal that made 08-16
+          # diagnosable (the stall was visible only as two byte-identical heartbeats).
+          # This step sets no pipefail, so the pipeline status is tee's; PIPESTATUS[0]
+          # carries node's REAL exit code and is captured on the very next line.
+          RESTORE_LOG="${RUNNER_TEMP}/d250-registry-restore.log"
+          node scripts/factory/r2-workflow-cli.js restore-dir state/registry/ cache/registry/ --strict 2>&1 | tee "$RESTORE_LOG"
+          RESTORE_RC=${PIPESTATUS[0]}
+          if [ "$RESTORE_RC" -ne 0 ]; then
+            echo "⚠️ [REST-2a] restore-dir state/registry/ exited ${RESTORE_RC} under --strict. NOT swallowed: the manifest-level gates below adjudicate, and the D-250 equality gate is the final arbiter."
+          fi
+          # REST-3 (D-2026-0816-438): consume the terminal record. restore-dir emits
+          # [R2-CLI-RESULT] on EVERY return path, so its absence means the process died
+          # mid-restore — exactly the 08-16 silent exit-0 shape. This gate lives OUTSIDE
+          # the node process, so it is reachable even when the in-process REST-1
+          # assertion never runs. Independent throw point, not the same wall.
+          TERMINAL_RECORD="$(grep -m1 -F '[R2-CLI-RESULT]' "$RESTORE_LOG" || true)"
+          if [ -z "$TERMINAL_RECORD" ]; then
+            echo "::error::[REST-3] R2_RESTORE_NO_TERMINAL_RECORD: restore-dir state/registry/ emitted no [R2-CLI-RESULT] terminal record. A restore that ends without one is indistinguishable from the 08-16 silent exit-0 truncation (heartbeats stalled at 449/654, no phase:complete). Failing CLOSED."
+            exit 1
+          fi
+          # REST-2b (D-2026-0816-438): the gate is EQUALITY against the member count the
+          # R2 _manifest.json declares — an independent authority written by 3/4 in a
+          # previous workflow — never a static floor and never BIN_COUNT compared with
+          # itself. state/registry/ is 100% part-*.bin (3/4 backed up 654 entries / 654
+          # .bin), so the manifest count and the .bin count are the same population.
+          EXPECTED="${TERMINAL_RECORD##*\"expected\":}"
+          EXPECTED="${EXPECTED%%[!0-9]*}"
+          case "$TERMINAL_RECORD" in *'"manifestFound":true'*) MANIFEST_FOUND=true;; *) MANIFEST_FOUND=false;; esac
+          if [ "$MANIFEST_FOUND" != "true" ] || [ -z "$EXPECTED" ] || [ "$EXPECTED" -le 0 ]; then
+            echo "::error::[REST-2] R2_REGISTRY_MANIFEST_UNAVAILABLE: no current-cycle R2 manifest authority for state/registry/ (manifestFound=${MANIFEST_FOUND}, expected='${EXPECTED}'). D-2 forbids substituting a self-derived floor for a missing independent authority. Failing CLOSED."
+            exit 1
+          fi
           # Monolith download (legit fallback #2).
           node scripts/factory/r2-workflow-cli.js restore-file state/global-registry.json.zst cache/global-registry.json.zst 2>/dev/null || true
           # Last-resort bootstrap (legit fallback #3): V25.8 handles legacy meta/backup/registry/ + format mismatch.
           BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
-          if [ "$BIN_COUNT" -lt 100 ]; then
-            echo "⚠️ Still ${BIN_COUNT} after state/registry/ restore — invoking r2-registry-restore.js for legacy/bootstrap paths"
+          if [ "$BIN_COUNT" -ne "$EXPECTED" ]; then
+            echo "⚠️ ${BIN_COUNT}/${EXPECTED} after state/registry/ restore — invoking r2-registry-restore.js for legacy/bootstrap paths"
             node scripts/factory/lib/r2-registry-restore.js || echo "⚠️ Bootstrap restore failed"
           fi
           BIN_COUNT=$(find cache/registry -name 'part-*.bin' 2>/dev/null | wc -l)
-          echo "[D-250] Final: ${BIN_COUNT} .bin shards in cache/registry/ (fresh current-cycle R2 authority)"
-          if [ "$BIN_COUNT" -lt 100 ]; then
-            echo "::error::[D-250] No current-cycle registry established: neither an exact current-cycle GHA cache hit nor a fresh R2 state/registry/ restore reached the ≥100 .bin shard floor. Failing CLOSED to prevent stale/mixed-cycle Master Fusion publication."
+          echo "[D-250] Final: ${BIN_COUNT}/${EXPECTED} .bin shards in cache/registry/ (fresh current-cycle R2 authority)"
+          if [ "$BIN_COUNT" -ne "$EXPECTED" ]; then
+            echo "::error::[D-250/REST-2] R2_REGISTRY_INCOMPLETE: cache/registry/ holds ${BIN_COUNT} .bin shards but the current-cycle R2 manifest declares ${EXPECTED}. Partial success is failure — a truncated registry starts Master Fusion on a short set (08-16: 449/654 fused as if whole). Failing CLOSED to prevent stale/mixed-cycle or truncated Master Fusion publication."
             exit 1
           fi
       - name: Align Registry Cache for Fusion

@@ -16,6 +16,7 @@ import {
     initR2Bridge, createR2ClientFFI, backupFileToR2FFI, restoreFileFromR2FFI,
     backupDirectoryToR2FFI, restoreDirectoryFromR2FFI, uploadFileFFI, uploadBufferToR2FFI
 } from './lib/r2-bridge.js';
+import { evaluateRestoreCompleteness, formatRestoreGateRecord, registerPendingRestore, resolvePendingRestore } from './lib/r2-restore-gate.js';
 
 const [action, ...rest] = process.argv.slice(2);
 const DEFAULT_CRATES = 'shard-router,fni-calc,content-extractor,stream-aggregator,satellite-tasks,r2-engine,markdown-renderer,ivf-pq,identity-cluster';
@@ -80,12 +81,13 @@ async function main() {
             const positional = rest.filter(a => !a.startsWith('--'));
             const [r2Prefix, localDir] = positional;
             if (!r2Prefix || !localDir) { console.error('Usage: restore-dir <r2Prefix> <localDir> [--strict]'); process.exit(1); }
-            const strict = rest.includes('--strict');
+            const strict = rest.includes('--strict'); const guard = registerPendingRestore(); // REST-1c: no silent exit-0 while a restore is pending
             const result = await restoreDirectoryFromR2FFI(undefined, r2Prefix, localDir, { strict });
             // D-382 §3.2: structured (non-exit-changing) result line so tests assert the exact restore outcome through the REAL CLI seam.
-            console.log(`[R2-CLI-RESULT] ${JSON.stringify({ action: 'restore-dir', success: !!result?.success, restored: result?.restored || 0, expected: result?.expected || 0, missing: result?.missing || [], failed: result?.failed || [], source: result?.source || 'none', manifestFound: !!result?.manifestFound, reason: result?.reason })}`);
+            console.log(`[R2-CLI-RESULT] ${JSON.stringify({ action: 'restore-dir', success: !!result?.success, restored: result?.restored || 0, expected: result?.expected || 0, missing: result?.missing || [], failed: result?.failed || [], source: result?.source || 'none', manifestFound: !!result?.manifestFound, reason: result?.reason })}`); resolvePendingRestore(guard); // REST-1c: terminal record emitted, restore no longer pending
             console.log(`[R2-CLI] restore-dir: ${result?.restored || 0}/${result?.expected || 0} restored from ${r2Prefix} (source=${result?.source || 'none'})`);
             if (!result?.success) console.error(`[R2-CLI] restore-dir INCOMPLETE: missing ${result?.missing?.length ?? '?'} (reason=${result?.reason || 'n/a'})`);
+            const gate = evaluateRestoreCompleteness(result); if (!gate.ok) { console.error(formatRestoreGateRecord(gate.record)); process.exit(1); } // REST-1a: manifest-authoritative completeness, above the FFI/JS fork
             // D-380 §8: strict exit decided by result.success, NOT count>0 -- a 4015/4016 short restore MUST exit non-zero.
             if (strict && !result?.success) { console.error('[R2-CLI] FATAL: restore-dir incomplete (strict mode)'); process.exit(1); }
             break;

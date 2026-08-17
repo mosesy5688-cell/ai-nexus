@@ -7,6 +7,7 @@ import {
     CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand,
     GetObjectCommand
 } from '@aws-sdk/client-s3';
+import { r2RequestHandlerConfig } from './r2-transport-deadlines.js';
 
 /**
  * Shared R2 Client Creator
@@ -25,6 +26,7 @@ export function createR2Client() {
     return new S3Client({
         region: 'auto',
         endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+        requestHandler: r2RequestHandlerConfig(), // REST-1b transport deadlines
         credentials: {
             accessKeyId: config.accessKeyId,
             secretAccessKey: config.secretAccessKey

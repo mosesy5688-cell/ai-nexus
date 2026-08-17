@@ -47,17 +47,19 @@ function strictRestoreDirLines(yml: string): string[] {
     return yml.split('\n').filter((l) => /r2-workflow-cli\.js restore-dir\b/.test(l) && l.includes('--strict'));
 }
 
-describe('STRICT-TOPOLOGY census — the 28 restore-dir --strict callsites', () => {
-    it('exactly 28 restore-dir --strict command callsites across the 4 workflows (0/5/5/18)', () => {
+describe('STRICT-TOPOLOGY census — the 29 restore-dir --strict callsites', () => {
+    it('exactly 29 restore-dir --strict command callsites across the 4 workflows (0/5/5/19)', () => {
         expect(strictRestoreDirLines(harvestYml).length).toBe(0);
         expect(strictRestoreDirLines(processYml).length).toBe(5);
         // aggregate 2 -> 5: + rankings SEAM_A producer read-back, SEAM_A consumer recovery,
         // SEAM_B producer read-back (all bare-root restores of bare-root backup-dir producers).
         expect(strictRestoreDirLines(aggYml).length).toBe(5);
         // upload 17 -> 18: + the SEAM_B consumer promotion restore in vfs-pack-db.
-        expect(strictRestoreDirLines(uploadYml).length).toBe(18);
+        // upload 18 -> 19 (D-2026-0816-438 REST-2a): + the D-250 state/registry/ restore, which
+        // had NO --strict and whose non-zero exit was additionally swallowed by an `|| echo`.
+        expect(strictRestoreDirLines(uploadYml).length).toBe(19);
         const total = Object.values(ALL).reduce((n, y) => n + strictRestoreDirLines(y).length, 0);
-        expect(total).toBe(28);
+        expect(total).toBe(29);
     });
     it('REQ-3: NO bare-root restore of a sub-prefix-manifest producer remains (each forbidden form is absent)', () => {
         // Discriminated by the fail-closed message so the LEGAL FIX-3 shards bare-root read-back
