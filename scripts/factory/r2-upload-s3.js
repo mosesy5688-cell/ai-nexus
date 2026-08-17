@@ -59,9 +59,40 @@ function toRemotePath(localPath) {
     return localPath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^output\//, '');
 }
 
+/**
+ * Layer-2 local-sync skip predicate (the ONLY place the manifest short-circuits the
+ * R2 check). Exported so the two-run "next cycle re-attempts it" invariant is pinned
+ * against the real runtime path rather than a test-local copy.
+ */
+export function isLocallySynced(manifestHashes, remotePath, localHash, r2ETagMap) {
+    return manifestHashes[remotePath] === localHash && r2ETagMap.has(remotePath);
+}
+
+/**
+ * D-443 §A.c / D-445 §B — "failed-never-synced". The synced stamp MUST cover the
+ * success set only. Stamping a failed upload's localHash makes the next cycle's MD5
+ * comparison match, the file is "Locally skipped", and the stale/missing CDN object
+ * is never re-uploaded — a partial success recorded as full success, with zero signal.
+ * Key domain: failedPaths and the manifest keys are BOTH remote paths. Every engine
+ * sets result.path = remotePath — JS r2-helpers.js:104/130/137 (uploadFile) and :223
+ * (uploadFileMultipart); Rust operations.rs:124/137/159/182/197, batch.rs:159/190,
+ * multipart.rs:119. checkpoint.uploaded and changedPaths already rely on that domain.
+ */
+export function stampSyncedHashes(manifestHashes, filesToUpload, failedPaths) {
+    const failed = new Set(failedPaths);
+    let stamped = 0, withheld = 0;
+    for (const file of filesToUpload) {
+        const remotePath = toRemotePath(file.path);
+        if (failed.has(remotePath)) { withheld++; continue; }
+        manifestHashes[remotePath] = file.localHash;
+        stamped++;
+    }
+    return { stamped, withheld };
+}
+
 async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
     let success = 0, fail = 0, unchanged = 0, childFail = 0;
-    const changedPaths = [];
+    const changedPaths = [], failedPaths = [];
     const queue = files.filter(f => {
         const remotePath = toRemotePath(f.path);
         if (CONFIG.PREFIX_FILTER.length > 0 && !CONFIG.PREFIX_FILTER.some(p => remotePath.startsWith(p))) return false;
@@ -73,7 +104,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
     });
 
     console.log(`📊 To upload: ${queue.length} files`);
-    if (queue.length === 0) return { success: 0, fail: 0, skipped: files.length, unchanged: 0, changedPaths, childFail: 0 };
+    if (queue.length === 0) return { success: 0, fail: 0, skipped: files.length, unchanged: 0, changedPaths, failedPaths, childFail: 0 };
 
     for (let i = 0; i < queue.length; i += CONFIG.CONCURRENCY) {
         const batch = queue.slice(i, i + CONFIG.CONCURRENCY);
@@ -99,6 +130,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
             } else {
                 console.error(`\n   [FAIL] Upload: ${result.path} | Error: ${result.error}`);
                 fail++;
+                failedPaths.push(result.path); // withheld from the synced stamp (D-443 §A.c)
                 // D-140 §5: a child-shard upload failure must block index publication.
                 if (isSitemapChild(result.path)) childFail++;
             }
@@ -111,7 +143,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
         if ((success + unchanged) % 1000 === 0) await saveCheckpoint(checkpoint);
     }
     console.log(''); // New line after progress
-    return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths, childFail };
+    return { success, fail, skipped: files.length - queue.length, unchanged, changedPaths, failedPaths, childFail };
 }
 
 async function main() {
@@ -134,7 +166,7 @@ async function main() {
         const localHash = await calculateHash(file.path);
 
         // Layer 2 Defense: If local manifest says it's already uploaded and hash matches, we can skip R2 check
-        if (localManifest.hashes[remotePath] === localHash && r2ETagMap.has(remotePath)) {
+        if (isLocallySynced(localManifest.hashes, remotePath, localHash, r2ETagMap)) {
             locallySkipped++;
             continue;
         }
@@ -144,13 +176,11 @@ async function main() {
 
     console.log(`[LOCAL-SYNC] Locally skipped: ${locallySkipped} files (MD5 matched manifest)`);
 
-    const { success, fail, skipped, unchanged, changedPaths, childFail } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
+    const { success, fail, skipped, unchanged, changedPaths, failedPaths, childFail } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
 
-    // Update local manifest with new successful hashes
-    for (const file of filesToUpload) {
-        const remotePath = toRemotePath(file.path);
-        localManifest.hashes[remotePath] = file.localHash;
-    }
+    // Update local manifest with new successful hashes (failures are withheld — see stampSyncedHashes)
+    const stampStats = stampSyncedHashes(localManifest.hashes, filesToUpload, failedPaths);
+    console.log(`[LOCAL-SYNC] Synced stamp: ${stampStats.stamped} stamped, ${stampStats.withheld} withheld (failed upload -> re-attempted next cycle)`);
     await saveLocalManifest(localManifestPath, localManifest);
 
     await saveCheckpoint(checkpoint);
@@ -203,4 +233,9 @@ async function main() {
     if (fail > 0) process.exit(1);
 }
 
-main().catch(err => { console.error('❌ Fatal error:', err); process.exit(1); });
+// Entrypoint guard (repo convention, cf. shard-packer-v4.js / meta-anchors.js): the CLI
+// behaviour is unchanged (`node scripts/factory/r2-upload-s3.js`), but importing this
+// module for unit tests must not execute the pipeline.
+if (process.argv[1]?.endsWith('r2-upload-s3.js')) {
+    main().catch(err => { console.error('❌ Fatal error:', err); process.exit(1); });
+}
