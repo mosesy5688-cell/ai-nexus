@@ -628,7 +628,7 @@
               }
             }
           },
-          "total_count": { "type": "integer", "description": "Total matched results before the limit/page slice; supports client-side page calculation. Always present on a 200." },
+          "total_count": { "type": "integer", "description": "`total_count` is the size of the bounded result set this response was drawn from. It is not the total number of matches, may vary between requests, and must not be used to compute remaining pages. Always present on a 200." },
           "tier": { "type": "string", "description": "Which search tier produced the results (e.g. inverted_index | cluster_fallback | browse | empty)." },
           "elapsed_ms": { "type": "integer" }
         }

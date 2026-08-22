@@ -456,7 +456,7 @@ const metadataKnownLimitations = [
             Search may return a retryable transient <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">503</code> under cold-path or fallback budget limits. Retry according to the <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">Retry-After</code> header.
           </p>
           <p class="text-xs text-gray-500 dark:text-gray-400">
-            <strong class="text-gray-700 dark:text-gray-300">Pagination:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">page</code> is 1-based and defaults to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">1</code>; combine it with <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">limit</code> and use <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">total_count</code> to estimate the remaining pages. The dataset refreshes daily, so results may change between requests; no cursor or snapshot consistency is promised.
+            <strong class="text-gray-700 dark:text-gray-300">Pagination:</strong> <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">page</code> is 1-based and defaults to <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">1</code>; combine it with <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">limit</code>. <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">total_count</code> is not the total number of matches and must not be used to estimate remaining pages. The dataset refreshes daily, so results may change between requests; no cursor or snapshot consistency is promised.
           </p>
         </div>
       </div>
