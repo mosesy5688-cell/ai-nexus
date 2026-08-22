@@ -144,7 +144,7 @@ describe('SRS-1 DJ-R11 (A2): SERVED /api/v1/search description projection (opena
         expect(served).toMatch(/Pagination is 1-based via `page`/);
         expect(served).toMatch(/default page is 1/);
         expect(served).toMatch(/offset = \(page - 1\) \* limit/);
-        expect(served).toMatch(/`total_count` in the response supports client-side page calculation/);
+        expect(served).toMatch(/`total_count` is the size of the bounded result set this response was drawn from\. It is not the total number of matches, may vary between requests, and must not be used to compute remaining pages/);
     });
     it('T-A3-2 served caveat: refresh + no cursor + no snapshot consistency', () => {
         expect(served).toMatch(/Results may change between requests as the dataset is refreshed/);
