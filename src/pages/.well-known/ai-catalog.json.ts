@@ -76,12 +76,12 @@ function buildEntries(base: string): Entry[] {
             url: `${base}/api/v1/search`,
             displayName: 'Structured discovery (keyword search)',
             description:
-                'Keyword discovery over the Free2AItools catalog of AI models, ' +
-                'datasets, papers, tools, and benchmarks; returns matching catalog ' +
-                'metadata ranked by FNI (Free2AITools Nexus Index). Read-only; the ' +
-                'calling agent reasons over the results and decides.',
+                'Keyword discovery over the Free2AItools catalog of AI models, datasets, papers, tools, and benchmarks; ' +
+                'returns matching catalog metadata ordered by a relevance score in which the FNI (Free2AITools Nexus Index) ' +
+                'is the largest single component. The response is not ordered by the fni_score field it returns, and the ' +
+                'result set is bounded. Read-only; the calling agent reasons over the results and decides.',
             tags: ['discovery', 'search', 'models', 'datasets', 'papers', 'tools', 'benchmarks'],
-            capabilities: ['keyword-discovery', 'fni-ranking'],
+            capabilities: ['keyword-discovery', 'relevance-ranking'],
             representativeQueries: [
                 'Find open-source code generation models',
                 'Discover models for image segmentation',

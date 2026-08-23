@@ -88,7 +88,7 @@
       "get": {
         "operationId": "search",
         "summary": "Search AI models, tools, datasets, and papers",
-        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ranked by FNI score. Returns up to 20 results per request. The authoritative served description (live entity count, pagination semantics, consistency caveat, and transient 503 note) is composed by the openapi.json route; see the served /openapi.json.",
+        "description": "Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ordered by a relevance score in which the FNI is the largest single component. The response is not ordered by the `fni_score` field it returns, and the result set is bounded. Returns up to 20 results per request. The authoritative served description (live entity count, pagination semantics, consistency caveat, and transient 503 note) is composed by the openapi.json route; see the served /openapi.json.",
         "tags": ["Search"],
         "parameters": [
           {
@@ -123,7 +123,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Search results ranked by FNI",
+            "description": "Search results ordered by a relevance score in which the FNI is the largest single component; the response is not ordered by the returned `fni_score`, and the result set is bounded",
             "content": {
               "application/json": {
                 "schema": {
