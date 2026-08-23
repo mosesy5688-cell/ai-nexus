@@ -62,9 +62,10 @@ abuse controls may change.
   - `limit` is clamped to 1-20 per request
   - Response includes FNI score breakdown (semantic / authority / popularity /
     recency / quality) per result
-  - Results are ordered by a relevance score in which the FNI is the largest
-    single component; the response is not ordered by the `fni_score` it returns,
-    and the result set is bounded
+  - Results are ordered by a relevance score based on the FNI and, where
+    term-match data is available, how well the entry matches the query; the
+    response is not ordered by the `fni_score` it returns, and the result set
+    is bounded
 
 - `GET /api/v1/entity/<id>[?include=body]` — full structured metadata for one
   entity (search → detail Agent journey)

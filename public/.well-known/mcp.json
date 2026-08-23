@@ -8,7 +8,7 @@
   "tools": [
     {
       "name": "free2aitools_search",
-      "description": "Keyword discovery over the catalog of AI models, datasets, papers, and tools. Returns matching catalog metadata ordered by a relevance score in which the FNI is the largest single component; the response is not ordered by the fni_score field it returns, and the result set is bounded. The Semantic factor is a query-time baseline (fni_s null with a note), not a live per-entity measurement. USE WHEN discovering which AI entities exist for a topic. DO NOT USE for general web search, to run/execute a model, to get a generated answer, or to route to an inference provider. Read-only, never paid placement, no billing. May return a retryable transient 503 under cold-path/fallback budget limits; retry per Retry-After.",
+      "description": "Keyword discovery over the catalog of AI models, datasets, papers, and tools. Returns matching catalog metadata ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query; the response is not ordered by the fni_score field it returns, and the result set is bounded. The Semantic factor is a query-time baseline (fni_s null with a note), not a live per-entity measurement. USE WHEN discovering which AI entities exist for a topic. DO NOT USE for general web search, to run/execute a model, to get a generated answer, or to route to an inference provider. Read-only, never paid placement, no billing. May return a retryable transient 503 under cold-path/fallback budget limits; retry per Retry-After.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -21,7 +21,7 @@
     },
     {
       "name": "free2aitools_rank",
-      "description": "Keyword-search AI entities using the task/query text as input; returns matching catalog entries ordered by a relevance score in which the FNI is the largest single component. The response is not ordered by the fni_score field it returns, and the result set is bounded. Mechanically the same keyword search as free2aitools_search with the task folded in. Does NOT perform task-fit recommendation, compatibility analysis, model inference, or model execution, and is NOT an inference router. The caller makes the final selection. Read-only, never paid placement, no billing. May return a retryable transient 503; retry per Retry-After.",
+      "description": "Keyword-search AI entities using the task/query text as input; returns matching catalog entries ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query. The response is not ordered by the fni_score field it returns, and the result set is bounded. Mechanically the same keyword search as free2aitools_search with the task folded in. Does NOT perform task-fit recommendation, compatibility analysis, model inference, or model execution, and is NOT an inference router. The caller makes the final selection. Read-only, never paid placement, no billing. May return a retryable transient 503; retry per Retry-After.",
       "inputSchema": {
         "type": "object",
         "properties": {

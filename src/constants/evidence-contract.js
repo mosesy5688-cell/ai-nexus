@@ -26,11 +26,12 @@
 /**
  * Canonical machine-readable caveat for the nulled search-path Semantic factor.
  * Also discloses that the returned rows are NOT ordered by the `fni_score` they
- * carry: that field is not the ordering key, so callers must not assume the set
- * arrives in descending `fni_score` order.
+ * carry: that field contributes to the ordering score but is not itself the
+ * ordering key, so callers must not assume the set arrives in descending
+ * `fni_score` order.
  */
 export const FNI_S_NOTE =
-    'query-time baseline; semantic/ANN ranking not currently provided; not a per-entity value; results are not ordered by the returned fni_score';
+    'query-time baseline; semantic/ANN ranking not currently provided; not a per-entity value; results are not ordered by the returned fni_score, which contributes to the ordering score but is not itself the ordering key';
 
 /** Public evidence-contract version tag carried on the search-results surface. */
 export const EVIDENCE_CONTRACT_VERSION = 'fni_v2.0';

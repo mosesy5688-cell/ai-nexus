@@ -285,7 +285,7 @@ const metadataKnownLimitations = [
       <a href="#api" class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-5 border border-blue-200 dark:border-blue-800 hover:border-blue-400 transition-colors">
         <div class="text-2xl mb-2">{`{ }`}</div>
         <h3 class="font-bold text-blue-800 dark:text-blue-300">REST API</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Search {entityCountText} AI entities ranked by FNI</p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Search {entityCountText} AI entities by relevance</p>
       </a>
       <a href="#mcp" class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800 hover:border-purple-400 transition-colors">
         <div class="text-2xl mb-2">&lt;/&gt;</div>
@@ -602,18 +602,18 @@ const metadataKnownLimitations = [
       </p>
 
       <div class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-5 border border-amber-200 dark:border-amber-800/50 text-sm text-gray-700 dark:text-gray-300 mb-6">
-        <strong class="text-gray-900 dark:text-white">Discovery layer only.</strong> The API and MCP server return catalog data and evidence for the calling agent to reason over. Search results are ordered by a relevance score in which the FNI is the largest single component, not by the fni_score field the response returns, and the result set is bounded. They do not perform compatibility analysis (hardware/framework fields are stored heuristics), do not execute/plan/recommend workflows, do not select or decide on the caller's behalf, and do not currently provide live semantic/ANN ranking.
+        <strong class="text-gray-900 dark:text-white">Discovery layer only.</strong> The API and MCP server return catalog data and evidence for the calling agent to reason over. Search results are ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query. The response is not ordered by the fni_score field it returns, and the result set is bounded. They do not perform compatibility analysis (hardware/framework fields are stored heuristics), do not execute/plan/recommend workflows, do not select or decide on the caller's behalf, and do not currently provide live semantic/ANN ranking.
       </div>
 
       <!-- Tools -->
       <div class="space-y-4 mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_search</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Search and rank AI tools, models, datasets, and papers by FNI score.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Search AI tools, models, datasets, and papers, ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query. The response is not ordered by the fni_score field it returns, and the result set is bounded.</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_rank</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400">Keyword-search AI entities using the task text as query input. Returns matching catalog entries ordered by a relevance score in which the FNI is the largest single component; the response is not ordered by the fni_score field it returns, and the result set is bounded. Does not perform task-fit recommendation or compatibility analysis.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">Keyword-search AI entities using the task text as query input. Returns matching catalog entries ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query; the response is not ordered by the fni_score field it returns, and the result set is bounded. Does not perform task-fit recommendation or compatibility analysis.</p>
         </div>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
           <h3 class="font-bold text-gray-900 dark:text-white mb-1">free2aitools_explain</h3>
