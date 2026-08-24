@@ -39,11 +39,11 @@ const HEADERS: Record<string, string> = {
 const TRANSIENT_NOTE = ' Search may return a retryable transient 503 under cold-path or fallback budget limits; retry according to Retry-After.';
 // Pagination + consistency caveat: MUST reach the served description.
 const PAGINATION_NOTE = ' Pagination is 1-based via `page` (default page is 1; offset = (page - 1) * limit). `total_count` is the size of the bounded result set this response was drawn from. It is not the total number of matches, may vary between requests, and must not be used to compute remaining pages. Results may change between requests as the dataset is refreshed; this endpoint does not provide cursor or snapshot consistency.';
-const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks, ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query. The response is not ordered by the `fni_score` field it returns, and the result set is bounded. Returns up to 20 results per request.' + PAGINATION_NOTE + TRANSIENT_NOTE;
+const SEARCH_DESC_CATALOG = 'Full-text search across the Free2AITools catalog of AI models, tools, datasets, papers, and benchmarks. Search results are ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query. The score used for ordering may differ from the fni_score field returned in the response. The result set is bounded. Returns up to 20 results per request.' + PAGINATION_NOTE + TRANSIENT_NOTE;
 
 function injectCount(phrase: string | null): string {
     if (!phrase) return SEARCH_DESC_CATALOG;
-    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks, ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query. The response is not ordered by the \`fni_score\` field it returns, and the result set is bounded. Returns up to 20 results per request.${PAGINATION_NOTE}${TRANSIENT_NOTE}`;
+    return `Full-text search across the Free2AITools catalog of ${phrase} AI models, tools, datasets, papers, and benchmarks. Search results are ordered by a relevance score based on the FNI and, where term-match data is available, how well the entry matches the query. The score used for ordering may differ from the fni_score field returned in the response. The result set is bounded. Returns up to 20 results per request.${PAGINATION_NOTE}${TRANSIENT_NOTE}`;
 }
 
 export const GET: APIRoute = async ({ request }) => {
