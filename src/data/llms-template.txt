@@ -55,13 +55,17 @@ abuse controls may change.
 
 ### Search and lookup
 
-- `GET /api/v1/search?q=<query>[&type=<type>][&limit=N]` — FNI-ranked search
+- `GET /api/v1/search?q=<query>[&type=<type>][&limit=N]` — keyword search
   - `type` accepts canonical values (`model`, `paper`, `tool`, `dataset`,
     `benchmark`) AND common id-prefix aliases (`hf-model`, `arxiv-paper`,
     `gh-model`, `replicate-model`, etc.) — both resolve to the canonical type
   - `limit` is clamped to 1-20 per request
   - Response includes FNI score breakdown (semantic / authority / popularity /
     recency / quality) per result
+  - Search results are ordered by a relevance score based on the FNI and,
+    where term-match data is available, how well the entry matches the query.
+    The score used for ordering may differ from the fni_score field returned
+    in the response. The result set is bounded
 
 - `GET /api/v1/entity/<id>[?include=body]` — full structured metadata for one
   entity (search → detail Agent journey)
