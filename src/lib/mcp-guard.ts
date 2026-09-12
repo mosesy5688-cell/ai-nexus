@@ -35,20 +35,48 @@ export const JSON_RPC_ERROR_CODE = -32001;  // server-error range; size/shape po
 
 const GUARD_MESSAGE = 'Request rejected: exceeds size/shape limits';
 
-// Transport headers — single source of truth (also consumed by mcp.ts so the
-// route and the guard cannot drift). HTTP 200 + JSON-RPC error body convention.
-export const JSONRPC_HEADERS = {
-    'Content-Type': 'application/json',
+// CORS surface shared by EVERY response the MCP route emits — including the
+// bodiless 202/204 ones, which must not claim a Content-Type they do not carry.
+export const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
-function rpcError(id: any, code: number, message: string, data?: any): Response {
+// Transport headers — single source of truth (also consumed by mcp.ts so the
+// route and the guard cannot drift). HTTP 200 + JSON-RPC error body convention.
+export const JSONRPC_HEADERS = { 'Content-Type': 'application/json', ...CORS_HEADERS };
+
+// JSON-RPC 2.0 §5 (Response object, id): "This member is REQUIRED ... If there
+// was an error in detecting the id in the Request object ... it MUST be Null."
+// An undefined id is DROPPED entirely by JSON.stringify, so it is normalised to
+// null here. This is the ONE error-response constructor for both the guard and
+// the route (mcp.ts imports it as jsonrpcError), so the two layers cannot
+// disagree on error shape. Non-nullish ids (including 0 and false) pass through.
+export function rpcError(id: any, code: number, message: string, data?: any): Response {
     const error: any = { code, message };
     if (data !== undefined) error.data = data;
-    return new Response(JSON.stringify({ jsonrpc: '2.0', id, error }), { headers: JSONRPC_HEADERS });
+    return new Response(
+        JSON.stringify({ jsonrpc: '2.0', id: id ?? null, error }),
+        { headers: JSONRPC_HEADERS },
+    );
 }
+
+// JSON-RPC 2.0 §4.1: "A Notification is a Request object without an "id"
+// member. ... The Server MUST NOT reply to a Notification". MCP Streamable HTTP
+// (spec version 2025-03-26, the version this server advertises in initialize):
+// "If the input consists solely of (any number of) JSON-RPC responses or
+// notifications: - If the server accepts the input, the server MUST return HTTP
+// status code 202 Accepted with no body." Detection is by the reserved
+// `notifications/` method namespace, so EVERY notification is covered, not just
+// the `notifications/initialized` handshake message.
+export const isNotificationMethod = (method: any): boolean =>
+    typeof method === 'string' && method.startsWith('notifications/');
+
+// 202 Accepted, empty body. NEVER a fabricated success envelope such as
+// {"result":{}} — that would be replying to a notification, which §4.1 forbids.
+export const notificationAccepted = (): Response =>
+    new Response(null, { status: 202, headers: CORS_HEADERS });
 
 // Unified -32001 size/shape rejection. No input echo — only the violated cap
 // token + its numeric ceiling.

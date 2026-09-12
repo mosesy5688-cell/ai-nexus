@@ -18,8 +18,9 @@ import { emitRoute, extractTelemetryEnv } from '../../lib/telemetry/route-teleme
 import { mcpToolToOperation, hostFromReferer, isBotUa } from '../../lib/telemetry/route-classify';
 import type { McpTool } from '../../lib/telemetry/vocab';
 // B2 size guard (D-178 §D): G1 byte gate (pre-parse) + G2 structural gate
-// (post-parse, pre-dispatch). JSONRPC_HEADERS owned here to avoid route/guard drift.
-import { guardAndParse, JSONRPC_HEADERS } from '../../lib/mcp-guard.js';
+// (post-parse, pre-dispatch). Headers + the shared JSON-RPC error/notification
+// response constructors live in the guard so route and guard cannot drift.
+import { guardAndParse, JSONRPC_HEADERS, rpcError as jsonrpcError, isNotificationMethod, notificationAccepted } from '../../lib/mcp-guard.js';
 
 // D-135: MCP server version. F3 changed MCP evidence semantics (search/rank now
 // emit fni_s=null + note, not the unmeasured `50`), so bumped 2.0.0 -> 2.0.1.
@@ -115,13 +116,6 @@ function jsonrpc(id: any, result: any) {
     return new Response(JSON.stringify({ jsonrpc: '2.0', id, result }), { headers: JSONRPC_HEADERS });
 }
 
-function jsonrpcError(id: any, code: number, message: string) {
-    return new Response(
-        JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } }),
-        { headers: JSONRPC_HEADERS }
-    );
-}
-
 async function handleToolCall(context: any, toolName: string, args: any) {
     switch (toolName) {
         case 'free2aitools_search': {
@@ -203,6 +197,11 @@ export const POST: APIRoute = async (context) => {
     const guarded = await guardAndParse(context.request);
     if ('error' in guarded) return guarded.error;
     const { id, method, params } = guarded.body;
+
+    // JSON-RPC 2.0 §4.1 + MCP Streamable HTTP 2025-03-26: a notification gets NO
+    // reply — 202 Accepted, empty body. MUST precede the switch so notifications
+    // never fall through to the -32601 "Method not found" default below.
+    if (isNotificationMethod(method)) return notificationAccepted();
 
     switch (method) {
         case 'initialize': {
