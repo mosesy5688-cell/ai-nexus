@@ -35,8 +35,11 @@ export const JSON_RPC_ERROR_CODE = -32001;  // server-error range; size/shape po
 
 const GUARD_MESSAGE = 'Request rejected: exceeds size/shape limits';
 
-// CORS surface shared by EVERY response the MCP route emits — including the
-// bodiless 202/204 ones, which must not claim a Content-Type they do not carry.
+// The CORS surface, factored out so a response can carry CORS with or without a
+// body type. JSONRPC_HEADERS below composes it with Content-Type and remains
+// what every JSON-body response AND the OPTIONS 204 preflight send, unchanged.
+// Only the 202 notification path uses CORS_HEADERS alone, so that one response
+// advertises CORS without claiming a Content-Type it has no body to carry.
 export const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
