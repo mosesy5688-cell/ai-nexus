@@ -67,11 +67,24 @@ export function rpcError(id: any, code: number, message: string, data?: any): Re
 // (spec version 2025-03-26, the version this server advertises in initialize):
 // "If the input consists solely of (any number of) JSON-RPC responses or
 // notifications: - If the server accepts the input, the server MUST return HTTP
-// status code 202 Accepted with no body." Detection is by the reserved
-// `notifications/` method namespace, so EVERY notification is covered, not just
-// the `notifications/initialized` handshake message.
-export const isNotificationMethod = (method: any): boolean =>
-    typeof method === 'string' && method.startsWith('notifications/');
+// status code 202 Accepted with no body."
+//
+// BOTH conditions are required, and the whole predicate lives here so the route
+// and the guard cannot drift on what "notification" means:
+//   (1) the method sits in the reserved `notifications/` namespace, so EVERY
+//       notification qualifies, not just the `notifications/initialized`
+//       handshake message; and
+//   (2) the id member is ABSENT.
+// Condition (2) is `=== undefined`, deliberately NOT a nullish check:
+// {"id":null,"method":"notifications/x"} HAS an id member, so by §4.1 it is not
+// a notification, and §5 ("the Server MUST reply with a Response, except for in
+// the case of Notifications") entitles it to a reply. JSON cannot encode an
+// explicit `undefined`, so after JSON.parse an undefined id means exactly "no id
+// member". An id-bearing `notifications/*` message is therefore NOT short-
+// circuited: it falls through to the route's -32601 default and is answered with
+// its own id echoed, which is the correct outcome for a non-notification.
+export const isNotification = (method: any, id: any): boolean =>
+    id === undefined && typeof method === 'string' && method.startsWith('notifications/');
 
 // 202 Accepted, empty body. NEVER a fabricated success envelope such as
 // {"result":{}} — that would be replying to a notification, which §4.1 forbids.

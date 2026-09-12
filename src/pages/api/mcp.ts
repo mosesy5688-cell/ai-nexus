@@ -20,7 +20,7 @@ import type { McpTool } from '../../lib/telemetry/vocab';
 // B2 size guard (D-178 §D): G1 byte gate (pre-parse) + G2 structural gate
 // (post-parse, pre-dispatch). Headers + the shared JSON-RPC error/notification
 // response constructors live in the guard so route and guard cannot drift.
-import { guardAndParse, JSONRPC_HEADERS, rpcError as jsonrpcError, isNotificationMethod, notificationAccepted } from '../../lib/mcp-guard.js';
+import { guardAndParse, JSONRPC_HEADERS, rpcError as jsonrpcError, isNotification, notificationAccepted } from '../../lib/mcp-guard.js';
 
 // D-135: MCP server version. F3 changed MCP evidence semantics (search/rank now
 // emit fni_s=null + note, not the unmeasured `50`), so bumped 2.0.0 -> 2.0.1.
@@ -198,10 +198,10 @@ export const POST: APIRoute = async (context) => {
     if ('error' in guarded) return guarded.error;
     const { id, method, params } = guarded.body;
 
-    // JSON-RPC 2.0 §4.1 + MCP Streamable HTTP 2025-03-26: a notification gets NO
-    // reply — 202 Accepted, empty body. MUST precede the switch so notifications
-    // never fall through to the -32601 "Method not found" default below.
-    if (isNotificationMethod(method)) return notificationAccepted();
+    // JSON-RPC 2.0 §4.1 + MCP Streamable HTTP 2025-03-26: a notification (a
+    // `notifications/*` method with NO id member) gets 202 + empty body. Precedes
+    // the switch; an id-bearing message is not one and correctly reaches -32601.
+    if (isNotification(method, id)) return notificationAccepted();
 
     switch (method) {
         case 'initialize': {

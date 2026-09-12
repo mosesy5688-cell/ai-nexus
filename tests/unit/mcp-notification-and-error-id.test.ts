@@ -21,6 +21,12 @@ import { createHash } from 'node:crypto';
 // from origin/main @6dbcddaf2ac9541dd01d4c4a4fe4c11e649d4bc9 BEFORE the fix, so
 // any drift in initialize / tools/list content fails here rather than silently
 // shipping. N1-N3: tools/list, tools/call and initialize are NOT modified.
+//
+// The notification gate requires BOTH halves of Sec 4.1: a `notifications/*`
+// method AND an ABSENT id member. An id-bearing message is not a notification,
+// and Sec 5 ("the Server MUST reply with a Response, except for in the case of
+// Notifications") entitles it to a reply, so it must reach the -32601 default.
+// A7/A8 below pin both directions of that boundary.
 
 vi.mock('cloudflare:workers', () => ({ env: { R2_ASSETS: null } }));
 // Stub every internal handler mcp.ts statically imports so module load stays
@@ -99,18 +105,21 @@ describe('A1(b)/A2 -- notifications get 202 with no body (Sec 4.1)', () => {
     });
 
     it('detection is prefix-anchored, not a substring match', async () => {
-        // "notifications/" appears mid-method: NOT a notification, still -32601.
-        const { res, text } = await rpc({ jsonrpc: '2.0', id: 7, method: 'tools/notifications/x' });
+        // No id, so ONLY the prefix rule can decide: "notifications/" appears
+        // mid-method, which is not the reserved namespace -> not a notification.
+        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'tools/notifications/x' });
         expect(res.status).toBe(200);
         expect(JSON.parse(text).error.code).toBe(-32601);
-        expect(JSON.parse(text).id).toBe(7);
+        expect(JSON.parse(text).id).toBeNull();
     });
 
     it('a non-string method never crashes the prefix check', async () => {
-        const { res, text } = await rpc({ jsonrpc: '2.0', id: 8, method: 42 });
+        // Also id-less, so the typeof guard is the only thing standing between
+        // `42` and String.prototype.startsWith.
+        const { res, text } = await rpc({ jsonrpc: '2.0', method: 42 });
         expect(res.status).toBe(200);
         expect(JSON.parse(text).error.code).toBe(-32601);
-        expect(JSON.parse(text).id).toBe(8);
+        expect(JSON.parse(text).id).toBeNull();
     });
 });
 
@@ -155,5 +164,50 @@ describe('A2 -- error responses always carry an id member (Sec 5)', () => {
     it('an explicit id of 0 survives normalisation (?? not ||)', async () => {
         const { text } = await rpc({ jsonrpc: '2.0', id: 0, method: 'unknown/method' });
         expect(JSON.parse(text).id).toBe(0);
+    });
+});
+
+describe('A7/A8 -- the notification gate needs BOTH halves of Sec 4.1', () => {
+    it('A7 -- an id-BEARING notifications/* message is NOT a notification: -32601, id echoed', async () => {
+        const { res, text } = await rpc({ jsonrpc: '2.0', id: 7, method: 'notifications/initialized' });
+        // Sec 4.1 defines a Notification as a Request WITHOUT an id member, and
+        // Sec 5 requires a Response to every other rpc call. MCP conditions the 202
+        // on input that "consists solely of ... responses or notifications", which
+        // this is not. So: a reply, not a 202.
+        expect(res.status).not.toBe(202);
+        expect(res.status).toBe(200);
+        expect(text).toContain('"id":7');
+        expect(JSON.parse(text)).toEqual({
+            jsonrpc: '2.0', id: 7,
+            error: { code: -32601, message: 'Method not found: notifications/initialized' },
+        });
+    });
+
+    it('A7 -- an EXPLICIT null id is still an id member, so still not a notification', async () => {
+        // {"id":null} HAS the member. The gate tests `=== undefined`, not nullish,
+        // precisely so this case is answered rather than swallowed.
+        const { res, text } = await rpc({ jsonrpc: '2.0', id: null, method: 'notifications/xyz' });
+        expect(res.status).not.toBe(202);
+        expect(res.status).toBe(200);
+        expect(JSON.parse(text).error.code).toBe(-32601);
+        expect(JSON.parse(text).id).toBeNull();
+    });
+
+    it('A8 -- id-less notifications did NOT regress: still 202 with an empty body', async () => {
+        for (const method of [
+            'notifications/initialized', 'notifications/xyz',
+            'notifications/cancelled', 'notifications/progress',
+        ]) {
+            const { res, text } = await rpc({ jsonrpc: '2.0', method });
+            expect(res.status, method).toBe(202);
+            expect(text, method).toBe('');
+        }
+    });
+
+    it('A8 -- the exact reported payload still yields 202, no -32601 anywhere', async () => {
+        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' });
+        expect(res.status).toBe(202);
+        expect(text).toBe('');
+        expect(text).not.toMatch(/-32601|Method not found/);
     });
 });
