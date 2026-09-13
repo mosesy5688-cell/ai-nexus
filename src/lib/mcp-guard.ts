@@ -35,20 +35,72 @@ export const JSON_RPC_ERROR_CODE = -32001;  // server-error range; size/shape po
 
 const GUARD_MESSAGE = 'Request rejected: exceeds size/shape limits';
 
-// Transport headers — single source of truth (also consumed by mcp.ts so the
-// route and the guard cannot drift). HTTP 200 + JSON-RPC error body convention.
-export const JSONRPC_HEADERS = {
-    'Content-Type': 'application/json',
+// The CORS surface, factored out so a response can carry CORS with or without a
+// body type. JSONRPC_HEADERS below composes it with Content-Type and remains
+// what every JSON-body response AND the OPTIONS 204 preflight send, unchanged.
+// Only the 202 notification path uses CORS_HEADERS alone, so that one response
+// advertises CORS without claiming a Content-Type it has no body to carry.
+export const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
 };
 
-function rpcError(id: any, code: number, message: string, data?: any): Response {
+// Transport headers — single source of truth (also consumed by mcp.ts so the
+// route and the guard cannot drift). HTTP 200 + JSON-RPC error body convention.
+export const JSONRPC_HEADERS = { 'Content-Type': 'application/json', ...CORS_HEADERS };
+
+// JSON-RPC 2.0 §5 (Response object, id): "This member is REQUIRED ... If there
+// was an error in detecting the id in the Request object ... it MUST be Null."
+// An undefined id is DROPPED entirely by JSON.stringify, so it is normalised to
+// null here. This is the ONE error-response constructor for both the guard and
+// the route (mcp.ts imports it as jsonrpcError), so the two layers cannot
+// disagree on error shape. Non-nullish ids (including 0 and false) pass through.
+export function rpcError(id: any, code: number, message: string, data?: any): Response {
     const error: any = { code, message };
     if (data !== undefined) error.data = data;
-    return new Response(JSON.stringify({ jsonrpc: '2.0', id, error }), { headers: JSONRPC_HEADERS });
+    return new Response(
+        JSON.stringify({ jsonrpc: '2.0', id: id ?? null, error }),
+        { headers: JSONRPC_HEADERS },
+    );
 }
+
+// JSON-RPC 2.0 §4.1: "A Notification is a Request object without an "id"
+// member. ... The Server MUST NOT reply to a Notification". MCP Streamable HTTP
+// (spec version 2025-03-26, the version this server advertises in initialize):
+// "If the input consists solely of (any number of) JSON-RPC responses or
+// notifications: - If the server accepts the input, the server MUST return HTTP
+// status code 202 Accepted with no body."
+//
+// Both texts draw the line at the ABSENT id and neither says anything about the
+// method name, so that is the whole test: a Request object carrying no `id`
+// member is a notification WHATEVER its method -- `initialize` and `tools/list`
+// included -- and is answered with 202 and no body.
+//
+// An id-BEARING message is never a notification, including one addressed to
+// `notifications/*`: §5 says "the Server MUST reply with a Response, except for
+// in the case of Notifications", so it falls through to the route's -32601
+// default and is answered with its own id echoed. Membership is tested with
+// `in`, not by value, because {"id":null} HAS an id member and is therefore
+// entitled to a reply; only true absence qualifies.
+//
+// Scope: a batch array and a non-object body are NOT Request objects (§6 defines
+// batch as a separate input form), so neither is classified here. Both still
+// reach the same -32601 default by the same routing, but their bodies are NOT
+// byte-identical to base (measured 81 -> 91 bytes): that default now goes through
+// the shared rpcError, so they carry R2's `id: null` where base dropped the key.
+// Batch stays out of scope, held for a separate ruling. Classifying an array as a
+// notification would be worse, but be precise about the gain: in
+// `[{..},{"id":42,..}]` request 42 is unexecuted and unanswered by its own id
+// EITHER way; -32601 only makes that visible instead of silent, which is the
+// better non-conformant option, not conformance.
+export const isNotification = (body: any): boolean =>
+    body !== null && typeof body === 'object' && !Array.isArray(body) && !('id' in body);
+
+// 202 Accepted, empty body. NEVER a fabricated success envelope such as
+// {"result":{}} — that would be replying to a notification, which §4.1 forbids.
+export const notificationAccepted = (): Response =>
+    new Response(null, { status: 202, headers: CORS_HEADERS });
 
 // Unified -32001 size/shape rejection. No input echo — only the violated cap
 // token + its numeric ceiling.
