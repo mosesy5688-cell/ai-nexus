@@ -85,11 +85,15 @@ export function rpcError(id: any, code: number, message: string, data?: any): Re
 // entitled to a reply; only true absence qualifies.
 //
 // Scope: a batch array and a non-object body are NOT Request objects (§6 defines
-// batch as a separate input form), so neither is classified here. Both keep
-// falling through to the existing -32601 default, byte-identical to before this
-// change. Batch input is deliberately out of scope and held for a separate
-// ruling; returning 202 for an array would silently swallow any id-bearing
-// request inside it, which §5 forbids.
+// batch as a separate input form), so neither is classified here. Both still
+// reach the same -32601 default by the same routing, but their bodies are NOT
+// byte-identical to base (measured 81 -> 91 bytes): that default now goes through
+// the shared rpcError, so they carry R2's `id: null` where base dropped the key.
+// Batch stays out of scope, held for a separate ruling. Classifying an array as a
+// notification would be worse, but be precise about the gain: in
+// `[{..},{"id":42,..}]` request 42 is unexecuted and unanswered by its own id
+// EITHER way; -32601 only makes that visible instead of silent, which is the
+// better non-conformant option, not conformance.
 export const isNotification = (body: any): boolean =>
     body !== null && typeof body === 'object' && !Array.isArray(body) && !('id' in body);
 
