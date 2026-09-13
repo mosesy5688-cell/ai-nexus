@@ -72,22 +72,26 @@ export function rpcError(id: any, code: number, message: string, data?: any): Re
 // notifications: - If the server accepts the input, the server MUST return HTTP
 // status code 202 Accepted with no body."
 //
-// BOTH conditions are required, and the whole predicate lives here so the route
-// and the guard cannot drift on what "notification" means:
-//   (1) the method sits in the reserved `notifications/` namespace, so EVERY
-//       notification qualifies, not just the `notifications/initialized`
-//       handshake message; and
-//   (2) the id member is ABSENT.
-// Condition (2) is `=== undefined`, deliberately NOT a nullish check:
-// {"id":null,"method":"notifications/x"} HAS an id member, so by §4.1 it is not
-// a notification, and §5 ("the Server MUST reply with a Response, except for in
-// the case of Notifications") entitles it to a reply. JSON cannot encode an
-// explicit `undefined`, so after JSON.parse an undefined id means exactly "no id
-// member". An id-bearing `notifications/*` message is therefore NOT short-
-// circuited: it falls through to the route's -32601 default and is answered with
-// its own id echoed, which is the correct outcome for a non-notification.
-export const isNotification = (method: any, id: any): boolean =>
-    id === undefined && typeof method === 'string' && method.startsWith('notifications/');
+// Both texts draw the line at the ABSENT id and neither says anything about the
+// method name, so that is the whole test: a Request object carrying no `id`
+// member is a notification WHATEVER its method -- `initialize` and `tools/list`
+// included -- and is answered with 202 and no body.
+//
+// An id-BEARING message is never a notification, including one addressed to
+// `notifications/*`: §5 says "the Server MUST reply with a Response, except for
+// in the case of Notifications", so it falls through to the route's -32601
+// default and is answered with its own id echoed. Membership is tested with
+// `in`, not by value, because {"id":null} HAS an id member and is therefore
+// entitled to a reply; only true absence qualifies.
+//
+// Scope: a batch array and a non-object body are NOT Request objects (§6 defines
+// batch as a separate input form), so neither is classified here. Both keep
+// falling through to the existing -32601 default, byte-identical to before this
+// change. Batch input is deliberately out of scope and held for a separate
+// ruling; returning 202 for an array would silently swallow any id-bearing
+// request inside it, which §5 forbids.
+export const isNotification = (body: any): boolean =>
+    body !== null && typeof body === 'object' && !Array.isArray(body) && !('id' in body);
 
 // 202 Accepted, empty body. NEVER a fabricated success envelope such as
 // {"result":{}} — that would be replying to a notification, which §4.1 forbids.

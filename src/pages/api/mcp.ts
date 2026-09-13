@@ -198,10 +198,10 @@ export const POST: APIRoute = async (context) => {
     if ('error' in guarded) return guarded.error;
     const { id, method, params } = guarded.body;
 
-    // JSON-RPC 2.0 §4.1 + MCP Streamable HTTP 2025-03-26: a notification (a
-    // `notifications/*` method with NO id member) gets 202 + empty body. Precedes
-    // the switch; an id-bearing message is not one and correctly reaches -32601.
-    if (isNotification(method, id)) return notificationAccepted();
+    // JSON-RPC 2.0 §4.1 + MCP Streamable HTTP 2025-03-26: a Request object with
+    // NO id member is a notification whatever its method, and gets 202 + an empty
+    // body. Precedes the switch; every id-bearing message reaches the switch.
+    if (isNotification(guarded.body)) return notificationAccepted();
 
     switch (method) {
         case 'initialize': {

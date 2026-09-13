@@ -1,32 +1,26 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 
-// A1 -- MCP JSON-RPC conformance on the notification + error-id paths.
+// MCP JSON-RPC conformance -- BRANCHES 2 and 3 of the notification rule, plus
+// the error-body id shape. Branch 1 (id-less input -> 202) is pinned in
+// mcp-notification-202.test.ts.
 //
-// Two defects observed live against https://free2aitools.com/api/mcp:
+//   branch 2  id present AND a notifications/* method -> -32601, id echoed.
+//   branch 3  id present, any other method -> byte-identical to before this PR.
 //
-//  F1  POST {"jsonrpc":"2.0","method":"notifications/initialized"} returned
-//      HTTP 200 with {"jsonrpc":"2.0","error":{"code":-32601,...}}. JSON-RPC 2.0
-//      Sec 4.1: "A Notification is a Request object without an "id" member. ...
-//      The Server MUST NOT reply to a Notification". MCP Streamable HTTP
-//      2025-03-26 (the protocolVersion this server advertises): notification-only
-//      input "MUST return HTTP status code 202 Accepted with no body."
-//  F2  That error body carried NO id member at all -- jsonrpcError fed a possibly
-//      -undefined id straight to JSON.stringify, which DROPS it. JSON-RPC 2.0
-//      Sec 5: the id member "is REQUIRED ... If there was an error in detecting
-//      the id in the Request object ... it MUST be Null." The guard layer
-//      meanwhile emitted id:null, so route and guard disagreed on error shape.
+// An id-BEARING message is never a notification: Sec 4.1 defines a Notification
+// as "a Request object without an "id" member", and Sec 5 says "the Server MUST
+// reply with a Response, except for in the case of Notifications".
 //
-// The regression floor for the untouched paths is a byte-exact digest captured
-// from origin/main @6dbcddaf2ac9541dd01d4c4a4fe4c11e649d4bc9 BEFORE the fix, so
-// any drift in initialize / tools/list content fails here rather than silently
-// shipping. N1-N3: tools/list, tools/call and initialize are NOT modified.
+// F2, fixed here: error bodies could omit `id` entirely. jsonrpcError fed a
+// possibly-undefined id straight to JSON.stringify, which DROPS it, while the
+// guard layer emitted id:null -- so the two layers disagreed on error shape.
+// Sec 5: the id member "is REQUIRED ... If there was an error in detecting the
+// id in the Request object ... it MUST be Null."
 //
-// The notification gate requires BOTH halves of Sec 4.1: a `notifications/*`
-// method AND an ABSENT id member. An id-bearing message is not a notification,
-// and Sec 5 ("the Server MUST reply with a Response, except for in the case of
-// Notifications") entitles it to a reply, so it must reach the -32601 default.
-// A7/A8 below pin both directions of that boundary.
+// The branch-3 regression floor is a byte-exact digest captured from origin/main
+// @6dbcddaf2ac9541dd01d4c4a4fe4c11e649d4bc9 BEFORE the fix. Those digests are
+// for ID-BEARING initialize / tools/list calls, which branch 3 leaves untouched.
 
 vi.mock('cloudflare:workers', () => ({ env: { R2_ASSETS: null } }));
 // Stub every internal handler mcp.ts statically imports so module load stays
@@ -56,8 +50,8 @@ async function rpc(payload: unknown) {
     return { res, text, sha256: createHash('sha256').update(text).digest('hex') };
 }
 
-describe('A1(a) -- untouched paths stay byte-identical to origin/main', () => {
-    it('initialize response is byte-for-byte unchanged', async () => {
+describe('A1(a) -- branch 3: id-bearing calls stay byte-identical to origin/main', () => {
+    it('initialize WITH an id is byte-for-byte unchanged', async () => {
         const { res, text, sha256 } = await rpc({ jsonrpc: '2.0', id: 1, method: 'initialize' });
         expect(res.status).toBe(200);
         expect(Buffer.byteLength(text)).toBe(BASELINE.initialize.bytes);
@@ -66,7 +60,7 @@ describe('A1(a) -- untouched paths stay byte-identical to origin/main', () => {
         expect(JSON.parse(text).result.protocolVersion).toBe('2025-03-26');
     });
 
-    it('tools/list response is byte-for-byte unchanged', async () => {
+    it('tools/list WITH an id is byte-for-byte unchanged', async () => {
         const { res, text, sha256 } = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
         expect(res.status).toBe(200);
         expect(Buffer.byteLength(text)).toBe(BASELINE.toolsList.bytes);
@@ -77,103 +71,27 @@ describe('A1(a) -- untouched paths stay byte-identical to origin/main', () => {
             'free2aitools_select_model', 'free2aitools_compare',
         ]);
     });
-});
 
-describe('A1(b)/A2 -- notifications get 202 with no body (Sec 4.1)', () => {
-    it('notifications/initialized -> 202, empty body, no -32601', async () => {
-        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' });
-        expect(res.status).toBe(202);
-        expect(text).toBe('');
-        expect(text).not.toMatch(/-32601|Method not found/);
-    });
-
-    it('A2 -- an UNKNOWN notifications/* method also yields 202, not -32601', async () => {
-        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'notifications/xyz' });
-        expect(res.status).toBe(202);
-        expect(text).toBe('');
-    });
-
-    it('A6 -- 202 carries no fabricated success envelope and no Content-Type', async () => {
-        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'notifications/cancelled' });
-        expect(res.status).toBe(202);
-        expect(text).toBe('');
-        expect(text).not.toContain('result');
-        // A bodiless response must not claim to carry JSON.
-        expect(res.headers.get('content-type')).toBeNull();
-        // CORS is still advertised so browser-hosted MCP clients are unaffected.
-        expect(res.headers.get('access-control-allow-origin')).toBe('*');
-    });
-
-    it('detection is prefix-anchored, not a substring match', async () => {
-        // No id, so ONLY the prefix rule can decide: "notifications/" appears
-        // mid-method, which is not the reserved namespace -> not a notification.
-        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'tools/notifications/x' });
+    it('tools/call WITH an id still reaches the tool dispatcher', async () => {
+        // Unknown tool name -> the -32603 catch inside tools/call, NOT the -32601
+        // method default. Proves branch 3 leaves the tools/call path intact.
+        const { res, text } = await rpc({
+            jsonrpc: '2.0', id: 3, method: 'tools/call',
+            params: { name: 'nope', arguments: {} },
+        });
         expect(res.status).toBe(200);
-        expect(JSON.parse(text).error.code).toBe(-32601);
-        expect(JSON.parse(text).id).toBeNull();
-    });
-
-    it('a non-string method never crashes the prefix check', async () => {
-        // Also id-less, so the typeof guard is the only thing standing between
-        // `42` and String.prototype.startsWith.
-        const { res, text } = await rpc({ jsonrpc: '2.0', method: 42 });
-        expect(res.status).toBe(200);
-        expect(JSON.parse(text).error.code).toBe(-32601);
-        expect(JSON.parse(text).id).toBeNull();
-    });
-});
-
-describe('A2 -- error responses always carry an id member (Sec 5)', () => {
-    it('unknown method WITH an id echoes that id verbatim', async () => {
-        const { res, text } = await rpc({ jsonrpc: '2.0', id: 99, method: 'unknown/method' });
-        expect(res.status).toBe(200);
-        expect(text).toContain('"id":99');
         expect(JSON.parse(text)).toEqual({
-            jsonrpc: '2.0', id: 99,
-            error: { code: -32601, message: 'Method not found: unknown/method' },
+            jsonrpc: '2.0', id: 3,
+            error: { code: -32603, message: 'Unknown tool: nope' },
         });
-    });
-
-    it('unknown method WITHOUT an id emits id:null -- key present, not omitted', async () => {
-        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'unknown/method' });
-        expect(res.status).toBe(200);
-        // The regression being fixed: the key used to be dropped entirely.
-        expect(text).toContain('"id":null');
-        const body = JSON.parse(text);
-        expect(Object.prototype.hasOwnProperty.call(body, 'id')).toBe(true);
-        expect(body.id).toBeNull();
-        expect(body.error.code).toBe(-32601);
-    });
-
-    it('R2 -- route and guard error layers agree on shape', async () => {
-        // Route layer (-32601, no id) vs guard layer (-32700 parse error, no id).
-        const routeBody = JSON.parse((await rpc({ jsonrpc: '2.0', method: 'unknown/method' })).text);
-
-        const url = new URL('https://free2aitools.com/api/mcp');
-        const bad = new Request(url.href, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not json',
-        });
-        const guardBody = await (await POST({ request: bad, url } as any)).json();
-
-        expect(Object.keys(routeBody)).toEqual(Object.keys(guardBody));
-        expect(routeBody.id).toBeNull();
-        expect(guardBody.id).toBeNull();
-        expect(guardBody.error.code).toBe(-32700);
-    });
-
-    it('an explicit id of 0 survives normalisation (?? not ||)', async () => {
-        const { text } = await rpc({ jsonrpc: '2.0', id: 0, method: 'unknown/method' });
-        expect(JSON.parse(text).id).toBe(0);
     });
 });
 
-describe('A7/A8 -- the notification gate needs BOTH halves of Sec 4.1', () => {
-    it('A7 -- an id-BEARING notifications/* message is NOT a notification: -32601, id echoed', async () => {
+describe('branch 2 -- an id member means it is NOT a notification', () => {
+    it('A7 -- an id-bearing notifications/* message gets -32601 with its id echoed', async () => {
         const { res, text } = await rpc({ jsonrpc: '2.0', id: 7, method: 'notifications/initialized' });
-        // Sec 4.1 defines a Notification as a Request WITHOUT an id member, and
-        // Sec 5 requires a Response to every other rpc call. MCP conditions the 202
-        // on input that "consists solely of ... responses or notifications", which
-        // this is not. So: a reply, not a 202.
+        // MCP conditions the 202 on input consisting "solely of ... responses or
+        // notifications", which this is not. So: a reply, not a 202.
         expect(res.status).not.toBe(202);
         expect(res.status).toBe(200);
         expect(text).toContain('"id":7');
@@ -183,8 +101,8 @@ describe('A7/A8 -- the notification gate needs BOTH halves of Sec 4.1', () => {
         });
     });
 
-    it('A7 -- an EXPLICIT null id is still an id member, so still not a notification', async () => {
-        // {"id":null} HAS the member. The gate tests `=== undefined`, not nullish,
+    it('A7 -- an EXPLICIT null id is still an id MEMBER, so still not a notification', async () => {
+        // {"id":null} HAS the member. Membership is tested with `in`, not by value,
         // precisely so this case is answered rather than swallowed.
         const { res, text } = await rpc({ jsonrpc: '2.0', id: null, method: 'notifications/xyz' });
         expect(res.status).not.toBe(202);
@@ -193,21 +111,66 @@ describe('A7/A8 -- the notification gate needs BOTH halves of Sec 4.1', () => {
         expect(JSON.parse(text).id).toBeNull();
     });
 
-    it('A8 -- id-less notifications did NOT regress: still 202 with an empty body', async () => {
-        for (const method of [
-            'notifications/initialized', 'notifications/xyz',
-            'notifications/cancelled', 'notifications/progress',
-        ]) {
-            const { res, text } = await rpc({ jsonrpc: '2.0', method });
-            expect(res.status, method).toBe(202);
-            expect(text, method).toBe('');
-        }
+    it('A2 -- an id-bearing unknown method echoes that id verbatim', async () => {
+        const { res, text } = await rpc({ jsonrpc: '2.0', id: 99, method: 'unknown/method' });
+        expect(res.status).toBe(200);
+        expect(text).toContain('"id":99');
+        expect(JSON.parse(text)).toEqual({
+            jsonrpc: '2.0', id: 99,
+            error: { code: -32601, message: 'Method not found: unknown/method' },
+        });
     });
 
-    it('A8 -- the exact reported payload still yields 202, no -32601 anywhere', async () => {
-        const { res, text } = await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' });
-        expect(res.status).toBe(202);
-        expect(text).toBe('');
-        expect(text).not.toMatch(/-32601|Method not found/);
+    it('an explicit id of 0 is a member and survives normalisation (?? not ||)', async () => {
+        const { res, text } = await rpc({ jsonrpc: '2.0', id: 0, method: 'unknown/method' });
+        expect(res.status).toBe(200);
+        expect(JSON.parse(text).id).toBe(0);
+    });
+});
+
+describe('out of scope -- non-Request-object bodies are unchanged', () => {
+    it('a batch array is NOT a Request object: still -32601, never 202', async () => {
+        // Sec 6 defines batch as a separate input form. Returning 202 for an array
+        // would silently swallow any id-bearing request inside it, which Sec 5
+        // forbids. Batch handling is held for a separate ruling; this pins the
+        // CURRENT behaviour so a future batch change is a deliberate edit here.
+        const { res, text } = await rpc([
+            { jsonrpc: '2.0', method: 'notifications/initialized' },
+            { jsonrpc: '2.0', method: 'notifications/xyz' },
+        ]);
+        expect(res.status).not.toBe(202);
+        expect(res.status).toBe(200);
+        expect(JSON.parse(text)).toEqual({
+            jsonrpc: '2.0', id: null,
+            error: { code: -32601, message: 'Method not found: undefined' },
+        });
+    });
+
+    it('a scalar body is NOT a Request object: still -32601, never 202', async () => {
+        const { res, text } = await rpc(5);
+        expect(res.status).not.toBe(202);
+        expect(res.status).toBe(200);
+        expect(JSON.parse(text).error.code).toBe(-32601);
+        expect(JSON.parse(text).id).toBeNull();
+    });
+});
+
+describe('R2 -- route and guard error layers agree on shape', () => {
+    it('both layers emit jsonrpc + id + error, with id present as null', async () => {
+        // Route layer: a batch array reaches the -32601 default with no id.
+        const routeBody = JSON.parse((await rpc([{ jsonrpc: '2.0', method: 'x' }])).text);
+
+        // Guard layer: an unparseable body -> -32700 before any dispatch.
+        const url = new URL('https://free2aitools.com/api/mcp');
+        const bad = new Request(url.href, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{not json',
+        });
+        const guardBody = await (await POST({ request: bad, url } as any)).json();
+
+        expect(Object.keys(routeBody)).toEqual(Object.keys(guardBody));
+        expect(Object.keys(guardBody)).toEqual(['jsonrpc', 'id', 'error']);
+        expect(routeBody.id).toBeNull();
+        expect(guardBody.id).toBeNull();
+        expect(guardBody.error.code).toBe(-32700);
     });
 });
