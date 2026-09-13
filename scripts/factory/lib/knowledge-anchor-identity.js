@@ -11,8 +11,10 @@
  * That cache directory does NOT hold only articles. knowledge-data-generator.js
  * writes its own catalog `index.json` and telemetry `stats.json` there through
  * smart-writer.js, which additionally leaves `.v-1`/`.v-2` rotations and
- * `.meta.json` checksum sidecars beside them. Real article payloads are written
- * elsewhere (`output/cache/fused/`), not here.
+ * `.meta.json` checksum sidecars beside them. Real articles are ALSO written
+ * here, at `articles/<slug>.json.zst` (knowledge-data-generator.js:132-133); the
+ * `output/cache/fused/` copy written at :155-158 is a second copy for VFS
+ * packing, not the only one.
  *
  * Measured defect this gate closes: `stats.json.zst` was admitted as an
  * article. The previous id fallback stripped only `.json`/`.json.gz` — never
