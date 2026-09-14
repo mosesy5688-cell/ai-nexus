@@ -182,7 +182,7 @@ export async function buildKnowledgeDb() {
 
     db.exec('PRAGMA integrity_check; VACUUM;');
     db.close();
-    console.log(`[META-ANCHORS] meta-knowledge.db: ${count} articles indexed, ${rejected} non-article file(s) rejected`);
+    console.log(`[META-ANCHORS] meta-knowledge.db: ${count} articles indexed, ${rejected} candidate(s) rejected`);
 }
 
 export async function generateMetaAnchors() {

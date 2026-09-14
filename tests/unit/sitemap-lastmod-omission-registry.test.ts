@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import zlib from 'zlib';
+import Database from 'better-sqlite3';
 // @ts-ignore — JS factory module, no types.
 import { generateSitemap } from '../../scripts/factory/lib/sitemap-generator.js';
 
@@ -21,6 +22,17 @@ import { generateSitemap } from '../../scripts/factory/lib/sitemap-generator.js'
 // these 16, and no <lastmod> value may appear that was not supplied by an input
 // row. Adding a static page, or filling omissions with a generated timestamp,
 // both fail here.
+//
+// TWO DIFFERENT CLAIMS, TWO DIFFERENT CODE PATHS — do not blur them. The "16"
+// lock below is the STATIC_PAGES claim, and it is driven through the legacy
+// array branch (sitemap-generator.js:164), where the knowledge block cannot run.
+// The knowledge block lives at :149-159, inside the `.db` branch guarded by
+// :114 `typeof source === 'string' && source.endsWith('.db')`, so an array
+// fixture is structurally blind to it. The second describe drives the `.db`
+// path with a real meta-knowledge.db so the knowledge half is actually
+// exercised: rows whose `published_at` is '' — the value meta-anchors.js binds
+// when a payload has no date — must land in the omission set, and the total is
+// then 16 + one per such row, NOT 16.
 
 const STATIC_PAGES_WITHOUT_LASTMOD = [
     '/', '/about', '/automation-workflow', '/datasets', '/explore',
@@ -58,7 +70,7 @@ beforeAll(async () => {
 
 afterAll(() => { fs.rmSync(outDir, { recursive: true, force: true }); });
 
-describe('C3 — the registered <lastmod> omission set', () => {
+describe('C3 — the registered <lastmod> omission set (STATIC_PAGES claim, array path)', () => {
     it('is exactly the 16 static hub pages', () => {
         const missing = blocks(xml).filter((b) => b.lastmod === null).map((b) => b.loc).sort();
         const expected = STATIC_PAGES_WITHOUT_LASTMOD.map((p) => (p === '/' ? BASE + '/' : BASE + p)).sort();
@@ -111,5 +123,78 @@ describe('C3 — omission is never backfilled with a derived value', () => {
         } finally {
             fs.rmSync(dir, { recursive: true, force: true });
         }
+    });
+});
+
+// The knowledge half. Driven through the `.db` branch so sitemap-generator.js
+// :149-159 actually runs — the array fixture above can never reach it.
+describe('C3 — knowledge rows with no date land in the omission set (.db path)', () => {
+    let dbXml = '';
+    let dbDir = '';
+    const DATED = 4;
+    const UNDATED = 6;
+
+    beforeAll(async () => {
+        dbDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sm-lm-db-'));
+        const dataDir = path.join(dbDir, 'data');
+        fs.mkdirSync(dataDir, { recursive: true });
+
+        const shard = path.join(dataDir, 'meta-00.db');
+        const edb = new Database(shard);
+        edb.exec(`CREATE TABLE entities (id TEXT, slug TEXT, type TEXT, fni_score REAL,
+            last_modified TEXT, readme_html TEXT, summary TEXT)`);
+        edb.prepare('INSERT INTO entities VALUES (?,?,?,?,?,?,?)')
+            .run('m1', 'owner/model-1', 'model', 90, SUPPLIED[0], '', '');
+        edb.close();
+
+        // Mirrors meta-anchors.js ANCHOR_SCHEMA and its binding: published_at is ''
+        // (not NULL) whenever the payload carried no published_at/date.
+        const kdb = new Database(path.join(dataDir, 'meta-knowledge.db'));
+        kdb.exec(`CREATE TABLE articles (id TEXT PRIMARY KEY, umid TEXT UNIQUE, title TEXT,
+            subtitle TEXT, summary TEXT, category TEXT, tags TEXT, author TEXT,
+            published_at TEXT, updated_at TEXT, slug TEXT, word_count INTEGER, status TEXT,
+            canonical_url TEXT, citation TEXT, content TEXT, highlights_json TEXT)`);
+        const ins = kdb.prepare('INSERT INTO articles VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        for (let i = 0; i < DATED; i++) {
+            ins.run(`d${i}`, `ud${i}`, `D${i}`, '', '', 'knowledge', '', 'f2a',
+                SUPPLIED[1], '', `dated-${i}`, 0, 'published', '', '', '', '');
+        }
+        for (let i = 0; i < UNDATED; i++) {
+            ins.run(`u${i}`, `uu${i}`, `U${i}`, '', '', 'knowledge', '', 'f2a',
+                '', '', `undated-${i}`, 0, 'published', '', '', '', '');
+        }
+        kdb.close();
+
+        await generateSitemap(shard, path.join(dbDir, 'out'));
+        dbXml = zlib.gunzipSync(
+            fs.readFileSync(path.join(dbDir, 'out', 'sitemaps', 'sitemap-1.xml.gz'))
+        ).toString('utf8');
+    });
+
+    afterAll(() => { fs.rmSync(dbDir, { recursive: true, force: true }); });
+
+    it('the knowledge block actually ran (guards against a blind fixture)', () => {
+        const knowledge = blocks(dbXml).filter((b) => /\/knowledge\//.test(b.loc));
+        expect(knowledge).toHaveLength(DATED + UNDATED);
+    });
+
+    it('every undated knowledge row is in the omission set', () => {
+        const missing = blocks(dbXml).filter((b) => b.lastmod === null).map((b) => b.loc);
+        for (let i = 0; i < UNDATED; i++) {
+            expect(missing).toContain(`${BASE}/knowledge/undated-${i}`);
+        }
+    });
+
+    it('dated knowledge rows carry the date their row supplied, not a run stamp', () => {
+        for (let i = 0; i < DATED; i++) {
+            const b = blocks(dbXml).find((x) => x.loc === `${BASE}/knowledge/dated-${i}`)!;
+            expect(b.lastmod).toBe(SUPPLIED[1]);
+        }
+    });
+
+    it('the omission total on this path is 16 + the undated rows, not 16', () => {
+        const missing = blocks(dbXml).filter((b) => b.lastmod === null);
+        expect(missing).toHaveLength(REGISTERED_OMISSION_COUNT + UNDATED);
+        expect(missing.length).not.toBe(REGISTERED_OMISSION_COUNT);
     });
 });

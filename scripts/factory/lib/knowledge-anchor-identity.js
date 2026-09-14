@@ -46,9 +46,13 @@ export const RESERVED_KNOWLEDGE_BASENAMES = Object.freeze(['index', 'stats']);
 
 /**
  * Is this directory entry a JSON payload at all (as opposed to a directory or a
- * `.meta.json` checksum sidecar)? Used to size the candidate set, so the count
- * of rejected candidates that gets logged is honest rather than inflated by
- * directories.
+ * `.meta.json` checksum sidecar)? It sizes the candidate set, so directories and
+ * sidecars do not enter the logged rejected count. It does NOT make that count an
+ * artifact count: rejections from this gate and real articles lost to a swallowed
+ * insert exception downstream are added to the same counter. Measured over the 29
+ * real `src/pages/knowledge/*.md` sources plus 3 cache artifacts, the line reads
+ * `0 articles indexed, 32 candidate(s) rejected` — 29 of those 32 are real
+ * articles. Do not read the counter as a measure of artifacts filtered.
  * @param {string} file - path relative to the knowledge cache dir
  * @returns {boolean}
  */
@@ -93,8 +97,26 @@ export function isKnowledgeArticlePayload(payload) {
 /**
  * The full admission decision: `{ id, slug }` for an admissible article, or
  * null. Identity precedence is unchanged from the historical code — declared
- * `id`, then declared `slug`, then the filename — and so is slug sanitisation,
- * so admitted articles keep the exact canonical URL they had before.
+ * `id`, then declared `slug`, then the filename — and so is the slug
+ * sanitisation expression.
+ *
+ * Canonical-URL continuity is NOT universal; it holds for payloads whose `id` or
+ * `slug` is already a clean string. Measured old-vs-new over 10 realistic input
+ * shapes, 5 produce the same slug (clean `slug`; clean `id`; both; uppercase
+ * `id`, which stays equally broken at `----asics`; empty `id` falling through to
+ * a clean `slug`) and 5 drift:
+ *   filename fallback   `articles-lora-json-zst` -> `articles-lora` (the `.zst`
+ *                        strip this module exists to fix)
+ *   whitespace-padded `id` or `slug`  `--lora--` -> `lora`
+ *   trailing-newline `id`             `lora-`    -> `lora`
+ *   non-string `id`      old threw a TypeError   -> now admits `articles-lora`
+ * A drifting shape changes which unresolvable slug is produced; it is not a
+ * claim that the new one resolves (`articles-lora` has no route either). No
+ * resolving URL is at risk here because none exists to lose: production's
+ * meta-knowledge.db holds exactly one row, `/knowledge/stats-json-zst`, and that
+ * URL is itself a 404. Over the actual corpus the question is moot — all 29
+ * `src/pages/knowledge/*.md` articles carry a clean `slug` and no `id`, and 0 of
+ * 29 drift.
  * @param {string} file - path relative to the knowledge cache dir
  * @param {unknown} payload - the parsed JSON payload of that file
  * @returns {{id: string, slug: string}|null}
