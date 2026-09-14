@@ -47,13 +47,47 @@
  * A member is dispatched as a SINGLE MESSAGE, never re-entered here as a batch
  * (dispatchOne, not dispatchRpc): Sec 6 defines no nested batch. So an array
  * MEMBER lands on the route's unknown-method path and is answered -32601
- * "Method not found: undefined" (measured), which is what every non-Request
- * member gets. Sec 6's own example answers an invalid member -32600 instead;
- * this path deliberately does not special-case it, because that -32601 is the
- * route's existing single-message answer for a non-Request body and changing
- * it would be a single-message change, which is out of scope for this module.
+ * "Method not found: undefined" (measured: [[]] -> one -32601 element).
+ *
+ * That -32601 is NOT what every non-Request member gets, and the difference is
+ * worth stating because it is the one place this module answers LESS than main
+ * did. A member that is merely an object with no `id` -- Sec 6's own worked
+ * example `{"foo":"boo"}` is exactly that -- satisfies the standing id-absence
+ * rule for a notification, so it is accepted in silence and contributes no
+ * element. Measured: [{"foo":"boo"}] -> 202 with an empty body, and an
+ * all-garbage batch [{"a":1},{"b":2},{"c":3}] -> 202 with an empty body, where
+ * origin/main answered both with a visible -32601. Silence is the DESIGNED
+ * answer there: it is exact parity with sending that member alone, and the
+ * id-absence rule is a standing ruling this module does not relitigate. A
+ * caller that wants an answer must give the member an `id`; one that does gets
+ * its element ([{"foo":"boo"},{"id":5,...}] -> one element, id 5, measured).
+ *
+ * Sec 6's example answers an invalid member -32600 instead of -32601; this path
+ * deliberately does not special-case that, because -32601 is the route's
+ * existing single-message answer for a non-Request body and changing it would
+ * be a single-message change, out of scope for this module.
+ *
+ * MAX_BATCH_MEMBERS bounds the member count BEFORE any member is dispatched.
+ * Without it, measured on this branch: 1960 minimal `tools/list` members fit in
+ * one 65,534-byte POST (G1's MAX_REQUEST_BYTES) and returned 15,237,894 bytes
+ * -- 232.5x amplification, a ~14.5 MiB string assembled while the element array
+ * is still live -- and 675 `tools/call` members fit, each able to enter the
+ * search path, dispatched sequentially. Sequential execution bounds PARALLELISM,
+ * not total work; the count bound is what limits total work here (a batch-wide
+ * time budget would bound it differently, and is not decided here, see below).
+ * At 25 the same tools/list
+ * batch returns 194,317 bytes (189.8 KiB, measured), 78x smaller. The cap is a
+ * member of the existing mcp-guard cap family, rejected in that family's exact
+ * -32001 shape via its own limitError, not a new error surface. It does not
+ * conflict with the MCP MUST: the spec requires receiving batches, not unbounded
+ * ones. What it does NOT bound is wall-clock: 25 sequential tool calls can still
+ * exceed any plausible request budget, and bounding that needs a batch-wide time
+ * budget -- a separate mechanism over frozen constants, not decided here.
  */
-import { JSONRPC_HEADERS, rpcError, notificationAccepted, validateRpcShape } from './mcp-guard.js';
+import {
+    JSONRPC_HEADERS, rpcError, notificationAccepted, validateRpcShape,
+    limitError, MAX_BATCH_MEMBERS,
+} from './mcp-guard.js';
 
 /** Executes one JSON-RPC message and returns the Response it would get alone. */
 type DispatchOne = (message: any) => Promise<Response>;
@@ -71,6 +105,12 @@ type DispatchOne = (message: any) => Promise<Response>;
 export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<Response> {
     if (!Array.isArray(body)) return dispatchOne(body);
     if (body.length === 0) return rpcError(null, -32600, 'Invalid Request');
+    // Count bound, BEFORE the loop: an over-cap batch executes no member at all,
+    // which is the whole point of a pre-dispatch gate. Same -32001 envelope as
+    // every other cap in the family (see the header for the measurements).
+    if (body.length > MAX_BATCH_MEMBERS) {
+        return limitError(null, 'max_batch_members', MAX_BATCH_MEMBERS);
+    }
 
     const elements: string[] = [];
     for (const member of body) {

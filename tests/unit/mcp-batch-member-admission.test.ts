@@ -1,0 +1,169 @@
+import { describe, it, expect, vi } from 'vitest';
+
+// Which batch members are ADMITTED, and what happens to the ones that are not.
+// Three admission rules, each previously unpinned:
+//
+//   1. MAX_BATCH_MEMBERS -- a count bound enforced BEFORE any member runs.
+//      Measured on this branch without it: 1960 minimal `tools/list` members fit
+//      in one 65,534-byte POST (G1's MAX_REQUEST_BYTES) and returned 15,237,894
+//      bytes, 232.5x amplification, from one unauthenticated request; 675
+//      `tools/call` members fit, each able to enter the real search path.
+//      Sequential dispatch bounds parallelism, not total work.
+//   2. An id-less OBJECT member is a notification and gets no element -- even
+//      when it is garbage like JSON-RPC 2.0 Sec 6's own `{"foo":"boo"}`. That is
+//      parity with sending it alone, and it means an all-garbage batch is
+//      answered with 202 and silence. Deliberate; pinned here so it cannot be
+//      "fixed" by accident, and so the silence is visible in the test names.
+//   3. A NESTED ARRAY member is NOT a notification -- that is the one live
+//      reason the `!Array.isArray` exclusion in isNotification is load-bearing
+//      at this head, since a top-level array no longer reaches that predicate
+//      (isNotification has exactly one call site, inside the single-message
+//      dispatcher, and dispatchRpc intercepts an array before it). Measured:
+//      with the exclusion removed, 2605 of the 2607 unit+srs1 tests still pass
+//      -- everything except the two cases below. That silence is why they exist.
+
+vi.mock('cloudflare:workers', () => ({ env: { R2_ASSETS: null } }));
+// Stub every internal handler mcp.ts statically imports so module load stays
+// hermetic (no VFS / R2 / DB). None of them is reached by these cases.
+vi.mock('../../src/pages/api/search.js', () => ({ GET: vi.fn() }));
+vi.mock('../../src/pages/api/v1/select.js', () => ({ POST: vi.fn() }));
+vi.mock('../../src/pages/api/v1/compare.js', () => ({ GET: vi.fn() }));
+vi.mock('../../src/pages/api/v1/entity/[...id].js', () => ({ GET: vi.fn() }));
+
+import { POST } from '../../src/pages/api/mcp.js';
+import { dispatchRpc } from '../../src/lib/mcp-batch.js';
+import { MAX_BATCH_MEMBERS, JSON_RPC_ERROR_CODE } from '../../src/lib/mcp-guard.js';
+
+async function rpc(payload: unknown) {
+    const url = new URL('https://free2aitools.com/api/mcp');
+    const request = new Request(url.href, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    const res = await POST({ request, url } as any);
+    return { res, text: await res.text() };
+}
+
+const listMember = (id: number) => ({ jsonrpc: '2.0', id, method: 'tools/list' });
+const members = (n: number) => Array.from({ length: n }, (_, i) => listMember(i + 1));
+
+describe('rule 1 -- MAX_BATCH_MEMBERS is a PRE-DISPATCH count bound', () => {
+    it(`dispatches all ${MAX_BATCH_MEMBERS} members at the cap`, async () => {
+        const spy = vi.fn(async (m: any) => new Response(
+            JSON.stringify({ jsonrpc: '2.0', id: m.id, result: {} }),
+            { headers: { 'Content-Type': 'application/json' } },
+        ));
+        const res = await dispatchRpc(members(MAX_BATCH_MEMBERS), spy);
+        expect(spy).toHaveBeenCalledTimes(MAX_BATCH_MEMBERS);
+        expect(res.status).toBe(200);
+        expect(JSON.parse(await res.text())).toHaveLength(MAX_BATCH_MEMBERS);
+    });
+
+    it('at cap+1 NOTHING is dispatched -- the dispatcher is never called', async () => {
+        // The point of a pre-dispatch gate is that no member ran, so this asserts
+        // the call count, not merely the status. A gate placed inside the loop
+        // would still return the right status while having executed members.
+        const spy = vi.fn(async () => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+        const res = await dispatchRpc(members(MAX_BATCH_MEMBERS + 1), spy);
+        expect(spy).not.toHaveBeenCalled();
+        expect(spy).toHaveBeenCalledTimes(0);
+        expect(res.status).toBe(200); // HTTP 200 + JSON-RPC error body, as everywhere here
+    });
+
+    it('the rejection is the cap family\'s exact -32001 shape, not a new one', async () => {
+        const { res, text } = await rpc(members(MAX_BATCH_MEMBERS + 1));
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toBe('application/json');
+        const body = JSON.parse(text);
+        expect(Array.isArray(body)).toBe(false);
+        expect(body).toEqual({
+            jsonrpc: '2.0', id: null,
+            error: {
+                code: JSON_RPC_ERROR_CODE,
+                message: 'Request rejected: exceeds size/shape limits',
+                data: { limit: 'max_batch_members', max: MAX_BATCH_MEMBERS },
+            },
+        });
+        expect(body.error.code).toBe(-32001);
+    });
+
+    it('form-identical to an existing cap rejection (max_ids_items)', async () => {
+        // Same envelope keys, same code, same data shape as the nearest precedent
+        // in the family, so a client parses one rule and handles both.
+        const over = await rpc(members(MAX_BATCH_MEMBERS + 1));
+        const ids = await rpc({
+            jsonrpc: '2.0', id: 1, method: 'tools/call',
+            params: { name: 'free2aitools_compare', arguments: { ids: Array.from({ length: 26 }, (_, i) => `id-${i}`) } },
+        });
+        const a = JSON.parse(over.text), b = JSON.parse(ids.text);
+        expect(Object.keys(a)).toEqual(Object.keys(b));
+        expect(Object.keys(a.error)).toEqual(Object.keys(b.error));
+        expect(a.error.code).toBe(b.error.code);
+        expect(a.error.message).toBe(b.error.message);
+        expect(Object.keys(a.error.data)).toEqual(Object.keys(b.error.data));
+    });
+
+    it('a batch AT the cap is still served end to end, and stays small', async () => {
+        const { res, text } = await rpc(members(MAX_BATCH_MEMBERS));
+        expect(res.status).toBe(200);
+        const body = JSON.parse(text);
+        expect(body).toHaveLength(MAX_BATCH_MEMBERS);
+        expect(body.map((r: any) => r.id)).toEqual(members(MAX_BATCH_MEMBERS).map((m) => m.id));
+        // 189.8 KiB measured at the cap, against 14.53 MiB at G1 saturation
+        // before it. Generous ceiling: this asserts the ORDER of magnitude.
+        expect(Buffer.byteLength(text)).toBeLessThan(400 * 1024);
+    });
+});
+
+describe('rule 2 -- an id-less object member is a notification, garbage included', () => {
+    it('Sec 6\'s own {"foo":"boo"} member -> 202, empty body, no element', async () => {
+        const { res, text } = await rpc([{ foo: 'boo' }]);
+        expect(res.status).toBe(202);
+        expect(text).toBe('');
+    });
+
+    it('an ALL-GARBAGE batch is answered with silence, not -32601', async () => {
+        // origin/main answered this with a visible -32601. This is the one input
+        // class this PR makes LESS diagnosable, and it is deliberate: it is exact
+        // parity with sending any of those members alone.
+        const { res, text } = await rpc([{ a: 1 }, { b: 2 }, { c: 3 }]);
+        expect(res.status).toBe(202);
+        expect(text).toBe('');
+    });
+
+    it('a garbage member does not suppress an id-bearing sibling', async () => {
+        const { res, text } = await rpc([{ foo: 'boo' }, { jsonrpc: '2.0', id: 5, method: 'unknown/x' }]);
+        expect(res.status).toBe(200);
+        const body = JSON.parse(text);
+        expect(body).toHaveLength(1);
+        expect(body[0].id).toBe(5);
+        expect(body[0].error.code).toBe(-32601);
+    });
+});
+
+describe('rule 3 -- a nested ARRAY member is not swallowed as a notification', () => {
+    it('[[]] -> one -32601 element, not a 202', async () => {
+        // Guards the `!Array.isArray` exclusion in isNotification. Remove it and
+        // this becomes 202 with an empty body: the member disappears silently.
+        const { res, text } = await rpc([[]]);
+        expect(res.status).toBe(200);
+        expect(res.status).not.toBe(202);
+        const body = JSON.parse(text);
+        expect(body).toHaveLength(1);
+        expect(body[0]).toEqual({
+            jsonrpc: '2.0', id: null,
+            error: { code: -32601, message: 'Method not found: undefined' },
+        });
+    });
+
+    it('a nested array member inside a larger batch keeps BOTH elements', async () => {
+        const { res, text } = await rpc([[], { jsonrpc: '2.0', id: 5, method: 'unknown/x' }]);
+        expect(res.status).toBe(200);
+        const body = JSON.parse(text);
+        expect(body).toHaveLength(2);
+        expect(body[0].error.code).toBe(-32601);
+        expect(body[0].id).toBeNull();
+        expect(body[1].id).toBe(5);
+    });
+});

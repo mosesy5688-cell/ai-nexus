@@ -31,6 +31,7 @@ export const MAX_ID_CHARS = 256;            // args.id + each args.ids element
 export const MAX_IDS_ITEMS = 25;            // args.ids array length (REST parity)
 export const MAX_CONSTRAINTS_KEYS = 16;     // keys in args.constraints
 export const MAX_CONSTRAINTS_BYTES = 1024;  // UTF-8 bytes of JSON(constraints)
+export const MAX_BATCH_MEMBERS = 25;        // JSON-RPC §6 batch members (gate lives in mcp-batch.ts)
 export const JSON_RPC_ERROR_CODE = -32001;  // server-error range; size/shape policy
 
 const GUARD_MESSAGE = 'Request rejected: exceeds size/shape limits';
@@ -84,15 +85,16 @@ export function rpcError(id: any, code: number, message: string, data?: any): Re
 // `in`, not by value, because {"id":null} HAS an id member and is therefore
 // entitled to a reply; only true absence qualifies.
 //
-// Scope: a batch array and a non-object body are NOT Request objects (§6 defines
-// batch as a separate input form), so neither is classified here. A non-object
-// body still reaches the route's -32601 default. An array no longer does: the
-// route hands it to dispatchRpc (src/lib/mcp-batch.ts), which splits it and
-// feeds each MEMBER back through the single-message path, where this predicate
-// then classifies that member on its own. Which is exactly why the
-// !Array.isArray exclusion has to stay: without it the array itself would be
-// swallowed as one notification and an id-bearing member inside it would go
-// unexecuted and unanswered by its own id, which §5 forbids.
+// Scope: a non-object body is not a Request object and still reaches the route's
+// -32601 default. A TOP-LEVEL array no longer reaches this predicate at all --
+// dispatchRpc (src/lib/mcp-batch.ts) intercepts an array body before anything
+// calls isNotification on it, then feeds each MEMBER back through the
+// single-message path, where this predicate classifies that member on its own.
+// That leaves the !Array.isArray exclusion load-bearing for one live case: a
+// NESTED array member. `[]` carries no `id`, so without the exclusion a member
+// of `[[], {"id":5,...}]` is read as a notification and silently contributes no
+// element; with it, measured, that member gets its own -32601 element and the
+// response keeps both. Pinned in tests/unit/mcp-batch-member-admission.test.ts.
 export const isNotification = (body: any): boolean =>
     body !== null && typeof body === 'object' && !Array.isArray(body) && !('id' in body);
 
@@ -102,8 +104,9 @@ export const notificationAccepted = (): Response =>
     new Response(null, { status: 202, headers: CORS_HEADERS });
 
 // Unified -32001 size/shape rejection. No input echo — only the violated cap
-// token + its numeric ceiling.
-function limitError(id: any, limit: string, max: number): Response {
+// token + its numeric ceiling. Exported so the §6 batch-member gate rejects in
+// this exact shape rather than assembling a second one that could drift.
+export function limitError(id: any, limit: string, max: number): Response {
     return rpcError(id, JSON_RPC_ERROR_CODE, GUARD_MESSAGE, { limit, max });
 }
 
