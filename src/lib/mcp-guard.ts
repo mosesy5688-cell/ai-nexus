@@ -85,15 +85,14 @@ export function rpcError(id: any, code: number, message: string, data?: any): Re
 // entitled to a reply; only true absence qualifies.
 //
 // Scope: a batch array and a non-object body are NOT Request objects (§6 defines
-// batch as a separate input form), so neither is classified here. Both still
-// reach the same -32601 default by the same routing, but their bodies are NOT
-// byte-identical to base (measured 81 -> 91 bytes): that default now goes through
-// the shared rpcError, so they carry R2's `id: null` where base dropped the key.
-// Batch stays out of scope, held for a separate ruling. Classifying an array as a
-// notification would be worse, but be precise about the gain: in
-// `[{..},{"id":42,..}]` request 42 is unexecuted and unanswered by its own id
-// EITHER way; -32601 only makes that visible instead of silent, which is the
-// better non-conformant option, not conformance.
+// batch as a separate input form), so neither is classified here. A non-object
+// body still reaches the route's -32601 default. An array no longer does: the
+// route hands it to dispatchRpc (src/lib/mcp-batch.ts), which splits it and
+// feeds each MEMBER back through the single-message path, where this predicate
+// then classifies that member on its own. Which is exactly why the
+// !Array.isArray exclusion has to stay: without it the array itself would be
+// swallowed as one notification and an id-bearing member inside it would go
+// unexecuted and unanswered by its own id, which §5 forbids.
 export const isNotification = (body: any): boolean =>
     body !== null && typeof body === 'object' && !Array.isArray(body) && !('id' in body);
 

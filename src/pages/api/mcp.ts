@@ -21,6 +21,7 @@ import type { McpTool } from '../../lib/telemetry/vocab';
 // (post-parse, pre-dispatch). Headers + the shared JSON-RPC error/notification
 // response constructors live in the guard so route and guard cannot drift.
 import { guardAndParse, JSONRPC_HEADERS, rpcError as jsonrpcError, isNotification, notificationAccepted } from '../../lib/mcp-guard.js';
+import { dispatchRpc } from '../../lib/mcp-batch.js'; // Sec 6 batch RECEIVE
 
 // D-135: MCP server version. F3 changed MCP evidence semantics (search/rank now
 // emit fni_s=null + note, not the unmeasured `50`), so bumped 2.0.0 -> 2.0.1.
@@ -191,17 +192,12 @@ function recordMcp(
     } catch { /* fail-open: telemetry never touches the serve path */ }
 }
 
-export const POST: APIRoute = async (context) => {
-    // G1 byte gate (pre-parse) -> parse -> G2 structural gate (pre-dispatch).
-    // Any oversize/over-shape body is rejected here, before any handler runs.
-    const guarded = await guardAndParse(context.request);
-    if ('error' in guarded) return guarded.error;
-    const { id, method, params } = guarded.body;
-
+// Single-message dispatch -- also what each Sec 6 batch member runs through.
+async function dispatchOne(context: any, body: any): Promise<Response> {
+    const { id, method, params } = body;
     // JSON-RPC 2.0 §4.1 + MCP Streamable HTTP 2025-03-26: a Request object with
-    // NO id member is a notification whatever its method, and gets 202 + an empty
-    // body. Precedes the switch; every id-bearing message reaches the switch.
-    if (isNotification(guarded.body)) return notificationAccepted();
+    // NO id member is a notification whatever its method -> 202 + an empty body.
+    if (isNotification(body)) return notificationAccepted();
 
     switch (method) {
         case 'initialize': {
@@ -237,6 +233,15 @@ export const POST: APIRoute = async (context) => {
         default:
             return jsonrpcError(id, -32601, `Method not found: ${method}`);
     }
+}
+
+export const POST: APIRoute = async (context) => {
+    // G1 byte gate (pre-parse) -> parse -> G2 structural gate (pre-dispatch).
+    // Any oversize/over-shape body is rejected here, before any handler runs.
+    const guarded = await guardAndParse(context.request);
+    if ('error' in guarded) return guarded.error;
+    // JSON-RPC 2.0 §6: an array body is a batch, dispatched member-wise.
+    return dispatchRpc(guarded.body, (msg) => dispatchOne(context, msg));
 };
 
 export const OPTIONS: APIRoute = async () => {
