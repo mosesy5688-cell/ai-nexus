@@ -17,10 +17,14 @@
  * not read as absolute: (1) the route's G2 depth gate walks the WHOLE body, and
  * an array is one more container level, so a member sitting exactly at the
  * depth boundary passes alone but is rejected -32001 with its whole batch
- * (measured: tools/call arguments nested 6 deep flips there); (2) a `null`
- * member hits the route's unconditional destructure and throws, exactly as a
- * `null` single body does -- that defect is pre-existing and out of scope here,
- * and this module neither fixes nor hides it.
+ * (measured: tools/call arguments nested 6 deep flips there); (2) a member whose
+ * dispatch THROWS is answered with a -32603 element by the catch in the member
+ * loop below, instead of the exception that same message raises when it is the
+ * whole body. That divergence is deliberate and is explained at the catch.
+ *
+ * A `null` SINGLE body is NOT touched by that catch and still throws at the
+ * route's unconditional destructure, exactly as it does on main: that defect is
+ * pre-existing, has its own track, and this module neither fixes nor hides it.
  *
  * Sec 6, on what the array holds:
  *   "A Response object SHOULD exist for each Request object, except" ...
@@ -70,9 +74,32 @@ export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<
 
     const elements: string[] = [];
     for (const member of body) {
-        const shapeError = validateRpcShape(member);
-        const res = shapeError ? shapeError : await dispatchOne(member);
-        const text = await res.text();
+        let text: string;
+        try {
+            const shapeError = validateRpcShape(member);
+            const res = shapeError ? shapeError : await dispatchOne(member);
+            text = await res.text();
+        } catch {
+            // A member that throws must not take its SIBLINGS' answers with it.
+            // Measured: `null` passes validateRpcShape (its id reads null-safely,
+            // depth does not trip, and params?.arguments is undefined), then the
+            // route's unconditional destructure throws on it. Without this catch
+            // the rejection escapes dispatchRpc, the route 500s, and a valid
+            // request sharing the array loses the response Sec 5 owes it -- a
+            // failure mode batching would be INTRODUCING, distinct from the
+            // pre-existing single-null defect, which stays exactly as it is.
+            //
+            // -32603 "Internal error" is the code precisely because dispatch
+            // failed for a reason this layer did not establish. -32600 Invalid
+            // Request would assert a shape verdict that was never reached (the
+            // shape gate passed the member) and would contradict this module's
+            // other choice, above, to leave a non-Request member on the route's
+            // own -32601 rather than reclassify it here. The exception text is
+            // NOT echoed: it names internals and the caller cannot act on it.
+            // Built through the same rpcError() every other element uses, so the
+            // id normalisation and key order are the shared ones, not new ones.
+            text = await rpcError(member?.id, -32603, 'Internal error').text();
+        }
         // An empty body is how the 202 notification acknowledgement is shaped.
         // Every other return in the single-message dispatcher goes through
         // jsonrpc() or rpcError(), which both stringify a non-empty body, so an
