@@ -47,12 +47,16 @@ export const RESERVED_KNOWLEDGE_BASENAMES = Object.freeze(['index', 'stats']);
 /**
  * Is this directory entry a JSON payload at all (as opposed to a directory or a
  * `.meta.json` checksum sidecar)? It sizes the candidate set, so directories and
- * sidecars do not enter the logged rejected count. It does NOT make that count an
- * artifact count: rejections from this gate and real articles lost to a swallowed
- * insert exception downstream are added to the same counter. Measured over the 29
- * real `src/pages/knowledge/*.md` sources plus 3 cache artifacts, the line reads
- * `0 articles indexed, 32 candidate(s) rejected` — 29 of those 32 are real
- * articles. Do not read the counter as a measure of artifacts filtered.
+ * sidecars do not enter the counts buildKnowledgeDb logs.
+ *
+ * A rejection from this module is now logged on its own, as `non-article
+ * candidate(s) excluded by the identity gate`, separately from `article(s) lost
+ * to an error` — a real article destroyed downstream by a read, parse or bind
+ * failure. Until that split the two shared one counter and the line read
+ * `0 articles indexed, 32 candidate(s) rejected` over the 29 real
+ * `src/pages/knowledge/*.md` sources plus 3 cache artifacts (a pre-split
+ * measurement, recorded here as the reason for the split; not re-measured
+ * against the current code). Neither counter is a measure of the other.
  * @param {string} file - path relative to the knowledge cache dir
  * @returns {boolean}
  */
