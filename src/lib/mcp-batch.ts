@@ -120,7 +120,7 @@ export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<
     if (body.length === 0) return rpcError(null, -32600, 'Invalid Request');
     // Count bound, BEFORE the loop: an over-cap batch executes no member at all,
     // which is the whole point of a pre-dispatch gate. Same -32001 envelope as
-    // every other cap in the family (see the header for the measurements).
+    // every other cap in the family (measurements: PR #2320, not this file).
     if (body.length > MAX_BATCH_MEMBERS) {
         // Refusal is two behaviours, picked by the input's shape (transport
         // rules 4 and 5, quoted in the header). Pure shape test -- no member is
