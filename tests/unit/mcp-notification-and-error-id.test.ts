@@ -128,22 +128,22 @@ describe('branch 2 -- an id member means it is NOT a notification', () => {
     });
 });
 
-describe('out of scope -- non-Request-object bodies are unchanged', () => {
-    it('a batch array is NOT a Request object: still -32601, never 202', async () => {
-        // Sec 6 defines batch as a separate input form. Returning 202 for an array
-        // would silently swallow any id-bearing request inside it, which Sec 5
-        // forbids. Batch handling is held for a separate ruling; this pins the
-        // CURRENT behaviour so a future batch change is a deliberate edit here.
+describe('non-Request-object bodies', () => {
+    it('a batch array is no longer the -32601 this file used to pin', async () => {
+        // DELIBERATE EDIT, as the superseded assertion here asked for. That
+        // assertion pinned the pre-batch behaviour (an array -> -32601 "Method
+        // not found: undefined") and said a future batch change had to be an
+        // edit at this line. Sec 6 batch RECEIVE is now implemented, so an
+        // all-notification array is accepted with 202 and no body. The full
+        // batch contract is asserted in mcp-batch-receive.test.ts; this keeps
+        // only the fact that the old single-object -32601 is gone.
         const { res, text } = await rpc([
             { jsonrpc: '2.0', method: 'notifications/initialized' },
             { jsonrpc: '2.0', method: 'notifications/xyz' },
         ]);
-        expect(res.status).not.toBe(202);
-        expect(res.status).toBe(200);
-        expect(JSON.parse(text)).toEqual({
-            jsonrpc: '2.0', id: null,
-            error: { code: -32601, message: 'Method not found: undefined' },
-        });
+        expect(res.status).toBe(202);
+        expect(text).toBe('');
+        expect(text).not.toMatch(/-32601|Method not found/);
     });
 
     it('a scalar body is NOT a Request object: still -32601, never 202', async () => {
@@ -157,8 +157,10 @@ describe('out of scope -- non-Request-object bodies are unchanged', () => {
 
 describe('R2 -- route and guard error layers agree on shape', () => {
     it('both layers emit jsonrpc + id + error, with id present as null', async () => {
-        // Route layer: a batch array reaches the -32601 default with no id.
-        const routeBody = JSON.parse((await rpc([{ jsonrpc: '2.0', method: 'x' }])).text);
+        // Route layer: a scalar body reaches the -32601 default with no id.
+        // (It used to be a batch array here; an array is now dispatched per
+        // Sec 6 and an all-notification one returns 202 with no body at all.)
+        const routeBody = JSON.parse((await rpc(5)).text);
 
         // Guard layer: an unparseable body -> -32700 before any dispatch.
         const url = new URL('https://free2aitools.com/api/mcp');
