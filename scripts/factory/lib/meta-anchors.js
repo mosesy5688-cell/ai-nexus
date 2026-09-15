@@ -14,6 +14,7 @@ import path from 'path';
 import { autoDecompress } from './zstd-helper.js';
 import { setupDatabasePragmas } from './pack-utils.js';
 import { generateDailyReportsIndex } from './daily-reports-index.js';
+import { isKnowledgeJsonFile, knowledgeArticleIdentity } from './knowledge-anchor-identity.js';
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './output/data';
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
@@ -123,13 +124,14 @@ async function buildReportDb() {
 /**
  * Build meta-knowledge.db from knowledge articles
  */
-async function buildKnowledgeDb() {
+export async function buildKnowledgeDb() {
     const dbPath = path.join(OUTPUT_DIR, 'meta-knowledge.db');
     const db = new Database(dbPath);
     setupDatabasePragmas(db);
     db.exec(ANCHOR_SCHEMA);
 
     let count = 0;
+    let rejected = 0;
     const knowledgeDir = path.join(CACHE_DIR, 'knowledge');
 
     const insert = db.prepare(`INSERT OR REPLACE INTO articles VALUES (
@@ -141,15 +143,21 @@ async function buildKnowledgeDb() {
         const files = await fs.readdir(knowledgeDir, { recursive: true });
         db.exec('BEGIN TRANSACTION');
 
-        // V26.12: Exclude sidecar tracking files (e.g. `stats.json.zst.meta`) that
-        // previously slipped through and produced empty-title rows in meta-knowledge.db.
-        for (const file of files.filter(f => (f.endsWith('.json') || f.endsWith('.json.gz') || f.endsWith('.json.zst')) && !f.includes('.meta'))) {
+        // Admission gate — see knowledge-anchor-identity.js. This directory also
+        // holds the knowledge generator's own `index`/`stats` artifacts, their
+        // smart-writer `.v-N` rotations and `.meta.json` checksum sidecars. Only
+        // real article payloads may become published /knowledge/<slug> rows,
+        // because every row here is served as an existing page by the sitemap,
+        // the /knowledge hub and /api/v1/concepts. (V26.12 excluded the `.meta`
+        // sidecars only, which left `stats.json.zst` publishing a 404 URL.)
+        for (const file of files.filter(isKnowledgeJsonFile)) {
             try {
                 const raw = await fs.readFile(path.join(knowledgeDir, file));
                 const article = JSON.parse((await autoDecompress(raw)).toString('utf-8'));
 
-                const id = article.id || article.slug || file.replace(/\.(json|json\.gz)$/, '');
-                const slug = id.replace(/[^a-z0-9-]/g, '-');
+                const identity = knowledgeArticleIdentity(file, article);
+                if (!identity) { rejected++; continue; }
+                const { id, slug } = identity;
 
                 insert.run(
                     id, article.umid || '', article.title || '', article.subtitle || '',
@@ -163,7 +171,7 @@ async function buildKnowledgeDb() {
                 );
                 count++;
             } catch (e) {
-                // Skip invalid files
+                rejected++; // unreadable / undecompressable / non-JSON payload
             }
         }
 
@@ -174,7 +182,7 @@ async function buildKnowledgeDb() {
 
     db.exec('PRAGMA integrity_check; VACUUM;');
     db.close();
-    console.log(`[META-ANCHORS] meta-knowledge.db: ${count} articles indexed`);
+    console.log(`[META-ANCHORS] meta-knowledge.db: ${count} articles indexed, ${rejected} candidate(s) rejected`);
 }
 
 export async function generateMetaAnchors() {
