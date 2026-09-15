@@ -45,14 +45,28 @@ const ROTATION_SUFFIX = /\.v-\d+$/;
 export const RESERVED_KNOWLEDGE_BASENAMES = Object.freeze(['index', 'stats']);
 
 /**
- * Is this directory entry a JSON payload at all (as opposed to a directory or a
- * `.meta.json` checksum sidecar)? It sizes the candidate set, so directories and
- * sidecars do not enter the logged rejected count. It does NOT make that count an
- * artifact count: rejections from this gate and real articles lost to a swallowed
- * insert exception downstream are added to the same counter. Measured over the 29
- * real `src/pages/knowledge/*.md` sources plus 3 cache artifacts, the line reads
- * `0 articles indexed, 32 candidate(s) rejected` — 29 of those 32 are real
- * articles. Do not read the counter as a measure of artifacts filtered.
+ * Does this entry's NAME look like a JSON payload rather than a `.meta.json`
+ * checksum sidecar? It filters candidates by name and does nothing else: it
+ * does not stat the path, so a DIRECTORY named `foo.json` passes (measured:
+ * isKnowledgeJsonFile('adir.json') === true for a directory on disk) and the
+ * caller's fs.readFile then throws EISDIR. It sizes the candidate set, so an
+ * entry whose name does not match never reaches buildKnowledgeDb's counters.
+ *
+ * This module is consulted at two different points, and they feed different
+ * counters. This name filter runs first, in buildKnowledgeDb's
+ * `files.filter(...)`; entries it drops reach no counter. Later, inside the
+ * try, knowledgeArticleIdentity() runs, and its rejections are logged on their
+ * own as `non-article candidate(s) excluded by the identity gate`. That is a
+ * different bucket from `candidate(s) failed during processing`, which counts
+ * whatever threw inside that try -- including read, decompress and parse
+ * failures, which occur before knowledgeArticleIdentity() is reached. Neither
+ * count is a measure of the other, and neither is a count of articles lost.
+ *
+ * Until the two were split they shared one counter, and the line read
+ * `0 articles indexed, 32 candidate(s) rejected` over the 29 real
+ * `src/pages/knowledge/*.md` sources plus 3 cache artifacts -- a pre-split
+ * measurement under those source conditions, recorded as the reason for the
+ * split. It is not a measurement of the current code or of production.
  * @param {string} file - path relative to the knowledge cache dir
  * @returns {boolean}
  */
