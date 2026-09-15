@@ -49,17 +49,26 @@
  * MEMBER lands on the route's unknown-method path and is answered -32601
  * "Method not found: undefined" (measured: [[]] -> one -32601 element).
  *
- * That -32601 is NOT what every non-Request member gets, and the difference is
- * worth stating because it is the one place this module answers LESS than main
- * did. A member that is merely an object with no `id` -- Sec 6's own worked
- * example `{"foo":"boo"}` is exactly that -- satisfies the standing id-absence
- * rule for a notification, so it is accepted in silence and contributes no
- * element. Measured: [{"foo":"boo"}] -> 202 with an empty body, and an
- * all-garbage batch [{"a":1},{"b":2},{"c":3}] -> 202 with an empty body, where
- * origin/main answered both with a visible -32601. Silence is the DESIGNED
- * answer there: it is exact parity with sending that member alone, and the
- * id-absence rule is a standing ruling this module does not relitigate. A
- * caller that wants an answer must give the member an `id`; one that does gets
+ * That -32601 is NOT what every non-Request member gets. A member that is merely
+ * an object with no `id` -- Sec 6's own worked example `{"foo":"boo"}` is exactly
+ * that -- satisfies the standing id-absence rule for a notification, so it is
+ * accepted in silence and contributes no element. Measured: [{"foo":"boo"}] ->
+ * 202 with an empty body, and an all-garbage batch [{"a":1},{"b":2},{"c":3}] ->
+ * 202 with an empty body, where origin/main answered both with a 91-byte -32601.
+ *
+ * TWO places return fewer bytes than main, and they are different in kind, so
+ * they are not lumped together:
+ *   (a) an all-notification batch: 91-byte -32601 on main -> 202 with zero bytes
+ *       here (measured). NOTHING is lost there -- 202-with-no-body is the
+ *       complete answer MCP mandates for input consisting solely of
+ *       notifications, so the shorter answer is the more correct one.
+ *   (b) the id-less-garbage case above: also 91 bytes -> zero (measured). This
+ *       one does cost DIAGNOSABILITY: the caller sent something malformed and
+ *       is told nothing.
+ * (b) is still the designed answer, not an oversight: it is exact parity with
+ * sending that member alone, which is 202 on main too (measured, both sides),
+ * and the id-absence rule is a standing ruling this module does not relitigate.
+ * A caller that wants an answer must give the member an `id`; one that does gets
  * its element ([{"foo":"boo"},{"id":5,...}] -> one element, id 5, measured).
  *
  * Sec 6's example answers an invalid member -32600 instead of -32601; this path
@@ -68,21 +77,81 @@
  * be a single-message change, out of scope for this module.
  *
  * MAX_BATCH_MEMBERS bounds the member count BEFORE any member is dispatched.
- * Without it, measured on this branch: 1960 minimal `tools/list` members fit in
- * one 65,534-byte POST (G1's MAX_REQUEST_BYTES) and returned 15,237,894 bytes
- * -- 232.5x amplification, a ~14.5 MiB string assembled while the element array
- * is still live -- and 675 `tools/call` members fit, each able to enter the
- * search path, dispatched sequentially. Sequential execution bounds PARALLELISM,
- * not total work; the count bound is what limits total work here (a batch-wide
- * time budget would bound it differently, and is not decided here, see below).
- * At 25 the same tools/list
- * batch returns 194,317 bytes (189.8 KiB, measured), 78x smaller. The cap is a
- * member of the existing mcp-guard cap family, rejected in that family's exact
- * -32001 shape via its own limitError, not a new error surface. It does not
- * conflict with the MCP MUST: the spec requires receiving batches, not unbounded
- * ones. What it does NOT bound is wall-clock: 25 sequential tool calls can still
- * exceed any plausible request budget, and bounding that needs a batch-wide time
- * budget -- a separate mechanism over frozen constants, not decided here.
+ * Without it, measured on this branch: 1960 minimal `tools/list` members
+ * ({"id":N,"method":"tools/list"}) fit in a 65,534-byte POST -- inside G1's
+ * MAX_REQUEST_BYTES, which is 65536 -- and returned 15,237,894 bytes, a ~14.5
+ * MiB string assembled while the element array is still live. Under the same
+ * ceiling 663 `tools/call` members fit at ONE REPRESENTATIVE minimal shape:
+ * {"id":N,"method":"tools/call","params":{"name":"free2aitools_search",
+ * "arguments":{"query":"a"}}} -- 96 bytes/member, 663 members at 65,530 bytes.
+ * Not the smallest such shape, and not claimed to be: measured neighbours pack
+ * tighter (rank + {"task":"a"} is 93 B -> 683; search with empty `arguments`
+ * 85 B -> 745; rank with no `arguments` key 68 B -> 924; the same search call
+ * carrying a `jsonrpc` key is 112 B -> 570). An empty query still enters the
+ * handler and short-circuits inside it (src/pages/api/search.ts:80), so "fits"
+ * and "does work" are not the same test. The shape is named so the number is
+ * reproducible, not because it is minimal.
+ *
+ * WHAT THE CAP BOUNDS, stated precisely, because the difference decides whether
+ * the endpoint is actually safe:
+ *   BOUNDED   member dispatches (<=25), and with them the ELEMENT COUNT, so a
+ *             response is at most 25 single-message bodies instead of an
+ *             unbounded number of them. For a tools/list batch that is 194,317
+ *             bytes measured at the cap, against 15,237,894 before it. Note the
+ *             shape of the bound: a multiple of the largest single-message body,
+ *             NOT one fixed byte ceiling across every tool.
+ *   UNBOUNDED wall-clock, and total backend work. Each of 25 members can still
+ *             enter the search path (mcp.ts tools/call -> callSearchStatus ->
+ *             searchHandler) whose route budget is the frozen SEARCH_BUDGET_MS
+ *             = 6000 (src/lib/search-budget.ts:44). After the cap the serial
+ *             worst case is 25 x 6 s = 150 s at any shape; before it, the same
+ *             arithmetic over the measured member counts (663-924) gives
+ *             roughly 4000-5500 s.
+ *             READ THOSE NUMBERS WITH THEIR ASSUMPTIONS OR NOT AT ALL. They
+ *             are EXTRAPOLATION, not observation: nothing here was timed. The
+ *             arithmetic is SEARCH_BUDGET_MS x member count, and it describes
+ *             only the worst case in which EVERY member reaches the search
+ *             path AND consumes its entire budget, dispatched serially. Real
+ *             batches finish sooner, and a batch whose members short-circuit
+ *             (empty query, src/pages/api/search.ts:80) finishes far sooner.
+ *             A range is not evidence for being a range: this one is a ceiling
+ *             under a stated assumption, and its width is the reason the cap
+ *             is expressed in members rather than in seconds.
+ *             Bounding wall-clock needs a batch-wide time budget, which is NOT
+ *             decided here. Sequential dispatch bounds neither.
+ *
+ * SIZE CEILING and AMPLIFICATION RATIO are two different claims, kept apart:
+ *   ceiling   the largest response one POST can provoke drops from 15,237,894 B
+ *             (14.53 MiB) to 194,317 B (189.8 KiB) -- 78x. This is the point of
+ *             the cap.
+ *   ratio     output/input amplification does NOT improve. At the cap, 25
+ *             minimal members are 792 bytes in for 194,317 out = 245.3x, which
+ *             is slightly WORSE than the 232.5x at saturation, because the
+ *             request shrinks faster than the response does. The same 25-member
+ *             batch written with `jsonrpc` keys is 1192 bytes in = 163.0x. So
+ *             the ratio is a property of the sample, not of the cap; the cap
+ *             moves the absolute ceiling and leaves the ratio where it was.
+ *
+ * The cap belongs to the existing mcp-guard cap family and rejects through that
+ * family's own limitError, so the envelope is the established -32001 shape with
+ * {limit: 'max_batch_members', max: 25}. Reusing an envelope is NOT the same as
+ * adding no rejection: this is a new branch at the top of dispatchRpc, firing
+ * when a parsed body is an array of more than MAX_BATCH_MEMBERS members, before
+ * any member is dispatched -- inputs that were answered before it are now
+ * refused. It does not conflict with the MCP MUST: the spec requires receiving
+ * batches, not unbounded ones.
+ *
+ * DELIBERATE SEC 6 DEVIATION (over-cap rejection shape): the refusal is a SINGLE
+ * Response object, not an array of 26 error elements. Measured at n=26:
+ * {"jsonrpc":"2.0","id":null,"error":{"code":-32001,...}}. Sec 6's MUST-single-
+ * object clause covers input that is not "an Array with at least one value"; a
+ * 26-member array is valid JSON and is such an Array, so that clause does not
+ * cover this case and the SHOULD-array clause does. The single object is chosen
+ * anyway: the refusal is about the batch AS A WHOLE, no member ran, and
+ * manufacturing one error element per member would assert 26 per-member verdicts
+ * that were never reached. It also matches the pre-existing route-level depth
+ * rejection, which answers even a 1-member batch with a single -32001 object --
+ * measured identically on main and here.
  */
 import {
     JSONRPC_HEADERS, rpcError, notificationAccepted, validateRpcShape,

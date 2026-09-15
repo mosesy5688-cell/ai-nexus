@@ -5,10 +5,18 @@ import { describe, it, expect, vi } from 'vitest';
 //
 //   1. MAX_BATCH_MEMBERS -- a count bound enforced BEFORE any member runs.
 //      Measured on this branch without it: 1960 minimal `tools/list` members fit
-//      in one 65,534-byte POST (G1's MAX_REQUEST_BYTES) and returned 15,237,894
-//      bytes, 232.5x amplification, from one unauthenticated request; 675
-//      `tools/call` members fit, each able to enter the real search path.
-//      Sequential dispatch bounds parallelism, not total work.
+//      in a 65,534-byte POST -- inside G1's MAX_REQUEST_BYTES, which is 65536 --
+//      and returned 15,237,894 bytes from one unauthenticated request; under the
+//      same ceiling 663 `tools/call` members fit at ONE REPRESENTATIVE minimal
+//      shape ({"id":N,"method":"tools/call","params":{"name":
+//      "free2aitools_search","arguments":{"query":"a"}}}, 96 B/member) -- not
+//      the smallest, and not claimed to be: rank + {"task":"a"} is 93 B -> 683,
+//      and 570 / 745 / 924 come out of other measured shapes. The shape is
+//      named so the number is reproducible.
+//      The cap bounds dispatches, and with them the ELEMENT
+//      COUNT -- so a response is at most 25 single-message bodies, which is a
+//      multiple of the largest one, not a fixed byte ceiling. It does not bound
+//      wall-clock, and sequential dispatch bounds neither.
 //   2. An id-less OBJECT member is a notification and gets no element -- even
 //      when it is garbage like JSON-RPC 2.0 Sec 6's own `{"foo":"boo"}`. That is
 //      parity with sending it alone, and it means an all-garbage batch is
@@ -19,8 +27,11 @@ import { describe, it, expect, vi } from 'vitest';
 //      at this head, since a top-level array no longer reaches that predicate
 //      (isNotification has exactly one call site, inside the single-message
 //      dispatcher, and dispatchRpc intercepts an array before it). Measured:
-//      with the exclusion removed, 2605 of the 2607 unit+srs1 tests still pass
-//      -- everything except the two cases below. That silence is why they exist.
+//      with the exclusion removed, the ONLY behavioural failures anywhere in the
+//      unit+srs1 suites are the two `rule 3` cases below -- every other test in
+//      those suites still passes. Stated as the failure set rather than as a
+//      count, because absolute totals move with run scope and with files that
+//      fail to load in a given environment. That silence is why they exist.
 
 vi.mock('cloudflare:workers', () => ({ env: { R2_ASSETS: null } }));
 // Stub every internal handler mcp.ts statically imports so module load stays
@@ -76,6 +87,12 @@ describe('rule 1 -- MAX_BATCH_MEMBERS is a PRE-DISPATCH count bound', () => {
         expect(res.status).toBe(200);
         expect(res.headers.get('content-type')).toBe('application/json');
         const body = JSON.parse(text);
+        // DELIBERATE Sec 6 DEVIATION, pinned so it stays visible: a single
+        // object, not 26 error elements. Sec 6's MUST-single-object clause is
+        // for input that is not "an Array with at least one value", which this
+        // is; the SHOULD-array clause covers it. The refusal is about the batch
+        // as a whole -- no member ran -- so per-member verdicts would be
+        // invented. Same shape as the pre-existing depth rejection.
         expect(Array.isArray(body)).toBe(false);
         expect(body).toEqual({
             jsonrpc: '2.0', id: null,
