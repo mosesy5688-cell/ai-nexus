@@ -23,11 +23,10 @@ const ANCHOR_SCHEMA = `
     CREATE TABLE articles (
         id TEXT PRIMARY KEY,
         -- UNIQUE here means the bind matters: SQLite holds NULLs mutually
-        -- distinct under a UNIQUE constraint, but '' is a value, so two
-        -- ''-bound rows collide. With INSERT OR REPLACE (which deletes the
-        -- conflicting row) each ''-bound insert evicted the previous one:
-        -- measured at 2, 3, 5, 10 and 50 such inserts, 1 row survived each
-        -- time. Bind null, not '' -- see the builders below.
+        -- distinct, but '' is a value, so two ''-bound rows collide and
+        -- INSERT OR REPLACE then deletes the earlier one, leaving one row.
+        -- Bind null, not ''; rowCount() refers back to this note. The NULL
+        -- side is pinned by meta-anchors-row-identity.test.ts (A3).
         umid TEXT UNIQUE,
         title TEXT,
         subtitle TEXT,
@@ -52,13 +51,10 @@ const ANCHOR_SCHEMA = `
 `;
 
 /**
- * Rows that actually survived into `articles`.
- *
- * Counting `insert.run` calls is what printed "3 articles indexed" over a
- * 1-row table: INSERT OR REPLACE deletes the conflicting row, so the call
- * count is an upper bound on the table, not its size. Both builders log this
- * number, and keep the call count beside it so a divergence stays visible
- * instead of being rounded away.
+ * Rows that survived into `articles`. Completed insert.run calls are an upper
+ * bound on this, by the INSERT OR REPLACE mechanism noted on ANCHOR_SCHEMA's
+ * umid column; counting them instead printed "3 articles indexed" over a
+ * 1-row table. Both builders log the two under separate names.
  */
 function rowCount(db) {
     return db.prepare('SELECT COUNT(*) AS c FROM articles').get().c;
@@ -81,8 +77,8 @@ export async function buildReportDb() {
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )`);
 
-    let attempted = 0;   // insert.run calls -- an upper bound, not the row count
-    let unreadable = 0;  // candidate files lost to a read/parse/insert error
+    let completedInserts = 0;  // AFTER insert.run returns: completed, not attempts
+    let failed = 0;            // the candidate threw inside the try; cause not recorded
     const reportsDir = path.join(CACHE_DIR, 'reports');
     const dailySubDir = path.join(reportsDir, 'daily');
     const srcDailyDir = path.join(path.dirname(CACHE_DIR), 'daily');
@@ -116,8 +112,8 @@ export async function buildReportDb() {
                         'published', `https://free2aitools.com/reports/${slug}`, '',
                         report.content || '', report.highlights ? JSON.stringify(report.highlights) : ''
                     );
-                    attempted++;
-                } catch { unreadable++; /* unreadable / non-JSON / bind failure */ }
+                    completedInserts++;
+                } catch { failed++; /* threw inside the try; cause not recorded */ }
             }
         } catch { /* dir not found — skip */ }
     }
@@ -133,7 +129,7 @@ export async function buildReportDb() {
             'published', `https://free2aitools.com/trends`, '',
             JSON.stringify(trends), JSON.stringify(trends.top_risers || [])
         );
-        attempted++;
+        completedInserts++;
         console.log(`[META-ANCHORS] Trends summary ${trends.week} inserted`);
     } catch (e) { console.warn(`[META-ANCHORS] Trends summary not available: ${e.message}`); }
 
@@ -143,8 +139,9 @@ export async function buildReportDb() {
 
     db.exec('PRAGMA integrity_check; VACUUM;');
     db.close();
-    console.log(`[META-ANCHORS] meta-report.db: ${rows} report row(s) indexed `
-        + `(${attempted} insert(s) attempted, ${unreadable} unreadable candidate(s))`);
+    console.log(`[META-ANCHORS] meta-report.db: ${rows} row(s) in articles, `
+        + `${completedInserts} insert.run call(s) completed, `
+        + `${failed} candidate(s) failed during processing`);
 }
 
 /**
@@ -156,9 +153,9 @@ export async function buildKnowledgeDb() {
     setupDatabasePragmas(db);
     db.exec(ANCHOR_SCHEMA);
 
-    let attempted = 0;   // insert.run calls -- an upper bound, not the row count
-    let notArticle = 0;  // identity gate said "not an article" -- correctly excluded
-    let errored = 0;     // a candidate destroyed by a read/parse/insert failure
+    let completedInserts = 0;  // AFTER insert.run returns: completed, not attempts
+    let notArticle = 0;        // the identity gate declined the candidate
+    let failed = 0;            // the candidate threw inside the try -- see the catch
     const knowledgeDir = path.join(CACHE_DIR, 'knowledge');
 
     const insert = db.prepare(`INSERT OR REPLACE INTO articles VALUES (
@@ -196,14 +193,19 @@ export async function buildKnowledgeDb() {
                     `https://free2aitools.com/knowledge/${slug}`, '',
                     article.content || '', ''
                 );
-                attempted++;
+                completedInserts++;
             } catch (e) {
-                // NOT a gate rejection. The gate already admitted this file as an
-                // article; reaching here means a real article was destroyed --
-                // unreadable, undecompressable, non-JSON, or a bind the driver
-                // refused (an object `content` is the known live case). It is
-                // counted separately, not folded into the artifact count.
-                errored++;
+                // Separate from notArticle, the gate's explicit "not an article"
+                // decision. This bucket is whatever THREW inside the try, and the
+                // try opens at fs.readFile -- before knowledgeArticleIdentity()
+                // runs. A candidate lands here either pre-gate -- e.g. a directory
+                // named *.json (isKnowledgeJsonFile tests the name only, so
+                // readFile throws EISDIR), a .gz payload (autoDecompress rejects
+                // gzip by design), a malformed body -- or post-gate, when the
+                // driver refuses a bind. That split is exhaustive; the causes
+                // listed are examples. The counter records neither, so it must
+                // not claim which occurred, or that an article was lost.
+                failed++;
             }
         }
 
@@ -215,9 +217,10 @@ export async function buildKnowledgeDb() {
     const rows = rowCount(db);
     db.exec('PRAGMA integrity_check; VACUUM;');
     db.close();
-    console.log(`[META-ANCHORS] meta-knowledge.db: ${rows} article row(s) indexed `
-        + `(${attempted} insert(s) attempted), ${notArticle} non-article candidate(s) `
-        + `excluded by the identity gate, ${errored} article(s) lost to an error`);
+    console.log(`[META-ANCHORS] meta-knowledge.db: ${rows} row(s) in articles, `
+        + `${completedInserts} insert.run call(s) completed, `
+        + `${notArticle} non-article candidate(s) excluded by the identity gate, `
+        + `${failed} candidate(s) failed during processing`);
 }
 
 export async function generateMetaAnchors() {
