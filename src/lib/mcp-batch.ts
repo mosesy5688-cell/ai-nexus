@@ -15,8 +15,10 @@
  * for a single message, and that member's response BYTES are spliced into the
  * array verbatim -- not re-parsed, not re-serialised. A member's element is
  * therefore the body that member would have received had it been POSTed alone,
- * because it is the same code, not a second implementation. Two measured
- * exceptions, both inherited rather than introduced here:
+ * because it is the same code, not a second implementation. THREE measured
+ * exceptions -- the count is load-bearing, because a maintainer who reads this
+ * list as complete will write a byte-parity test that fails against correct
+ * code. Two are inherited; the third is introduced by this module:
  *   (1) the route's G2 depth gate walks the WHOLE body, and an array is one more
  *       container level, so a member sitting exactly at the depth boundary
  *       passes alone but is rejected -32001 with its whole batch;
@@ -25,6 +27,16 @@
  *       it is the whole body. A `null` SINGLE body is untouched by that catch
  *       and still throws at the route's unconditional destructure: that defect
  *       is pre-existing, has its own track, and is neither fixed nor hidden.
+ *   (3) INTRODUCED HERE, not inherited: a NOTIFICATION the G2 shape gate refuses
+ *       gets no element, and if every member is a notification the whole input
+ *       is refused with a bodiless 400. Sent alone the same member answers 200
+ *       with a -32001 body (measured: 154 bytes); inside [it] -> 400 and no
+ *       body; inside [it, request] -> no element at all. That is deliberate and
+ *       required: Sec 4.1 says "The Server MUST NOT reply to a Notification",
+ *       so handing it an error element inside an array is exactly the reply the
+ *       clause forbids, and for notification-only input transport rule 4 makes
+ *       the refusal an HTTP error status instead. Byte-parity with the solo
+ *       send is therefore NOT the contract for a refused notification member.
  *
  * Sec 6, on what the array holds:
  *   "A Response object SHOULD exist for each Request object, except" ...
@@ -183,6 +195,13 @@ export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<
         // and this is the line that drops it. Its id-bearing siblings are
         // unaffected -- their responses are built and kept exactly as before.
         if (isNotif) continue;
+        // DEFENSIVE RESIDUE, currently unreachable-as-false: after the line
+        // above only non-notifications get here, and every path that produces
+        // their text stringifies a non-empty body -- jsonrpc(), rpcError() and
+        // limitError() all do, and the catch goes through rpcError(). Kept
+        // rather than deleted: removing it is an executable change for no
+        // behavioural gain, and it still guards the day a new return path in
+        // the dispatcher yields an empty body.
         if (text !== '') elements.push(text);
     }
 
