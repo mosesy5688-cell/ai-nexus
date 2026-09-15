@@ -118,23 +118,42 @@ type DispatchOne = (message: any) => Promise<Response>;
 export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<Response> {
     if (!Array.isArray(body)) return dispatchOne(body);
     if (body.length === 0) return rpcError(null, -32600, 'Invalid Request');
+    // SHAPE PRE-PASS. Both questions are pure tests over the INPUT, so both
+    // refusals below happen before anything is dispatched, and the two rule-4
+    // arms stay structurally the same rule rather than two lookalikes.
+    const notificationOnly = body.every(isNotification);
+    const shapeErrors = body.map(validateRpcShape);
+
     // Count bound, BEFORE the loop: an over-cap batch executes no member at all,
     // which is the whole point of a pre-dispatch gate. Same -32001 envelope as
     // every other cap in the family (measurements: PR #2320, not this file).
     if (body.length > MAX_BATCH_MEMBERS) {
         // Refusal is two behaviours, picked by the input's shape (transport
-        // rules 4 and 5, quoted in the header). Pure shape test -- no member is
-        // dispatched on either arm. A body-less 400 cannot carry an `id`, so
-        // rule 4's "error response that has no id" holds by construction.
-        if (body.every(isNotification)) return new Response(null, { status: 400, headers: CORS_HEADERS });
+        // rules 4 and 5, quoted in the header). A body-less 400 cannot carry an
+        // `id`, so rule 4's "error response that has no id" holds by
+        // construction.
+        if (notificationOnly) return new Response(null, { status: 400, headers: CORS_HEADERS });
         return limitError(null, 'max_batch_members', MAX_BATCH_MEMBERS);
+    }
+    // Same rule, other trigger: notification-only input the G2 gate refuses. It
+    // cannot be answered with an element, because Sec 4.1 forbids replying to a
+    // notification at all -- so rule 4's refusal arm applies to the input as a
+    // whole, and nothing runs.
+    if (notificationOnly && shapeErrors.some((e) => e !== null)) {
+        return new Response(null, { status: 400, headers: CORS_HEADERS });
     }
 
     const elements: string[] = [];
-    for (const member of body) {
+    for (let i = 0; i < body.length; i += 1) {
+        const member = body[i];
+        // Classify the INPUT, never the response. A request whose id could not
+        // be detected also answers with `id: null`, so filtering the output on
+        // id-nullness or on an error code would delete a response Sec 5 owes a
+        // caller. Whether a member contributes an element is decided here.
+        const isNotif = isNotification(member);
         let text: string;
         try {
-            const shapeError = validateRpcShape(member);
+            const shapeError = shapeErrors[i];
             const res = shapeError ? shapeError : await dispatchOne(member);
             text = await res.text();
         } catch {
@@ -158,10 +177,12 @@ export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<
             // id normalisation and key order are the shared ones, not new ones.
             text = await rpcError(member?.id, -32603, 'Internal error').text();
         }
-        // An empty body is how the 202 notification acknowledgement is shaped.
-        // Every other return in the single-message dispatcher goes through
-        // jsonrpc() or rpcError(), which both stringify a non-empty body, so an
-        // empty body here means "this member is a notification, no element".
+        // A notification contributes NO element, whatever its dispatch produced.
+        // A clean one produces the empty 202 body anyway; a shape-refused one
+        // produces a -32001 body that Sec 4.1 forbids sending to a notification,
+        // and this is the line that drops it. Its id-bearing siblings are
+        // unaffected -- their responses are built and kept exactly as before.
+        if (isNotif) continue;
         if (text !== '') elements.push(text);
     }
 
