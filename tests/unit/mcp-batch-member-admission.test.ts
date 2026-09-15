@@ -24,9 +24,15 @@ import { describe, it, expect, vi } from 'vitest';
 //      "fixed" by accident, and so the silence is visible in the test names.
 //   3. A NESTED ARRAY member is NOT a notification -- that is the one live
 //      reason the `!Array.isArray` exclusion in isNotification is load-bearing
-//      at this head, since a top-level array no longer reaches that predicate
-//      (isNotification has exactly one call site, inside the single-message
-//      dispatcher, and dispatchRpc intercepts an array before it). Measured:
+//      at this head.
+//      isNotification is called in THREE places, each for a different job:
+//      mcp.ts classifies the whole single message; the batch PRE-PASS asks
+//      body.every(isNotification) to pick the refusal arm; the batch LOOP asks
+//      it per member to decide whether that member contributes an element. A
+//      top-level array reaches NONE of them as an array, because dispatchRpc
+//      intercepts it first -- which is why the exclusion's live job is the
+//      NESTED member.
+//      Measured:
 //      with the exclusion removed, the ONLY behavioural failures anywhere in the
 //      unit+srs1 suites are the two `rule 3` cases below -- every other test in
 //      those suites still passes. Stated as the failure set rather than as a

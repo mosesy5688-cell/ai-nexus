@@ -16,27 +16,33 @@
  * array verbatim -- not re-parsed, not re-serialised. A member's element is
  * therefore the body that member would have received had it been POSTed alone,
  * because it is the same code, not a second implementation. THREE measured
- * exceptions -- the count is load-bearing, because a maintainer who reads this
- * list as complete will write a byte-parity test that fails against correct
- * code. Two are inherited; the third is introduced by this module:
- *   (1) the route's G2 depth gate walks the WHOLE body, and an array is one more
- *       container level, so a member sitting exactly at the depth boundary
- *       passes alone but is rejected -32001 with its whole batch;
- *   (2) a member whose dispatch THROWS gets a -32603 element from the catch in
- *       the member loop, instead of the exception the same message raises when
- *       it is the whole body. A `null` SINGLE body is untouched by that catch
- *       and still throws at the route's unconditional destructure: that defect
- *       is pre-existing, has its own track, and is neither fixed nor hidden.
- *   (3) INTRODUCED HERE, not inherited: a NOTIFICATION the G2 shape gate refuses
- *       gets no element, and if every member is a notification the whole input
- *       is refused with a bodiless 400. Sent alone the same member answers 200
- *       with a -32001 body (measured: 154 bytes); inside [it] -> 400 and no
- *       body; inside [it, request] -> no element at all. That is deliberate and
- *       required: Sec 4.1 says "The Server MUST NOT reply to a Notification",
- *       so handing it an error element inside an array is exactly the reply the
- *       clause forbids, and for notification-only input transport rule 4 makes
- *       the refusal an HTTP error status instead. Byte-parity with the solo
- *       send is therefore NOT the contract for a refused notification member.
+ * exceptions -- the count AND the attribution are load-bearing, because a
+ * maintainer who reads this list as complete, or as mostly inherited, will
+ * write a byte-parity test that fails against correct code. ONE is inherited;
+ * TWO are introduced by this module. Provenance re-derived from the commits,
+ * per entry, not from an earlier revision of this comment:
+ *   (1) INHERITED MECHANISM. The route's G2 depth gate walks the WHOLE body, and
+ *       an array is one more container level, so a member sitting exactly at the
+ *       depth boundary passes alone but is rejected -32001 with its whole batch.
+ *       exceedsDepth / MAX_NESTING_DEPTH and the whole-body check all predate
+ *       this module; no code here causes the divergence, batching only exposes
+ *       it by wrapping the member in one more container.
+ *   (2) INTRODUCED HERE. A member whose dispatch THROWS gets a -32603 element
+ *       from the catch in the member loop, instead of the exception the same
+ *       message raises when it is the whole body. Only the THROW is inherited
+ *       (a `null` SINGLE body still throws at the route's unconditional
+ *       destructure -- pre-existing, own track, neither fixed nor hidden). The
+ *       containment -- turning that throw into an element so siblings keep their
+ *       answers -- is this module's, and it is what makes the batch diverge.
+ *   (3) INTRODUCED HERE. A NOTIFICATION the G2 shape gate refuses gets no
+ *       element, and if every member is a notification the whole input is
+ *       refused with a bodiless 400, where the same member sent alone answers
+ *       200 with a -32001 body. Deliberate and required: Sec 4.1 says "The
+ *       Server MUST NOT reply to a Notification", so handing it an error element
+ *       inside an array is exactly the reply the clause forbids, and for
+ *       notification-only input transport rule 4 makes the refusal an HTTP error
+ *       status instead. Byte-parity with the solo send is therefore NOT the
+ *       contract for a refused notification member.
  *
  * Sec 6, on what the array holds:
  *   "A Response object SHOULD exist for each Request object, except" ...
@@ -124,8 +130,17 @@ type DispatchOne = (message: any) => Promise<Response>;
  * The G2 structural gate re-runs per member (validateRpcShape). The route-level
  * gate sees the ARRAY, whose `params` is undefined, so without this a member
  * could carry arguments that the same message could not carry when sent alone
- * (an over-cap ids[] the compare fan-out would then honour). A rejected member
- * yields the -32001 Response it would have been given alone, in its own slot.
+ * (an over-cap ids[] the compare fan-out would then honour).
+ *
+ * What a refused member then gets depends on what the member IS -- three
+ * behaviours, not one:
+ *   - a refused REQUEST member keeps its own element, carrying the -32001 it
+ *     would have been given alone and its own id (including an explicit
+ *     `id: null`, which must not be filtered away);
+ *   - a refused NOTIFICATION member produces NO element at all (Sec 4.1: the
+ *     server must not reply to a notification);
+ *   - an ALL-NOTIFICATION input with any refusal is refused AS A WHOLE with a
+ *     bodiless 400 (transport rule 4), before anything is dispatched.
  */
 export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<Response> {
     if (!Array.isArray(body)) return dispatchOne(body);
