@@ -58,6 +58,8 @@ async function rpc(payload: unknown) {
 
 const listMember = (id: number) => ({ jsonrpc: '2.0', id, method: 'tools/list' });
 const members = (n: number) => Array.from({ length: n }, (_, i) => listMember(i + 1));
+// id-less: a notification under the standing id-absence rule.
+const notification = (i: number) => ({ jsonrpc: '2.0', method: `notifications/n${i}` });
 
 describe('rule 1 -- MAX_BATCH_MEMBERS is a PRE-DISPATCH count bound', () => {
     it(`dispatches all ${MAX_BATCH_MEMBERS} members at the cap`, async () => {
@@ -119,6 +121,64 @@ describe('rule 1 -- MAX_BATCH_MEMBERS is a PRE-DISPATCH count bound', () => {
         expect(a.error.code).toBe(b.error.code);
         expect(a.error.message).toBe(b.error.message);
         expect(Object.keys(a.error.data)).toEqual(Object.keys(b.error.data));
+    });
+
+    it('25 NOTIFICATIONS (at the cap) -> 202, empty body, no Content-Type', async () => {
+        // Transport rule 4, accepted arm: "the server MUST return HTTP status
+        // code 202 Accepted with no body."
+        const { res, text } = await rpc(Array.from({ length: MAX_BATCH_MEMBERS }, (_, i) => notification(i + 1)));
+        expect(res.status).toBe(202);
+        expect(text).toBe('');
+        expect(res.headers.get('content-type')).toBeNull();
+        expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    });
+
+    it('26 NOTIFICATIONS (over the cap) -> HTTP 400, empty body, NO id anywhere', async () => {
+        // Transport rule 4, refused arm: "it MUST return an HTTP error status
+        // code (e.g., 400 Bad Request). The HTTP response body MAY comprise a
+        // JSON-RPC error response that has no `id`."
+        //
+        // Both halves failed before this fix: the cap answered 200 (not an error
+        // status) with a -32001 body carrying `id: null` -- and by this repo's
+        // own standing reading, {"id":null} HAS the id member. The byte gate is
+        // not involved: 26 notifications is ~1.2 KB, far inside G1.
+        const { res, text } = await rpc(Array.from({ length: MAX_BATCH_MEMBERS + 1 }, (_, i) => notification(i + 1)));
+        expect(res.status).toBe(400);
+        expect(res.status).not.toBe(200);
+        expect(text).toBe('');
+        // No body at all, so the "no id" clause holds by construction.
+        expect(text).not.toContain('"id"');
+        expect(res.headers.get('content-type')).toBeNull();
+        // CORS is still advertised, as on every other bodiless response here.
+        expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    });
+
+    it('26 notifications + ONE request -> rule 5 instead: 200 + one JSON object', async () => {
+        // "If the input contains any number of JSON-RPC requests, the server
+        // MUST either return Content-Type: text/event-stream ... or
+        // Content-Type: application/json, to return one JSON object." One
+        // id-bearing member flips the input out of rule 4 and back to the
+        // -32001 object. This is the line the fix must not blur.
+        const { res, text } = await rpc([
+            ...Array.from({ length: MAX_BATCH_MEMBERS + 1 }, (_, i) => notification(i + 1)),
+            { jsonrpc: '2.0', id: 7, method: 'tools/list' },
+        ]);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toBe('application/json');
+        const body = JSON.parse(text);
+        expect(Array.isArray(body)).toBe(false);
+        expect(body.error.code).toBe(JSON_RPC_ERROR_CODE);
+        expect(body.error.data).toEqual({ limit: 'max_batch_members', max: MAX_BATCH_MEMBERS });
+    });
+
+    it('the notification-only refusal dispatches nothing either', async () => {
+        const spy = vi.fn(async () => new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+        const res = await dispatchRpc(
+            Array.from({ length: MAX_BATCH_MEMBERS + 1 }, (_, i) => notification(i + 1)),
+            spy,
+        );
+        expect(spy).not.toHaveBeenCalled();
+        expect(res.status).toBe(400);
     });
 
     it('a batch AT the cap is still served end to end, and stays small', async () => {

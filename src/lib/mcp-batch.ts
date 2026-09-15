@@ -1,163 +1,105 @@
 /**
  * JSON-RPC 2.0 Sec 6 batch RECEIVE for the MCP route.
  *
- * MCP spec 2025-03-26, /basic/index Sec Batching -- the version this server
- * advertises in its own initialize response: "MCP implementations MAY support
- * sending JSON-RPC batches, but MUST support receiving JSON-RPC batches."
- * This module implements the MUST (receiving) only. Nothing here SENDS a batch.
+ * MCP 2025-03-26, /basic/index Sec Batching -- the version this server advertises
+ * in its own initialize response: "MCP implementations MAY support sending
+ * JSON-RPC batches, but MUST support receiving JSON-RPC batches." This module
+ * implements the MUST (receiving). Nothing here SENDS a batch.
  *
- * DESIGN RULE (the whole point of the file): a batch member is executed by the
- * SAME dispatcher the route uses for a single message, and that member's
- * response BYTES are spliced into the array verbatim -- not re-parsed, not
- * re-serialised. A member's element is therefore the body that member would
- * have received had it been POSTed on its own -- same -32601 / -32603 text,
- * same id echo, same id:null normalisation -- because it is the same code, not
- * a second implementation of it. Two measured exceptions to that parity, both
- * inherited rather than introduced here, are recorded so the sentence above is
- * not read as absolute: (1) the route's G2 depth gate walks the WHOLE body, and
- * an array is one more container level, so a member sitting exactly at the
- * depth boundary passes alone but is rejected -32001 with its whole batch
- * (measured: tools/call arguments nested 6 deep flips there); (2) a member whose
- * dispatch THROWS is answered with a -32603 element by the catch in the member
- * loop below, instead of the exception that same message raises when it is the
- * whole body. That divergence is deliberate and is explained at the catch.
+ * MEASUREMENTS AND DERIVATION HISTORY LIVE IN PR #2320, NOT HERE. Amplification
+ * figures, member-count packings, response sizes and the wall-clock arithmetic
+ * are recorded there, where they are dated and not re-verified on every edit.
+ * The only figure kept in this file is the one a test pins: MAX_BATCH_MEMBERS.
  *
- * A `null` SINGLE body is NOT touched by that catch and still throws at the
- * route's unconditional destructure, exactly as it does on main: that defect is
- * pre-existing, has its own track, and this module neither fixes nor hides it.
+ * DESIGN RULE: a batch member is executed by the SAME dispatcher the route uses
+ * for a single message, and that member's response BYTES are spliced into the
+ * array verbatim -- not re-parsed, not re-serialised. A member's element is
+ * therefore the body that member would have received had it been POSTed alone,
+ * because it is the same code, not a second implementation. Two measured
+ * exceptions, both inherited rather than introduced here:
+ *   (1) the route's G2 depth gate walks the WHOLE body, and an array is one more
+ *       container level, so a member sitting exactly at the depth boundary
+ *       passes alone but is rejected -32001 with its whole batch;
+ *   (2) a member whose dispatch THROWS gets a -32603 element from the catch in
+ *       the member loop, instead of the exception the same message raises when
+ *       it is the whole body. A `null` SINGLE body is untouched by that catch
+ *       and still throws at the route's unconditional destructure: that defect
+ *       is pre-existing, has its own track, and is neither fixed nor hidden.
  *
  * Sec 6, on what the array holds:
  *   "A Response object SHOULD exist for each Request object, except" ...
  *   "there SHOULD NOT be any Response objects for notifications"
  * Sec 6, on a batch that yields nothing:
  *   "the server MUST NOT return an empty Array and should return nothing at all"
- * Over Streamable HTTP "nothing at all" is the 202-with-no-body that MCP already
- * mandates for input consisting solely of responses or notifications, so the
- * all-notification batch reuses the route's existing notificationAccepted().
  * Sec 6, on a batch that is not an Array with at least one value:
  *   "If the batch rpc call itself fails to be recognized as an valid JSON or as
  *   an Array with at least one value," ... "the response from the Server MUST be
- *   a single Response object" -- and the section's worked example answers []
- *   with error -32600 "Invalid Request" and id null. That is the [] branch here.
+ *   a single Response object" -- its worked example answers [] with -32600
+ *   "Invalid Request" and id null, which is the [] branch here.
  *
- * Members are dispatched in array order, one at a time (awaited in sequence).
- * Sec 6 permits any processing order; sequential execution is chosen so a batch
- * cannot fan a cold search/VFS/R2 path out concurrently inside one invocation.
+ * TRANSPORT RULES THAT DECIDE THE HTTP STATUS. MCP 2025-03-26 /basic/transports,
+ * "Sending Messages to the Server", rules 4 and 5, verbatim:
+ *   4. "If the input consists solely of (any number of) JSON-RPC responses or
+ *      notifications:
+ *        - If the server accepts the input, the server MUST return HTTP status
+ *          code 202 Accepted with no body.
+ *        - If the server cannot accept the input, it MUST return an HTTP error
+ *          status code (e.g., 400 Bad Request). The HTTP response body MAY
+ *          comprise a JSON-RPC error response that has no `id`."
+ *   5. "If the input contains any number of JSON-RPC requests, the server MUST
+ *      either return Content-Type: text/event-stream ... or Content-Type:
+ *      application/json, to return one JSON object."
+ * So refusal is not one behaviour, it is two, and the input's shape picks which:
+ *   - EVERY member a notification -> rule 4 -> HTTP 400, and no body at all.
+ *     An empty body cannot carry an `id`, so the MAY-clause is satisfied by
+ *     construction rather than by remembering to omit one.
+ *   - ANY member a request -> rule 5 -> HTTP 200 + application/json + one JSON
+ *     object, which is the -32001 the cap family already emits.
+ * Classification is a pure shape test over the members; NOTHING is dispatched.
  *
- * A member is dispatched as a SINGLE MESSAGE, never re-entered here as a batch
- * (dispatchOne, not dispatchRpc): Sec 6 defines no nested batch. So an array
- * MEMBER lands on the route's unknown-method path and is answered -32601
- * "Method not found: undefined" (measured: [[]] -> one -32601 element).
- *
- * That -32601 is NOT what every non-Request member gets. A member that is merely
- * an object with no `id` -- Sec 6's own worked example `{"foo":"boo"}` is exactly
- * that -- satisfies the standing id-absence rule for a notification, so it is
- * accepted in silence and contributes no element. Measured: [{"foo":"boo"}] ->
- * 202 with an empty body, and an all-garbage batch [{"a":1},{"b":2},{"c":3}] ->
- * 202 with an empty body, where origin/main answered both with a 91-byte -32601.
- *
- * TWO places return fewer bytes than main, and they are different in kind, so
- * they are not lumped together:
- *   (a) an all-notification batch: 91-byte -32601 on main -> 202 with zero bytes
- *       here (measured). NOTHING is lost there -- 202-with-no-body is the
- *       complete answer MCP mandates for input consisting solely of
- *       notifications, so the shorter answer is the more correct one.
- *   (b) the id-less-garbage case above: also 91 bytes -> zero (measured). This
- *       one does cost DIAGNOSABILITY: the caller sent something malformed and
- *       is told nothing.
- * (b) is still the designed answer, not an oversight: it is exact parity with
- * sending that member alone, which is 202 on main too (measured, both sides),
- * and the id-absence rule is a standing ruling this module does not relitigate.
- * A caller that wants an answer must give the member an `id`; one that does gets
- * its element ([{"foo":"boo"},{"id":5,...}] -> one element, id 5, measured).
- *
- * Sec 6's example answers an invalid member -32600 instead of -32601; this path
- * deliberately does not special-case that, because -32601 is the route's
- * existing single-message answer for a non-Request body and changing it would
- * be a single-message change, out of scope for this module.
+ * DELIBERATE DEVIATIONS, all three disclosed rather than discovered later:
+ *   a) An array MEMBER is dispatched as a SINGLE MESSAGE, never re-entered as a
+ *      batch (Sec 6 defines no nested batch), so it lands on the route's
+ *      unknown-method path and is answered -32601, where Sec 6's example uses
+ *      -32600. Changing that would be a single-message change, out of scope.
+ *   b) A member that is an object with no `id` -- Sec 6's own `{"foo":"boo"}` --
+ *      is a notification under the standing id-absence rule, so it is accepted
+ *      in silence and contributes no element. An all-garbage batch is therefore
+ *      answered 202 with an empty body where main answered -32601. That costs
+ *      DIAGNOSABILITY and is still the designed answer: it is exact parity with
+ *      sending that member alone. (An all-notification batch is also answered
+ *      with fewer bytes than main, but nothing is lost there -- 202-with-no-body
+ *      is the complete answer rule 4 mandates.)
+ *   c) A request-bearing batch refused by the cap is answered with a SINGLE
+ *      Response object, not one error element per member. Sec 6's
+ *      MUST-single-object clause does not cover it (a 26-member array IS an
+ *      Array with at least one value; the SHOULD-array clause covers it), so
+ *      this is a deviation, taken because the refusal is about the batch AS A
+ *      WHOLE -- no member ran -- and one element per member would assert
+ *      per-member verdicts that were never reached. It matches the pre-existing
+ *      route-level depth rejection, which answers even a 1-member batch with a
+ *      single -32001 object.
  *
  * MAX_BATCH_MEMBERS bounds the member count BEFORE any member is dispatched.
- * Without it, measured on this branch: 1960 minimal `tools/list` members
- * ({"id":N,"method":"tools/list"}) fit in a 65,534-byte POST -- inside G1's
- * MAX_REQUEST_BYTES, which is 65536 -- and returned 15,237,894 bytes, a ~14.5
- * MiB string assembled while the element array is still live. Under the same
- * ceiling 663 `tools/call` members fit at ONE REPRESENTATIVE minimal shape:
- * {"id":N,"method":"tools/call","params":{"name":"free2aitools_search",
- * "arguments":{"query":"a"}}} -- 96 bytes/member, 663 members at 65,530 bytes.
- * Not the smallest such shape, and not claimed to be: measured neighbours pack
- * tighter (rank + {"task":"a"} is 93 B -> 683; search with empty `arguments`
- * 85 B -> 745; rank with no `arguments` key 68 B -> 924; the same search call
- * carrying a `jsonrpc` key is 112 B -> 570). An empty query still enters the
- * handler and short-circuits inside it (src/pages/api/search.ts:80), so "fits"
- * and "does work" are not the same test. The shape is named so the number is
- * reproducible, not because it is minimal.
+ * Reusing the guard family's -32001 envelope is NOT the same as adding no
+ * rejection: this is a new branch, firing when a parsed body is an array of more
+ * than MAX_BATCH_MEMBERS members, and inputs that were answered before it are
+ * now refused. It does not conflict with the MCP MUST, which requires receiving
+ * batches, not unbounded ones. What it bounds is member dispatches and, with
+ * them, the ELEMENT COUNT -- so a response is at most MAX_BATCH_MEMBERS
+ * single-message bodies. That is a multiple of the largest single-message body,
+ * NOT a fixed byte ceiling: element size varies with the tool AND with the
+ * request (ids are echoed into every element). It does NOT bound wall-clock or
+ * total backend work; that needs a batch-wide time budget, not decided here.
+ * Sequential dispatch is a concurrency choice and bounds neither.
  *
- * WHAT THE CAP BOUNDS, stated precisely, because the difference decides whether
- * the endpoint is actually safe:
- *   BOUNDED   member dispatches (<=25), and with them the ELEMENT COUNT, so a
- *             response is at most 25 single-message bodies instead of an
- *             unbounded number of them. For a tools/list batch that is 194,317
- *             bytes measured at the cap, against 15,237,894 before it. Note the
- *             shape of the bound: a multiple of the largest single-message body,
- *             NOT one fixed byte ceiling across every tool.
- *   UNBOUNDED wall-clock, and total backend work. Each of 25 members can still
- *             enter the search path (mcp.ts tools/call -> callSearchStatus ->
- *             searchHandler) whose route budget is the frozen SEARCH_BUDGET_MS
- *             = 6000 (src/lib/search-budget.ts:44). After the cap the serial
- *             worst case is 25 x 6 s = 150 s at any shape; before it, the same
- *             arithmetic over the measured counts FOR SHAPES THAT REACH REAL
- *             SEARCH WORK (663 and 683) gives roughly 4000-4100 s.
- *             READ THOSE NUMBERS WITH THEIR ASSUMPTIONS OR NOT AT ALL. They
- *             are EXTRAPOLATION, not observation: nothing here was timed. The
- *             arithmetic is SEARCH_BUDGET_MS x member count, and it describes
- *             only the worst case in which EVERY member reaches the search
- *             path AND consumes its entire budget, dispatched serially. Real
- *             batches finish sooner.
- *             The tighter-packing shapes are EXCLUDED from that range on
- *             purpose: 745 / 899 / 924 members are reachable only with an empty
- *             query, which short-circuits at src/pages/api/search.ts:80 and so
- *             cannot burn the budget this arithmetic assumes. A member count
- *             and a per-member cost may not be taken from different shapes --
- *             pairing 924 with 6 s would describe an input that does not exist.
- *             Bounding wall-clock needs a batch-wide time budget, which is NOT
- *             decided here. Sequential dispatch bounds neither.
- *
- * SIZE CEILING and AMPLIFICATION RATIO are two different claims, kept apart:
- *   ceiling   the largest response one POST can provoke drops from 15,237,894 B
- *             (14.53 MiB) to 194,317 B (189.8 KiB) -- 78x. This is the point of
- *             the cap.
- *   ratio     output/input amplification does NOT improve. At the cap, 25
- *             minimal members are 792 bytes in for 194,317 out = 245.3x, which
- *             is slightly WORSE than the 232.5x at saturation, because the
- *             request shrinks faster than the response does. The same 25-member
- *             batch written with `jsonrpc` keys is 1192 bytes in = 163.0x. So
- *             the ratio is a property of the sample, not of the cap; the cap
- *             moves the absolute ceiling and leaves the ratio where it was.
- *
- * The cap belongs to the existing mcp-guard cap family and rejects through that
- * family's own limitError, so the envelope is the established -32001 shape with
- * {limit: 'max_batch_members', max: 25}. Reusing an envelope is NOT the same as
- * adding no rejection: this is a new branch at the top of dispatchRpc, firing
- * when a parsed body is an array of more than MAX_BATCH_MEMBERS members, before
- * any member is dispatched -- inputs that were answered before it are now
- * refused. It does not conflict with the MCP MUST: the spec requires receiving
- * batches, not unbounded ones.
- *
- * DELIBERATE SEC 6 DEVIATION (over-cap rejection shape): the refusal is a SINGLE
- * Response object, not an array of 26 error elements. Measured at n=26:
- * {"jsonrpc":"2.0","id":null,"error":{"code":-32001,...}}. Sec 6's MUST-single-
- * object clause covers input that is not "an Array with at least one value"; a
- * 26-member array is valid JSON and is such an Array, so that clause does not
- * cover this case and the SHOULD-array clause does. The single object is chosen
- * anyway: the refusal is about the batch AS A WHOLE, no member ran, and
- * manufacturing one error element per member would assert 26 per-member verdicts
- * that were never reached. It also matches the pre-existing route-level depth
- * rejection, which answers even a 1-member batch with a single -32001 object --
- * measured identically on main and here.
+ * Members are dispatched in array order, one at a time. Sec 6 permits any order;
+ * sequential is chosen so a batch cannot fan a cold search/VFS/R2 path out
+ * concurrently inside one invocation.
  */
 import {
-    JSONRPC_HEADERS, rpcError, notificationAccepted, validateRpcShape,
-    limitError, MAX_BATCH_MEMBERS,
+    JSONRPC_HEADERS, CORS_HEADERS, rpcError, notificationAccepted, validateRpcShape,
+    isNotification, limitError, MAX_BATCH_MEMBERS,
 } from './mcp-guard.js';
 
 /** Executes one JSON-RPC message and returns the Response it would get alone. */
@@ -180,6 +122,11 @@ export async function dispatchRpc(body: any, dispatchOne: DispatchOne): Promise<
     // which is the whole point of a pre-dispatch gate. Same -32001 envelope as
     // every other cap in the family (see the header for the measurements).
     if (body.length > MAX_BATCH_MEMBERS) {
+        // Refusal is two behaviours, picked by the input's shape (transport
+        // rules 4 and 5, quoted in the header). Pure shape test -- no member is
+        // dispatched on either arm. A body-less 400 cannot carry an `id`, so
+        // rule 4's "error response that has no id" holds by construction.
+        if (body.every(isNotification)) return new Response(null, { status: 400, headers: CORS_HEADERS });
         return limitError(null, 'max_batch_members', MAX_BATCH_MEMBERS);
     }
 
