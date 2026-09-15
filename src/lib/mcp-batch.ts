@@ -105,18 +105,20 @@
  *             searchHandler) whose route budget is the frozen SEARCH_BUDGET_MS
  *             = 6000 (src/lib/search-budget.ts:44). After the cap the serial
  *             worst case is 25 x 6 s = 150 s at any shape; before it, the same
- *             arithmetic over the measured member counts (663-924) gives
- *             roughly 4000-5500 s.
+ *             arithmetic over the measured counts FOR SHAPES THAT REACH REAL
+ *             SEARCH WORK (663 and 683) gives roughly 4000-4100 s.
  *             READ THOSE NUMBERS WITH THEIR ASSUMPTIONS OR NOT AT ALL. They
  *             are EXTRAPOLATION, not observation: nothing here was timed. The
  *             arithmetic is SEARCH_BUDGET_MS x member count, and it describes
  *             only the worst case in which EVERY member reaches the search
  *             path AND consumes its entire budget, dispatched serially. Real
- *             batches finish sooner, and a batch whose members short-circuit
- *             (empty query, src/pages/api/search.ts:80) finishes far sooner.
- *             A range is not evidence for being a range: this one is a ceiling
- *             under a stated assumption, and its width is the reason the cap
- *             is expressed in members rather than in seconds.
+ *             batches finish sooner.
+ *             The tighter-packing shapes are EXCLUDED from that range on
+ *             purpose: 745 / 899 / 924 members are reachable only with an empty
+ *             query, which short-circuits at src/pages/api/search.ts:80 and so
+ *             cannot burn the budget this arithmetic assumes. A member count
+ *             and a per-member cost may not be taken from different shapes --
+ *             pairing 924 with 6 s would describe an input that does not exist.
  *             Bounding wall-clock needs a batch-wide time budget, which is NOT
  *             decided here. Sequential dispatch bounds neither.
  *
