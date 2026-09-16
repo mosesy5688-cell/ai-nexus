@@ -18,30 +18,39 @@ import { execFileSync } from 'child_process';
 import { pathToFileURL } from 'url';
 import os from 'os';
 import {
-    SSR_ORIGIN_DEFAULT, SSR_WARM_PATHS, PER_URL_MAX_TIME_S, PHASE_BUDGET_MS,
-    runWarmPlan, formatSummary, parseWriteOut
+    SSR_ORIGIN_DEFAULT, SSR_WARM_PATHS, PER_URL_MAX_TIME_S, PHASE_BUDGET_MS, KILL_GRACE_MS,
+    runWarmPlan, formatSummary, parseWriteOut, buildCurlArgs,
+    curlCapForRemaining, subprocessWaitMs
 } from './lib/ssr-warm-core.js';
 
-const USER_AGENT = 'User-Agent: Nexus-Warmer/1.0';
+/**
+ * SIGKILL, not the documented default SIGTERM. Node: "When a timeout has been
+ * encountered and killSignal is sent, the method won't return until the process
+ * has completely exited... If the child process intercepts and handles the
+ * SIGTERM signal and does not exit, the parent process will still wait until
+ * the child process has exited." SIGTERM therefore bounds nothing; POSIX
+ * signal(7) specifies SIGKILL cannot be caught, blocked or ignored.
+ * On Windows there are no POSIX signals - Node terminates the process whatever
+ * the signal name - so the bound holds there for a different reason.
+ */
+const KILL_SIGNAL = 'SIGKILL';
 
-function curlWarm(url) {
+function curlWarm(url, remainingMs = PHASE_BUDGET_MS) {
     const startedAt = Date.now();
+    // BOTH of curl's own clock and the parent's subprocess wait are sized from
+    // what the phase budget has left; see the slot accounting in ssr-warm-core.
+    // With a full budget the cap is the unchanged 20s.
     // os.devNull, not a literal '/dev/null'. On the ubuntu-latest runner the two
     // are identical; when this runner is exercised locally on Windows the literal
     // makes curl exit 23 (CURLE_WRITE_ERROR) on every URL. The old inline loop
     // could not have shown that - `|| true` discarded the exit code entirely.
-    const args = [
-        '-s', '-o', os.devNull,
-        '--max-time', String(PER_URL_MAX_TIME_S),
-        '-H', USER_AGENT,
-        '-w', '%{http_code} %{time_total}',
-        url
-    ];
+    const capMs = curlCapForRemaining(remainingMs);
+    const args = buildCurlArgs(url, capMs, os.devNull);
     try {
         const out = execFileSync('curl', args, {
             encoding: 'utf8',
-            // Hard stop if curl itself wedges past its own --max-time.
-            timeout: (PER_URL_MAX_TIME_S + 10) * 1000
+            timeout: subprocessWaitMs(capMs),
+            killSignal: KILL_SIGNAL
         });
         const parsed = parseWriteOut(out);
         return {
@@ -50,24 +59,39 @@ function curlWarm(url) {
             durationMs: parsed.durationMs === null ? Date.now() - startedAt : parsed.durationMs
         };
     } catch (err) {
-        // curl still writes the -w line on failure (http_code 000 on a timeout),
-        // so keep whatever it managed to report rather than discarding it.
+        // curl still writes the -w line on most failures (http_code 000 on its
+        // own timeout), so keep whatever it managed to report. On the SIGKILL
+        // path it printed nothing - that is recorded, not guessed at.
         const parsed = parseWriteOut(err && err.stdout);
+        const killed = err && err.signal === KILL_SIGNAL;
         return {
             curlExit: typeof err?.status === 'number' ? err.status : -1,
             httpStatus: parsed.httpStatus,
             durationMs: parsed.durationMs === null ? Date.now() - startedAt : parsed.durationMs,
-            error: (err && err.message) || String(err)
+            error: killed
+                ? `curl exceeded its ${capMs}ms cap and was ${KILL_SIGNAL}ed after a ${KILL_GRACE_MS}ms grace (no write-out captured)`
+                : ((err && err.message) || String(err))
         };
     }
+}
+
+/**
+ * Phase budget. SSR_WARM_BUDGET_MS exists so the entry-point test can drive the
+ * budget path as a real process without a 100-second test; production sets it
+ * nowhere and gets PHASE_BUDGET_MS.
+ */
+function phaseBudgetMs() {
+    const raw = Number.parseInt(process.env.SSR_WARM_BUDGET_MS || '', 10);
+    return Number.isFinite(raw) && raw > 0 ? raw : PHASE_BUDGET_MS;
 }
 
 async function main() {
     const origin = (process.env.SSR_ORIGIN || SSR_ORIGIN_DEFAULT).replace(/\/$/, '');
     const urls = SSR_WARM_PATHS.map(p => `${origin}${p}`);
+    const budgetMs = phaseBudgetMs();
 
-    console.log(`🔥 Live-SSR warm: ${urls.length} URLs, ${PER_URL_MAX_TIME_S}s per URL, ${PHASE_BUDGET_MS}ms phase budget.`);
-    const { summary } = await runWarmPlan({ urls, execute: curlWarm, log: line => console.log(line) });
+    console.log(`🔥 Live-SSR warm: ${urls.length} URLs, ${PER_URL_MAX_TIME_S}s per URL, ${budgetMs}ms phase budget.`);
+    const { summary } = await runWarmPlan({ urls, budgetMs, execute: curlWarm, log: line => console.log(line) });
     console.log(formatSummary(summary));
     console.log('   [warm] Each result above describes ONE request. It is not evidence that other isolates, regions or caches are warm.');
     console.log('✅ SSR warm phase complete (non-fatal: this step never gates publication).');

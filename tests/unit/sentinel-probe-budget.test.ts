@@ -100,6 +100,22 @@ describe('A3 / R2 / R3 - HTTP 200 then the body stalls', () => {
     expect(elapsed).toBeLessThan(1_500);
   });
 
+  it('a body-phase stall gets NO .gz fallback: httpStatus 200 is not eligibility', async () => {
+    // REGRESSION (review F2). httpStatus is set when HEADERS arrive, so a
+    // body-phase failure leaves httpStatus = 200 with ok = false. Keying
+    // eligibility off `httpStatus !== null` fired a fallback the baseline never
+    // fired. Eligibility is outcome === 'http-error', so this issues ONE request.
+    const seen = { aborted: false };
+    const fetchImpl = async (_url: string, init: FakeInit) => stallingBodyResponse(200, seen, init);
+    const check = await probePage({
+      baseUrl: 'https://example.invalid',
+      page: { url: '/', name: 'Home', text: 'Free AI Tools', critical: true },
+      headers: HEADERS, budgetMs: 200, fetchImpl
+    });
+    expect(check.requests).toHaveLength(1);
+    expect(check.usedResponse).toBe('none');
+  });
+
   it('a stall BEFORE headers is recorded as a headers-phase probe timeout with no status', async () => {
     const seen = { aborted: false };
     const fetchImpl = (_url: string, init: FakeInit) => stallingRequest(seen, init);

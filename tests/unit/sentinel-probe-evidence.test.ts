@@ -62,6 +62,48 @@ describe('A1 - primary fails, .gz fallback succeeds', () => {
   });
 });
 
+describe('F2 - a mid-body failure after a 200 must FAIL, not recover via .gz', () => {
+  // On 17b89a6c1 a mid-body failure threw out of `await res.text()` AFTER the
+  // fallback decision, so the check failed. An eligibility test of
+  // `!ok && httpStatus !== null` flipped that to PASS via the .gz -- a real
+  // behaviour change in the direction of reporting MORE health. It also emitted
+  // the unreadable note "the primary request ... returned HTTP 200".
+  const bodyFails = async (url: string) => ({
+    status: 200, ok: true, headers: { get: () => null },
+    text: () => url.endsWith('.gz')
+      ? Promise.resolve('x'.repeat(5_000))
+      : Promise.reject(new Error('terminated'))
+  });
+
+  it('issues ONE request and reports FAIL with the transfer error', async () => {
+    const check = await probePage({
+      baseUrl: 'https://example.invalid',
+      page: { url: '/cache/trending.json', name: 'Trending JSON', minSize: 100, critical: true },
+      headers: { 'User-Agent': 'test' }, budgetMs: 5_000, fetchImpl: bodyFails
+    });
+    expect(check.requests).toHaveLength(1);
+    expect(check.status).toBe('FAIL');
+    expect(check.usedResponse).toBe('none');
+    expect(check.error).toBe('terminated');
+    expect(check.error).not.toBe('HTTP 200');
+    // The nonsense note must not be reachable.
+    expect(check.note).toBeNull();
+  });
+
+  it('a genuine non-ok status still falls back, so the fix did not disable A1', async () => {
+    const httpError = async (url: string) => url.endsWith('.gz')
+      ? response(200, 'x'.repeat(5_000))
+      : response(404, 'Not found');
+    const check = await probePage({
+      baseUrl: 'https://example.invalid',
+      page: { url: '/cache/trending.json', name: 'Trending JSON', minSize: 100, critical: true },
+      headers: { 'User-Agent': 'test' }, budgetMs: 5_000, fetchImpl: httpError
+    });
+    expect(check.requests).toHaveLength(2);
+    expect(check.usedResponse).toBe('gz-fallback');
+  });
+});
+
 describe('R4 - existing health-report.json fields survive; new ones are additive', () => {
   it('a passing check still carries {name, status} and carries NO error key', async () => {
     const fetchImpl = async () => response(200, 'Free AI Tools live');

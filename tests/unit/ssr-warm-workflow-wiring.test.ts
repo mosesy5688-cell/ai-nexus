@@ -23,6 +23,8 @@ const RUNNER = path.resolve(__dirname, '../../scripts/factory/warm-ssr.js');
 const upload = fs.readFileSync(UPLOAD_WF, 'utf8').replace(/\r\n/g, '\n');
 const health = fs.readFileSync(HEALTH_WF, 'utf8').replace(/\r\n/g, '\n');
 const runner = fs.readFileSync(RUNNER, 'utf8').replace(/\r\n/g, '\n');
+const CORE = path.resolve(__dirname, '../../scripts/factory/lib/ssr-warm-core.js');
+const core = fs.readFileSync(CORE, 'utf8').replace(/\r\n/g, '\n');
 
 /** Slice the `Purge & Warm CDN` step up to the next top-level step. */
 function warmStep(): string {
@@ -77,13 +79,24 @@ describe('warm-ssr.js - non-fatal by construction', () => {
     // Found by running this runner: with the literal, curl exits 23
     // (CURLE_WRITE_ERROR) on every URL off-Linux. The previous inline loop could
     // not have surfaced that, because `|| true` discarded curl's exit code.
-    expect(runner).toContain("'-o', os.devNull");
-    expect(runner).not.toContain("'-o', '/dev/null'");
+    expect(runner).toContain('buildCurlArgs(url, capMs, os.devNull)');
+    // The argv builder must take the sink from its caller, never hardcode one.
+    expect(core).toContain("'-s', '-o', devNull,");
+    expect(core).not.toContain("'-o', '/dev/null'");
   });
 
-  it('keeps the per-URL cap and the User-Agent of the loop it replaces', () => {
-    expect(runner).toContain("'--max-time', String(PER_URL_MAX_TIME_S)");
-    expect(runner).toContain("'User-Agent: Nexus-Warmer/1.0'");
+  it('keeps the User-Agent of the loop it replaces', () => {
+    expect(core).toContain("WARM_USER_AGENT = 'User-Agent: Nexus-Warmer/1.0'");
+  });
+
+  it('sizes BOTH curl\'s cap and the subprocess wait from the remaining budget', () => {
+    // The wait used to be (PER_URL_MAX_TIME_S + 10) * 1000 -- a fixed 30s that
+    // outlived the phase budget on the curl-wedge path, AND it relied on the
+    // default SIGTERM, which Node documents as not bounding the wait at all.
+    expect(runner).toContain('const capMs = curlCapForRemaining(remainingMs);');
+    expect(runner).toContain('timeout: subprocessWaitMs(capMs)');
+    expect(runner).not.toContain('(PER_URL_MAX_TIME_S + 10) * 1000');
+    expect(runner).not.toContain('timeout: capMs + 1000');
   });
 });
 

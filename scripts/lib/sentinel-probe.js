@@ -161,12 +161,16 @@ export async function probePage({ baseUrl, page, headers, budgetMs, fetchImpl = 
     check.requests.push(primary.record);
 
     let chosen = primary;
-    // Eligibility UNCHANGED: a response was received, it was not ok, and the URL
-    // is not already a .gz. A primary that threw (transfer error / probe
-    // timeout) has httpStatus === null and does NOT trigger a fallback, exactly
-    // as before. The fallback shares `deadlineAt`, so it can only ever consume
-    // what the primary left (see A4).
-    if (!primary.ok && primary.record.httpStatus !== null && !url.endsWith('.gz')) {
+    // Eligibility: a COMPLETE non-ok response was received, and the URL is not
+    // already a .gz. Keying off outcome === 'http-error' (NOT `httpStatus !==
+    // null`) is what makes this match the prior behaviour: httpStatus is set as
+    // soon as HEADERS arrive, so a BODY-phase failure after a 200 leaves
+    // httpStatus = 200 with ok = false, and the looser test fired a fallback the
+    // baseline never fired -- turning a mid-body failure from FAIL into PASS.
+    // A primary that timed out or died in transfer gets NO fallback, as before.
+    // The fallback shares `deadlineAt`, so it can only ever consume what the
+    // primary left (see A4).
+    if (primary.record.outcome === 'http-error' && !url.endsWith('.gz')) {
         const fallback = await timedRequest({ role: 'gz-fallback', url: `${url}.gz`, headers, deadlineAt, fetchImpl, now });
         check.requests.push(fallback.record);
         if (fallback.ok) chosen = fallback;

@@ -44,8 +44,6 @@ export const SSR_WARM_PATHS = [
     '/models'
 ];
 
-/** Unchanged from the previous inline loop: one request per URL, 20s cap each. */
-export const PER_URL_MAX_TIME_S = 20;
 
 /**
  * Wall-clock budget for the whole warm phase. 100s, chosen so the four
@@ -57,6 +55,34 @@ export const PER_URL_MAX_TIME_S = 20;
  * /models 4.58s), so the budget is ~2.4x the observed total.
  */
 export const PHASE_BUDGET_MS = 100_000;
+
+// Slot accounting lives in ssr-warm-budget.js, split out to keep this file
+// inside the 250-line Art 5.1 limit, and re-exported so callers keep one import
+// surface. PER_URL_MAX_TIME_S moved there with it: it is a budget term, and
+// keeping it here would have made the two modules import each other.
+import { MIN_URL_SLOT_MS, PER_URL_MAX_TIME_S } from './ssr-warm-budget.js';
+export {
+    PER_URL_MAX_TIME_S, KILL_GRACE_MS, SPAWN_OVERHEAD_MS, MIN_CURL_CAP_MS,
+    MIN_URL_SLOT_MS, curlCapForRemaining, subprocessWaitMs
+} from './ssr-warm-budget.js';
+
+export const WARM_USER_AGENT = 'User-Agent: Nexus-Warmer/1.0';
+
+/**
+ * curl argv for one warm request, capped at `capMs`. Lives here rather than in
+ * warm-ssr.js so it is covered by an assertion on the ACTUAL argv instead of a
+ * text match on the source -- and because warm-ssr.js carries a shebang, which
+ * the test transform cannot parse.
+ */
+export function buildCurlArgs(url, capMs, devNull) {
+    return [
+        '-s', '-o', devNull,
+        '--max-time', String(Math.round(capMs / 1000)),
+        '-H', WARM_USER_AGENT,
+        '-w', '%{http_code} %{time_total}',
+        url
+    ];
+}
 
 /** curl(1) exit 28 = Operation timeout. */
 export const CURL_EXIT_OPERATION_TIMEDOUT = 28;
@@ -129,11 +155,15 @@ export async function runWarmPlan({ urls, budgetMs = PHASE_BUDGET_MS, now = Date
 
     for (const url of urls) {
         const at = now();
-        if (at - startedAt >= budgetMs) {
+        const remainingMs = startedAt + budgetMs - at;
+        // Start only if a WHOLE slot still fits. Starting a URL that cannot
+        // finish inside the budget is what let the phase overshoot: the budget
+        // gated starts but never constrained execution.
+        if (remainingMs < MIN_URL_SLOT_MS) {
             const skipped = {
                 url, startedAtUtc: new Date(at).toISOString(), durationMs: 0,
                 httpStatus: null, curlExit: null, outcome: 'skipped',
-                error: `Skipped: the ${budgetMs}ms warm phase budget was already spent`
+                error: `Skipped: ${Math.max(0, remainingMs)}ms left of the ${budgetMs}ms warm phase budget, below the ${MIN_URL_SLOT_MS}ms minimum slot`
             };
             records.push(skipped);
             log(formatRecord(skipped));
@@ -142,7 +172,9 @@ export async function runWarmPlan({ urls, budgetMs = PHASE_BUDGET_MS, now = Date
 
         let attempt;
         try {
-            attempt = await execute(url);
+            // Hand the runner what the budget has LEFT so it can size BOTH
+            // curl's --max-time and its own subprocess wait from it.
+            attempt = await execute(url, remainingMs);
         } catch (err) {
             // execute() is expected to report curl failures as data, not throws.
             // A throw here means the runner itself failed; record it, keep going.

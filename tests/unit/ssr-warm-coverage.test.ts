@@ -170,7 +170,7 @@ describe('the phase budget is real: a URL past the deadline is skipped, not sile
     expect(records[5].outcome).toBe('skipped');
     expect(records[5].httpStatus).toBeNull();
     expect(records[5].curlExit).toBeNull();
-    expect(records[5].error).toMatch(/warm phase budget was already spent/);
+    expect(records[5].error).toMatch(/below the 4000ms minimum slot/);
     expect(summary.skipped).toBe(1);
     expect(summary.total).toBe(6);
   });
