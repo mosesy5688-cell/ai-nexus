@@ -2,11 +2,25 @@
  * ------------------------------------------------------------------
  * L9 GUARDIAN - GLOBAL HEALTH SENTINEL (V16.8 Consolidated)
  * ------------------------------------------------------------------
+ * Instrumentation note: every logical check now records its own duration and
+ * runs under an explicit, enforced budget (scripts/lib/sentinel-budgets.js).
+ * Tier-2 page checks additionally record the primary request and the `.gz`
+ * fallback separately (scripts/lib/sentinel-probe.js).
  */
 
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import {
+    PER_CHECK_BUDGET_MS, TIER2_TOTAL_BUDGET_MS,
+    assertBudgetsLeaveReportReserve, budgetManifest
+} from './lib/sentinel-budgets.js';
+import { probePage, notRunCheck } from './lib/sentinel-probe.js';
+import { checkInfrastructure } from './lib/sentinel-infra.js';
+
+// Fail fast at import time if the configured budgets could not leave the
+// 3-minute report/upload reserve inside the 10-minute job.
+assertBudgetsLeaveReportReserve();
 
 // Resolve paths
 const __filename = new URL(import.meta.url).pathname.replace(/^\/([a-zA-Z]:)/, '$1');
@@ -32,13 +46,15 @@ function computeTotalHash(manifest) {
 
 async function checkBackendIntegrity() {
     process.stdout.write('   [TIER 0] Backend Integrity Check... ');
-    const results = { name: 'Manifest Integrity', status: 'PASS', details: [] };
+    const startedAt = Date.now();
+    const results = { name: 'Manifest Integrity', status: 'PASS', details: [], durationMs: 0 };
 
     try {
         const manifestPath = path.join(ROOT_DIR, 'data', 'manifest.json');
         if (!fs.existsSync(manifestPath)) {
             console.log('⚪ SKIP (No local manifest)');
             results.status = 'SKIP';
+            results.durationMs = Date.now() - startedAt;
             return results;
         }
 
@@ -65,55 +81,7 @@ async function checkBackendIntegrity() {
         results.error = err.message;
     }
 
-    return results;
-}
-
-async function checkInfrastructure() {
-    process.stdout.write('   [TIER 1] Infrastructure & V6 Stats... ');
-    const results = { name: 'Infra & V6 Stats', status: 'PASS', details: [] };
-
-    try {
-        const statsUrl = `${TARGET_URL}/cache/category_stats.json`;
-        let statsRes = await fetch(statsUrl, { headers: HEADERS });
-
-        // V16.9: .gz Fallback 
-        if (!statsRes.ok) {
-            statsRes = await fetch(`${TARGET_URL}/cache/category_stats.json.gz`, { headers: HEADERS });
-        }
-
-        if (!statsRes.ok) throw new Error(`Stats fetch failed (${statsRes.status})`);
-
-        // Get stats last modified as a freshness baseline
-        const statsLastMod = new Date(statsRes.headers.get('last-modified') || Date.now());
-
-        // 2. Pagination Cap Check (Art 2.4 - No p51)
-        const categories = ['text-generation', 'vision-multimedia', 'infrastructure-ops', 'knowledge-retrieval'];
-        for (const cat of categories) {
-            const p51Url = `${TARGET_URL}/cache/rankings/${cat}/p51.json`;
-            const p51Res = await fetch(p51Url, { method: 'HEAD', headers: HEADERS });
-
-            if (p51Res.status === 200) {
-                const p51LastMod = new Date(p51Res.headers.get('last-modified') || 0);
-                const isStale = (statsLastMod - p51LastMod) > 1000 * 60 * 60; // Older than 1 hour relative to stats
-
-                if (isStale) {
-                    console.warn(`   ⚠️  Stale artifact detected: ${cat}/p51.json (LastModified: ${p51LastMod.toISOString()}). Ignoring.`);
-                } else {
-                    results.status = 'FAIL';
-                    results.error = `Pagination CAP violated: ${cat}/p51.json is FRESH (Art 2.4 Violation). LastModified: ${p51LastMod.toISOString()}.`;
-                    console.log('❌ FAIL');
-                    return results;
-                }
-            }
-        }
-
-        console.log('✅ OK');
-    } catch (err) {
-        console.log('❌ FAIL');
-        results.status = 'FAIL';
-        results.error = err.message;
-    }
-
+    results.durationMs = Date.now() - startedAt;
     return results;
 }
 
@@ -124,52 +92,42 @@ const PAGES = [
     { url: '/cache/search-core.json', name: 'Search Index', minSize: 1000, critical: true }
 ];
 
-async function runAudit() {
-    process.stdout.write(`\n🛡️  GLOBAL HEALTH SENTINEL - Running for: ${TARGET_URL}\n`);
+function describe(check) {
+    const via = check.usedResponse === 'gz-fallback' ? ' via .gz fallback' : '';
+    return check.status === 'PASS'
+        ? `✅ OK (${check.durationMs}ms${via})`
+        : `❌ FAIL (${check.error}) [${check.durationMs}ms, ${check.outcome}]`;
+}
 
-    const finalReport = {
-        timestamp: new Date().toISOString(),
-        target: TARGET_URL,
-        results: [],
-        healthy: true
-    };
-
-    const integrity = await checkBackendIntegrity();
-    finalReport.results.push(integrity);
-
-    const infra = await checkInfrastructure();
-    finalReport.results.push(infra);
-
+async function runTier2(finalReport) {
     console.log('   [TIER 2] Frontend Smoke Tests:');
+    const tierStartedAt = Date.now();
+    const tierDeadlineAt = tierStartedAt + TIER2_TOTAL_BUDGET_MS;
+
     for (const page of PAGES) {
         process.stdout.write(`      - ${page.name.padEnd(20)} `);
-        try {
-            const url = `${TARGET_URL}${page.url}`;
-            let res = await fetch(url, { headers: HEADERS });
-
-            // V18.2.7: .gz Fallback for health check
-            if (!res.ok && !url.endsWith('.gz')) {
-                const gzRes = await fetch(url + '.gz', { headers: HEADERS });
-                if (gzRes.ok) res = gzRes;
-            }
-
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const content = await res.text();
-            if (page.text && !content.includes(page.text)) throw new Error(`Text missing: "${page.text}"`);
-            if (page.minSize && content.length < page.minSize) throw new Error(`Payload too small: ${content.length}b < ${page.minSize}b`);
-
-            console.log('✅ OK');
-            finalReport.results.push({ name: page.name, status: 'PASS' });
-        } catch (err) {
-            console.log(`❌ FAIL (${err.message})`);
-            finalReport.results.push({ name: page.name, status: 'FAIL', error: err.message });
+        const remaining = tierDeadlineAt - Date.now();
+        if (remaining <= 0) {
+            // Not run, and therefore not asserted healthy. Recorded as FAIL with
+            // an explicit not-run outcome so a skipped check can never read as a pass.
+            const skipped = notRunCheck(page, TIER2_TOTAL_BUDGET_MS);
+            console.log(`❌ FAIL (${skipped.error})`);
+            finalReport.results.push(skipped);
             if (page.critical) finalReport.healthy = false;
+            continue;
         }
+        // Clamped so the per-check budget can never push the tier past its total.
+        const budgetMs = Math.min(PER_CHECK_BUDGET_MS, remaining);
+        const check = await probePage({ baseUrl: TARGET_URL, page, headers: HEADERS, budgetMs });
+        console.log(describe(check));
+        finalReport.results.push(check);
+        if (check.status === 'FAIL' && page.critical) finalReport.healthy = false;
     }
 
-    if (integrity.status === 'FAIL' || infra.status === 'FAIL') finalReport.healthy = false;
+    finalReport.tier2DurationMs = Date.now() - tierStartedAt;
+}
 
+function emitReport(finalReport) {
     if (!finalReport.healthy) {
         console.log('\n🚨 FAILURES DETECTED:');
         finalReport.results.filter(r => r.status === 'FAIL').forEach(r => {
@@ -183,6 +141,46 @@ async function runAudit() {
 
     console.log(`\nOVERALL STATUS: ${finalReport.healthy ? '🎉 HEALTHY' : '🔥 DEGRADED'}\n`);
     process.exit(finalReport.healthy ? 0 : 1);
+}
+
+async function runAudit() {
+    process.stdout.write(`\n🛡️  GLOBAL HEALTH SENTINEL - Running for: ${TARGET_URL}\n`);
+    const auditStartedAt = Date.now();
+
+    const finalReport = {
+        timestamp: new Date().toISOString(),
+        target: TARGET_URL,
+        // Identifies the CHECKING script only. It is NEVER used as the version of
+        // any response; per-request `responseVersion` is 'unknown' when the
+        // response carries no deploy identifier.
+        probe: {
+            commit: process.env.GITHUB_SHA || 'unknown',
+            runId: process.env.GITHUB_RUN_ID || 'unknown',
+            note: 'Identifies this checking script, not the served version.'
+        },
+        budgets: budgetManifest(),
+        results: [],
+        healthy: true
+    };
+
+    try {
+        const integrity = await checkBackendIntegrity();
+        finalReport.results.push(integrity);
+
+        const infra = await checkInfrastructure({ targetUrl: TARGET_URL, headers: HEADERS });
+        finalReport.results.push(infra);
+
+        await runTier2(finalReport);
+
+        if (integrity.status === 'FAIL' || infra.status === 'FAIL') finalReport.healthy = false;
+    } catch (err) {
+        // The report is produced even when the audit itself throws.
+        finalReport.healthy = false;
+        finalReport.results.push({ name: 'Audit Execution', status: 'FAIL', error: `Audit aborted: ${err.message}` });
+    } finally {
+        finalReport.auditDurationMs = Date.now() - auditStartedAt;
+        emitReport(finalReport);
+    }
 }
 
 runAudit();
