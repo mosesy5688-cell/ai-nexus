@@ -12,7 +12,8 @@ import { describe, it, expect } from 'vitest';
 // @ts-ignore - JS ESM module under test (no .d.ts).
 import {
   SSR_WARM_PATHS, PER_URL_MAX_TIME_S, PHASE_BUDGET_MS, CURL_EXIT_OPERATION_TIMEDOUT,
-  classifyWarm, summarise, runWarmPlan, formatSummary, parseWriteOut
+  classifyWarm, summarise, runWarmPlan, formatSummary, parseWriteOut,
+  curlCapForRemaining, subprocessWaitMs, SPAWN_OVERHEAD_MS, MIN_URL_SLOT_MS
 } from '../../scripts/factory/lib/ssr-warm-core.js';
 
 const ORIGINAL_FOUR = [
@@ -44,11 +45,21 @@ describe('item 1 - warm coverage', () => {
   it('keeps one request per URL at the existing 20s cap, under a 100s phase budget', () => {
     expect(PER_URL_MAX_TIME_S).toBe(20);
     expect(PHASE_BUDGET_MS).toBe(100_000);
-    // Worst case grows by 20s, not 40s: 5 URLs can burn 20s each, then the
-    // budget stops the 6th. The four pre-existing URLs can always still start
-    // (4 x 20s = 80s < 100s).
-    expect(4 * PER_URL_MAX_TIME_S * 1000).toBeLessThan(PHASE_BUDGET_MS);
-    expect(5 * PER_URL_MAX_TIME_S * 1000).toBeGreaterThanOrEqual(PHASE_BUDGET_MS);
+  });
+
+  it('the first four URLs still always start - by SLOT arithmetic, not 4 x 20s', () => {
+    // CORRECTED: the old assertion was `4 * 20s < 100s`. A URL costs a SLOT
+    // (cap + kill grace + spawn overhead), not just its cap, so that arithmetic
+    // no longer describes the code. Three worst-case slots leave 31s, far above
+    // the 4s minimum, so the fourth still starts - conditionally on the slot
+    // model, not unconditionally.
+    const worstSlot = subprocessWaitMs(curlCapForRemaining(PHASE_BUDGET_MS)) + SPAWN_OVERHEAD_MS;
+    expect(worstSlot).toBe(23_000);
+    expect(PHASE_BUDGET_MS - 3 * worstSlot).toBeGreaterThanOrEqual(MIN_URL_SLOT_MS);
+    // NOTE: this is arithmetic over constants, and it holds on the base commit
+    // too. It documents the corrected justification; it is NOT a regression
+    // test. What the sixth URL actually does is executed in
+    // ssr-warm-budget.test.ts, not asserted here.
   });
 });
 

@@ -46,10 +46,16 @@ export const SSR_WARM_PATHS = [
 
 
 /**
- * Wall-clock budget for the whole warm phase. 100s, chosen so the four
- * pre-existing URLs can always still start (4 x 20s = 80s < 100s) while the
- * worst case grows by 20s rather than by 40s: URLs 1-5 can each burn their full
- * 20s cap, after which the 6th is recorded as skipped.
+ * Wall-clock budget for the whole warm phase, 100s.
+ *
+ * CORRECTED: an earlier revision justified this as "the four pre-existing URLs
+ * can always still start (4 x 20s = 80s < 100s)". That arithmetic no longer
+ * describes the code. A URL's cost is a SLOT (cap + kill grace + spawn
+ * overhead), not just its cap, and a URL starts only if a whole MIN_URL_SLOT_MS
+ * fits. Under the slot model's own worst case the first four do still start --
+ * three worst-case slots are 69s, leaving 31s, far above the 4s minimum -- but
+ * that now follows from the slot arithmetic and holds only while the slot
+ * assumptions in ssr-warm-budget.js hold. It is not unconditional.
  * Measured 2026-09-16 (single-shot curl, this work order): the six URLs took
  * 41.5s in total (/ 12.90s, /ranking 4.89s, entity 6.06s + 6.70s, model 6.38s,
  * /models 4.58s), so the budget is ~2.4x the observed total.
@@ -74,10 +80,37 @@ export const WARM_USER_AGENT = 'User-Agent: Nexus-Warmer/1.0';
  * text match on the source -- and because warm-ssr.js carries a shebang, which
  * the test transform cannot parse.
  */
+/**
+ * curl --max-time for a cap in milliseconds. curl accepts fractional seconds, so
+ * the cap is expressed exactly rather than rounded to a whole second.
+ *
+ * `Math.round(capMs / 1000)` rounded UP past the cap it was handed: a 16,600ms
+ * cap became `--max-time 17`, i.e. 400ms MORE than that URL's slot allowed.
+ * Rounding is now downward, to the millisecond, so for any cap of at least 1ms
+ * the argument cannot exceed it.
+ *
+ * The floor matters: `--max-time 0` means NO TIMEOUT in libcurl, so a cap that
+ * arrived as 0, negative, NaN or Infinity must never reach curl as "0". Those
+ * inputs are unreachable today (curlCapForRemaining clamps at MIN_CURL_CAP_MS)
+ * but this is an exported function whose stated contract is a bound, so it
+ * clamps rather than trusting its caller. SCOPE: this is an argument-precision defect. It did not make the
+ * PHASE exceed its budget -- the parent's subprocess wait is computed from capMs
+ * (subprocessWaitMs), not from this string, so the outer bound was unaffected.
+ */
+export function maxTimeArg(capMs) {
+    // Integer arithmetic on purpose: dividing by 1000 and formatting a float
+    // reintroduces representation error at the boundary this function exists to
+    // protect (Number('16.6') * 1000 === 16600.000000000002).
+    const ms = Math.max(1, Math.floor(Number.isFinite(capMs) ? capMs : 1));
+    const whole = Math.floor(ms / 1000);
+    const frac = String(ms % 1000).padStart(3, '0').replace(/0+$/, '');
+    return frac ? `${whole}.${frac}` : String(whole);
+}
+
 export function buildCurlArgs(url, capMs, devNull) {
     return [
         '-s', '-o', devNull,
-        '--max-time', String(Math.round(capMs / 1000)),
+        '--max-time', maxTimeArg(capMs),
         '-H', WARM_USER_AGENT,
         '-w', '%{http_code} %{time_total}',
         url

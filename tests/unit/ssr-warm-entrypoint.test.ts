@@ -144,16 +144,26 @@ describe('warm-ssr.js as a process, against a stalled origin', () => {
   it('records a timeout and then STOPS STARTING work: the budget bounds execution', async () => {
     hangAll = true;
     try {
-      // 9s budget -> the first URL gets curlCapForRemaining(9000) = 6000ms of
-      // curl time; afterwards less than MIN_URL_SLOT_MS remains, so the rest are
-      // skipped rather than started. This is the whole point of the F1 fix: the
-      // budget constraining EXECUTION, observed on the real entry point.
-      const r = await runRunner(9_000);
+      // 9.5s budget -> the first URL gets curlCapForRemaining(9500) = 6500ms,
+      // i.e. `--max-time 6.5`. Deliberately FRACTIONAL: it proves real curl
+      // accepts the exact cap, which `Math.round` used to inflate to 7. Then
+      // less than MIN_URL_SLOT_MS remains, so the rest are skipped rather than
+      // started - the budget constraining EXECUTION on the real entry point.
+      const r = await runRunner(9_500);
       const lines = warmLines(r.stdout);
       expect(r.status).toBe(0);
       expect(r.signal).toBeNull();
       expect(lines).toHaveLength(6);
       expect(lines[0]).toMatch(/timeout\s+http=---\s+exit=28/);   // curl's own cap
+      // curl honoured 6.5s, not a rounded-up 7s. Bounded on BOTH sides so the
+      // assertion fails either way round.
+      const m = /\s(\d+)ms\s/.exec(lines[0]);
+      expect(m, `no duration field in: ${lines[0]}`).not.toBeNull();
+      const ms = Number(m![1]);
+      // curl's own %{time_total}, not wall clock, so runner jitter does not
+      // feed this. Bounded both sides: a rounded-up 7s fails the upper bound.
+      expect(ms).toBeGreaterThanOrEqual(6_200);
+      expect(ms).toBeLessThan(6_900);
       expect(lines[1]).toContain('skipped');
       expect(summaryLine(r.stdout)).toMatch(/timeout=1 skipped=5/);
     } finally {

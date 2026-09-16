@@ -39,8 +39,8 @@ export const PER_CHECK_BUDGET_MS = 45_000;
 export const TIER2_TOTAL_BUDGET_MS = 150_000;
 
 /**
- * Total budget for Tier 1 (infra + V6 stats: 1 GET, a .gz GET only if the first is
- * not ok, then 4 HEADs - five or six requests).
+ * Total budget for Tier 1 (infra + V6 stats: 1 GET, a .gz GET only if the first
+ * returned a complete non-ok HTTP response, then 4 HEADs - five or six requests).
  *
  * NOT in the PM's named list; introduced here with a measured argument because
  * the "whole audit" bound below is unenforceable while any tier can hang

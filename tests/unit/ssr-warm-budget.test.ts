@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest';
 // @ts-ignore - JS ESM module under test (no .d.ts).
 import {
-  PER_URL_MAX_TIME_S, PHASE_BUDGET_MS, runWarmPlan, buildCurlArgs,
+  PER_URL_MAX_TIME_S, PHASE_BUDGET_MS, runWarmPlan, buildCurlArgs, maxTimeArg,
   curlCapForRemaining, subprocessWaitMs,
   KILL_GRACE_MS, SPAWN_OVERHEAD_MS, MIN_CURL_CAP_MS, MIN_URL_SLOT_MS
 } from '../../scripts/factory/lib/ssr-warm-core.js';
@@ -99,11 +99,54 @@ describe('F1 - the phase budget is a COMPLETION deadline, not just a start gate'
     expect(curlCapForRemaining(MIN_URL_SLOT_MS)).toBe(MIN_CURL_CAP_MS);
   });
 
+  it('--max-time expresses the cap EXACTLY and never rounds up past it', () => {
+    // `Math.round(capMs / 1000)` turned a 16,600ms cap into `--max-time 17`:
+    // 400ms MORE than that URL's slot allowed. curl takes fractional seconds.
+    expect(maxTimeArg(16_600)).toBe('16.6');      // was '17'
+    expect(maxTimeArg(16_500)).toBe('16.5');      // was '17'
+    expect(maxTimeArg(1_500)).toBe('1.5');        // was '2'
+    expect(maxTimeArg(999)).toBe('0.999');        // was '1'
+    // Whole seconds stay whole - the common full-budget case is unchanged.
+    expect(maxTimeArg(20_000)).toBe('20');
+    expect(maxTimeArg(1_000)).toBe('1');
+    // Millisecond precision is preserved, not truncated to whole seconds.
+    expect(maxTimeArg(16_999)).toBe('16.999');
+    expect(maxTimeArg(1_001)).toBe('1.001');
+    expect(maxTimeArg(1_010)).toBe('1.01');
+  });
+
+  it('no cap in 1..20000ms yields an argument larger than the cap', () => {
+    // Exhaustive over the REACHABLE domain. Not "the whole property": the
+    // inputs that break the naive form (<= 0, NaN, Infinity) lie outside this
+    // range and are covered by the next test.
+    const over: number[] = [];
+    for (let capMs = 1; capMs <= 20_000; capMs++) {
+      if (Math.round(Number(maxTimeArg(capMs)) * 1000) > capMs) over.push(capMs);
+    }
+    expect(over).toEqual([]);
+  });
+
+  it('never emits "0", which libcurl reads as NO timeout', () => {
+    // --max-time 0 disables the timeout entirely. A cap that arrived as 0,
+    // negative or non-finite must clamp, not silently remove the bound.
+    for (const bad of [0, -1, -5_000, NaN, Infinity, -Infinity]) {
+      const arg = maxTimeArg(bad);
+      expect(arg, `maxTimeArg(${bad})`).toBe('0.001');
+      expect(Number(arg)).toBeGreaterThan(0);
+      expect(Number.isFinite(Number(arg))).toBe(true);
+    }
+  });
+
   it('the curl argv carries the CLAMPED cap, not the constant', () => {
     // Asserted on the actual argv, not on a text match against the source.
     expect(buildCurlArgs('https://x.invalid/', curlCapForRemaining(19_000), '/dev/null'))
       .toEqual(['-s', '-o', '/dev/null', '--max-time', '16', '-H',
                 'User-Agent: Nexus-Warmer/1.0', '-w', '%{http_code} %{time_total}', 'https://x.invalid/']);
     expect(buildCurlArgs('https://x.invalid/', curlCapForRemaining(PHASE_BUDGET_MS), '/dev/null')[4]).toBe('20');
+    // Through buildCurlArgs, not just maxTimeArg. Both pre-existing argv cases
+    // used caps that round exactly (16000, 20000) -- which is precisely why the
+    // rounding defect survived to the entry-point test.
+    expect(buildCurlArgs('u', 16_600, '/dev/null')[4]).toBe('16.6');
+    expect(buildCurlArgs('u', 1_500, '/dev/null')[4]).toBe('1.5');
   });
 });

@@ -17,9 +17,10 @@
  * as an HTTP status - in particular never as 524, which is a CDN-origin verdict
  * this script has no standing to issue.
  *
- * Fallback ELIGIBILITY and the text/minSize content checks are unchanged from
- * the previous implementation on purpose: fallback only when a response was
- * received and it was not ok and the URL does not already end in `.gz`.
+ * The text/minSize content checks are unchanged on purpose. Fallback
+ * ELIGIBILITY is NOT: see isFallbackEligible below. This header previously said
+ * "a response was received and it was not ok", which a 200 whose body failed
+ * satisfies -- that wording is withdrawn.
  */
 
 /**
@@ -125,6 +126,24 @@ export async function timedRequest({ role, url, headers, deadlineAt, method = 'G
     return { record, body, ok, response };
 }
 
+/**
+ * FALLBACK ELIGIBILITY -- the single predicate, shared by Tier 1
+ * (sentinel-infra.js) and Tier 2 (probePage) so the two can never drift again.
+ *
+ * Only a COMPLETE non-ok HTTP response is eligible. `!ok` is NOT the predicate:
+ * httpStatus is set as soon as HEADERS arrive and the body is read afterwards,
+ * so a 200 whose body then fails leaves ok = false with httpStatus = 200. Both
+ * tiers once used `!ok` and both were wrong for that case -- in Tier 2 it
+ * flipped a check from FAIL to PASS, in Tier 1 it re-based the freshness clock
+ * used by the Art 2.4 pagination-cap check and suppressed a real violation.
+ *
+ * A probe timeout, a transfer error, or a request that never ran gets NO
+ * fallback: it keeps FAIL and its own reason.
+ */
+export function isFallbackEligible(record) {
+    return Boolean(record) && record.outcome === 'http-error';
+}
+
 function applyContentChecks(page, content) {
     if (page.text && !content.includes(page.text)) {
         return { error: `Text missing: "${page.text}"` };
@@ -170,7 +189,7 @@ export async function probePage({ baseUrl, page, headers, budgetMs, fetchImpl = 
     // A primary that timed out or died in transfer gets NO fallback, as before.
     // The fallback shares `deadlineAt`, so it can only ever consume what the
     // primary left (see A4).
-    if (primary.record.outcome === 'http-error' && !url.endsWith('.gz')) {
+    if (isFallbackEligible(primary.record) && !url.endsWith('.gz')) {
         const fallback = await timedRequest({ role: 'gz-fallback', url: `${url}.gz`, headers, deadlineAt, fetchImpl, now });
         check.requests.push(fallback.record);
         if (fallback.ok) chosen = fallback;
