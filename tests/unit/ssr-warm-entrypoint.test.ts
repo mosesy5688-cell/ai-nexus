@@ -20,7 +20,7 @@
 // Every run passes SSR_WARM_BUDGET_MS so the suite is bounded even when the
 // origin never answers.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { spawnSync, execFileSync } from 'child_process';
+import { spawn, execFileSync } from 'child_process';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
@@ -63,18 +63,34 @@ afterAll(async () => {
   await new Promise<void>(r => { server.closeAllConnections?.(); server.close(() => r()); });
 });
 
-function runRunner(budgetMs: number) {
-  return spawnSync(process.execPath, [RUNNER], {
-    encoding: 'utf8',
-    timeout: budgetMs + 30_000,          // harness stop, well clear of the budget
-    killSignal: 'SIGKILL',
-    env: {
-      ...process.env,
-      SSR_ORIGIN: origin,
-      SSR_WARM_BUDGET_MS: String(budgetMs),
-      NO_PROXY: '127.0.0.1,localhost',
-      no_proxy: '127.0.0.1,localhost'
-    }
+/**
+ * ASYNC spawn, deliberately. spawnSync would block this process's event loop for
+ * the whole run - and the stub server lives in THIS process, so it could never
+ * answer: curl would sit until its own --max-time on every URL and the server
+ * would record zero requests. That is exactly what an earlier revision of this
+ * file did, and the symptom (all timeouts, zero hits) reads like a blocked
+ * network rather than a blocked event loop.
+ */
+function runRunner(budgetMs: number): Promise<{ status: number | null; signal: string | null; stdout: string }> {
+  return new Promise(resolve => {
+    const child = spawn(process.execPath, [RUNNER], {
+      env: {
+        ...process.env,
+        SSR_ORIGIN: origin,
+        SSR_WARM_BUDGET_MS: String(budgetMs),
+        NO_PROXY: '127.0.0.1,localhost',
+        no_proxy: '127.0.0.1,localhost'
+      }
+    });
+    let stdout = '';
+    child.stdout.on('data', d => { stdout += d.toString(); });
+    child.stderr.on('data', () => {});
+    // Harness stop, well clear of the phase budget under test.
+    const fuse = setTimeout(() => child.kill('SIGKILL'), budgetMs + 30_000);
+    child.on('close', (status, signal) => {
+      clearTimeout(fuse);
+      resolve({ status, signal, stdout });
+    });
   });
 }
 
@@ -83,16 +99,16 @@ const warmLines = (out: string) => out.split('\n').filter(l => l.includes('[warm
 const summaryLine = (out: string) => out.split('\n').find(l => l.includes('[warm] summary:')) || '';
 
 describe('warm-ssr.js as a process, against a reachable origin', () => {
-  it('captures status and exit code per URL, keeps going past failures, exits 0', () => {
+  it('captures status and exit code per URL, keeps going past failures, exits 0', async () => {
     hits = 0;
-    const r = runRunner(30_000);
+    const r = await runRunner(30_000);
     const lines = warmLines(r.stdout);
 
-    // Preflight, so an unreachable loopback fails with a readable cause rather
-    // than as a confusing bucket mismatch. This suite is NOT allowed to pass
-    // vacuously when the origin was never reached.
-    expect(hits, `the runner never reached the local origin (${origin}); ` +
-      'loopback is blocked in this environment, not a product failure').toBeGreaterThan(0);
+    // Preflight, so a stub server that never answered fails with a readable
+    // cause rather than as a confusing bucket mismatch. This suite is NOT
+    // allowed to pass vacuously when the origin was never reached.
+    expect(hits, `the runner never reached the local stub origin (${origin}) - ` +
+      'check that this process is not blocking its own event loop').toBeGreaterThan(0);
 
     // Non-fatal contract, observed at the process level, not by text match.
     expect(r.status).toBe(0);
@@ -125,14 +141,14 @@ describe('warm-ssr.js as a process, against a reachable origin', () => {
 });
 
 describe('warm-ssr.js as a process, against a stalled origin', () => {
-  it('records a timeout and then STOPS STARTING work: the budget bounds execution', () => {
+  it('records a timeout and then STOPS STARTING work: the budget bounds execution', async () => {
     hangAll = true;
     try {
       // 9s budget -> the first URL gets curlCapForRemaining(9000) = 6000ms of
       // curl time; afterwards less than MIN_URL_SLOT_MS remains, so the rest are
-      // skipped rather than started. This is the whole point of the F1 fix, and
-      // it holds even where loopback is blocked, because nothing must connect.
-      const r = runRunner(9_000);
+      // skipped rather than started. This is the whole point of the F1 fix: the
+      // budget constraining EXECUTION, observed on the real entry point.
+      const r = await runRunner(9_000);
       const lines = warmLines(r.stdout);
       expect(r.status).toBe(0);
       expect(r.signal).toBeNull();
