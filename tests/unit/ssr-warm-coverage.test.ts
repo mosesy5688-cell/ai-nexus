@@ -24,6 +24,14 @@ const ORIGINAL_FOUR = [
 ];
 
 describe('item 1 - warm coverage', () => {
+  // KNOWN-FALSE TITLE, deliberately not fixed here. FOLLOW-UP W-P6-1.
+  // "the two pages the health probe treats as critical" is wrong: ALL FOUR
+  // entries in sentinel-prod.js PAGES are `critical: true`. These two are the
+  // HTML page renders; the other two are CDN JSON artifacts. The body of the
+  // test is correct -- only the title overstates. It survives because the round
+  // that found it was comment-only by rule and a test title is a string
+  // literal, i.e. non-comment content. Correct wording: "the two HTML page
+  // checks in the probe's critical set".
   it('warms the two pages the health probe treats as critical', () => {
     // Neither was in the warm list before this change.
     expect(SSR_WARM_PATHS).toContain('/');

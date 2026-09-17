@@ -96,6 +96,13 @@ describe('warm-ssr.js - non-fatal by construction', () => {
     expect(runner).toContain('const capMs = curlCapForRemaining(remainingMs);');
     expect(runner).toContain('timeout: subprocessWaitMs(capMs)');
     expect(runner).not.toContain('(PER_URL_MAX_TIME_S + 10) * 1000');
+    // VACUOUS BY CONSTRUCTION, deliberately not removed here. FOLLOW-UP W-P6-2.
+    // `timeout: capMs + 1000` was never the bound in any commit -- 0 occurrences
+    // in warm-ssr.js at 82ece3305 / 5c342370e / 610ebe407 / 90e1e42bc -- so this
+    // assertion cannot fail and pins nothing. It should be DELETED, not
+    // retargeted; the line above already guards the bound that did ship. It
+    // survives because the round that found it was comment-only by rule and this
+    // is an assertion literal, i.e. non-comment content.
     expect(runner).not.toContain('timeout: capMs + 1000');
   });
 });

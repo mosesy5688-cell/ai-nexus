@@ -3054,12 +3054,19 @@ jobs:
           # isolate opens the handle + seeds the new etag cache before that first
           # Agent. Best-effort latency mitigation only — bounded + non-fatal, it
           # must NEVER block or fail the pipeline (each curl is `|| true`).
-          # The URL set, the per-URL 20s cap, the phase budget and the result
-          # classification now live in scripts/factory/lib/ssr-warm-core.js so they
-          # are unit-testable. Two changes vs the previous inline loop:
-          #   (a) `/` and `/ranking` are warmed as well — they are the two page
-          #       checks scripts/sentinel-prod.js treats as critical and neither
-          #       was in the warm list;
+          # The URL set, the per-URL cap (20s maximum, lower when the phase
+          # budget is nearly spent), the phase budget and the result
+          # classification now live in scripts/factory/lib/ssr-warm-core.js and
+          # ssr-warm-budget.js so they are unit-testable. An earlier revision of
+          # this comment said "Two changes vs the previous inline loop" and listed
+          # two; that count was stale. The list is maintained in the header of
+          # scripts/factory/warm-ssr.js rather than duplicated here, and is
+          # deliberately not counted from this file, which cannot see it. The
+          # two most visible:
+          #   (a) `/` and `/ranking` are warmed as well — the two HTML page checks
+          #       in the probe's critical set (all four PAGES entries in
+          #       sentinel-prod.js are critical; the other two are CDN JSON), and
+          #       neither was in the warm list;
           #   (b) each attempt's HTTP status, duration and curl exit code is
           #       recorded and summarised instead of being thrown away by
           #       `-o /dev/null ... || true`.

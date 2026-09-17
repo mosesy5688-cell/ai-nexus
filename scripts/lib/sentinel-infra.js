@@ -1,10 +1,28 @@
 /**
  * L9 GUARDIAN - TIER 1 infrastructure + V6 stats check.
  *
- * Moved out of scripts/sentinel-prod.js unchanged in logic, to keep that file
- * inside the 250-line Art 5.1 limit. The only behavioural change is the one
- * this work order adds everywhere: the tier now runs under a single shared
- * deadline (TIER1_BUDGET_MS) and records each request plus its own duration.
+ * Moved out of scripts/sentinel-prod.js to keep that file inside the 250-line
+ * Art 5.1 limit. An earlier revision of this header said the move was "unchanged
+ * in logic" and that the shared deadline was "the only behavioural change".
+ * BOTH ARE WITHDRAWN -- E-G1-01 is precisely a logic change that shipped under
+ * those words. What actually differs from the pre-work-order Tier 1:
+ *   1. the tier runs under a single shared deadline (TIER1_BUDGET_MS) and
+ *      records each request plus its own duration;
+ *   2. the stats GET now READS ITS BODY (timedRequest does, for any ok GET),
+ *      which the original never did -- see the note below;
+ *   3. fallback ELIGIBILITY changed (E-G1-01, detailed at the call site);
+ *   4. the p51 decisions are outcome-based rather than status-based;
+ *   5. a non-HTTP stats failure reports its own error text instead of the
+ *      legacy "Stats fetch failed (<status>)" wording.
+ *
+ * Consequence of (2), recorded because it is a real divergence: the body is
+ * never used -- only response headers are -- yet it creates a failure mode the
+ * original could not have, and a slow body can consume the tier budget so the
+ * p51 HEADs never run. That path is FAIL-CLOSED (the tier reports FAIL, so no
+ * false health is asserted) but it loses pagination-cap coverage the original
+ * had. Removing the read is a named follow-up design item, NOT a one-line
+ * change: timedRequest has no readBody parameter today, and adding one needs
+ * response-body release and test adjustments.
  * Its requests (1 GET, a .gz GET only if that one returned a COMPLETE non-ok
  * HTTP response, then 4 HEADs, so five or six) were previously un-timed calls, any of which
  * could hang until the job's timeout-minutes killed it - and the report is only
@@ -12,8 +30,11 @@
  *
  * Preserved exactly: the UNCONDITIONAL REASSIGNMENT of `stats` to the fallback
  * once one is issued (this is NOT the Tier-2 "only if the fallback is ok" rule),
- * the pagination-cap comparison, the 1-hour staleness window, and the early
- * FAIL return.
+ * the 1-hour staleness window, the cap's FAIL message and the early FAIL return.
+ * The pagination-cap COMPARISON was in this list and has been removed from it:
+ * item 4 above changes how the p51 responses are admitted to that comparison,
+ * so "preserved exactly" was self-contradictory across 17 lines. The comparison
+ * itself -- the 1-hour arithmetic and the FRESH/stale verdict -- is untouched.
  *
  * CHANGED (E-G1-01): fallback ELIGIBILITY. It was `!stats.ok`, which fired on a
  * 200 whose body then failed; it is now `isFallbackEligible`, a complete non-ok

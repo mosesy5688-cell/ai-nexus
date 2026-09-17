@@ -6,10 +6,24 @@
  * Global Health Monitor job hit its 10-minute `timeout-minutes`. The script
  * writes health-report.json only AFTER the checks finish (see emitReport), so a
  * run killed mid-check produces no report for the upload step to take. These
- * constants bound the audit's own network wait so the checks always finish.
+ * constants bound the audit's own NETWORK wait so the network checks always
+ * finish. Tier 0 is local filesystem work and is unbudgeted (see
+ * sentinel-prod.js); it is not covered by any constant here.
  *
- * Every number below is PM-set. They are adjustable ONLY with a named, measured
- * argument; the measurement each one rests on is recorded next to it.
+ * PROVENANCE, per constant -- an earlier revision of this line read "Every
+ * number below is PM-set", which contradicted a flag 34 lines further down.
+ * WITHDRAWN, and the replacement is itemised rather than totalled, because an
+ * uncommitted draft of this correction ("MOST are PM-set; TIER1 is not") still
+ * mis-totalled:
+ *   PER_CHECK_BUDGET_MS, TIER2_TOTAL_BUDGET_MS, REPORT_RESERVE_MS - PM-set.
+ *   TIER1_BUDGET_MS      - mine, introduced with a measured argument.
+ *   JOB_TIMEOUT_MS       - neither: it MIRRORS `timeout-minutes: 10` in
+ *                          global-health-monitor.yml and must track it.
+ *   AUDIT_NETWORK_BUDGET_MS - derived, set by nobody.
+ *
+ * The PM-set ones and mine are adjustable ONLY with a named, measured argument;
+ * the measurement each rests on is recorded next to it. JOB_TIMEOUT_MS is not
+ * adjustable on that basis at all - it follows the workflow.
  *
  * SCOPE NOTE (what these bounds do NOT cover): they bound only the time this
  * SCRIPT spends waiting on the network. Checkout, `npm ci`, artifact upload and

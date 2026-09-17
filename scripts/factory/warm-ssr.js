@@ -2,10 +2,35 @@
 /**
  * Live-SSR warm runner for the `Purge & Warm CDN` step of factory-upload.yml.
  *
- * Still curl, still sequential, still one request per URL with a 20s cap - the
- * only behavioural change is that the status code, the duration and curl's exit
- * code are captured and printed instead of being discarded by `-o /dev/null`
- * and `|| true`.
+ * Still curl, still sequential, still one request per URL. The cap is still 20s
+ * whenever at least 23s of the phase budget remains (one worst-case slot);
+ * below that it is smaller, down to a 1s floor. An earlier DRAFT of this line --
+ * never committed; no commit contains it -- said "whenever the phase budget has
+ * a full slot left", which is wrong: a full slot is MIN_URL_SLOT_MS = 4,000ms,
+ * and curlCapForRemaining(5000) is 2,000ms.
+ *
+ * An earlier revision of this header said "the only behavioural change is that
+ * the status code, the duration and curl's exit code are captured". WITHDRAWN:
+ * that was never the only one. The complete list of behavioural changes against
+ * the inline bash loop this replaced:
+ *   1. `/` and `/ranking` are warmed as well (ssr-warm-core.js SSR_WARM_PATHS),
+ *      and the order puts them first;
+ *   2. status code, duration and curl exit code are captured and summarised
+ *      instead of being discarded by `-o /dev/null` and `|| true`;
+ *   3. a URL starts only if a whole MIN_URL_SLOT_MS still fits in the phase
+ *      budget; otherwise it is recorded as `skipped` (ssr-warm-budget.js);
+ *   4. the per-URL cap is sized from what the budget has left, so it can be
+ *      below 20s, and it is passed as exact fractional seconds rather than
+ *      rounded to a whole second;
+ *   5. the subprocess wait is derived from that same cap and uses
+ *      `killSignal: 'SIGKILL'`, because the default SIGTERM bounds nothing;
+ *   6. the output sink is `os.devNull` rather than a literal '/dev/null';
+ *   7. SSR_WARM_BUDGET_MS can override the phase budget (test seam; production
+ *      sets it nowhere);
+ *   8. the origin is env-overridable -- `process.env.SSR_ORIGIN` with a
+ *      trailing-slash strip -- where the bash loop held it in a shell local.
+ *      This is the seam the entry-point test uses to reach 127.0.0.1.
+ * Unchanged: sequential execution, one request per URL, and non-fatality.
  *
  * NON-FATAL: this process always exits 0. It does not gate publication, and it
  * must never be able to. The workflow keeps its `|| true` as a second guard.

@@ -10,8 +10,12 @@
 // Last-Modified then became the freshness BASIS for the pagination-cap check,
 // so a real Art 2.4 violation was reported as PASS.
 //
-// The pagination cap and the one-hour staleness window are NOT the defect and
-// are deliberately unchanged; the guards below pin both.
+// The one-hour staleness window and the cap's FRESH/stale arithmetic are NOT
+// the defect and are deliberately unchanged; the guards below pin both. What did
+// change is how p51 responses are ADMITTED to that comparison (outcome-based
+// rather than status-based). The earlier wording here -- "The pagination cap and
+// the one-hour staleness window are NOT the defect and are deliberately
+// unchanged" -- was therefore too broad.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 // @ts-ignore - JS ESM module under test (no .d.ts).
 import { checkInfrastructure } from '../../scripts/lib/sentinel-infra.js';

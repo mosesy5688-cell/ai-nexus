@@ -8,11 +8,20 @@
  * code (|| true). A URL that returned instantly therefore left a log line
  * indistinguishable from one that had been warmed.
  *
- * Two changes here:
- *  - `/` and `/ranking` are added. They are the two page checks the health
- *    probe (scripts/sentinel-prod.js) treats as critical, and neither was in
- *    the warm list.
+ * An earlier revision of this header said "Two changes here" and listed two.
+ * WITHDRAWN -- the count went stale as the module grew. The full list:
+ *  - `/` and `/ranking` are added, ordered first. They are the two HTML PAGE
+ *    checks in the health probe's critical set; ALL FOUR entries in
+ *    sentinel-prod.js PAGES are `critical: true`, and the other two are CDN
+ *    JSON artifacts rather than SSR page renders. Neither was in the warm list.
  *  - Every attempt is recorded and classified, and the phase prints a summary.
+ *  - The phase budget is a COMPLETION deadline, not a start gate: a URL starts
+ *    only if a whole slot fits, and the per-URL cap is sized from what remains
+ *    (slot accounting lives in ssr-warm-budget.js).
+ *  - `--max-time` is emitted as fractional seconds to millisecond precision
+ *    (maxTimeArg), never rounded up past the cap it was given -- for any cap of
+ *    at least 1ms. Below that maxTimeArg clamps UP to its 1ms floor, because
+ *    `--max-time 0` means no timeout at all in libcurl.
  *
  * WHAT A WARM RESULT DOES AND DOES NOT MEAN: a 2xx here proves that THAT ONE
  * request succeeded. It says nothing about other isolates, other regions, other
@@ -26,14 +35,16 @@
 export const SSR_ORIGIN_DEFAULT = 'https://free2aitools.com';
 
 /**
- * Warm order is deliberate. The two health-probe critical pages go first so
- * that, if the phase budget bites, what gets dropped is the least critical
- * target rather than the pages the probe will check.
+ * Warm order is deliberate: the two health-probe HTML page checks go first so
+ * that budget pressure drops the least critical target. That pressure is real,
+ * not theoretical -- under worst-case slots URL 6 (`/models`) is skipped, and
+ * the pre-work-order loop always attempted all four pre-existing URLs.
  */
 export const SSR_WARM_PATHS = [
-    // Health-probe critical page: Home. ADDED by this work order.
+    // Health-probe critical HTML page: Home. ADDED by this work order.
+    // (All four PAGES entries are critical; these two are the page renders.)
     '/',
-    // Health-probe critical page: Rankings. ADDED by this work order.
+    // Health-probe critical HTML page: Rankings. ADDED by this work order.
     '/ranking',
     // Entity API - forces per-shard getCachedDbConnection + executeSql.
     '/api/v1/entity/meta-llama/Llama-3.1-8B-Instruct',
@@ -82,7 +93,9 @@ export const WARM_USER_AGENT = 'User-Agent: Nexus-Warmer/1.0';
  */
 /**
  * curl --max-time for a cap in milliseconds. curl accepts fractional seconds, so
- * the cap is expressed exactly rather than rounded to a whole second.
+ * the cap is expressed to millisecond precision rather than rounded to a whole
+ * second -- exactly, for any cap of at least 1ms; below that it clamps UP to the
+ * 1ms floor (see the guard note below).
  *
  * `Math.round(capMs / 1000)` rounded UP past the cap it was handed: a 16,600ms
  * cap became `--max-time 17`, i.e. 400ms MORE than that URL's slot allowed.
@@ -148,7 +161,12 @@ export function parseWriteOut(raw) {
     };
 }
 
-/** Counts per outcome. `total` always equals the sum of the five buckets. */
+/**
+ * Counts per outcome. `total` is records.length; the buckets sum to it only when
+ * every record carries one of the five known outcomes (an unknown one lands in
+ * `total` and no bucket -- the `if (key)` guard). "always equals", an earlier
+ * wording, was false. Producers here only ever emit the five.
+ */
 export function summarise(records) {
     const summary = { total: records.length, succeeded: 0, httpFailure: 0, transferFailure: 0, timeout: 0, skipped: 0 };
     const bucket = {

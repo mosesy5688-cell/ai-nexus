@@ -2,8 +2,13 @@
  * ------------------------------------------------------------------
  * L9 GUARDIAN - GLOBAL HEALTH SENTINEL (V16.8 Consolidated)
  * ------------------------------------------------------------------
- * Instrumentation note: every logical check now records its own duration and
- * runs under an explicit, enforced budget (scripts/lib/sentinel-budgets.js).
+ * Instrumentation note: every logical CHECK records its own duration (the
+ * `Audit Execution` entry pushed by the catch below is an error record, not a
+ * check, and carries none). The two NETWORK tiers additionally run under
+ * explicit, enforced budgets (scripts/lib/sentinel-budgets.js). Tier 0 does
+ * not: it is local filesystem work with no request to bound, so it is timed but
+ * not budgeted -- an earlier revision of this line claimed a budget for "every
+ * logical check", which was an overclaim and is withdrawn.
  * Tier-2 page checks additionally record the primary request and the `.gz`
  * fallback separately (scripts/lib/sentinel-probe.js).
  */

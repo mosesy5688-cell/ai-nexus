@@ -5,8 +5,13 @@
 // Before the slot model, runWarmPlan checked the budget before each URL but
 // never sized the per-URL cap from what remained, so five URLs could finish at
 // 99,995ms of a 100,000ms budget and the sixth still started with a full 20s
-// cap. And the subprocess wait was `capMs + 1000` on the DEFAULT SIGTERM, which
-// Node documents as not bounding the wait at all (see ssr-warm-budget.js).
+// cap. And the subprocess wait was a fixed `(PER_URL_MAX_TIME_S + 10) * 1000`
+// -- 30s, independent of the cap -- on the DEFAULT SIGTERM, which Node documents
+// as not bounding the wait at all (see ssr-warm-budget.js). NOTE: `capMs + 1000`
+// appeared in an earlier COMMITTED revision of this header (5c342370e,
+// 90e1e42bc) as the old bound. No commit ever used it AS the bound -- that part
+// of the attribution is withdrawn -- but the sentence itself shipped, so calling
+// it a draft would be the mirror of the same error.
 //
 // Numbers asserted here are RESULTS FOR THESE FIXTURES, not wall-clock upper
 // bounds over all execution paths: they hold while the two named assumptions in

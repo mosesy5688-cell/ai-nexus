@@ -2,7 +2,10 @@
  * L9 GUARDIAN - budgeted Tier-2 page probe with per-request evidence.
  *
  * Replaces the un-timed `await fetch(url)` + `.gz` retry that sentinel-prod.js
- * used to inline. Three properties this module adds:
+ * used to inline. Properties this module adds -- DELIBERATELY NOT COUNTED. A
+ * committed revision carried the total "three" and an uncommitted draft carried
+ * "four"; both were stale. Response-identity capture and notRunCheck are further
+ * additions; the list below is the load-bearing subset, not a total:
  *
  *  1. ONE deadline per logical check covers the main request, the `.gz`
  *     fallback and the body read TOGETHER. The fallback never gets a fresh
@@ -12,6 +15,10 @@
  *     a body that stalls after a 200 is aborted and fails honestly.
  *  3. The primary and the fallback are recorded SEPARATELY (status, duration,
  *     error) and the check records which response was finally used.
+ *  4. Fallback eligibility is ONE exported predicate, isFallbackEligible,
+ *     called by Tier 1 (sentinel-infra.js) too -- separate copies are what
+ *     produced E-G1-01. It REDUCES drift, it does not prevent it: nothing pins
+ *     that both tiers keep calling it (an inlined copy would pass the tests).
  *
  * A local deadline is reported as outcome 'probe-timeout'. It is NEVER reported
  * as an HTTP status - in particular never as 524, which is a CDN-origin verdict
