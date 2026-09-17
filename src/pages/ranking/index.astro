@@ -1,9 +1,6 @@
 ---
 // SSR Mode - Server-side rendering for stability
 import Layout from '../../layouts/Layout.astro';
-import { getCachedDbConnection, loadManifest, executeSql } from '../../lib/sqlite-engine';
-// V26.0: Astro 6 migration — use cloudflare:workers instead of locals.runtime.env
-import { env } from 'cloudflare:workers';
 
 const title = "AI Model & Tool Rankings";
 const description = "Explore top-rated AI models, agents, datasets, and tools ranked by the Free2AITools Nexus Index (FNI).";
@@ -41,24 +38,14 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
   }
 };
 
-// V23.6: VFS-Only Category Counts (replaces CDN category_stats.json)
-// V26.0: env imported from cloudflare:workers at module level
-const r2Bucket = env?.R2_ASSETS;
-const isDev = !!import.meta.env?.DEV;
-const shouldSimulate = isDev;
-
-let categoryCounts: Record<string, number> = {};
-try {
-    await loadManifest(r2Bucket, shouldSimulate);
-    const engine = await getCachedDbConnection(r2Bucket, shouldSimulate, 'meta-00.db'); // V5.8: hash sharding
-    const rows = await executeSql(engine.sqlite3, engine.db,
-        `SELECT category, COUNT(*) as count FROM entities WHERE category != '' GROUP BY category`, []);
-    for (const r of rows) {
-        if (r.category) categoryCounts[r.category] = r.count;
-    }
-} catch (e: any) {
-    console.warn('[Ranking] VFS category count query failed:', e.message);
-}
+// Work order G (2026-09-18): the per-category entity counts that used to render
+// on these badges were read from ONE shard (slot 00) of the 96 hash-distributed
+// meta shards, so a 1/96 sample was published as the category total with no
+// disclosure. That count and its dedicated VFS query are removed; the badge
+// carries the pre-existing `Explore` affordance instead. Do NOT re-add a count
+// here: a single-shard read is not a global total, and extrapolation (sample x
+// shard count) is forbidden -- hash distribution is not guaranteed uniform and
+// such an estimate carries no error bound.
 
 // V18.10.2: Explicit Edge Caching with Revalidation Guard
 Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=3600, stale-while-revalidate=604800');
@@ -77,7 +64,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
 
         <!-- Main Categories -->
         <div id="ranking-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            {Object.entries(CATEGORY_META).map(([key, meta]) => (
+            {Object.values(CATEGORY_META).map((meta) => (
                 <a href={meta.href} class="group relative p-8 rounded-[2rem] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col glass-effect">
                     <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
                          <span class="text-8xl">{meta.icon}</span>
@@ -92,7 +79,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate,
                                 View Technical Index <span class="ml-1">&rarr;</span>
                             </span>
                             <span class="text-xs font-bold px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-100/50 dark:border-blue-500/20">
-                                {categoryCounts[key] ? `${categoryCounts[key].toLocaleString()} Models` : 'Explore'}
+                                Explore
                             </span>
                         </div>
                     </div>
