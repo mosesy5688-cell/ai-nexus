@@ -46,9 +46,10 @@ jobs:
         id: get-ids
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_PROCESS_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
         run: |
           # 1. Start with the Process Run ID (Triggering event or manual input)
-          PROCESS_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
+          PROCESS_RUN_ID="$INPUT_PROCESS_RUN_ID"
           
           # 2. If PROCESS_RUN_ID is missing, find the latest successful Process run on MAIN
           if [ -z "$PROCESS_RUN_ID" ] || [ "$PROCESS_RUN_ID" == "null" ]; then

@@ -51,9 +51,10 @@ jobs:
         id: get-id
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_AGGREGATE_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
         run: |
           # 1. Start with the Aggregate Run ID (Triggering event or manual input)
-          AGGREGATE_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
+          AGGREGATE_RUN_ID="$INPUT_AGGREGATE_RUN_ID"
           
           # 2. If missing, find the latest successful Aggregate run on MAIN
           if [ -z "$AGGREGATE_RUN_ID" ] || [ "$AGGREGATE_RUN_ID" == "null" ]; then
@@ -116,6 +117,8 @@ jobs:
 
       # V4.1: Fetch Global Entity Registry (Cache Priority)
       - name: Fetch Global Entity Registry
+        env:
+          INPUT_BATCH_SIZE: ${{ inputs.batch_size || 2000 }}
         run: |
           mkdir -p data/images data/registry
           
@@ -138,7 +141,7 @@ jobs:
 
           # V16.8.17: Ensure the queue is prepared regardless of which source was used
           if [ -f "data/registry.json" ]; then
-            node scripts/factory/prepare-image-queue.js data ${{ inputs.batch_size || 2000 }}
+            node scripts/factory/prepare-image-queue.js data "$INPUT_BATCH_SIZE"
           else
              echo "❌ CRITICAL ERROR: registry.json not found in any source!"
              exit 1

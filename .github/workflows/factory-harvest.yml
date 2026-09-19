@@ -514,13 +514,16 @@ jobs:
       # hard-stops here BEFORE any restore/merge.
       - name: Source Attempt Provenance Pre-Check (skip_harvest)
         if: github.event.inputs.skip_harvest == 'true'
+        env:
+          INPUT_SOURCE_RUN_ID: ${{ github.event.inputs.source_run_id }}
+          INPUT_SOURCE_RUN_ATTEMPT: ${{ github.event.inputs.source_run_attempt }}
         run: |
-          if [ -z "${{ github.event.inputs.source_run_id }}" ] || [ -z "${{ github.event.inputs.source_run_attempt }}" ]; then
+          if [ -z "$INPUT_SOURCE_RUN_ID" ] || [ -z "$INPUT_SOURCE_RUN_ATTEMPT" ]; then
             echo "::error::SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE — skip_harvest=true requires BOTH source_run_id AND source_run_attempt (caches are attempt-scoped; no prefix/latest-match guess)."
-            echo "SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE: source_run_id='${{ github.event.inputs.source_run_id }}' source_run_attempt='${{ github.event.inputs.source_run_attempt }}'"
+            echo "SOURCE_ATTEMPT_PROVENANCE_INCOMPLETE: source_run_id='$INPUT_SOURCE_RUN_ID' source_run_attempt='$INPUT_SOURCE_RUN_ATTEMPT'"
             exit 1
           fi
-          echo "✅ source provenance inputs present: run_id=${{ github.event.inputs.source_run_id }} attempt=${{ github.event.inputs.source_run_attempt }}"
+          echo "✅ source provenance inputs present: run_id=$INPUT_SOURCE_RUN_ID attempt=$INPUT_SOURCE_RUN_ATTEMPT"
 
       - name: Recover Solidified Batches (Cache Fallback)
         id: recover_hf

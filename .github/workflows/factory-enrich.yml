@@ -154,6 +154,7 @@ jobs:
       - name: Aggregate and Decide
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_CONTINUATION_ROUND: ${{ inputs.continuation_round || 0 }}
         run: |
           TOTAL_SUCCESS=0
           TOTAL_REMAINING=0
@@ -164,7 +165,7 @@ jobs:
             TOTAL_SUCCESS=$((TOTAL_SUCCESS + S))
             TOTAL_REMAINING=$((TOTAL_REMAINING + R))
           done
-          ROUND=${{ inputs.continuation_round || 0 }}
+          ROUND="$INPUT_CONTINUATION_ROUND"
           echo "## Factory 1.5 - Density Booster Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Total SUCCESS: $TOTAL_SUCCESS" >> $GITHUB_STEP_SUMMARY
           echo "- Total Remaining: $TOTAL_REMAINING" >> $GITHUB_STEP_SUMMARY

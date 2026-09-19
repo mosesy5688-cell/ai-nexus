@@ -87,8 +87,10 @@ jobs:
           exit 1
       - name: Get ID
         id: get-id
+        env:
+          INPUT_AGGREGATE_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
         run: |
-          AGGREGATE_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
+          AGGREGATE_RUN_ID="$INPUT_AGGREGATE_RUN_ID"
           if [ -z "$AGGREGATE_RUN_ID" ] || [ "$AGGREGATE_RUN_ID" == "null" ]; then
             echo "Finding latest successful Aggregate run on main..."
             AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
