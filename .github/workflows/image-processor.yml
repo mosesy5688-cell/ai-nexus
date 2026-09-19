@@ -62,7 +62,19 @@ jobs:
             AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
           
-          echo "id=$AGGREGATE_RUN_ID" >> $GITHUB_OUTPUT
+          # RECORD-INTEGRITY GATE (work order L / A-2). A run id is a SINGLE-LINE
+          # identifier and GITHUB_OUTPUT is a LINE protocol, so a CR or LF inside the
+          # value turns one intended record into two. Reject it BEFORE the write.
+          # This is NOT a sanitizer: nothing is stripped, trimmed or concatenated, no
+          # substitute identity is invented, and the empty/null fallback above is
+          # unchanged and still runs first (a rejection never degrades to "latest").
+          case "$AGGREGATE_RUN_ID" in
+            *$'\n'*|*$'\r'*)
+              echo "::error::Get ID: resolved Aggregate run id contains CR/LF - refusing to write a multi-record GITHUB_OUTPUT. Fail-closed."
+              exit 1
+              ;;
+          esac
+          echo "id=$AGGREGATE_RUN_ID" >> "$GITHUB_OUTPUT"
           echo "✅ Resolved Aggregate ID (Main): $AGGREGATE_RUN_ID"
 
   process-images:
