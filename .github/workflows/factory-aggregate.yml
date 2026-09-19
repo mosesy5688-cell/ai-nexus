@@ -60,8 +60,23 @@ jobs:
           # 3. Find the latest successful Harvest run on MAIN (The Production Source of Truth)
           HARVEST_RUN_ID=$(gh run list --workflow factory-harvest.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           
-          echo "harvest-id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
-          echo "process-id=$PROCESS_RUN_ID" >> $GITHUB_OUTPUT
+          # RECORD-INTEGRITY GATE (work order L / A-2). Both ids are SINGLE-LINE
+          # identifiers and GITHUB_OUTPUT is a LINE protocol, so a CR or LF inside a
+          # value turns one intended record into two. BOTH are validated BEFORE EITHER
+          # write, so a rejection can never leave one usable record behind.
+          # This is NOT a sanitizer: nothing is stripped, trimmed or concatenated, no
+          # substitute identity is invented, and the empty/null fallback above is
+          # unchanged and still runs first (a rejection never degrades to "latest").
+          for RID in "$HARVEST_RUN_ID" "$PROCESS_RUN_ID"; do
+            case "$RID" in
+              *$'\n'*|*$'\r'*)
+                echo "::error::Get Run IDs: a resolved run id contains CR/LF - refusing to write a multi-record GITHUB_OUTPUT. Fail-closed."
+                exit 1
+                ;;
+            esac
+          done
+          echo "harvest-id=$HARVEST_RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "process-id=$PROCESS_RUN_ID" >> "$GITHUB_OUTPUT"
           echo "✅ Resolved Harvest ID (Main): $HARVEST_RUN_ID"
           echo "✅ Resolved Process ID (Main): $PROCESS_RUN_ID"
 
