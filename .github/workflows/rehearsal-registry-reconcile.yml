@@ -128,11 +128,13 @@ jobs:
 
       - name: Summary (scope disclaimer is mandatory)
         if: always()
+        env:
+          INPUT_REASON: ${{ inputs.reason }}
         run: |
           {
             echo "## [REHEARSAL] Registry reconcile-only"
             echo ""
-            echo "Reason: ${{ inputs.reason }}"
+            printf '%s\n' "Reason: $INPUT_REASON"
             echo ""
             echo "### What this run answers"
             echo "Only: **is the repair logic correct against the loaded registry?**"

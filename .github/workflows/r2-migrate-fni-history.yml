@@ -28,9 +28,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Guard — refuse contradictory inputs
+        env:
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_COMMIT_MIGRATION: ${{ github.event.inputs.commit_migration }}
         run: |
-          DRY="${{ github.event.inputs.dry_run }}"
-          CMT="${{ github.event.inputs.commit_migration }}"
+          DRY="$INPUT_DRY_RUN"
+          CMT="$INPUT_COMMIT_MIGRATION"
           if [ "$DRY" = "true" ] && [ "$CMT" = "true" ]; then
             echo "::error::Cannot set both dry_run=true and commit_migration=true. Pick one."
             exit 1
@@ -52,8 +55,9 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
+          INPUT_COMMIT_MIGRATION: ${{ github.event.inputs.commit_migration }}
         run: |
-          if [ "${{ github.event.inputs.commit_migration }}" = "true" ]; then
+          if [ "$INPUT_COMMIT_MIGRATION" = "true" ]; then
             node scripts/factory/migrate-fni-history-vault.js --commit
           else
             node scripts/factory/migrate-fni-history-vault.js --dry-run
