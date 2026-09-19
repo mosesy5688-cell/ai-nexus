@@ -183,3 +183,51 @@ describe('G-6/G-7 -- untouched invariants', () => {
         expect(SRC).not.toContain('prerender');
     });
 });
+
+/**
+ * G-1, whole-card guard. The `Explore` assertions above address the ONE badge
+ * span via its class anchor. A count re-introduced as a SIBLING element beside
+ * that badge slips past them: the mutant that appends `<span>4,412</span>` next
+ * to the badge was measured GREEN against the anchored assertions alone. This
+ * block therefore guards the WHOLE repeated category card -- every text node it
+ * renders must come from `meta`, so neither a literal number nor an
+ * un-allowlisted expression can reach the page anywhere inside the card.
+ */
+const ALLOWED_CARD_EXPRESSIONS = ['{meta.icon}', '{meta.label}', '{meta.description}'];
+
+/** Inner source of the #ranking-grid container = the repeated category card. */
+function cardRegion(tpl: string): string {
+    const grid = tpl.indexOf('id="ranking-grid"');
+    if (grid < 0) throw new Error('#ranking-grid container not found');
+    const inner = tpl.indexOf('>', grid);
+    const end = tpl.indexOf('))}', inner);
+    if (inner < 0 || end < 0) throw new Error('category card region is not delimited');
+    return tpl.slice(inner + 1, end);
+}
+
+/** Card text nodes only: drop tags, the map header, and the allowed `meta` reads. */
+function cardResidue(tpl: string): string {
+    let residue = cardRegion(tpl).replace(/<[^>]*>/g, ' ');
+    residue = residue.replace(/\{Object\.(?:values|entries)\(CATEGORY_META\)[^\n]*/, ' ');
+    for (const expr of ALLOWED_CARD_EXPRESSIONS) residue = residue.split(expr).join(' ');
+    return residue;
+}
+
+describe('G-1 (whole card) -- no count reaches the card, even beside the badge', () => {
+    it('the card region and its text residue resolve (anti-vacuity)', () => {
+        expect(cardRegion(TPL).length).toBeGreaterThan(0);
+        expect(cardResidue(TPL)).toContain('Explore');
+    });
+
+    it('no literal number is rendered anywhere in the category card', () => {
+        expect(/[0-9]/.test(cardResidue(TPL))).toBe(false);
+    });
+
+    it('the card renders no expression other than the allowlisted `meta` reads', () => {
+        expect(cardResidue(TPL)).not.toContain('{');
+    });
+
+    it('the card injects no raw HTML that could smuggle a count past this guard', () => {
+        expect(cardRegion(TPL)).not.toContain('set:html');
+    });
+});

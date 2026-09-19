@@ -38,7 +38,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
   }
 };
 
-// Work order G (2026-09-18): the per-category entity counts that used to render
+// Work order G (2026-09-17): the per-category entity counts that used to render
 // on these badges were read from ONE shard (slot 00) of the 96 hash-distributed
 // meta shards, so a 1/96 sample was published as the category total with no
 // disclosure. That count and its dedicated VFS query are removed; the badge
