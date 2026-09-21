@@ -13,6 +13,9 @@
 *.css text
 *.html text
 *.svg text
+# Work order N: the isolation launcher is executed by a Linux runner. A CRLF
+# shebang line would make every one of these scripts unrunnable there.
+*.sh text eol=lf
 
 # Ignore generated data files
 /src/data/models.json

@@ -110,3 +110,8 @@ scripts/factory/lib/.tmp-mutant-*.js
 
 # OP-GR-B one-time re-normalisation artifacts (pre-image + manifests, CI-only)
 /op-gr-b/
+
+# Work order N: isolation launcher evidence (namespace identity, FD inventories,
+# refusal-control reports). Written by every launcher run and kept on failure so
+# a red run can be read afterwards; never committed.
+.isolation-evidence/
