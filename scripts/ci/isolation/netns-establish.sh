@@ -87,14 +87,30 @@ CTRL_TTL=$(( PHASE_D_DEADLINE + 300 ))
 unshare --net -- setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --clear-groups \
   -- sleep "$CTRL_TTL" &
 CTRL_PID=$!
-CTRL_NS=""
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-  CTRL_NS="$(readlink "/proc/$CTRL_PID/ns/net" 2>/dev/null || true)"
-  [ -n "$CTRL_NS" ] && break
+# WO-N: the readiness predicate is DIVERGENCE, not readability. Between the fork
+# and the child's own unshare(2), /proc/$CTRL_PID/ns/net is ALREADY readable and
+# still holds the PARENT (subtree) id, so "readable" measures the wrong thing.
+# For this pid the id changes exactly once -- when its unshare(2) succeeds --
+# so a reading that DIFFERS from the subtree id cannot be the pre-exec value,
+# and the anti-vacuity join below re-dereferences that same path anyway.
+# Bounded wait: 15 x 0.2s = 3.0s.
+CTRL_NS=""; CTRL_SEEN=0; CTRL_PROBE=""
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  CTRL_PROBE="$(readlink "/proc/$CTRL_PID/ns/net" 2>/dev/null || true)"
+  if [ -n "$CTRL_PROBE" ]; then
+    CTRL_SEEN=1; CTRL_NS="$CTRL_PROBE"
+    if [ "$CTRL_NS" != "$SUB_NETNS" ]; then break; fi
+  fi
   sleep 0.2
 done
-[ -n "$CTRL_NS" ] || fail "controlled test namespace did not come up" "$F2AI_ISO_RC_ESTABLISH"
-[ "$CTRL_NS" != "$SUB_NETNS" ] || fail "controlled ns equals subtree ns" "$F2AI_ISO_RC_ESTABLISH"
+rec "control-ns readiness seen=$CTRL_SEEN ns=${CTRL_NS:-NONE} sub=$SUB_NETNS"
+# Two timeouts that mean DIFFERENT things and stay distinguishable: never
+# readable at all (no live child was ever observed) versus readable the whole
+# time but never diverging (the child's unshare(2) did not take).
+[ "$CTRL_SEEN" -eq 1 ] || \
+  fail "controlled test namespace did not come up" "$F2AI_ISO_RC_ESTABLISH"
+[ "$CTRL_NS" != "$SUB_NETNS" ] || \
+  fail "controlled ns never diverged from subtree" "$F2AI_ISO_RC_ESTABLISH"
 # Anti-vacuity: WHILE STILL PRIVILEGED, joining it must SUCCEED. Without this,
 # a post-drop failure could just mean a broken handle rather than a refusal.
 CTRL_PRE_RC=0
