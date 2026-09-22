@@ -90,12 +90,12 @@ HOST_USERNS="$(readlink /proc/self/ns/user 2>/dev/null || echo UNREADABLE)"
 # ------------------------------------------------- N5-3 actual-version probing
 for t in unshare setpriv nsenter ip timeout node; do
   p="$(command -v "$t" 2>/dev/null || true)"
-  printf '%s\t%s\n' "$t" "${p:-MISSING}" >>"$EVID/tool-resolution.txt"
+  printf '%s\t%s\n' "$t" "${p:-MISSING}" | tee -a "$EVID/tool-resolution.txt"
   [ -n "$p" ] || fail "required tool missing: $t" "$F2AI_ISO_RC_PRECHECK"
 done
-unshare --version >"$EVID/unshare-version.txt" 2>&1 || true
-setpriv --version >"$EVID/setpriv-version.txt" 2>&1 || true
-unshare --help    >"$EVID/unshare-help.txt"    2>&1 || true
+unshare --version 2>&1 | tee "$EVID/unshare-version.txt" || true
+setpriv --version 2>&1 | tee "$EVID/setpriv-version.txt" || true
+unshare --help    2>&1 | tee "$EVID/unshare-help.txt"    || true
 setpriv --help    >"$EVID/setpriv-help.txt"    2>&1 || true
 
 have_opt() { grep -F -q -- "$2" "$1"; }

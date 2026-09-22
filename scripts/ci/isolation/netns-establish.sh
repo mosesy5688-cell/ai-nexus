@@ -36,8 +36,21 @@ done <"$PARAMS"
 
 SHELL_PID=$$
 LOG="$EVID/establish.log"
-rec() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$LOG"; }
-fail() { rec "FAIL($2) $1"; printf 'netns-establish: %s\n' "$1" >&2; exit "$2"; }
+# WO-N diagnostic: the record is ALSO teed to stdout, so it reaches the job log
+# and does not depend on the evidence tree surviving as an artifact.
+rec() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$LOG"; }
+# WO-N diagnostic: exit 71 covers four different conditions, so STAGE names the
+# establishment stage in progress and fail() prints ONE named line on the way
+# out. Record only: no gate, no condition and no exit code changes.
+STAGE=unshare
+fail() {
+  rec "FAIL($2) $1"
+  if [ "$2" = "$F2AI_ISO_RC_ESTABLISH" ]; then
+    printf 'ISOLATION_ESTABLISH_STAGE_FAILED=%s detail=%s\n' "$STAGE" "$1"
+  fi
+  printf 'netns-establish: %s\n' "$1" >&2
+  exit "$2"
+}
 rec "BEGIN pid=$SHELL_PID mode=$MODE euid=$(id -u)"
 
 # ------------------------------------------------ N2-3 namespace identity
@@ -57,6 +70,7 @@ SUB_PIDNS="$(readlink /proc/self/ns/pid  2>/dev/null || echo UNREADABLE)"
 
 # lo is brought up deliberately (limitation L2): the boundary proves "cannot
 # reach outside", never "no network API activity". Test runners need loopback.
+STAGE=lo
 LO_RC=0; ip link set lo up >>"$LOG" 2>&1 || LO_RC=$?
 rec "ip link set lo up rc=$LO_RC"
 [ "$LO_RC" -eq 0 ] || fail "could not bring lo up inside the namespace" "$F2AI_ISO_RC_ESTABLISH"
@@ -68,6 +82,7 @@ ip -6 route show  >"$EVID/inside-route6.txt" 2>&1 || true
 # escape check. It is NOT the host namespace and nothing is ever transmitted
 # into it: the check is "can this final identity join a namespace it should not
 # be able to join", answered with `true` as the payload.
+STAGE=controlled-ns
 CTRL_TTL=$(( PHASE_D_DEADLINE + 300 ))
 unshare --net -- setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --clear-groups \
   -- sleep "$CTRL_TTL" &
@@ -104,6 +119,7 @@ rec "control-ns pre-drop join rc=$CTRL_PRE_RC ns=$CTRL_NS pid=$CTRL_PID"
 # exfiltration, and these channels are removed rather than excused.
 # The channel list is read from classified-channels.tsv; no path or pattern is
 # hardcoded in this file.
+STAGE=classified-masking
 MASK_RC=0
 f2ai_mask_classified "$HERE/classified-channels.tsv" "$EVID" "$FAULT" "$FAULT_ACK" || MASK_RC=$?
 rec "classified channel masking failures=$MASK_RC"

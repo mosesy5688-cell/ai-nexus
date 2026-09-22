@@ -53,6 +53,25 @@ jobs:
       - name: Install Dependencies (Root)
         run: npm ci
 
+      # Work order N (diagnostic only): READ-ONLY runner capability probe. The
+      # first real Linux run failed every case with exit 71
+      # (F2AI_ISO_RC_ESTABLISH), which covers lo, the controlled namespace,
+      # classified masking and unshare itself at once -- so ruling B1 ("does
+      # this runner permit `unshare --net`") stayed unanswered. This step
+      # answers it by MEASURING, independently of the launcher. It is a PROBE,
+      # NOT A GATE: every command ends in `|| true`, so it can never turn the
+      # run red whatever it finds, and it changes no trigger, no gate condition
+      # and nothing under test. No continue-on-error is used or needed.
+      - name: Runner isolation capability probe (read-only, non-gating)
+        run: |
+          id -u || true
+          uname -r || true
+          RC=0; sudo -n true || RC=$?; echo "probe: sudo -n true rc=$RC" || true
+          RC=0; unshare --net true || RC=$?; echo "probe: unshare --net true rc=$RC" || true
+          RC=0; sudo -n unshare --net true || RC=$?; echo "probe: sudo -n unshare --net true rc=$RC" || true
+          cat /proc/sys/user/max_net_namespaces || true
+          capsh --print | head || true
+
       # Work order N -- isolation launcher. P-3 puts the FAILURE CONTROLS FIRST:
       # prove the gate refuses before anything relies on it. This step runs the
       # REAL launcher (scripts/ci/isolation/netns-launch.sh) for counterexamples
@@ -140,3 +159,21 @@ jobs:
           npm run build --workspace @free2aitools/sdk
           npm run typecheck --workspace @free2aitools/sdk
           npm test --workspace @free2aitools/sdk
+
+      # Work order N (diagnostic only): .isolation-evidence is the ONLY place
+      # attribution.txt, ipc-mitigation.txt, the establish record and the
+      # unshare-*.txt probes are written, and nothing ever uploaded it -- the
+      # instrument was absent at exactly the moment it was needed. The WHOLE
+      # tree is uploaded (every case sub-directory under it), with
+      # `if: always()` because the run worth reading is the failing one.
+      # include-hidden-files is REQUIRED: .isolation-evidence is a dot-path and
+      # upload-artifact excludes hidden paths by default, which would upload
+      # nothing. Upload only -- it gates nothing and cannot change a result.
+      - name: Upload isolation evidence (diagnostic, always)
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: isolation-evidence
+          path: .isolation-evidence
+          include-hidden-files: true
+          if-no-files-found: ignore
