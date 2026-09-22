@@ -21,6 +21,8 @@ LAUNCH="$HERE/netns-launch.sh"
 POS="$HERE/pos-marker.mjs"
 # shellcheck source=scripts/ci/isolation/exit-codes.sh
 . "$HERE/exit-codes.sh"
+# shellcheck source=scripts/ci/isolation/case-helpers.sh
+. "$HERE/case-helpers.sh"
 
 if [ "$(uname -s)" != Linux ]; then
   printf 'counterexamples: this requires a Linux runner (uname=%s); NOT RUN\n' "$(uname -s)" >&2
@@ -30,21 +32,6 @@ fi
 WORK="${PWD}/.isolation-evidence/counterexamples-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$WORK"
 FAILED=0
-
-note() { printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
-bad()  { FAILED=$((FAILED + 1)); printf 'EXPECTATION FAILED: %s\n' "$*" >&2; }
-
-expect_rc() { if [ "$1" -ne "$2" ]; then bad "$3: expected rc $2, observed $1"; fi; }
-expect_absent()  { if [ -e "$1" ]; then bad "$2: $1 exists but must not"; fi; }
-expect_present() { if [ ! -e "$1" ]; then bad "$2: $1 is missing"; fi; }
-expect_grep() {
-  if [ ! -f "$2" ]; then bad "$3: $2 missing"; return; fi
-  if ! grep -F -q -- "$1" "$2"; then bad "$3: '$1' not found in $2"; fi
-}
-expect_no_grep() {
-  if [ -f "$2" ] && grep -F -q -- "$1" "$2"; then bad "$3: '$1' unexpectedly present in $2"; fi
-}
-new_case() { CASE_EVID="$WORK/$1"; mkdir -p "$CASE_EVID"; CASE_NONCE="n-$1-$RANDOM$RANDOM"; }
 
 # ---------------------------------------------------------------- POSITIVE
 note 'POS: the real launcher runs the designated program inside the boundary'
@@ -60,6 +47,12 @@ expect_grep '"capEff": "0000000000000000"' "$CASE_EVID/phaseD.marker" 'POS caps 
 expect_grep '"noNewPrivs": "1"' "$CASE_EVID/phaseD.marker" 'POS no_new_privs'
 expect_present "$CASE_EVID/selftest-report.json" 'POS self-test report'
 expect_grep 'BOUNDARY_PROVEN_AT_FINAL_IDENTITY' "$CASE_EVID/selftest.stdout.txt" 'POS verdict'
+expect_present "$CASE_EVID/attribution.txt" 'POS attribution artifact'
+expect_present "$CASE_EVID/launch.nonce" 'POS d4 unforgeable marker'
+expect_attr verdict PASS 'POS'
+expect_attr verdict_class PASS 'POS'
+expect_attr timeout_source none 'POS'
+expect_attr exit_code_is_criterion no 'POS'
 # The marker is written by the program itself, so this compares the namespace
 # the PROGRAM observed against the namespace the launcher started from.
 POS_NS="$(sed -n 's/.*"netns": *"\([^"]*\)".*/\1/p' "$CASE_EVID/phaseD.marker" || true)"
@@ -75,6 +68,10 @@ RC=0
 F2AI_ISO_FAULT=establish F2AI_ISO_FAULT_ACK=1 "$LAUNCH" --evidence "$CASE_EVID" \
   -- node "$POS" "$CASE_NONCE" >"$CASE_EVID/driver.stdout" 2>"$CASE_EVID/driver.stderr" || RC=$?
 expect_rc "$RC" "$F2AI_ISO_RC_ESTABLISH" 'F1'
+# c5: the artifact CI reads must exist even for the EARLIEST gate. This is the
+# case that would be missing it if it were only emitted on the normal tail.
+expect_present "$CASE_EVID/attribution.txt" 'F1 c5 artifact on the earliest gate'
+expect_attr verdict_class ISOLATION 'F1'
 expect_absent "$CASE_EVID/phaseD.marker"   'F1'
 expect_absent "$CASE_EVID/phaseD.rc"       'F1'
 expect_absent "$CASE_EVID/phaseD.launched" 'F1'
@@ -86,6 +83,11 @@ RC=0
 F2AI_ISO_FAULT=selftest F2AI_ISO_FAULT_ACK=1 "$LAUNCH" --evidence "$CASE_EVID" \
   -- node "$POS" "$CASE_NONCE" >"$CASE_EVID/driver.stdout" 2>"$CASE_EVID/driver.stderr" || RC=$?
 expect_rc "$RC" "$F2AI_ISO_RC_SELFTEST" 'F2'
+# The record has to name the SELF-TEST gate, not the establish stage. That is
+# only true because the fault writes phaseC.rc=1 on its way out (c2).
+expect_grep '1' "$CASE_EVID/phaseC.rc" 'F2 phase C verdict recorded'
+expect_attr verdict ISOLATION_SELFTEST_FAILED 'F2'
+expect_attr "record.phaseC_rc" 1 'F2'
 expect_absent "$CASE_EVID/phaseD.marker"   'F2'
 expect_absent "$CASE_EVID/phaseD.rc"       'F2'
 expect_absent "$CASE_EVID/phaseD.launched" 'F2'
@@ -156,6 +158,53 @@ else
   expect_absent "$CASE_EVID/phaseD.marker" 'F4b'
   expect_grep 'FAIL cat' "$CASE_EVID/stub-identity-post-drop.txt" 'F4b refusal recorded'
 fi
+
+# ---------------------------------------------------------------------- b4
+# Ruling B, b4: deliberately make ONE classified channel masking FAIL. Under
+# option jia the masking IS the defence, so this must abort at the ESTABLISH
+# stage with 71 and the audit must never start -- asserted by the ABSENCE of
+# selftest.stdout.txt, which phases.sh creates the moment it runs phase C.
+note 'b4: a classified masking failure aborts at establish; the audit never starts'
+new_case b4
+RC=0
+F2AI_ISO_FAULT=mask F2AI_ISO_FAULT_ACK=1 "$LAUNCH" --evidence "$CASE_EVID" \
+  -- node "$POS" "$CASE_NONCE" >"$CASE_EVID/driver.stdout" 2>"$CASE_EVID/driver.stderr" || RC=$?
+expect_rc "$RC" "$F2AI_ISO_RC_ESTABLISH" 'b4'
+expect_grep 'FORCED_FAILURE' "$CASE_EVID/ipc-mask.txt" 'b4 the masking really failed'
+expect_absent "$CASE_EVID/selftest.stdout.txt"  'b4 the audit never started'
+expect_absent "$CASE_EVID/selftest-report.json" 'b4 no self-test report'
+expect_absent "$CASE_EVID/phaseC.rc"            'b4 phase C never ran'
+expect_absent "$CASE_EVID/phaseD.marker"        'b4 phase D never ran'
+expect_attr verdict ISOLATION_ESTABLISH_FAILED 'b4'
+expect_attr verdict_class ISOLATION 'b4'
+
+# --------------------------------------------------------------------- b4r
+# b4, the REAL variant. The case above marks a masking failed without calling
+# mount(8), so by itself it leaves "would a GENUINE masking failure be caught?"
+# untested -- the same vacuity trap ruling D names. This one makes mount(8)
+# really refuse (tmpfs over a regular file) and asserts the identical outcome
+# through the ordinary code path: rc from mount, MASK_FAILED in the report,
+# abort at establish with 71, audit never started.
+note 'b4r: a REAL mount(8) failure on a classified channel also aborts at establish'
+new_case b4r
+RC=0
+F2AI_ISO_FAULT=mask-real F2AI_ISO_FAULT_ACK=1 "$LAUNCH" --evidence "$CASE_EVID" \
+  -- node "$POS" "$CASE_NONCE" >"$CASE_EVID/driver.stdout" 2>"$CASE_EVID/driver.stderr" || RC=$?
+expect_rc "$RC" "$F2AI_ISO_RC_ESTABLISH" 'b4r'
+expect_grep 'MASK_FAILED' "$CASE_EVID/ipc-mask.txt" 'b4r a real mount(8) failure was recorded'
+expect_no_grep 'REAL_FAULT_DID_NOT_FAIL' "$CASE_EVID/ipc-mask.txt" 'b4r the fault was not vacuous'
+expect_absent "$CASE_EVID/selftest.stdout.txt"  'b4r the audit never started'
+expect_absent "$CASE_EVID/phaseC.rc"            'b4r phase C never ran'
+expect_absent "$CASE_EVID/phaseD.marker"        'b4r phase D never ran'
+expect_attr verdict ISOLATION_ESTABLISH_FAILED 'b4r'
+
+# ------------------------------------------- ruling C c4: attribution cases.
+# A separate file so neither driver exceeds the CES line limit. Its failure
+# count is ADDED to this one's, never swallowed.
+note 'handing over to the attribution discriminating cases (c4)'
+ATTR_CASES_RC=0
+bash "$HERE/attribution-cases.sh" || ATTR_CASES_RC=$?
+FAILED=$((FAILED + ATTR_CASES_RC))
 
 printf '\nfailed expectations: %s\n' "$FAILED"
 printf 'evidence root (kept): %s\n' "$WORK"

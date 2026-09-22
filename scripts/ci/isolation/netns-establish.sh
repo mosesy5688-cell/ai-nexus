@@ -20,6 +20,8 @@ PARAMS="${1:?params file required}"; shift
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/ci/isolation/exit-codes.sh
 . "$HERE/exit-codes.sh"
+# shellcheck source=scripts/ci/isolation/mask-channels.sh
+. "$HERE/mask-channels.sh"
 
 MODE=; EVID=; HOST_NETNS=; HOST_USERNS=; TARGET_UID=; TARGET_GID=; TARGET_HOME=
 TARGET_CWD=; PATH_PREFIX=; STUB_MANIFEST=; PHASE_D_DEADLINE=; SETPRIV_AMBIENT=
@@ -87,23 +89,28 @@ rec "control-ns pre-drop join rc=$CTRL_PRE_RC ns=$CTRL_NS pid=$CTRL_PID"
   fail "controlled-ns join failed while privileged -- escape check would be vacuous" \
     "$F2AI_ISO_RC_ESTABLISH"
 
-# ------------------------------------- N3-3 host IPC mitigation (BEST EFFORT,
-# recorded). The load-bearing part is the phase C VERIFICATION, which fails the
-# run if any network-capable or credential channel is still reachable. Nothing
-# here is filed under limitation L5.
-: >"$EVID/ipc-mitigation.txt"
-for d in /run/dbus /run/systemd/resolve /run/containerd /run/docker /run/user; do
-  if [ -d "$d" ]; then
-    MRC=0; mount -t tmpfs -o ro,size=4k tmpfs "$d" >>"$LOG" 2>&1 || MRC=$?
-    printf 'mask-dir %s rc=%s\n' "$d" "$MRC" >>"$EVID/ipc-mitigation.txt"
-  fi
-done
-for s in /var/run/docker.sock /run/docker.sock /run/podman/podman.sock; do
-  if [ -S "$s" ]; then
-    MRC=0; mount --bind /dev/null "$s" >>"$LOG" 2>&1 || MRC=$?
-    printf 'mask-sock %s rc=%s\n' "$s" "$MRC" >>"$EVID/ipc-mitigation.txt"
-  fi
-done
+# ----------------------------------- N3-3 host IPC channels, the strict option
+# THE MASKING ITSELF IS LOAD-BEARING. This is not best effort and the phase C
+# check is not what carries it: any CLASSIFIED channel that exists and cannot be
+# masked aborts HERE with exit 71, and phase C never runs. The point is that
+# "the subtree never touched a live container-runtime or credential socket" is a
+# CONSTRUCTIVE fact established before anything ran -- not something an audit
+# explains after the fact. Nothing in this step probes or connects to a live
+# socket; the only operations are stat and mount.
+# Phase C's remaining job for these channels is a READ-ONLY confirmation that
+# the mask took (the path is no longer a socket) -- corroboration, not the
+# defence. Non-classified channels are inventoried there and never probed.
+# Nothing here is filed under limitation L5: L5 is about filesystem
+# exfiltration, and these channels are removed rather than excused.
+# The channel list is read from classified-channels.tsv; no path or pattern is
+# hardcoded in this file.
+MASK_RC=0
+f2ai_mask_classified "$HERE/classified-channels.tsv" "$EVID" "$FAULT" "$FAULT_ACK" || MASK_RC=$?
+rec "classified channel masking failures=$MASK_RC"
+if [ "$MASK_RC" -ne 0 ]; then
+  fail "$MASK_RC classified host IPC channel(s) could not be masked (see ipc-mask.txt) -- phase C NOT started" \
+    "$F2AI_ISO_RC_ESTABLISH"
+fi
 
 # --------------------------------------------------- N3-1/N3-2 FD inventory
 fd_inventory() {
@@ -148,6 +155,22 @@ done <"$EVID/fd-after.txt"
 if [ "$STRAY" -ne 0 ] && { [ "$FAULT" != fd-keep ] || [ "$FAULT_ACK" != 1 ]; }; then
   fail "file descriptors survived cleanup (see fd-violations.txt)" "$F2AI_ISO_RC_FD"
 fi
+
+# --------------------------------------- d4: the UNFORGEABLE boundary marker.
+# The guard that runs inside phase D must be able to tell the boundary EXISTS.
+# A nonce alone is forgeable, so the marker pairs three things that only a real
+# establishment can produce together: the launcher's nonce (also exported in the
+# environment, and the two must correspond), the subtree's network-namespace id,
+# and the host's. The consumer re-reads /proc/self/ns/net and requires it to
+# equal SUB and differ from HOST -- a claim no in-process patch can fake
+# (M-G1-02: a monkey patch does not even reach descendants, let alone the
+# kernel's namespace identity).
+{
+  printf 'nonce=%s\n'      "$NONCE"
+  printf 'sub_netns=%s\n'  "$SUB_NETNS"
+  printf 'host_netns=%s\n' "$HOST_NETNS"
+  printf 'utc=%s\n'        "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} >"$EVID/launch.nonce"
 
 {
   printf 'CTRL_PID=%s\n' "$CTRL_PID"

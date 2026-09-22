@@ -1,0 +1,50 @@
+# Free2AITools work order N -- the EXPLICIT host-IPC channel list (ruling B, b2).
+#
+# WHY A FILE AND NOT A HARDCODED SCATTER: "classified" has to be checkable. A
+# regex buried in a script is not a list a reviewer can read, so the whole
+# classification lives here and the scripts read it. A test asserts that no
+# channel path or pattern is hardcoded in the launcher any more. The identical
+# enumeration is carried in the standing offline-execution preconditions
+# document so the two can be compared by hand.
+#
+# HOW IT IS USED (the strict option):
+#   CLASSIFIED  -> netns-establish.sh MASKS it while still privileged. If the
+#                  path EXISTS and the masking returns rc != 0, the run aborts
+#                  at the ESTABLISH stage with exit 71 and phase C never starts.
+#                  "Never touched" is therefore a CONSTRUCTIVE fact: no audit
+#                  connect() is ever made to a live classified socket.
+#                  A path that does not exist needs no masking and is recorded
+#                  ABSENT -- that is also a constructive fact, not an excuse.
+#   RECORD_ONLY -> enumerated and recorded at the final identity, never probed,
+#                  never connected to, and never a pass/fail input.
+#
+# COLUMNS (tab separated):
+#   1 CLASS     CLASSIFIED | RECORD_ONLY
+#   2 MATCH     PATH (literal) | PATTERN (POSIX ERE, matched against sockets
+#               discovered under the search roots)
+#   3 TARGET    the literal path, or the ERE
+#   4 MASK      TMPFS_DIR (empty read-only tmpfs over a directory)
+#               BIND_NULL (bind /dev/null over a single socket inode)
+#               NONE      (record only)
+#   5 RATIONALE why this channel could act on the subtree's behalf
+#
+# SEARCH ROOTS for PATTERN discovery: /run /var/run /tmp, maxdepth 3.
+# SCOPE (N3-3): only channels that can actually be present in this runner and
+# this test chain. This is not a scan of every possible filesystem behaviour.
+#
+CLASSIFIED	PATH	/run/docker.sock	BIND_NULL	container runtime: can run networked workloads for us
+CLASSIFIED	PATH	/var/run/docker.sock	BIND_NULL	container runtime, the path the docker CLI uses by default
+CLASSIFIED	PATH	/run/containerd/containerd.sock	BIND_NULL	container runtime below docker
+CLASSIFIED	PATH	/run/podman/podman.sock	BIND_NULL	container runtime
+CLASSIFIED	PATH	/run/buildkit/buildkitd.sock	BIND_NULL	build daemon that fetches over the network
+CLASSIFIED	PATH	/run/docker	TMPFS_DIR	container runtime runtime-directory
+CLASSIFIED	PATH	/run/containerd	TMPFS_DIR	container runtime runtime-directory
+CLASSIFIED	PATH	/run/dbus	TMPFS_DIR	system bus: reaches NetworkManager and systemd-resolved
+CLASSIFIED	PATH	/run/systemd/resolve	TMPFS_DIR	host resolver: resolves names outside our namespace
+CLASSIFIED	PATH	/run/user	TMPFS_DIR	per-user runtime dir: ssh-agent and gpg-agent sockets live here
+CLASSIFIED	PATTERN	(docker|containerd|podman|crio|buildkit).*\.sock$	BIND_NULL	container runtime socket found at a non-default path
+CLASSIFIED	PATTERN	dbus	BIND_NULL	message bus socket found at a non-default path
+CLASSIFIED	PATTERN	(systemd/resolve|resolved)	BIND_NULL	resolver socket found at a non-default path
+CLASSIFIED	PATTERN	(ssh-agent|gpg-agent|S\.gpg-agent|agent\.[0-9]+)$	BIND_NULL	credential agent
+CLASSIFIED	PATTERN	(proxy|squid|privoxy|mitmproxy)	BIND_NULL	proxy endpoint
+RECORD_ONLY	PATTERN	.*	NONE	every other socket present in the runner: inventoried, never probed

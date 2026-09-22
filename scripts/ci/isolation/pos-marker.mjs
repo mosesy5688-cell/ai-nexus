@@ -56,3 +56,19 @@ const marker = {
 };
 fs.writeFileSync(`${evid}/phaseD.marker`, `${JSON.stringify(marker, null, 2)}\n`);
 process.stdout.write(`F2AI_ISO_PHASE_D_EXECUTED ${nonce}\n`);
+
+// c4 support: an optional exit code so the program under test can deliberately
+// exit 70, 71 or 124 -- codes the launcher's own gates also use. Attribution
+// must still say "the program under test exited 70", NOT "the precheck failed",
+// because it decides from the records (phaseD.launched + phaseD.rc are both
+// present here) and never from the number. The marker above is written FIRST,
+// so the run is provably a real phase-D execution whatever code follows.
+const requested = process.argv[3];
+if (requested !== undefined) {
+    const code = Number(requested);
+    if (!Number.isInteger(code) || code < 0 || code > 255) {
+        process.stderr.write(`pos-marker: bad exit code '${requested}'\n`);
+        process.exit(2);
+    }
+    process.exit(code);
+}

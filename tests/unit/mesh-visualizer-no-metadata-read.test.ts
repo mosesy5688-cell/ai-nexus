@@ -16,18 +16,31 @@
  * see the namespaces handed to it: the reader stub cannot be bypassed and the
  * real reader (with its sqlite/VFS/R2 chain) is unreachable by construction.
  * An unregistered specifier, a non-stub namespace or an unsupported import
- * clause ABORTS (fail-closed) rather than falling back. Outbound network is
- * blocked in-process, independently of PATH, and the block is proven effective
- * before the render assertions run.
+ * clause ABORTS (fail-closed) rather than falling back.
+ *
+ * P-2 (work order N, ruling D d3/d4 -- CHANGED). This file used to assert an
+ * IN-PROCESS monkey patch of globalThis.fetch and net.Socket.prototype.connect.
+ * That was refuted twice over: M-G1-02 showed a patch does not reach a fresh
+ * child process, and measurement showed all five "fail-closed precondition"
+ * cases passing on Windows with NO BOUNDARY AT ALL -- a guard that is green
+ * whether or not the thing it guards exists has zero discriminating power.
+ * The patch is DELETED. In its place this file requires, before anything else
+ * runs, the launcher's unforgeable marker AND an empirical namespace-level
+ * blocking check (a real connect() that must fail fast with ENETUNREACH or
+ * EACCES). Missing either one TERMINATES the process with code 71 -- it does
+ * not skip and it cannot pass. Consequence, stated: this suite can only be run
+ * inside scripts/ci/isolation/netns-launch.sh. That is intended.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { transform } from '@astrojs/compiler';
 import * as ASTRO_RUNTIME from 'astro/compiler-runtime';
 import { experimental_AstroContainer as AstroContainer } from 'astro/container';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import net from 'node:net';
+import {
+    requireIsolationBoundary, ACCEPTED_ERRNOS
+} from '../../scripts/ci/isolation/boundary-precondition.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const COMPONENT = 'src/components/mesh/MeshVisualizer.astro';
@@ -45,20 +58,10 @@ const EXPECTED = [
     { label: 'Knowledge', href: '/knowledge' }
 ];
 
-// --- P-2: outbound block, independent of PATH, covering this process. -------
-const outbound: string[] = [];
-const deny = (tag: string) => (..._a: unknown[]): never => {
-    outbound.push(tag);
-    throw new Error(`E_OUTBOUND_BLOCKED:${tag}`);
-};
-const realFetch = globalThis.fetch;
-const realConnect = net.Socket.prototype.connect;
-(globalThis as { fetch: unknown }).fetch = deny('fetch');
-net.Socket.prototype.connect = deny('net.Socket.connect') as never;
-afterAll(() => {
-    globalThis.fetch = realFetch;
-    net.Socket.prototype.connect = realConnect;
-});
+// --- P-2: the boundary itself, not an in-process stand-in for it. ----------
+// Runs at import time and BEFORE any other code in this file, so nothing here
+// can execute outside the boundary. Terminates with 71 when it is absent.
+const BOUNDARY = await requireIsolationBoundary();
 
 // --- Reader stub ------------------------------------------------------------
 function makeStub() {
@@ -139,11 +142,23 @@ describe('precondition: the isolation harness is fail-closed', () => {
         expect(MUTANT).toContain("loadSiteMetadata('mesh_stats')");
     });
 
-    it('outbound network is blocked in this process, and the block is effective', () => {
-        // Both denials throw synchronously, so no request can ever be dispatched.
-        expect(() => new net.Socket().connect(443, 'example.invalid')).toThrow(/E_OUTBOUND_BLOCKED/);
-        expect(() => fetch('https://example.invalid/')).toThrow(/E_OUTBOUND_BLOCKED/);
-        expect(outbound).toEqual(['net.Socket.connect', 'fetch']);
+    it('d4: the launcher left an unforgeable marker and we are inside it', () => {
+        expect(BOUNDARY.markerVerified).toBe(true);
+        // The nonce pairing proves the launcher ran; the kernel's namespace
+        // identity proves we are in the namespace it created. No in-process
+        // patch can produce the second half.
+        expect(BOUNDARY.observedNetns).toBe(BOUNDARY.subNetns);
+        expect(BOUNDARY.observedNetns).not.toBe(BOUNDARY.hostNetns);
+        expect(BOUNDARY.subNetns).toMatch(/^net:\[\d+\]$/);
+    });
+
+    it('d3: a real connect() out of the boundary fails fast with ENETUNREACH or EACCES', () => {
+        expect(BOUNDARY.connectTarget).toBe('192.0.2.1:443');
+        // Literal errno assertion. A wait-timeout or any other code would have
+        // terminated the process with 71 before this line was reached.
+        expect(ACCEPTED_ERRNOS).toContain(BOUNDARY.connectErrno);
+        expect(['ENETUNREACH', 'EACCES']).toContain(BOUNDARY.connectErrno);
+        expect(BOUNDARY.connectElapsedMs).toBeLessThan(2000);
     });
 
     it('a missing stub aborts instead of falling back to the real reader', async () => {

@@ -2,13 +2,16 @@
  * Work order N, N5-2 / N5-3 -- executable hygiene contract for the isolation
  * facility itself.
  *
- * WHAT IT PROVES: every file parses; none exceeds the CES monolith limit; the
- * gates cannot be turned green by evidence collection (no unconditional
- * `exit 0`, no pipe-tail exit masking, no `|| true` on a gate); the exit-code
- * vocabulary is distinct so an isolation failure and a test failure are
- * separable (ruling B3); the counterexamples F1-F4 and the positive control are
- * really registered; the refusal accept set excludes the verdicts N4-1/N4-2
- * forbid; and the self-test runs the N4-0 pre-check BEFORE any real syscall.
+ * WHAT IT PROVES: every file in the facility is listed here and nothing on disk
+ * escapes the list; every listed file parses; none exceeds the CES monolith
+ * limit; the gates cannot be turned green by evidence collection (no
+ * unconditional `exit 0`, no pipe-tail exit masking, no `|| true` on a gate);
+ * the attribution artifact is emitted on every terminal path (c5); the
+ * exit-code vocabulary is distinct so an isolation failure and a test failure
+ * are separable (ruling B3); the counterexamples F1-F4, b4 and its real-mount
+ * variant and the positive control are really registered; the refusal accept
+ * set excludes the verdicts N4-1/N4-2 forbid; and the self-test runs the N4-0
+ * pre-check BEFORE any real syscall.
  *
  * WHAT IT DOES NOT PROVE: any runtime behaviour of the namespace. These are
  * static and parse-level checks. Everything dynamic needs a Linux runner.
@@ -24,16 +27,29 @@ const DIR = path.join(ROOT, 'scripts', 'ci', 'isolation');
 const CES_MAX_LINES = 250;
 
 /** Sourced, not executed: they must NOT set shell options for their caller. */
-const SOURCED = new Set(['exit-codes.sh', 'stub-identity.sh']);
+const SOURCED = new Set([
+    'exit-codes.sh', 'stub-identity.sh', 'mask-channels.sh', 'case-helpers.sh',
+    'finalize.sh'
+]);
 /** The stub deliberately exits 0 for its sentinel argv; it is not a gate. */
 const EXIT_ZERO_ALLOWED = new Set(['stub-curl.sh']);
 
+/**
+ * EVERY executable file in the facility, including the ones ruling B/C/D added.
+ * The list is the coverage: a file missing from it is a file this contract does
+ * not check, so the census below asserts that nothing on disk is left out --
+ * otherwise "every file parses" would quietly mean "every file I remembered".
+ */
 const EXPECTED_FILES = [
-    'exit-codes.sh', 'netns-launch.sh', 'netns-establish.sh', 'netns-phases.sh',
-    'stub-identity.sh', 'stub-curl.sh', 'counterexamples.sh',
+    'exit-codes.sh', 'finalize.sh', 'netns-launch.sh', 'netns-establish.sh',
+    'netns-phases.sh', 'stub-identity.sh', 'stub-curl.sh', 'counterexamples.sh',
+    'attribution-cases.sh', 'case-helpers.sh', 'mask-channels.sh',
     'netns-controls.mjs', 'netns-probe.mjs', 'netns-ipc.mjs',
-    'netns-descendant.mjs', 'netns-selftest.mjs', 'pos-marker.mjs'
+    'netns-descendant.mjs', 'netns-selftest.mjs', 'pos-marker.mjs',
+    'attribute.mjs', 'boundary-precondition.mjs'
 ];
+/** Data, not code: listed so the census is complete, never parsed as a script. */
+const EXPECTED_DATA = ['classified-channels.tsv'];
 
 const read = (f: string): string => fs.readFileSync(path.join(DIR, f), 'utf8').replace(/\r\n/g, '\n');
 const lines = (f: string): number => read(f).split('\n').length;
@@ -43,7 +59,19 @@ const bashPath = spawnSync('bash', ['--version'], { encoding: 'utf8' }).status =
 
 describe('the facility exists and respects CES', () => {
     it('every expected file is present', () => {
-        expect(EXPECTED_FILES.filter((f) => !fs.existsSync(path.join(DIR, f)))).toEqual([]);
+        expect([...EXPECTED_FILES, ...EXPECTED_DATA]
+            .filter((f) => !fs.existsSync(path.join(DIR, f)))).toEqual([]);
+    });
+
+    it('nothing on disk escapes this contract', () => {
+        // Anti-vacuity for the list itself. Adding a script without adding it
+        // here would exempt it from the parse, CES and no-masking checks below,
+        // and the file header would then be claiming more than it verifies.
+        const onDisk = fs.readdirSync(DIR).filter((f) => !f.startsWith('.')).sort();
+        const known = [...EXPECTED_FILES, ...EXPECTED_DATA].sort();
+        expect(onDisk.filter((f) => !known.includes(f)),
+            'an unlisted file in scripts/ci/isolation is unchecked').toEqual([]);
+        expect(known.filter((f) => !onDisk.includes(f))).toEqual([]);
     });
 
     it('no file exceeds the CES monolith limit', () => {
@@ -138,7 +166,7 @@ describe('ruling B3: isolation failures and test failures stay separable', () =>
 describe('N5-1 / N4-6: the counterexamples are registered and non-vacuous', () => {
     it('F1-F4, the F3b/F4b discriminators and the positive control all exist', () => {
         const src = read('counterexamples.sh');
-        for (const c of ['pos', 'f1', 'f2', 'f3', 'f3b', 'f4', 'f4b']) {
+        for (const c of ['pos', 'f1', 'f2', 'f3', 'f3b', 'f4', 'f4b', 'b4', 'b4r']) {
             expect(src, `case ${c} missing`).toContain(`new_case ${c}`);
         }
     });

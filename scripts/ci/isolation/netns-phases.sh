@@ -65,6 +65,11 @@ if [ "$FAULT" = selftest ] && [ "$FAULT_ACK" = 1 ]; then
   # F2 counterexample: forced self-test failure. Like the F1 knob it can only
   # stop the run earlier; it can never relax the boundary or start phase D.
   rec "FAULT=selftest (F2 counterexample)"
+  # c2: the ledger has to say WHICH gate stopped the run. This fault stands in
+  # for a phase C verdict of FAILURE, so phaseC.rc records exactly that. Without
+  # the record there is no phase C evidence to read and attribution would fall
+  # through to the establish stage -- naming the wrong gate.
+  printf '1\n' >"$EVID/phaseC.rc"
   fail "forced self-test failure (F2 counterexample)" "$F2AI_ISO_RC_SELFTEST"
 fi
 C_RC=0
@@ -96,8 +101,26 @@ rec "stub identity (pre-phase-d) rc=$STUB_RC"
   printf 'argv=%s\n' "$*"
 } >"$EVID/phaseD.launched"
 D_RC=0
+D_START="$(date -u +%s)"
 timeout -k 15s "${PHASE_D_DEADLINE}s" "$@" || D_RC=$?
+D_END="$(date -u +%s)"
+D_ELAPSED=$((D_END - D_START))
 printf '%s\n' "$D_RC" >"$EVID/phaseD.rc"
-rec "phase D rc=$D_RC"
+printf 'elapsed_s=%s\ndeadline_s=%s\n' "$D_ELAPSED" "$PHASE_D_DEADLINE" >"$EVID/phaseD.timing"
+# c3: the timeout SOURCE is recorded POSITIVELY whenever phase D returns 124 --
+# it is never inferred from a file's absence. timeout(1) returns 124 both when
+# it killed the child and when the child itself exited 124, so the code alone
+# cannot say which; the measured elapsed time against the deadline can, and the
+# VERDICT of that measurement is what is written. "inner" and "program" are two
+# different RECORDED values -- not a record and the lack of one. Writing it
+# unconditionally is the point: if this file were ever missing while phaseD.rc
+# said 124, attribution reports that as INDETERMINATE rather than guessing.
+if [ "$D_RC" -eq 124 ]; then
+  if [ "$D_ELAPSED" -ge "$PHASE_D_DEADLINE" ]; then D_TS=inner; else D_TS=program; fi
+  printf 'phaseD.timeout-source=%s\nelapsed_s=%s\ndeadline_s=%s\n' \
+    "$D_TS" "$D_ELAPSED" "$PHASE_D_DEADLINE" >"$EVID/phaseD.timeout-source"
+fi
+rec "phase D rc=$D_RC elapsed=${D_ELAPSED}s deadline=${PHASE_D_DEADLINE}s"
 # Verbatim propagation: no pipeline at the tail, no `|| true`, no `exit 0`.
+# The code is NOT remapped for attribution -- attribution reads the records.
 exit "$D_RC"

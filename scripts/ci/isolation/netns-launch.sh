@@ -18,8 +18,11 @@
 #      runner grants it is UNVERIFIED -- ruling B1: proven by a normal PR run
 #      after a push is approved, never by a dispatch fired to obtain proof.
 #   L5 it does not stop filesystem exfiltration. Host IPC channels are NOT
-#      filed under L5: they are enumerated, mitigated and VERIFIED in phase C
-#      (N3-3), and a reachable network-capable channel FAILS the self-test.
+#      filed under L5 (N3-3): every CLASSIFIED channel in
+#      classified-channels.tsv is MASKED while still privileged, and a masking
+#      that fails aborts at the establish stage with 71 before phase C runs.
+#      The masking is the defence; phase C only confirms read-only that it took.
+#      No audit ever connects to a live classified socket.
 #
 # FAIL-CLOSED: every pre-phase-D failure exits non-zero and phase D is not
 # started. There is no unisolated fallback anywhere in this chain (B1).
@@ -32,6 +35,8 @@ set -Eeuo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/ci/isolation/exit-codes.sh
 . "$HERE/exit-codes.sh"
+# shellcheck source=scripts/ci/isolation/finalize.sh
+. "$HERE/finalize.sh"
 
 EVID=""; PATH_PREFIX=""; STUB_MANIFEST=""; TOTAL_DEADLINE=1800; PHASE_D_DEADLINE=1500
 while [ $# -gt 0 ]; do
@@ -56,7 +61,10 @@ NONCE="$(od -An -tx1 -N8 /dev/urandom | tr -d ' \n')"
 mkdir -p "$EVID"
 LOG="$EVID/launcher.log"
 rec() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >>"$LOG"; }
-fail() { rec "FAIL($2) $1"; printf 'netns-launch: %s\n' "$1" >&2; exit "$2"; }
+# c5: f2ai_finalize emits the single attribution artifact. It is called from
+# fail() as well as from the normal tail, so the file CI reads exists for EVERY
+# terminal outcome -- see finalize.sh for why that matters.
+fail() { rec "FAIL($2) $1"; printf 'netns-launch: %s\n' "$1" >&2; f2ai_finalize "$2"; exit "$2"; }
 
 rec "BEGIN stamp=$STAMP nonce=$NONCE pwd=$PWD"
 rec "ARGV_PHASE_D $*"
@@ -185,8 +193,16 @@ UNSHARE_ARGS=(--net --fork --pid --mount-proc --kill-child)
 # PID namespace (the kernel SIGKILLs every descendant when PID 1 exits) and
 # --kill-child SIGKILLs that child if unshare itself dies.
 CHILD=0
-cleanup() { if [ "$CHILD" -ne 0 ]; then kill -TERM "$CHILD" 2>/dev/null || true; fi; }
-trap cleanup INT TERM
+# c3: on signal arrival the outer timeout source is written FIRST, before any
+# cleanup, so it exists even if the teardown is itself interrupted. Attribution
+# never infers a timeout from a file's absence.
+on_signal() {
+  printf 'launcher.timeout-source=outer\nreason=signal\nutc=%s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$EVID/launcher.timeout-source"
+  if [ "$CHILD" -ne 0 ]; then kill -TERM "$CHILD" 2>/dev/null || true; fi
+}
+trap on_signal INT TERM
+L_START="$(date -u +%s)"
 if [ "$MODE" = sudo ]; then
   timeout -k 30s "${TOTAL_DEADLINE}s" \
     sudo -n unshare "${UNSHARE_ARGS[@]}" -- \
@@ -200,9 +216,29 @@ CHILD=$!
 CHILD_RC=0
 wait "$CHILD" || CHILD_RC=$?
 trap - INT TERM
+L_END="$(date -u +%s)"
+L_ELAPSED=$((L_END - L_START))
 
-rec "CHILD_RC=$CHILD_RC"
-printf '%s\n' "$CHILD_RC" >"$EVID/launcher.rc"
-# Exit code is propagated VERBATIM. No pipeline at the tail, no `|| true`, no
-# unconditional `exit 0`: evidence collection cannot turn a failure into success.
+rec "CHILD_RC=$CHILD_RC elapsed=${L_ELAPSED}s total_deadline=${TOTAL_DEADLINE}s"
+printf 'elapsed_s=%s\ndeadline_s=%s\n' "$L_ELAPSED" "$TOTAL_DEADLINE" >"$EVID/launcher.timing"
+# c3, second positive path: the outer timeout(1) kills the child without
+# signalling THIS shell, so the trap above cannot see it. A 124 is therefore
+# recorded from the MEASUREMENT, and both answers are written as values -- the
+# non-timeout answer is a record too, never the lack of one. `propagated` means
+# the subtree handed back 124 of its own accord well inside the outer deadline,
+# and attribution treats only `outer` as a launcher timeout.
+if [ "$CHILD_RC" -eq 124 ] && [ ! -f "$EVID/launcher.timeout-source" ]; then
+  if [ "$L_ELAPSED" -ge "$TOTAL_DEADLINE" ]; then L_TS=outer; L_WHY=deadline
+  else L_TS=propagated; L_WHY=subtree-returned-124-inside-the-outer-deadline; fi
+  printf 'launcher.timeout-source=%s\nreason=%s\nelapsed_s=%s\ndeadline_s=%s\n' \
+    "$L_TS" "$L_WHY" "$L_ELAPSED" "$TOTAL_DEADLINE" >"$EVID/launcher.timeout-source"
+fi
+
+# c5: the single machine-readable artifact, emitted here on the normal tail and
+# by fail() on every gate path, so it exists for every terminal outcome.
+f2ai_finalize "$CHILD_RC"
+
+# Exit code is propagated VERBATIM and is NOT remapped. No pipeline at the tail,
+# no `|| true` on a gate, no unconditional `exit 0`: evidence collection cannot
+# turn a failure into a success, and attribution is not allowed to either.
 exit "$CHILD_RC"

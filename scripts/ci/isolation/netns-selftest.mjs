@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import dns from 'node:dns';
 import { spawn } from 'node:child_process';
 import { preflight } from './netns-probe.mjs';
-import { auditChannels } from './netns-ipc.mjs';
+import { inspectChannels } from './netns-ipc.mjs';
 import { runControls, isPass, ACCEPT_ERRNOS } from './netns-controls.mjs';
 import { spawnDescendant } from './netns-descendant.mjs';
 
@@ -109,12 +109,13 @@ async function main() {
     report.controlsParent = await runControls('parent');
     for (const r of report.controlsParent) if (!isPass(r)) fail(r.id, `${r.verdict} errno=${r.errno}`);
 
-    // --- N3-3 host IPC channels --------------------------------------------
-    report.ipc = await auditChannels();
-    if (!report.ipc.ok) {
-        for (const r of report.ipc.risky) {
-            if (r.verdict !== 'CLOSED' && r.verdict !== 'ABSENT') fail(`IPC:${r.path}`, `${r.verdict} (${r.why})`);
-        }
+    // --- N3-3 host IPC channels: READ-ONLY corroboration, the strict option -
+    // The defence is the establish-stage masking, which already aborted with 71
+    // if any classified channel could not be masked. Nothing here connects.
+    report.ipc = inspectChannels();
+    if (!report.ipc.listLoaded) fail('IPC:list', report.ipc.reason);
+    for (const c of report.ipc.stillOpen || []) {
+        fail(`IPC:${c.path}`, `still a live socket after masking (${c.why})`);
     }
 
     // --- C6 parent / child / grandchild ------------------------------------
