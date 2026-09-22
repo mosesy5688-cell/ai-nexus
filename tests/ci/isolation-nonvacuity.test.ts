@@ -17,6 +17,10 @@
  *   c5  attribution.txt is emitted on EVERY terminal path, including the gates
  *       that stop before establishment, and generating it cannot change the
  *       outcome.
+ *   N   the establish stage's TWO controlled-ns readiness failures keep two
+ *       DISTINCT strings. Nothing pinned them, so a later edit could converge
+ *       them and lose the difference between "no live child was ever seen"
+ *       and "seen, but its unshare(2) never took".
  *
  * WHAT IT DOES NOT PROVE: that any of it executes. These are static checks;
  * the runtime proof needs a Linux runner (ruling B1).
@@ -95,5 +99,29 @@ describe('c5: the attribution artifact exists for every terminal outcome', () =>
         const src = read('counterexamples.sh');
         const f1 = src.slice(src.indexOf('new_case f1'), src.indexOf('new_case f2'));
         expect(f1).toContain('expect_present "$CASE_EVID/attribution.txt"');
+    });
+});
+
+describe('WO-N: the two controlled-ns readiness failures stay distinguishable', () => {
+    it('each timeout keeps its own string and the merged one is gone', () => {
+        // "no live child was ever observed" and "observed, but its unshare(2)
+        // never took" are DIFFERENT diagnoses. The pre-fix code could emit the
+        // second for a child that was merely not scheduled yet, so the merged
+        // wording must not come back either.
+        const src = read('netns-establish.sh');
+        expect(src).toContain('controlled test namespace did not come up');
+        expect(src).toContain('controlled ns never diverged from subtree');
+        expect(src).not.toContain('controlled ns equals subtree ns');
+    });
+
+    it('both abort at the ESTABLISH exit code, before the privilege drop', () => {
+        const src = read('netns-establish.sh');
+        expect(src).toMatch(
+            /fail "controlled test namespace did not come up" "\$F2AI_ISO_RC_ESTABLISH"/);
+        expect(src).toMatch(
+            /fail "controlled ns never diverged from subtree" "\$F2AI_ISO_RC_ESTABLISH"/);
+        const last = src.indexOf('controlled ns never diverged from subtree');
+        expect(last).toBeGreaterThan(0);
+        expect(last).toBeLessThan(src.indexOf('N2-1/N2-2 privilege drop'));
     });
 });

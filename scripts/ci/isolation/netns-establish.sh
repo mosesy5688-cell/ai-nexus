@@ -79,9 +79,10 @@ ip route show     >"$EVID/inside-route4.txt" 2>&1 || true
 ip -6 route show  >"$EVID/inside-route6.txt" 2>&1 || true
 
 # --------------------------------- N2-3 CONTROLLED test namespace for the
-# escape check. It is NOT the host namespace and nothing is ever transmitted
-# into it: the check is "can this final identity join a namespace it should not
-# be able to join", answered with `true` as the payload.
+# escape check. What is ENFORCED below is only that it differs from the SUBTREE
+# namespace (CTRL_NS != SUB_NETNS); HOST_NETNS is NOT compared here. Nothing is
+# ever transmitted into it: the check is "can this final identity join a
+# namespace it should not be able to join", answered with `true` as the payload.
 STAGE=controlled-ns
 CTRL_TTL=$(( PHASE_D_DEADLINE + 300 ))
 unshare --net -- setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --clear-groups \
@@ -93,7 +94,8 @@ CTRL_PID=$!
 # For this pid the id changes exactly once -- when its unshare(2) succeeds --
 # so a reading that DIFFERS from the subtree id cannot be the pre-exec value,
 # and the anti-vacuity join below re-dereferences that same path anyway.
-# Bounded wait: 15 x 0.2s = 3.0s.
+# Bounded: 15 reads spanning a 2.8s observation window (the last read is at
+# 14 x 0.2s); the 15th sleep is followed by no read, so 3.0s wall clock.
 CTRL_NS=""; CTRL_SEEN=0; CTRL_PROBE=""
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
   CTRL_PROBE="$(readlink "/proc/$CTRL_PID/ns/net" 2>/dev/null || true)"
