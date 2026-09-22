@@ -120,8 +120,41 @@ describe('WO-N: the two controlled-ns readiness failures stay distinguishable', 
             /fail "controlled test namespace did not come up" "\$F2AI_ISO_RC_ESTABLISH"/);
         expect(src).toMatch(
             /fail "controlled ns never diverged from subtree" "\$F2AI_ISO_RC_ESTABLISH"/);
-        const last = src.indexOf('controlled ns never diverged from subtree');
-        expect(last).toBeGreaterThan(0);
-        expect(last).toBeLessThan(src.indexOf('N2-1/N2-2 privilege drop'));
+        // WO-N-P3 (7) M9. The ordering assertion is TWO-SIDED. Only the second
+        // string's position used to be checked, so moving just the first guard
+        // past the privilege drop -- where a failure can no longer abort at the
+        // establish identity -- stayed green.
+        const drop = src.indexOf('N2-1/N2-2 privilege drop');
+        const seen = src.indexOf('controlled test namespace did not come up');
+        const diverged = src.indexOf('controlled ns never diverged from subtree');
+        expect(drop).toBeGreaterThan(0);
+        expect(seen).toBeGreaterThan(0);
+        expect(diverged).toBeGreaterThan(0);
+        expect(seen).toBeLessThan(drop);
+        expect(diverged).toBeLessThan(drop);
+    });
+
+    it('each string stays bound to ITS OWN condition', () => {
+        // WO-N-P3 (7) M6. The two strings and the two guards used to be
+        // asserted separately, so swapping the wordings between the guards --
+        // which inverts both diagnoses -- kept every assertion satisfied. The
+        // condition and its wording are now pinned as one unit.
+        const src = read('netns-establish.sh');
+        expect(src).toMatch(
+            /\[ "\$CTRL_SEEN" -eq 1 \] \|\| \\\n\s*fail "controlled test namespace did not come up"/);
+        expect(src).toMatch(
+            /\[ "\$CTRL_NS" != "\$SUB_NETNS" \] \|\| \\\n\s*fail "controlled ns never diverged from subtree"/);
+    });
+
+    it('WO-N-P3 (6): the control namespace may not be the HOST namespace', () => {
+        // The header comment claimed HOST_NETNS was deliberately not compared.
+        // A control namespace that IS the host makes the escape check a live
+        // attempt on the host, so the comment and the code now agree on one
+        // enforced invariant, asserted here with its guard.
+        const src = read('netns-establish.sh');
+        expect(src).toMatch(
+            /\[ "\$CTRL_NS" != "\$HOST_NETNS" \] \|\| \\\n\s*fail "controlled ns is the host netns" "\$F2AI_ISO_RC_ESTABLISH"/);
+        expect(src.indexOf('controlled ns is the host netns'))
+            .toBeLessThan(src.indexOf('N2-1/N2-2 privilege drop'));
     });
 });

@@ -38,8 +38,42 @@ const withDeadline = (p, ms, tag) => Promise.race([
     new Promise((r) => setTimeout(() => r({ ok: false, code: 'DEADLINE', message: `${tag} exceeded ${ms}ms` }), ms))
 ]);
 
+/**
+ * WO-N-P3 (5). The target has to still BE there before its refusal means
+ * anything. A CTRL_PID that has already exited takes /proc/<pid>/ns/net with
+ * it, and nsenter then fails for a reason with nothing to do with the boundary.
+ */
+function controlLiveness(nsPath, ctrlPid) {
+    if (!ctrlPid) return 'CTRL_PID is absent from the params file';
+    try { process.kill(Number(ctrlPid), 0); } catch (e) {
+        // EPERM means alive but not ours to signal; only ESRCH means gone.
+        if (e?.code !== 'EPERM') return `CTRL_PID ${ctrlPid} is not alive (${e?.code})`;
+    }
+    try { fs.readlinkSync(nsPath); } catch (e) { return `${nsPath} unreadable (${e?.code})`; }
+    return null;
+}
+
+/**
+ * WO-N-P3 (5), second half. ENOENT and EPERM are not the same answer. The old
+ * code mapped EVERY non-zero nsenter exit to REFUSED, so a namespace that had
+ * simply vanished read as a boundary holding. Only a genuine refusal is
+ * REFUSED; a vanished target is FAIL-vacuous; anything else is INDETERMINATE.
+ * All three except JOINED still stop the run -- the caller accepts REFUSED only.
+ */
+function classifyNsenter(code, stderr) {
+    const s = String(stderr).toLowerCase();
+    if (code === 0) return 'JOINED';
+    if (/no such file or directory|cannot open|does not exist/.test(s)) return 'FAIL-vacuous';
+    if (/operation not permitted|permission denied/.test(s)) return 'REFUSED';
+    return 'INDETERMINATE';
+}
+
 /** N2-3: try to join a CONTROLLED namespace. Never the real host, never traffic. */
-function escapeControl(nsPath) {
+function escapeControl(nsPath, ctrlPid) {
+    const dead = controlLiveness(nsPath, ctrlPid);
+    if (dead !== null) {
+        return Promise.resolve({ nsPath, verdict: 'FAIL-vacuous', detail: dead, stderr: '' });
+    }
     return new Promise((resolve) => {
         let done = false;
         let err = '';
@@ -56,7 +90,7 @@ function escapeControl(nsPath) {
             ESCAPE_DEADLINE_MS);
         child.stderr.on('data', (d) => { err += d; });
         child.on('error', (e) => finish('TOOL_MISSING', `nsenter could not run: ${e?.code}`));
-        child.on('close', (code) => finish(code === 0 ? 'JOINED' : 'REFUSED', `nsenter exit ${code}`));
+        child.on('close', (code) => finish(classifyNsenter(code, err), `nsenter exit ${code}`));
     });
 }
 
@@ -88,7 +122,7 @@ async function main() {
         params: {
             mode: params.MODE, hostNetns: params.HOST_NETNS, subNetns: params.SUB_NETNS,
             controlNs: params.CTRL_NS, controlNsPath: params.CTRL_NS_PATH,
-            controlPreDropJoinRc: params.CTRL_PRE_RC
+            controlPid: params.CTRL_PID, controlPreDropJoinRc: params.CTRL_PRE_RC
         },
         failures: []
     };
@@ -137,7 +171,7 @@ async function main() {
         fail('ESCAPE:vacuity', `joining the control namespace while privileged returned `
             + `${params.CTRL_PRE_RC}; a refusal now would prove nothing`);
     }
-    report.escape = await escapeControl(params.CTRL_NS_PATH);
+    report.escape = await escapeControl(params.CTRL_NS_PATH, params.CTRL_PID);
     if (report.escape.verdict !== 'REFUSED') fail('ESCAPE', `${report.escape.verdict}: ${report.escape.detail}`);
 
     // --- C5, auxiliary only -------------------------------------------------

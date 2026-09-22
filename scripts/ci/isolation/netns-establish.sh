@@ -79,10 +79,10 @@ ip route show     >"$EVID/inside-route4.txt" 2>&1 || true
 ip -6 route show  >"$EVID/inside-route6.txt" 2>&1 || true
 
 # --------------------------------- N2-3 CONTROLLED test namespace for the
-# escape check. What is ENFORCED below is only that it differs from the SUBTREE
-# namespace (CTRL_NS != SUB_NETNS); HOST_NETNS is NOT compared here. Nothing is
-# ever transmitted into it: the check is "can this final identity join a
-# namespace it should not be able to join", answered with `true` as the payload.
+# escape check. ENFORCED below: it differs from the SUBTREE namespace AND it is
+# not the HOST namespace, so a join attempt can never reach the real host.
+# Nothing is ever transmitted into it: the check is "can this final identity
+# join a namespace it should not be able to join", answered with `true`.
 STAGE=controlled-ns
 CTRL_TTL=$(( PHASE_D_DEADLINE + 300 ))
 unshare --net -- setpriv --reuid="$TARGET_UID" --regid="$TARGET_GID" --clear-groups \
@@ -113,6 +113,8 @@ rec "control-ns readiness seen=$CTRL_SEEN ns=${CTRL_NS:-NONE} sub=$SUB_NETNS"
   fail "controlled test namespace did not come up" "$F2AI_ISO_RC_ESTABLISH"
 [ "$CTRL_NS" != "$SUB_NETNS" ] || \
   fail "controlled ns never diverged from subtree" "$F2AI_ISO_RC_ESTABLISH"
+[ "$CTRL_NS" != "$HOST_NETNS" ] || \
+  fail "controlled ns is the host netns" "$F2AI_ISO_RC_ESTABLISH"
 # Anti-vacuity: WHILE STILL PRIVILEGED, joining it must SUCCEED. Without this,
 # a post-drop failure could just mean a broken handle rather than a refusal.
 CTRL_PRE_RC=0

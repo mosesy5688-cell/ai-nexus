@@ -1,0 +1,14 @@
+uid_line=Uid: 1001 1001 1001 1001
+gid_line=Gid: 1001 1001 1001 1001
+groups=Groups:  
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+NoNewPrivs:	1
+Seccomp:	0
+netns=net:[4026532270]
+userns=user:[4026531837]
+pidns=pid:[4026532219]
+pid=1 cwd=/home/runner/work/ai-nexus/ai-nexus

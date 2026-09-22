@@ -1,0 +1,86 @@
+[
+  {
+    "fd": "0",
+    "target": "/dev/null"
+  },
+  {
+    "fd": "1",
+    "target": "/home/runner/work/ai-nexus/ai-nexus/.isolation-evidence/counterexamples-20260922T132559Z/pos/selftest.stdout.txt"
+  },
+  {
+    "fd": "10",
+    "target": "anon_inode:[eventpoll]"
+  },
+  {
+    "fd": "11",
+    "target": "anon_inode:[io_uring]"
+  },
+  {
+    "fd": "12",
+    "target": "pipe:[16823]"
+  },
+  {
+    "fd": "13",
+    "target": "pipe:[16823]"
+  },
+  {
+    "fd": "14",
+    "target": "anon_inode:[eventfd]"
+  },
+  {
+    "fd": "15",
+    "target": "anon_inode:[eventpoll]"
+  },
+  {
+    "fd": "16",
+    "target": "anon_inode:[io_uring]"
+  },
+  {
+    "fd": "17",
+    "target": "pipe:[14744]"
+  },
+  {
+    "fd": "18",
+    "target": "pipe:[14744]"
+  },
+  {
+    "fd": "19",
+    "target": "anon_inode:[eventfd]"
+  },
+  {
+    "fd": "2",
+    "target": "/home/runner/work/ai-nexus/ai-nexus/.isolation-evidence/counterexamples-20260922T132559Z/pos/selftest.stderr.txt"
+  },
+  {
+    "fd": "20",
+    "target": "UNREADABLE"
+  },
+  {
+    "fd": "3",
+    "target": "anon_inode:[eventpoll]"
+  },
+  {
+    "fd": "4",
+    "target": "anon_inode:[io_uring]"
+  },
+  {
+    "fd": "5",
+    "target": "pipe:[14741]"
+  },
+  {
+    "fd": "6",
+    "target": "pipe:[14741]"
+  },
+  {
+    "fd": "7",
+    "target": "pipe:[14742]"
+  },
+  {
+    "fd": "8",
+    "target": "pipe:[14742]"
+  },
+  {
+    "fd": "9",
+    "target": "anon_inode:[eventfd]"
+  }
+]
