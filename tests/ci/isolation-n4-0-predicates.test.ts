@@ -9,10 +9,22 @@
  * ACCURATE, never more permissive, so every case below that widens anything is
  * paired with one showing that a real violation is still caught.
  *
- * tests/ci/fixtures/wo-n-p3 holds VERBATIM bytes from that run: the four
- * observed values the self-test reported, and the baselines the launcher wrote
- * in the same namespace at the same identity. Nothing here is invented except
- * material explicitly labelled synthetic. Each predicate gets three cases:
+ * WO-N-P4 replaced the P9 section. Its fixtures come from the LATER run
+ * 35758594726 (tests/ci/fixtures/wo-n-p4): the two fd ledgers are BYTE-
+ * IDENTICAL to that run's isolation-evidence artifact, the .json beside them
+ * is JSON-EQUAL ONLY (a reindented, CRLF re-serialization). The rest of the
+ * P9 contract -- classification, parser floor and the behaviour of the gate
+ * -- lives in isolation-fd-ledger.test.ts and isolation-p9-gate-behaviour
+ * .test.ts, which this file is too close to 250 lines to hold.
+ *
+ * tests/ci/fixtures/wo-n-p3 holds TWO KINDS of file from run 35733326729, and
+ * the difference is measured, not assumed. The FIVE baselines (baseline-fd-
+ * final, -final-identity, -inside-links, -inside-route4, -inside-route6) are
+ * BYTE-IDENTICAL in-repo to that run's pos case. The FOUR *.observed.json are
+ * JSON-EQUAL ONLY -- CRLF re-serializations of values out of that run, exactly
+ * as with the wo-n-p4 observation, and must not be called verbatim. Nothing
+ * here is invented except material explicitly labelled synthetic. Each
+ * predicate gets three cases:
  * (a) the PRE-FIX parser, quoted from the code at 0092f3b92, produces the wrong
  * answer that blocked the run; (b) the SHIPPED parser gets the same bytes right
  * AND judges that namespace's baseline PASSING; (c) the MUTANT the work order
@@ -26,8 +38,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-    parseLinkShow, parseProcRoutes, statusField, parseFdDump, inheritedFds
+    parseLinkShow, parseProcRoutes, statusField
 } from '../../scripts/ci/isolation/netns-probe.mjs';
+import { parseFdDump, strayFds } from '../../scripts/ci/isolation/fd-ledger.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FIX = path.join(ROOT, 'tests', 'ci', 'fixtures', 'wo-n-p3');
@@ -183,67 +196,51 @@ describe('P7-groups-cleared: the match may not leave its own line', () => {
     });
 });
 
-describe('P9-no-stray-fds: inheritance, not the probe own descriptors', () => {
+describe('P9-no-stray-fds: the PRE-EXEC ledger, judged BY TARGET', () => {
     type Fd = { fd: string; target: string };
-    const observed = (): Fd[] => json('P9-no-stray-fds.observed.json');
+    const P4 = path.join(ROOT, 'tests', 'ci', 'fixtures', 'wo-n-p4');
+    const ledger = (f: string): string => fs.readFileSync(path.join(P4, f), 'utf8');
     const PHASES = '/home/runner/work/ai-nexus/ai-nexus/'
         + 'scripts/ci/isolation/netns-phases.sh';
-    /** The pre-fix predicate, quoted from netns-probe.mjs at 0092f3b92. */
+    const obs = (): any => JSON.parse(ledger('f3b-P9-observed-WRONGLY-PASSED.json'));
+    /** The N-P3 predicate, quoted from netns-probe.mjs at 8852b2011. */
     const preStray = (fds: Fd[]): Fd[] => fds.filter((f) => !['0', '1', '2'].includes(f.fd)
-        && !f.target.startsWith('anon_inode:') && !/^\/proc\/\d+\/fd$/.test(f.target));
+        && !/^\/proc\/\d+\/fd$/.test(f.target) && f.target !== PHASES);
 
-    it('(a) PRE-FIX: FAILS on the Node runtime own descriptors', () => {
-        const fds = observed();
-        const offenders = preStray(fds);
-        expect(offenders.length).toBe(9);
-        // All nine are Node's own internal pipes plus fd 20, the readdir's own
-        // handle, already closed by the time it was readlinked.
-        expect(offenders.every((f) => f.target.startsWith('pipe:')
-            || f.target === 'UNREADABLE')).toBe(true);
-        // Nothing inherited was actually present: no socket, no foreign path.
-        expect(fds.filter((f) => f.target.startsWith('socket:'))).toEqual([]);
+    it('(a) PRE-FIX: the exec-ed inventory never SAW the kept fd, and passed '
+        + 'two sockets on the strength of their numbers', () => {
+        const o = obs();
+        expect(o.source).toBe('ls -l /proc/self/fd');
+        // Verbatim from the F3b run: P9 reported ok with stray: [].
+        expect([o.ok, o.stray]).toEqual([true, []]);
+        expect(preStray(o.handedDown)).toEqual([]);
+        // fd 1 and fd 2 pointed at SOCKETS and were passed by number alone.
+        expect(o.handedDown.filter((f: Fd) => f.target.startsWith('socket:'))
+            .map((f: Fd) => f.fd)).toEqual(['1', '2']);
+        // The bait the exec-ing shell recorded is absent from that observation:
+        // spawnSync hands a child no inherited descriptor. Structural blindness.
+        expect(o.handedDown.some((f: Fd) => f.fd === '9')).toBe(false);
+        expect(ledger('f3b-fd-final-WITH-BAIT.txt'))
+            .toMatch(/^9\t.*\/f3b\/fd-bait\.txt$/m);
     });
 
-    it('(b) POST-FIX: the recorded final-identity inventory PASSES, and the '
-        + 'allowance that lets it pass is narrow', () => {
-        const entries = parseFdDump(text('baseline-fd-final.txt'));
-        expect(entries.map((e) => e.fd)).toEqual(['0', '1', '2', '255']);
-        // 255 is the script bash is executing. bash opens it AT exec, so it was
-        // never inherited -- but the caller has to NAME it; no shape is waved
-        // through on the strength of looking runtime-ish.
-        expect(inheritedFds(entries, { selfProgram: PHASES })).toEqual([]);
-        expect(inheritedFds(entries).map((e) => e.fd)).toEqual(['255']);
+    it('(b) POST-FIX: the F3b ledger is RED and names fd 9', () => {
+        const r = parseFdDump(ledger('f3b-fd-final-WITH-BAIT.txt'));
+        expect([r.ok, r.recorded, r.entries.length]).toEqual([true, 5, 5]);
+        const stray = strayFds(r.entries, { selfProgram: PHASES });
+        expect(stray.map((s: Fd) => s.fd)).toEqual(['9']);
+        expect(stray[0].target).toContain('/f3b/fd-bait.txt');
     });
 
-    it('(b) a minimal exec-ed inventory passes with nothing declared', () => {
-        const ls = ['lrwx------ 1 r r 64 Sep 22 13:26 0 -> /dev/null',
-            'l-wx------ 1 r r 64 Sep 22 13:26 1 -> /tmp/out',
-            'l-wx------ 1 r r 64 Sep 22 13:26 2 -> /tmp/err',
-            'lr-x------ 1 r r 64 Sep 22 13:26 3 -> /proc/914/fd'].join('\n');
-        expect(parseFdDump(ls).map((e) => e.fd)).toEqual(['0', '1', '2', '3']);
-        expect(inheritedFds(parseFdDump(ls))).toEqual([]);
+    it('(b) POST-FIX: the positive ledger from the same run is GREEN', () => {
+        const r = parseFdDump(ledger('pos-fd-final-CLEAN.txt'));
+        expect([r.ok, r.recorded, r.entries.map((e: Fd) => e.fd)])
+            .toEqual([true, 4, ['0', '1', '2', '255']]);
+        expect(strayFds(r.entries, { selfProgram: PHASES })).toEqual([]);
     });
 
-    it('(c) MUTANT: charging the probe own descriptors as inherited is red', () => {
-        // This IS the pre-fix reading: 18 of Node's own descriptors billed as
-        // handed down. The shipped gate must take its inventory elsewhere.
-        expect(inheritedFds(observed()).length).toBe(18);
-        expect(probeSrc()).toContain('inheritedFdInventory()');
-        expect(probeSrc()).toMatch(/P9-no-stray-fds', handedDown\.ok/);
-        expect(probeSrc()).not.toMatch(/P9-no-stray-fds', fds\./);
-        // And an inventory that cannot be taken at all is a FAILURE, not a skip.
-        expect(probeSrc()).toContain('handedDown.ok && strayFds.length === 0');
-        expect(probeSrc()).toContain('ok: false, reason:');
-    });
-
-    it('(c) MUTANT: a blanket anon_inode/pipe pass would be MORE permissive', () => {
-        const child = parseFdDump('3\tsocket:[99]\n4\tpipe:[100]\n'
-            + '5\tanon_inode:[io_uring]\n6\t/home/runner/.netrc');
-        // The shipped rule refuses all four in an exec-ed process.
-        expect(inheritedFds(child).map((e) => e.fd)).toEqual(['3', '4', '5', '6']);
-        // A blanket allowance would let the pipe and the io_uring through.
-        const blanket = (f: Fd): boolean => f.target.startsWith('anon_inode:')
-            || f.target.startsWith('pipe:');
-        expect(child.filter((f) => !blanket(f)).map((e) => e.fd)).toEqual(['3', '6']);
+    it('(b) the observation that WRONGLY PASSED is RED under the new rule', () => {
+        expect(strayFds(obs().handedDown, { selfProgram: PHASES }).map((s: Fd) => s.fd))
+            .toEqual(['1', '2', '3']);
     });
 });

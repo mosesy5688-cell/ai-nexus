@@ -46,7 +46,7 @@ const EXPECTED_FILES = [
     'attribution-cases.sh', 'case-helpers.sh', 'mask-channels.sh',
     'netns-controls.mjs', 'netns-probe.mjs', 'netns-ipc.mjs',
     'netns-descendant.mjs', 'netns-selftest.mjs', 'pos-marker.mjs',
-    'attribute.mjs', 'boundary-precondition.mjs'
+    'attribute.mjs', 'boundary-precondition.mjs', 'fd-ledger.mjs'
 ];
 /** Data, not code: listed so the census is complete, never parsed as a script. */
 const EXPECTED_DATA = ['classified-channels.tsv'];

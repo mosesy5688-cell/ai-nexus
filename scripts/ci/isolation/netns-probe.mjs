@@ -17,9 +17,16 @@
 // loopback's own all-zero rows as default routes; (3) P7's line match ran off
 // an EMPTY `Groups:` line and returned NStgid's value; (4) P9 measured THIS
 // process's descriptors, charging Node's own io_uring/pipe/eventpoll/eventfd as
-// "inherited". The subprocesses below (`ip`, `sh`) speak to the kernel only.
+// "inherited". The one subprocess below (`ip`) speaks to the kernel only.
+//
+// WO-N-P4. That P9 repair was itself vacuous: it listed /proc/self/fd inside
+// an extra exec'd child, which is handed no inherited descriptor and so showed
+// its OWN table, and the allow-list judged fd NUMBERS, so a socket on fd 1 read
+// as clean. P9 now reads the ledger the exec-ing shell wrote BEFORE exec and
+// judges it BY TARGET; both live in fd-ledger.mjs, which spawns nothing.
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { readFdLedger } from './fd-ledger.mjs';
 
 const readLink = (p) => { try { return fs.readlinkSync(p); } catch { return 'UNREADABLE'; } };
 const readText = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } };
@@ -147,47 +154,6 @@ export function fdInventory() {
     return out;
 }
 
-const STDIO_FDS = Object.freeze(['0', '1', '2']);
-const READDIR_TARGET = /^\/proc\/\d+\/fd$/;
-const FD_INVENTORY_CMD = 'ls -l /proc/self/fd';
-
-/** Accepts either shape the facility produces: "<fd>\t<target>" or `ls -l`. */
-export function parseFdDump(text) {
-    const out = [];
-    for (const line of String(text).split('\n')) {
-        const tab = line.match(/^(\d+)\t(.*)$/);
-        if (tab) { out.push({ fd: tab[1], target: tab[2] }); continue; }
-        const ls = line.match(/\s(\d+) -> (.*)$/);
-        if (ls) out.push({ fd: ls[1], target: ls[2] });
-    }
-    return out;
-}
-
-/**
- * WO-N-P3 (4). P9 asks what was INHERITED, unanswerable on the probe itself:
- * Node opens its own io_uring, pipes, eventpoll and eventfd AFTER exec, and the
- * handle its readdir holds on /proc/self/fd is shut before we readlink it (it
- * reads back UNREADABLE) -- all were charged as inheritance. This is NOT a
- * blanket pass for anon_inode/pipe: the inventory moves to a freshly exec'd
- * process, where the only legitimate descriptors are stdio, the readdir's own
- * handle, and -- when a SHELL took it, as netns-phases.sh does -- the script it
- * is executing (bash's fd 255), named by the caller and never guessed.
- */
-export function inheritedFds(entries, { selfProgram = null } = {}) {
-    return entries.filter((f) => !STDIO_FDS.includes(f.fd)
-        && !READDIR_TARGET.test(f.target)
-        && !(selfProgram !== null && f.target === selfProgram));
-}
-
-/** A fresh minimal process: what IT can see is exactly what was handed down. */
-export function inheritedFdInventory() {
-    const out = run('sh', ['-c', FD_INVENTORY_CMD]);
-    if (out === null) {
-        return { ok: false, reason: `sh -c '${FD_INVENTORY_CMD}' did not run`, entries: [] };
-    }
-    return { ok: true, reason: null, entries: parseFdDump(out) };
-}
-
 export function envViolations() {
     return Object.keys(process.env).filter((k) => ENV_DENY.some((re) => re.test(k)));
 }
@@ -195,19 +161,23 @@ export function envViolations() {
 /**
  * The whole N4-0 gate. Returns { ok, checks } where every check carries its own
  * verdict and the observed value, so a failure says WHICH precondition failed.
+ *
+ * WO-N-P4. `fdLedger` is the path to the record the exec-ing shell wrote from
+ * its OWN /proc/<pid>/fd BEFORE exec, and `selfProgram` is the script that
+ * shell is executing. Both are passed in by the caller: this file takes no
+ * inventory of its own for P9 and spawns nothing to get one.
  */
-export function preflight({ hostNetns, hostUserns, targetUid }) {
+export function preflight({ hostNetns, hostUserns, targetUid,
+    fdLedger = null, selfProgram = null }) {
     const ns = namespaceIdentity();
     const priv = privilegeState();
     const ifaces = interfaceState();
     const routes = routeState();
     const fds = fdInventory();
-    const handedDown = inheritedFdInventory();
-    const strayFds = inheritedFds(handedDown.entries);
+    const ledger = readFdLedger(fdLedger, { selfProgram });
     const envBad = envViolations();
     const checks = [];
     const add = (id, ok, observed, why) => checks.push({ id, ok, observed, why });
-
     add('P0-netns-changed', ns.net !== 'UNREADABLE' && ns.net !== hostNetns,
         { sub: ns.net, host: hostNetns }, 'the subtree must be in a NEW network namespace');
     add('P1-interfaces', ifaces.links.length > 0 && ifaces.links.every((i) => i.name === 'lo'),
@@ -235,11 +205,15 @@ export function preflight({ hostNetns, hostUserns, targetUid }) {
         + 'to a container service socket');
     add('P8-no-socket-fds', fds.every((f) => !f.target.startsWith('socket:')), fds,
         'no inherited socket descriptor may survive into the final identity');
-    add('P9-no-stray-fds', handedDown.ok && strayFds.length === 0,
-        { source: FD_INVENTORY_CMD, ok: handedDown.ok, reason: handedDown.reason,
-            handedDown: handedDown.entries, stray: strayFds },
-        'INHERITANCE, in a freshly exec-ed process: only stdio and the handle '
-        + 'its own readdir holds. No inventory at all is FAILURE, never a skip');
+    add('P9-no-stray-fds', ledger.ok && ledger.stray.length === 0,
+        { source: ledger.source, ok: ledger.ok, reason: ledger.reason,
+            recorded: ledger.recorded, handedDown: ledger.entries,
+            unparsed: ledger.unparsed ?? [], stray: ledger.stray },
+        'INHERITANCE, judged BY TARGET over the pre-exec ledger the exec-ing '
+        + 'shell wrote from its own /proc/<pid>/fd. A socket on ANY fd, a '
+        + 'stdio fd that is not /dev/null, a pipe, a tty or a file, an fd 255 '
+        + 'that is not the script, and every other descriptor are all stray. '
+        + 'No ledger, or a line it could not parse, is FAILURE, never a skip');
     add('P10-env-clean', envBad.length === 0, envBad,
         'proxy, credential-agent and token variables must not be inherited');
 

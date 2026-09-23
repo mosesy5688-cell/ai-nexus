@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import dns from 'node:dns';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { preflight } from './netns-probe.mjs';
 import { inspectChannels } from './netns-ipc.mjs';
 import { runControls, isPass, ACCEPT_ERRNOS } from './netns-controls.mjs';
@@ -23,6 +24,14 @@ const C5_DEADLINE_MS = 3000;
 const C5_NAME = 'c5-auxiliary-observation.invalid';
 
 const readText = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } };
+
+// WO-N-P4. The shell that wrote $EVID/fd-final.txt from its own /proc/<pid>/fd
+// is the shell that execs phase D, and the script it is executing is this
+// file's sibling -- netns-phases.sh runs `node "$HERE/netns-selftest.mjs"`.
+// P9 accepts fd 255 only when it points HERE. Named by the caller, never
+// guessed from a shape.
+const PHASES_SCRIPT = fileURLToPath(new URL('./netns-phases.sh', import.meta.url));
+const FD_LEDGER = (evid) => `${evid}/fd-final.txt`;
 
 function readParams(file) {
     const out = {};
@@ -54,16 +63,34 @@ function controlLiveness(nsPath, ctrlPid) {
 }
 
 /**
- * WO-N-P3 (5), second half. ENOENT and EPERM are not the same answer. The old
- * code mapped EVERY non-zero nsenter exit to REFUSED, so a namespace that had
- * simply vanished read as a boundary holding. Only a genuine refusal is
- * REFUSED; a vanished target is FAIL-vacuous; anything else is INDETERMINATE.
- * All three except JOINED still stop the run -- the caller accepts REFUSED only.
+ * WO-N-P3 (5), second half, CORRECTED BY WO-N-P4 B3. ENOENT and EPERM are not
+ * the same answer. The pre-N-P3 code mapped EVERY non-zero nsenter exit to
+ * REFUSED, so a namespace that had simply vanished read as a boundary holding.
+ * N-P3 separated the two but let the wrong alternative decide.
+ *
+ * `cannot open` names the OPERATION, not the failure, and so discriminates
+ * between no two errnos at all. N-P3 made it an ENOENT alternative and tested
+ * it FIRST, so an open failure carrying a PERMISSION errno was recorded as
+ * "the target vanished" -- a boundary that HELD, mislabelled. That class is
+ * INDETERMINATE now: honest about what is not known, and still stopping the
+ * run, because the escape check accepts REFUSED and nothing else.
+ *
+ * It is deliberately NOT promoted to REFUSED. That would widen the escape gate
+ * for a message class this facility has never produced -- all nine escape
+ * cases of run 35758594726 report `reassociate to namespace 'ns/net' failed:
+ * Operation not permitted` -- and F-6 forbids a looser predicate. The REFUSED
+ * set is therefore UNCHANGED from 8852b2011, element for element; only the
+ * label on two never-observed classes moves, and both still stop the run.
+ *
+ * Every verdict other than REFUSED stops the run -- JOINED above all, since it
+ * means the join SUCCEEDED and the boundary did not hold.
  */
 function classifyNsenter(code, stderr) {
     const s = String(stderr).toLowerCase();
     if (code === 0) return 'JOINED';
-    if (/no such file or directory|cannot open|does not exist/.test(s)) return 'FAIL-vacuous';
+    if (/no such file or directory|does not exist/.test(s)) return 'FAIL-vacuous';
+    // An open failure states no boundary fact, whatever errno follows it.
+    if (/cannot open/.test(s)) return 'INDETERMINATE';
     if (/operation not permitted|permission denied/.test(s)) return 'REFUSED';
     return 'INDETERMINATE';
 }
@@ -131,7 +158,8 @@ async function main() {
     // --- N4-0, no packets ---------------------------------------------------
     report.n4_0 = preflight({
         hostNetns: params.HOST_NETNS, hostUserns: params.HOST_USERNS,
-        targetUid: params.TARGET_UID
+        targetUid: params.TARGET_UID,
+        fdLedger: FD_LEDGER(evid), selfProgram: PHASES_SCRIPT
     });
     for (const c of report.n4_0.checks) if (!c.ok) fail(c.id, c.why);
     if (report.failures.length > 0) {

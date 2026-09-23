@@ -20,3 +20,9 @@
 # Ignore generated data files
 /src/data/models.json
 /src/data/keywords.json
+# WO-N-P4: the two fd ledgers here are BYTE-IDENTICAL to the isolation-evidence
+# artifact of run 35758594726; the .json beside them is a re-serialization of
+# one object out of that artifact and is JSON-EQUAL ONLY, not byte-identical.
+# All three are sha256-pinned by tests/ci/isolation-fd-ledger.test.ts and the
+# ledger parser refuses a CR, so no platform may rewrite any of their bytes.
+tests/ci/fixtures/wo-n-p4/** -text
