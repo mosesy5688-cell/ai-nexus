@@ -10,13 +10,27 @@
  * does not initiate that read and still renders its five nav entries. It makes
  * NO claim about home-page latency, /ranking, or any wait-bound question.
  *
- * ISOLATION MODEL: the component is compiled with @astrojs/compiler using the
- * same option set Astro's own build uses, then instantiated against an EXPLICIT
- * binding registry. No module resolution happens at all, so the module can only
- * see the namespaces handed to it: the reader stub cannot be bypassed and the
- * real reader (with its sqlite/VFS/R2 chain) is unreachable by construction.
- * An unregistered specifier, a non-stub namespace or an unsupported import
- * clause ABORTS (fail-closed) rather than falling back.
+ * ISOLATION MODEL, AND ITS LIMIT (M-G1-01). The component is compiled with
+ * @astrojs/compiler (compile(), below, holds the exact options), and then
+ * instantiate() REWRITES THE STATIC IMPORTS of that compiled artifact to
+ * namespaces taken from an explicit registry. That rewrite is the whole of
+ * its scope. Four conditions abort it, each by its own error: a static
+ * specifier the registry does not carry (E_UNREGISTERED_IMPORT), a registered
+ * namespace without the sentinel (E_NOT_A_STUB), and module syntax still
+ * present after the rewrite (E_UNTRANSFORMED_MODULE_SYNTAX) -- those three
+ * pinned by the three "aborts" cases below -- plus an import clause that is
+ * neither `{...}` nor `* as x` (E_UNSUPPORTED_IMPORT_CLAUSE), which is a
+ * source-level guard with no case in this file.
+ *
+ * IT IS NOT A JAVASCRIPT SANDBOX and must not be described as one. The
+ * rewritten body is handed to AsyncFunction, so it runs with the host globals:
+ * measured through this file's own instantiate() against an EMPTY registry,
+ * `process.version` returns a version string and `await import("node:path")`
+ * resolves. The registry therefore constrains THIS artifact's STATIC
+ * dependency graph -- which is what the import-census cases assert -- not
+ * arbitrary code, and it makes nothing "unreachable". The boundary that is
+ * actually ENFORCED is the launcher's network namespace, described next and
+ * asserted by the d3/d4 cases.
  *
  * P-2 (work order N, ruling D d3/d4 -- CHANGED). This file used to assert an
  * IN-PROCESS monkey patch of globalThis.fetch and net.Socket.prototype.connect.
