@@ -19,6 +19,12 @@
  * the gate without changing these bytes would pass. Closing M10 needs a
  * counterexample that induces a genuine inherited fd with no FAULT knob; that is
  * N-P5 item 0 and is deliberately not attempted here.
+ *
+ * The same blindness covers the P-1 PRE-PHASE-D gate at netns-phases.sh:92. No
+ * counterexample exercises THAT one as a failing gate either: F4b fails earlier
+ * at the post-drop check (line 60) and exits first, so the second stub check is
+ * only ever seen passing. Several of the mutants that survive this file depend
+ * on exactly that.
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -84,18 +90,36 @@ describe('netns-phases.sh: bytes that must be present (text assertions only)', (
         expect(sh.match(/fail "phase C self-test failed/g)?.length).toBe(1);
     });
 
-    it('the script declares exactly two shell functions, rec and fail', () => {
-        const sh = src('netns-phases.sh');
-        // A census of DECLARATION TEXT, not a claim about execution. Any added
-        // or redefined function makes it three, in either bash spelling: the
-        // count tolerates `(){` as well as `() {`, and the `function NAME`
-        // form is refused outright (the file uses neither). It happens to
-        // catch M10 and the exit()/node() overrides as written. It CANNOT see
-        // a defeat that adds no declaration -- a PATH change, an alias, a
-        // sourced file -- and it is not evidence that the gate fires.
-        expect(sh.match(/\(\)\s*\{/g)?.length).toBe(2);
-        expect([...sh.matchAll(/^(\w+)\(\)\s*\{/gm)].map((m) => m[1])).toEqual(['rec', 'fail']);
-        expect(sh).not.toMatch(/^\s*function\s+\w+/m);
+    it('the gate script AND the two files it sources declare only their own '
+        + 'functions, in every bash spelling of a function header', () => {
+        // A census of DECLARATION TEXT, not a claim about execution.
+        //
+        // WHAT IT CATCHES: the `name()` header in every spelling bash accepts
+        // -- `name()`, `name ()`, `name ( )`, any whitespace (a newline
+        // included) before the brace -- anywhere in the file, at line start
+        // or buried inside an `if`; and the `function NAME` form, which is
+        // refused outright because none of these files uses it. The census
+        // covers netns-phases.sh AND the two files it sources at lines 19 and
+        // 21, because an override appended to either of those defeats the
+        // gate without netns-phases.sh changing at all.
+        //
+        // WHAT IT DOES NOT CATCH: any defeat that adds no declaration. An
+        // alias (`shopt -s expand_aliases; alias fail=rec`) and a PATH shim
+        // both kill the gate and both leave every assertion in this file
+        // green. They belong to the open M10 class named in the header above
+        // and are NOT closed by this or by anything else in this suite.
+        const CENSUS: Array<[string, string[]]> = [
+            ['netns-phases.sh', ['rec', 'fail']],
+            ['exit-codes.sh', []],
+            ['stub-identity.sh', ['f2ai_stub_verify']]
+        ];
+        for (const [f, names] of CENSUS) {
+            const sh = src(f);
+            expect(sh.match(/\(\s*\)\s*\{/g)?.length ?? 0, f).toBe(names.length);
+            expect([...sh.matchAll(/^(\w+)\s*\(\s*\)\s*\{/gm)].map((m) => m[1]), f)
+                .toEqual(names);
+            expect(sh, f).not.toMatch(/^\s*function\s+\w+/m);
+        }
     });
 
     it('phase D is downstream of the gate and its code is not remapped', () => {
@@ -165,7 +189,9 @@ describe('the behaviour suite depends on ENV_DENY; that dependency is pinned', (
         // starts spawning descendants and attempting an nsenter escape from
         // inside a unit test. The failure mode is not a clean red, so the
         // precondition is asserted here rather than assumed there.
+        // Deliberately not pinned by index: swapping two elements of
+        // ENV_DENY leaves the deny SET identical, and the set is the
+        // property. This is the predicate envViolations() actually applies.
         expect(ENV_DENY.some((re: RegExp) => re.test('HTTPS_PROXY'))).toBe(true);
-        expect(String(ENV_DENY[0])).toBe('/^https?_proxy$/i');
     });
 });

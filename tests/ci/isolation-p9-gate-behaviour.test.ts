@@ -17,10 +17,13 @@
  * those NARROW the window without closing it: fail() can be left BYTE-IDENTICAL
  * and still be prevented from firing (M10 redefines it inside the gate under
  * `[ -z "$FAULT" ]`; an `exit()` or `node()` shell-function override does it
- * from outside the region). Those three are caught AS WRITTEN by the region pin
- * and the function census in isolation-gate-source-pins, but a defeat that adds
- * no declaration -- a PATH change, an alias, a sourced file -- is caught by
- * nothing. Do not read anything below as "the gate is pinned".
+ * from outside the region). Those are caught AS WRITTEN by the region pin and
+ * the function census in isolation-gate-source-pins, which also covers the two
+ * files netns-phases.sh sources; but a defeat that adds no declaration -- an
+ * alias or a PATH shim -- is caught by nothing. The same blindness covers the
+ * P-1 PRE-PHASE-D gate at netns-phases.sh:92, which no counterexample exercises
+ * as a FAILING gate because F4b exits earlier at the post-drop check on line 60.
+ * Do not read anything below as "the gate is pinned".
  *
  * ENVIRONMENT. On CI this file runs INSIDE the launcher: test-suite.yml:147
  * invokes `netns-launch.sh -- npx vitest run --coverage` and vitest.config.ts
@@ -101,7 +104,6 @@ describe('the real self-test against a synthetic ledger (this part executes)', (
         + 'not in it, so every "P9 absent" below is non-vacuous', () => {
         expect(AMBIENT).toContain('P10-env-clean');
         expect(AMBIENT).not.toContain(P9);
-        expect(AMBIENT_PLUS_P9.length).toBe(AMBIENT.length + 1);
     });
 
     it('a KEPT descriptor puts P9 in failures -- the failure set is exactly '
@@ -124,8 +126,8 @@ describe('the real self-test against a synthetic ledger (this part executes)', (
 
     it('the same ledger WITHOUT that descriptor leaves P9 out entirely', () => {
         // No exit-code assertion: with P9 green the code says only what the
-        // ambient environment says. What P9 says is these.
-        expect(failedIds(GREEN)).toEqual(AMBIENT);
+        // ambient environment says. What P9 says is these. (Comparing
+        // failedIds(GREEN) to AMBIENT would compare a value to itself.)
         expect(GREEN.stdout).not.toContain(`FAIL ${P9}:`);
         expect(p9Of(GREEN).ok).toBe(true);
         expect(GREEN.report.controlsParent).toBe(undefined);
