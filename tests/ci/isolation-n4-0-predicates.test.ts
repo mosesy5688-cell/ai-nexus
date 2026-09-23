@@ -21,10 +21,13 @@
  * the difference is measured, not assumed. The FIVE baselines (baseline-fd-
  * final, -final-identity, -inside-links, -inside-route4, -inside-route6) are
  * BYTE-IDENTICAL in-repo to that run's pos case. The FOUR *.observed.json are
- * JSON-EQUAL ONLY -- CRLF re-serializations of values out of that run, exactly
- * as with the wo-n-p4 observation, and must not be called verbatim. Nothing
- * here is invented except material explicitly labelled synthetic. Each
- * predicate gets three cases:
+ * JSON-EQUAL ONLY: re-serialized, reindented values out of that run, not its
+ * raw bytes, and they must not be called verbatim. They are NOT CRLF in the
+ * repo -- measured on the committed blobs, CR = 0 for all four; a CRLF seen
+ * in a Windows worktree is the `* text=auto` smudge, not a repo byte. That is
+ * unlike the wo-n-p4 observation, whose directory is marked -text and whose
+ * blob does carry CRLF. Nothing here is invented except material explicitly
+ * labelled synthetic. Each predicate gets three cases:
  * (a) the PRE-FIX parser, quoted from the code at 0092f3b92, produces the wrong
  * answer that blocked the run; (b) the SHIPPED parser gets the same bytes right
  * AND judges that namespace's baseline PASSING; (c) the MUTANT the work order
