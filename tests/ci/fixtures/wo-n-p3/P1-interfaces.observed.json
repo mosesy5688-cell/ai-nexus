@@ -1,0 +1,18 @@
+[
+  {
+    "name": "docker0",
+    "operstate": "down"
+  },
+  {
+    "name": "enP26900s1",
+    "operstate": "up"
+  },
+  {
+    "name": "eth0",
+    "operstate": "up"
+  },
+  {
+    "name": "lo",
+    "operstate": "unknown"
+  }
+]

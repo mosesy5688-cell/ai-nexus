@@ -1,0 +1,5 @@
+0	/dev/null
+1	/home/runner/work/ai-nexus/ai-nexus/.isolation-evidence/counterexamples-20260922T170749Z/f3b/driver.stdout
+2	/home/runner/work/ai-nexus/ai-nexus/.isolation-evidence/counterexamples-20260922T170749Z/f3b/driver.stderr
+255	/home/runner/work/ai-nexus/ai-nexus/scripts/ci/isolation/netns-phases.sh
+9	/home/runner/work/ai-nexus/ai-nexus/.isolation-evidence/counterexamples-20260922T170749Z/f3b/fd-bait.txt

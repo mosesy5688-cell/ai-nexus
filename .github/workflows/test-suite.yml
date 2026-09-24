@@ -53,6 +53,43 @@ jobs:
       - name: Install Dependencies (Root)
         run: npm ci
 
+      # Work order N (diagnostic only): READ-ONLY runner capability probe. The
+      # first real Linux run failed every case with exit 71
+      # (F2AI_ISO_RC_ESTABLISH), which covers lo, the controlled namespace,
+      # classified masking and unshare itself at once -- so ruling B1 ("does
+      # this runner permit `unshare --net`") stayed unanswered. This step
+      # answers it by MEASURING, independently of the launcher. It is a PROBE,
+      # NOT A GATE: every command ends in `|| true`, so it can never turn the
+      # run red whatever it finds, and it changes no trigger, no gate condition
+      # and nothing under test. No continue-on-error is used or needed.
+      - name: Runner isolation capability probe (read-only, non-gating)
+        run: |
+          id -u || true
+          uname -r || true
+          RC=0; sudo -n true || RC=$?; echo "probe: sudo -n true rc=$RC" || true
+          RC=0; unshare --net true || RC=$?; echo "probe: unshare --net true rc=$RC" || true
+          RC=0; sudo -n unshare --net true || RC=$?; echo "probe: sudo -n unshare --net true rc=$RC" || true
+          cat /proc/sys/user/max_net_namespaces || true
+          capsh --print | head || true
+
+      # Work order N -- isolation launcher. P-3 puts the FAILURE CONTROLS FIRST:
+      # prove the gate refuses before anything relies on it. This step runs the
+      # REAL launcher (scripts/ci/isolation/netns-launch.sh) for counterexamples
+      # F1-F4 and the non-vacuous positive control; it does not stand in for the
+      # launcher with a second wrapper (N5-1). It is BLOCKING: no
+      # continue-on-error, no `|| true`, no pipe-tail masking -- the driver's
+      # exit status is its number of failed expectations (N5-2).
+      # It installs and downloads NOTHING: phase A preparation is the checkout,
+      # setup-node and npm ci above, which is the dependency preparation ruling
+      # B2 already covers. Phase D may not network to fill a gap and cannot:
+      # inside the boundary there is no route.
+      # RUNNER CAPABILITY IS UNVERIFIED (ruling B1): whether this runner permits
+      # `unshare --net` is proven by a normal PR run, never by a dispatch fired
+      # to obtain proof. If it does not, this step fails closed -- it must NOT
+      # be softened into an unisolated fallback.
+      - name: Isolation launcher counterexamples F1-F4 + positive control (blocking)
+        run: bash scripts/ci/isolation/counterexamples.sh
+
       # C2-LOCK (D-2026-0702-228/230 + D-2026-0703-236/237 + D-2026-0704-245): the
       # .mjs node:test suites are NOT collected by vitest (which globs only
       # **/*.{test,spec}.ts). Run them EXPLICITLY as a required gate with the EXACT
@@ -95,8 +132,19 @@ jobs:
       - name: Run node --test .mjs suites (factory handoff satellite + core + harvest + vfs-derived + shards + cycle-output + mesh-profile + rankings-db + bounded-finalization + runner-capacity; r2-restore-progress T3; shard-oom Q8/GAP-5/M8.f; ci alert-matrix + ta2-preview-readiness + test-suite-registration-guard, blocking)
         run: node --test scripts/factory/aggregate-handoff.test.mjs scripts/factory/satellite-registry-handoff.test.mjs scripts/factory/harvest-authoritative-handoff.test.mjs scripts/factory/vfs-derived-handoff-manifest.test.mjs scripts/factory/shards-handoff-manifest.test.mjs scripts/factory/cycle-output-handoff-manifest.test.mjs scripts/factory/mesh-profile-handoff-manifest.test.mjs scripts/factory/aggregate-bounded-finalization.test.mjs scripts/factory/runner-capacity-preflight.test.mjs scripts/factory/rankings-db-handoff-manifest.test.mjs scripts/ci/alert-notification-matrix.test.mjs scripts/ci/ta2-preview-readiness.test.mjs scripts/ci/test-suite-registration-guard.test.mjs scripts/factory/r2-restore-progress.test.mjs scripts/factory/r2-restore-progress-wiring.test.mjs scripts/factory/shard-oom-repair.test.mjs scripts/factory/shard-oom-ceiling.test.mjs scripts/factory/shard-oom-chunking.test.mjs scripts/factory/shard-oom-q8-invariant.test.mjs scripts/factory/shard-oom-slow.test.mjs scripts/factory/shard-oom-m8f-probe.test.mjs scripts/ingestion/producer-field-bounds.test.mjs scripts/ingestion/producer-line-bound.test.mjs scripts/ingestion/producer-bounds-wiring.test.mjs scripts/ingestion/producer-escalation.test.mjs scripts/factory/registry-renorm-core.test.mjs scripts/factory/registry-renorm-shard.test.mjs scripts/factory/registry-renorm-run.test.mjs scripts/factory/registry-renorm-verification.test.mjs scripts/factory/registry-renorm-census.test.mjs scripts/factory/registry-stale-shard-purge.test.mjs scripts/factory/rehearsal-reconcile.test.mjs scripts/factory/registry-renorm-wiring.test.mjs scripts/ingestion/producer-compound-failure.test.mjs scripts/factory/shard-oom-accounting.test.mjs scripts/factory/shard-write-error-invariant.test.mjs scripts/factory/r2-restore-completeness-gate.test.mjs scripts/factory/r2-transport-deadlines.test.mjs scripts/factory/r2-restore-terminal-guard.test.mjs scripts/factory/r2-restore-workflow-gates.test.mjs scripts/factory/r2-restore-engine-parity.test.mjs
 
-      - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite (blocking)
-        run: npx vitest run --coverage
+      # Work order N (N5-4): the SAME Tier-1 entry, now executed INSIDE the
+      # network-namespace boundary. The command after `--` is byte-identical to
+      # the one this step ran before, so no test moved, none was quietly dropped
+      # to remove a bypass, and NO second unisolated vitest entry exists in this
+      # workflow. The whole root suite runs in the boundary, including
+      # tests/unit/mesh-visualizer-no-metadata-read.test.ts -- which is where
+      # #2326's Astro compile, render and reader-mutant entries live.
+      # Exit codes propagate verbatim. An establishment or self-test failure
+      # exits non-zero (70-76) and never starts vitest (ruling B1); a vitest
+      # failure keeps vitest's own code, so the isolation result and the test
+      # result stay separable (ruling B3).
+      - name: Run Vitest (Root) — Tier-1 SRS-1 invariant suite, inside the isolation boundary (blocking)
+        run: bash scripts/ci/isolation/netns-launch.sh -- npx vitest run --coverage
 
       # D-127 (Founder B3/B5, BLOCKING): the @free2aitools/sdk workspace is NOT
       # collected by the root vitest run (packages/** is excluded so root SRS-1
@@ -111,3 +159,21 @@ jobs:
           npm run build --workspace @free2aitools/sdk
           npm run typecheck --workspace @free2aitools/sdk
           npm test --workspace @free2aitools/sdk
+
+      # Work order N (diagnostic only): .isolation-evidence is the ONLY place
+      # attribution.txt, ipc-mitigation.txt, the establish record and the
+      # unshare-*.txt probes are written, and nothing ever uploaded it -- the
+      # instrument was absent at exactly the moment it was needed. The WHOLE
+      # tree is uploaded (every case sub-directory under it), with
+      # `if: always()` because the run worth reading is the failing one.
+      # include-hidden-files is REQUIRED: .isolation-evidence is a dot-path and
+      # upload-artifact excludes hidden paths by default, which would upload
+      # nothing. Upload only -- it gates nothing and cannot change a result.
+      - name: Upload isolation evidence (diagnostic, always)
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: isolation-evidence
+          path: .isolation-evidence
+          include-hidden-files: true
+          if-no-files-found: ignore

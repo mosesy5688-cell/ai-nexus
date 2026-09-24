@@ -1,0 +1,24 @@
+{
+  "source": "ls -l /proc/self/fd",
+  "ok": true,
+  "reason": null,
+  "handedDown": [
+    {
+      "fd": "0",
+      "target": "/dev/null"
+    },
+    {
+      "fd": "1",
+      "target": "socket:[19050]"
+    },
+    {
+      "fd": "2",
+      "target": "socket:[19052]"
+    },
+    {
+      "fd": "3",
+      "target": "/proc/369/fd"
+    }
+  ],
+  "stray": []
+}

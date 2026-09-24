@@ -1,28 +1,12 @@
 ---
-import { loadSiteMetadata } from '../../utils/vfs-site-metadata.js';
-
 /**
  * MeshVisualizer V26.5
- * Visualizes the knowledge graph from VFS site_metadata
+ * Served-type navigation strip for the homepage knowledge-mesh section.
+ * Pure presentation: it renders no counts, so it reads no site metadata
+ * (see the D-121 C-2 note below).
  */
 
 const CDN_BASE = 'https://cdn.free2aitools.com';
-
-let meshStats = { nodes: 0, edges: 0, by_type: {} };
-
-try {
-  const data = await loadSiteMetadata('mesh_stats');
-  if (data) {
-    meshStats = data;
-  } else {
-    // Fallback stats for V16.8.15 R5.7.3 (Unified Factory Sync).
-    // by_type retained for the nodes/edges totals only; the served-type grid no
-    // longer renders per-type numbers (D-121 C-2 option a).
-    meshStats = { nodes: 125152, edges: 47685, by_type: {} };
-  }
-} catch (e) {
-  // Use defaults from above
-}
 
 // Node type icons, colors and navigation links.
 // SERVED-TYPE GRID ONLY (D-121 / C-1): every entry here must be a currently-served
@@ -42,16 +26,22 @@ const typeConfig = {
   knowledge: { icon: '📚', color: 'bg-black/40', label: 'Knowledge', href: '/knowledge' }
 };
 
-// D-121 C-2 (option a): per-type numeric counts DROPPED from this navigation
-// strip. They were sourced from `mesh_stats.by_type` (knowledge-graph NODE
+// D-121 C-2 (option a): per-type numeric counts were DROPPED from this navigation
+// strip. They had been sourced from `mesh_stats.by_type` (knowledge-graph NODE
 // counts, a different Factory artifact on a different cycle) and summed to a
 // total that diverged from the headline catalog count (manifest
 // partitions.total_entities). Surfacing two non-reconciling totals on one page
 // is an honest-contract gap; re-sourcing per-type counts from the same manifest
 // cycle would require new runtime data plumbing into this presentation
 // component (SCOPE_EXPANSION). The strip is now pure navigation — no numbers.
-const totalNodes = meshStats.nodes || 0;
-const totalEdges = meshStats.edges || 0;
+//
+// Consequence, kept deliberately: because the template renders no count, the
+// former `mesh_stats` read — reader import, awaited call, try/catch, the
+// hardcoded fallback pair and the write-only `totalNodes`/`totalEdges`
+// locals — contributed nothing to this component's output and has been
+// removed. Do NOT re-introduce a site-metadata read here without a
+// rendered consumer for it
+// (guard: tests/unit/mesh-visualizer-no-metadata-read.test.ts).
 ---
 
 <section class="mesh-visualizer bg-[var(--bg-canvas)] rounded-sm p-6 border border-[var(--border-hairline)] relative overflow-hidden">
