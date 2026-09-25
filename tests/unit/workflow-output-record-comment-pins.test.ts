@@ -13,14 +13,15 @@
 //   3. the enclosing job's `outputs:` mapping lines that read the step, verbatim, and
 //      that the step sits inside that job;
 //   4. two historical over-strong phrases, banned anywhere in each workflow file;
-//   5. (hub v101 m1) ZERO `defaults:` keys anywhere in each workflow file, workflow
-//      level and job level alike (a `defaults.run.shell` would silently replace the
-//      runner default for the gate step), and NO job-level `continue-on-error` on
-//      each gate job (it would let a refused gate pass the job).
-// LIMIT: everything else in the workflow YAML -- triggers, permissions, other jobs,
-// and new steps in the same job (J4) -- is NOT pinned here; it is left to G1
-// structural diff review. Not runtime evidence (see
-// workflow-output-record-behaviour.test.ts).
+//   5. (hub v101 m1) in each workflow file, re-read from disk: ZERO `defaults:` keys
+//      at any indentation (workflow and job level; would replace the gate step's
+//      default shell) and ZERO YAML explicit-key lines (`? key`), which could hide
+//      either pin; and NO job-level `continue-on-error` key (quotes stripped,
+//      trimmed) on each gate job.
+// LIMIT: everything else -- triggers, permissions, job-level `container:` and
+// `runs-on` (both can change the gate step's default shell), other jobs, new steps
+// in the same job (J4) -- is left to G1 structural diff review. Not runtime
+// evidence (see workflow-output-record-behaviour.test.ts).
 import { describe, it, expect } from 'vitest';
 import {
   UPLOAD_STEP,
@@ -171,7 +172,7 @@ function readJob(yml: string, job: string, stepName: string) {
     if (raw === `      - name: ${stepName}`) hasStep = true;
     if (ind === 4) {
       inOut = raw.trim() === 'outputs:';
-      jobKeys.push(raw.trim().split(':')[0].replace(/["']/g, ''));
+      jobKeys.push(raw.trim().split(':')[0].replace(/["']/g, '').trim());
     } else if (inOut) outputs.push(raw.trim());
   }
   return { outputs, hasStep, jobKeys };
@@ -231,16 +232,19 @@ describe('GROUP A -- the three gate steps pinned by EQUALITY', () => {
 // hub v101 m1: a `defaults:` key at ANY indentation (workflow or job level), quoted or
 // not. Each file is re-read from disk; an unreadable or empty file is red.
 const DEFAULTS_KEY = /^[ \t]*["']?defaults["']?[ \t]*:/gm;
+const EXPLICIT_KEY = /^[ \t]*\?([ \t]|$)/gm; // YAML explicit-key line: `? key` or a bare `?`
 describe('GROUP A -- no `defaults:` key anywhere in the three workflows', () => {
-  it('the defaults-key matcher is not vacuous (workflow level, job level, quoted)', () => {
+  it('the defaults-key and explicit-key matchers are not vacuous', () => {
     const probe = 'defaults:\n  run:\njobs:\n  a:\n    defaults:\n    "defaults" :\n    x: defaults: no\n';
     expect(probe.match(DEFAULTS_KEY)?.length).toBe(3);
+    expect('? defaults\n: x\n  a:\n    ? continue-on-error\n    : true\n    ?\n    x: a?b\n'.match(EXPLICIT_KEY)?.length).toBe(3);
   });
   for (const wf of [UPLOAD_WF, IMAGE_WF, AGGREGATE_WF]) {
-    it(`${wf}: count of \`defaults:\` keys == 0`, () => {
+    it(`${wf}: count of \`defaults:\` keys == 0 and count of explicit-key (\`? \`) lines == 0`, () => {
       const text = read(wf);
       expect(text.length, `${wf} must be readable and non-empty`).toBeGreaterThan(0);
       expect(text.match(DEFAULTS_KEY) ?? []).toEqual([]);
+      expect(text.match(EXPLICIT_KEY) ?? []).toEqual([]);
     });
   }
 });
