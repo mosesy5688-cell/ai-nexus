@@ -7,8 +7,10 @@
 // runtime behaviour; that exists only in the CI run that executes the driver.
 //
 // Comment-only lines are dropped from the driver before any comparison, so a
-// comment can neither satisfy nor break a pin; an edit to a code line inside
-// the region (a trailing comment included) breaks P1.
+// comment-only line can neither satisfy nor break a pin. P1 is LINE-ALIGNED:
+// the region must match whole driver code lines, so any edit to a code line
+// inside the region -- text appended to its last line or prepended to its
+// first, or a trailing comment on any of its lines -- breaks P1.
 
 const FIXTURE_LINES = 31;
 const LOAD_BEARING = [
@@ -29,7 +31,7 @@ export function p9oPinFailures(driverText, fixtureText) {
     const region = String(fixtureText).replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
     // P1: the fixture is ONE contiguous region of the driver's code lines, once.
     if (region.length !== FIXTURE_LINES) out.push(`P1 fixture has ${region.length} lines, expected ${FIXTURE_LINES}`);
-    const seen = code.join('\n').split(region.join('\n')).length - 1;
+    const seen = `\n${code.join('\n')}\n`.split(`\n${region.join('\n')}\n`).length - 1;
     if (seen !== 1) out.push(`P1 fixture region occurs ${seen} times in the driver code lines, expected 1`);
     // P2: the load-bearing lines are inside that region.
     for (const l of LOAD_BEARING) if (!(region.indexOf(l) > 0)) out.push(`P2 missing from region: ${l.trim()}`);

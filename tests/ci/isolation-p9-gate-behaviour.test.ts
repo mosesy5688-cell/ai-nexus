@@ -162,6 +162,12 @@ describe('the real self-test against a synthetic ledger (this part executes)', (
  * show the launcher stopping. That evidence exists only in the CI run that
  * executes the driver (rc 74 and no phaseD.marker on the originals; phase D
  * STARTED on every mutated copy).
+ *
+ * LIMIT: the pins below guard the TEXT of the P9o region only. Edits OUTSIDE it
+ * can still neutralise the case without tripping them -- a heredoc or
+ * `if false` wrapper, `trap 'exit 0' EXIT`, redefining bad/expect_grep via
+ * eval, aliasing p9o_expect, or resetting FAILED before the final printf -- and
+ * the driver has no runtime count proving the case ran.
  */
 describe('P9o: the inherited stdout it uses lies in the establish/P9 difference set', () => {
     const read = (f: string): string => fs.readFileSync(path.join(ISO, f), 'utf8').replace(/\r\n/g, '\n');
@@ -175,9 +181,8 @@ describe('P9o: the inherited stdout it uses lies in the establish/P9 difference 
     });
 
     // The pin logic is ONE pure function in helpers/p9o-pins.mjs: (driver text,
-    // fixture text) -> failures. The paths below are fixed; nothing here reads the
-    // environment, so no setting can point these pins at another file. None of
-    // this is runtime behaviour.
+    // fixture text) -> failures. The paths below are fixed and nothing in this
+    // block reads the environment. None of this is runtime behaviour.
     const DRIVER = path.join(ISO, 'counterexamples.sh');
     const FIXTURE = path.join(ROOT, 'tests', 'ci', 'fixtures', 'wo-n-p5-0', 'p9o-code-region.txt');
     const HELPER = path.join(ROOT, 'tests', 'ci', 'helpers', 'p9o-pins.mjs');
@@ -190,13 +195,25 @@ describe('P9o: the inherited stdout it uses lies in the establish/P9 difference 
         expect(p9oPinFailures(fs.readFileSync(DRIVER, 'utf8'), fs.readFileSync(FIXTURE, 'utf8'))).toEqual([]);
     });
 
-    it('source text pins that neither this file nor the helper can be redirected by the environment', () => {
-        // Code lines only, so a comment can neither satisfy nor break it. The one
-        // line allowed here predates N-P5: it hands the self-test child its env.
-        // The token is assembled so that this check does not match itself.
+    it('source text pins the fixture itself: sha256 of its LF-normalised content', async () => {
+        // Regenerating the fixture from an edited driver changes this digest. The
+        // literal was written from a command's output over the committed fixture.
+        const { createHash } = await import('node:crypto');
+        const got = createHash('sha256')
+            .update(fs.readFileSync(FIXTURE, 'utf8').replace(/\r\n/g, '\n')).digest('hex');
+        expect(got).toBe('cddb41f182de7ab729e033723cae76b68bcc7978372e5457151a0fa1988e4195');
+    });
+
+    it('source text pins that the process' + '.env token appears on no code line of this file except '
+        + 'line 78, and that the helper has no such token and no import/fs token', () => {
+        // Code lines only, so a comment can neither satisfy nor break it. Line 78
+        // predates N-P5: it hands the self-test child its env. The token is
+        // assembled so that this check does not match itself.
         const tok = ['process', 'env'].join('.');
-        expect(codeLines(fileURLToPath(import.meta.url)).filter((l) => l.includes(tok)))
-            .toEqual([`        env: { ...${tok}, [DENY_VAR]: 'http://wo-n-p4-forces-p10.invalid' }`]);
+        const allowed = `        env: { ...${tok}, [DENY_VAR]: 'http://wo-n-p4-forces-p10.invalid' }`;
+        expect(codeLines(fileURLToPath(import.meta.url)).filter((l) => l.includes(tok))).toEqual([allowed]);
+        expect(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+            .split('\n').indexOf(allowed) + 1).toBe(78);
         const helper = codeLines(HELPER);
         expect(helper.filter((l) => l.includes(tok) || /readFileSync|\bfs\.|^\s*import\b/.test(l))).toEqual([]);
         expect(helper.filter((l) => /^\s*export\b/.test(l)))
