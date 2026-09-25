@@ -76,8 +76,11 @@ describe('GROUP A-4 ① — LF / CRLF / duplicate-key text cannot ADD a record',
     it(`${label}: CR/LF POSITION SWEEP -- every generated input is refused with a 0-byte output`, () => {
       expect(SWEEP.length, 'sweep size: 12 positions x 4 inserts').toBe(48);
       for (const v of SWEEP) {
-        const r = run(script, { [envKey]: v });
         const tag = `${label} input=${JSON.stringify(v)}`;
+        let r: ReturnType<typeof run>;
+        try { r = run(script, { [envKey]: v }); } catch (e) {
+          throw new Error(`${tag}: output was written and is not even parseable (${String(e)})`);
+        }
         expect(r.rc, `${tag}: step must fail closed`).not.toBe(0);
         expect(r.raw, `${tag}: output file must be 0 bytes`).toBe('');
         expect(r.output, tag).toContain('refusing to write a multi-record GITHUB_OUTPUT');
