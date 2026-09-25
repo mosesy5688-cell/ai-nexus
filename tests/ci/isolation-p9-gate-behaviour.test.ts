@@ -163,11 +163,16 @@ describe('the real self-test against a synthetic ledger (this part executes)', (
  * executes the driver (rc 74 and no phaseD.marker on the originals; phase D
  * STARTED on every mutated copy).
  *
- * LIMIT: the pins below guard the TEXT of the P9o region only. Edits OUTSIDE it
+ * LIMIT: the pins below guard exactly two things: (a) the TEXT of the P9o
+ * region, and (b) a whole-driver declaration census (P4: the function heads,
+ * and no alias, unalias, unset -f or function line). Edits OUTSIDE the region
  * can still neutralise the case without tripping them -- a heredoc or
  * `if false` wrapper, `trap 'exit 0' EXIT`, redefining bad/expect_grep via
- * eval, aliasing p9o_expect, or resetting FAILED before the final printf -- and
- * the driver has no runtime count proving the case ran.
+ * eval or in the one-line form `true; expect_grep() { :; }`, aliasing
+ * p9o_expect, or resetting FAILED before the final printf -- and the driver has
+ * no runtime count proving the case ran. Nothing pins this test's own wiring
+ * (both calls below using the one FIXTURE constant) or the helper's own
+ * constants.
  */
 describe('P9o: the inherited stdout it uses lies in the establish/P9 difference set', () => {
     const read = (f: string): string => fs.readFileSync(path.join(ISO, f), 'utf8').replace(/\r\n/g, '\n');
@@ -205,7 +210,9 @@ describe('P9o: the inherited stdout it uses lies in the establish/P9 difference 
     });
 
     it('source text pins that the process' + '.env token appears on no code line of this file except '
-        + 'line 78, and that the helper has no such token and no import/fs token', () => {
+        + 'line 78, and that the helper code lines hold no such token, no import or require( token '
+        + 'anywhere, no readFileSync or fs. token, and exactly one line-leading export (the '
+        + 'p9oPinFailures declaration)', () => {
         // Code lines only, so a comment can neither satisfy nor break it. Line 78
         // predates N-P5: it hands the self-test child its env. The token is
         // assembled so that this check does not match itself.
@@ -215,7 +222,8 @@ describe('P9o: the inherited stdout it uses lies in the establish/P9 difference 
         expect(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').replace(/\r\n/g, '\n')
             .split('\n').indexOf(allowed) + 1).toBe(78);
         const helper = codeLines(HELPER);
-        expect(helper.filter((l) => l.includes(tok) || /readFileSync|\bfs\.|^\s*import\b/.test(l))).toEqual([]);
+        expect(helper.filter((l) => l.includes(tok)
+            || /readFileSync|\bfs\.|\bimport\b|\brequire\s*\(/.test(l))).toEqual([]);
         expect(helper.filter((l) => /^\s*export\b/.test(l)))
             .toEqual(['export function p9oPinFailures(driverText, fixtureText) {']);
     });

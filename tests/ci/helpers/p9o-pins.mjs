@@ -6,18 +6,23 @@
 // the identical code on whatever text they were given. It says nothing about
 // runtime behaviour; that exists only in the CI run that executes the driver.
 //
-// Comment-only lines are dropped from the driver before any comparison, so a
-// comment-only line can neither satisfy nor break a pin. P1 is LINE-ALIGNED:
-// the region must match whole driver code lines, so any edit to a code line
-// inside the region -- text appended to its last line or prepended to its
-// first, or a trailing comment on any of its lines -- breaks P1.
+// Every driver line matching ^\s*# is dropped before any comparison, so such a
+// line can neither satisfy nor break a pin. That includes a #-led line inserted
+// INSIDE the multi-line node -e program, which is JS text, not a bash comment:
+// the pins do not see it (at runtime it is a JS syntax error, so the case goes
+// red). P1 is LINE-ALIGNED: the region must match whole remaining driver lines,
+// so any other edit to a line inside the region -- text appended to its last
+// line or prepended to its first, or a trailing comment on any of its lines --
+// breaks P1.
 
 const FIXTURE_LINES = 31;
 const LOAD_BEARING = [
     // P2: the knob record, the exact failure set (both ends of the one-liner),
     // all three phase-D absences, and the attribution pair.
     String.raw`  [ "$(grep '^FAULT' "$e/params.env")" = "$(printf 'FAULT=\nFAULT_ACK=')" ] || bad "$t: params.env FAULT/FAULT_ACK not both empty"`,
-    `  [ "$(node -e 'let o="NO_REPORT"; try { const r = require(process.argv[1]); o = r.failures.map((f) => f.id)`,
+    // The driver's own text contains a require call; it is spelled through an
+    // interpolation here so this module has no require token of its own.
+    `  [ "$(node -e 'let o="NO_REPORT"; try { const r = ${'require'}(process.argv[1]); o = r.failures.map((f) => f.id)`,
     `    process.stdout.write(o)' "$e/selftest-report.json")" = 'P9-no-stray-fds|1' ] || bad "$t: failures != [P9] or stray != [1]"`,
     '  for f in marker launched rc; do expect_absent "$e/phaseD.$f" "$t"; done',
     '  expect_attr verdict ISOLATION_SELFTEST_FAILED "$t"; expect_attr verdict_class ISOLATION "$t"'
