@@ -12,11 +12,15 @@
 //      key AND value expression, verbatim;
 //   3. the enclosing job's `outputs:` mapping lines that read the step, verbatim, and
 //      that the step sits inside that job;
-//   4. two historical over-strong phrases, banned anywhere in each workflow file.
-// LIMIT: workflow YAML outside the three gate steps and their job's outputs mapping
-// (triggers, permissions, job-level keys such as `defaults.run.shell`, other steps)
-// is NOT pinned here; it is left to G1 structural diff review. Not runtime evidence
-// (see workflow-output-record-behaviour.test.ts).
+//   4. two historical over-strong phrases, banned anywhere in each workflow file;
+//   5. (hub v101 m1) ZERO `defaults:` keys anywhere in each workflow file, workflow
+//      level and job level alike (a `defaults.run.shell` would silently replace the
+//      runner default for the gate step), and NO job-level `continue-on-error` on
+//      each gate job (it would let a refused gate pass the job).
+// LIMIT: everything else in the workflow YAML -- triggers, permissions, other jobs,
+// and new steps in the same job (J4) -- is NOT pinned here; it is left to G1
+// structural diff review. Not runtime evidence (see
+// workflow-output-record-behaviour.test.ts).
 import { describe, it, expect } from 'vitest';
 import {
   UPLOAD_STEP,
@@ -24,7 +28,11 @@ import {
   AGGREGATE_STEP,
   uploadYml,
   imageYml,
-  aggregateYml
+  aggregateYml,
+  read,
+  UPLOAD_WF,
+  IMAGE_WF,
+  AGGREGATE_WF
 } from './helpers/github-output-records';
 
 // Baseline run text, one array element per line (JSON-escaped string literals).
@@ -153,6 +161,7 @@ function readJob(yml: string, job: string, stepName: string) {
   const j = lines.indexOf(`  ${job}:`);
   if (j < 0 || lines.indexOf(`  ${job}:`, j + 1) >= 0) throw new Error(`job not unique: ${job}`);
   const outputs: string[] = [];
+  const jobKeys: string[] = [];
   let inOut = false;
   let hasStep = false;
   for (const raw of lines.slice(j + 1)) {
@@ -160,10 +169,12 @@ function readJob(yml: string, job: string, stepName: string) {
     const ind = indentOf(raw);
     if (ind <= 2) break;
     if (raw === `      - name: ${stepName}`) hasStep = true;
-    if (ind === 4) inOut = raw.trim() === 'outputs:';
-    else if (inOut) outputs.push(raw.trim());
+    if (ind === 4) {
+      inOut = raw.trim() === 'outputs:';
+      jobKeys.push(raw.trim().split(':')[0].replace(/["']/g, ''));
+    } else if (inOut) outputs.push(raw.trim());
   }
-  return { outputs, hasStep };
+  return { outputs, hasStep, jobKeys };
 }
 
 // Baseline structure, GENERATED from the committed YAML by a Python mirror of the
@@ -194,6 +205,8 @@ describe('GROUP A -- the three gate steps pinned by EQUALITY', () => {
     it(`${label}: the FULL run text equals the baseline, line for line (comments included)`, () => {
       expect(step.split('\n')).toEqual([...baseline, '']);
     });
+    // `shell:` is pinned ABSENT (shell: null, and no 'shell' in keys): absent => the
+    // runner default is bash; this suite does not simulate sh.
     it(`${label}: step keys (ordered), name, id, if, shell and every env: line equal the baseline`, () => {
       expect(readGateStep(yml, stepName)).toEqual(struct);
     });
@@ -202,10 +215,32 @@ describe('GROUP A -- the three gate steps pinned by EQUALITY', () => {
       expect(job.outputs).toEqual(outputs);
       expect(job.hasStep).toBe(true);
     });
+    it(`${label}: the gate job has NO job-level continue-on-error`, () => {
+      const job = readJob(yml, 'check-upstream', stepName);
+      expect(job.jobKeys.length, 'job keys were read').toBeGreaterThan(0);
+      expect(job.jobKeys).not.toContain('continue-on-error');
+    });
     it(`${label}: the historical over-strong phrases appear nowhere in the workflow file`, () => {
       for (const b of ['turns one intended record into two', 'so a CR or LF inside']) {
         expect(yml.includes(b), `${label}: banned phrase "${b}"`).toBe(false);
       }
+    });
+  }
+});
+
+// hub v101 m1: a `defaults:` key at ANY indentation (workflow or job level), quoted or
+// not. Each file is re-read from disk; an unreadable or empty file is red.
+const DEFAULTS_KEY = /^[ \t]*["']?defaults["']?[ \t]*:/gm;
+describe('GROUP A -- no `defaults:` key anywhere in the three workflows', () => {
+  it('the defaults-key matcher is not vacuous (workflow level, job level, quoted)', () => {
+    const probe = 'defaults:\n  run:\njobs:\n  a:\n    defaults:\n    "defaults" :\n    x: defaults: no\n';
+    expect(probe.match(DEFAULTS_KEY)?.length).toBe(3);
+  });
+  for (const wf of [UPLOAD_WF, IMAGE_WF, AGGREGATE_WF]) {
+    it(`${wf}: count of \`defaults:\` keys == 0`, () => {
+      const text = read(wf);
+      expect(text.length, `${wf} must be readable and non-empty`).toBeGreaterThan(0);
+      expect(text.match(DEFAULTS_KEY) ?? []).toEqual([]);
     });
   }
 });
