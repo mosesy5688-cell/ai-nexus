@@ -1,16 +1,21 @@
 // tests/unit/workflow-output-record-comment-pins.test.ts
 //
-// WORK ORDER L -- GROUP A (static): EQUALITY pins on the source text of the three
-// gate steps (G1 ruling L-G1-01 item 3; work order L A-2 / A-3).
-// For each of factory-upload "Get ID", image-processor "Get ID" and
-// factory-aggregate "Get Run IDs", the FULL run text -- as extracted by extractRun()
-// in helpers/github-output-records.ts, the same source the behaviour tests execute --
-// must equal the baseline below line for line, COMMENT LINES INCLUDED. That pins in
-// one place: the fallback, the gate comment block, the gate case statement with
-// exactly its baseline arms, and the output writes (fixed keys, fixed format, fixed
-// target, no extra write). Separately, two historical over-strong phrases are banned
-// anywhere in each workflow FILE. Nothing here pins workflow YAML outside these three
-// run blocks, and nothing here is runtime evidence
+// WORK ORDER L -- GROUP A (static): EQUALITY pins on the three gate steps
+// (factory-upload "Get ID", image-processor "Get ID", factory-aggregate "Get Run IDs";
+// G1 ruling L-G1-01 item 3; work order L A-2 / A-3). Pinned against the baseline:
+//   1. the FULL run text as extracted by extractRun() (the source the behaviour tests
+//      execute), line for line, COMMENT LINES INCLUDED -- fallback, gate comment, case
+//      arms, output writes (fixed keys, format and target, no extra write);
+//   2. the step's non-run keys, read from the YAML: the ordered step-level key list
+//      (an added shell:, if:, continue-on-error:, timeout-minutes: ... is red), the
+//      exact name:, id:, if: and shell: (or their absence), and every env: line,
+//      key AND value expression, verbatim;
+//   3. the enclosing job's `outputs:` mapping lines that read the step, verbatim, and
+//      that the step sits inside that job;
+//   4. two historical over-strong phrases, banned anywhere in each workflow file.
+// LIMIT: workflow YAML outside the three gate steps and their job's outputs mapping
+// (triggers, permissions, job-level keys such as `defaults.run.shell`, other steps)
+// is NOT pinned here; it is left to G1 structural diff review. Not runtime evidence
 // (see workflow-output-record-behaviour.test.ts).
 import { describe, it, expect } from 'vitest';
 import {
@@ -108,16 +113,94 @@ const AGGREGATE_RUN = [
   "echo \"\u2705 Resolved Process ID (Main): $PROCESS_RUN_ID\""
 ];
 
-const STEPS: [string, string, string, string[]][] = [
-  ['factory-upload Get ID', UPLOAD_STEP, uploadYml, UPLOAD_RUN],
-  ['image-processor Get ID', IMAGE_STEP, imageYml, IMAGE_RUN],
-  ['factory-aggregate Get Run IDs', AGGREGATE_STEP, aggregateYml, AGGREGATE_RUN]
+type GateStep = { keys: string[]; name: string; id: string | null; if: string | null; shell: string | null; env: string[] };
+const indentOf = (raw: string) => raw.length - raw.trimStart().length;
+
+// Indentation-anchored reader (no YAML library: transitive-only, repo convention).
+// Throws on any shape it does not understand, so the pin cannot silently shrink.
+function readGateStep(yml: string, name: string): GateStep {
+  const head = `      - name: ${name}\n`;
+  const at = yml.indexOf(head);
+  if (at < 0 || yml.indexOf(head, at + 1) >= 0) throw new Error(`gate step not unique: ${name}`);
+  const s: GateStep = { keys: ['name'], name, id: null, if: null, shell: null, env: [] };
+  let cur = 'name';
+  for (const raw of yml.slice(at).split('\n').slice(1)) {
+    if (raw.trim() === '') continue;
+    const ind = indentOf(raw);
+    if (ind <= 6) break; // next step or next job
+    if (ind === 8) {
+      const m = /^([A-Za-z-]+):\s*(.*)$/.exec(raw.trim());
+      if (!m) throw new Error(`unexpected step line: ${raw}`);
+      cur = m[1];
+      s.keys.push(cur);
+      if (cur === 'id') s.id = m[2];
+      if (cur === 'if') s.if = m[2];
+      if (cur === 'shell') s.shell = m[2];
+      if (cur === 'env' && m[2] !== '') s.env.push(`<inline:${m[2]}>`);
+    } else if (cur === 'env') {
+      if (ind !== 10) throw new Error(`unexpected env line: ${raw}`);
+      s.env.push(raw.trim());
+    } else if (cur !== 'run') {
+      throw new Error(`unexpected nested line under ${cur}: ${raw}`);
+    }
+  }
+  return s;
+}
+
+// The job block's `outputs:` lines (verbatim, trimmed) and whether the step is inside it.
+function readJob(yml: string, job: string, stepName: string) {
+  const lines = yml.split('\n');
+  const j = lines.indexOf(`  ${job}:`);
+  if (j < 0 || lines.indexOf(`  ${job}:`, j + 1) >= 0) throw new Error(`job not unique: ${job}`);
+  const outputs: string[] = [];
+  let inOut = false;
+  let hasStep = false;
+  for (const raw of lines.slice(j + 1)) {
+    if (raw.trim() === '') continue;
+    const ind = indentOf(raw);
+    if (ind <= 2) break;
+    if (raw === `      - name: ${stepName}`) hasStep = true;
+    if (ind === 4) inOut = raw.trim() === 'outputs:';
+    else if (inOut) outputs.push(raw.trim());
+  }
+  return { outputs, hasStep };
+}
+
+// Baseline structure, GENERATED from the committed YAML by a Python mirror of the
+// readers above (scratchpad/wo-l-r2-gen-struct.py), then pasted -- not typed.
+const UPLOAD_STRUCT: GateStep = {"keys": ["name", "id", "env", "run"], "name": "Get ID", "id": "get-id", "if": null, "shell": null, "env": ["INPUT_AGGREGATE_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}"]};
+const IMAGE_STRUCT: GateStep = {"keys": ["name", "id", "env", "run"], "name": "Get ID", "id": "get-id", "if": null, "shell": null, "env": ["GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}", "INPUT_AGGREGATE_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}"]};
+const AGGREGATE_STRUCT: GateStep = {"keys": ["name", "id", "env", "run"], "name": "Get Run IDs (Harvest & Process)", "id": "get-ids", "if": null, "shell": null, "env": ["GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}", "INPUT_PROCESS_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}"]};
+const UPLOAD_OUTPUTS = ["upstream-run-id: ${{ steps.get-id.outputs.id }}"];
+const IMAGE_OUTPUTS = ["upstream-run-id: ${{ steps.get-id.outputs.id }}"];
+const AGGREGATE_OUTPUTS = ["harvest-id: ${{ steps.get-ids.outputs.harvest-id }}", "process-id: ${{ steps.get-ids.outputs.process-id }}"];
+
+const STEPS: [string, string, string, string[], string, GateStep, string[]][] = [
+  ['factory-upload Get ID', UPLOAD_STEP, uploadYml, UPLOAD_RUN, 'Get ID', UPLOAD_STRUCT, UPLOAD_OUTPUTS],
+  ['image-processor Get ID', IMAGE_STEP, imageYml, IMAGE_RUN, 'Get ID', IMAGE_STRUCT, IMAGE_OUTPUTS],
+  [
+    'factory-aggregate Get Run IDs',
+    AGGREGATE_STEP,
+    aggregateYml,
+    AGGREGATE_RUN,
+    'Get Run IDs (Harvest & Process)',
+    AGGREGATE_STRUCT,
+    AGGREGATE_OUTPUTS
+  ]
 ];
 
-describe('GROUP A -- full gate-step run text pinned by EQUALITY', () => {
-  for (const [label, step, yml, baseline] of STEPS) {
+describe('GROUP A -- the three gate steps pinned by EQUALITY', () => {
+  for (const [label, step, yml, baseline, stepName, struct, outputs] of STEPS) {
     it(`${label}: the FULL run text equals the baseline, line for line (comments included)`, () => {
       expect(step.split('\n')).toEqual([...baseline, '']);
+    });
+    it(`${label}: step keys (ordered), name, id, if, shell and every env: line equal the baseline`, () => {
+      expect(readGateStep(yml, stepName)).toEqual(struct);
+    });
+    it(`${label}: the job outputs: mapping lines equal the baseline and the step is inside that job`, () => {
+      const job = readJob(yml, 'check-upstream', stepName);
+      expect(job.outputs).toEqual(outputs);
+      expect(job.hasStep).toBe(true);
     });
     it(`${label}: the historical over-strong phrases appear nowhere in the workflow file`, () => {
       for (const b of ['turns one intended record into two', 'so a CR or LF inside']) {

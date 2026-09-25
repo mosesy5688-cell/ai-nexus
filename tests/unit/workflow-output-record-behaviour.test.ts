@@ -162,7 +162,7 @@ describe('GROUP A-4 ② — valid values parse to the SAME key/value as the orig
   // be ACCEPTED by all three steps and written BYTE-FOR-BYTE (no trim, strip, rewrite).
   const ACCEPT = [
     'a\tb', '1 2', ' 101', '101 ', '#101', '1=2', 'a b-c_D.9', 'é✓', '1\u000b2', '1\u000c2',
-    '1\u001b2', '1\u00852', '1 2', '1"2', '1\\2', '1*2', '$(echo X)', '9'.repeat(40)
+    '1\u001b2', '1\u00852', '1\u20282', '1"2', '1\\2', '1*2', '$(echo X)', '9'.repeat(40)
   ];
   const ACCEPT_CASES: [string, string, string, (v: string) => string][] = [
     ['factory-upload', UPLOAD_STEP, 'INPUT_AGGREGATE_RUN_ID', (v) => `id=${v}\n`],
