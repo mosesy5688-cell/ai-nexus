@@ -56,7 +56,11 @@ describe('GROUP B — stub interception is PROVEN before any cleanup line runs',
 });
 
 describe('GROUP B-3 — no real cleanup command is reachable from the fixture', () => {
-  it('every command in the extracted script is one this fixture intercepts', () => {
+  // INTERCEPTED (bash functions): sudo, docker, apt-get, rm, df -- and, in group A,
+  // gh. NOT intercepted: `tail` and `awk` in the df report pipeline (and `tr` in the
+  // group A Get ID pipelines) are read-only text filters that resolve through PATH to
+  // real binaries. They receive only stub output and remove nothing.
+  it('every line starts with sudo/docker (intercepted), if/fi/echo, or is the df|tail|awk report', () => {
     for (const line of FIXED_RUN.split('\n')) {
       if (line.trim() === '' || line.trim().startsWith('#')) continue;
       const ok =

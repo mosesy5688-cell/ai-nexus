@@ -74,6 +74,21 @@ describe('GROUP B-0/B-1 — the input is no longer interpolated into shell sourc
     expect(aggAt).toBeLessThan(fiAt);
   });
 
+  it('the run block command set is EXACTLY the baseline set, in order (no line added or dropped)', () => {
+    // every non-blank, non-comment line of the extracted run block, compared by
+    // equality -- an added `sudo apt-get autoremove -y` (or any other line) is red.
+    const commands = FIXED_RUN.split('\n').filter((l) => l.trim() !== '' && !l.trim().startsWith('#'));
+    const expected = [
+      ...BASE_CLEANUP,
+      `        if [ "$${CARRIER}" = "true" ]; then`,
+      AGGRESSIVE_CLEANUP,
+      '        fi',
+      ...TAIL_CLEANUP,
+      "        echo \"Disk after factory-setup cleanup: $(df -h / | tail -1 | awk '{print $4}') available\""
+    ].map((l) => l.slice(8));
+    expect(commands).toEqual(expected);
+  });
+
   it('permissions and triggers are untouched (a composite action declares none)', () => {
     expect(action.includes('permissions:')).toBe(false);
     expect(action.includes('\non:\n')).toBe(false);

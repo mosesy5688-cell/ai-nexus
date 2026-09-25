@@ -59,6 +59,9 @@ describe(`GROUP A — pinned record parser (${PARSER_VERSION})`, () => {
   it('skips BLANK lines only -- the pinned upstream parser has no comment rule', () => {
     expect(parseOutputFile('\nid=7\n')).toEqual([{ key: 'id', value: '7' }]);
   });
+  it('MODEL: whitespace-only line is NOT skipped -- throws INVALID_FORMAT (upstream unverified)', () => {
+    expect(() => parseOutputFile(' \t \nid=7\n')).toThrow('INVALID_FORMAT');
+  });
 
   it('names ONE pinned upstream identity (commit + blob + class), not a version line', () => {
     expect(UPSTREAM_PARSER).toEqual({

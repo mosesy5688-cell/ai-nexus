@@ -29,6 +29,9 @@ import {
 
 const BASH = resolveBash();
 const run = (script: string, env: Record<string, string>) => runStep(BASH, script, env);
+// A CR in the MIDDLE of the value (not trailing, not followed by LF). The A-2 lock
+// is "refuse CR or LF before writing" -- anywhere in the value, not just at its end.
+const MID_CR_INJECT = '101\rid=202';
 
 // Nothing below is trustworthy unless the stub actually owns the name `gh`. These run
 // FIRST and fail closed. (A sibling harness elsewhere built PATH from a Windows
@@ -68,7 +71,8 @@ describe('GROUP A-4 ① — LF / CRLF / duplicate-key text cannot ADD a record',
     const variants: [string, string][] = [
       ['LF', LF_INJECT],
       ['CRLF', CRLF_INJECT],
-      ['lone CR', CR_ONLY],
+      ["trailing CR ('101' + CR)", CR_ONLY],
+      ["mid-value CR ('101' + CR + 'id=202')", MID_CR_INJECT],
       ["LF + '#key=value'", HASH_RECORD_INJECT]
     ];
     for (const [name, value] of variants) {
@@ -170,13 +174,18 @@ describe('GROUP A-4 ④ — reverting the fix makes the counterexample reappear'
     ['image-processor Get ID', IMAGE_STEP, 'INPUT_AGGREGATE_RUN_ID', 2],
     ['factory-aggregate Get Run IDs', AGGREGATE_STEP, 'INPUT_PROCESS_RUN_ID', 3]
   ];
+  // CRLF is counted through the parser MODEL's one-trailing-CR drop (PARSER_FIDELITY
+  // item 4); it shows the extra record reappears, not how a runner reads CR.
+  const payloads: [string, string][] = [['LF', LF_INJECT], ['CRLF', CRLF_INJECT]];
   for (const [label, script, envKey, expected] of reverts) {
-    it(`${label}: reverted script exits 0 and writes ${expected} records`, () => {
-      const r = run(revertGate(script), { [envKey]: LF_INJECT });
-      expect(r.rc, 'the pre-fix behaviour is a NORMAL exit').toBe(0);
-      expect(r.records.length).toBe(expected);
-      expect(r.records.some((x) => x.value === '202')).toBe(true);
-    });
+    for (const [pname, payload] of payloads) {
+      it(`${label}: reverted script + ${pname} payload exits 0 and writes ${expected} records`, () => {
+        const r = run(revertGate(script), { [envKey]: payload });
+        expect(r.rc, 'the pre-fix behaviour is a NORMAL exit').toBe(0);
+        expect(r.records.length).toBe(expected);
+        expect(r.records.some((x) => x.value === '202')).toBe(true);
+      });
+    }
   }
 
   // L-G1-01 in the verification object itself: the pre-fix script writes 'id=101'
@@ -205,4 +214,25 @@ describe('GROUP A-4 ④ — reverting the fix makes the counterexample reappear'
       expect(reverted.rc).toBe(fixed.rc);
     }
   });
+});
+
+// L-G1-01 item 3: the gate comments must not return to "a CR or LF turns one record
+// into two". These pin comment TEXT only; they say nothing about runtime behaviour.
+describe('GROUP A -- source text pins for the corrected gate-comment wording', () => {
+  const NEW_WORDING = [
+    '# the reproduced multi-record counterexample: the file gains an extra record.',
+    '# A CR is refused CONSERVATIVELY with it; this gate does NOT claim that a lone',
+    '# CR ends a record on every runner platform.'
+  ].join('\n');
+  const steps: [string, string][] = [
+    ['factory-upload', UPLOAD_STEP],
+    ['image-processor', IMAGE_STEP],
+    ['factory-aggregate', AGGREGATE_STEP]
+  ];
+  for (const [label, s] of steps) {
+    it(`source text pins: ${label} gate comment has the bounded CR wording, not the old claim`, () => {
+      expect(s).toContain(NEW_WORDING);
+      expect(s.includes('so a CR or LF inside'), `${label}: old over-strong claim`).toBe(false);
+    });
+  }
 });

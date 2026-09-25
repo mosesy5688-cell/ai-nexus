@@ -17,23 +17,23 @@
 //   1. '#' HANDLING -- ALIGNED (L-G1-01). No comment rule: '# note' throws
 //      INVALID_FORMAT, '#key=value' is a record with key '#key'. The superseded
 //      parser skipped '#' lines, so an injected '#key=value' record was not
-//      counted. Locked by "L-G1-01 #1" / "L-G1-01 #2" in
-//      workflow-output-record-integrity.test.ts.
-//   2. BLANK LINES -- ALIGNED. An empty line yields no record; it is the ONLY
-//      skip rule. Locked by "skips BLANK lines only".
+//      counted. Locked by "L-G1-01 #1" / "L-G1-01 #2" (integrity test).
+//   2. EMPTY LINES -- ALIGNED: an empty line yields no record; the ONLY skip rule.
+//      A whitespace-only line is NOT skipped: it throws INVALID_FORMAT. That is
+//      THIS MODEL's behaviour; upstream's handling is unverified (Z-2, not
+//      fetched). Locked by "skips BLANK lines only" and "MODEL: whitespace-only".
 //   3. RECORD FORMS -- MODELLED. First '=' splits KEY/VALUE, 'KEY<<DELIM' opens a
 //      heredoc, anything else is INVALID_FORMAT; the '=' vs '<<' precedence is
-//      this model's choice. Beyond the three quoted rows, no claim is made that
-//      this matches the pinned class.
+//      this model's choice, not claimed to match the pinned class.
 //   4. LINE ENDINGS -- MODELLED, NOT ALIGNED, and the Linux/Windows CRLF
 //      difference is NOT SIMULATED. Rule: split on '\n' only; then drop ONE
 //      trailing '\r' from each line (record lines, heredoc body lines and the
 //      heredoc delimiter comparison alike). A '\r' anywhere else stays inside the
 //      value, so a lone CR never starts a record IN THIS MODEL. That is a
 //      property of the model, not evidence of how any runner platform treats CR.
-//      Locked by "LINE-ENDING MODEL" tests. No gate assertion depends on it: the
-//      gates refuse CR as well as LF before writing, so no CR ever reaches a file
-//      that a gate test parses.
+//      Locked by "LINE-ENDING MODEL" tests. No gate verdict relies on it: the
+//      FIXED gates refuse any CR before writing; only the REVERTED CRLF
+//      counterexample file is read through this CR rule.
 //   5. DUPLICATE KEYS -- NOT MODELLED. The parser returns the ORDERED LIST of
 //      records and takes no position on the runner's override order.
 //   6. NOT REPRODUCED: exception text, empty-key handling for KEY=VALUE, container
