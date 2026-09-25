@@ -32,6 +32,52 @@ import {
   TAIL_CLEANUP
 } from './helpers/factory-setup-fixture';
 
+// Minimal INDENTATION-ANCHORED reader for this composite's `runs.steps`. No YAML
+// library: `yaml` / `js-yaml` are transitive-only (absent from package.json), the
+// convention of tests/unit/harvest-arxiv-slow-tail-boundaries.test.ts. Any shape it
+// does not understand THROWS, so a restructure cannot silently shrink the pin.
+type Step = { name: string | null; keys: string[]; shell: string | null; uses: string | null; run: boolean; env: string[] };
+function readCompositeSteps(src: string): Step[] {
+  const lines = src.split('\n');
+  const start = lines.indexOf('  steps:');
+  if (start < 0 || !lines.slice(0, start).includes('runs:')) throw new Error('runs.steps not found');
+  const steps: Step[] = [];
+  let cur: Step | null = null;
+  let inEnv = false;
+  for (const raw of lines.slice(start + 1)) {
+    if (raw.trim() === '' || raw.trim().startsWith('#')) continue;
+    const ind = raw.length - raw.trimStart().length;
+    if (ind < 4) break; // left runs.steps
+    let body = raw.trimStart();
+    if (ind === 4) {
+      if (!body.startsWith('- ')) throw new Error(`unexpected step line: ${raw}`);
+      cur = { name: null, keys: [], shell: null, uses: null, run: false, env: [] };
+      steps.push(cur);
+      body = body.slice(2);
+    } else if (ind > 6) {
+      if (inEnv && ind === 8) {
+        const e = /^([A-Za-z_][A-Za-z0-9_]*):/.exec(body);
+        if (!e || !cur) throw new Error(`unexpected env line: ${raw}`);
+        cur.env.push(e[1]);
+      }
+      continue; // nested content: env entries above, run / with block bodies
+    } else if (ind !== 6) {
+      throw new Error(`unexpected indent: ${raw}`);
+    }
+    const m = /^([A-Za-z-]+):\s*(.*)$/.exec(body);
+    if (!m || !cur) throw new Error(`unexpected step key: ${raw}`);
+    const [, key, val] = m;
+    cur.keys.push(key);
+    inEnv = key === 'env';
+    if (inEnv && val !== '') cur.env.push(`<inline:${val}>`);
+    if (key === 'name') cur.name = val;
+    if (key === 'shell') cur.shell = val;
+    if (key === 'uses') cur.uses = val;
+    if (key === 'run') cur.run = true;
+  }
+  return steps;
+}
+
 describe('GROUP B-0/B-1 — the input is no longer interpolated into shell source', () => {
   it('the step carries the COMPLETE original expression in env:', () => {
     expect(action).toContain(`        ${CARRIER}: ${EXPR}\n`);
@@ -60,7 +106,7 @@ describe('GROUP B-0/B-1 — the input is no longer interpolated into shell sourc
     expect(block).toContain("    default: 'false'\n");
   });
 
-  it('the cleanup scope is unchanged and NOT widened', () => {
+  it('baseline cleanup lines present, exactly four `sudo rm -rf`, aggressive one inside the if-branch', () => {
     for (const line of [...BASE_CLEANUP, AGGRESSIVE_CLEANUP, ...TAIL_CLEANUP]) {
       expect(action).toContain(line + '\n');
     }
@@ -87,6 +133,24 @@ describe('GROUP B-0/B-1 — the input is no longer interpolated into shell sourc
       "        echo \"Disk after factory-setup cleanup: $(df -h / | tail -1 | awk '{print $4}') available\""
     ].map((l) => l.slice(8));
     expect(commands).toEqual(expected);
+  });
+
+  it('the composite step list and every step env: key set are EXACTLY the baseline', () => {
+    // A new step (e.g. an extra `sudo apt-get autoremove -y` step) or a new env key
+    // (e.g. BASH_ENV pointing at another script) would widen what this action runs.
+    expect(readCompositeSteps(action)).toEqual([
+      { name: 'Free Runner Disk', keys: ['name', 'shell', 'env', 'run'], shell: 'bash', uses: null, run: true, env: [CARRIER] },
+      { name: 'Setup Node.js', keys: ['name', 'uses', 'with'], shell: null, uses: 'actions/setup-node@v5', run: false, env: [] },
+      { name: 'Install Dependencies', keys: ['name', 'shell', 'run'], shell: 'bash', uses: null, run: true, env: [] },
+      {
+        name: 'Restore Rust FFI Binaries',
+        keys: ['name', 'if', 'uses', 'with'],
+        shell: null,
+        uses: 'actions/cache/restore@v5',
+        run: false,
+        env: []
+      }
+    ]);
   });
 
   it('permissions and triggers are untouched (a composite action declares none)', () => {

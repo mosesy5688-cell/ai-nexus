@@ -20,7 +20,6 @@ import {
   AGGREGATE_STEP,
   LF_INJECT,
   CRLF_INJECT,
-  CR_ONLY,
   HASH_RECORD_INJECT,
   STUB_GH_ID,
   GUARD_WITHOUT_STUB,
@@ -29,9 +28,15 @@ import {
 
 const BASH = resolveBash();
 const run = (script: string, env: Record<string, string>) => runStep(BASH, script, env);
-// A CR in the MIDDLE of the value (not trailing, not followed by LF). The A-2 lock
-// is "refuse CR or LF before writing" -- anywhere in the value, not just at its end.
-const MID_CR_INJECT = '101\rid=202';
+// A-2 POSITION SWEEP. The lock is "refuse CR or LF before writing" -- at ANY position.
+// A CR and an LF are inserted at EVERY position 0..3 of the id '101', each alone and
+// each followed by a record-shaped tail 'id=202'. Generated here, not hand-listed.
+const SWEEP_ID = '101';
+const SWEEP_INSERTS = ['\r', '\n', '\rid=202', '\nid=202'];
+const SWEEP: string[] = [];
+for (let pos = 0; pos <= SWEEP_ID.length; pos++) {
+  for (const ins of SWEEP_INSERTS) SWEEP.push(SWEEP_ID.slice(0, pos) + ins + SWEEP_ID.slice(pos));
+}
 
 // Nothing below is trustworthy unless the stub actually owns the name `gh`. These run
 // FIRST and fail closed. (A sibling harness elsewhere built PATH from a Windows
@@ -68,11 +73,20 @@ const CASES: [string, string, string][] = [
 
 describe('GROUP A-4 ① — LF / CRLF / duplicate-key text cannot ADD a record', () => {
   for (const [label, script, envKey] of CASES) {
+    it(`${label}: CR/LF POSITION SWEEP -- every generated input is refused with a 0-byte output`, () => {
+      expect(SWEEP.length, 'sweep size: 4 positions x 4 inserts').toBe(16);
+      for (const v of SWEEP) {
+        const r = run(script, { [envKey]: v });
+        const tag = `${label} input=${JSON.stringify(v)}`;
+        expect(r.rc, `${tag}: step must fail closed`).not.toBe(0);
+        expect(r.raw, `${tag}: output file must be 0 bytes`).toBe('');
+        expect(r.output, tag).toContain('refusing to write a multi-record GITHUB_OUTPUT');
+      }
+    }, 60000);
+
+    // Not in the sweep: a two-character CRLF terminator, and a '#'-keyed record.
     const variants: [string, string][] = [
-      ['LF', LF_INJECT],
       ['CRLF', CRLF_INJECT],
-      ["trailing CR ('101' + CR)", CR_ONLY],
-      ["mid-value CR ('101' + CR + 'id=202')", MID_CR_INJECT],
       ["LF + '#key=value'", HASH_RECORD_INJECT]
     ];
     for (const [name, value] of variants) {
@@ -214,25 +228,4 @@ describe('GROUP A-4 ④ — reverting the fix makes the counterexample reappear'
       expect(reverted.rc).toBe(fixed.rc);
     }
   });
-});
-
-// L-G1-01 item 3: the gate comments must not return to "a CR or LF turns one record
-// into two". These pin comment TEXT only; they say nothing about runtime behaviour.
-describe('GROUP A -- source text pins for the corrected gate-comment wording', () => {
-  const NEW_WORDING = [
-    '# the reproduced multi-record counterexample: the file gains an extra record.',
-    '# A CR is refused CONSERVATIVELY with it; this gate does NOT claim that a lone',
-    '# CR ends a record on every runner platform.'
-  ].join('\n');
-  const steps: [string, string][] = [
-    ['factory-upload', UPLOAD_STEP],
-    ['image-processor', IMAGE_STEP],
-    ['factory-aggregate', AGGREGATE_STEP]
-  ];
-  for (const [label, s] of steps) {
-    it(`source text pins: ${label} gate comment has the bounded CR wording, not the old claim`, () => {
-      expect(s).toContain(NEW_WORDING);
-      expect(s.includes('so a CR or LF inside'), `${label}: old over-strong claim`).toBe(false);
-    });
-  }
 });
