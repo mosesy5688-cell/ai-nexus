@@ -5,17 +5,13 @@
 //
 // PARSER_VERSION is OURS, not GitHub's: a TypeScript MODEL of the GITHUB_OUTPUT
 // line protocol. Its '#' and blank-line semantics are aligned to ONE pinned
-// upstream identity (UPSTREAM_PARSER below):
-//     actions/runner commit 80bb1fb827fa44d489263061e71ef4adba7ad8cd
-//     src/Runner.Worker/FileCommandManager.cs
-//     blob 9d8bbebb42b037781456ec467693e019138f1b95, class EnvFileKeyValuePairs
-// That identity is RECORDED, not fetched or executed by this suite, and it is NOT
-// asserted to be the version the hosted runner runs. The earlier header named a
-// different class and "the v2.3xx runner line" in place of a source-file version;
-// both are withdrawn. The upstream facts used here are only those quoted in the
-// G1 ruling for PR #2325 (L-G1-01): blank lines are skipped; there is NO '#'
-// comment rule; '# note' has neither '=' nor '<<' and is invalid format;
-// '#key=value' followed by 'id=123' is two records.
+// upstream identity, UPSTREAM_PARSER below (actions/runner commit + file blob +
+// class EnvFileKeyValuePairs). It is RECORDED, not fetched or executed here, and
+// NOT asserted to be what the hosted runner runs. The earlier "v2.3xx runner
+// line" wording and class name are withdrawn. The only upstream facts used are
+// those quoted in the G1 ruling for PR #2325 (L-G1-01): blank lines are skipped;
+// there is NO '#' comment rule; '# note' is invalid format; '#key=value' then
+// 'id=123' is two records.
 //
 // PARSER_FIDELITY -- each declaration below names the test that locks it.
 //   1. '#' HANDLING -- ALIGNED (L-G1-01). No comment rule: '# note' throws
