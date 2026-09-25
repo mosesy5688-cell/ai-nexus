@@ -158,7 +158,7 @@ describe('the real self-test against a synthetic ledger (this part executes)', (
 
 /**
  * N-P5 item 0 (M10), case P9o in counterexamples.sh: what can be checked OFF a
- * runner. Registration text plus one pure-function evaluation -- this does NOT
+ * runner. Source-text pins plus one pure-function evaluation -- this does NOT
  * show the launcher stopping. That evidence exists only in the CI run that
  * executes the driver (rc 74 and no phaseD.marker on the originals; phase D
  * STARTED on every mutated copy).
@@ -174,14 +174,46 @@ describe('P9o: the inherited stdout it uses lies in the establish/P9 difference 
             .toContain('case "$fd" in 0|1|2) case "$tgt" in socket:*) STRAY=1;');
     });
 
-    it('the case clears both knobs, sends stdout to /dev/zero and runs all six mutants', () => {
-        const d = read('counterexamples.sh');
-        expect(d).toContain('env -u F2AI_ISO_FAULT -u F2AI_ISO_FAULT_ACK "$1" --evidence');
-        expect(d).toContain('"$CASE_NONCE" >/dev/zero 2>"$CASE_EVID/driver.stderr"');
-        expect(d).toContain("= 'P9-no-stray-fds|1' ]");
-        expect(d).toContain('p9o_run "$LAUNCH" p9o; p9o_expect P9o');
-        expect([...d.matchAll(/^p9o_mutant (\S+) /gm)].map((m) => m[1]))
-            .toEqual(['M10', 'F2a-exit', 'F2b-node', 'G2a-alias', 'G2b-path', 'MUT-16']);
+    // The P9o code of the driver, COMMENT-ONLY lines dropped, must contain the
+    // committed fixture (generated from the driver by command) as ONE contiguous
+    // region, exactly once. A comment can neither satisfy nor break it; an edit
+    // to any code line in the region, a trailing comment included, breaks it.
+    // F2AI_P9O_PIN_DRIVER only lets these pins be run against a mutated TEXT
+    // copy off-tree; CI never sets it. None of this is runtime behaviour.
+    const DRIVER = process.env.F2AI_P9O_PIN_DRIVER || path.join(ISO, 'counterexamples.sh');
+    const code = (): string[] => fs.readFileSync(DRIVER, 'utf8').replace(/\r\n/g, '\n')
+        .split('\n').filter((l) => !/^\s*#/.test(l));
+    const REGION = fs.readFileSync(path.join(ROOT, 'tests', 'ci', 'fixtures', 'wo-n-p5-0',
+        'p9o-code-region.txt'), 'utf8').replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
+    const at = (line: string): number => REGION.indexOf(line);
+
+    it('source text pins the P9o run, expectations, call, harness and six mutants as ONE code region, once', () => {
+        expect(REGION.length).toBe(31);
+        expect(code().join('\n').split(REGION.join('\n')).length - 1).toBe(1);
+    });
+
+    it('source text pins, inside that region, the knob-record, exact-set, phase-D and attribution lines', () => {
+        for (const l of [
+            String.raw`  [ "$(grep '^FAULT' "$e/params.env")" = "$(printf 'FAULT=\nFAULT_ACK=')" ] || bad "$t: params.env FAULT/FAULT_ACK not both empty"`,
+            `  [ "$(node -e 'let o="NO_REPORT"; try { const r = require(process.argv[1]); o = r.failures.map((f) => f.id)`,
+            `    process.stdout.write(o)' "$e/selftest-report.json")" = 'P9-no-stray-fds|1' ] || bad "$t: failures != [P9] or stray != [1]"`,
+            '  for f in marker launched rc; do expect_absent "$e/phaseD.$f" "$t"; done',
+            '  expect_attr verdict ISOLATION_SELFTEST_FAILED "$t"; expect_attr verdict_class ISOLATION "$t"'
+        ]) expect(at(l), l).toBeGreaterThan(0);
+    });
+
+    it('source text pins the kill check: full marker string, AFTER the FAILED restore', () => {
+        const kill = at(`  expect_grep 'phaseD.marker exists but must not' "$CASE_EVID/tripped.txt" "P9o mutant $1 NOT killed"`);
+        const restore = REGION.findIndex((l) => l.includes('FAILED="$keep"'));
+        expect(restore).toBeGreaterThan(0);
+        expect(kill).toBeGreaterThan(restore);
+        expect(REGION[kill + 1]).toBe('}');
+    });
+
+    it('source text pins that the only function declarations are the three P9o ones, and no alias/unset -f', () => {
+        const heads = code().map((l) => /^\s*(\w+)\s*\(\s*\)\s*\{/.exec(l)?.[1]).filter(Boolean);
+        expect(heads).toEqual(['p9o_run', 'p9o_expect', 'p9o_mutant']);
+        expect(code().filter((l) => /^\s*(function\s|alias\s|unalias\s|unset\s+-f)/.test(l))).toEqual([]);
     });
 
     it('each mutant anchor starts exactly one line of netns-phases.sh', () => {
