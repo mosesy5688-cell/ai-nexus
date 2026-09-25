@@ -14,10 +14,10 @@
 //      that the step sits inside that job;
 //   4. two historical over-strong phrases, banned anywhere in each workflow file;
 //   5. (hub v101 m1) in each workflow file, re-read from disk: ZERO `defaults:` keys
-//      (plain or quoted, any indentation), ZERO explicit-key lines (`? key`), and NO
-//      job-level `continue-on-error` key (plain or quoted, trimmed) on each gate job.
-//      Tags, escapes, anchors / merge keys and flow mappings are banned separately
-//      in workflow-output-record-yaml-features.test.ts.
+//      (plain or quoted, any indentation), ZERO explicit-key lines (`? key`), NO job-level
+//      `continue-on-error` (plain or quoted, trimmed) on each gate job. Single-line flow
+//      mappings naming a pinned key, letter-leading anchors, tags, escaped keys, merge
+//      keys and non-LF line breaks are banned separately in yaml-features (its test file).
 // LIMIT: everything else -- triggers, permissions, job-level `container:` and
 // `runs-on` (both can change the gate step's default shell), other jobs, new steps
 // in the same job (J4) -- is left to G1 structural diff review. Not runtime

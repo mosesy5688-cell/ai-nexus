@@ -7,20 +7,39 @@
 // job-level `continue-on-error` on each gate job, but only for plain, quoted and
 // explicit-key (`? key`) spellings. A YAML parser also accepts the same keys spelled
 // with a tag (`!!str defaults:`), an escape inside a double-quoted key
-// (`"defaul\x74s":`), an anchor / alias / merge key (`<<: *coe`), or inside a flow
-// mapping (`{ defaults: ... }`). Whether GitHub's own parser accepts each of these is
-// NOT proven here; the ban is conservative. Per hub v101 sec. 3 r1, G1 structural diff
-// review only sees the PR under review and cannot guard FUTURE PRs, so this class is
-// pinned rather than delegated.
+// (`"defaul\x74s":`), an anchor / alias / merge key (`<<: *coe`), inside a flow
+// mapping (`{ defaults: ... }`), or on a "line" that a non-LF line break starts (a
+// lone CR hides `continue-on-error: true` from every line-based pin). Whether GitHub's
+// own parser accepts each of these is NOT proven here; the ban is conservative. Per
+// hub v101 sec. 3 r1, G1 structural diff review only sees the PR under review and
+// cannot guard FUTURE PRs, so this class is pinned rather than delegated.
 //
 // WHAT THIS PINS: each workflow file, re-read from disk, is non-empty and has ZERO
-// lines matching each pattern in FEATURES below. Every pattern has a non-vacuity probe:
-// a sample that must match and near-misses that must not.
-// WHAT THIS DOES NOT PIN: a flow mapping spread over several lines, or an escape
-// inside a flow mapping; those remain for G1 structural diff review. Not runtime
-// evidence.
+//   * lines matching each FEATURES pattern: single-line flow mappings naming a pinned
+//     key, letter-leading anchors / aliases (value or key position), key-position
+//     tags, escaped double-quoted keys, merge keys;
+//   * non-LF line breaks (NON_LF_BREAKS): lone CR, NEL, LINE SEPARATOR, PARAGRAPH
+//     SEPARATOR, checked on the text as read() returns it (read() rewrites CRLF to LF
+//     and nothing else, so a lone CR survives to be seen).
+// Every pattern and every character has a non-vacuity probe.
+// WHAT THIS DOES NOT PIN: multi-line flow mappings and escapes inside flow mappings;
+// those remain for G1 structural diff review. Not runtime evidence.
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { describe, it, expect } from 'vitest';
-import { read, UPLOAD_WF, IMAGE_WF, AGGREGATE_WF } from './helpers/github-output-records';
+import { read, REPO, UPLOAD_WF, IMAGE_WF, AGGREGATE_WF } from './helpers/github-output-records';
+
+// YAML 1.2 treats CR (alone or before LF) as a line break; YAML 1.1 additionally
+// treats NEL, LINE SEPARATOR and PARAGRAPH SEPARATOR as line breaks. Which of these
+// GitHub's own workflow parser honours is NOT proven; all four are banned.
+const NON_LF_BREAKS: [string, string][] = [
+  ['lone CR', '\r'],
+  ['NEL (U+0085)', '\u0085'],
+  ['LINE SEPARATOR (U+2028)', '\u2028'],
+  ['PARAGRAPH SEPARATOR (U+2029)', '\u2029']
+];
+const breaksIn = (text: string) => NON_LF_BREAKS.filter(([, c]) => text.includes(c)).map(([n]) => n);
 
 type Feature = { name: string; re: RegExp; hit: string[]; miss: string[] };
 const FEATURES: Feature[] = [
@@ -82,6 +101,31 @@ describe('GROUP A -- YAML feature ban: zero hits in the three gate workflows', (
         const hits = lines.filter((l) => f.re.test(l));
         expect(hits, `${wf}: ${f.name}`).toEqual([]);
       }
+    });
+    it(`${wf}: as read() returns it, contains no non-LF line break (CR, NEL, LS, PS)`, () => {
+      const text = read(wf);
+      expect(text.length, `${wf} must be readable and non-empty`).toBeGreaterThan(0);
+      expect(breaksIn(text), `${wf}: non-LF line breaks`).toEqual([]);
+    });
+  }
+});
+
+describe('GROUP A -- non-LF line-break ban: the check is not vacuous', () => {
+  // Real files through the real read(): a CRLF file must pass (read() folds CRLF to LF);
+  // a file carrying each banned character must be flagged for exactly that character.
+  const probe = (content: string) => {
+    const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'wo-l-yf-')), 'probe.yml');
+    fs.writeFileSync(f, content, 'utf8');
+    const rel = path.relative(REPO, f);
+    expect(path.isAbsolute(rel), 'probe must be reachable relative to REPO').toBe(false);
+    return breaksIn(read(rel));
+  };
+  it('a plain CRLF file passes after read()', () => {
+    expect(probe('jobs:\r\n  a:\r\n    runs-on: ubuntu-latest\r\n')).toEqual([]);
+  });
+  for (const [name, c] of NON_LF_BREAKS) {
+    it(`a file with ${name} used as a break is flagged`, () => {
+      expect(probe(`jobs:\r\n  a:\r\n    runs-on: ubuntu-latest${c}    continue-on-error: true\r\n`)).toEqual([name]);
     });
   }
 });
