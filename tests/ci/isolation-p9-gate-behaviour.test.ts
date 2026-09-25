@@ -174,46 +174,33 @@ describe('P9o: the inherited stdout it uses lies in the establish/P9 difference 
             .toContain('case "$fd" in 0|1|2) case "$tgt" in socket:*) STRAY=1;');
     });
 
-    // The P9o code of the driver, COMMENT-ONLY lines dropped, must contain the
-    // committed fixture (generated from the driver by command) as ONE contiguous
-    // region, exactly once. A comment can neither satisfy nor break it; an edit
-    // to any code line in the region, a trailing comment included, breaks it.
-    // F2AI_P9O_PIN_DRIVER only lets these pins be run against a mutated TEXT
-    // copy off-tree; CI never sets it. None of this is runtime behaviour.
-    const DRIVER = process.env.F2AI_P9O_PIN_DRIVER || path.join(ISO, 'counterexamples.sh');
-    const code = (): string[] => fs.readFileSync(DRIVER, 'utf8').replace(/\r\n/g, '\n')
-        .split('\n').filter((l) => !/^\s*#/.test(l));
-    const REGION = fs.readFileSync(path.join(ROOT, 'tests', 'ci', 'fixtures', 'wo-n-p5-0',
-        'p9o-code-region.txt'), 'utf8').replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
-    const at = (line: string): number => REGION.indexOf(line);
+    // The pin logic is ONE pure function in helpers/p9o-pins.mjs: (driver text,
+    // fixture text) -> failures. The paths below are fixed; nothing here reads the
+    // environment, so no setting can point these pins at another file. None of
+    // this is runtime behaviour.
+    const DRIVER = path.join(ISO, 'counterexamples.sh');
+    const FIXTURE = path.join(ROOT, 'tests', 'ci', 'fixtures', 'wo-n-p5-0', 'p9o-code-region.txt');
+    const HELPER = path.join(ROOT, 'tests', 'ci', 'helpers', 'p9o-pins.mjs');
+    const codeLines = (p: string): string[] => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n')
+        .split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l));
 
-    it('source text pins the P9o run, expectations, call, harness and six mutants as ONE code region, once', () => {
-        expect(REGION.length).toBe(31);
-        expect(code().join('\n').split(REGION.join('\n')).length - 1).toBe(1);
+    it('source text pins the P9o region, its load-bearing lines, the kill-check order and the '
+        + 'declaration census (the helper returns no failure)', async () => {
+        const { p9oPinFailures } = await import('./helpers/p9o-pins.mjs');
+        expect(p9oPinFailures(fs.readFileSync(DRIVER, 'utf8'), fs.readFileSync(FIXTURE, 'utf8'))).toEqual([]);
     });
 
-    it('source text pins, inside that region, the knob-record, exact-set, phase-D and attribution lines', () => {
-        for (const l of [
-            String.raw`  [ "$(grep '^FAULT' "$e/params.env")" = "$(printf 'FAULT=\nFAULT_ACK=')" ] || bad "$t: params.env FAULT/FAULT_ACK not both empty"`,
-            `  [ "$(node -e 'let o="NO_REPORT"; try { const r = require(process.argv[1]); o = r.failures.map((f) => f.id)`,
-            `    process.stdout.write(o)' "$e/selftest-report.json")" = 'P9-no-stray-fds|1' ] || bad "$t: failures != [P9] or stray != [1]"`,
-            '  for f in marker launched rc; do expect_absent "$e/phaseD.$f" "$t"; done',
-            '  expect_attr verdict ISOLATION_SELFTEST_FAILED "$t"; expect_attr verdict_class ISOLATION "$t"'
-        ]) expect(at(l), l).toBeGreaterThan(0);
-    });
-
-    it('source text pins the kill check: full marker string, AFTER the FAILED restore', () => {
-        const kill = at(`  expect_grep 'phaseD.marker exists but must not' "$CASE_EVID/tripped.txt" "P9o mutant $1 NOT killed"`);
-        const restore = REGION.findIndex((l) => l.includes('FAILED="$keep"'));
-        expect(restore).toBeGreaterThan(0);
-        expect(kill).toBeGreaterThan(restore);
-        expect(REGION[kill + 1]).toBe('}');
-    });
-
-    it('source text pins that the only function declarations are the three P9o ones, and no alias/unset -f', () => {
-        const heads = code().map((l) => /^\s*(\w+)\s*\(\s*\)\s*\{/.exec(l)?.[1]).filter(Boolean);
-        expect(heads).toEqual(['p9o_run', 'p9o_expect', 'p9o_mutant']);
-        expect(code().filter((l) => /^\s*(function\s|alias\s|unalias\s|unset\s+-f)/.test(l))).toEqual([]);
+    it('source text pins that neither this file nor the helper can be redirected by the environment', () => {
+        // Code lines only, so a comment can neither satisfy nor break it. The one
+        // line allowed here predates N-P5: it hands the self-test child its env.
+        // The token is assembled so that this check does not match itself.
+        const tok = ['process', 'env'].join('.');
+        expect(codeLines(fileURLToPath(import.meta.url)).filter((l) => l.includes(tok)))
+            .toEqual([`        env: { ...${tok}, [DENY_VAR]: 'http://wo-n-p4-forces-p10.invalid' }`]);
+        const helper = codeLines(HELPER);
+        expect(helper.filter((l) => l.includes(tok) || /readFileSync|\bfs\.|^\s*import\b/.test(l))).toEqual([]);
+        expect(helper.filter((l) => /^\s*export\b/.test(l)))
+            .toEqual(['export function p9oPinFailures(driverText, fixtureText) {']);
     });
 
     it('each mutant anchor starts exactly one line of netns-phases.sh', () => {
