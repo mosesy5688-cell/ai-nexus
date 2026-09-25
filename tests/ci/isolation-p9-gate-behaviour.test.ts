@@ -155,3 +155,39 @@ describe('the real self-test against a synthetic ledger (this part executes)', (
         fs.rmSync(run.evid, { recursive: true, force: true });
     });
 });
+
+/**
+ * N-P5 item 0 (M10), case P9o in counterexamples.sh: what can be checked OFF a
+ * runner. Registration text plus one pure-function evaluation -- this does NOT
+ * show the launcher stopping. That evidence exists only in the CI run that
+ * executes the driver (rc 74 and no phaseD.marker on the originals; phase D
+ * STARTED on every mutated copy).
+ */
+describe('P9o: the inherited stdout it uses lies in the establish/P9 difference set', () => {
+    const read = (f: string): string => fs.readFileSync(path.join(ISO, f), 'utf8').replace(/\r\n/g, '\n');
+
+    it('P9 refuses /dev/zero on fd 1, while establish refuses only a socket on 0/1/2', async () => {
+        const { strayReason } = await import('../../scripts/ci/isolation/fd-ledger.mjs');
+        expect(strayReason({ fd: '1', target: '/dev/zero' }, PHASES_SCRIPT))
+            .toBe('stdio fd points at /dev/zero, not /dev/null, a pipe, a tty or a file');
+        expect(read('netns-establish.sh'))
+            .toContain('case "$fd" in 0|1|2) case "$tgt" in socket:*) STRAY=1;');
+    });
+
+    it('the case clears both knobs, sends stdout to /dev/zero and runs all six mutants', () => {
+        const d = read('counterexamples.sh');
+        expect(d).toContain('env -u F2AI_ISO_FAULT -u F2AI_ISO_FAULT_ACK "$1" --evidence');
+        expect(d).toContain('"$CASE_NONCE" >/dev/zero 2>"$CASE_EVID/driver.stderr"');
+        expect(d).toContain("= 'P9-no-stray-fds|1' ]");
+        expect(d).toContain('p9o_run "$LAUNCH" p9o; p9o_expect P9o');
+        expect([...d.matchAll(/^p9o_mutant (\S+) /gm)].map((m) => m[1]))
+            .toEqual(['M10', 'F2a-exit', 'F2b-node', 'G2a-alias', 'G2b-path', 'MUT-16']);
+    });
+
+    it('each mutant anchor starts exactly one line of netns-phases.sh', () => {
+        const lines = read('netns-phases.sh').split('\n');
+        for (const a of ['if [ "$C_RC" -ne 0 ]; then', 'fail() {', 'rec "phase C rc=$C_RC"']) {
+            expect(lines.filter((l) => l.startsWith(a)).length, a).toBe(1);
+        }
+    });
+});
