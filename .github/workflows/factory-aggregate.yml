@@ -61,9 +61,11 @@ jobs:
           HARVEST_RUN_ID=$(gh run list --workflow factory-harvest.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           
           # RECORD-INTEGRITY GATE (work order L / A-2). Both ids are SINGLE-LINE
-          # identifiers and GITHUB_OUTPUT is a LINE protocol, so a CR or LF inside a
-          # value turns one intended record into two. BOTH are validated BEFORE EITHER
-          # write, so a rejection can never leave one usable record behind.
+          # identifiers and GITHUB_OUTPUT is a LINE protocol. An LF inside a value is
+          # the reproduced multi-record counterexample: the file gains an extra record.
+          # A CR is refused CONSERVATIVELY with it; this gate does NOT claim that a lone
+          # CR ends a record on every runner platform. BOTH ids are validated BEFORE
+          # EITHER write, so a rejection can never leave one usable record behind.
           # This is NOT a sanitizer: nothing is stripped, trimmed or concatenated, no
           # substitute identity is invented, and the empty/null fallback above is
           # unchanged and still runs first (a rejection never degrades to "latest").

@@ -63,8 +63,10 @@ jobs:
           fi
           
           # RECORD-INTEGRITY GATE (work order L / A-2). A run id is a SINGLE-LINE
-          # identifier and GITHUB_OUTPUT is a LINE protocol, so a CR or LF inside the
-          # value turns one intended record into two. Reject it BEFORE the write.
+          # identifier and GITHUB_OUTPUT is a LINE protocol. An LF inside the value is
+          # the reproduced multi-record counterexample: the file gains an extra record.
+          # A CR is refused CONSERVATIVELY with it; this gate does NOT claim that a lone
+          # CR ends a record on every runner platform. Reject BEFORE the write.
           # This is NOT a sanitizer: nothing is stripped, trimmed or concatenated, no
           # substitute identity is invented, and the empty/null fallback above is
           # unchanged and still runs first (a rejection never degrades to "latest").

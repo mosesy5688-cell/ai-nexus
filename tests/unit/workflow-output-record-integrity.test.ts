@@ -12,10 +12,13 @@
 //     .github/workflows/image-processor.yml    step "Get ID"            -> id
 //     .github/workflows/factory-aggregate.yml  step "Get Run IDs (...)" -> harvest-id,
 //                                                                          process-id
-//   GITHUB_OUTPUT is a LINE protocol, so a CR or LF inside a single-line identifier
-//   turns one intended record into two. The repaired steps REJECT CR/LF BEFORE the
-//   write; they do not strip, trim, concatenate or substitute anything, and they do
-//   not degrade to a "latest" lookup.
+//   GITHUB_OUTPUT is a LINE protocol. An LF inside a single-line identifier is the
+//   reproduced multi-record counterexample: the file gains an extra record. A CR is
+//   refused CONSERVATIVELY with it; this suite does NOT claim that a lone CR ends a
+//   record on every runner platform (PARSER_FIDELITY item 4 in
+//   helpers/github-output-records.ts states the bound). The repaired steps REJECT
+//   CR/LF BEFORE the write; they do not strip, trim, concatenate or substitute
+//   anything, and they do not degrade to a "latest" lookup.
 //
 // WHAT THIS DOES *NOT* CLAIM
 //   Only "an EXTRA RECORD IS WRITTEN TO THE FILE" was ever reproduced. Final
@@ -26,6 +29,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   PARSER_VERSION,
+  UPSTREAM_PARSER,
   parseOutputFile,
   uploadYml,
   imageYml,
@@ -52,8 +56,60 @@ describe(`GROUP A — pinned record parser (${PARSER_VERSION})`, () => {
   it('throws on an unterminated heredoc rather than silently truncating', () => {
     expect(() => parseOutputFile('k<<E\na\n')).toThrow('HEREDOC_DELIMITER_NOT_FOUND');
   });
-  it('skips blank and comment lines without inventing records', () => {
-    expect(parseOutputFile('\n# note\nid=7\n')).toEqual([{ key: 'id', value: '7' }]);
+  it('skips BLANK lines only -- the pinned upstream parser has no comment rule', () => {
+    expect(parseOutputFile('\nid=7\n')).toEqual([{ key: 'id', value: '7' }]);
+  });
+
+  it('names ONE pinned upstream identity (commit + blob + class), not a version line', () => {
+    expect(UPSTREAM_PARSER).toEqual({
+      repo: 'actions/runner',
+      commit: '80bb1fb827fa44d489263061e71ef4adba7ad8cd',
+      file: 'src/Runner.Worker/FileCommandManager.cs',
+      blob: '9d8bbebb42b037781456ec467693e019138f1b95',
+      className: 'EnvFileKeyValuePairs'
+    });
+  });
+
+  // L-G1-01 COUNTEREXAMPLE 1 -- '#' IS NOT A COMMENT INTRODUCER.
+  // Per the L-G1-01 ruling's reading of UPSTREAM_PARSER (recorded, NOT fetched by
+  // this suite), that class skips BLANK lines and has NO '#' rule, so '# note'
+  // carries neither '=' nor '<<' and reaches the invalid-format branch. A parser
+  // that skipped it as a comment UNDERCOUNTS the records in the file -- exactly the
+  // property an injection oracle must not have.
+  it("L-G1-01 #1: a '# note' line is INVALID FORMAT, not a skipped comment", () => {
+    expect(() => parseOutputFile('# note\nid=123\n')).toThrow('INVALID_FORMAT');
+  });
+
+  // L-G1-01 COUNTEREXAMPLE 2 -- A '#'-LEADING LINE CAN BE A WHOLE RECORD.
+  // '#key=value' contains '=' and no '<<', so it is an ordinary KEY/VALUE record
+  // whose key merely begins with '#'. The file therefore holds TWO records. The
+  // superseded parser reported ONE, i.e. it failed to see an injected record --
+  // the undercount this counterexample locks out.
+  it("L-G1-01 #2: '#key=value' is a RECORD, so the file yields TWO records", () => {
+    expect(parseOutputFile('#key=value\nid=123\n')).toEqual([
+      { key: '#key', value: 'value' },
+      { key: 'id', value: '123' }
+    ]);
+  });
+
+  // L-G1-01 table, third row: the control. A plain record is one record.
+  it("L-G1-01 control: 'id=123' alone is ONE record", () => {
+    expect(parseOutputFile('id=123\n')).toEqual([{ key: 'id', value: '123' }]);
+  });
+});
+
+// PARSER_FIDELITY item 4 -- these pin what THIS MODEL does with CR, so the declared
+// rule and the code cannot drift apart. They are NOT evidence about any runner
+// platform, and the Linux/Windows CRLF difference is NOT simulated.
+describe('GROUP A -- LINE-ENDING MODEL (declared, bounded, not runner evidence)', () => {
+  it('LINE-ENDING MODEL: one trailing CR is dropped from a record line', () => {
+    expect(parseOutputFile('id=1\r\n')).toEqual([{ key: 'id', value: '1' }]);
+  });
+  it('LINE-ENDING MODEL: a CR elsewhere stays in the value and starts no record', () => {
+    expect(parseOutputFile('id=1\rx=2\n')).toEqual([{ key: 'id', value: '1\rx=2' }]);
+  });
+  it('LINE-ENDING MODEL: the same one-CR drop applies to heredoc body and delimiter', () => {
+    expect(parseOutputFile('k<<E\r\na\r\nE\r\n')).toEqual([{ key: 'k', value: 'a' }]);
   });
 });
 

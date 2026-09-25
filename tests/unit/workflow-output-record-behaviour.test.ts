@@ -21,6 +21,7 @@ import {
   LF_INJECT,
   CRLF_INJECT,
   CR_ONLY,
+  HASH_RECORD_INJECT,
   STUB_GH_ID,
   GUARD_WITHOUT_STUB,
   STUB_GUARD_EXIT
@@ -67,7 +68,8 @@ describe('GROUP A-4 ① — LF / CRLF / duplicate-key text cannot ADD a record',
     const variants: [string, string][] = [
       ['LF', LF_INJECT],
       ['CRLF', CRLF_INJECT],
-      ['lone CR', CR_ONLY]
+      ['lone CR', CR_ONLY],
+      ["LF + '#key=value'", HASH_RECORD_INJECT]
     ];
     for (const [name, value] of variants) {
       it(`${label}: ${name} injection is refused and writes NOTHING`, () => {
@@ -120,6 +122,21 @@ describe('GROUP A-4 ② — valid values parse to the SAME key/value as the orig
     }
   });
 
+  it('the empty/null fallback is PRESERVED per slot in image-processor and factory-aggregate', () => {
+    for (const v of ['', 'null']) {
+      const img = run(IMAGE_STEP, { INPUT_AGGREGATE_RUN_ID: v });
+      expect(img.rc, `image value=${JSON.stringify(v)}`).toBe(0);
+      expect(img.ghCalled).toBe(true);
+      expect(img.records).toEqual([{ key: 'id', value: STUB_GH_ID }]);
+      const agg = run(AGGREGATE_STEP, { INPUT_PROCESS_RUN_ID: v });
+      expect(agg.rc, `aggregate value=${JSON.stringify(v)}`).toBe(0);
+      expect(agg.records).toEqual([
+        { key: 'harvest-id', value: STUB_GH_ID },
+        { key: 'process-id', value: STUB_GH_ID }
+      ]);
+    }
+  });
+
   it('the gate constrains CR/LF ONLY — other characters pass through unmodified', () => {
     // A space-bearing value is not a record-integrity problem. It must still pass and
     // must NOT be trimmed, stripped or rewritten by the gate.
@@ -159,6 +176,18 @@ describe('GROUP A-4 ④ — reverting the fix makes the counterexample reappear'
       expect(r.rc, 'the pre-fix behaviour is a NORMAL exit').toBe(0);
       expect(r.records.length).toBe(expected);
       expect(r.records.some((x) => x.value === '202')).toBe(true);
+    });
+  }
+
+  // L-G1-01 in the verification object itself: the pre-fix script writes 'id=101'
+  // and then a '#key=value' line. The corrected parser counts that injected line as
+  // a record; the superseded '#'-skipping parser counted only one.
+  for (const [label, script, envKey, expected] of reverts) {
+    it(`${label}: reverted script + '#key=value' payload writes ${expected} records`, () => {
+      const r = run(revertGate(script), { [envKey]: HASH_RECORD_INJECT });
+      expect(r.rc).toBe(0);
+      expect(r.records.length).toBe(expected);
+      expect(r.records.some((x) => x.key === '#key' && x.value === 'value')).toBe(true);
     });
   }
 

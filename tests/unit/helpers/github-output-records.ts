@@ -3,29 +3,58 @@
 // Shared fixture for WORK ORDER L GROUP A: a pinned GITHUB_OUTPUT record parser and
 // a local, network-free runner for the Factory "Get ID" step scripts.
 //
-// PARSER_VERSION is OURS, not GitHub's. It is a TypeScript re-implementation of the
-// documented GITHUB_OUTPUT line protocol, modelled on actions/runner
-// src/Runner.Worker/FileCommandManager.cs (KeyValueFileData) as documented for the
-// v2.3xx runner line.
+// PARSER_VERSION is OURS, not GitHub's: a TypeScript MODEL of the GITHUB_OUTPUT
+// line protocol. Its '#' and blank-line semantics are aligned to ONE pinned
+// upstream identity (UPSTREAM_PARSER below):
+//     actions/runner commit 80bb1fb827fa44d489263061e71ef4adba7ad8cd
+//     src/Runner.Worker/FileCommandManager.cs
+//     blob 9d8bbebb42b037781456ec467693e019138f1b95, class EnvFileKeyValuePairs
+// That identity is RECORDED, not fetched or executed by this suite, and it is NOT
+// asserted to be the version the hosted runner runs. The earlier header named a
+// different class and "the v2.3xx runner line" in place of a source-file version;
+// both are withdrawn. The upstream facts used here are only those quoted in the
+// G1 ruling for PR #2325 (L-G1-01): blank lines are skipped; there is NO '#'
+// comment rule; '# note' has neither '=' nor '<<' and is invalid format;
+// '#key=value' followed by 'id=123' is two records.
 //
-// PARSER_FIDELITY — how this differs from the hosted environment:
-//   * It returns the ORDERED LIST OF RECORDS. It deliberately does NOT apply the
-//     runner's post-parse SetOutput dictionary write, so it takes NO position on
-//     duplicate-key override order — that rule is unverified here by design.
-//   * It reproduces: blank-line skip, '#' comment skip, first '=' splits KEY/VALUE,
-//     'KEY<<DELIM' heredoc records, and "delimiter not found" / "invalid format" as
-//     thrown errors. It does NOT reproduce the runner's exact exception text,
-//     container path translation, or any file-size limit.
-//   * Line termination: '\n' terminates a line and a single trailing '\r' is dropped.
-//     The hosted runner's exact lone-CR handling is NOT verified here. This does not
-//     weaken the assertions: the repaired gate rejects CR and LF alike, so both
-//     readings give the same accept/reject decision at the write point.
+// PARSER_FIDELITY -- each declaration below names the test that locks it.
+//   1. '#' HANDLING -- ALIGNED (L-G1-01). No comment rule: '# note' throws
+//      INVALID_FORMAT, '#key=value' is a record with key '#key'. The superseded
+//      parser skipped '#' lines, so an injected '#key=value' record was not
+//      counted. Locked by "L-G1-01 #1" / "L-G1-01 #2" in
+//      workflow-output-record-integrity.test.ts.
+//   2. BLANK LINES -- ALIGNED. An empty line yields no record; it is the ONLY
+//      skip rule. Locked by "skips BLANK lines only".
+//   3. RECORD FORMS -- MODELLED. First '=' splits KEY/VALUE, 'KEY<<DELIM' opens a
+//      heredoc, anything else is INVALID_FORMAT; the '=' vs '<<' precedence is
+//      this model's choice. Beyond the three quoted rows, no claim is made that
+//      this matches the pinned class.
+//   4. LINE ENDINGS -- MODELLED, NOT ALIGNED, and the Linux/Windows CRLF
+//      difference is NOT SIMULATED. Rule: split on '\n' only; then drop ONE
+//      trailing '\r' from each line (record lines, heredoc body lines and the
+//      heredoc delimiter comparison alike). A '\r' anywhere else stays inside the
+//      value, so a lone CR never starts a record IN THIS MODEL. That is a
+//      property of the model, not evidence of how any runner platform treats CR.
+//      Locked by "LINE-ENDING MODEL" tests. No gate assertion depends on it: the
+//      gates refuse CR as well as LF before writing, so no CR ever reaches a file
+//      that a gate test parses.
+//   5. DUPLICATE KEYS -- NOT MODELLED. The parser returns the ORDERED LIST of
+//      records and takes no position on the runner's override order.
+//   6. NOT REPRODUCED: exception text, empty-key handling for KEY=VALUE, container
+//      path translation, file-size limits. No test depends on these.
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 
-export const PARSER_VERSION = 'f2ai-github-output-record-parser@1.0.0';
+export const PARSER_VERSION = 'f2ai-github-output-record-parser@1.1.0';
+export const UPSTREAM_PARSER = {
+  repo: 'actions/runner',
+  commit: '80bb1fb827fa44d489263061e71ef4adba7ad8cd',
+  file: 'src/Runner.Worker/FileCommandManager.cs',
+  blob: '9d8bbebb42b037781456ec467693e019138f1b95',
+  className: 'EnvFileKeyValuePairs'
+} as const;
 export const REPO = path.resolve(__dirname, '../../..');
 export const read = (p: string) => fs.readFileSync(path.join(REPO, p), 'utf8').replace(/\r\n/g, '\n');
 
@@ -37,7 +66,9 @@ export function parseOutputFile(text: string): Rec[] {
   if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].replace(/\r$/, '');
-    if (line === '' || line.startsWith('#')) continue;
+    // L-G1-01: BLANK-line skip ONLY (PARSER_FIDELITY items 1-2). There is no '#'
+    // comment rule; a '#' line falls through to the format branches below.
+    if (line === '') continue;
     const eq = line.indexOf('=');
     const hd = line.indexOf('<<');
     if (eq >= 0 && (hd < 0 || eq < hd)) {
@@ -217,4 +248,6 @@ export const AGGREGATE_STEP = extractRun(
 export const LF_INJECT = '101\nid=202';
 export const CRLF_INJECT = '101\r\nid=202';
 export const CR_ONLY = '101\r';
+// L-G1-01: an injected line whose key starts with '#' is a RECORD, not a comment.
+export const HASH_RECORD_INJECT = '101\n#key=value';
 export const GATE_MARK = '# RECORD-INTEGRITY GATE (work order L / A-2)';
