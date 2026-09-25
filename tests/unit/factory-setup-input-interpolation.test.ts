@@ -36,7 +36,9 @@ import {
 // library: `yaml` / `js-yaml` are transitive-only (absent from package.json), the
 // convention of tests/unit/harvest-arxiv-slow-tail-boundaries.test.ts. Any shape it
 // does not understand THROWS, so a restructure cannot silently shrink the pin.
-type Step = { name: string | null; keys: string[]; shell: string | null; uses: string | null; run: boolean; env: string[] };
+// `run` is the step's FULL run text: an inline value verbatim, or a `run: |` block
+// dedented by 8 with COMMENT LINES INCLUDED verbatim and trailing blank lines dropped.
+type Step = { name: string | null; keys: string[]; shell: string | null; uses: string | null; run: string | null; env: string[] };
 function readCompositeSteps(src: string): Step[] {
   const lines = src.split('\n');
   const start = lines.indexOf('  steps:');
@@ -44,14 +46,26 @@ function readCompositeSteps(src: string): Step[] {
   const steps: Step[] = [];
   let cur: Step | null = null;
   let inEnv = false;
+  let runBuf: string[] | null = null;
+  const closeRun = () => {
+    while (runBuf && runBuf.length > 0 && runBuf[runBuf.length - 1] === '') runBuf.pop();
+    if (runBuf && cur) cur.run = runBuf.join('\n');
+    runBuf = null;
+  };
   for (const raw of lines.slice(start + 1)) {
-    if (raw.trim() === '' || raw.trim().startsWith('#')) continue;
     const ind = raw.length - raw.trimStart().length;
+    if (runBuf) {
+      if (raw.trim() === '') { runBuf.push(''); continue; }
+      if (ind >= 8) { runBuf.push(raw.slice(8)); continue; }
+      if (ind > 6) throw new Error(`unexpected run-block indent: ${raw}`);
+      closeRun();
+    }
+    if (raw.trim() === '' || raw.trim().startsWith('#')) continue;
     if (ind < 4) break; // left runs.steps
     let body = raw.trimStart();
     if (ind === 4) {
       if (!body.startsWith('- ')) throw new Error(`unexpected step line: ${raw}`);
-      cur = { name: null, keys: [], shell: null, uses: null, run: false, env: [] };
+      cur = { name: null, keys: [], shell: null, uses: null, run: null, env: [] };
       steps.push(cur);
       body = body.slice(2);
     } else if (ind > 6) {
@@ -73,8 +87,12 @@ function readCompositeSteps(src: string): Step[] {
     if (key === 'name') cur.name = val;
     if (key === 'shell') cur.shell = val;
     if (key === 'uses') cur.uses = val;
-    if (key === 'run') cur.run = true;
+    if (key === 'run') {
+      if (val === '|') runBuf = [];
+      else cur.run = val;
+    }
   }
+  closeRun();
   return steps;
 }
 
@@ -120,34 +138,42 @@ describe('GROUP B-0/B-1 — the input is no longer interpolated into shell sourc
     expect(aggAt).toBeLessThan(fiAt);
   });
 
-  it('the run block command set is EXACTLY the baseline set, in order (no line added or dropped)', () => {
-    // every non-blank, non-comment line of the extracted run block, compared by
-    // equality -- an added `sudo apt-get autoremove -y` (or any other line) is red.
+  // The Free Runner Disk command lines (comments excluded), dedented to run-block level.
+  const FREE_DISK_COMMANDS = [
+    ...BASE_CLEANUP,
+    `        if [ "$${CARRIER}" = "true" ]; then`,
+    AGGRESSIVE_CLEANUP,
+    '        fi',
+    ...TAIL_CLEANUP,
+    "        echo \"Disk after factory-setup cleanup: $(df -h / | tail -1 | awk '{print $4}') available\""
+  ].map((l) => l.slice(8));
+
+  it('the Free Runner Disk command lines are EXACTLY the baseline, in order (comments excluded)', () => {
     const commands = FIXED_RUN.split('\n').filter((l) => l.trim() !== '' && !l.trim().startsWith('#'));
-    const expected = [
-      ...BASE_CLEANUP,
-      `        if [ "$${CARRIER}" = "true" ]; then`,
-      AGGRESSIVE_CLEANUP,
-      '        fi',
-      ...TAIL_CLEANUP,
-      "        echo \"Disk after factory-setup cleanup: $(df -h / | tail -1 | awk '{print $4}') available\""
-    ].map((l) => l.slice(8));
-    expect(commands).toEqual(expected);
+    expect(commands).toEqual(FREE_DISK_COMMANDS);
   });
 
-  it('the composite step list and every step env: key set are EXACTLY the baseline', () => {
-    // A new step (e.g. an extra `sudo apt-get autoremove -y` step) or a new env key
-    // (e.g. BASH_ENV pointing at another script) would widen what this action runs.
+  it('every composite step (list, keys, shell, uses, FULL run text, env keys) is EXACTLY the baseline', () => {
+    // Closes the scope-widening class for this file: a new step, a new env key (e.g.
+    // BASH_ENV), or any edit to ANY step's run text -- comment lines INCLUDED -- is red.
+    const freeDiskRun = ['# V27.40: composite — base list always; aggressive adds extras for heavy jobs', ...FREE_DISK_COMMANDS];
     expect(readCompositeSteps(action)).toEqual([
-      { name: 'Free Runner Disk', keys: ['name', 'shell', 'env', 'run'], shell: 'bash', uses: null, run: true, env: [CARRIER] },
-      { name: 'Setup Node.js', keys: ['name', 'uses', 'with'], shell: null, uses: 'actions/setup-node@v5', run: false, env: [] },
-      { name: 'Install Dependencies', keys: ['name', 'shell', 'run'], shell: 'bash', uses: null, run: true, env: [] },
+      {
+        name: 'Free Runner Disk',
+        keys: ['name', 'shell', 'env', 'run'],
+        shell: 'bash',
+        uses: null,
+        run: freeDiskRun.join('\n'),
+        env: [CARRIER]
+      },
+      { name: 'Setup Node.js', keys: ['name', 'uses', 'with'], shell: null, uses: 'actions/setup-node@v5', run: null, env: [] },
+      { name: 'Install Dependencies', keys: ['name', 'shell', 'run'], shell: 'bash', uses: null, run: 'npm ci', env: [] },
       {
         name: 'Restore Rust FFI Binaries',
         keys: ['name', 'if', 'uses', 'with'],
         shell: null,
         uses: 'actions/cache/restore@v5',
-        run: false,
+        run: null,
         env: []
       }
     ]);

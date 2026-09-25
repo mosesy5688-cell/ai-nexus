@@ -28,10 +28,10 @@ import {
 
 const BASH = resolveBash();
 const run = (script: string, env: Record<string, string>) => runStep(BASH, script, env);
-// A-2 POSITION SWEEP. The lock is "refuse CR or LF before writing" -- at ANY position.
-// A CR and an LF are inserted at EVERY position 0..3 of the id '101', each alone and
-// each followed by a record-shaped tail 'id=202'. Generated here, not hand-listed.
-const SWEEP_ID = '101';
+// A-2 POSITION SWEEP ("refuse CR or LF before writing"). CR, LF, CR+'id=202' and
+// LF+'id=202' are each inserted at EVERY position 0..11 of the 11-digit id
+// '12345678901' (the length of real run ids): 12 x 4 = 48 generated inputs per step.
+const SWEEP_ID = '12345678901';
 const SWEEP_INSERTS = ['\r', '\n', '\rid=202', '\nid=202'];
 const SWEEP: string[] = [];
 for (let pos = 0; pos <= SWEEP_ID.length; pos++) {
@@ -74,7 +74,7 @@ const CASES: [string, string, string][] = [
 describe('GROUP A-4 ① — LF / CRLF / duplicate-key text cannot ADD a record', () => {
   for (const [label, script, envKey] of CASES) {
     it(`${label}: CR/LF POSITION SWEEP -- every generated input is refused with a 0-byte output`, () => {
-      expect(SWEEP.length, 'sweep size: 4 positions x 4 inserts').toBe(16);
+      expect(SWEEP.length, 'sweep size: 12 positions x 4 inserts').toBe(48);
       for (const v of SWEEP) {
         const r = run(script, { [envKey]: v });
         const tag = `${label} input=${JSON.stringify(v)}`;
@@ -82,7 +82,7 @@ describe('GROUP A-4 ① — LF / CRLF / duplicate-key text cannot ADD a record',
         expect(r.raw, `${tag}: output file must be 0 bytes`).toBe('');
         expect(r.output, tag).toContain('refusing to write a multi-record GITHUB_OUTPUT');
       }
-    }, 60000);
+    }, 180000);
 
     // Not in the sweep: a two-character CRLF terminator, and a '#'-keyed record.
     const variants: [string, string][] = [
@@ -155,13 +155,26 @@ describe('GROUP A-4 ② — valid values parse to the SAME key/value as the orig
     }
   });
 
-  it('the gate constrains CR/LF ONLY — other characters pass through unmodified', () => {
-    // A space-bearing value is not a record-integrity problem. It must still pass and
-    // must NOT be trimmed, stripped or rewritten by the gate.
-    const r = run(UPLOAD_STEP, { INPUT_AGGREGATE_RUN_ID: 'a b-c_D.9' });
-    expect(r.rc).toBe(0);
-    expect(r.records).toEqual([{ key: 'id', value: 'a b-c_D.9' }]);
-  });
+  // A-3 CONTROL SET: the gate constrains CR/LF ONLY. Every non-CR/LF value below must
+  // be ACCEPTED by all three steps and written BYTE-FOR-BYTE (no trim, strip, rewrite).
+  const ACCEPT = [
+    'a\tb', '1 2', ' 101', '101 ', '#101', '1=2', 'a b-c_D.9', 'é✓', '1\u000b2', '1\u000c2',
+    '1\u001b2', '1\u00852', '1 2', '1"2', '1\\2', '1*2', '$(echo X)', '9'.repeat(40)
+  ];
+  const ACCEPT_CASES: [string, string, string, (v: string) => string][] = [
+    ['factory-upload', UPLOAD_STEP, 'INPUT_AGGREGATE_RUN_ID', (v) => `id=${v}\n`],
+    ['image-processor', IMAGE_STEP, 'INPUT_AGGREGATE_RUN_ID', (v) => `id=${v}\n`],
+    ['factory-aggregate', AGGREGATE_STEP, 'INPUT_PROCESS_RUN_ID', (v) => `harvest-id=${STUB_GH_ID}\nprocess-id=${v}\n`]
+  ];
+  for (const [label, script, envKey, expected] of ACCEPT_CASES) {
+    it(`${label}: every non-CR/LF control value is ACCEPTED and written byte-for-byte`, () => {
+      for (const v of ACCEPT) {
+        const r = run(script, { [envKey]: v });
+        expect(r.rc, `${label} ${JSON.stringify(v)}: must be accepted`).toBe(0);
+        expect(r.raw, `${label} ${JSON.stringify(v)}: byte-for-byte`).toBe(expected(v));
+      }
+    }, 120000);
+  }
 });
 
 describe('GROUP A-4 ③ — a refusal leaves no partially usable identity', () => {
