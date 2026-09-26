@@ -116,8 +116,9 @@ describe('netns-phases.sh: bytes that must be present (text assertions only)', (
         // counterexamples.sh applies them as its G2a-alias and G2b-path
         // mutants in the same CI run as P9o itself, and that case's source
         // text is pinned in isolation-p9-gate-behaviour.test.ts. No other
-        // gate, the pre-phase-d one included, is covered by any behavioural
-        // counterexample (G-3; pending N-P5 item 0b).
+        // gate, the pre-phase-d one included, is covered against an alias or
+        // PATH-shim defeat by any behavioural counterexample (G-3; pending
+        // N-P5 item 0b).
         const CENSUS: Array<[string, string[]]> = [
             ['netns-phases.sh', ['rec', 'fail']],
             ['exit-codes.sh', []],
