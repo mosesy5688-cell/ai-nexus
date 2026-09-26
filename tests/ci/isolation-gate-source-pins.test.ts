@@ -111,8 +111,13 @@ describe('netns-phases.sh: bytes that must be present (text assertions only)', (
         // WHAT IT DOES NOT CATCH: any defeat that adds no declaration. An
         // alias (`shopt -s expand_aliases; alias fail=rec`) and a PATH shim
         // both kill the gate and both leave every assertion in this file
-        // green. They belong to the open M10 class named in the header above
-        // and are NOT closed by this or by anything else in this suite.
+        // green; this census does NOT catch them. At the phase-C gate they are
+        // closed BEHAVIOURALLY, outside this file: case P9o in
+        // counterexamples.sh applies them as its G2a-alias and G2b-path
+        // mutants in the same CI run as P9o itself, and that case's source
+        // text is pinned in isolation-p9-gate-behaviour.test.ts. No other
+        // gate, the pre-phase-d one included, is covered by any behavioural
+        // counterexample (G-3; pending N-P5 item 0b).
         const CENSUS: Array<[string, string[]]> = [
             ['netns-phases.sh', ['rec', 'fail']],
             ['exit-codes.sh', []],
