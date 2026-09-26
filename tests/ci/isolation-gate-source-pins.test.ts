@@ -6,25 +6,30 @@
  * they prove nothing about what happens when the gate is reached. Every name in
  * this file is worded to claim only that.
  *
- * THE GAP THEY DO NOT CLOSE (M10; N-P5 item 0): whether an ordinary run with a
- * genuine red P9 actually stops is NOT pinned by anything executable in this
- * suite. The counterexamples that reach this gate all set a FAULT knob, so the
- * production path -- no knob, a real inherited fd, judged red by the ordinary
- * predicate -- is exercised by nothing. A mutant can leave fail() BYTE-IDENTICAL
- * and still prevent it from firing (M10 redefines fail() inside the gate under
- * `[ -z "$FAULT" ]`; an `exit() { return 0; }` or a `node()` override does it
- * from outside). The contiguous-region pin below and the function census narrow
- * that window -- all three of those named mutants break one of them -- but they
- * DO NOT close it: these are still string assertions, and a route that defeats
- * the gate without changing these bytes would pass. Closing M10 needs a
- * counterexample that induces a genuine inherited fd with no FAULT knob; that is
- * N-P5 item 0 and is deliberately not attempted here.
+ * WHAT IS PINNED BEHAVIOURALLY, AND WHERE (M10; N-P5 item 0): not here. Case
+ * P9o in counterexamples.sh is an ordinary run with NO FAULT knob -- the
+ * production path, a genuinely inherited /dev/zero on stdout judged red by the
+ * ordinary P9 predicate -- and it must stop at the phase-C gate with rc 74,
+ * phase D not started. In the CI run that executes counterexamples.sh, six
+ * mutants {M10, F2a-exit, F2b-node, G2a-alias, G2b-path, MUT-16}, each applied
+ * to a COPY of the isolation directory, are each required to START phase D. The
+ * P9o source-text pins live in isolation-p9-gate-behaviour.test.ts, not in this
+ * file.
+ *
+ * WHAT THESE STRING PINS ADD: M10 (fail() redefined inside the gate under
+ * `[ -z "$FAULT" ]`), an `exit() { return 0; }` and a `node()` override each
+ * break the contiguous-region pin below or the function census, AS WRITTEN.
+ * An alias or a PATH shim adds no declaration and passes every assertion in
+ * this file; it is covered behaviourally at the phase-C gate only, by the
+ * G2a-alias and G2b-path mutants of P9o. These remain string assertions: a
+ * route that defeats the gate without changing these bytes would pass them.
  *
  * The same blindness covers the P-1 PRE-PHASE-D gate at netns-phases.sh:92. No
  * counterexample exercises THAT one as a failing gate either: F4b fails earlier
  * at the post-drop check (line 60) and exits first, so the second stub check is
  * only ever seen passing. Several of the mutants that survive this file depend
  * on exactly that.
+ * Pending N-P5 item 0b (case B).
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -106,8 +111,14 @@ describe('netns-phases.sh: bytes that must be present (text assertions only)', (
         // WHAT IT DOES NOT CATCH: any defeat that adds no declaration. An
         // alias (`shopt -s expand_aliases; alias fail=rec`) and a PATH shim
         // both kill the gate and both leave every assertion in this file
-        // green. They belong to the open M10 class named in the header above
-        // and are NOT closed by this or by anything else in this suite.
+        // green; this census does NOT catch them. At the phase-C gate they are
+        // closed BEHAVIOURALLY, outside this file: case P9o in
+        // counterexamples.sh applies them as its G2a-alias and G2b-path
+        // mutants in the same CI run as P9o itself, and that case's source
+        // text is pinned in isolation-p9-gate-behaviour.test.ts. No other
+        // gate, the pre-phase-d one included, is covered against an alias or
+        // PATH-shim defeat by any behavioural counterexample (G-3; pending
+        // N-P5 item 0b).
         const CENSUS: Array<[string, string[]]> = [
             ['netns-phases.sh', ['rec', 'fail']],
             ['exit-codes.sh', []],

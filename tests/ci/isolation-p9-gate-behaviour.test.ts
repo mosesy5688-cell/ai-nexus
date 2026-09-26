@@ -8,22 +8,22 @@
  * non-zero when it does, and stops before C1-C4 rather than running the real
  * controls. That is the Node half of the gate, and it is genuinely executed.
  *
- * WHAT IS NOT PINNED, ANYWHERE IN THIS SUITE (M10; N-P5 item 0): whether an
- * ordinary run with a genuine red P9 actually stops is NOT pinned by anything
- * executable in this suite. Every counterexample that reaches the phase-C gate
- * in counterexamples.sh sets a FAULT knob, so the production path -- no knob, a
- * real inherited fd, judged red by the ordinary predicate -- is exercised by
- * nothing. The shell half of the gate is covered only by string assertions, and
- * those NARROW the window without closing it: fail() can be left BYTE-IDENTICAL
- * and still be prevented from firing (M10 redefines it inside the gate under
- * `[ -z "$FAULT" ]`; an `exit()` or `node()` shell-function override does it
- * from outside the region). Those are caught AS WRITTEN by the region pin and
- * the function census in isolation-gate-source-pins, which also covers the two
- * files netns-phases.sh sources; but a defeat that adds no declaration -- an
- * alias or a PATH shim -- is caught by nothing. The same blindness covers the
+ * WHAT THE CI RUN PINS, OUTSIDE THIS SUITE (M10; N-P5 item 0): case P9o in
+ * counterexamples.sh is an ordinary run with NO FAULT knob -- the production
+ * path, a genuinely inherited /dev/zero on stdout judged red by the ordinary P9
+ * predicate -- and it must stop at the phase-C gate with rc 74, phase D not
+ * started. In that same CI run six mutants {M10, F2a-exit, F2b-node, G2a-alias,
+ * G2b-path, MUT-16}, each applied to a COPY of the isolation directory, are each
+ * required to START phase D. This file executes none of that; it owns the P9o
+ * SOURCE-TEXT pins (last block below), which guard text, not behaviour. An alias
+ * or a PATH shim adds no declaration and passes every string pin; it is covered
+ * behaviourally at the phase-C gate only, by the G2a-alias and G2b-path mutants.
+ * String pins alone are blind to it. The same blindness covers the
  * P-1 PRE-PHASE-D gate at netns-phases.sh:92, which no counterexample exercises
  * as a FAILING gate because F4b exits earlier at the post-drop check on line 60.
- * Do not read anything below as "the gate is pinned".
+ * Pending N-P5 item 0b (case B).
+ * Nothing below executes the shell half of the gate: do not read anything
+ * below as "the phase-C gate is pinned here".
  *
  * ENVIRONMENT. On CI this file runs INSIDE the launcher: test-suite.yml:147
  * invokes `netns-launch.sh -- npx vitest run --coverage` and vitest.config.ts
