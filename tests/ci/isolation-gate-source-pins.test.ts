@@ -10,10 +10,11 @@
  * P9o in counterexamples.sh is an ordinary run with NO FAULT knob -- the
  * production path, a genuinely inherited /dev/zero on stdout judged red by the
  * ordinary P9 predicate -- and it must stop at the phase-C gate with rc 74,
- * phase D not started. In that same CI run six mutants {M10, F2a-exit,
- * F2b-node, G2a-alias, G2b-path, MUT-16}, each applied to a COPY of the
- * isolation directory, are each required to START phase D. The P9o source-text
- * pins live in isolation-p9-gate-behaviour.test.ts, not in this file.
+ * phase D not started. In the CI run that executes counterexamples.sh, six
+ * mutants {M10, F2a-exit, F2b-node, G2a-alias, G2b-path, MUT-16}, each applied
+ * to a COPY of the isolation directory, are each required to START phase D. The
+ * P9o source-text pins live in isolation-p9-gate-behaviour.test.ts, not in this
+ * file.
  *
  * WHAT THESE STRING PINS ADD: M10 (fail() redefined inside the gate under
  * `[ -z "$FAULT" ]`), an `exit() { return 0; }` and a `node()` override each
