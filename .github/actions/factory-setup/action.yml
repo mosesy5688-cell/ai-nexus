@@ -27,12 +27,19 @@ runs:
     # resolve action.yml. Callers MUST do `- uses: actions/checkout@v5` before this.
     - name: Free Runner Disk
       shell: bash
+      env:
+        # Work order L / B-1: the COMPLETE original expression moves into step env:
+        # so the input value is never spliced into this shell script source. The
+        # condition below compares the referenced variable against the LITERAL
+        # `true` -- same condition, same cleanup scope, and the `false` input
+        # default declared above is unchanged.
+        AGGRESSIVE_DISK_CLEANUP: ${{ inputs.aggressive-disk-cleanup }}
       run: |
         # V27.40: composite — base list always; aggressive adds extras for heavy jobs
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost 2>/dev/null || true
         sudo rm -rf /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/Python /opt/hostedtoolcache/go /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/node/18* /opt/hostedtoolcache/node/20* 2>/dev/null || true
         sudo rm -rf /usr/local/share/powershell /usr/share/swift /usr/local/.ghcup 2>/dev/null || true
-        if [ "${{ inputs.aggressive-disk-cleanup }}" = "true" ]; then
+        if [ "$AGGRESSIVE_DISK_CLEANUP" = "true" ]; then
           sudo rm -rf /usr/local/julia* /usr/local/graalvm /usr/share/miniconda /usr/local/share/chromium /usr/share/az* /opt/microsoft 2>/dev/null || true
         fi
         docker system prune -af 2>/dev/null || true
