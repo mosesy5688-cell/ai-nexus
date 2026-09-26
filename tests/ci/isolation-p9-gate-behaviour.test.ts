@@ -155,3 +155,83 @@ describe('the real self-test against a synthetic ledger (this part executes)', (
         fs.rmSync(run.evid, { recursive: true, force: true });
     });
 });
+
+/**
+ * N-P5 item 0 (M10), case P9o in counterexamples.sh: what can be checked OFF a
+ * runner. Source-text pins plus one pure-function evaluation -- this does NOT
+ * show the launcher stopping. That evidence exists only in the CI run that
+ * executes the driver (rc 74 and no phaseD.marker on the originals; phase D
+ * STARTED on every mutated copy).
+ *
+ * LIMIT: the pins below guard exactly two things: (a) the TEXT of the P9o
+ * region, and (b) a whole-driver declaration census (P4: the function heads,
+ * and no alias, unalias, unset -f or function line). Edits OUTSIDE the region
+ * can still neutralise the case without tripping them -- a heredoc or
+ * `if false` wrapper, `trap 'exit 0' EXIT`, redefining bad/expect_grep via
+ * eval or in the one-line form `true; expect_grep() { :; }`, aliasing
+ * p9o_expect, or resetting FAILED before the final printf -- and the driver has
+ * no runtime count proving the case ran. Nothing pins this test's own wiring
+ * (both calls below using the one FIXTURE constant) or the helper's own
+ * constants.
+ */
+describe('P9o: the inherited stdout it uses lies in the establish/P9 difference set', () => {
+    const read = (f: string): string => fs.readFileSync(path.join(ISO, f), 'utf8').replace(/\r\n/g, '\n');
+
+    it('P9 refuses /dev/zero on fd 1, while establish refuses only a socket on 0/1/2', async () => {
+        const { strayReason } = await import('../../scripts/ci/isolation/fd-ledger.mjs');
+        expect(strayReason({ fd: '1', target: '/dev/zero' }, PHASES_SCRIPT))
+            .toBe('stdio fd points at /dev/zero, not /dev/null, a pipe, a tty or a file');
+        expect(read('netns-establish.sh'))
+            .toContain('case "$fd" in 0|1|2) case "$tgt" in socket:*) STRAY=1;');
+    });
+
+    // The pin logic is ONE pure function in helpers/p9o-pins.mjs: (driver text,
+    // fixture text) -> failures. The paths below are fixed and nothing in this
+    // block reads the environment. None of this is runtime behaviour.
+    const DRIVER = path.join(ISO, 'counterexamples.sh');
+    const FIXTURE = path.join(ROOT, 'tests', 'ci', 'fixtures', 'wo-n-p5-0', 'p9o-code-region.txt');
+    const HELPER = path.join(ROOT, 'tests', 'ci', 'helpers', 'p9o-pins.mjs');
+    const codeLines = (p: string): string[] => fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n')
+        .split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l));
+
+    it('source text pins the P9o region, its load-bearing lines, the kill-check order and the '
+        + 'declaration census (the helper returns no failure)', async () => {
+        const { p9oPinFailures } = await import('./helpers/p9o-pins.mjs');
+        expect(p9oPinFailures(fs.readFileSync(DRIVER, 'utf8'), fs.readFileSync(FIXTURE, 'utf8'))).toEqual([]);
+    });
+
+    it('source text pins the fixture itself: sha256 of its LF-normalised content', async () => {
+        // Regenerating the fixture from an edited driver changes this digest. The
+        // literal was written from a command's output over the committed fixture.
+        const { createHash } = await import('node:crypto');
+        const got = createHash('sha256')
+            .update(fs.readFileSync(FIXTURE, 'utf8').replace(/\r\n/g, '\n')).digest('hex');
+        expect(got).toBe('cddb41f182de7ab729e033723cae76b68bcc7978372e5457151a0fa1988e4195');
+    });
+
+    it('source text pins that the process' + '.env token appears on no code line of this file except '
+        + 'line 78, and that the helper code lines hold no such token, no import or require( token '
+        + 'anywhere, no readFileSync or fs. token, and exactly one line-leading export (the '
+        + 'p9oPinFailures declaration)', () => {
+        // Code lines only, so a comment can neither satisfy nor break it. Line 78
+        // predates N-P5: it hands the self-test child its env. The token is
+        // assembled so that this check does not match itself.
+        const tok = ['process', 'env'].join('.');
+        const allowed = `        env: { ...${tok}, [DENY_VAR]: 'http://wo-n-p4-forces-p10.invalid' }`;
+        expect(codeLines(fileURLToPath(import.meta.url)).filter((l) => l.includes(tok))).toEqual([allowed]);
+        expect(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').replace(/\r\n/g, '\n')
+            .split('\n').indexOf(allowed) + 1).toBe(78);
+        const helper = codeLines(HELPER);
+        expect(helper.filter((l) => l.includes(tok)
+            || /readFileSync|\bfs\.|\bimport\b|\brequire\s*\(/.test(l))).toEqual([]);
+        expect(helper.filter((l) => /^\s*export\b/.test(l)))
+            .toEqual(['export function p9oPinFailures(driverText, fixtureText) {']);
+    });
+
+    it('each mutant anchor starts exactly one line of netns-phases.sh', () => {
+        const lines = read('netns-phases.sh').split('\n');
+        for (const a of ['if [ "$C_RC" -ne 0 ]; then', 'fail() {', 'rec "phase C rc=$C_RC"']) {
+            expect(lines.filter((l) => l.startsWith(a)).length, a).toBe(1);
+        }
+    });
+});

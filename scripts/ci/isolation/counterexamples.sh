@@ -198,6 +198,44 @@ expect_absent "$CASE_EVID/phaseC.rc"            'b4r phase C never ran'
 expect_absent "$CASE_EVID/phaseD.marker"        'b4r phase D never ran'
 expect_attr verdict ISOLATION_ESTABLISH_FAILED 'b4r'
 
+# --------------------------------------------------------------------- P9o
+# N-P5 item 0 (M10): an ORDINARY run, no FAULT knob (cleared, read back from
+# params.env), stdout a genuinely inherited /dev/zero. Establish passes it (only
+# a socket on 0/1/2 is refused there); P9 refuses it. P9 alone is red: must stop.
+p9o_run() { new_case "$2"; RC=0; env -u F2AI_ISO_FAULT -u F2AI_ISO_FAULT_ACK "$1" --evidence \
+  "$CASE_EVID" -- node "$POS" "$CASE_NONCE" >/dev/zero 2>"$CASE_EVID/driver.stderr" || RC=$?; }
+p9o_expect() {
+  local e="$CASE_EVID" t="$1" z; z="$(printf '1\t/dev/zero')"
+  [ "$(grep '^FAULT' "$e/params.env")" = "$(printf 'FAULT=\nFAULT_ACK=')" ] || bad "$t: params.env FAULT/FAULT_ACK not both empty"
+  expect_rc "$RC" "$F2AI_ISO_RC_SELFTEST" "$t"; expect_absent "$e/fd-violations.txt" "$t establish violation"
+  expect_grep "$z" "$e/fd-after.txt" "$t establish passed fd 1"; expect_grep "$z" "$e/fd-final.txt" "$t fd 1 in P9 ledger"
+  [ "$(node -e 'let o="NO_REPORT"; try { const r = require(process.argv[1]); o = r.failures.map((f) => f.id)
+    + "|" + r.n4_0.checks.find((c) => c.id === "P9-no-stray-fds").observed.stray.map((s) => s.fd); } catch {}
+    process.stdout.write(o)' "$e/selftest-report.json")" = 'P9-no-stray-fds|1' ] || bad "$t: failures != [P9] or stray != [1]"
+  case "$(cat "$e/phaseC.rc" 2>/dev/null || echo ABSENT)" in ABSENT|0|'') bad "$t: phaseC.rc absent or 0" ;; esac
+  for f in marker launched rc; do expect_absent "$e/phaseD.$f" "$t"; done
+  expect_attr verdict ISOLATION_SELFTEST_FAILED "$t"; expect_attr verdict_class ISOLATION "$t"
+}
+note 'P9o: an ordinary run whose stdout P9 refuses stops at the phase-C gate'; p9o_run "$LAUNCH" p9o; p9o_expect P9o
+# Discrimination IN THIS RUN, on COPIES (originals never written): each mutant must
+# START phase D. A copy broken any other way starts no phase D, so cannot pass.
+SHIM="$WORK/p9o-shim"; mkdir -p "$SHIM"; printf '#!/bin/sh\n"%s" "$@"\nexit 0\n' "$(command -v node)" >"$SHIM/node"
+chmod 0755 "$SHIM/node"
+p9o_mutant() {
+  local m="$WORK/p9o-mut-$1" keep="$FAILED"; cp -a "$HERE" "$m"
+  awk -v a="$2" -v l="$3" '{ print } index($0, a) == 1 { print l; n++ } END { exit (n != 1) }' \
+    "$HERE/netns-phases.sh" >"$m/netns-phases.sh" || { bad "P9o mutant $1: anchor not unique"; return; }
+  p9o_run "$m/netns-launch.sh" "p9o-$1"; p9o_expect "$1" 2>"$CASE_EVID/tripped.txt"; FAILED="$keep"
+  sed "s/^/  [$1 tripped] /" "$CASE_EVID/tripped.txt"
+  expect_grep 'phaseD.marker exists but must not' "$CASE_EVID/tripped.txt" "P9o mutant $1 NOT killed"
+}
+p9o_mutant M10 'if [ "$C_RC" -ne 0 ]; then' '  [ -n "$FAULT" ] || fail() { rec "M10 $1"; }'
+p9o_mutant F2a-exit 'fail() {' 'exit() { return 0; }'
+p9o_mutant F2b-node 'fail() {' 'node() { case "$1" in *netns-selftest.mjs) return 0 ;; esac; command node "$@"; }'
+p9o_mutant G2a-alias 'fail() {' 'shopt -s expand_aliases; alias fail=rec'
+p9o_mutant G2b-path 'fail() {' "PATH=\"$SHIM:\$PATH\""
+p9o_mutant MUT-16 'rec "phase C rc=$C_RC"' 'C_RC=0'
+
 # ------------------------------------------- ruling C c4: attribution cases.
 # A separate file so neither driver exceeds the CES line limit. Its failure
 # count is ADDED to this one's, never swallowed.
