@@ -186,7 +186,8 @@ p9o_mutant MUT-16 'rec "phase C rc=$C_RC"' 'C_RC=0'
 # the PRE-PHASE-D P-1 gate execute as a failing gate. Runtime fixture under $WORK:
 # stub-curl.sh plus a counter in its own dir; the 2nd sentinel call rewrites the stub
 # (sibling file, then mv). Not claimed: resolution drift, the re-check's rationale,
-# or production's no-manifest run.
+# or production's no-manifest run. Nor does case B claim that attribution correctly names
+# the pre-phase-d gate; correct naming is pending N-P5 item 0c.
 caseb_run() { new_case "$2"; CB="$WORK/$2-stubbin"; MAN="$WORK/$2-manifest.tsv"; RC=0; mkdir -p "$CB"
   local s="$HERE/stub-curl.sh" k; printf '0\n' >"$CB/count"
   k="$(grep -n -x -F -- 'if [ "${1-}" = "--f2ai-iso-sentinel" ]; then' "$s" | cut -d: -f1 || true)"
@@ -206,7 +207,8 @@ caseb_expect() {
   [ "$(grep '^FAIL ' "$e/stub-identity-pre-phase-d.txt")" = 'FAIL curl identity mismatch' ] || bad "$t: pre-phase-d FAIL lines"
   [ "$(cat "$e/phaseC.rc" 2>/dev/null || echo ABSENT)" = 0 ] || bad "$t: phaseC.rc absent or not 0"
   for f in marker launched rc; do expect_absent "$e/phaseD.$f" "$t"; done
-  expect_attr verdict ISOLATION_STUB_IDENTITY_FAILED "$t"; expect_attr verdict_class ISOLATION "$t"
+  expect_present "$e/attribution.txt" "$t attribution"; [ "$(attr_get verdict)" != PASS ] || bad "$t: verdict PASS"
+  [ "$(attr_get verdict_class)" != PASS ] || bad "$t: verdict_class PASS"
   [ "$(sha256sum "$CB/curl" | cut -d' ' -f1)" != "$(cut -f3 "$MAN")" ] || bad "$t: stub sha == manifest sha"
   [ "$(cat "$CB/count")" = 2 ] || bad "$t: fixture counter != 2 (stub dir not writable at the dropped identity?)"
   [ -n "$n" ] && [ "$(grep -c -x -E -e "[0-9TZ:-]+ argv:--f2ai-iso-sentinel $n" "$e/stub-sentinel.log")" = 2 ] \

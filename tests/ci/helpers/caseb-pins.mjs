@@ -11,7 +11,7 @@
 // function heads, no alias/unalias/unset -f/function line) is P4 of p9o-pins.mjs,
 // which covers the whole driver and lists case B's three functions.
 
-const FIXTURE_LINES = 44;
+const FIXTURE_LINES = 45;
 const LOAD_BEARING = [
     // L2: the exact no-knob invocation through the production flags.
     // (A trailing backslash would escape String.raw's closing backtick, so these
@@ -28,7 +28,9 @@ const LOAD_BEARING = [
     `  [ "$(grep '^FAIL ' "$e/stub-identity-pre-phase-d.txt")" = 'FAIL curl identity mismatch' ] || bad "$t: pre-phase-d FAIL lines"`,
     '  [ "$(cat "$e/phaseC.rc" 2>/dev/null || echo ABSENT)" = 0 ] || bad "$t: phaseC.rc absent or not 0"',
     '  for f in marker launched rc; do expect_absent "$e/phaseD.$f" "$t"; done',
-    '  expect_attr verdict ISOLATION_STUB_IDENTITY_FAILED "$t"; expect_attr verdict_class ISOLATION "$t"',
+    // b3 as amended by hub v113 §1 f1: fail-closed only, no pinned verdict value.
+    `  expect_present "$e/attribution.txt" "$t attribution"; [ "$(attr_get verdict)" != PASS ] || bad "$t: verdict PASS"`,
+    `  [ "$(attr_get verdict_class)" != PASS ] || bad "$t: verdict_class PASS"`,
     `  [ "$(sha256sum "$CB/curl" | cut -d' ' -f1)" != "$(cut -f3 "$MAN")" ] || bad "$t: stub sha == manifest sha"`,
     '  [ "$(cat "$CB/count")" = 2 ] || bad "$t: fixture counter != 2 (stub dir not writable at the dropped identity?)"',
     '  [ -n "$n" ] && [ "$(grep -c -x -E -e "[0-9TZ:-]+ argv:--f2ai-iso-sentinel $n" "$e/stub-sentinel.log")" = 2 ] \\',
