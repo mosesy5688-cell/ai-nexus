@@ -28,7 +28,7 @@ const LOAD_BEARING = [
     '  expect_attr verdict ISOLATION_SELFTEST_FAILED "$t"; expect_attr verdict_class ISOLATION "$t"'
 ];
 const KILL = `  expect_grep 'phaseD.marker exists but must not' "$CASE_EVID/tripped.txt" "P9o mutant $1 NOT killed"`;
-const DECLARED = ['p9o_run', 'p9o_expect', 'p9o_mutant'];
+const DECLARED = ['p9o_run', 'p9o_expect', 'p9o_mutant', 'caseb_run', 'caseb_expect', 'caseb_mutant'];
 
 export function p9oPinFailures(driverText, fixtureText) {
     const out = [];
@@ -48,8 +48,8 @@ export function p9oPinFailures(driverText, fixtureText) {
     if (restore < 0) out.push('P3 FAILED="$keep" restore is missing');
     if (kill >= 0 && restore >= 0 && !(kill > restore)) out.push(`P3 kill check (${kill}) is not after the restore (${restore})`);
     if (kill >= 0 && region[kill + 1] !== '}') out.push('P3 kill check is not the last line of p9o_mutant');
-    // P4: the driver declares exactly the three P9o functions and nothing that
-    // could redefine or alias one.
+    // P4: the driver declares exactly the three P9o then the three case B
+    // functions, in that order, and nothing that could redefine or alias one.
     const heads = code.map((l) => /^\s*(\w+)\s*\(\s*\)\s*\{/.exec(l)?.[1]).filter(Boolean);
     if (heads.join() !== DECLARED.join()) out.push(`P4 declared functions are [${heads}], expected [${DECLARED}]`);
     for (const l of code) {
