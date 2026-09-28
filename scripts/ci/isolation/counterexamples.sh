@@ -181,6 +181,60 @@ p9o_mutant G2a-alias 'fail() {' 'shopt -s expand_aliases; alias fail=rec'
 p9o_mutant G2b-path 'fail() {' "PATH=\"$SHIM:\$PATH\""
 p9o_mutant MUT-16 'rec "phase C rc=$C_RC"' 'C_RC=0'
 
+# ------------------------------------------------------------------ case B
+# N-P5 0b (G-3): no FAULT knob. After phase C is green, P-1(b) identity drift makes
+# the PRE-PHASE-D P-1 gate execute as a failing gate. Runtime fixture under $WORK:
+# stub-curl.sh plus a counter in its own dir; the 2nd sentinel call rewrites the stub
+# (sibling file, then mv). Not claimed: resolution drift, the re-check's rationale,
+# or production's no-manifest run. Nor does case B claim that attribution correctly names
+# the pre-phase-d gate; correct naming is pending N-P5 item 0c.
+caseb_run() { new_case "$2"; CB="$WORK/$2-stubbin"; MAN="$WORK/$2-manifest.tsv"; RC=0; mkdir -p "$CB"
+  local s="$HERE/stub-curl.sh" k; printf '0\n' >"$CB/count"
+  k="$(grep -n -x -F -- 'if [ "${1-}" = "--f2ai-iso-sentinel" ]; then' "$s" | cut -d: -f1 || true)"
+  case "$k" in ''|*[!0-9]*) bad "case B $2: stub sentinel anchor not unique"; return ;; esac
+  { head -n "$k" "$s"; printf '  D=%q; n=$(( $(cat "$D/count") + 1 )); printf "%%s\\n" "$n" >"$D/count"\n' "$CB"
+    printf '%s\n' '  if [ "$n" -eq 2 ]; then { cat "$D/curl"; echo "# case B: rewritten at sentinel call 2"; } >"$D/.curl.next"
+    chmod 0755 "$D/.curl.next"; mv -f "$D/.curl.next" "$D/curl"; fi'; tail -n "+$((k + 1))" "$s"; } >"$CB/curl"
+  chmod 0755 "$CB/curl"; printf 'curl\t%s\t%s\t%s\n' "$CB/curl" \
+    "$(sha256sum "$CB/curl" | cut -d' ' -f1)" "$(stat -c %s "$CB/curl")" >"$MAN"
+  env -u F2AI_ISO_FAULT -u F2AI_ISO_FAULT_ACK "$1" --evidence "$CASE_EVID" --path-prefix "$CB" --stub-manifest "$MAN" \
+    -- node "$POS" "$CASE_NONCE" >"$CASE_EVID/driver.stdout" 2>"$CASE_EVID/driver.stderr" || RC=$?; }
+caseb_expect() {
+  local e="$CASE_EVID" t="$1" n; n="$(sed -n 's/^NONCE=//p' "$e/params.env" 2>/dev/null || true)"
+  [ "$(grep '^FAULT' "$e/params.env")" = "$(printf 'FAULT=\nFAULT_ACK=')" ] || bad "$t: params.env FAULT/FAULT_ACK not both empty"
+  grep -qxF "PATH_PREFIX=$CB" "$e/params.env" && grep -qxF "STUB_MANIFEST=$MAN" "$e/params.env" || bad "$t: params.env fixture paths"
+  expect_rc "$RC" "$F2AI_ISO_RC_STUB" "$t"; expect_grep 'PASS curl' "$e/stub-identity-post-drop.txt" "$t post-drop"
+  [ "$(grep '^FAIL ' "$e/stub-identity-pre-phase-d.txt")" = 'FAIL curl identity mismatch' ] || bad "$t: pre-phase-d FAIL lines"
+  [ "$(cat "$e/phaseC.rc" 2>/dev/null || echo ABSENT)" = 0 ] || bad "$t: phaseC.rc absent or not 0"
+  for f in marker launched rc; do expect_absent "$e/phaseD.$f" "$t"; done
+  expect_present "$e/attribution.txt" "$t attribution"; [ "$(attr_get verdict)" != PASS ] || bad "$t: verdict PASS"
+  [ "$(attr_get verdict_class)" != PASS ] || bad "$t: verdict_class PASS"
+  [ "$(sha256sum "$CB/curl" | cut -d' ' -f1)" != "$(cut -f3 "$MAN")" ] || bad "$t: stub sha == manifest sha"
+  [ "$(cat "$CB/count")" = 2 ] || bad "$t: fixture counter != 2 (stub dir not writable at the dropped identity?)"
+  [ -n "$n" ] && [ "$(grep -c -x -E -e "[0-9TZ:-]+ argv:--f2ai-iso-sentinel $n" "$e/stub-sentinel.log")" = 2 ] \
+    || bad "$t: sentinel log does not hold exactly two nonce sentinel records"
+}
+note 'case B: phase C green, then the pre-phase-d P-1 gate refuses a drifted stub'; caseb_run "$LAUNCH" caseb; caseb_expect caseB
+# Same-run discrimination on COPIES (M-B1..M-B5): each must START phase D.
+caseb_mutant() {
+  local m="$WORK/caseb-mut-$1" keep="$FAILED"; cp -a "$HERE" "$m"
+  awk -v a="$4" -v o="$3" -v l="$5" 'index($0, a) == 1 { n++; if (o == "+") print; if (l != "") print l; next }
+    { print } END { exit (n != 1) }' "$HERE/$2" >"$m/$2" || { bad "case B mutant $1: anchor not unique"; return; }
+  caseb_run "$m/netns-launch.sh" "caseb-$1"; caseb_expect "$1" 2>"$CASE_EVID/tripped.txt"; FAILED="$keep"
+  sed "s/^/  [$1 tripped] /" "$CASE_EVID/tripped.txt"
+  expect_grep 'phaseD.marker exists but must not' "$CASE_EVID/tripped.txt" "case B mutant $1 NOT killed"
+}
+G='f2ai_stub_verify "$STUB_MANIFEST" "$EVID" "pre-phase-d"'; R='rec "stub identity (pre-phase-d) rc=$STUB_RC"'
+caseb_mutant M-B1 netns-phases.sh + "$G" '[ -n "$FAULT" ] || fail() { rec "M-B1 $1"; }'
+caseb_mutant M-B2 netns-phases.sh + "$R" 'STUB_RC=0'
+caseb_mutant M-B3 netns-phases.sh = "$G" ''
+caseb_mutant M-B4 stub-identity.sh + '  : >"$report"' '  [ "$tag" != pre-phase-d ] || return 0'
+caseb_mutant M-B5a netns-phases.sh + "$R" 'shopt -s expand_aliases; alias fail=rec'
+CBS="$WORK/caseb-shim"; mkdir -p "$CBS"; M5="$WORK/caseb-M-B5b-manifest.tsv"
+printf '#!/bin/sh\nprintf "%%s  %%s\\n" "$(cut -f3 %q)" "$1"\n' "$M5" >"$CBS/sha256sum"
+printf '#!/bin/sh\ncut -f4 %q\n' "$M5" >"$CBS/stat"; chmod 0755 "$CBS/sha256sum" "$CBS/stat"
+caseb_mutant M-B5b netns-phases.sh + '# ------------------------- cache now exists' "PATH=\"$CBS:\$PATH\""
+
 # ------------------------------------------- ruling C c4: attribution cases.
 # A separate file so neither driver exceeds the CES line limit. Its failure count is ADDED to this
 # one's, never swallowed.
