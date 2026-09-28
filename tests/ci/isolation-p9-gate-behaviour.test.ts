@@ -18,10 +18,10 @@
  * SOURCE-TEXT pins (last block below), which guard text, not behaviour. An alias
  * or a PATH shim adds no declaration and passes every string pin; it is covered
  * behaviourally at the phase-C gate only, by the G2a-alias and G2b-path mutants.
- * String pins alone are blind to it. The same blindness covers the
- * P-1 PRE-PHASE-D gate at netns-phases.sh:92, which no counterexample exercises
- * as a FAILING gate because F4b exits earlier at the post-drop check on line 60.
- * Pending N-P5 item 0b (case B).
+ * String pins alone are blind to it. #2331 case B (N-P5 item 0b, no FAULT knob) ran
+ * the P-1 PRE-PHASE-D gate (netns-phases.sh:92) as a FAILING gate: phase C green, rc
+ * F2AI_ISO_RC_STUB, phase D not started. Case B's dropped-privilege write/rename was
+ * measured in sudo mode; userns mode was not observed (not reachable on current CI).
  * Nothing below executes the shell half of the gate: do not read anything
  * below as "the phase-C gate is pinned here".
  *
