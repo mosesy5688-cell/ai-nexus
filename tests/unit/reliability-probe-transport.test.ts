@@ -154,8 +154,8 @@ describe('a COMPLETED response takes the ordinary contract verdict (H, JSON lite
         expect([rec.state, rec.body_complete, rec.failure_phase, rec.timed_out]).toEqual(['FAIL', true, 'assertion', false]);
         expect([rec.body_bytes_received, rec.body_sha256_received]).toEqual([body.length, sha([body])]);
         // A completed body is still handed WHOLE to the assertions across chunk splits.
-        const parts = [bytes(`<html><title>${MARKER.slice(0, 6)}`), bytes(`${MARKER.slice(6)}</title>`)];
-        const split = await run('homepage', { ctx: {}, bodyEdgeBytes: 4, fetchImpl: async () => ({ status: 200, headers: hdrs(CF), body: stream(parts, null) }) });
+        const parts = [bytes(`<html><title>${MARKER.slice(0, 6)}`), bytes(`${MARKER.slice(6)}</title></html>`)];
+        const split = await run('homepage', { ctx: {}, bodyEdgeBytes: 7, fetchImpl: async () => ({ status: 200, headers: hdrs(CF), body: stream(parts, null) }) });
         expect([split.state, split.body_evidence_truncated]).toEqual(['PASS', true]);
     });
     it('a JSON literal null body does NOT throw; absent required field -> FAIL, phase=assertion', async () => {
@@ -207,9 +207,9 @@ describe('assertion-retention overflow is explicit and is NEVER a transport fail
 describe('exact request shape and deadline truth (K, F-12)', () => {
     const SEQUENCE = ['https://x.test/api/v1/health', 'https://x.test/api/v1/search?q=llama',
         'https://x.test/api/v1/entity/e1', 'https://x.test/api/v1/entity/__reliability_probe_invalid_id__',
-        'https://x.test/openapi.json', 'https://x.test/', 'https://x.test/api/mcp', 'https://x.test/api/mcp',
+        'https://x.test/openapi.json', 'https://x.test/', 'https://x.test/ranking', 'https://x.test/api/mcp', 'https://x.test/api/mcp',
         'https://cdn.test/data/id-index.bin'];
-    it('K: nine requests, exact order, one per spec, two MCP posts, no retry (2xx/404/5xx exercised)', async () => {
+    it('K: ten requests, exact order, one per spec, two MCP posts, no retry (2xx/404/5xx exercised)', async () => {
         const calls: string[] = []; const statuses: number[] = [];
         // SF-3: a 5xx IS exercised, so a status-CONDITIONAL retry breaks the shape too,
         // not only an unconditional one. Trigger classes actually exercised: 2xx, 404, 5xx.
@@ -225,9 +225,9 @@ describe('exact request shape and deadline truth (K, F-12)', () => {
         for (const s of specs) await runTarget(s, deps);
         expect([statuses.filter((s) => s >= 500), statuses.filter((s) => s === 404)]).toEqual([[503], [404]]); // 5xx + 4xx trigger classes live
         expect(calls).toEqual(SEQUENCE);                       // exact order, exact URLs
-        expect([calls.length, specs.length]).toEqual([9, 9]);  // exactly one request per target spec
+        expect([calls.length, specs.length]).toEqual([10, 10]);  // exactly one request per target spec
         expect(calls.filter((u) => u.endsWith('/api/mcp')).length).toBe(2); // the intentional pair
-        expect(new Set(calls.filter((u) => !u.endsWith('/api/mcp'))).size).toBe(7); // no other duplicate
+        expect(new Set(calls.filter((u) => !u.endsWith('/api/mcp'))).size).toBe(8); // no other duplicate
         for (const u of calls) expect(u).not.toMatch(/[?&](_|cb|cachebust|nocache|bust|t|ts|v)=/i);
         expect([...new Set(calls.map((u) => new URL(u).host))].sort()).toEqual(['cdn.test', 'x.test']);
     });

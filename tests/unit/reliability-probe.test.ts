@@ -134,7 +134,7 @@ describe('runTarget — anti-vacuity semantics (a degraded-but-200 must NOT pass
         expect([pass.state, degraded.state, noId.state]).toEqual(['PASS', 'FAIL', 'UNKNOWN']);
     });
     it('homepage: contract marker present -> PASS; 200 marker ABSENT (blank/error shell) -> FAIL', async () => {
-        const ok = await run('homepage', { fetchImpl: async () => mockRes({ status: 200, text: `<title>${HOMEPAGE_MARKER}</title>` }), ctx: {} });
+        const ok = await run('homepage', { fetchImpl: async () => mockRes({ status: 200, text: `<title>${HOMEPAGE_MARKER}</title></html>` }), ctx: {} });
         const bad = await run('homepage', { fetchImpl: async () => mockRes({ status: 200, text: '<html>maintenance</html>' }), ctx: {} }); // was PASS pre-D346
         expect([ok.state, bad.state]).toEqual(['PASS', 'FAIL']);
     });
@@ -179,7 +179,7 @@ function startMockServer(opts: { healthStatus?: number } = {}) {
             if (p === '/api/v1/entity/mock-entity-1') return json({ entity: { id: 'mock-entity-1' } });
             if (p.startsWith('/api/v1/entity/')) return json({ error: 'nf' }, 404);
             if (p === '/openapi.json') return json({ openapi: '3.0.3' });
-            if (p === '/') { res.writeHead(200, { 'content-type': 'text/html', 'set-cookie': `sid=${COOKIE_SENTINEL}; Path=/; HttpOnly` }); return res.end(`<title>${HOMEPAGE_MARKER}</title>`); }
+            if (p === '/') { res.writeHead(200, { 'content-type': 'text/html', 'set-cookie': `sid=${COOKIE_SENTINEL}; Path=/; HttpOnly` }); return res.end(`<title>${HOMEPAGE_MARKER}</title></html>`); } if (p === '/ranking') { res.writeHead(200, { 'content-type': 'text/html' }); return res.end('<h1>AI Ecosystem Rankings</h1></html>'); }
             if (p === '/data/id-index.bin') { res.writeHead(206, { 'content-range': 'bytes 0-255/26000000' }); return res.end(idxHeaderBuf(build)); }
             if (p === '/api/mcp') { let d = ''; req.on('data', (c) => (d += c)); req.on('end', () => { let m: any = {}; try { m = JSON.parse(d); } catch { /* noop */ } return m.method === 'tools/list' ? json({ result: { tools: [{ name: 't' }] } }) : json({ result: { serverInfo: { name: 'f2ai-mcp' } } }); }); return; }
             json({ error: 'nf' }, 404);
@@ -201,26 +201,26 @@ describe('reliability-probe CLI — honest three-state exit codes + crash eviden
         finally { srv.close(); }
     });
     // SF-B: the REAL spawned runner, driven through a genuine non-PASS target, must
-    // issue EXACTLY these nine loopback requests. Pinned as an INDEPENDENT LITERAL --
+    // issue EXACTLY these ten loopback requests. Pinned as an INDEPENDENT LITERAL --
     // never derived from buildTargetSpecs(). A runner-loop retry (re-running a target
     // whose state is not PASS) would add a request and discard the first failure, so
     // this is the behaviour-level guard against verdict laundering in the runner.
     const CLI_TRACE = ['GET /api/v1/health', 'GET /api/v1/search?q=llama',
         'GET /api/v1/entity/mock-entity-1', 'GET /api/v1/entity/__reliability_probe_invalid_id__',
-        'GET /openapi.json', 'GET /', 'POST /api/mcp', 'POST /api/mcp', 'GET /data/id-index.bin'];
-    it('a target returns 500 -> exit 1 (FAIL) and the runner issues EXACTLY nine requests, no retry', async () => {
+        'GET /openapi.json', 'GET /', 'GET /ranking', 'POST /api/mcp', 'POST /api/mcp', 'GET /data/id-index.bin'];
+    it('a target returns 500 -> exit 1 (FAIL) and the runner issues EXACTLY ten requests, no retry', async () => {
         const srv = await startMockServer({ healthStatus: 500 });
         try {
             const { code, evidence } = await runProbe({ PROBE_BASE_URL: srv.base, PROBE_INDEX_URL: srv.indexUrl });
             expect([code, evidence.overall]).toEqual([1, 'FAIL']);
             expect(srv.trace).toEqual(CLI_TRACE); // exact order, exact count, exact methods
-            expect([srv.trace.length, srv.trace.filter((t) => t === 'POST /api/mcp').length]).toEqual([9, 2]);
+            expect([srv.trace.length, srv.trace.filter((t) => t === 'POST /api/mcp').length]).toEqual([10, 2]);
             expect(srv.trace.filter((t) => t.startsWith('GET /api/v1/health')).length).toBe(1); // NOT retried
             for (const t of srv.trace) expect(t).not.toMatch(/[?&](_|cb|cachebust|nocache|bust|ts|v)=/i);
             // The FIRST health failure is retained as FAIL, not replaced by a 2nd attempt.
             const health = evidence.targets.filter((t: any) => t.target === 'health');
             expect([health.length, health[0].state, health[0].http_status]).toEqual([1, 'FAIL', 500]);
-            expect(evidence.targets.length).toBe(9);
+            expect(evidence.targets.length).toBe(10);
         } finally { srv.close(); }
     });
     it('unreachable host -> exit 2 (UNKNOWN) + evidence still written, schedule NOT fabricated', async () => {

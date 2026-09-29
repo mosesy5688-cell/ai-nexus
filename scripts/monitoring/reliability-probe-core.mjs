@@ -53,6 +53,38 @@ export const MAX_ASSERTION_BODY_BYTES = 32 * 1024 * 1024;
 // The homepage target asserts it is PRESENT, so a blank/degraded 200 shell FAILS.
 export const HOMEPAGE_MARKER = 'The Open-Source AI Registry';
 
+// OBS-1 — /ranking page marker. SOURCE-DECLARED, NOT MEASURED: it is the static h1
+// template text of src/pages/ranking/index.astro, read from source, and has not been
+// observed in a live response by this change. The page's title constant is NOT used
+// because it contains `&`, which Astro escapes in SSR output, so a literal match of
+// the constant could never pass. If a natural probe cycle reports this marker absent,
+// that is reported as-is; the marker is not changed to obtain a PASS.
+export const RANKING_MARKER = 'AI Ecosystem Rankings';
+
+/**
+ * OBS-1 (iii) truncation assertion, three-state, from the RECORD only (never the
+ * assertion body). Locked rule order (hub v118 §3 B), first match wins:
+ *   1. rec missing (not an object)                               -> null
+ *   2. rec.headers_received !== true                             -> null
+ *   3. rec.body_complete === false                               -> false (truncated)
+ *   4. body_complete === true, suffix is a string whose decoded
+ *      bytes contain `</html>`                                   -> true
+ *   5. body_complete === true, suffix null or lacking `</html>`   -> false
+ *   6. anything else                                             -> null
+ * `rec` is read, never written. No length lower bound is applied.
+ */
+export function bodyCompleteHtml(rec) {
+    if (rec === null || typeof rec !== 'object') return null;
+    if (rec.headers_received !== true) return null;
+    if (rec.body_complete === false) return false;
+    if (rec.body_complete === true) {
+        const sfx = rec.body_suffix_base64;
+        if (sfx === null) return false;
+        if (typeof sfx === 'string') return Buffer.from(sfx, 'base64').toString('latin1').includes('</html>');
+    }
+    return null;
+}
+
 /** Parse the middleware `X-Guardian-Time` header ("12.34ms") -> number ms, or null. */
 export function parseGuardianTime(headers) {
     const raw = headers && typeof headers.get === 'function' ? headers.get('x-guardian-time') : null;
@@ -353,8 +385,9 @@ function objField(obj, key) {
 }
 
 /**
- * Ordered target specs. `assert(res, body, ctx)` returns an assertion list and may
- * thread evidence through `ctx` (served_build_id, entity_id) to later targets.
+ * Ordered target specs. `assert(res, body, ctx, rec)` returns an assertion list and may
+ * thread evidence through `ctx` (served_build_id, entity_id) to later targets. `rec`
+ * (the target's own record, READ-ONLY) is only declared by the specs that use it.
  * `readBody`: 'text' (default) | 'arraybuffer' | false; `url(deps)` overrides path.
  */
 export function buildTargetSpecs() {
@@ -435,12 +468,24 @@ export function buildTargetSpecs() {
         },
         {
             name: 'homepage', method: 'GET', path: '/',
-            assert(res, body) {
+            assert(res, body, ctx, rec) {
                 // Anti-vacuity: require the brand contract marker, NOT just non-empty.
                 const hasMarker = typeof body === 'string' && body.includes(HOMEPAGE_MARKER);
                 return [
                     { name: 'status_200', ok: res.status === 200 },
                     { name: 'home_contract_marker', ok: typeof body === 'string' ? hasMarker : null },
+                    { name: 'body_complete_html', ok: bodyCompleteHtml(rec) },
+                ];
+            },
+        },
+        {
+            name: 'ranking', method: 'GET', path: '/ranking',
+            assert(res, body, ctx, rec) {
+                // RANKING_MARKER is SOURCE-DECLARED (see its definition), not measured.
+                return [
+                    { name: 'status_200', ok: res.status === 200 },
+                    { name: 'ranking_marker', ok: typeof body === 'string' ? body.includes(RANKING_MARKER) : null },
+                    { name: 'body_complete_html', ok: bodyCompleteHtml(rec) },
                 ];
             },
         },
@@ -564,7 +609,7 @@ export async function runTarget(spec, deps) {
         rec.total_ms = clock() - t0;
         executed = true;
         try {
-            rec.assertions = spec.assert(res, body, ctx) || [];
+            rec.assertions = spec.assert(res, body, ctx, rec) || [];
         } catch (assertErr) {
             // SF-2: the body operation ALREADY resolved (the deadline is cleared and
             // body_complete is settled) before this line runs, so a throw here is an
