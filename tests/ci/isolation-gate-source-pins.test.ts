@@ -24,12 +24,12 @@
  * G2a-alias and G2b-path mutants of P9o. These remain string assertions: a
  * route that defeats the gate without changing these bytes would pass them.
  *
- * The same blindness covers the P-1 PRE-PHASE-D gate at netns-phases.sh:92. No
- * counterexample exercises THAT one as a failing gate either: F4b fails earlier
- * at the post-drop check (line 60) and exits first, so the second stub check is
- * only ever seen passing. Several of the mutants that survive this file depend
- * on exactly that.
- * Pending N-P5 item 0b (case B).
+ * The P-1 PRE-PHASE-D gate (netns-phases.sh:92) is covered the same way, not
+ * here. #2331 case B (N-P5 0b; no FAULT knob; stub manifest): post-drop check
+ * and phase C passed, pre-phase-d check FAILED (stub bytes and sha changed), rc
+ * F2AI_ISO_RC_STUB, phase D not started; M-B1..M-B5b each started phase D.
+ * Case B dropped-privilege write/rename: sudo mode measured; userns not observed
+ * (not reachable on current CI). Attribution verdict_class INDETERMINATE (0c).
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
