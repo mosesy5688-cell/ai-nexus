@@ -53,11 +53,40 @@ export const ABSENT = '__reliability_probe_invalid_id__';
 export const REAL = { id: 'hf-model--acme--widget', slug: 'acme--widget', type: 'model', name: 'widget', author: 'acme', source: 'huggingface' };
 export const NEW = { id: 'hf-model--acme--brandnew', slug: 'acme--brandnew', type: 'model', name: 'brandnew', author: 'acme', source: 'huggingface' };
 export const place = (r: any) => ({ ...r, _db: dbOf(r.slug) });
-export const idxFor = (bid: string, ents: any[]) => buildIndexBuffer(
-    ents.flatMap(e => [{ form: e.id, shardIdx: xxhash64Mod(e.slug, SH) }, { form: e.slug, shardIdx: xxhash64Mod(e.slug, SH) }]), bid);
+// Production-faithful index build (id-index-generator.js:110-131): rows are
+// routed by their RAW slug (pack-db.js:160 computeMetaShardSlot(e.slug || e.id),
+// no lowercasing); shards are iterated in slot order; each lowercased form is
+// keyed FIRST-WINS (pushKey de-dup), so a case twin on a lower slot claims the
+// shared lowercase keys.
+export const slotOf = (e: any) => xxhash64Mod(e.slug || String(e.id).toLowerCase(), SH);
+export function idxFor(bid: string, ents: any[]) {
+    const seen = new Set<string>();
+    const entries: { form: string; shardIdx: number }[] = [];
+    const ordered = ents.map((e, i) => ({ e, i, s: slotOf(e) })).sort((a, b) => a.s - b.s || a.i - b.i);
+    for (const { e, s } of ordered) {
+        for (const f of [e.slug, e.id, e.umid]) {
+            const k = f ? String(f).toLowerCase() : '';
+            if (!k || seen.has(k)) continue;
+            seen.add(k); entries.push({ form: k, shardIdx: s });
+        }
+    }
+    return buildIndexBuffer(entries, bid);
+}
 
+// A row placed exactly where production writes it: meta-<xxhash64(RAW slug)>.
 export const twin = (id: string, slug: string, type = 'model') =>
-    ({ id, slug, type, name: slug, author: 'acme', source: 'huggingface', _db: dbOf(slug.toLowerCase()) });
+    ({ id, slug, type, name: slug, author: 'acme', source: 'huggingface', _db: dbOf(slug) });
+
+/** Find a slug stem whose Upper/lower case twins sit on DIFFERENT shards with the
+ * UPPERCASE twin on the lower slot (so the first-wins index points at it). */
+export function splitTwinStem(): { up: string; lo: string } {
+    for (let i = 0; i < 10_000; i++) {
+        const up = `Acme--W${i}`, lo = up.toLowerCase();
+        const su = xxhash64Mod(up, SH), sl = xxhash64Mod(lo, SH);
+        if (su < sl) return { up, lo };
+    }
+    throw new Error('no split twin stem');
+}
 
 export async function callRoute(GET: any, id: string) {
     const res = await GET({ params: { id }, url: new URL(`https://x/api/v1/entity/${id}`), request: new Request('https://x') } as any);

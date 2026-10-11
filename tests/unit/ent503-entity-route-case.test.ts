@@ -1,8 +1,11 @@
 /**
- * ENT-503 review F3 / M1 — route-level casing tests for GET /api/v1/entity/:id.
- * The route matches lower(id|slug|umid) (index keys are lowercased; stored casing
- * is not normalized), but exact-case rows lead the ORDER BY and preferExactCase
- * keeps them, so case-folding never changes which entity origin/main served.
+ * ENT-503 review F3 / M1 / R1 — route-level casing tests for GET /api/v1/entity/:id,
+ * under PRODUCTION-FAITHFUL placement: rows live on meta-<xxhash64(RAW slug)> and
+ * the id-index is built first-wins in slot order (helpers/ent503-route-harness.ts).
+ * Case twins therefore sit on DIFFERENT shards and the index can point at the
+ * UPPERCASE twin. Expected values are origin/main's (lowercased forms, case-
+ * sensitive SQL): an exact-case row anywhere must win; a fold-only row is served
+ * only after a clean, complete loop (new true positive); otherwise 503 / 404.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mockRangeR2 } from './helpers/ent503-range-r2.js';
@@ -13,11 +16,15 @@ vi.mock('../../src/utils/packet-loader.js', () => ({ fetchBundleReadme: vi.fn(),
 
 import { GET } from '../../src/pages/api/v1/entity/[...id].js';
 import { _resetIdIndexForTest } from '../../src/lib/id-index-reader.js';
-import { H, OVER_CAP, dbOf, REAL, idxFor, twin, callRoute } from './helpers/ent503-route-harness.js';
+import { H, SH, OVER_CAP, dbOf, idxFor, twin, splitTwinStem, slotOf, callRoute } from './helpers/ent503-route-harness.js';
 
 const call = (id: string) => callRoute(GET, id);
+const { up, lo } = splitTwinStem();          // e.g. 'Acme--W7' / 'acme--w7'
+const UP = twin(`hf-model--${up}`, up);       // on meta-<hash(up)>  (lower slot)
+const LO = twin(`hf-model--${lo}`, lo);       // on meta-<hash(lo)>
+const UPD = twin(`hf-dataset--${up}`, up, 'dataset'); // same raw slug as UP -> same shard
 
-describe('ENT-503 casing (route level, local)', () => {
+describe('ENT-503 casing (route level, production placement, local)', () => {
     let r2: ReturnType<typeof mockRangeR2>;
     beforeEach(() => {
         _resetIdIndexForTest();
@@ -35,61 +42,74 @@ describe('ENT-503 casing (route level, local)', () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    it('review F3: stored id/slug with UPPERCASE, coherent ASCII hit -> 200 (lower() SQL), not a permanent 503', async () => {
-        const UP = { ...REAL, id: 'hf-model--Acme--Widget', slug: 'Acme--Widget' };
-        r2.publish(idxFor('run-B', [{ id: UP.id.toLowerCase(), slug: UP.slug.toLowerCase() }]), 'e-B', OVER_CAP);
-        H.rows = [{ ...UP, _db: dbOf(UP.slug.toLowerCase()) }];
-        const r = await call('acme--widget');
+    it('fixture: twins on different shards; first-wins index points at the UPPERCASE twin', () => {
+        expect(UP._db).not.toBe(LO._db);
+        expect(slotOf(UP)).toBeLessThan(slotOf(LO));
+    });
+
+    it('R1: lowercase bare request, index -> UP shard -> returns LO (origin/main), not UP', async () => {
+        r2.publish(idxFor('run-B', [UP, LO]), 'e-B', OVER_CAP);
+        H.rows = [UP, LO];
+        const r = await call(lo);
+        expect(r.status).toBe(200);
+        expect(r.body.entity.id).toBe(LO.id);
+    });
+
+    it('R1: uppercase bare request -> origin/main parity (LO: forms are lowercased)', async () => {
+        r2.publish(idxFor('run-B', [UP, LO]), 'e-B', OVER_CAP);
+        H.rows = [UP, LO];
+        const r = await call(up);
+        expect(r.status).toBe(200);
+        expect(r.body.entity.id).toBe(LO.id);
+    });
+
+    it('R1: canonical lowercase id request -> LO (origin/main parity)', async () => {
+        r2.publish(idxFor('run-B', [UP, LO]), 'e-B', OVER_CAP);
+        H.rows = [UP, LO];
+        const r = await call(LO.id);
+        expect(r.status).toBe(200);
+        expect(r.body.entity.id).toBe(LO.id);
+    });
+
+    it('R1: two fold-only rows on the UP shard do NOT turn origin/main FOUND(LO) into 409', async () => {
+        r2.publish(idxFor('run-B', [UP, UPD, LO]), 'e-B', OVER_CAP);
+        H.rows = [UP, UPD, LO];
+        const r = await call(lo);
+        expect(r.status).toBe(200);
+        expect(r.body.entity.id).toBe(LO.id);
+    });
+
+    it('uppercase-only row is reachable when the loop finished cleanly (new true positive)', async () => {
+        r2.publish(idxFor('run-B', [UP]), 'e-B', OVER_CAP);
+        H.rows = [UP];
+        const r = await call(lo);
         expect(r.status).toBe(200);
         expect(r.body.entity.id).toBe(UP.id);
     });
 
-    // -- review M1: case twins / exact-case preference ---------------------------
-
-    it('M1: id case twins -> lowercase request returns the lowercase entity (origin/main behaviour)', async () => {
-        const UP = twin('hf-model--Acme--W', 'Acme--W'), LO = twin('hf-model--acme--w', 'acme--w');
-        r2.publish(idxFor('run-B', [{ id: 'hf-model--acme--w', slug: 'acme--w' }]), 'e-B', OVER_CAP);
-        H.rows = [UP, LO];
-        const r = await call('hf-model--acme--w');
-        expect(r.status).toBe(200);
-        expect(r.body.entity.id).toBe('hf-model--acme--w');
-    });
-
-    it('M1: id case twins -> exact uppercase request returns the uppercase entity', async () => {
-        const UP = twin('hf-model--Acme--W', 'Acme--W'), LO = twin('hf-model--acme--w', 'acme--w');
-        r2.publish(idxFor('run-B', [{ id: 'hf-model--acme--w', slug: 'acme--w' }]), 'e-B', OVER_CAP);
-        H.rows = [UP, LO];
-        const r = await call('hf-model--Acme--W');
-        expect(r.status).toBe(200);
-        expect(r.body.entity.id).toBe('hf-model--Acme--W');
-    });
-
-    it('M1: uppercase-only stored row is reachable (200) by its lowercase id', async () => {
-        const UP = twin('hf-model--Acme--W', 'Acme--W');
-        r2.publish(idxFor('run-B', [{ id: 'hf-model--acme--w', slug: 'acme--w' }]), 'e-B', OVER_CAP);
+    it('uppercase-only row + a shard error during continued probing -> 503, not the fallback', async () => {
+        r2.publish(idxFor('run-B', [UP]), 'e-B', OVER_CAP);
         H.rows = [UP];
-        const r = await call('hf-model--acme--w');
-        expect(r.status).toBe(200);
-        expect(r.body.entity.id).toBe('hf-model--Acme--W');
+        H.shardMode.set(dbOf(lo), 'error');
+        expect((await call(lo)).status).toBe(503);
     });
 
-    it('M1: bare-id slug case twins (different types) -> FOUND the exact-case row, no new 409', async () => {
-        const UPM = twin('hf-model--Acme--W', 'Acme--W', 'model'), LOD = twin('hf-dataset--acme--w', 'acme--w', 'dataset');
-        r2.publish(idxFor('run-B', [{ id: 'hf-dataset--acme--w', slug: 'acme--w' }]), 'e-B', OVER_CAP);
-        H.rows = [UPM, LOD];
-        const r = await call('acme--w');
-        expect(r.status).toBe(200);
-        expect(r.body.entity.id).toBe('hf-dataset--acme--w');
+    it('uppercase-only row + budget bail during continued probing -> 503, not the fallback', async () => {
+        r2.publish(idxFor('run-B', [UP]), 'e-B', OVER_CAP);
+        H.rows = [UP];
+        for (let i = 0; i < SH; i++) {
+            const db = `meta-${String(i).padStart(2, '0')}.db`;
+            if (db !== UP._db) H.shardMode.set(db, 'slow');
+        }
+        expect((await call(lo)).status).toBe(503);
     });
 
-    it('M1 ORDER BY: exact-case id outranks a binary-smaller case twin that matches by slug', async () => {
-        // Y sorts first in BINARY order ('C' < 'c') and is exact via its slug; X is the
-        // exact requested id. Only the (id = raw) ORDER BY key makes X win the dedupe.
-        const X = twin('hf-model--Acme--W', 'Acme--W'), Y = { ...twin('hf-model--ACME--W', 'acme--w'), _db: dbOf('acme--w') };
-        r2.publish(idxFor('run-B', [{ id: 'hf-model--acme--w', slug: 'acme--w' }]), 'e-B', OVER_CAP);
-        H.rows = [Y, X];
-        const r = await call('hf-model--Acme--W');
+    it('F3: co-resident uppercase-only stored id is reachable (200)', async () => {
+        const U = twin('hf-model--Acme--Widget', 'Acme--Widget');
+        r2.publish(idxFor('run-B', [U]), 'e-B', OVER_CAP);
+        H.rows = [U];
+        const r = await call('acme--widget');
         expect(r.status).toBe(200);
-        expect(r.body.entity.id).toBe('hf-model--Acme--W');
+        expect(r.body.entity.id).toBe(U.id);
     });
 });

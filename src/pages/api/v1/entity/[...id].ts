@@ -23,7 +23,7 @@ import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 import { withOpTimeout, isOpTimeout } from '../../../../lib/op-timeout.js';
 import { projectEntity } from '../../../../lib/entity-projection.js';
-import { resolveShardsForCandidates, describeResolution, preferExactCase } from '../../../../lib/entity-absence-oracle.js';
+import { resolveShardsForCandidates, describeResolution, makeCaseFold } from '../../../../lib/entity-absence-oracle.js';
 import { resolveEntityMatch, CANDIDATE_FETCH_LIMIT } from '../../../../lib/entity-match-resolver.js';
 
 const API_VERSION = 'fni_v2.0';
@@ -120,10 +120,10 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         // budget-bail so a transient miss is not a false 404. C4 Stage 1 (D-331 corrected):
         // fetch CANDIDATE_FETCH_LIMIT (26 = cap+1) rows so the resolver DETECTS overflow
         // instead of truncating into a false unique (co-resident slug twins share ONE shard).
-        // ORDER BY: exact-case id, then exact-case form rows, then case-folded id/umid (ENT-503 F3/M1: lower(col)
-        // = the index's lowercased keys; stored casing not normalized; exact rows lead the window; plan is SCAN).
+        // ORDER BY: exact id, then exact-case form rows, then case-folded id/umid (ENT-503 F3/M1/R1: lower(col) =
+        // index keys; exact-case rows win ACROSS shards, fold-only rows are a clean-loop fallback; plan is SCAN).
         const exactMatchKey = rawId.toLowerCase();
-        let candidateRows: any[] = [];
+        let candidateRows: any[] = []; const caseFold = makeCaseFold<any>(); // R1: see entity-case-preference.ts
         let probedShards = 0;
         let budgetBailed = false;
         const shardErrors: string[] = [];
@@ -133,7 +133,7 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
             const placeholders = forms.map(() => '?').join(',');
             const sql = `SELECT * FROM entities WHERE lower(id) IN (${placeholders}) OR lower(slug) IN (${placeholders}) OR lower(umid) IN (${placeholders}) ORDER BY (id = ?) DESC, (id IN (${placeholders}) OR slug IN (${placeholders})) DESC, (lower(id) = ?) DESC, (umid = ?) DESC, type ASC, id ASC LIMIT ${CANDIDATE_FETCH_LIMIT}`;
-            const lf = forms.map(f => f.toLowerCase()), bindings = [...lf, ...lf, ...lf, rawId, ...lf, ...lf, exactMatchKey, exactMatchKey];
+            const lf = forms.map(f => f.toLowerCase()), bindings = [...lf, ...lf, ...lf, exactMatchKey, ...lf, ...lf, exactMatchKey, exactMatchKey];
             try {
                 // Per-op firewall: a single hung cold open/SQL must not eat the
                 // whole budget or hang past it (mirrors the page resolver).
@@ -143,14 +143,14 @@ export const GET: APIRoute = async ({ params, url, request }) => {
                 const rows = await withOpTimeout(
                     executeSql(engine.sqlite3, engine.db, sql, bindings),
                     OP_TIMEOUT_MS, `sql:${dbName}`);
-                if (rows.length > 0) { candidateRows = preferExactCase(rows, lf, rawId); break; } // M1: exact-case rows win
+                if (rows.length > 0 && (candidateRows = caseFold.take(rows, lf)).length > 0) break; // exact-case rows end the loop
             } catch (e: any) {
                 console.warn(`[ENTITY] shard probe ${isOpTimeout(e) ? 'timeout' : 'error'}`, dbName, e.message);
                 shardErrors.push(`${dbName}: ${e.message}`);
             }
         }
 
-        if (candidateRows.length === 0) {
+        if (candidateRows.length === 0 && (candidateRows = caseFold.fallback(!budgetBailed && shardErrors.length === 0)).length === 0) {
             // Honest-contract: 404 means "genuinely absent, do not retry" and is
             // only safe when every intended shard was probed cleanly with no row.
             // If we bailed on budget or any shard errored, the entity MAY exist

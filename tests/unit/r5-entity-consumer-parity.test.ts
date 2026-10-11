@@ -29,7 +29,7 @@ const resolveShardsForCandidates = vi.fn(async (..._a: any[]) => ({
     orderedShards: [[0, ['test-id']]], indexLoaded: false, absenceProven: false,
 }));
 vi.mock('../../src/lib/entity-absence-oracle.js', async () => ({
-    ...(await import('../../src/lib/entity-case-preference.js')), // ENT-503 M1: real exact-case preference
+    ...(await import('../../src/lib/entity-case-preference.js')), // ENT-503 M1: real exact-case precedence
     describeResolution: () => 'mock', // ENT-503: log helper (route inconclusive line)
     resolveShardsForCandidates: (...a: any[]) => resolveShardsForCandidates(...a),
 }));

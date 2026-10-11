@@ -50,7 +50,7 @@
  */
 import { lookupForms, type IdIndexHit, type IndexStatus, type IndexLookup } from './id-index-reader.js';
 import { withOpTimeout } from './op-timeout.js';
-export { preferExactCase } from './entity-case-preference.js';
+export { makeCaseFold } from './entity-case-preference.js';
 
 // B4 VERSION-COHERENCE GATE (Founder, locked):
 //   "id-index may prove absence only when id-index build-id and served shard
