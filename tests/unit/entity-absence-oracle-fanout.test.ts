@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveShardsForCandidates } from '../../src/lib/entity-absence-oracle.js';
-import { _resetIdIndexForTest, loadIdIndex, isIndexWarm } from '../../src/lib/id-index-reader.js';
-import { buildIndexBuffer, mockEnv } from './helpers/id-index-fixture.js';
+import { _resetIdIndexForTest, isIndexWarm } from '../../src/lib/id-index-reader.js';
+import { buildIndexBuffer, mockEnv, warmIndex } from './helpers/id-index-fixture.js';
 
 // FAN-OUT-GATED ORACLE AWAIT (B4 regression fix).
 //
@@ -57,12 +57,12 @@ describe('resolveShardsForCandidates — fan-out-gated oracle await', () => {
         expect(r.orderedShards).toEqual([[11, ['meta-llama--llama-3-8b']]]);
     });
 
-    it('(e) fan-out <= 2 + index ALREADY WARM (coherent) -> shrink applies, no extra load', async () => {
-        // A prior high-fan-out request warmed the index in this isolate. A later
-        // low-fan-out lookup may use it for free (no await, no new R2 GET) — gated
-        // on build-id coherence (here the manifest build_id matches the index's).
+    it('(e) fan-out <= 2 + cached header -> still NOT consulted (ENT-503: no resident index)', async () => {
+        // ENT-503: the index is range-read, never resident, so a "warm" lookup is
+        // not free any more. Low fan-out keeps the degrade path (what production
+        // did since the whole-blob index was refused): no new R2 GET, full order.
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], BID));
-        expect(await loadIdIndex(env)).toBe(true); // simulate prior warm
+        expect(await warmIndex(env)).toBe(true); // simulate prior warm
         expect(isIndexWarm()).toBe(true);
         const loadsAfterWarm = env._counter.getCalls; // 1 GET to warm it
         const candidates = ['2307.01952', 'arxiv--2307.01952'];
@@ -71,27 +71,24 @@ describe('resolveShardsForCandidates — fan-out-gated oracle await', () => {
             [7, ['arxiv--2307.01952']],
         ]);
         const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
-        // No NEW R2 GET — the warm peek costs no I/O wait.
         expect(env._counter.getCalls).toBe(loadsAfterWarm);
-        // Shrink applied for free: only the resolved shard remains.
-        expect(r.indexLoaded).toBe(true);
+        expect(r.indexLoaded).toBe(false);
         expect(r.absenceProven).toBe(false);
-        expect(r.orderedShards).toEqual([[7, ['arxiv--2307.01952']]]);
+        expect(r.orderedShards).toEqual([[3, ['2307.01952']], [7, ['arxiv--2307.01952']]]);
     });
 
-    it('(e2) fan-out <= 2 + WARM index (coherent) + all-miss -> absenceProven for free', async () => {
-        // Warm index, low fan-out, every candidate absent: the all-miss verdict
-        // is still available without any cold I/O (coherent build_id).
+    it('(e2) fan-out <= 2 + cached header + all-miss -> NO absence claim (not consulted)', async () => {
+        // ENT-503: low fan-out never consults the index; the 2-shard probe decides.
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], BID));
-        expect(await loadIdIndex(env)).toBe(true);
+        expect(await warmIndex(env)).toBe(true);
         const candidates = ['9999.99999', 'arxiv--9999.99999'];
         const shardForms = new Map<number, string[]>([
             [1, ['9999.99999']],
             [2, ['arxiv--9999.99999']],
         ]);
         const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
-        expect(r.indexLoaded).toBe(true);
-        expect(r.absenceProven).toBe(true);
-        expect(r.orderedShards).toEqual([]);
+        expect(r.indexLoaded).toBe(false);
+        expect(r.absenceProven).toBe(false);
+        expect(r.orderedShards).toEqual([[1, ['9999.99999']], [2, ['arxiv--9999.99999']]]);
     });
 });

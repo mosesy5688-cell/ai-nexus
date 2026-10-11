@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveShardsForCandidates } from '../../src/lib/entity-absence-oracle.js';
-import { _resetIdIndexForTest, loadIdIndex, isIndexWarm, getIndexBuildId } from '../../src/lib/id-index-reader.js';
-import { buildIndexBuffer, mockEnv } from './helpers/id-index-fixture.js';
+import { _resetIdIndexForTest, isIndexWarm, getIndexBuildId } from '../../src/lib/id-index-reader.js';
+import { buildIndexBuffer, mockEnv, warmIndex } from './helpers/id-index-fixture.js';
 
 // B4 VERSION-COHERENCE GATE (Founder, locked):
 //   "id-index may prove absence only when id-index build-id and served shard
@@ -50,12 +50,15 @@ describe('resolveShardsForCandidates — build-id coherence gate', () => {
         expect(r.orderedShards).toEqual([]);
     });
 
-    it('new index + new manifest (match) + hit -> destructive shrink', async () => {
+    it('new index + new manifest (match) + hit -> resolved first + indexResolved (ENT-503 F1: no drop)', async () => {
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], MAN_BID));
         const { candidates, shardForms } = plan();
         const r = await resolveShardsForCandidates(shardForms, candidates, env, MAN_BID);
         expect(r.absenceProven).toBe(false);
-        expect(r.orderedShards).toEqual([[7, ['arxiv--2307.01952']]]); // shrunk 3 -> 1
+        expect(r.orderedShards).toEqual([
+            [7, ['arxiv--2307.01952']], [3, ['2307.01952']], [42, ['unknown--2307.01952']],
+        ]); // reorder, nothing dropped
+        expect(r.indexResolved).toBe(true); // caller: all-shard miss -> 503, never 404
     });
 
     it('old index + new manifest (build_id mismatch) -> DEGRADE to probe', async () => {
@@ -124,7 +127,7 @@ describe('resolveShardsForCandidates — build-id coherence gate', () => {
         // -> incoherent even if the manifest carries a build_id. Backward-compat:
         // the v2 index still LOADS (no crash) and still reorders, only absence off.
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }])); // v2
-        expect(await loadIdIndex(env)).toBe(true);   // v2 parses fine (no refusal)
+        expect(await warmIndex(env)).toBe(true);   // v2 parses fine (no refusal)
         expect(getIndexBuildId()).toBeNull();        // but exposes no token
         _resetIdIndexForTest();
         const { candidates, shardForms } = missPlan();
@@ -144,7 +147,7 @@ describe('resolveShardsForCandidates — build-id coherence gate', () => {
         // (no 404), so the net-new entity stays reachable.
         const env = mockEnv(buildIndexBuffer([{ form: 'old-entity', shardIdx: 5 }], IDX_BID));
         // Warm the OLD index into the isolate (simulates a prior request).
-        expect(await loadIdIndex(env)).toBe(true);
+        expect(await warmIndex(env)).toBe(true);
         expect(isIndexWarm()).toBe(true);
         expect(getIndexBuildId()).toBe(IDX_BID);
 
@@ -174,7 +177,7 @@ describe('resolveShardsForCandidates — build-id coherence gate', () => {
         // the index is authoritative, so absence IS proven (proves the gate is the
         // only thing suppressing the 404 in the attack case, not a probe bug).
         const env = mockEnv(buildIndexBuffer([{ form: 'old-entity', shardIdx: 5 }], IDX_BID));
-        expect(await loadIdIndex(env)).toBe(true);
+        expect(await warmIndex(env)).toBe(true);
         const candidates = ['brand-new-2406.99999', 'arxiv--2406.99999', 'unknown--2406.99999'];
         const shardForms = new Map<number, string[]>([
             [10, ['brand-new-2406.99999']], [20, ['arxiv--2406.99999']], [30, ['unknown--2406.99999']],

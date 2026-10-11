@@ -1,4 +1,11 @@
 import { xxhash64 } from '../../../src/utils/xxhash64-core.js';
+import { lookupForms } from '../../../src/lib/id-index-reader.js';
+
+/** ENT-503: the range reader has no whole-index load; warming = one completed
+ * lookup (caches the header of the current object version). */
+export async function warmIndex(env: any, blobKey?: string): Promise<boolean> {
+    return (await lookupForms(env, ['__warm__'], blobKey)).status === 'ok';
+}
 
 // Shared slim-v2 id-index.bin fixture for the B4 absence-oracle test suites.
 // Builds the SAME on-disk layout id-index-generator.js emits and
@@ -76,10 +83,17 @@ export function mockEnv(buf: ArrayBuffer | null): any {
     return {
         NODE_ENV: 'production',
         R2_ASSETS: {
-            get: async (key: string) => {
+            // ENT-503: honors R2 range + onlyIf.etagMatches (the range reader's
+            // contract); a mismatched etag returns a body-less object.
+            get: async (key: string, opts?: any) => {
                 counter.getCalls++;
                 if (key !== 'data/id-index.bin' || !buf) return null;
-                return { size: buf.byteLength, arrayBuffer: async () => buf };
+                const etag = 'fixture-etag';
+                const want = opts?.onlyIf?.etagMatches;
+                if (want && want !== etag) return { size: buf.byteLength, etag };
+                const r = opts?.range;
+                const out = r ? buf.slice(r.offset, r.offset + r.length) : buf;
+                return { size: buf.byteLength, etag, arrayBuffer: async () => out };
             },
         },
         _counter: counter,
