@@ -76,10 +76,17 @@ export function mockEnv(buf: ArrayBuffer | null): any {
     return {
         NODE_ENV: 'production',
         R2_ASSETS: {
-            get: async (key: string) => {
+            // ENT-503: honors R2 range + onlyIf.etagMatches (the range reader's
+            // contract); a mismatched etag returns a body-less object.
+            get: async (key: string, opts?: any) => {
                 counter.getCalls++;
                 if (key !== 'data/id-index.bin' || !buf) return null;
-                return { size: buf.byteLength, arrayBuffer: async () => buf };
+                const etag = 'fixture-etag';
+                const want = opts?.onlyIf?.etagMatches;
+                if (want && want !== etag) return { size: buf.byteLength, etag };
+                const r = opts?.range;
+                const out = r ? buf.slice(r.offset, r.offset + r.length) : buf;
+                return { size: buf.byteLength, etag, arrayBuffer: async () => out };
             },
         },
         _counter: counter,

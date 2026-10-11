@@ -23,7 +23,7 @@ import { buildEntityProbePlan } from '../../../../lib/slug-helper.js';
 import { fetchBundleReadme } from '../../../../utils/packet-loader.js';
 import { withOpTimeout, isOpTimeout } from '../../../../lib/op-timeout.js';
 import { projectEntity } from '../../../../lib/entity-projection.js';
-import { resolveShardsForCandidates } from '../../../../lib/entity-absence-oracle.js';
+import { resolveShardsForCandidates, describeResolution } from '../../../../lib/entity-absence-oracle.js';
 import { resolveEntityMatch, CANDIDATE_FETCH_LIMIT } from '../../../../lib/entity-match-resolver.js';
 
 const API_VERSION = 'fni_v2.0';
@@ -95,19 +95,19 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         // B4 — id-index absence oracle + index-driven candidate resolution.
         // The slim v2 index enumerates every resolvable form, so a loaded index
         // is authoritative over presence:
-        //   - a candidate hits  -> probe ONLY the 1-2 resolved shards (the ~10
-        //     AUTO_PREFIX cold opens that could never finish inside the budget
-        //     collapse to the real shard(s); fixes the slug/bareword coin-flip).
+        //   - a candidate hits  -> probe the 1-2 resolved shards FIRST (found on
+        //     the first probe); an all-shard miss is then INCONCLUSIVE (503 via
+        //     resolution.indexResolved below; stale shard handle), never a 404.
         //   - NO candidate hits -> proven absence -> honest 404, ZERO probes
         //     (the structurally-unreachable clean-exhaustion 404 is no longer
         //     needed for index-covered ids; this is what fixes paper-page 503s).
-        //   - index absent/refused -> DEGRADE to the prior fan-out EXACTLY.
+        //   - index absent/unreadable/timeout -> DEGRADE to the prior fan-out.
         // The index never decides DATA (the real SELECT still runs on the routed
         // shard), so a hash collision only mis-routes, never falsely 404s.
         // B4 coherence gate: pass the served manifest's build_id so the oracle may
         // prove absence ONLY when it equals the index's stamped build_id (same
-        // bake, same request). Incoherent -> no zero-probe 404, no destructive
-        // shrink — only non-destructive reorder (full fan-out still probed).
+        // bake, same request). Incoherent -> no zero-probe 404 — only the
+        // non-destructive reorder (full fan-out still probed).
         const resolution = await resolveShardsForCandidates(shardForms, candidates, env, pin?.build_id, pin?.logicalToBlob?.get('id-index.bin'));
 
         if (resolution.absenceProven) {
@@ -155,8 +155,8 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             // only safe when every intended shard was probed cleanly with no row.
             // If we bailed on budget or any shard errored, the entity MAY exist
             // on an un-probed/errored shard -> retryable 503, never a false 404.
-            if (budgetBailed || shardErrors.length > 0) {
-                console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${resolution.orderedShards.length} idx=${resolution.indexLoaded}`, shardErrors.join('; '));
+            if (budgetBailed || shardErrors.length > 0 || resolution.indexResolved) { // ENT-503: index says it exists
+                console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${resolution.orderedShards.length} ${describeResolution(resolution)}`, shardErrors.join('; '));
                 // Honest retryable signal for Agent clients: explicit Retry-After
                 // so a client retries (instead of hard-coding a fallback), and
                 // no-store so this transient negative is never cached as truth.

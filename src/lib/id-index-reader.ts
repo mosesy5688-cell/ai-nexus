@@ -1,43 +1,43 @@
 /**
- * Read-path P1: canonical warm-tier id-index reader (slim v2).
+ * Read-path P1: canonical warm-tier id-index reader (slim v2/v3), RANGE-READ.
  *
- * Loads data/id-index.bin (produced by scripts/factory/lib/id-index-generator.js)
- * into isolate RAM ONCE (R2 binding primary, CDN fallback under simulate), then
- * resolves any id / slug / umid form to the SINGLE meta-shard the packer wrote
- * it to — so the read path skips the all-shard probe (the per-op-hang failure
- * mode for unknown ids).
+ * Resolves any id / slug / umid form to the SINGLE meta-shard the packer wrote
+ * it to, from data/id-index.bin (scripts/factory/lib/id-index-generator.js).
  *
- * ADDITIVE + zero-regression: every failure mode (file absent until next bake,
- * R2 miss, oversized blob, wrong/old format version, bad magic, decode error,
- * key miss) returns false/null so callers fall back to the EXISTING all-shard
- * probe unchanged. Never throws to the caller.
+ * ENT-503 (I-1): this reader used to pull the whole blob into isolate RAM behind
+ * a 30 MB size guard. The corpus is append-only; on 2026-10-08 the file crossed
+ * the guard (31,499,992 B) and was refused in every isolate, so the absence
+ * oracle never loaded and unknown ids fell to the budgeted fan-out -> 503. Any
+ * new fixed cap would be crossed again, so the reader no longer holds the index:
+ *   - header (magic/version/counts/offsets/build_id) is read once per object
+ *     version and cached per isolate (~100 B);
+ *   - each candidate form is located by INTERPOLATION search over the key table
+ *     (the generator writes it SORTED ascending by xxhash64, i.e. near-uniform
+ *     keys), reading one small window (~3 sigma of the order-statistic spread,
+ *     ~50 KB at 2.1M keys, grows only with sqrt(keyCount)) per round;
+ *   - a hit reads its 8-byte record.
+ * Every window read is pinned to the header's etag (id-index-range.ts), so the
+ * build_id that gates absence proof describes exactly the bytes searched.
  *
- * Two hard guards protect the 128 MB CF Worker isolate:
- *   1. Size guard (MAX_INDEX_BYTES): the file is checked BEFORE its body is
- *      materialized, so the current live ~117 MB v1 blob is refused outright
- *      (no arrayBuffer alloc) -> no OOM, clean probe fallback (today's behavior).
- *   2. Version guard: only SLIM_VERSION (v2) is accepted; the bloated v1 layout
- *      is rejected even if it somehow slipped under the size cap.
- *
- * Binary layout: see id-index-generator.js header (magic "IDIX", v2/v3,
- * pointer-only). v3 adds a build_id coherence token (B4); v2 (no token) parses
- * fine and exposes a null build_id (-> absence proof degrades downstream).
+ * Failure modes never throw to the caller; they return a non-'ok' status so the
+ * oracle degrades to the existing fan-out (and logs which one).
  */
 import { xxhash64 } from '../utils/xxhash64-core.js';
+import { readIndexHead, readIndexRange, IndexVersionChanged, DEFAULT_INDEX_KEY, type IndexObject } from './id-index-range.js';
 
 const HEADER_SIZE = 32;
+const HEAD_READ_BYTES = 256; // header + a typical build_id token in ONE read
 const KEY_ENTRY_SIZE = 12;
 const RECORD_SIZE = 8; // slim: shardIdx(2) + type(1) + flags(1) + fniScore(4)
-// v2 = no build_id (B4 coherence token absent -> reader exposes null -> absence
-// proof degrades). v3 = build_id-stamped header. BOTH parse cleanly: a v2 index
-// is NOT a crash/refusal, it just has no token (backward-compat).
 const SLIM_VERSION_MIN = 2;
 const SLIM_VERSION_MAX = 3;
 const BUILD_ID_VERSION = 3;
-// Refuse anything larger than this so the legacy ~117 MB v1 blob never lands in
-// the isolate. The slim v2 index is ~10-15 MB for ~551K entities.
-const MAX_INDEX_BYTES = 30 * 1024 * 1024;
 const MASK64 = 0xFFFFFFFFFFFFFFFFn;
+// Per-round window cap (entries). 16384 x 12 B = 192 KB transient per form.
+export const MAX_WINDOW_ENTRIES = 16384;
+// Interpolation rounds before giving up ('search_exhausted' -> degrade). With a
+// 3-sigma window, round 1 brackets the key ~99.7% of the time.
+const MAX_ROUNDS = 6;
 
 export interface IdIndexHit {
     shardIdx: number;
@@ -46,182 +46,180 @@ export interface IdIndexHit {
     isTrending: boolean;
 }
 
-// Isolate-scoped singletons. `triedLoad` makes a missing/absent/refused file a
-// cheap permanent no-op (no repeated R2 GETs) for the lifetime of the isolate.
-let VIEW: DataView | null = null;
-let KEY_COUNT = 0;
-let KEY_TABLE_OFF = 0;
-let RECORD_TABLE_OFF = 0;
-// B4: the bake coherence token stamped in the v3 header (null for v2 / no token).
-// Exposed via getIndexBuildId(); the absence oracle gates absence proof on this
-// === the served manifest build_id (same request, same bake).
-let INDEX_BUILD_ID: string | null = null;
-let triedLoad = false;
-let loadPromise: Promise<boolean> | null = null;
+export type IndexStatus = 'ok' | 'absent' | 'bad_header' | 'r2_error' | 'version_changed'
+    | 'search_exhausted' | 'timeout' | 'not_consulted';
 
-async function fetchIndexBytes(env: any, blobKey?: string): Promise<ArrayBuffer | null> {
-    const isSimulating = !!env?.SIMULATE_PRODUCTION
-        || (!!import.meta.env?.DEV && env?.NODE_ENV !== 'production');
-    // MF-4: GET the PINNED cycle blob key (data/blobs/<sha>) when a CyclePin
-    // supplies one; else the fixed data/id-index.bin — today's behavior. The
-    // load-once-per-isolate contract below is unchanged (R5 v1 adds no per-flip
-    // reload).
-    const key = blobKey || 'data/id-index.bin';
-    if (env?.R2_ASSETS && !isSimulating) {
-        const obj = await env.R2_ASSETS.get(key);
-        if (!obj) return null;
-        // Size guard at the source: refuse oversized blobs WITHOUT reading the
-        // body, so the legacy v1 (~117 MB) never allocates in the isolate.
-        if (typeof obj.size === 'number' && obj.size > MAX_INDEX_BYTES) {
-            console.warn(`[IdIndex] refusing oversized index (${obj.size} B > ${MAX_INDEX_BYTES} B)`);
-            return null;
-        }
-        return obj.arrayBuffer();
-    }
-    const res = await fetch(`https://cdn.free2aitools.com/${key}`);
-    if (!res.ok) return null;
-    const lenHeader = res.headers.get('content-length');
-    if (lenHeader && Number(lenHeader) > MAX_INDEX_BYTES) {
-        console.warn(`[IdIndex] refusing oversized index (${lenHeader} B > ${MAX_INDEX_BYTES} B)`);
-        return null;
-    }
-    return res.arrayBuffer();
+export interface IndexLookup {
+    status: IndexStatus;
+    /** Stamped build_id of the EXACT object version searched (null for v2 / non-ok). */
+    buildId: string | null;
+    /** form (lowercased) -> hit, or null for a definite miss. Only meaningful when ok. */
+    hits: Map<string, IdIndexHit | null>;
+    /** Attribution: byte size of the object version read (0 when unknown). */
+    size: number;
+    /** Attribution: age of the cached header used (ms; 0 = read this request). */
+    headerAgeMs: number;
 }
 
-function parseHeader(ab: ArrayBuffer): boolean {
-    if (ab.byteLength < HEADER_SIZE) return false;
-    // Defensive byte-length guard (e.g. chunked CDN response with no
-    // content-length): refuse oversized after materialization too.
-    if (ab.byteLength > MAX_INDEX_BYTES) return false;
-    const dv = new DataView(ab);
-    const magic = String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3));
-    if (magic !== 'IDIX') return false;
-    // Version guard: the slim v2 (no build_id) AND v3 (build_id-stamped) layouts
-    // are parseable. The bloated v1 (string-pool) layout is rejected -> probe.
+interface Header extends IndexObject {
+    buildId: string | null;
+    keyCount: number;
+    recordCount: number;
+    keyOff: number;
+    recOff: number;
+}
+
+class CorruptIndex extends Error {}
+class SearchExhausted extends Error {}
+
+// Isolate-scoped: ONLY the parsed header of the last-seen object version.
+let HEADER: Header | null = null;
+let HEADER_AT = 0;
+
+function parseHeader(obj: IndexObject, b: Uint8Array): Header | 'bad_header' | 'need_more' {
+    if (b.byteLength < HEADER_SIZE) return 'bad_header';
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    if (String.fromCharCode(b[0], b[1], b[2], b[3]) !== 'IDIX') return 'bad_header';
     const version = dv.getUint16(4, true);
-    if (version < SLIM_VERSION_MIN || version > SLIM_VERSION_MAX) return false;
-    KEY_COUNT = dv.getUint32(8, true);
+    if (version < SLIM_VERSION_MIN || version > SLIM_VERSION_MAX) return 'bad_header';
+    const keyCount = dv.getUint32(8, true);
     const recordCount = dv.getUint32(12, true);
-    KEY_TABLE_OFF = dv.getUint32(16, true);
-    RECORD_TABLE_OFF = dv.getUint32(20, true);
-    if (KEY_COUNT === 0 || recordCount === 0) return false;
-    // Record table must fit inside the buffer.
-    if (RECORD_TABLE_OFF + recordCount * RECORD_SIZE > ab.byteLength) return false;
-    // B4: parse the build_id region (v3 only). buildIdLen @24; the string sits in
-    // [HEADER_SIZE, HEADER_SIZE+buildIdLen). On any inconsistency leave it null
-    // (degrade), NOT a parse failure — a stamped index with a corrupt token must
-    // still serve shrink/reorder, only its ABSENCE proof is disabled downstream.
-    INDEX_BUILD_ID = null;
+    const keyOff = dv.getUint32(16, true);
+    const recOff = dv.getUint32(20, true);
+    if (keyCount === 0 || recordCount === 0) return 'bad_header';
+    if (keyOff < HEADER_SIZE || recOff < keyOff + keyCount * KEY_ENTRY_SIZE) return 'bad_header';
+    if (obj.size && recOff + recordCount * RECORD_SIZE > obj.size) return 'bad_header';
+    // B4 coherence token (v3). A corrupt/absent token -> null (absence proof off
+    // downstream), NOT a parse failure.
+    let buildId: string | null = null;
     if (version >= BUILD_ID_VERSION) {
-        const buildIdLen = dv.getUint16(24, true);
-        if (buildIdLen > 0
-            && HEADER_SIZE + buildIdLen <= KEY_TABLE_OFF
-            && HEADER_SIZE + buildIdLen <= ab.byteLength) {
-            try {
-                INDEX_BUILD_ID = new TextDecoder()
-                    .decode(new Uint8Array(ab, HEADER_SIZE, buildIdLen)) || null;
-            } catch { INDEX_BUILD_ID = null; }
+        const len = dv.getUint16(24, true);
+        if (len > 0 && HEADER_SIZE + len <= keyOff) {
+            if (HEADER_SIZE + len > b.byteLength) return 'need_more';
+            try { buildId = new TextDecoder().decode(b.subarray(HEADER_SIZE, HEADER_SIZE + len)) || null; } catch { buildId = null; }
         }
     }
-    VIEW = dv;
-    return true;
+    return { ...obj, buildId, keyCount, recordCount, keyOff, recOff };
 }
 
-/**
- * Load the index into isolate memory once. Idempotent + concurrency-safe; on
- * any failure (or refusal) marks the index permanently unavailable for this
- * isolate and returns false (caller falls back). Never throws.
- */
-export async function loadIdIndex(env: any, blobKey?: string): Promise<boolean> {
-    if (VIEW) return true;
-    if (triedLoad && !loadPromise) return false;
-    if (loadPromise) return loadPromise;
-    loadPromise = (async () => {
-        try {
-            const start = Date.now();
-            const ab = await fetchIndexBytes(env, blobKey);
-            if (!ab || !parseHeader(ab)) { triedLoad = true; return false; }
-            triedLoad = true;
-            console.log(`[IdIndex] Loaded ${KEY_COUNT} keys in ${Date.now() - start}ms`);
-            return true;
-        } catch (e: any) {
-            // Absent file / R2 error / decode error -> no-op fallback, no throw.
-            console.warn('[IdIndex] load failed (falling back to probe):', e?.message || e);
-            triedLoad = true;
-            return false;
-        } finally {
-            loadPromise = null;
+async function loadHeader(env: any, key: string): Promise<Header | 'absent' | 'bad_header'> {
+    const head = await readIndexHead(env, key, HEAD_READ_BYTES);
+    if (!head) return 'absent';
+    let h = parseHeader(head.obj, head.bytes);
+    if (h === 'need_more') {
+        // Long build_id token: re-read the full header from the SAME version.
+        const len = HEADER_SIZE + (head.bytes[24] | (head.bytes[25] << 8));
+        const dv = await readIndexRange(env, head.obj, 0, len);
+        h = parseHeader(head.obj, new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength));
+    }
+    return h === 'need_more' ? 'bad_header' : h;
+}
+
+function hashOf(form: string): bigint {
+    return BigInt.asUintN(64, xxhash64(String(form).toLowerCase()) & MASK64);
+}
+
+/** Interpolation search of the sorted key table. Returns recordIdx or -1 (definite miss). */
+async function findRecordIdx(env: any, h: Header, target: bigint): Promise<number> {
+    let lo = 0, hi = h.keyCount - 1;
+    let loH = 0n, hiH = MASK64;
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+        if (lo > hi) return -1;
+        const m = hi - lo + 1;
+        let wlo = lo, whi = hi;
+        if (m > MAX_WINDOW_ENTRIES) {
+            const span = Number(hiH - loH) || 1;
+            const p = Math.min(1, Math.max(0, Number(target - loH) / span));
+            const est = lo + p * (m - 1);
+            const half = Math.min(MAX_WINDOW_ENTRIES >> 1, Math.ceil(3 * Math.sqrt(m * p * (1 - p))) + 32);
+            wlo = Math.max(lo, Math.floor(est - half));
+            whi = Math.min(hi, Math.ceil(est + half));
         }
-    })();
-    return loadPromise;
+        const n = whi - wlo + 1;
+        const dv = await readIndexRange(env, h, h.keyOff + wlo * KEY_ENTRY_SIZE, n * KEY_ENTRY_SIZE);
+        const at = (i: number) => dv.getBigUint64(i * KEY_ENTRY_SIZE, true);
+        const first = at(0), last = at(n - 1);
+        if (target < first) { if (wlo === lo) return -1; hi = wlo - 1; hiH = first; continue; }
+        if (target > last) { if (whi === hi) return -1; lo = whi + 1; loH = last; continue; }
+        let a = 0, b = n - 1;
+        while (a <= b) {
+            const mid = (a + b) >>> 1;
+            const v = at(mid);
+            if (v < target) a = mid + 1;
+            else if (v > target) b = mid - 1;
+            else return dv.getUint32(mid * KEY_ENTRY_SIZE + 8, true);
+        }
+        return -1; // bracketed by [first,last] but absent -> definite miss
+    }
+    throw new SearchExhausted('id-index search exhausted');
 }
 
-/**
- * Non-blocking warm peek. True ONLY when the index is already parsed and resident
- * in THIS isolate (VIEW set), so lookup() is synchronously usable at ZERO I/O
- * cost. Crucially this NEITHER starts a load NOR awaits an in-flight one: a
- * pending loadPromise (cold fetch racing) reports false, so a caller that gates
- * on warmth never pays the cold-isolate fetch+parse cost. Used by the absence
- * oracle's fan-out gate to opportunistically shrink low-fan-out lookups only when
- * the index is already free.
- */
-export function isIndexWarm(): boolean {
-    return VIEW !== null;
-}
-
-/**
- * B4 coherence token: the build_id stamped in the loaded index header, or null
- * when the index is not resident, is a v2 (pre-token) index, or its token region
- * was absent/corrupt. The absence oracle compares this === the served manifest
- * build_id (same request) before it allows an absence proof. Returns null (never
- * throws) so a missing token degrades to "no absence proof", never a crash.
- */
-export function getIndexBuildId(): string | null {
-    return VIEW !== null ? INDEX_BUILD_ID : null;
-}
-
-function readKeyHash(i: number): bigint {
-    return VIEW!.getBigUint64(KEY_TABLE_OFF + i * KEY_ENTRY_SIZE, true);
-}
-
-function readRecord(recordIdx: number): IdIndexHit {
-    const off = RECORD_TABLE_OFF + recordIdx * RECORD_SIZE;
-    const dv = VIEW!;
+async function readRecord(env: any, h: Header, idx: number): Promise<IdIndexHit> {
+    if (idx < 0 || idx >= h.recordCount) throw new CorruptIndex(`record ${idx} out of range`);
+    const dv = await readIndexRange(env, h, h.recOff + idx * RECORD_SIZE, RECORD_SIZE);
     return {
-        shardIdx: dv.getUint16(off + 0, true),
-        type: dv.getUint8(off + 2),
-        isTrending: dv.getUint8(off + 3) === 1,
-        fniScore: dv.getFloat32(off + 4, true),
+        shardIdx: dv.getUint16(0, true),
+        type: dv.getUint8(2),
+        isTrending: dv.getUint8(3) === 1,
+        fniScore: dv.getFloat32(4, true),
     };
 }
 
 /**
- * Resolve an id/slug/umid form to its record. Synchronous: assumes loadIdIndex
- * already resolved true. Returns null on miss OR when the index is unloaded
- * (so a caller that skips load() still falls back cleanly).
+ * Resolve every form against ONE pinned index version. A version change during
+ * the lookup re-reads the header and retries once; otherwise non-'ok'.
  */
-export function lookup(idOrSlugOrUmid: string): IdIndexHit | null {
-    if (!VIEW || !idOrSlugOrUmid) return null;
-    const target = BigInt.asUintN(64, xxhash64(String(idOrSlugOrUmid).toLowerCase()) & MASK64);
-    // Binary search the sorted key table.
-    let lo = 0, hi = KEY_COUNT - 1;
-    while (lo <= hi) {
-        const mid = (lo + hi) >>> 1;
-        const h = readKeyHash(mid);
-        if (h < target) lo = mid + 1;
-        else if (h > target) hi = mid - 1;
-        else {
-            const recordIdx = VIEW.getUint32(KEY_TABLE_OFF + mid * KEY_ENTRY_SIZE + 8, true);
-            return readRecord(recordIdx);
+export async function lookupForms(env: any, forms: string[], blobKey?: string): Promise<IndexLookup> {
+    const key = blobKey || DEFAULT_INDEX_KEY;
+    const fail = (status: IndexStatus): IndexLookup => ({ status, buildId: null, hits: new Map(), size: HEADER?.size ?? 0, headerAgeMs: 0 });
+    const uniq = [...new Set(forms.filter(Boolean).map(f => String(f).toLowerCase()))];
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            if (!HEADER || HEADER.key !== key) {
+                const h = await loadHeader(env, key);
+                if (h === 'absent' || h === 'bad_header') return fail(h);
+                HEADER = h; HEADER_AT = Date.now();
+            }
+            const age = Date.now() - HEADER_AT;
+            const h = HEADER;
+            const hits = new Map<string, IdIndexHit | null>();
+            await Promise.all(uniq.map(async f => {
+                const idx = await findRecordIdx(env, h, hashOf(f));
+                hits.set(f, idx < 0 ? null : await readRecord(env, h, idx));
+            }));
+            return { status: 'ok', buildId: h.buildId, hits, size: h.size, headerAgeMs: age };
+        } catch (e: any) {
+            // Only a version change invalidates the cached header (it no longer
+            // describes the object); a transient read error keeps it (still valid).
+            if (e instanceof IndexVersionChanged) { HEADER = null; continue; }
+            const status: IndexStatus = e instanceof SearchExhausted ? 'search_exhausted'
+                : e instanceof CorruptIndex ? 'bad_header' : 'r2_error';
+            console.warn(`[IdIndex] lookup ${status}:`, e?.message || e);
+            return fail(status);
         }
     }
-    return null;
+    return fail('version_changed');
+}
+
+/** Header-only load (diagnostics/tests): true when a parseable index header is reachable. */
+export async function loadIdIndex(env: any, blobKey?: string): Promise<boolean> {
+    try {
+        const h = await loadHeader(env, blobKey || DEFAULT_INDEX_KEY);
+        if (h === 'absent' || h === 'bad_header') return false;
+        HEADER = h; HEADER_AT = Date.now();
+        return true;
+    } catch { return false; }
+}
+
+/** Diagnostics: true when a parsed header is cached in this isolate (no I/O). */
+export function isIndexWarm(): boolean { return HEADER !== null; }
+
+/** build_id of the cached header (null when none cached / v2). */
+export function getIndexBuildId(): string | null {
+    return HEADER ? HEADER.buildId : null;
 }
 
 /** Test/diagnostic hook: reset isolate state. */
 export function _resetIdIndexForTest(): void {
-    VIEW = null; KEY_COUNT = 0;
-    KEY_TABLE_OFF = 0; RECORD_TABLE_OFF = 0;
-    INDEX_BUILD_ID = null;
-    triedLoad = false; loadPromise = null;
+    HEADER = null; HEADER_AT = 0;
 }

@@ -25,7 +25,7 @@ const BID = 'run-1000-abc123';
 describe('resolveShardsForCandidates — id-index absence oracle (coherent)', () => {
     beforeEach(() => _resetIdIndexForTest());
 
-    it('(a) index hit shrinks the candidate set to the resolved shard', async () => {
+    it('(a) index hit probes the resolved shard FIRST, keeps the rest (ENT-503 F1), flags indexResolved', async () => {
         // The real entity "arxiv--2307.01952" lives on shard 7. The candidate
         // plan fanned out across 3 shards (>= 3 = high fan-out: oracle awaited);
         // only the resolved one should remain (coherent -> destructive shrink).
@@ -40,8 +40,10 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
         const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(r.indexLoaded).toBe(true);
         expect(r.absenceProven).toBe(false);
-        // Only the resolved shard 7 is probed (10 -> 1), with its bound form.
-        expect(r.orderedShards).toEqual([[7, ['arxiv--2307.01952']]]);
+        // ENT-503 (review F1): non-destructive — resolved shard 7 first, nothing
+        // dropped; indexResolved makes an all-shard miss a 503 at the caller.
+        expect(r.orderedShards).toEqual([[7, ['arxiv--2307.01952']], [3, ['2307.01952']], [42, ['unknown--2307.01952']]]);
+        expect(r.indexResolved).toBe(true);
     });
 
     it('(b) all candidates miss the index -> absenceProven, ZERO shards probed', async () => {
@@ -78,9 +80,9 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
         ]);
     });
 
-    it('(c2) refused (oversized) index -> fan-out parity, no absence claim', async () => {
-        // size guard refuses anything > 30 MB without reading the body. 3 shards
-        // = high fan-out, so the load IS attempted, then refused -> degrade.
+    it('(c2) unreadable header (empty range body) -> fan-out parity, no absence claim', async () => {
+        // ENT-503: there is no whole-blob size refusal any more (range reads);
+        // a large object whose header bytes are unusable still degrades.
         const env = {
             NODE_ENV: 'production',
             R2_ASSETS: {
@@ -99,10 +101,9 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
         ]);
     });
 
-    it('hit dedupes when multiple candidates resolve the same shard (warm)', async () => {
-        // Two stored forms of one entity both on shard 11 -> one probe entry.
-        // Both candidates hash to a single shard (fan-out 1), so the gate would
-        // skip a cold load — pre-warm the index so the dedup/shrink still applies.
+    it('fan-out 1 is never consulted, even with a cached header (ENT-503 contract)', async () => {
+        // Both candidates hash to a single shard (fan-out 1): the gate skips the
+        // index entirely (no I/O) — the former warm-VIEW shortcut no longer exists.
         const env = mockEnv(buildIndexBuffer([
             { form: 'meta-llama--llama-3-8b', shardIdx: 11 },
             { form: 'hf-model--meta-llama--llama-3-8b', shardIdx: 11 },
@@ -115,6 +116,7 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
         ]);
         const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
         expect(r.absenceProven).toBe(false);
+        expect(r.indexStatus).toBe('not_consulted');
         expect(r.orderedShards).toEqual([[11, ['meta-llama--llama-3-8b', 'hf-model--meta-llama--llama-3-8b']]]);
     });
 
@@ -129,7 +131,7 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
         );
         expect(shardForms.size).toBe(10); // pre-oracle fan-out = 10 (>= 3)
         const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
-        expect(env._counter.getCalls).toBe(1); // oracle load WAS attempted
+        expect(env._counter.getCalls).toBeGreaterThan(0); // index lookup WAS attempted (header + windows)
         expect(r.indexLoaded).toBe(true);
         expect(r.absenceProven).toBe(true);
         expect(r.orderedShards).toEqual([]);

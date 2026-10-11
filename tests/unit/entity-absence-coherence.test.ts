@@ -50,12 +50,15 @@ describe('resolveShardsForCandidates — build-id coherence gate', () => {
         expect(r.orderedShards).toEqual([]);
     });
 
-    it('new index + new manifest (match) + hit -> destructive shrink', async () => {
+    it('new index + new manifest (match) + hit -> resolved first + indexResolved (ENT-503 F1: no drop)', async () => {
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], MAN_BID));
         const { candidates, shardForms } = plan();
         const r = await resolveShardsForCandidates(shardForms, candidates, env, MAN_BID);
         expect(r.absenceProven).toBe(false);
-        expect(r.orderedShards).toEqual([[7, ['arxiv--2307.01952']]]); // shrunk 3 -> 1
+        expect(r.orderedShards).toEqual([
+            [7, ['arxiv--2307.01952']], [3, ['2307.01952']], [42, ['unknown--2307.01952']],
+        ]); // reorder, nothing dropped
+        expect(r.indexResolved).toBe(true); // caller: all-shard miss -> 503, never 404
     });
 
     it('old index + new manifest (build_id mismatch) -> DEGRADE to probe', async () => {

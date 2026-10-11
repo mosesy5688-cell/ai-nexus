@@ -29,6 +29,7 @@ const resolveShardsForCandidates = vi.fn(async (..._a: any[]) => ({
     orderedShards: [[0, ['test-id']]], indexLoaded: false, absenceProven: false,
 }));
 vi.mock('../../src/lib/entity-absence-oracle.js', () => ({
+    describeResolution: () => 'mock', // ENT-503: log helper (route inconclusive line)
     resolveShardsForCandidates: (...a: any[]) => resolveShardsForCandidates(...a),
 }));
 vi.mock('../../src/lib/entity-match-resolver.js', () => ({
