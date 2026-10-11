@@ -16,8 +16,11 @@
  *   F  = MAX_PLAN_FORMS (buildEntityProbePlan emits <= 12: 3 base forms + 9
  *        AUTO_PREFIXES, or 3 + <= 5 paper forms; 16 leaves headroom)
  *   H  = MAX_RESOLVED_HITS (record reads; 1-2 in practice)
+ *   P  = MAX_READ_PARALLELISM (review M3: in-flight reads per lookup)
  *   Reads per lookup  <= 2 attempts x (2 header + F windows + H records).
- *   Transient bytes   <= 2 attempts x F windows x W x 12 B (records are 8 B).
+ *   Live bytes        <= P x W x 12 B: at most P reads are in flight, and a
+ *        version-change retry starts only after attempt 1's reads SETTLED
+ *        (runBounded never abandons a read), so attempts never overlap.
  *   ONE window per form requires round 1 to bracket the key: a uniform key's
  *   position deviates by sigma <= sqrt(n)/2, and the window spans
  *   +-(3 sigma + 32) <= W/2  <=>  n <= ((W - 64) / 3)^2  = KEY_COUNT_CEILING.
@@ -38,8 +41,27 @@ export const MAX_RESOLVED_HITS = 4;
 
 /** Hard cap on index R2 operations per lookup (both attempts) = 44. */
 export const MAX_INDEX_READS = 2 * (2 + MAX_PLAN_FORMS + MAX_RESOLVED_HITS);
-/** Per-request transient bound = 2 x 16 x 16384 x 12 B = 6 MiB. */
-export const TRANSIENT_BYTES_MAX = 2 * MAX_PLAN_FORMS * MAX_WINDOW_ENTRIES * KEY_ENTRY_SIZE;
+export const MAX_READ_PARALLELISM = 4;
+/** Per-lookup live-bytes bound = 4 x 16384 x 12 B = 786,432 B (at the ceiling). */
+export const TRANSIENT_BYTES_MAX = MAX_READ_PARALLELISM * MAX_WINDOW_ENTRIES * KEY_ENTRY_SIZE;
+
+/**
+ * Run fn over items with at most `limit` in flight. Resolves only after EVERY
+ * started call settled (no orphaned reads); rethrows the first failure. Stops
+ * starting new calls once one failed.
+ */
+export async function runBounded<T>(items: T[], limit: number, fn: (x: T) => Promise<void>): Promise<void> {
+    let next = 0;
+    let failed: { e: any } | null = null;
+    const worker = async () => {
+        while (!failed && next < items.length) {
+            const x = items[next++];
+            try { await fn(x); } catch (e) { if (!failed) failed = { e }; }
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    if (failed) throw (failed as { e: any }).e;
+}
 /** floor(((16384 - 64) / 3)^2) = 29,593,600 keys. */
 export const KEY_COUNT_CEILING = Math.floor(((MAX_WINDOW_ENTRIES - 64) / 3) ** 2);
 /** 256 + 29,593,600 x 20 = 591,872,256 B. */

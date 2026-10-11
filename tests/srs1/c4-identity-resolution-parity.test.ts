@@ -37,8 +37,8 @@ vi.mock('../../src/lib/sqlite-engine.js', () => ({
     executeSql: (...a: any[]) => executeSql(...a),
     loadManifest: vi.fn(async () => ({ _etag: 'etag-c4', partitions: { meta_shards: SHARDS }, build_id: 'bid-c4' })),
 }));
-vi.mock('../../src/lib/entity-absence-oracle.js', () => ({
-    describeResolution: () => 'mock', // ENT-503: log helper (route inconclusive line)
+vi.mock('../../src/lib/entity-absence-oracle.js', async () => ({
+    ...(await import('../../src/lib/entity-case-preference.js')), describeResolution: () => 'mock', // ENT-503: real M1 preference + log helper
     resolveShardsForCandidates: vi.fn(async (sf: Map<number, string[]>) => ({ absenceProven: false, orderedShards: [...sf.entries()], indexLoaded: false })),
 }));
 vi.mock('../../src/utils/packet-loader.js', () => ({ fetchBundleReadme: vi.fn(async () => ({ readme: null, demo: null })), loadEntityStreams: vi.fn() }));

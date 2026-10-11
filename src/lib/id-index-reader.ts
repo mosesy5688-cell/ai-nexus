@@ -19,15 +19,13 @@
  * Every window read is pinned to the header's etag (id-index-range.ts), so the
  * build_id that gates absence proof describes exactly the bytes searched.
  *
- * Failure modes never throw to the caller; they return a non-'ok' status so the
- * oracle degrades to the existing fan-out (and logs which one).
+ * Failures never throw: a non-'ok' status makes the oracle degrade (and log it).
  */
 import { xxhash64 } from '../utils/xxhash64-core.js';
 import { readIndexHead, readIndexRange, IndexVersionChanged, IndexUnpinnable, DEFAULT_INDEX_KEY, type IndexObject } from './id-index-range.js';
-
 import {
     HEAD_READ_BYTES, KEY_ENTRY_SIZE, RECORD_SIZE, MAX_WINDOW_ENTRIES, MAX_INDEX_READS,
-    MAX_PLAN_FORMS, judgeCeiling, type CeilingVerdict,
+    MAX_PLAN_FORMS, MAX_READ_PARALLELISM, judgeCeiling, runBounded, type CeilingVerdict,
 } from './id-index-budget.js';
 export { MAX_WINDOW_ENTRIES, MAX_INDEX_READS } from './id-index-budget.js';
 
@@ -36,9 +34,8 @@ const SLIM_VERSION_MIN = 2;
 const SLIM_VERSION_MAX = 3;
 const BUILD_ID_VERSION = 3;
 const MASK64 = 0xFFFFFFFFFFFFFFFFn;
-// Window size, read cap and the supported-size ceiling are DERIVED in
-// id-index-budget.ts (v127 f2). Interpolation rounds before giving up ('search_exhausted' -> degrade). With a
-// 3-sigma window, round 1 brackets the key ~99.7% of the time.
+// Window, read cap, parallelism and size ceiling are DERIVED in id-index-budget.ts.
+// Rounds before 'search_exhausted' (degrade); round 1 brackets the key ~99.7%.
 const MAX_ROUNDS = 6;
 
 export interface IdIndexHit {
@@ -61,6 +58,8 @@ export interface IndexLookup {
     size: number;
     /** Attribution: age of the cached header used (ms; 0 = read this request). */
     headerAgeMs: number;
+    /** Early-warning: R2 reads, max search rounds of any form, max window entries. */
+    reads: number; rounds: number; window: number;
 }
 
 interface Header extends IndexObject {
@@ -80,11 +79,13 @@ class OverBudget extends Error {}
 interface IndexIO {
     head(key: string, length: number): ReturnType<typeof readIndexHead>;
     range(obj: IndexObject, offset: number, length: number): Promise<DataView>;
+    stats: { reads: number; rounds: number; window: number };
 }
 function makeIO(env: any): IndexIO {
-    let n = 0;
-    const tick = () => { if (++n > MAX_INDEX_READS) throw new OverBudget(`id-index read cap ${MAX_INDEX_READS} reached`); };
+    const stats = { reads: 0, rounds: 0, window: 0 };
+    const tick = () => { if (++stats.reads > MAX_INDEX_READS) throw new OverBudget(`id-index read cap ${MAX_INDEX_READS} reached`); };
     return {
+        stats,
         head: async (key, length) => { tick(); return readIndexHead(env, key, length); },
         range: async (obj, offset, length) => { tick(); return readIndexRange(env, obj, offset, length); },
     };
@@ -157,6 +158,7 @@ async function findRecordIdx(io: IndexIO, h: Header, target: bigint): Promise<nu
             whi = Math.min(hi, Math.ceil(est + half));
         }
         const n = whi - wlo + 1;
+        io.stats.rounds = Math.max(io.stats.rounds, round + 1); io.stats.window = Math.max(io.stats.window, n);
         const dv = await io.range(h, h.keyOff + wlo * KEY_ENTRY_SIZE, n * KEY_ENTRY_SIZE);
         const at = (i: number) => dv.getBigUint64(i * KEY_ENTRY_SIZE, true);
         const first = at(0), last = at(n - 1);
@@ -192,9 +194,9 @@ async function readRecord(io: IndexIO, h: Header, idx: number): Promise<IdIndexH
  */
 export async function lookupForms(env: any, forms: string[], blobKey?: string): Promise<IndexLookup> {
     const key = blobKey || DEFAULT_INDEX_KEY;
-    const fail = (status: IndexStatus): IndexLookup => ({ status, buildId: null, hits: new Map(), size: HEADER?.size ?? 0, headerAgeMs: 0 });
-    const uniq = [...new Set(forms.filter(Boolean).map(f => String(f).toLowerCase()))];
+    const fail = (status: IndexStatus): IndexLookup => ({ status, buildId: null, hits: new Map(), size: HEADER?.size ?? 0, headerAgeMs: 0, ...io.stats });
     const io = makeIO(env);
+    const uniq = [...new Set(forms.filter(Boolean).map(f => String(f).toLowerCase()))];
     if (uniq.length > MAX_PLAN_FORMS) return fail('over_budget');
     let reload = false;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -211,11 +213,12 @@ export async function lookupForms(env: any, forms: string[], blobKey?: string): 
             // Above the derived ceiling: no lookups (I-1 analogue) -> degrade, never 404.
             if (h.verdict === 'refused') return { ...fail('refused'), size: h.size, headerAgeMs: age };
             const hits = new Map<string, IdIndexHit | null>();
-            await Promise.all(uniq.map(async f => {
+            // M3: <= MAX_READ_PARALLELISM reads in flight; all settle before return/retry.
+            await runBounded(uniq, MAX_READ_PARALLELISM, async f => {
                 const idx = await findRecordIdx(io, h, hashOf(f));
                 hits.set(f, idx < 0 ? null : await readRecord(io, h, idx));
-            }));
-            return { status: 'ok', buildId: h.buildId, hits, size: h.size, headerAgeMs: age };
+            });
+            return { status: 'ok', buildId: h.buildId, hits, size: h.size, headerAgeMs: age, ...io.stats };
         } catch (e: any) {
             // v127 f3: the cached header is NEVER discarded before its replacement
             // is parsed: a version change forces a re-read for THIS lookup and the

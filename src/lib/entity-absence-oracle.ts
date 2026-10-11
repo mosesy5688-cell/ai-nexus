@@ -50,6 +50,7 @@
  */
 import { lookupForms, type IdIndexHit, type IndexStatus, type IndexLookup } from './id-index-reader.js';
 import { withOpTimeout } from './op-timeout.js';
+export { preferExactCase } from './entity-case-preference.js';
 
 // B4 VERSION-COHERENCE GATE (Founder, locked):
 //   "id-index may prove absence only when id-index build-id and served shard
@@ -106,7 +107,8 @@ export interface ShardResolution {
     indexResolved: boolean;
     /** Attribution: build_id of the index version read, the served manifest's,
      *  index object size, lookup wall time, cached-header age. */
-    diag: { indexBuildId: string | null; manifestBuildId: string | null; size: number; ms: number; headerAgeMs: number };
+    diag: { indexBuildId: string | null; manifestBuildId: string | null; size: number; ms: number; headerAgeMs: number;
+        reads?: number; rounds?: number; window?: number };
 }
 
 // Attribution-page section 3 branches: why absence was NOT proven (index side)
@@ -126,7 +128,9 @@ export function describeResolution(r: ShardResolution, bailed = false, shardErro
     const d: Partial<Diag> = r.diag ?? {};
     const probe = shardErrors > 0 ? 'I-5' : bailed ? 'I-6' : r.indexResolved ? 'empty-hit' : '-';
     return `br=${indexBranch(r)}/${probe} idx=${r.indexLoaded} ist=${r.indexStatus} coh=${r.coherent} res=${r.indexResolved} ` +
-        `ibid=${d.indexBuildId ?? '-'} mbid=${d.manifestBuildId ?? '-'} isz=${d.size} ims=${d.ms} iage=${d.headerAgeMs}`;
+        `ibid=${d.indexBuildId ?? '-'} mbid=${d.manifestBuildId ?? '-'} isz=${d.size} ims=${d.ms} iage=${d.headerAgeMs} ` +
+        `ird=${d.reads ?? 0} irnd=${d.rounds ?? 0} iwin=${d.window ?? 0}` +
+        (r.indexStatus === 'over_budget' || r.indexStatus === 'search_exhausted' ? ` IDX_BUDGET_EXCEEDED=${r.indexStatus}` : '');
 }
 
 type Diag = ShardResolution['diag'];
@@ -208,6 +212,7 @@ export async function resolveShardsForCandidates(
     const diag = (r?: IndexLookup): Diag => ({
         indexBuildId: r?.buildId ?? null, manifestBuildId: manifestBuildId ?? null,
         size: r?.size ?? 0, ms: Date.now() - t0, headerAgeMs: r?.headerAgeMs ?? 0,
+        reads: r?.reads ?? 0, rounds: r?.rounds ?? 0, window: r?.window ?? 0,
     });
     if (shardForms.size <= ORACLE_FANOUT_THRESHOLD) return degrade(entries, 'not_consulted', diag());
 
