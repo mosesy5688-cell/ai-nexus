@@ -23,19 +23,21 @@
  * oracle degrades to the existing fan-out (and logs which one).
  */
 import { xxhash64 } from '../utils/xxhash64-core.js';
-import { readIndexHead, readIndexRange, IndexVersionChanged, DEFAULT_INDEX_KEY, type IndexObject } from './id-index-range.js';
+import { readIndexHead, readIndexRange, IndexVersionChanged, IndexUnpinnable, DEFAULT_INDEX_KEY, type IndexObject } from './id-index-range.js';
+
+import {
+    HEAD_READ_BYTES, KEY_ENTRY_SIZE, RECORD_SIZE, MAX_WINDOW_ENTRIES, MAX_INDEX_READS,
+    MAX_PLAN_FORMS, judgeCeiling, type CeilingVerdict,
+} from './id-index-budget.js';
+export { MAX_WINDOW_ENTRIES, MAX_INDEX_READS } from './id-index-budget.js';
 
 const HEADER_SIZE = 32;
-const HEAD_READ_BYTES = 256; // header + a typical build_id token in ONE read
-const KEY_ENTRY_SIZE = 12;
-const RECORD_SIZE = 8; // slim: shardIdx(2) + type(1) + flags(1) + fniScore(4)
 const SLIM_VERSION_MIN = 2;
 const SLIM_VERSION_MAX = 3;
 const BUILD_ID_VERSION = 3;
 const MASK64 = 0xFFFFFFFFFFFFFFFFn;
-// Per-round window cap (entries). 16384 x 12 B = 192 KB transient per form.
-export const MAX_WINDOW_ENTRIES = 16384;
-// Interpolation rounds before giving up ('search_exhausted' -> degrade). With a
+// Window size, read cap and the supported-size ceiling are DERIVED in
+// id-index-budget.ts (v127 f2). Interpolation rounds before giving up ('search_exhausted' -> degrade). With a
 // 3-sigma window, round 1 brackets the key ~99.7% of the time.
 const MAX_ROUNDS = 6;
 
@@ -46,8 +48,8 @@ export interface IdIndexHit {
     isTrending: boolean;
 }
 
-export type IndexStatus = 'ok' | 'absent' | 'bad_header' | 'r2_error' | 'version_changed'
-    | 'search_exhausted' | 'timeout' | 'not_consulted';
+export type IndexStatus = 'ok' | 'refused' | 'absent' | 'bad_header' | 'r2_error' | 'version_changed'
+    | 'no_etag' | 'search_exhausted' | 'over_budget' | 'timeout' | 'not_consulted';
 
 export interface IndexLookup {
     status: IndexStatus;
@@ -67,10 +69,26 @@ interface Header extends IndexObject {
     recordCount: number;
     keyOff: number;
     recOff: number;
+    verdict: CeilingVerdict;
 }
 
 class CorruptIndex extends Error {}
 class SearchExhausted extends Error {}
+class OverBudget extends Error {}
+
+// Per-lookup counted I/O (enforces MAX_INDEX_READS).
+interface IndexIO {
+    head(key: string, length: number): ReturnType<typeof readIndexHead>;
+    range(obj: IndexObject, offset: number, length: number): Promise<DataView>;
+}
+function makeIO(env: any): IndexIO {
+    let n = 0;
+    const tick = () => { if (++n > MAX_INDEX_READS) throw new OverBudget(`id-index read cap ${MAX_INDEX_READS} reached`); };
+    return {
+        head: async (key, length) => { tick(); return readIndexHead(env, key, length); },
+        range: async (obj, offset, length) => { tick(); return readIndexRange(env, obj, offset, length); },
+    };
+}
 
 // Isolate-scoped: ONLY the parsed header of the last-seen object version.
 let HEADER: Header | null = null;
@@ -99,20 +117,23 @@ function parseHeader(obj: IndexObject, b: Uint8Array): Header | 'bad_header' | '
             try { buildId = new TextDecoder().decode(b.subarray(HEADER_SIZE, HEADER_SIZE + len)) || null; } catch { buildId = null; }
         }
     }
-    return { ...obj, buildId, keyCount, recordCount, keyOff, recOff };
+    return { ...obj, buildId, keyCount, recordCount, keyOff, recOff, verdict: 'ok' };
 }
 
-async function loadHeader(env: any, key: string): Promise<Header | 'absent' | 'bad_header'> {
-    const head = await readIndexHead(env, key, HEAD_READ_BYTES);
+async function loadHeader(io: IndexIO, key: string, prev: Header | null): Promise<Header | 'absent' | 'bad_header'> {
+    const head = await io.head(key, HEAD_READ_BYTES);
     if (!head) return 'absent';
     let h = parseHeader(head.obj, head.bytes);
     if (h === 'need_more') {
         // Long build_id token: re-read the full header from the SAME version.
         const len = HEADER_SIZE + (head.bytes[24] | (head.bytes[25] << 8));
-        const dv = await readIndexRange(env, head.obj, 0, len);
+        const dv = await io.range(head.obj, 0, len);
         h = parseHeader(head.obj, new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength));
     }
-    return h === 'need_more' ? 'bad_header' : h;
+    if (h === 'need_more' || h === 'bad_header') return 'bad_header';
+    // v127 f2: judged ONCE per object version -> one warn/refusing line per version.
+    h.verdict = prev && prev.key === key && prev.etag === h.etag ? prev.verdict : judgeCeiling(h.size, h.keyCount, key);
+    return h;
 }
 
 function hashOf(form: string): bigint {
@@ -120,7 +141,7 @@ function hashOf(form: string): bigint {
 }
 
 /** Interpolation search of the sorted key table. Returns recordIdx or -1 (definite miss). */
-async function findRecordIdx(env: any, h: Header, target: bigint): Promise<number> {
+async function findRecordIdx(io: IndexIO, h: Header, target: bigint): Promise<number> {
     let lo = 0, hi = h.keyCount - 1;
     let loH = 0n, hiH = MASK64;
     for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -136,7 +157,7 @@ async function findRecordIdx(env: any, h: Header, target: bigint): Promise<numbe
             whi = Math.min(hi, Math.ceil(est + half));
         }
         const n = whi - wlo + 1;
-        const dv = await readIndexRange(env, h, h.keyOff + wlo * KEY_ENTRY_SIZE, n * KEY_ENTRY_SIZE);
+        const dv = await io.range(h, h.keyOff + wlo * KEY_ENTRY_SIZE, n * KEY_ENTRY_SIZE);
         const at = (i: number) => dv.getBigUint64(i * KEY_ENTRY_SIZE, true);
         const first = at(0), last = at(n - 1);
         if (target < first) { if (wlo === lo) return -1; hi = wlo - 1; hiH = first; continue; }
@@ -154,9 +175,9 @@ async function findRecordIdx(env: any, h: Header, target: bigint): Promise<numbe
     throw new SearchExhausted('id-index search exhausted');
 }
 
-async function readRecord(env: any, h: Header, idx: number): Promise<IdIndexHit> {
+async function readRecord(io: IndexIO, h: Header, idx: number): Promise<IdIndexHit> {
     if (idx < 0 || idx >= h.recordCount) throw new CorruptIndex(`record ${idx} out of range`);
-    const dv = await readIndexRange(env, h, h.recOff + idx * RECORD_SIZE, RECORD_SIZE);
+    const dv = await io.range(h, h.recOff + idx * RECORD_SIZE, RECORD_SIZE);
     return {
         shardIdx: dv.getUint16(0, true),
         type: dv.getUint8(2),
@@ -173,42 +194,42 @@ export async function lookupForms(env: any, forms: string[], blobKey?: string): 
     const key = blobKey || DEFAULT_INDEX_KEY;
     const fail = (status: IndexStatus): IndexLookup => ({ status, buildId: null, hits: new Map(), size: HEADER?.size ?? 0, headerAgeMs: 0 });
     const uniq = [...new Set(forms.filter(Boolean).map(f => String(f).toLowerCase()))];
+    const io = makeIO(env);
+    if (uniq.length > MAX_PLAN_FORMS) return fail('over_budget');
+    let reload = false;
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
-            if (!HEADER || HEADER.key !== key) {
-                const h = await loadHeader(env, key);
+            // A refused version is re-checked each lookup (one 256 B read) so a
+            // shrunk/replaced index is picked up; same etag -> no repeated log line.
+            if (reload || !HEADER || HEADER.key !== key || HEADER.verdict === 'refused') {
+                const h = await loadHeader(io, key, HEADER);
                 if (h === 'absent' || h === 'bad_header') return fail(h);
                 HEADER = h; HEADER_AT = Date.now();
             }
             const age = Date.now() - HEADER_AT;
             const h = HEADER;
+            // Above the derived ceiling: no lookups (I-1 analogue) -> degrade, never 404.
+            if (h.verdict === 'refused') return { ...fail('refused'), size: h.size, headerAgeMs: age };
             const hits = new Map<string, IdIndexHit | null>();
             await Promise.all(uniq.map(async f => {
-                const idx = await findRecordIdx(env, h, hashOf(f));
-                hits.set(f, idx < 0 ? null : await readRecord(env, h, idx));
+                const idx = await findRecordIdx(io, h, hashOf(f));
+                hits.set(f, idx < 0 ? null : await readRecord(io, h, idx));
             }));
             return { status: 'ok', buildId: h.buildId, hits, size: h.size, headerAgeMs: age };
         } catch (e: any) {
-            // Only a version change invalidates the cached header (it no longer
-            // describes the object); a transient read error keeps it (still valid).
-            if (e instanceof IndexVersionChanged) { HEADER = null; continue; }
-            const status: IndexStatus = e instanceof SearchExhausted ? 'search_exhausted'
-                : e instanceof CorruptIndex ? 'bad_header' : 'r2_error';
+            // v127 f3: the cached header is NEVER discarded before its replacement
+            // is parsed: a version change forces a re-read for THIS lookup and the
+            // header is swapped only on success (loadHeader above); a transient
+            // read error keeps it.
+            if (e instanceof IndexVersionChanged) { reload = true; continue; }
+            const status: IndexStatus = e instanceof OverBudget ? 'over_budget'
+                : e instanceof SearchExhausted ? 'search_exhausted'
+                : e instanceof CorruptIndex ? 'bad_header' : e instanceof IndexUnpinnable ? 'no_etag' : 'r2_error';
             console.warn(`[IdIndex] lookup ${status}:`, e?.message || e);
             return fail(status);
         }
     }
     return fail('version_changed');
-}
-
-/** Header-only load (diagnostics/tests): true when a parseable index header is reachable. */
-export async function loadIdIndex(env: any, blobKey?: string): Promise<boolean> {
-    try {
-        const h = await loadHeader(env, blobKey || DEFAULT_INDEX_KEY);
-        if (h === 'absent' || h === 'bad_header') return false;
-        HEADER = h; HEADER_AT = Date.now();
-        return true;
-    } catch { return false; }
 }
 
 /** Diagnostics: true when a parsed header is cached in this isolate (no I/O). */

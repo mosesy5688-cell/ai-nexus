@@ -93,8 +93,8 @@ export interface ShardResolution {
      * then return an honest 404 with NO shard probes.
      */
     absenceProven: boolean;
-    /** ENT-503 attribution: ok / absent / bad_header / r2_error / version_changed /
-     *  search_exhausted / timeout / not_consulted. */
+    /** ENT-503 attribution: ok / refused / absent / bad_header / r2_error /
+     *  version_changed / no_etag / search_exhausted / over_budget / timeout / not_consulted. */
     indexStatus: IndexStatus;
     /** ENT-503 attribution: lookup ok AND build_id === served manifest's. */
     coherent: boolean;
@@ -109,10 +109,23 @@ export interface ShardResolution {
     diag: { indexBuildId: string | null; manifestBuildId: string | null; size: number; ms: number; headerAgeMs: number };
 }
 
+// Attribution-page section 3 branches: why absence was NOT proven (index side)
+// and why the probe loop ended without a row (probe side).
+function indexBranch(r: ShardResolution): string {
+    switch (r.indexStatus) {
+        case 'refused': return 'I-1';
+        case 'timeout': return 'I-2';
+        case 'ok': return r.coherent ? (r.indexResolved ? 'hit' : '-') : 'I-4';
+        case 'not_consulted': return 'nc';
+        default: return 'I-3'; // absent / bad_header / r2_error / no_etag / version_changed / search_exhausted / over_budget
+    }
+}
+
 /** One-line attribution for the caller's inconclusive log (kept out of the route for CES). */
-export function describeResolution(r: ShardResolution): string {
+export function describeResolution(r: ShardResolution, bailed = false, shardErrors = 0): string {
     const d: Partial<Diag> = r.diag ?? {};
-    return `idx=${r.indexLoaded} ist=${r.indexStatus} coh=${r.coherent} res=${r.indexResolved} ` +
+    const probe = shardErrors > 0 ? 'I-5' : bailed ? 'I-6' : r.indexResolved ? 'empty-hit' : '-';
+    return `br=${indexBranch(r)}/${probe} idx=${r.indexLoaded} ist=${r.indexStatus} coh=${r.coherent} res=${r.indexResolved} ` +
         `ibid=${d.indexBuildId ?? '-'} mbid=${d.manifestBuildId ?? '-'} isz=${d.size} ims=${d.ms} iage=${d.headerAgeMs}`;
 }
 
@@ -130,6 +143,16 @@ function degrade(entries: [number, string[]][], indexStatus: IndexStatus, diag: 
  *                  NON-DESTRUCTIVE reorder: resolved shard(s) first, then every
  *                  remaining original shard in its insertion order.
  */
+// ENT-503 F3 (casing). Index keys are JS-lowercased (id-index-generator.js
+// pushKey); stored id/slug casing is NOT normalized on the pack write path
+// (row-builders.js inserts e.id / e.slug raw), so the route matches with SQLite
+// lower(col) against lowercased forms. SQLite lower() folds ASCII only, so the
+// index and the SQL agree exactly for ASCII forms (sole known exception: a
+// stored U+212A KELVIN SIGN, which JS folds to 'k'). indexResolved ("a miss is
+// inconclusive, 503") is therefore asserted only for an ASCII hit; a non-ASCII
+// hit keeps the clean-exhaustion semantics instead of a permanent 503.
+const ASCII_RE = /^[\x00-\x7f]*$/;
+
 function applyIndex(
     shardForms: Map<number, string[]>,
     candidates: string[],
@@ -141,8 +164,10 @@ function applyIndex(
     // a real entity is never made unreachable.
     const resolved: [number, string[]][] = [];
     const seenShard = new Set<number>();
+    let asciiHit = false;
     for (const c of candidates) {
         const hit = hits.get(String(c).toLowerCase());
+        if (hit && ASCII_RE.test(c)) asciiHit = true;
         if (!hit || seenShard.has(hit.shardIdx)) continue;
         seenShard.add(hit.shardIdx);
         resolved.push([hit.shardIdx, shardForms.get(hit.shardIdx) ?? [c]]);
@@ -155,7 +180,7 @@ function applyIndex(
     const tail = [...shardForms.entries()].filter(([s]) => !seenShard.has(s));
     return {
         ...base, orderedShards: [...resolved, ...tail], absenceProven: false,
-        indexResolved: coherent && resolved.length > 0,
+        indexResolved: coherent && asciiHit,
     };
 }
 

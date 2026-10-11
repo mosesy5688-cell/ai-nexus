@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveShardsForCandidates } from '../../src/lib/entity-absence-oracle.js';
-import { _resetIdIndexForTest, loadIdIndex, isIndexWarm } from '../../src/lib/id-index-reader.js';
-import { buildIndexBuffer, mockEnv } from './helpers/id-index-fixture.js';
+import { _resetIdIndexForTest, isIndexWarm } from '../../src/lib/id-index-reader.js';
+import { buildIndexBuffer, mockEnv, warmIndex } from './helpers/id-index-fixture.js';
 
 // FAN-OUT-GATED ORACLE AWAIT (B4 regression fix).
 //
@@ -62,7 +62,7 @@ describe('resolveShardsForCandidates — fan-out-gated oracle await', () => {
         // not free any more. Low fan-out keeps the degrade path (what production
         // did since the whole-blob index was refused): no new R2 GET, full order.
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], BID));
-        expect(await loadIdIndex(env)).toBe(true); // simulate prior warm
+        expect(await warmIndex(env)).toBe(true); // simulate prior warm
         expect(isIndexWarm()).toBe(true);
         const loadsAfterWarm = env._counter.getCalls; // 1 GET to warm it
         const candidates = ['2307.01952', 'arxiv--2307.01952'];
@@ -80,7 +80,7 @@ describe('resolveShardsForCandidates — fan-out-gated oracle await', () => {
     it('(e2) fan-out <= 2 + cached header + all-miss -> NO absence claim (not consulted)', async () => {
         // ENT-503: low fan-out never consults the index; the 2-shard probe decides.
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], BID));
-        expect(await loadIdIndex(env)).toBe(true);
+        expect(await warmIndex(env)).toBe(true);
         const candidates = ['9999.99999', 'arxiv--9999.99999'];
         const shardForms = new Map<number, string[]>([
             [1, ['9999.99999']],

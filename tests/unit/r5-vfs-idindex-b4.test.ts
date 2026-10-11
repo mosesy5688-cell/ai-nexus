@@ -5,9 +5,9 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { dbOpenName, vfsKeyForOpen, vfsStateName, isBlobKey } from '../../src/lib/vfs-blob-key.js';
-import { loadIdIndex, _resetIdIndexForTest } from '../../src/lib/id-index-reader.js';
+import { _resetIdIndexForTest } from '../../src/lib/id-index-reader.js';
 import { resolveShardsForCandidates } from '../../src/lib/entity-absence-oracle.js';
-import { buildIndexBuffer, mockEnv } from './helpers/id-index-fixture.js';
+import { buildIndexBuffer, mockEnv, warmIndex } from './helpers/id-index-fixture.js';
 
 // The fixed-key getCachedDbConnection consumers (design gate §2.7) with the dbName
 // each passes. blobKey ABSENT must map EVERY one to the fixed key data/<dbName>
@@ -65,7 +65,10 @@ function idxEnv(servedKey: string, buf: ArrayBuffer) {
     const keys: string[] = [];
     const env = {
         NODE_ENV: 'production',
-        R2_ASSETS: { get: async (k: string) => { keys.push(k); return k === servedKey ? { size: buf.byteLength, arrayBuffer: async () => buf } : null; } },
+        // ENT-503: range reader -> honor range + etag (an etag-less object fails closed).
+        R2_ASSETS: { get: async (k: string, o?: any) => { keys.push(k); if (k !== servedKey) return null;
+            const out = o?.range ? buf.slice(o.range.offset, o.range.offset + o.range.length) : buf;
+            return { size: buf.byteLength, etag: 'e1', arrayBuffer: async () => out }; } },
     };
     return { env, keys };
 }
@@ -75,14 +78,14 @@ describe('id-index-reader: pinned cycle blob key vs the fixed data/id-index.bin'
 
     it('blobKey ABSENT -> GETs the fixed data/id-index.bin (today)', async () => {
         const { env, keys } = idxEnv('data/id-index.bin', buildIndexBuffer([{ form: 'a', shardIdx: 1 }], 'run-x'));
-        expect(await loadIdIndex(env)).toBe(true);
-        expect(keys).toEqual(['data/id-index.bin']);
+        expect(await warmIndex(env)).toBe(true);
+        expect([...new Set(keys)]).toEqual(['data/id-index.bin']); // header + window reads, one key
     });
 
     it('blobKey PRESENT -> GETs the pinned blob key, never data/id-index.bin', async () => {
         const { env, keys } = idxEnv('data/blobs/idxsha', buildIndexBuffer([{ form: 'a', shardIdx: 1 }], 'run-x'));
-        expect(await loadIdIndex(env, 'data/blobs/idxsha')).toBe(true);
-        expect(keys).toEqual(['data/blobs/idxsha']);
+        expect(await warmIndex(env, 'data/blobs/idxsha')).toBe(true);
+        expect([...new Set(keys)]).toEqual(['data/blobs/idxsha']);
         expect(keys).not.toContain('data/id-index.bin');
     });
 });

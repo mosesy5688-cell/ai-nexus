@@ -25,20 +25,25 @@ vi.mock('cloudflare:workers', () => ({ env: H.env }));
 vi.mock('../../src/lib/sqlite-engine.js', () => ({
     loadManifest: async () => H.pin,
     getCachedDbConnection: async (_b: any, _d: any, dbName: string) => ({ sqlite3: {}, db: { dbName } }),
-    executeSql: async (_s: any, db: any, _sql: string, bind: any[]) => {
+    executeSql: async (_s: any, db: any, sql: string, bind: any[]) => {
         H.sqlCalls++;
         const mode = H.shardMode.get(db.dbName);
         if (mode === 'error') throw new Error('shard read failed');
         if (mode === 'slow') { H.clock.t += 7000; return []; }
         if (mode === 'stale') return []; // old-build pages: clean miss for a new entity
-        const forms = new Set(bind.slice(0, -2).map((v: any) => String(v).toLowerCase()));
-        return H.rows.filter(r => r._db === db.dbName && (forms.has(r.id) || forms.has(r.slug)));
+        // Faithful to the route SQL's casing: lower(col) IN (...) when present,
+        // exact (case-sensitive) comparison otherwise (pre-F3 SQL).
+        const ci = /lower\(id\) IN/.test(sql);
+        const forms = new Set(bind.slice(0, -2).map((v: any) => String(v)));
+        const norm = (v: any) => (ci ? String(v).replace(/[A-Z]/g, c => c.toLowerCase()) : String(v));
+        return H.rows.filter(r => r._db === db.dbName && (forms.has(norm(r.id)) || forms.has(norm(r.slug))));
     },
 }));
 vi.mock('../../src/utils/packet-loader.js', () => ({ fetchBundleReadme: vi.fn(), loadEntityStreams: vi.fn() }));
 
 import { GET } from '../../src/pages/api/v1/entity/[...id].js';
 import { _resetIdIndexForTest } from '../../src/lib/id-index-reader.js';
+import { INDEX_BYTES_CEILING } from '../../src/lib/id-index-budget.js';
 
 const SH = 96;
 const OVER_CAP = 31_666_148; // production size on 2026-10-10 (> 31,457,280 old cap)
@@ -98,7 +103,7 @@ describe('ENT-503 Z-4 judged-red table (route level, local)', () => {
         expect(r.status).toBe(503);
         expect(r.cc).toBe('no-store');
         const line = errLog.mock.calls.map((c: any[]) => c.join(' ')).find((l: string) => l.includes('inconclusive'));
-        expect(line).toMatch(/ist=ok coh=false res=false ibid=run-A mbid=run-B isz=31666148/);
+        expect(line).toMatch(/br=I-4\/I-6 .*ist=ok coh=false res=false ibid=run-A mbid=run-B isz=31666148/);
     });
 
     it('Z4 entity NEW in served build, index lags (A) -> found via full fan-out, never 404', async () => {
@@ -109,14 +114,14 @@ describe('ENT-503 Z-4 judged-red table (route level, local)', () => {
         expect(r.body.entity.id).toBe(NEW.id);
     });
 
-    it('Z5 (review F1) coherent index HIT, resolved shard STALE (clean miss), others clean -> 503, never 404', async () => {
+    it('Z5 = v127 f4(v): coherent index HIT, resolved shard returns ZERO rows (stale), others clean -> 503, never 404', async () => {
         r2.publish(idxFor('run-B', [REAL, NEW]), 'e-B', OVER_CAP);
         H.rows = [place(REAL)];                     // isolate still reads build-A pages
         H.shardMode.set(dbOf(NEW.slug), 'stale');
         const r = await call('acme--brandnew');
         expect(r.status).toBe(503);
         const line = errLog.mock.calls.map((c: any[]) => c.join(' ')).find((l: string) => l.includes('inconclusive'));
-        expect(line).toMatch(/coh=true res=true/);
+        expect(line).toMatch(/br=hit\/empty-hit .*coh=true res=true/);
     });
 
     it('Z6 range read failure -> degrade; absent + cold shards -> 503 (unchanged)', async () => {
@@ -126,7 +131,7 @@ describe('ENT-503 Z-4 judged-red table (route level, local)', () => {
         const r = await call(ABSENT);
         expect(r.status).toBe(503);
         const line = errLog.mock.calls.map((c: any[]) => c.join(' ')).find((l: string) => l.includes('inconclusive'));
-        expect(line).toMatch(/idx=false ist=r2_error/);
+        expect(line).toMatch(/br=I-3\/I-6 idx=false ist=r2_error/);
     });
 
     it('Z7 range read failure -> degrade; absent + every shard clean -> 404 by clean exhaustion (unchanged)', async () => {
@@ -170,5 +175,50 @@ describe('ENT-503 Z-4 judged-red table (route level, local)', () => {
         const r = await call('hf-model--nobody--nothing');
         expect(r.status).toBe(404);
         expect(r2.gets.length).toBe(0);
+    });
+
+    const inconclusive = () => errLog.mock.calls.map((c: any[]) => c.join(' ')).find((l: string) => l.includes('inconclusive'));
+
+    it('v127 f4(iv): index size = derived ceiling + 1 B -> refused + refusing line; invalid id 503 (not 404)', async () => {
+        r2.publish(idxFor('run-B', [REAL]), 'e-B', INDEX_BYTES_CEILING + 1);
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        slowAll();
+        const r = await call(ABSENT);
+        expect(r.status).toBe(503);
+        expect(warn.mock.calls.map((c: any[]) => c.join(' ')).some((l: string) => l.includes('[IdIndex] refusing index'))).toBe(true);
+        expect(inconclusive()).toMatch(/br=I-1\/I-6 idx=false ist=refused/);
+    });
+
+    it('I-2 attribution: index read never settles -> timeout -> 503 with br=I-2', async () => {
+        r2.publish(idxFor('run-B', [REAL]), 'e-B', OVER_CAP);
+        r2.hangIf = (g) => g.offset !== null && g.offset > 0;
+        H.clock.t = 9_000_000;
+        vi.spyOn(Date, 'now').mockImplementation(() => H.clock.t);
+        H.shardMode.set(dbOf(ABSENT), 'error');
+        const r = await call(ABSENT);
+        expect(r.status).toBe(503);
+        expect(inconclusive()).toMatch(/br=I-2\/I-5 idx=false ist=timeout/);
+    }, 10_000);
+
+    it('I-5 attribution: coherent hit, resolved shard errors -> 503 with br=hit/I-5', async () => {
+        r2.publish(idxFor('run-B', [REAL]), 'e-B', OVER_CAP);
+        H.shardMode.set(dbOf(REAL.slug), 'error');
+        expect((await call('acme--widget')).status).toBe(503);
+        expect(inconclusive()).toMatch(/br=hit\/I-5 /);
+    });
+
+    it('review F3: stored id/slug with UPPERCASE, coherent ASCII hit -> 200 (lower() SQL), not a permanent 503', async () => {
+        const UP = { ...REAL, id: 'hf-model--Acme--Widget', slug: 'Acme--Widget' };
+        r2.publish(idxFor('run-B', [{ id: UP.id.toLowerCase(), slug: UP.slug.toLowerCase() }]), 'e-B', OVER_CAP);
+        H.rows = [{ ...UP, _db: dbOf(UP.slug.toLowerCase()) }];
+        const r = await call('acme--widget');
+        expect(r.status).toBe(200);
+        expect(r.body.entity.id).toBe(UP.id);
+    });
+
+    it('acceptance (iii) unfinished lookup: present id, budget exhausted before its shard -> 503', async () => {
+        r2.publish(idxFor('run-A', [REAL]), 'e-A', OVER_CAP); // incoherent: full fan-out, resolved first
+        slowAll();
+        expect((await call('acme--widget')).status).toBe(503);
     });
 });

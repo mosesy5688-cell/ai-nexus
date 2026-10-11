@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveShardsForCandidates } from '../../src/lib/entity-absence-oracle.js';
-import { _resetIdIndexForTest, loadIdIndex, isIndexWarm } from '../../src/lib/id-index-reader.js';
-import { buildIndexBuffer, mockEnv } from './helpers/id-index-fixture.js';
+import { _resetIdIndexForTest, isIndexWarm } from '../../src/lib/id-index-reader.js';
+import { buildIndexBuffer, mockEnv, warmIndex } from './helpers/id-index-fixture.js';
 
 // B4 — id-index absence oracle + index-driven candidate resolution.
 //
@@ -28,7 +28,7 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
     it('(a) index hit probes the resolved shard FIRST, keeps the rest (ENT-503 F1), flags indexResolved', async () => {
         // The real entity "arxiv--2307.01952" lives on shard 7. The candidate
         // plan fanned out across 3 shards (>= 3 = high fan-out: oracle awaited);
-        // only the resolved one should remain (coherent -> destructive shrink).
+        // ENT-503: the resolved shard is probed FIRST and nothing is dropped.
         const env = mockEnv(buildIndexBuffer([{ form: 'arxiv--2307.01952', shardIdx: 7 }], BID));
         const candidates = ['2307.01952', 'arxiv--2307.01952', 'unknown--2307.01952'];
         // Pretend the caller hashed each candidate to a different shard.
@@ -108,7 +108,7 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
             { form: 'meta-llama--llama-3-8b', shardIdx: 11 },
             { form: 'hf-model--meta-llama--llama-3-8b', shardIdx: 11 },
         ], BID));
-        expect(await loadIdIndex(env)).toBe(true); // warm it (allowed pre-step)
+        expect(await warmIndex(env)).toBe(true); // warm it (allowed pre-step)
         expect(isIndexWarm()).toBe(true);
         const candidates = ['meta-llama--llama-3-8b', 'hf-model--meta-llama--llama-3-8b'];
         const shardForms = new Map<number, string[]>([
@@ -131,7 +131,9 @@ describe('resolveShardsForCandidates — id-index absence oracle (coherent)', ()
         );
         expect(shardForms.size).toBe(10); // pre-oracle fan-out = 10 (>= 3)
         const r = await resolveShardsForCandidates(shardForms, candidates, env, BID);
-        expect(env._counter.getCalls).toBeGreaterThan(0); // index lookup WAS attempted (header + windows)
+        // Exactly 1 header read + 1 window read per form (the 1-key table fits one
+        // window); zero record reads (no hits). Bounded by MAX_INDEX_READS.
+        expect(env._counter.getCalls).toBe(1 + candidates.length);
         expect(r.indexLoaded).toBe(true);
         expect(r.absenceProven).toBe(true);
         expect(r.orderedShards).toEqual([]);

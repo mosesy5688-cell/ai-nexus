@@ -120,8 +120,8 @@ export const GET: APIRoute = async ({ params, url, request }) => {
         // budget-bail so a transient miss is not a false 404. C4 Stage 1 (D-331 corrected):
         // fetch CANDIDATE_FETCH_LIMIT (26 = cap+1) rows so the resolver DETECTS overflow
         // instead of truncating into a false unique (co-resident slug twins share ONE shard).
-        // ORDER BY binds the requested id + umid so an EXACT-id/UMID row, if present, is ALWAYS
-        // in the window regardless of twin count; type-ASC,id-ASC tiebreak keeps it deterministic.
+        // ORDER BY binds the requested id + umid so an EXACT-id/UMID row is ALWAYS in the window. ENT-503 F3:
+        // lower(col) = the index's lowercased keys (stored casing is not normalized; plan is already SCAN).
         const exactMatchKey = rawId.toLowerCase();
         let candidateRows: any[] = [];
         let probedShards = 0;
@@ -132,8 +132,8 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             probedShards++;
             const dbName = `meta-${String(shardIdx).padStart(2, '0')}.db`;
             const placeholders = forms.map(() => '?').join(',');
-            const sql = `SELECT * FROM entities WHERE id IN (${placeholders}) OR slug IN (${placeholders}) OR umid IN (${placeholders}) ORDER BY (id = ?) DESC, (umid = ?) DESC, type ASC, id ASC LIMIT ${CANDIDATE_FETCH_LIMIT}`;
-            const bindings = [...forms, ...forms, ...forms, exactMatchKey, exactMatchKey];
+            const sql = `SELECT * FROM entities WHERE lower(id) IN (${placeholders}) OR lower(slug) IN (${placeholders}) OR lower(umid) IN (${placeholders}) ORDER BY (lower(id) = ?) DESC, (lower(umid) = ?) DESC, type ASC, id ASC LIMIT ${CANDIDATE_FETCH_LIMIT}`;
+            const lf = forms.map(f => f.toLowerCase()), bindings = [...lf, ...lf, ...lf, exactMatchKey, exactMatchKey];
             try {
                 // Per-op firewall: a single hung cold open/SQL must not eat the
                 // whole budget or hang past it (mirrors the page resolver).
@@ -155,8 +155,8 @@ export const GET: APIRoute = async ({ params, url, request }) => {
             // only safe when every intended shard was probed cleanly with no row.
             // If we bailed on budget or any shard errored, the entity MAY exist
             // on an un-probed/errored shard -> retryable 503, never a false 404.
-            if (budgetBailed || shardErrors.length > 0 || resolution.indexResolved) { // ENT-503: index says it exists
-                console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${resolution.orderedShards.length} ${describeResolution(resolution)}`, shardErrors.join('; '));
+            if (budgetBailed || shardErrors.length > 0 || resolution.indexResolved) { // ENT-503 v127 f1: coherent ASCII index hit (casing-safe: oracle ASCII_RE + lower() SQL)
+                console.error('[ENTITY] inconclusive', rawId, `bailed=${budgetBailed} probed=${probedShards}/${resolution.orderedShards.length} ${describeResolution(resolution, budgetBailed, shardErrors.length)}`, shardErrors.join('; '));
                 // Honest retryable signal for Agent clients: explicit Retry-After
                 // so a client retries (instead of hard-coding a fallback), and
                 // no-store so this transient negative is never cached as truth.

@@ -7,7 +7,10 @@
  * fetches only the header and a few small key-table / record windows.
  *
  * Coherence: the header read captures the object's etag; EVERY later window
- * read is conditional on that etag (R2 onlyIf.etagMatches; CDN If-Match). If
+ * read is conditional on that etag (R2 onlyIf.etagMatches; CDN If-Match). An
+ * object WITHOUT an etag fails closed (IndexUnpinnable -> degrade): a window is
+ * never read unpinned, since a misaligned read of another version could turn a
+ * present key into a "definite miss" under a coherent build_id. If
  * the object was replaced mid-lookup (a publish between reads), the read fails
  * with IndexVersionChanged instead of mixing two bakes' bytes — so the build_id
  * that gates absence proof always describes the exact bytes that were searched.
@@ -20,6 +23,10 @@ export const DEFAULT_INDEX_KEY = 'data/id-index.bin';
 
 export class IndexVersionChanged extends Error {
     constructor(key: string) { super(`id-index ${key} changed between reads`); }
+}
+
+export class IndexUnpinnable extends Error {
+    constructor(key: string) { super(`id-index ${key} has no etag; refusing unpinned reads`); }
 }
 
 export interface IndexObject {
@@ -49,15 +56,19 @@ export async function readIndexHead(env: any, key: string, length: number): Prom
     if (env?.R2_ASSETS && !simulating(env)) {
         const o = await env.R2_ASSETS.get(key, { range: { offset: 0, length } });
         if (!o || typeof o.arrayBuffer !== 'function') return null;
+        const etag = clean(o.etag || o.httpEtag);
+        if (!etag) throw new IndexUnpinnable(key); // fail closed
         const bytes = new Uint8Array(await o.arrayBuffer());
-        return { obj: { key, etag: clean(o.etag || o.httpEtag), size: Number(o.size) || 0 }, bytes };
+        return { obj: { key, etag, size: Number(o.size) || 0 }, bytes };
     }
     const res = await fetch(cdnUrl(key), { headers: { Range: `bytes=0-${length - 1}` } });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`id-index head HTTP ${res.status}`);
     const total = Number((res.headers.get('content-range') || '').split('/')[1]) || Number(res.headers.get('content-length')) || 0;
+    const etag = clean(res.headers.get('etag'));
+    if (!etag) throw new IndexUnpinnable(key); // fail closed
     const bytes = new Uint8Array(await res.arrayBuffer()).subarray(0, length);
-    return { obj: { key, etag: clean(res.headers.get('etag')), size: total }, bytes };
+    return { obj: { key, etag, size: total }, bytes };
 }
 
 /**
@@ -66,22 +77,17 @@ export async function readIndexHead(env: any, key: string, length: number): Prom
  * short read (never returns partial bytes).
  */
 export async function readIndexRange(env: any, obj: IndexObject, offset: number, length: number): Promise<DataView> {
+    if (!obj.etag) throw new IndexUnpinnable(obj.key); // never an unpinned read
     let bytes: Uint8Array;
     if (env?.R2_ASSETS && !simulating(env)) {
-        const o = await env.R2_ASSETS.get(obj.key, {
-            range: { offset, length },
-            onlyIf: obj.etag ? { etagMatches: obj.etag } : undefined,
-        });
+        const o = await env.R2_ASSETS.get(obj.key, { range: { offset, length }, onlyIf: { etagMatches: obj.etag } });
         if (!o) throw new IndexVersionChanged(obj.key); // deleted since the head read
         // Precondition failed -> R2 returns metadata without a body.
         if (typeof o.arrayBuffer !== 'function') throw new IndexVersionChanged(obj.key);
-        if (obj.etag && clean(o.etag || o.httpEtag) && clean(o.etag || o.httpEtag) !== obj.etag) {
-            throw new IndexVersionChanged(obj.key);
-        }
+        if (clean(o.etag || o.httpEtag) !== obj.etag) throw new IndexVersionChanged(obj.key);
         bytes = new Uint8Array(await o.arrayBuffer());
     } else {
-        const headers: Record<string, string> = { Range: `bytes=${offset}-${offset + length - 1}` };
-        if (obj.etag) headers['If-Match'] = `"${obj.etag}"`;
+        const headers = { Range: `bytes=${offset}-${offset + length - 1}`, 'If-Match': `"${obj.etag}"` };
         const res = await fetch(cdnUrl(obj.key), { headers });
         if (res.status === 412) throw new IndexVersionChanged(obj.key);
         if (!res.ok) throw new Error(`id-index range HTTP ${res.status}`);

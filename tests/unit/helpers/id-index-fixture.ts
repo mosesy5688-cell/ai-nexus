@@ -1,4 +1,11 @@
 import { xxhash64 } from '../../../src/utils/xxhash64-core.js';
+import { lookupForms } from '../../../src/lib/id-index-reader.js';
+
+/** ENT-503: the range reader has no whole-index load; warming = one completed
+ * lookup (caches the header of the current object version). */
+export async function warmIndex(env: any, blobKey?: string): Promise<boolean> {
+    return (await lookupForms(env, ['__warm__'], blobKey)).status === 'ok';
+}
 
 // Shared slim-v2 id-index.bin fixture for the B4 absence-oracle test suites.
 // Builds the SAME on-disk layout id-index-generator.js emits and
